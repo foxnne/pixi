@@ -1,0 +1,3 @@
+[submodule "src/deps/upaya"]
+	path = src/deps/upaya
+	url = https://github.com/foxnne/zig-upaya.git
