@@ -16,7 +16,8 @@ pub fn draw() void {
 
             if (imgui.igMenuItemBool("New", imgui.icons.file, false, true)){
                 new_file_popup = true;
-            }                
+            }           
+     
         }
 
         if (imgui.igBeginMenu("View", true)) {

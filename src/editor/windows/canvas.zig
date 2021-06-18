@@ -19,6 +19,11 @@ pub const File = struct {
     canvas: Canvas,
 };
 
+pub const Layer = struct {
+    name: []const u8,
+    texture: upaya.Texture,
+};
+
 var camera: Camera = .{ .zoom = 2 };
 var screen_pos: imgui.ImVec2 = undefined;
 
@@ -41,7 +46,6 @@ pub fn newFile(name: []const u8, canvas: Canvas) void {
     files.insert(0, .{ .name = name, .canvas = canvas }) catch unreachable;
     backgrounds.insert(0, upaya.Texture.initChecker(files.items[active_file_index].canvas.width, files.items[active_file_index].canvas.height, checkerColor1, checkerColor2)) catch unreachable;
     active_file_index = 0;
-
 }
 
 pub fn getNumberOfFiles() usize {
@@ -58,6 +62,15 @@ pub fn draw() void {
     if (window_size.x == 0 or window_size.y == 0) return;
 
     if (files.items.len > 0) {
+        var background_pos = .{
+            .x = -@intToFloat(f32, backgrounds.items[active_file_index].width) / 2,
+            .y = -@intToFloat(f32, backgrounds.items[active_file_index].height) / 2,
+        };
+
+        // draw background texture
+        drawTexture(backgrounds.items[active_file_index], background_pos);
+        // draw tile grid
+        drawGrid(files.items[active_file_index].canvas, background_pos);
 
         // draw open files tabs
         if (imgui.igBeginTabBar("Canvas Tab Bar", imgui.ImGuiTabBarFlags_Reorderable)) {
@@ -65,21 +78,14 @@ pub fn draw() void {
 
             for (files.items) |file, i| {
                 var open: bool = true;
-                var name = @ptrCast([*c]const u8, file.name);
-                if (imgui.igBeginTabItem(name, &open, imgui.ImGuiTabBarFlags_IsFocused)) {
+
+                //var name = std.fmt.allocPrint(upaya.mem.allocator, "{s}\u{0}", .{file.name}) catch unreachable;
+                //TODO: this crashes on windows unless 0 terminated as above, but then it crashes when closing non-active tabs
+
+                var namePtr = @ptrCast([*c]const u8, file.name);
+                if (imgui.igBeginTabItem(namePtr, &open, imgui.ImGuiTabItemFlags_UnsavedDocument)) {
                     defer imgui.igEndTabItem();
                     active_file_index = i;
-
-                    var background_pos = .{ 
-                        .x = -@intToFloat(f32, backgrounds.items[active_file_index].width) / 2, 
-                        .y = -@intToFloat(f32, backgrounds.items[active_file_index].height) / 2, 
-                    };
-
-                    // draw background texture
-                    drawTexture(backgrounds.items[active_file_index], background_pos);
-
-                    // draw tile grid
-                    drawGrid(files.items[active_file_index].canvas, background_pos);
                 }
 
                 if (!open) {
@@ -93,11 +99,11 @@ pub fn draw() void {
         // handle inputs
         if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
             if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Middle, 0)) {
-                input.pan(&camera);
+                input.pan(&camera, imgui.ImGuiMouseButton_Middle);
             }
 
             if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and imgui.ogKeyDown(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
-                input.pan(&camera);
+                input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
 
             if (imgui.igGetIO().MouseWheel != 0) {
