@@ -4,52 +4,43 @@ const imgui = @import("imgui");
 
 pub const Camera = @import("../utils/camera.zig").Camera;
 
+
 const input = @import("../input/input.zig");
+const types = @import("../types/types.zig");
 
-//todo: move these structs to own files
-pub const Canvas = struct {
-    width: i32,
-    height: i32,
-    tileWidth: i32,
-    tileHeight: i32,
-};
-
-pub const File = struct {
-    name: []const u8,
-    canvas: Canvas,
-};
-
-pub const Layer = struct {
-    name: []const u8,
-    texture: upaya.Texture,
-};
+const File = types.File;
+const Layer = types.Layer;
+const Animation = types.Animation;
 
 var camera: Camera = .{ .zoom = 2 };
 var screen_pos: imgui.ImVec2 = undefined;
 
-const checkerColor1: upaya.math.Color = .{ .value = 0xFFDDDDDD };
-const checkerColor2: upaya.math.Color = .{ .value = 0xFFEEEEEE };
 const gridColor: upaya.math.Color = .{ .value = 0xFF999999 };
 var logo: ?upaya.Texture = null;
 
 var active_file_index: usize = 0;
 var files: std.ArrayList(File) = undefined;
-var backgrounds: std.ArrayList(upaya.Texture) = undefined;
 
 pub fn init() void {
     files = std.ArrayList(File).init(upaya.mem.allocator);
-    backgrounds = std.ArrayList(upaya.Texture).init(upaya.mem.allocator);
+    //backgrounds = std.ArrayList(upaya.Texture).init(upaya.mem.allocator);
     logo = upaya.Texture.initFromFile("assets/pixi.png", .nearest) catch unreachable;
 }
 
-pub fn newFile(name: []const u8, canvas: Canvas) void {
-    files.insert(0, .{ .name = name, .canvas = canvas }) catch unreachable;
-    backgrounds.insert(0, upaya.Texture.initChecker(files.items[active_file_index].canvas.width, files.items[active_file_index].canvas.height, checkerColor1, checkerColor2)) catch unreachable;
+pub fn newFile(file: File) void {
+    files.insert(0, file) catch unreachable;
     active_file_index = 0;
 }
 
 pub fn getNumberOfFiles() usize {
     return files.items.len;
+}
+
+pub fn getActiveFile() ?*File {
+    if (files.items.len == 0)
+        return null;
+
+    return &files.items[active_file_index];
 }
 
 pub fn draw() void {
@@ -63,14 +54,15 @@ pub fn draw() void {
 
     if (files.items.len > 0) {
         var background_pos = .{
-            .x = -@intToFloat(f32, backgrounds.items[active_file_index].width) / 2,
-            .y = -@intToFloat(f32, backgrounds.items[active_file_index].height) / 2,
+            .x = -@intToFloat(f32, files.items[active_file_index].background.width) / 2,
+            .y = -@intToFloat(f32, files.items[active_file_index].background.height) / 2,
         };
 
+
         // draw background texture
-        drawTexture(backgrounds.items[active_file_index], background_pos);
+        drawTexture(files.items[active_file_index].background, background_pos);
         // draw tile grid
-        drawGrid(files.items[active_file_index].canvas, background_pos);
+        drawGrid(files.items[active_file_index], background_pos);
 
         // draw open files tabs
         if (imgui.igBeginTabBar("Canvas Tab Bar", imgui.ImGuiTabBarFlags_Reorderable)) {
@@ -89,9 +81,9 @@ pub fn draw() void {
                 }
 
                 if (!open) {
+                    // TODO: do i need to deinit all the layers and background?
                     active_file_index = 0;
-                    _ = files.swapRemove(i);
-                    _ = backgrounds.swapRemove(i);
+                    var f = files.swapRemove(i);
                 }
             }
         }
@@ -120,14 +112,14 @@ pub fn draw() void {
     }
 }
 
-fn drawGrid(canvas: Canvas, position: imgui.ImVec2) void {
-    var tilesWide = @divExact(canvas.width, canvas.tileWidth);
-    var tilesTall = @divExact(canvas.height, canvas.tileHeight);
+fn drawGrid(file: File, position: imgui.ImVec2) void {
+    var tilesWide = @divExact(file.width, file.tileWidth);
+    var tilesTall = @divExact(file.height, file.tileHeight);
 
     var x: i32 = 0;
     while (x <= tilesWide) : (x += 1) {
-        var top = position.add(.{ .x = @intToFloat(f32, x * canvas.tileWidth), .y = 0 });
-        var bottom = position.add(.{ .x = @intToFloat(f32, x * canvas.tileWidth), .y = @intToFloat(f32, canvas.height) });
+        var top = position.add(.{ .x = @intToFloat(f32, x * file.tileWidth), .y = 0 });
+        var bottom = position.add(.{ .x = @intToFloat(f32, x * file.tileWidth), .y = @intToFloat(f32, file.height) });
 
         top = camera.matrix().transformImVec2(top).add(screen_pos);
         bottom = camera.matrix().transformImVec2(bottom).add(screen_pos);
@@ -137,16 +129,14 @@ fn drawGrid(canvas: Canvas, position: imgui.ImVec2) void {
 
     var y: i32 = 0;
     while (y <= tilesTall) : (y += 1) {
-        var left = position.add(.{ .x = 0, .y = @intToFloat(f32, y * canvas.tileHeight) });
-        var right = position.add(.{ .x = @intToFloat(f32, canvas.width), .y = @intToFloat(f32, y * canvas.tileHeight) });
+        var left = position.add(.{ .x = 0, .y = @intToFloat(f32, y * file.tileHeight) });
+        var right = position.add(.{ .x = @intToFloat(f32, file.width), .y = @intToFloat(f32, y * file.tileHeight) });
 
         left = camera.matrix().transformImVec2(left).add(screen_pos);
         right = camera.matrix().transformImVec2(right).add(screen_pos);
 
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), left, right, gridColor.value, 1);
     }
-
-    var textPos = .{ .x = position.x + @intToFloat(f32, canvas.width) / 2, .y = position.y };
 }
 
 fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2) void {
@@ -169,8 +159,6 @@ fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2) void {
 
 pub fn close() void {
     logo.?.deinit();
-    for (backgrounds.items) |bg|
-        bg.deinit();
-
-    //background.?.deinit();
+    for (files.items) |file|
+        file.background.deinit();
 }

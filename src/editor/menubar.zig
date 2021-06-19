@@ -5,6 +5,7 @@ const new = @import("windows/new.zig");
 const editor = @import("editor.zig");
 
 pub var new_file_popup: bool = false;
+pub var demo_window: bool = false;
 
 pub fn draw() void {
 
@@ -27,12 +28,21 @@ pub fn draw() void {
 
                 editor.resetDockLayout();
             }
+
+            if (imgui.igMenuItemBool("IMGUI Demo Window", 0, false, true)){
+
+                demo_window = !demo_window;
+            }
         }
     }
 
     if (new_file_popup)
-    {
         imgui.igOpenPopup("New File");
-    }
+
+    if (demo_window)
+        imgui.igShowDemoWindow(&demo_window);
+    
+
+
 
 }
