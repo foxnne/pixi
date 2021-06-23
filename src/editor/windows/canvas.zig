@@ -4,9 +4,9 @@ const imgui = @import("imgui");
 
 pub const Camera = @import("../utils/camera.zig").Camera;
 
-
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
+const toolbar = @import("../windows/toolbar.zig");
 
 const File = types.File;
 const Layer = types.Layer;
@@ -90,6 +90,11 @@ pub fn draw() void {
 
         // handle inputs
         if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
+            if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)){
+                input.pan(&camera, imgui.ImGuiMouseButton_Left);
+            }
+
+
             if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Middle, 0)) {
                 input.pan(&camera, imgui.ImGuiMouseButton_Middle);
             }

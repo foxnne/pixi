@@ -14,10 +14,7 @@ var foreground_color: imgui.ImVec4 = undefined;
 var text_color: imgui.ImVec4 = undefined;
 var highlight: imgui.ImVec4 = undefined;
 
-
-
 pub fn init() void {
-
     background_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(35, 36, 44, 255));
     foreground_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(42, 44, 54, 255));
 
@@ -27,6 +24,7 @@ pub fn init() void {
     style.FrameRounding = 8;
     style.WindowBorderSize = 1;
     style.WindowRounding = 8;
+    style.WindowMinSize = .{ .x = 100, .y = 100}; 
     style.WindowMenuButtonPosition = imgui.ImGuiDir_None;
     style.Colors[imgui.ImGuiCol_WindowBg] = background_color;
     style.Colors[imgui.ImGuiCol_MenuBarBg] = foreground_color;
@@ -46,31 +44,27 @@ pub fn init() void {
 }
 
 pub fn setupDockLayout(id: imgui.ImGuiID) void {
-
     var dock_main_id = id;
+
 
     var bottom_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Down, 0.2, null, &dock_main_id);
 
     // dock_main_id is the left node after this
-    var left_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Right, 0.9, null, &dock_main_id);
+    var left_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Left, 0.05, null, &dock_main_id);
 
-    var right_id: imgui.ImGuiID = 0;
+    var mid_id: imgui.ImGuiID = 0;
     // dock_main_id is the right most id after this
-    var mid_id = imgui.igDockBuilderSplitNode(left_id, imgui.ImGuiDir_Left, 0.9, null, &right_id);
+    var right_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Right, 0.15, null, &mid_id);
 
     imgui.igDockBuilderDockWindow("Canvas", mid_id);
-    imgui.igDockBuilderDockWindow("Toolbar", dock_main_id);
+    imgui.igDockBuilderDockWindow("Toolbar", left_id);
     imgui.igDockBuilderDockWindow("Layers", right_id);
     imgui.igDockBuilderDockWindow("Animations", bottom_id);
-
 
     imgui.igDockBuilderFinish(id);
 }
 
-pub fn resetDockLayout () void {
-
-
-}
+pub fn resetDockLayout() void {}
 
 pub fn update() void {
     menuBar.draw();

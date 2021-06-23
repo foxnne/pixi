@@ -8,6 +8,7 @@ var zoom_tolerance: f32 = 0;
 pub const Camera = @import("../utils/camera.zig").Camera;
 
 pub fn pan(camera: *Camera, button: imgui.ImGuiMouseButton) void {
+    imgui.igSetMouseCursor(imgui.ImGuiMouseCursor_Hand);
     var pan_delta = imgui.ogGetMouseDragDelta(button, 0);
 
     camera.position.x -= pan_delta.x * 1 / camera.zoom;

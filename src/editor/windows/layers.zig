@@ -23,31 +23,34 @@ pub fn draw() void {
             imgui.igSeparator();
 
             for (f.layers.items) |layer, i| {
-
                 var eye = if (!layer.hidden) imgui.icons.eye else imgui.icons.eye_slash;
-                
+
+                imgui.igBeginGroup();
+
                 imgui.igPushIDInt(@intCast(i32, i));
-                if (imgui.ogColoredButton(0x00000000, eye)){
+
+                if (imgui.ogColoredButton(0x00000000, eye)) {
                     f.layers.items[i].hidden = !layer.hidden;
                 }
-                
-                imgui.igSameLine(0, 5);
-                var selected = i == active_layer_index;
-                if(imgui.ogSelectableBool(@ptrCast([*c]const u8, layer.name), selected , imgui.ImGuiSelectableFlags_None, .{}))
-                    active_layer_index = i;
                 imgui.igPopID();
-                
+
+                imgui.igSameLine(0, 5);
+
+                if (imgui.ogSelectableBool(@ptrCast([*c]const u8, layer.name), i == active_layer_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
+                    active_layer_index = i;
+
+                imgui.igEndGroup();
+
                 if (imgui.igIsItemActive() and !imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)) {
                     var i_next = @intCast(i32, i) + if (imgui.ogGetMouseDragDelta(imgui.ImGuiMouseButton_Left, 0).y < 0) @as(i32, -1) else @as(i32, 1);
-                    if (i_next >= 0 and i_next < f.layers.items.len){
+                    if (i_next >= 0 and i_next < f.layers.items.len) {
 
                         //var l = f.layers.orderedRemove(i);
                         //f.layers.insert(@intCast(usize, i_next), l) catch unreachable;
-                        f.layers.items[i] = f.layers.items[@intCast(usize,i_next)];
-                        f.layers.items[@intCast(usize,i_next)] = layer;
+                        f.layers.items[i] = f.layers.items[@intCast(usize, i_next)];
+                        f.layers.items[@intCast(usize, i_next)] = layer;
                         active_layer_index = @intCast(usize, i_next);
                         imgui.igResetMouseDragDelta(imgui.ImGuiMouseButton_Left);
-                        
                     }
                 }
             }
