@@ -16,7 +16,7 @@ pub const Tool = enum {
 };
 
 pub fn draw() void {
-    imgui.ogSetNextWindowSize(.{ .x = 100, .y = 500 }, imgui.ImGuiCond_Always);
+    //imgui.ogSetNextWindowSize(.{ .x = 100, .y = 500 }, imgui.ImGuiCond_Always);
 
     
 
@@ -35,6 +35,7 @@ pub fn draw() void {
         imgui.igText("Draw");
         imgui.igSeparator();
 
+        //imgui.igPushStyleVarVec2(imgui.ImGuiStyleVar_ButtonTextAlign, .{.x = 0.5, .y = 0.5});
         if (imgui.ogSelectableBool(imgui.icons.mouse_pointer, selected_tool == .arrow, imgui.ImGuiSelectableFlags_None, .{.x = 0, .y = 0}))
             selected_tool = .arrow;
     
@@ -46,6 +47,7 @@ pub fn draw() void {
 
         if (imgui.ogSelectableBool(imgui.icons.eraser, selected_tool == .eraser, imgui.ImGuiSelectableFlags_None, .{.x = 0, .y = 0}))
             selected_tool = .eraser;
+
 
         imgui.igText("Select");
         imgui.igSeparator();

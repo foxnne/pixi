@@ -12,7 +12,7 @@ pub fn main() !void {
         .update = editor.update,
         .shutdown = editor.shutdown,
         .docking = true,
-        .docking_flags = imgui.ImGuiDockNodeFlags_NoWindowMenuButton | imgui.ImGuiDockNodeFlags_HiddenTabBar | imgui.ImGuiDockNodeFlags_NoCloseButton | imgui.ImGuiDockNodeFlags_NoTabBar,
+        .docking_flags = imgui.ImGuiDockNodeFlags_NoWindowMenuButton | imgui.ImGuiDockNodeFlags_NoCloseButton,
         .setupDockLayout = editor.setupDockLayout,
         .window_title = "Pixi",
         .onFileDropped = editor.onFileDropped,
