@@ -23,7 +23,6 @@ var files: std.ArrayList(File) = undefined;
 
 pub fn init() void {
     files = std.ArrayList(File).init(upaya.mem.allocator);
-    //backgrounds = std.ArrayList(upaya.Texture).init(upaya.mem.allocator);
     logo = upaya.Texture.initFromFile("assets/pixi.png", .nearest) catch unreachable;
 }
 
@@ -44,6 +43,7 @@ pub fn getActiveFile() ?*File {
 }
 
 pub fn draw() void {
+
     if (!imgui.igBegin("Canvas", null, imgui.ImGuiWindowFlags_None)) return;
     defer imgui.igEnd();
 
