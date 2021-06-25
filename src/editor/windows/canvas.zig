@@ -7,6 +7,7 @@ pub const Camera = @import("../utils/camera.zig").Camera;
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
 const toolbar = @import("../windows/toolbar.zig");
+const layers = @import("../windows/layers.zig");
 
 const File = types.File;
 const Layer = types.Layer;
@@ -27,8 +28,8 @@ pub fn init() void {
 }
 
 pub fn newFile(file: File) void {
-    files.insert(0, file) catch unreachable;
     active_file_index = 0;
+    files.insert(0, file) catch unreachable;
 }
 
 pub fn getNumberOfFiles() usize {
@@ -43,7 +44,6 @@ pub fn getActiveFile() ?*File {
 }
 
 pub fn draw() void {
-
     if (!imgui.igBegin("Canvas", null, imgui.ImGuiWindowFlags_None)) return;
     defer imgui.igEnd();
 
@@ -58,9 +58,18 @@ pub fn draw() void {
             .y = -@intToFloat(f32, files.items[active_file_index].background.height) / 2,
         };
 
-
         // draw background texture
         drawTexture(files.items[active_file_index].background, background_pos);
+
+        // draw layers
+        for (files.items[active_file_index].layers.items) |layer, i| {
+            if (layer.hidden)
+                continue;
+
+            layer.updateTexture();
+            drawTexture(layer.texture, background_pos);
+        }
+
         // draw tile grid
         drawGrid(files.items[active_file_index], background_pos);
 
@@ -84,16 +93,40 @@ pub fn draw() void {
                     // TODO: do i need to deinit all the layers and background?
                     active_file_index = 0;
                     var f = files.swapRemove(i);
+                    //f.deinit();
+
                 }
             }
         }
 
         // handle inputs
         if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
-            if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)){
+            if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
 
+            if (toolbar.selected_tool == .pencil) {
+                if (files.items.len > 0) {
+                    var mouse_pos = imgui.igGetIO().MousePos;
+
+                    var tl = camera.matrix().transformImVec2(background_pos).add(screen_pos);
+                    var br: imgui.ImVec2 = background_pos;
+                    br.x += @intToFloat(f32, files.items[active_file_index].background.width);
+                    br.y += @intToFloat(f32, files.items[active_file_index].background.height);
+                    br = camera.matrix().transformImVec2(br).add(screen_pos);
+
+                    if (mouse_pos.x > tl.x and mouse_pos.x < br.x and mouse_pos.y < br.y and mouse_pos.y > tl.y) {
+                        if (layers.getActiveLayer()) |layer| {
+                            var pixel_pos: imgui.ImVec2 = .{};
+
+                            pixel_pos.x = @divTrunc(mouse_pos.x - tl.x, camera.zoom);
+                            pixel_pos.y = @divTrunc(mouse_pos.y - tl.y, camera.zoom);
+
+                            layer.image.pixels[@floatToInt(usize, pixel_pos.x + pixel_pos.y * @intToFloat(f32, layer.texture.width))] = toolbar.foreground_color.value;
+                        }
+                    }
+                }
+            }
 
             if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Middle, 0)) {
                 input.pan(&camera, imgui.ImGuiMouseButton_Middle);
@@ -145,17 +178,17 @@ fn drawGrid(file: File, position: imgui.ImVec2) void {
 }
 
 fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2) void {
-    const tl = camera.matrix().transformImVec2(position);
+    const tl = camera.matrix().transformImVec2(position).add(screen_pos);
     var br = position;
     br.x += @intToFloat(f32, texture.width);
     br.y += @intToFloat(f32, texture.height);
-    br = camera.matrix().transformImVec2(br);
+    br = camera.matrix().transformImVec2(br).add(screen_pos);
 
     imgui.ogImDrawList_AddImage(
         imgui.igGetWindowDrawList(),
         texture.imTextureID(),
-        tl.add(screen_pos),
-        br.add(screen_pos),
+        tl,
+        br,
         .{},
         .{ .x = 1, .y = 1 },
         0xFFFFFFFF,

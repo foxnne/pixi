@@ -2,6 +2,9 @@ const std = @import("std");
 const upaya = @import("upaya");
 const imgui = @import("imgui");
 
+var open_foreground: bool = false;
+var open_background: bool = false;
+
 pub var foreground_color: upaya.math.Color = upaya.math.Color.black;
 pub var background_color: upaya.math.Color = upaya.math.Color.white;
 
@@ -25,19 +28,24 @@ pub fn draw() void {
         imgui.igText("Color");
         imgui.igSeparator();
 
-        //imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), .{}, .{.x = toolbar_half_width, .y = 40}, foreground_color.value);
-        
+        if (imgui.ogColoredButtonEx(foreground_color.value, "", .{ .x = toolbar_half_width, .y = 40 }))
+            open_foreground = true;
 
-        if (imgui.ogColoredButtonEx(foreground_color.value, "", .{.x = toolbar_half_width, .y = 40})) {}
+        if (imgui.igBeginPopup("Foreground Color", imgui.ImGuiWindowFlags_None)) {
+            defer imgui.igEndPopup();
+            var color: imgui.ImVec4 = foreground_color.asImVec4();
+            if (imgui.igColorPicker3("Foreground", @ptrCast([*c]f32, &color), imgui.ImGuiColorEditFlags_DisplayRGB)) {}
+        }
+
         imgui.igSameLine(0, space);
-        if (imgui.ogColoredButtonEx(background_color.value, "", .{.x = toolbar_half_width, .y = 40})) {}
+        if (imgui.ogColoredButtonEx(background_color.value, "", .{ .x = toolbar_half_width, .y = 40 })) {}
 
         imgui.igSeparator();
 
         imgui.igText("Draw");
         imgui.igSeparator();
 
-        imgui.ogPushStyleVarVec2(imgui.ImGuiStyleVar_SelectableTextAlign, .{.x = 0.5, .y = 0.5});
+        imgui.ogPushStyleVarVec2(imgui.ImGuiStyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
 
         if (imgui.ogSelectableBool(imgui.icons.mouse_pointer, selected_tool == .arrow, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .arrow;
@@ -60,5 +68,9 @@ pub fn draw() void {
 
         imgui.igText("Animation");
         imgui.igSeparator();
+    }
+
+    if (open_foreground) {
+        imgui.igOpenPopup("Foreground Color");
     }
 }

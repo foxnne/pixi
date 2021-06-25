@@ -15,9 +15,9 @@ pub fn draw() void {
         if (imgui.igBeginMenu("File", true)) {
             defer imgui.igEndMenu();
 
-            if (imgui.igMenuItemBool("New " ++ imgui.icons.file, "cmd+n", false, true)){
+            if (imgui.igMenuItemBool("New " ++ imgui.icons.file, "cmd+n", false, true))
                 new_file_popup = true;
-            }           
+                     
      
         }
 

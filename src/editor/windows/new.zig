@@ -49,7 +49,11 @@ pub fn draw() void {
             new_file.name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable;
             new_file.background = upaya.Texture.initChecker(new_file.width, new_file.height, checkerColor1, checkerColor2);
             new_file.layers = std.ArrayList(Layer).init(upaya.mem.allocator);
-            new_file.layers.append(.{.name = "Layer 0", .texture = upaya.Texture.initTransparent(new_file.width, new_file.height)}) catch unreachable;
+
+            var image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
+            image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
+
+            new_file.layers.append(.{.name = "Layer 0", .image = image, .texture = image.asTexture(.nearest)}) catch unreachable;
 
             canvas.newFile(new_file);
             menubar.new_file_popup = false;
