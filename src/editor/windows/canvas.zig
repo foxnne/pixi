@@ -102,6 +102,8 @@ pub fn draw() void {
             }
         }
 
+        // store previous tool and reapply it after to allow quick switching
+        var previous_tool = toolbar.selected_tool;
         // handle inputs
         if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None) and files.items.len > 0) {
             
@@ -110,7 +112,6 @@ pub fn draw() void {
             }
 
             if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Middle, 0)) {
-                toolbar.selected_tool = .hand;
                 input.pan(&camera, imgui.ImGuiMouseButton_Middle);
             }
 
@@ -136,8 +137,10 @@ pub fn draw() void {
 
                         if (layer.image.pixels[index] == 0x00000000) {
                             toolbar.selected_tool = .eraser;
+                            previous_tool = toolbar.selected_tool;
                         } else {
                             toolbar.selected_tool = .pencil;
+                            previous_tool = toolbar.selected_tool;
                             toolbar.foreground_color = upaya.math.Color{ .value = layer.image.pixels[index] };
 
                             imgui.igBeginTooltip();
@@ -156,6 +159,8 @@ pub fn draw() void {
                     }
                 }
             }
+
+            toolbar.selected_tool = previous_tool;
         }
     } else {
         camera.position = .{ .x = 0, .y = 0 };
