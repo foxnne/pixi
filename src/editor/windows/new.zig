@@ -45,7 +45,7 @@ pub fn draw() void {
             new_file.height = new_file.tileHeight * tiles_tall;
             new_file.width = new_file.tileWidth * tiles_wide;
 
-            var name = std.fmt.allocPrint(upaya.mem.allocator, "untitled_{d}", .{canvas.getNumberOfFiles()}) catch unreachable;
+            var name = std.fmt.allocPrint(upaya.mem.allocator, "untitled_{d}\u{0}", .{canvas.getNumberOfFiles()}) catch unreachable;
             defer upaya.mem.allocator.free(name);
 
             new_file.name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable;
