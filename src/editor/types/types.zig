@@ -9,6 +9,7 @@ pub const File = struct {
     tileHeight: i32,
     background: upaya.Texture,
     layers: std.ArrayList(Layer),
+    sprites: std.ArrayList(Sprite),
 
     pub fn deinit (self: *File) void {
         for (self.layers.items) |layer| {
@@ -16,6 +17,8 @@ pub const File = struct {
             layer.image.deinit();
         }
         self.layers.deinit();
+        self.background.deinit();
+        self.sprites.deinit();
     }
 };
 
@@ -28,6 +31,12 @@ pub const Layer = struct {
     pub fn updateTexture (self: Layer) void {
         self.texture.setColorData(self.image.pixels);
     }
+};
+
+pub const Sprite = struct {
+    name: []const u8,
+    index: usize,
+    origin: upaya.math.Vec2,
 };
 
 pub const Animation = struct {

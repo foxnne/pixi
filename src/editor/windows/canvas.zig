@@ -40,6 +40,9 @@ pub fn getActiveFile() ?*File {
     if (files.items.len == 0)
         return null;
 
+    if (active_file_index >= files.items.len)
+        active_file_index = files.items.len - 1;
+
     return &files.items[active_file_index];
 }
 
@@ -53,13 +56,13 @@ pub fn draw() void {
     if (window_size.x == 0 or window_size.y == 0) return;
 
     if (files.items.len > 0) {
-        var background_pos = .{
+        var texture_position = .{
             .x = -@intToFloat(f32, files.items[active_file_index].background.width) / 2,
             .y = -@intToFloat(f32, files.items[active_file_index].background.height) / 2,
         };
 
         // draw background texture
-        drawTexture(files.items[active_file_index].background, background_pos);
+        drawTexture(files.items[active_file_index].background, texture_position, 0xFFFFFFFF);
 
         // draw layers
         for (files.items[active_file_index].layers.items) |layer, i| {
@@ -67,11 +70,11 @@ pub fn draw() void {
                 continue;
 
             layer.updateTexture();
-            drawTexture(layer.texture, background_pos);
+            drawTexture(layer.texture, texture_position, 0xFFFFFFFF);
         }
 
         // draw tile grid
-        drawGrid(files.items[active_file_index], background_pos);
+        drawGrid(files.items[active_file_index], texture_position);
 
         // draw open files tabs
         if (imgui.igBeginTabBar("Canvas Tab Bar", imgui.ImGuiTabBarFlags_Reorderable)) {
@@ -100,44 +103,58 @@ pub fn draw() void {
         }
 
         // handle inputs
-        if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
+        if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None) and files.items.len > 0) {
+            
             if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
 
-            if (toolbar.selected_tool == .pencil) {
-                if (files.items.len > 0) {
-                    var mouse_pos = imgui.igGetIO().MousePos;
-
-                    var tl = camera.matrix().transformImVec2(background_pos).add(screen_pos);
-                    var br: imgui.ImVec2 = background_pos;
-                    br.x += @intToFloat(f32, files.items[active_file_index].background.width);
-                    br.y += @intToFloat(f32, files.items[active_file_index].background.height);
-                    br = camera.matrix().transformImVec2(br).add(screen_pos);
-
-                    if (mouse_pos.x > tl.x and mouse_pos.x < br.x and mouse_pos.y < br.y and mouse_pos.y > tl.y) {
-                        if (layers.getActiveLayer()) |layer| {
-                            var pixel_pos: imgui.ImVec2 = .{};
-
-                            pixel_pos.x = @divTrunc(mouse_pos.x - tl.x, camera.zoom);
-                            pixel_pos.y = @divTrunc(mouse_pos.y - tl.y, camera.zoom);
-
-                            layer.image.pixels[@floatToInt(usize, pixel_pos.x + pixel_pos.y * @intToFloat(f32, layer.texture.width))] = toolbar.foreground_color.value;
-                        }
-                    }
-                }
-            }
-
             if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Middle, 0)) {
+                toolbar.selected_tool = .hand;
                 input.pan(&camera, imgui.ImGuiMouseButton_Middle);
             }
 
             if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and imgui.ogKeyDown(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
+                toolbar.selected_tool = .hand;
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
 
             if (imgui.igGetIO().MouseWheel != 0) {
                 input.zoom(&camera);
+            }
+
+            if (imgui.igGetIO().MouseDown[1] or ((imgui.igGetIO().KeyAlt or imgui.igGetIO().KeySuper) and imgui.igGetIO().MouseDown[0])) {
+                if (layers.getActiveLayer()) |layer| {
+                    if (getTextureCoords(layer.texture, texture_position, imgui.igGetIO().MousePos)) |coords| {
+                        var index = getTextureIndexFromCoords(layer.texture, coords);
+
+                        imgui.igBeginTooltip();
+                        var coord_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d},{d}\u{0}", .{ imgui.icons.eye_dropper, coords.x + 1, coords.y + 1 }) catch unreachable;
+                        imgui.igText(@ptrCast([*c]const u8, coord_text));
+                        upaya.mem.allocator.free(coord_text);
+                        imgui.igEndTooltip();
+
+                        if (layer.image.pixels[index] == 0x00000000) {
+                            toolbar.selected_tool = .eraser;
+                        } else {
+                            toolbar.selected_tool = .pencil;
+                            toolbar.foreground_color = upaya.math.Color{ .value = layer.image.pixels[index] };
+
+                            imgui.igBeginTooltip();
+                            _ = imgui.ogColoredButtonEx(toolbar.foreground_color.value, "###1", .{ .x = 100, .y = 100 });
+                            imgui.igEndTooltip();
+                        }
+                    }
+                }
+            }
+
+            if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
+                if (layers.getActiveLayer()) |layer| {
+                    if (getTextureIndex(layer.texture, texture_position, imgui.igGetIO().MousePos)) |index| {
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0))
+                            layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+                    }
+                }
             }
         }
     } else {
@@ -146,7 +163,15 @@ pub fn draw() void {
 
         var logo_pos = .{ .x = -@intToFloat(f32, logo.?.width) / 2, .y = -@intToFloat(f32, logo.?.height) / 2 };
         // draw background texture
-        drawTexture(logo.?, logo_pos);
+        drawTexture(logo.?, logo_pos, 0x33FFFFFF);
+
+        var text_pos = imgui.ogGetWindowCenter();
+        text_pos.y += @intToFloat(f32, logo.?.height);
+        text_pos.y += 60;
+        text_pos.x -= 60;
+
+        imgui.ogSetCursorPos(text_pos);
+        imgui.ogColoredText(0.3, 0.3, 0.3, "New File " ++ imgui.icons.file ++ " (cmd + n)");
     }
 }
 
@@ -177,7 +202,7 @@ fn drawGrid(file: File, position: imgui.ImVec2) void {
     }
 }
 
-fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2) void {
+fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void {
     const tl = camera.matrix().transformImVec2(position).add(screen_pos);
     var br = position;
     br.x += @intToFloat(f32, texture.width);
@@ -191,12 +216,41 @@ fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2) void {
         br,
         .{},
         .{ .x = 1, .y = 1 },
-        0xFFFFFFFF,
+        color,
     );
+}
+
+fn getTextureCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?imgui.ImVec2 {
+    var tl = camera.matrix().transformImVec2(texture_position).add(screen_pos);
+    var br: imgui.ImVec2 = texture_position;
+    br.x += @intToFloat(f32, texture.width);
+    br.y += @intToFloat(f32, texture.height);
+    br = camera.matrix().transformImVec2(br).add(screen_pos);
+
+    if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
+        var pixel_pos: imgui.ImVec2 = .{};
+
+        pixel_pos.x = @divTrunc(position.x - tl.x, camera.zoom);
+        pixel_pos.y = @divTrunc(position.y - tl.y, camera.zoom);
+
+        return pixel_pos;
+    } else return null;
+}
+
+fn getTextureIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
+    return @floatToInt(usize, coords.x + coords.y * @intToFloat(f32, texture.width));
+}
+
+// helper for getting texture pixel index from screen position
+fn getTextureIndex(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?usize {
+    if (getTextureCoords(texture, texture_position, position)) |coords| {
+        return getTextureIndexFromCoords(texture, coords);
+    } else return null;
 }
 
 pub fn close() void {
     logo.?.deinit();
-    for (files.items) |file|
-        file.background.deinit();
+    for (files.items) |file, i| {
+        files.items[i].deinit();
+    }
 }
