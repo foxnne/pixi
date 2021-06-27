@@ -4,7 +4,7 @@ const imgui = @import("imgui");
 
 pub fn draw () void {
 
-    if (imgui.igBegin("Animations", 0, imgui.ImGuiWindowFlags_None)){
+    if (imgui.igBegin("Animations", 0, imgui.ImGuiWindowFlags_NoResize)){
         defer imgui.igEnd();
 
     }

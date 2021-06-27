@@ -2,8 +2,7 @@ const std = @import("std");
 const upaya = @import("upaya");
 const imgui = @import("imgui");
 
-var open_foreground: bool = false;
-var open_background: bool = false;
+
 
 pub var foreground_color: upaya.math.Color = upaya.math.Color.black;
 pub var background_color: upaya.math.Color = upaya.math.Color.white;
@@ -15,7 +14,6 @@ pub const Tool = enum {
     hand = 1,
     pencil = 2,
     eraser = 3,
-    select = 4,
 };
 
 pub fn draw() void {
@@ -29,24 +27,33 @@ pub fn draw() void {
         imgui.igText("Color");
         imgui.igSeparator();
 
-        imgui.igPushStyleColorU32(imgui.ImGuiCol_ButtonHovered, foreground_color.value);
-        imgui.igPushStyleColorU32(imgui.ImGuiCol_ButtonActive, foreground_color.value);
-        if (imgui.ogColoredButtonEx(foreground_color.value, "", .{ .x = toolbar_half_width, .y = 40 }))
-            open_foreground = true;
-        imgui.igPopStyleColor(2);
+        var cursor_pos = imgui.ogGetCursorScreenPos();
+        imgui.ogDummy(.{.x = toolbar_half_width, .y = 40});
+        imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_pos, .{.x = toolbar_half_width, .y = 40}, foreground_color.value);
 
-        if (imgui.igBeginPopup("Foreground Color", imgui.ImGuiWindowFlags_None)) {
+        if (imgui.igBeginPopupContextItem("Foreground Context Menu", imgui.ImGuiMouseButton_Left)){
             defer imgui.igEndPopup();
             var color: imgui.ImVec4 = foreground_color.asImVec4();
-            if (imgui.igColorPicker3("Foreground", @ptrCast([*c]f32, &color), imgui.ImGuiColorEditFlags_DisplayRGB)) {
+            if (imgui.igColorPicker3("Foreground", @ptrCast([*c]f32, &color), imgui.ImGuiColorEditFlags_PickerHueWheel)) {
                 foreground_color = upaya.math.Color.fromRgba(color.x, color.y, color.z, color.w);
             }
         }
 
         imgui.igSameLine(0, space);
-        imgui.igPushStyleColorU32(imgui.ImGuiCol_ButtonHovered, background_color.value);
-        if (imgui.ogColoredButtonEx(background_color.value, "", .{ .x = toolbar_half_width, .y = 40 })) {}
-        imgui.igPopStyleColor(1);
+        cursor_pos = imgui.ogGetCursorScreenPos();
+        imgui.ogDummy(.{.x = toolbar_half_width, .y = 40});
+        
+        imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_pos, .{.x = toolbar_half_width, .y = 40}, background_color.value);
+
+        if (imgui.igBeginPopupContextItem("Background Context Menu", imgui.ImGuiMouseButton_Left)){
+            defer imgui.igEndPopup();
+            var color: imgui.ImVec4 = background_color.asImVec4();
+            if (imgui.igColorPicker3("Background", @ptrCast([*c]f32, &color), imgui.ImGuiColorEditFlags_PickerHueWheel)) {
+                background_color = upaya.math.Color.fromRgba(color.x, color.y, color.z, color.w);
+            }
+        }
+
+        
 
         // draw tools
         imgui.igText("Draw");
@@ -69,9 +76,5 @@ pub fn draw() void {
         //animation tools
         imgui.igText("Animation");
         imgui.igSeparator();
-    }
-
-    if (open_foreground) {
-        imgui.igOpenPopup("Foreground Color");
     }
 }

@@ -5,6 +5,7 @@ const imgui = @import("imgui");
 const types = @import("../types/types.zig");
 const Sprite = types.Sprite;
 
+const editor = @import("../editor.zig");
 const canvas = @import("../windows/canvas.zig");
 
 var active_sprite_index: usize = 0;
@@ -23,15 +24,21 @@ pub fn getActiveSprite() ?*Sprite {
 
 pub fn draw () void {
 
-    if (imgui.igBegin("Sprites", 0, imgui.ImGuiWindowFlags_None)){
+    if (imgui.igBegin("Sprites", 0, imgui.ImGuiWindowFlags_NoResize)){
         defer imgui.igEnd();
 
-        if (canvas.getActiveFile()) |file| {
 
+
+        if (canvas.getActiveFile()) |file| {
+            
             for (file.sprites.items) |sprite, i| {
 
                 if (imgui.ogSelectableBool(@ptrCast([*c]const u8, sprite.name), active_sprite_index == i, imgui.ImGuiSelectableFlags_None, .{}))
                     active_sprite_index = i;
+
+                
+                
+               
 
                 if (imgui.igBeginPopupContextItem(@ptrCast([*c]const u8, sprite.name), imgui.ImGuiMouseButton_Right)){
                     defer imgui.igEndPopup();

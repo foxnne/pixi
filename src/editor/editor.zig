@@ -13,14 +13,18 @@ pub const spriteedit = @import("windows/spriteedit.zig");
 pub const new = @import("windows/new.zig");
 
 //editor colors
-var background_color: imgui.ImVec4 = undefined;
-var foreground_color: imgui.ImVec4 = undefined;
-var text_color: imgui.ImVec4 = undefined;
-var highlight: imgui.ImVec4 = undefined;
+pub var background_color: imgui.ImVec4 = undefined;
+pub var foreground_color: imgui.ImVec4 = undefined;
+pub var text_color: imgui.ImVec4 = undefined;
+pub var highlight_color: imgui.ImVec4 = undefined;
+pub var highlight_hover_color: imgui.ImVec4 = undefined;
 
 pub fn init() void {
     background_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(35, 36, 44, 255));
     foreground_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(42, 44, 54, 255));
+    text_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(206, 163, 127, 255));
+    highlight_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(47, 179, 135, 150));
+    highlight_hover_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(76, 148, 123, 255));
 
     // set colors, move this to its own file soon?
     var style = imgui.igGetStyle();
@@ -41,8 +45,12 @@ pub fn init() void {
     style.Colors[imgui.ImGuiCol_TabActive] = foreground_color;
     style.Colors[imgui.ImGuiCol_TabHovered] = foreground_color;
     style.Colors[imgui.ImGuiCol_PopupBg] = foreground_color;
-
-    style.Colors[imgui.ImGuiCol_Text] = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(206, 163, 127, 255));
+    style.Colors[imgui.ImGuiCol_Text] = text_color;
+    style.Colors[imgui.ImGuiCol_Header] = highlight_color;
+    style.Colors[imgui.ImGuiCol_HeaderHovered] = highlight_hover_color;
+    style.Colors[imgui.ImGuiCol_HeaderActive] = highlight_color;
+    style.Colors[imgui.ImGuiCol_ScrollbarBg] = background_color;
+    style.Colors[imgui.ImGuiCol_ScrollbarGrab] = foreground_color;
     style.Colors[imgui.ImGuiCol_ModalWindowDimBg] = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(10, 10, 15, 100));
 
     canvas.init();
@@ -51,7 +59,7 @@ pub fn init() void {
 pub fn setupDockLayout(id: imgui.ImGuiID) void {
     var dock_main_id = id;
 
-    var bottom_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Down, 0.2, null, &dock_main_id);
+    var bottom_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Down, 0.3, null, &dock_main_id);
     var left_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Left, 0.05, null, &dock_main_id);
     var mid_id: imgui.ImGuiID = 0;
     var right_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Right, 0.15, null, &mid_id);
@@ -62,7 +70,6 @@ pub fn setupDockLayout(id: imgui.ImGuiID) void {
 
     var bottom_left_id =  imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.2, null, &bottom_id);
     var bottom_mid_id = imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.8, null, &bottom_id);
-    //var bottom_right_id = imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.33, null, &bottom_mid_id);
 
     imgui.igDockBuilderDockWindow("Animations", bottom_left_id);
     imgui.igDockBuilderDockWindow("SpriteEdit", bottom_mid_id);

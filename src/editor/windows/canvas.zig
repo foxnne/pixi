@@ -4,6 +4,7 @@ const imgui = @import("imgui");
 
 pub const Camera = @import("../utils/camera.zig").Camera;
 
+const editor = @import("../editor.zig");
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
 const toolbar = @import("../windows/toolbar.zig");
@@ -75,6 +76,9 @@ pub fn draw() void {
 
         // draw tile grid
         drawGrid(files.items[active_file_index], texture_position);
+
+        var cursor_position = imgui.ogGetCursorPos();
+        imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_position, .{.x = imgui.ogGetWindowSize().x * 2, .y = 40}, imgui.ogColorConvertFloat4ToU32(editor.background_color));
 
         // draw open files tabs
         if (imgui.igBeginTabBar("Canvas Tab Bar", imgui.ImGuiTabBarFlags_Reorderable)) {

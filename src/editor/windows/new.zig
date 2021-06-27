@@ -56,20 +56,11 @@ pub fn draw() void {
             var image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
             image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
 
-            new_file.layers.append(.{.name = "Layer 0", .image = image, .texture = image.asTexture(.nearest)}) catch unreachable;
+            new_file.layers.append(.{.name = "Layer 0\u{0}", .image = image, .texture = image.asTexture(.nearest)}) catch unreachable;
             
-            // for (new_file.sprites.items) |sprite, i| {
-            //     var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}", .{name, i}) catch unreachable;
-            //     defer upaya.mem.allocator.free(sprite_name);
-            //     var sprite_origin: upaya.math.Vec2 = .{.x = @intToFloat(f32, @divTrunc(new_file.tileWidth, 2)), .y = @intToFloat(f32, @divTrunc(new_file.tileHeight, 2))};
-            //     new_file.sprites.items[i].name = std.mem.dupe(upaya.mem.allocator, u8, sprite_name) catch unreachable;
-            //     new_file.sprites.items[i].origin = sprite_origin;
-            //     new_file.sprites.items[i].index = i;
-            // }
-
             var i : usize = 0;
             while (i < tiles_wide * tiles_tall) : (i += 1) {
-                var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}\u{0}", .{new_file.name, i}) catch unreachable;
+                var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}\u{0}", .{new_file.name[0..new_file.name.len -1], i}) catch unreachable;
                 defer upaya.mem.allocator.free(sprite_name);
                 var sprite_origin: upaya.math.Vec2 = .{.x = @intToFloat(f32, @divTrunc(new_file.tileWidth, 2)), .y = @intToFloat(f32, @divTrunc(new_file.tileHeight, 2))};
                 var new_sprite: Sprite = .{
@@ -78,7 +69,6 @@ pub fn draw() void {
                     .index = i,
                 };
                 new_file.sprites.append(new_sprite) catch unreachable;
-
             }
 
             canvas.newFile(new_file);

@@ -20,9 +20,12 @@ pub fn draw() void {
         defer imgui.igEnd();
 
         if (canvas.getActiveFile()) |f| {
+
+            // create
             if (imgui.ogColoredButton(0x00000000, imgui.icons.plus_circle)) {
                 var image = upaya.Image.init(@intCast(usize, f.width), @intCast(usize, f.height));
                 image.fillRect(.{ .x = 0, .y = 0, .width = f.width, .height = f.height }, upaya.math.Color.transparent);
+
                 f.layers.insert(0, .{
                     .name = std.fmt.allocPrint(upaya.mem.allocator, "Layer {d}\u{0}", .{f.layers.items.len}) catch unreachable,
                     .image = image,
@@ -30,6 +33,16 @@ pub fn draw() void {
                 }) catch unreachable;
                 active_layer_index = 0;
             }
+            imgui.igSameLine(0, 5);
+            // delete
+            if (imgui.ogColoredButton(0x00000000, imgui.icons.minus_circle)) {
+                if (f.layers.items.len > 1) {
+                    var old_index = active_layer_index;
+                    active_layer_index = 0;
+                    _ = f.layers.swapRemove(old_index);
+                }
+            }
+
             imgui.igSeparator();
 
             for (f.layers.items) |layer, i| {
@@ -51,6 +64,15 @@ pub fn draw() void {
                 imgui.igEndGroup();
                 imgui.igPopID();
 
+                imgui.igPushIDInt(@intCast(c_int, i));
+                if (imgui.igBeginPopupContextItem("Layer Settings", imgui.ImGuiMouseButton_Right)) {
+                    defer imgui.igEndPopup();
+
+                    imgui.igText("Layer Settings");
+                    imgui.igSeparator();
+                }
+                imgui.igPopID();
+
                 if (imgui.igIsItemActive() and !imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_AllowWhenDisabled)) {
                     var i_next = @intCast(i32, i) + if (imgui.ogGetMouseDragDelta(imgui.ImGuiMouseButton_Left, 0).y < 0) @as(i32, -1) else @as(i32, 1);
                     if (i_next >= 0 and i_next < f.layers.items.len) {
@@ -61,29 +83,31 @@ pub fn draw() void {
                 }
             }
 
-            // down arrow changes layer
-            if (imgui.ogKeyPressed(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_DownArrow)))) {
-                if (imgui.igGetIO().KeySuper) {
-                    if (active_layer_index < f.layers.items.len - 1) {
-                        std.mem.swap(Layer, &f.layers.items[active_layer_index], &f.layers.items[active_layer_index + 1]);
-                        active_layer_index += 1;
+            if (imgui.igIsWindowFocused(imgui.ImGuiFocusedFlags_None)) {
+                // down arrow changes layer
+                if (imgui.ogKeyPressed(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_DownArrow)))) {
+                    if (imgui.igGetIO().KeySuper) {
+                        if (active_layer_index < f.layers.items.len - 1) {
+                            std.mem.swap(Layer, &f.layers.items[active_layer_index], &f.layers.items[active_layer_index + 1]);
+                            active_layer_index += 1;
+                        }
+                    } else {
+                        if (active_layer_index < f.layers.items.len - 1)
+                            active_layer_index += 1;
                     }
-                } else {
-                    if (active_layer_index < f.layers.items.len - 1)
-                        active_layer_index += 1;
                 }
-            }
 
-            // up arrow changes layer
-            if (imgui.ogKeyPressed(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_UpArrow)))) {
-                if (imgui.igGetIO().KeySuper) {
-                    if (active_layer_index > 0) {
-                        std.mem.swap(Layer, &f.layers.items[active_layer_index], &f.layers.items[active_layer_index - 1]);
-                        active_layer_index -= 1;
+                // up arrow changes layer
+                if (imgui.ogKeyPressed(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_UpArrow)))) {
+                    if (imgui.igGetIO().KeySuper) {
+                        if (active_layer_index > 0) {
+                            std.mem.swap(Layer, &f.layers.items[active_layer_index], &f.layers.items[active_layer_index - 1]);
+                            active_layer_index -= 1;
+                        }
+                    } else {
+                        if (active_layer_index > 0)
+                            active_layer_index -= 1;
                     }
-                } else {
-                    if (active_layer_index > 0)
-                        active_layer_index -= 1;
                 }
             }
         }
