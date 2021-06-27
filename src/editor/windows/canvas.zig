@@ -9,6 +9,7 @@ const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
 const toolbar = @import("../windows/toolbar.zig");
 const layers = @import("../windows/layers.zig");
+const sprites = @import("../windows/sprites.zig");
 
 const File = types.File;
 const Layer = types.Layer;
@@ -77,8 +78,13 @@ pub fn draw() void {
         // draw tile grid
         drawGrid(files.items[active_file_index], texture_position);
 
+        // add invisible buttons for all sprites
+        for (files.items[active_file_index].sprites.items) |sprite| {
+            var sprite_size: imgui.ImVec2 = .{ .x = @intToFloat(f32, files.items[active_file_index].tileWidth), .y = @intToFloat(f32, files.items[active_file_index].tileHeight) };
+        }
+
         var cursor_position = imgui.ogGetCursorPos();
-        imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_position, .{.x = imgui.ogGetWindowSize().x * 2, .y = 40}, imgui.ogColorConvertFloat4ToU32(editor.background_color));
+        imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_position, .{ .x = imgui.ogGetWindowSize().x * 2, .y = 40 }, imgui.ogColorConvertFloat4ToU32(editor.background_color));
 
         // draw open files tabs
         if (imgui.igBeginTabBar("Canvas Tab Bar", imgui.ImGuiTabBarFlags_Reorderable)) {
@@ -101,7 +107,6 @@ pub fn draw() void {
                     active_file_index = 0;
                     var f = files.swapRemove(i);
                     //f.deinit();
-
                 }
             }
         }
@@ -110,7 +115,6 @@ pub fn draw() void {
         var previous_tool = toolbar.selected_tool;
         // handle inputs
         if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None) and files.items.len > 0) {
-            
             if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
@@ -128,10 +132,25 @@ pub fn draw() void {
                 input.zoom(&camera);
             }
 
+            if (layers.getActiveLayer()) |layer| {
+                if (getPixelCoords(layer.texture, texture_position, imgui.igGetIO().MousePos)) |pixel_coords| {
+                    var tiles_wide = @divExact(@intCast(usize, files.items[active_file_index].width), @intCast(usize, files.items[active_file_index].tileWidth));
+                    var tiles_tall = @divExact(@intCast(usize, files.items[active_file_index].height), @intCast(usize, files.items[active_file_index].tileHeight));
+
+                    var tile_column = @divTrunc(@floatToInt(usize, pixel_coords.x), @intCast(usize, files.items[active_file_index].tileWidth));
+                    var tile_row = @divTrunc(@floatToInt(usize, pixel_coords.y), @intCast(usize, files.items[active_file_index].tileHeight));
+
+                    var tile_index = tile_column + tile_row * tiles_wide;
+
+                    if (imgui.igGetIO().MouseDoubleClicked[0] and toolbar.selected_tool == toolbar.Tool.arrow)
+                        sprites.setActiveSpriteIndex(tile_index);
+                }
+            }
+
             if (imgui.igGetIO().MouseDown[1] or ((imgui.igGetIO().KeyAlt or imgui.igGetIO().KeySuper) and imgui.igGetIO().MouseDown[0])) {
                 if (layers.getActiveLayer()) |layer| {
-                    if (getTextureCoords(layer.texture, texture_position, imgui.igGetIO().MousePos)) |coords| {
-                        var index = getTextureIndexFromCoords(layer.texture, coords);
+                    if (getPixelCoords(layer.texture, texture_position, imgui.igGetIO().MousePos)) |coords| {
+                        var index = getPixelIndexFromCoords(layer.texture, coords);
 
                         imgui.igBeginTooltip();
                         var coord_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d},{d}\u{0}", .{ imgui.icons.eye_dropper, coords.x + 1, coords.y + 1 }) catch unreachable;
@@ -157,7 +176,7 @@ pub fn draw() void {
 
             if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
                 if (layers.getActiveLayer()) |layer| {
-                    if (getTextureIndex(layer.texture, texture_position, imgui.igGetIO().MousePos)) |index| {
+                    if (getPixelIndex(layer.texture, texture_position, imgui.igGetIO().MousePos)) |index| {
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0))
                             layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
                     }
@@ -229,7 +248,7 @@ fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void 
     );
 }
 
-fn getTextureCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?imgui.ImVec2 {
+fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?imgui.ImVec2 {
     var tl = camera.matrix().transformImVec2(texture_position).add(screen_pos);
     var br: imgui.ImVec2 = texture_position;
     br.x += @intToFloat(f32, texture.width);
@@ -246,14 +265,14 @@ fn getTextureCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, posi
     } else return null;
 }
 
-fn getTextureIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
+fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
     return @floatToInt(usize, coords.x + coords.y * @intToFloat(f32, texture.width));
 }
 
 // helper for getting texture pixel index from screen position
-fn getTextureIndex(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?usize {
-    if (getTextureCoords(texture, texture_position, position)) |coords| {
-        return getTextureIndexFromCoords(texture, coords);
+fn getPixelIndex(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?usize {
+    if (getPixelCoords(texture, texture_position, position)) |coords| {
+        return getPixelIndexFromCoords(texture, coords);
     } else return null;
 }
 

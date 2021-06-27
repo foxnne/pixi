@@ -22,6 +22,13 @@ pub fn getActiveSprite() ?*Sprite {
     } else return null;
 }
 
+pub fn setActiveSpriteIndex(index: usize) void {
+    if (canvas.getActiveFile()) |file| {
+        if (file.sprites.items.len > index)
+            active_sprite_index = index;
+    }
+}
+
 pub fn draw () void {
 
     if (imgui.igBegin("Sprites", 0, imgui.ImGuiWindowFlags_NoResize)){
