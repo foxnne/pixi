@@ -257,30 +257,6 @@ fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void 
 
 }
 
-// fn drawSprite (texture: upaya.Texture, position: imgui.ImVec2, rect: math.RectF, color: u32) void {
-//     const tl = camera.matrix().transformImVec2(position).add(screen_pos);
-//     var br = position;
-//     br.x += @intToFloat(f32, rect.width);
-//     br.y += @intToFloat(f32, rect.height);
-//     br = camera.matrix().transformImVec2(br).add(screen_pos);
-
-//     const inv_w = 1.0 / @intToFloat(f32, texture.width);
-//     const inv_h = 1.0 / @intToFloat(f32, texture.height);
-
-//     const uv0 = ImVec2{ .x = rect.x * inv_w, .y = rect.y * inv_h };
-//     const uv1 = ImVec2{ .x = (rect.x + rect.width) * inv_w, .y = (rect.y + rect.height) * inv_h };
-
-//     imgui.ogImDrawList_AddImage(
-//         imgui.igGetWindowDrawList(),
-//         texture.imTextureID(),
-//         tl,
-//         br,
-//         uv0,
-//         uv1,
-//         color,
-//     );    
-// }
-
 fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?imgui.ImVec2 {
     var tl = camera.matrix().transformImVec2(texture_position).add(screen_pos);
     var br: imgui.ImVec2 = texture_position;
