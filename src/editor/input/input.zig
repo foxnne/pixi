@@ -5,10 +5,11 @@ const sokol = @import("sokol");
 
 var zoom_tolerance: f32 = 0;
 
+
+
 pub const Camera = @import("../utils/camera.zig").Camera;
 
 pub fn pan(camera: *Camera, button: imgui.ImGuiMouseButton) void {
-    imgui.igSetMouseCursor(imgui.ImGuiMouseCursor_Hand);
     var pan_delta = imgui.ogGetMouseDragDelta(button, 0);
 
     camera.position.x -= pan_delta.x * 1 / camera.zoom;
@@ -23,14 +24,20 @@ pub fn zoom(camera: *Camera) void {
 
     if (zoom_tolerance > 2) {
 
-        if (camera.zoom < 50)
+        if (camera.zoom < 60 and camera.zoom > 20)
             camera.zoom *= 2;
+
+        if (camera.zoom <= 20 and camera.zoom > 10)
+            camera.zoom += 2;
+
+        if (camera.zoom <= 10)
+            camera.zoom += 1;
 
         zoom_tolerance = 0;
     }
     if (zoom_tolerance < -2) {
 
-        if (camera.zoom > 0.2)
+        if (camera.zoom > 0.1)
             camera.zoom *= 0.5;
 
         zoom_tolerance = 0;

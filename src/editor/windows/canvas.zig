@@ -78,10 +78,8 @@ pub fn draw() void {
         // draw tile grid
         drawGrid(files.items[active_file_index], texture_position);
 
-        // add invisible buttons for all sprites
-        for (files.items[active_file_index].sprites.items) |sprite| {
-            var sprite_size: imgui.ImVec2 = .{ .x = @intToFloat(f32, files.items[active_file_index].tileWidth), .y = @intToFloat(f32, files.items[active_file_index].tileHeight) };
-        }
+        // draw selection from sprites list
+        drawSelection();
 
         var cursor_position = imgui.ogGetCursorPos();
         imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_position, .{ .x = imgui.ogGetWindowSize().x * 2, .y = 40 }, imgui.ogColorConvertFloat4ToU32(editor.background_color));
@@ -93,9 +91,6 @@ pub fn draw() void {
             for (files.items) |file, i| {
                 var open: bool = true;
 
-                //var name = std.fmt.allocPrint(upaya.mem.allocator, "{s}\u{0}", .{file.name}) catch unreachable;
-                //TODO: this crashes on windows unless 0 terminated as above, but then it crashes when closing non-active tabs
-
                 var namePtr = @ptrCast([*c]const u8, file.name);
                 if (imgui.igBeginTabItem(namePtr, &open, imgui.ImGuiTabItemFlags_UnsavedDocument)) {
                     defer imgui.igEndTabItem();
@@ -105,6 +100,7 @@ pub fn draw() void {
                 if (!open) {
                     // TODO: do i need to deinit all the layers and background?
                     active_file_index = 0;
+                    sprites.setActiveSpriteIndex(0);
                     var f = files.swapRemove(i);
                     //f.deinit();
                 }
@@ -115,6 +111,8 @@ pub fn draw() void {
         var previous_tool = toolbar.selected_tool;
         // handle inputs
         if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None) and files.items.len > 0) {
+
+            //pan 
             if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
@@ -128,8 +126,20 @@ pub fn draw() void {
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
 
+            // zoom
             if (imgui.igGetIO().MouseWheel != 0) {
                 input.zoom(&camera);
+            }
+
+            // round positions if we are finished changing cameras position
+            if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Middle) or imgui.ogKeyUp(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
+                camera.position.x = @trunc(camera.position.x);
+                camera.position.y = @trunc(camera.position.y);
+            }
+
+            if (toolbar.selected_tool == .hand and imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)){
+                camera.position.x = @trunc(camera.position.x);
+                camera.position.y = @trunc(camera.position.y);
             }
 
             if (layers.getActiveLayer()) |layer| {
@@ -141,44 +151,38 @@ pub fn draw() void {
                     var tile_row = @divTrunc(@floatToInt(usize, pixel_coords.y), @intCast(usize, files.items[active_file_index].tileHeight));
 
                     var tile_index = tile_column + tile_row * tiles_wide;
+                    var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
-                    if (imgui.igGetIO().MouseDoubleClicked[0] and toolbar.selected_tool == toolbar.Tool.arrow)
+                    // set active sprite window
+                    if (imgui.igGetIO().MouseDown[0] and toolbar.selected_tool != toolbar.Tool.hand)
                         sprites.setActiveSpriteIndex(tile_index);
-                }
-            }
 
-            if (imgui.igGetIO().MouseDown[1] or ((imgui.igGetIO().KeyAlt or imgui.igGetIO().KeySuper) and imgui.igGetIO().MouseDown[0])) {
-                if (layers.getActiveLayer()) |layer| {
-                    if (getPixelCoords(layer.texture, texture_position, imgui.igGetIO().MousePos)) |coords| {
-                        var index = getPixelIndexFromCoords(layer.texture, coords);
-
+                    // color dropper input
+                    if (imgui.igGetIO().MouseDown[1] or ((imgui.igGetIO().KeyAlt or imgui.igGetIO().KeySuper) and imgui.igGetIO().MouseDown[0])) {
                         imgui.igBeginTooltip();
-                        var coord_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d},{d}\u{0}", .{ imgui.icons.eye_dropper, coords.x + 1, coords.y + 1 }) catch unreachable;
+                        var coord_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d},{d}\u{0}", .{ imgui.icons.eye_dropper, pixel_coords.x + 1, pixel_coords.y + 1 }) catch unreachable;
                         imgui.igText(@ptrCast([*c]const u8, coord_text));
                         upaya.mem.allocator.free(coord_text);
                         imgui.igEndTooltip();
 
-                        if (layer.image.pixels[index] == 0x00000000) {
+                        if (layer.image.pixels[pixel_index] == 0x00000000) {
                             toolbar.selected_tool = .eraser;
                             previous_tool = toolbar.selected_tool;
                         } else {
                             toolbar.selected_tool = .pencil;
                             previous_tool = toolbar.selected_tool;
-                            toolbar.foreground_color = upaya.math.Color{ .value = layer.image.pixels[index] };
+                            toolbar.foreground_color = upaya.math.Color{ .value = layer.image.pixels[pixel_index] };
 
                             imgui.igBeginTooltip();
                             _ = imgui.ogColoredButtonEx(toolbar.foreground_color.value, "###1", .{ .x = 100, .y = 100 });
                             imgui.igEndTooltip();
                         }
                     }
-                }
-            }
 
-            if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
-                if (layers.getActiveLayer()) |layer| {
-                    if (getPixelIndex(layer.texture, texture_position, imgui.igGetIO().MousePos)) |index| {
+                    // drawing input
+                    if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0))
-                            layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+                            layer.image.pixels[pixel_index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
                     }
                 }
             }
@@ -230,6 +234,10 @@ fn drawGrid(file: File, position: imgui.ImVec2) void {
     }
 }
 
+fn drawSelection() void {
+
+}
+
 fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void {
     const tl = camera.matrix().transformImVec2(position).add(screen_pos);
     var br = position;
@@ -246,7 +254,32 @@ fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void 
         .{ .x = 1, .y = 1 },
         color,
     );
+
 }
+
+// fn drawSprite (texture: upaya.Texture, position: imgui.ImVec2, rect: math.RectF, color: u32) void {
+//     const tl = camera.matrix().transformImVec2(position).add(screen_pos);
+//     var br = position;
+//     br.x += @intToFloat(f32, rect.width);
+//     br.y += @intToFloat(f32, rect.height);
+//     br = camera.matrix().transformImVec2(br).add(screen_pos);
+
+//     const inv_w = 1.0 / @intToFloat(f32, texture.width);
+//     const inv_h = 1.0 / @intToFloat(f32, texture.height);
+
+//     const uv0 = ImVec2{ .x = rect.x * inv_w, .y = rect.y * inv_h };
+//     const uv1 = ImVec2{ .x = (rect.x + rect.width) * inv_w, .y = (rect.y + rect.height) * inv_h };
+
+//     imgui.ogImDrawList_AddImage(
+//         imgui.igGetWindowDrawList(),
+//         texture.imTextureID(),
+//         tl,
+//         br,
+//         uv0,
+//         uv1,
+//         color,
+//     );    
+// }
 
 fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?imgui.ImVec2 {
     var tl = camera.matrix().transformImVec2(texture_position).add(screen_pos);
