@@ -9,6 +9,9 @@ pub const Camera = struct {
     pub fn matrix (self: Camera) upaya.math.Mat32 {
 
         var window_half_size = imgui.ogGetWindowSize().scale(0.5);
+        // make pixel perfect
+        window_half_size.x = @trunc (window_half_size.x);
+        window_half_size.y = @trunc (window_half_size.y);
 
         var transform = upaya.math.Mat32.identity;
 

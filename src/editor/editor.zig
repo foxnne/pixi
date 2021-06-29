@@ -12,13 +12,6 @@ pub const sprites = @import("windows/sprites.zig");
 pub const spriteedit = @import("windows/spriteedit.zig");
 pub const new = @import("windows/new.zig");
 
-pub var toolbar_dock_id: imgui.ImGuiID = undefined;
-pub var layers_dock_id: imgui.ImGuiID = undefined;
-pub var animations_dock_id: imgui.ImGuiID = undefined;
-pub var canvas_dock_id: imgui.ImGuiID = undefined;
-pub var sprites_dock_id: imgui.ImGuiID = undefined;
-pub var spriteedit_dock_id: imgui.ImGuiID = undefined;
-
 //editor colors
 pub var background_color: imgui.ImVec4 = undefined;
 pub var foreground_color: imgui.ImVec4 = undefined;
@@ -33,7 +26,8 @@ pub var pixi_blue_hover: imgui.ImVec4 = undefined;
 pub var pixi_orange: imgui.ImVec4 = undefined;
 pub var pixi_orange_hover: imgui.ImVec4 = undefined;
 
-pub fn init() void {
+pub fn init() void {    
+
     background_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(35, 36, 44, 255));
     foreground_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(42, 44, 54, 255));
     text_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(230, 175, 137, 255));
@@ -99,7 +93,9 @@ pub fn setupDockLayout(id: imgui.ImGuiID) void {
     imgui.igDockBuilderFinish(id);
 }
 
-pub fn resetDockLayout() void {}
+pub fn resetDockLayout() void {
+    //TODO
+}
 
 pub fn update() void {
     menuBar.draw();

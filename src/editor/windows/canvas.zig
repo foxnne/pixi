@@ -132,6 +132,8 @@ pub fn draw() void {
                 input.zoom(&camera);
             }
 
+           
+
             // round positions if we are finished changing cameras position
             if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Middle) or imgui.ogKeyUp(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
                 camera.position.x = @trunc(camera.position.x);
@@ -145,6 +147,7 @@ pub fn draw() void {
 
             if (layers.getActiveLayer()) |layer| {
                 if (getPixelCoords(layer.texture, texture_position, imgui.igGetIO().MousePos)) |pixel_coords| {
+    
                     var tiles_wide = @divExact(@intCast(usize, files.items[active_file_index].width), @intCast(usize, files.items[active_file_index].tileWidth));
                     var tiles_tall = @divExact(@intCast(usize, files.items[active_file_index].height), @intCast(usize, files.items[active_file_index].tileHeight));
 
@@ -185,7 +188,7 @@ pub fn draw() void {
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0))
                             layer.image.pixels[pixel_index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
                     }
-                }
+                } 
             }
 
             toolbar.selected_tool = previous_tool;
