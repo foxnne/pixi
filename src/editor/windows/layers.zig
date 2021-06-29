@@ -3,6 +3,7 @@ const upaya = @import("upaya");
 const imgui = @import("imgui");
 
 const types = @import("../types/types.zig");
+const editor = @import("../editor.zig");
 const canvas = @import("canvas.zig");
 
 const Layer = types.Layer;
@@ -58,8 +59,12 @@ pub fn draw() void {
                 imgui.igPopID();
                 imgui.igSameLine(0, 5);
 
+                
+
                 if (imgui.ogSelectableBool(@ptrCast([*c]const u8, layer.name), i == active_layer_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
                     active_layer_index = i;
+
+                
 
                 imgui.igEndGroup();
                 imgui.igPopID();

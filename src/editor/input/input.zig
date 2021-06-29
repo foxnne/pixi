@@ -4,8 +4,7 @@ const imgui = @import("imgui");
 const sokol = @import("sokol");
 
 var zoom_tolerance: f32 = 0;
-
-
+const zoom_steps = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 5, 6, 8, 12, 18, 28, 38, 50, 70, 90, 128 };
 
 pub const Camera = @import("../utils/camera.zig").Camera;
 
@@ -24,27 +23,30 @@ pub fn zoom(camera: *Camera) void {
 
     if (zoom_tolerance > 2) {
 
-        if (camera.zoom < 60 and camera.zoom > 20)
-            camera.zoom *= 2;
-
-        if (camera.zoom <= 20 and camera.zoom > 10)
-            camera.zoom += 2;
-
-        if (camera.zoom <= 10)
-            camera.zoom += 1;
+        for (zoom_steps) |z, i| {
+            if (z == camera.zoom and i < zoom_steps.len - 1) {
+                camera.zoom = zoom_steps[i + 1];
+                break;
+            }
+        }
 
         zoom_tolerance = 0;
     }
     if (zoom_tolerance < -2) {
 
-        if (camera.zoom > 0.1)
-            camera.zoom *= 0.5;
+        for (zoom_steps) |z, i| {
+            if (z == camera.zoom and i > 0) {
+                camera.zoom = zoom_steps[i - 1];
+                break;
+            }
+        }
+        
 
         zoom_tolerance = 0;
     }
 
     var mouse_pos = camera.matrix().transformImVec2(imgui.igGetIO().MousePos);
-    
-    imgui.igGetIO().MouseWheel = 0;
 
+    imgui.igGetIO().MouseWheel = 0;
 }
+

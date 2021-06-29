@@ -12,6 +12,13 @@ pub const sprites = @import("windows/sprites.zig");
 pub const spriteedit = @import("windows/spriteedit.zig");
 pub const new = @import("windows/new.zig");
 
+pub var toolbar_dock_id: imgui.ImGuiID = undefined;
+pub var layers_dock_id: imgui.ImGuiID = undefined;
+pub var animations_dock_id: imgui.ImGuiID = undefined;
+pub var canvas_dock_id: imgui.ImGuiID = undefined;
+pub var sprites_dock_id: imgui.ImGuiID = undefined;
+pub var spriteedit_dock_id: imgui.ImGuiID = undefined;
+
 //editor colors
 pub var background_color: imgui.ImVec4 = undefined;
 pub var foreground_color: imgui.ImVec4 = undefined;
@@ -19,12 +26,26 @@ pub var text_color: imgui.ImVec4 = undefined;
 pub var highlight_color: imgui.ImVec4 = undefined;
 pub var highlight_hover_color: imgui.ImVec4 = undefined;
 
+pub var pixi_green: imgui.ImVec4 = undefined;
+pub var pixi_green_hover: imgui.ImVec4 = undefined;
+pub var pixi_blue: imgui.ImVec4 = undefined;
+pub var pixi_blue_hover: imgui.ImVec4 = undefined;
+pub var pixi_orange: imgui.ImVec4 = undefined;
+pub var pixi_orange_hover: imgui.ImVec4 = undefined;
+
 pub fn init() void {
     background_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(35, 36, 44, 255));
     foreground_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(42, 44, 54, 255));
-    text_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(206, 163, 127, 255));
+    text_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(230, 175, 137, 255));
     highlight_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(47, 179, 135, 150));
     highlight_hover_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(76, 148, 123, 255));
+
+    pixi_green = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(103, 193, 123, 150));
+    pixi_green_hover = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(64, 133, 103, 150));
+    pixi_blue = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(74, 143, 167, 150));
+    pixi_blue_hover = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(49, 69, 132, 150));
+    pixi_orange = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(194, 109, 92, 150));
+    pixi_orange_hover = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(140, 80, 88, 150));
 
     // set colors, move this to its own file soon?
     var style = imgui.igGetStyle();
@@ -68,10 +89,10 @@ pub fn setupDockLayout(id: imgui.ImGuiID) void {
     imgui.igDockBuilderDockWindow("Toolbar", left_id);
     imgui.igDockBuilderDockWindow("Layers", right_id);
 
-    var bottom_left_id =  imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.2, null, &bottom_id);
+    var bottom_right_id = imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.2, null, &bottom_id);
     var bottom_mid_id = imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.8, null, &bottom_id);
 
-    imgui.igDockBuilderDockWindow("Animations", bottom_left_id);
+    imgui.igDockBuilderDockWindow("Animations", bottom_right_id);
     imgui.igDockBuilderDockWindow("SpriteEdit", bottom_mid_id);
     imgui.igDockBuilderDockWindow("Sprites", bottom_id);
 

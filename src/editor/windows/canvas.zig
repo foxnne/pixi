@@ -52,6 +52,8 @@ pub fn draw() void {
     if (!imgui.igBegin("Canvas", null, imgui.ImGuiWindowFlags_None)) return;
     defer imgui.igEnd();
 
+    
+
     // setup screen position and size
     screen_pos = imgui.ogGetCursorScreenPos();
     const window_size = imgui.ogGetContentRegionAvail();
@@ -106,7 +108,6 @@ pub fn draw() void {
                 }
             }
         }
-
         // store previous tool and reapply it after to allow quick switching
         var previous_tool = toolbar.selected_tool;
         // handle inputs
