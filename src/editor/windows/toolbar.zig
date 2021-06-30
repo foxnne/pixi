@@ -59,12 +59,14 @@ pub fn draw() void {
 
         if (imgui.ogSelectableBool(imgui.icons.mouse_pointer, selected_tool == .arrow, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .arrow;
+
         imgui.igSameLine(0, space);
         if (imgui.ogSelectableBool(imgui.icons.hand_pointer, selected_tool == .hand, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .hand;
 
         if (imgui.ogSelectableBool(imgui.icons.pencil_alt, selected_tool == .pencil, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .pencil;
+            
         imgui.igSameLine(0, space);
         if (imgui.ogSelectableBool(imgui.icons.eraser, selected_tool == .eraser, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .eraser;

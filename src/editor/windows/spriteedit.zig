@@ -19,6 +19,8 @@ const Animation = types.Animation;
 var camera: Camera = .{ .zoom = 4 };
 var screen_pos: imgui.ImVec2 = undefined;
 
+var zoom_time: usize = 0;
+
 pub fn draw() void {
     if (imgui.igBegin("SpriteEdit", 0, imgui.ImGuiWindowFlags_None)) {
         defer imgui.igEnd();
@@ -32,7 +34,7 @@ pub fn draw() void {
             if (sprites.getActiveSprite()) |sprite| {
                 var sprite_position: imgui.ImVec2 = .{
                     .x = -@intToFloat(f32, file.tileWidth) / 2,
-                    .y = -@intToFloat(f32, file.tileHeight) / 2 - 5,
+                    .y = -@intToFloat(f32, file.tileHeight) / 2 - 4,
                 };
 
                 const tiles_wide = @divExact(file.width, file.tileWidth);
@@ -64,6 +66,53 @@ pub fn draw() void {
                 // handle inputs
                 if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
                     if (layers.getActiveLayer()) |layer| {
+
+                        const io = imgui.igGetIO();
+                        const mouse_position = io.MousePos;
+
+                        //pan
+                        if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
+                            input.pan(&camera, imgui.ImGuiMouseButton_Left);
+                        }
+
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Middle, 0)) {
+                            input.pan(&camera, imgui.ImGuiMouseButton_Middle);
+                        }
+
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and imgui.ogKeyDown(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
+                            toolbar.selected_tool = .hand;
+                            input.pan(&camera, imgui.ImGuiMouseButton_Left);
+                        }
+
+                        // zoom
+                        if (io.MouseWheel != 0) {
+                            input.zoom(&camera, mouse_position);
+                            zoom_time = 10;
+                        }
+
+                        if (zoom_time > 0) {
+
+                            //TODO: make tooltip remain for a second or so after stop scrolling
+                            imgui.igBeginTooltip();
+                            var zoom_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d}x\u{0}", .{ imgui.icons.search, camera.zoom }) catch unreachable;
+                            imgui.igText(@ptrCast([*c]const u8, zoom_text));
+                            upaya.mem.allocator.free(zoom_text);
+                            imgui.igEndTooltip();
+
+                            zoom_time -= 1;
+                        }
+
+                        // round positions if we are finished changing cameras position
+                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Middle) or imgui.ogKeyUp(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
+                            camera.position.x = @trunc(camera.position.x);
+                            camera.position.y = @trunc(camera.position.y);
+                        }
+
+                        if (toolbar.selected_tool == .hand and imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
+                            camera.position.x = @trunc(camera.position.x);
+                            camera.position.y = @trunc(camera.position.y);
+                        }
+
                         if (getPixelCoords(layer.texture, sprite_position, sprite_rect, imgui.igGetIO().MousePos)) |pixel_coords| {
                             var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
@@ -91,8 +140,10 @@ pub fn draw() void {
 
                             // drawing input
                             if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
-                                if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0))
+                                if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
                                     layer.image.pixels[pixel_index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+                                    layer.*.dirty = true;
+                                }
                             }
                         }
                     }
@@ -100,6 +151,39 @@ pub fn draw() void {
                     toolbar.selected_tool = previous_tool;
                 }
             }
+        }
+    }
+}
+
+//TODO fix this....
+fn fitToWindow(position: imgui.ImVec2, rect: upaya.math.RectF) void {
+    const tl = camera.matrix().transformImVec2(position).add(screen_pos);
+    var br = position;
+    br.x += rect.width;
+    br.y += rect.height;
+    br = camera.matrix().transformImVec2(br).add(screen_pos);
+
+    var window_size = imgui.ogGetWindowContentRegionMax();
+    var sprite_size: imgui.ImVec2 = .{ .x = br.x - tl.x, .y = br.y - tl.y };
+    var current_zoom_index: usize = 0;
+    for (input.zoom_steps) |z, i| {
+        if (z == camera.zoom)
+            current_zoom_index = i;
+    }
+
+    if (window_size.y > sprite_size.y) {
+        if (current_zoom_index < input.zoom_steps.len - 1) {
+            var next_sprite_height = sprite_size.y * (input.zoom_steps[current_zoom_index + 1] - camera.zoom);
+
+            if (next_sprite_height <= window_size.y) {
+                camera.zoom = input.zoom_steps[current_zoom_index + 1];
+            }
+        }
+    }
+
+    if (window_size.y <= sprite_size.y) {
+        if (current_zoom_index > 0) {
+            camera.zoom = input.zoom_steps[current_zoom_index - 1];
         }
     }
 }

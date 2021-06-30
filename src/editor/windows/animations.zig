@@ -14,6 +14,10 @@ pub fn draw() void {
             if (imgui.ogColoredButton(0x00000000, imgui.icons.plus_circle)) {}
             imgui.igSameLine(0, 5);
             if (imgui.ogColoredButton(0x00000000, imgui.icons.minus_circle)) {}
+            imgui.igSameLine(0, 5);
+            if (imgui.ogColoredButton(0x00000000, imgui.icons.play_circle)) {}
+            
+        
 
             imgui.igSeparator();
         }

@@ -19,7 +19,11 @@ pub fn getNumSprites() usize {
 
 pub fn getActiveSprite() ?*Sprite {
     if (canvas.getActiveFile()) |file| {
-        if (active_sprite_index >= file.sprites.items.len)
+
+        if (file.sprites.items.len == 0)
+            return null;
+
+        if (active_sprite_index >= file.sprites.items.len and active_sprite_index > 0)
             active_sprite_index = file.sprites.items.len - 1;
         
         return &file.sprites.items[active_sprite_index];
@@ -42,18 +46,17 @@ pub fn draw() void {
 
         if (canvas.getActiveFile()) |file| {
             for (file.sprites.items) |sprite, i| {
+                
 
                 if (imgui.ogSelectableBool(@ptrCast([*c]const u8, sprite.name), active_sprite_index == i, imgui.ImGuiSelectableFlags_None, .{}))
                     active_sprite_index = i;
 
-         
-
-                if (set_from_outside and active_sprite_index == i) {
+                
+                if (set_from_outside and active_sprite_index == i and !imgui.igIsItemVisible()) {
                     imgui.igSetScrollHereY(0.5);
                     set_from_outside = false;
                 }
 
-                
 
                 if (imgui.igBeginPopupContextItem(@ptrCast([*c]const u8, sprite.name), imgui.ImGuiMouseButton_Right)) {
                     defer imgui.igEndPopup();

@@ -1,6 +1,10 @@
+const std = @import("std");
+
 const upaya = @import("upaya");
 const imgui = @import("imgui");
 const sokol = @import("sokol");
+
+pub const types = @import("types/types.zig");
 
 //windows and bars
 pub const menuBar = @import("menubar.zig");
@@ -11,6 +15,7 @@ pub const canvas = @import("windows/canvas.zig");
 pub const sprites = @import("windows/sprites.zig");
 pub const spriteedit = @import("windows/spriteedit.zig");
 pub const new = @import("windows/new.zig");
+pub const slice = @import("windows/slice.zig");
 
 //editor colors
 pub var background_color: imgui.ImVec4 = undefined;
@@ -26,8 +31,7 @@ pub var pixi_blue_hover: imgui.ImVec4 = undefined;
 pub var pixi_orange: imgui.ImVec4 = undefined;
 pub var pixi_orange_hover: imgui.ImVec4 = undefined;
 
-pub fn init() void {    
-
+pub fn init() void {
     background_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(35, 36, 44, 255));
     foreground_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(42, 44, 54, 255));
     text_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(230, 175, 137, 255));
@@ -50,6 +54,7 @@ pub fn init() void {
     style.WindowMinSize = .{ .x = 100, .y = 100 };
     style.WindowMenuButtonPosition = imgui.ImGuiDir_None;
     style.PopupRounding = 8;
+    style.WindowTitleAlign = .{ .x = 0.5, .y = 0.5};
     style.Colors[imgui.ImGuiCol_WindowBg] = background_color;
     style.Colors[imgui.ImGuiCol_MenuBarBg] = foreground_color;
     style.Colors[imgui.ImGuiCol_TitleBg] = background_color;
@@ -106,9 +111,48 @@ pub fn update() void {
     sprites.draw();
     spriteedit.draw();
     new.draw();
+    slice.draw();
 }
 
-pub fn onFileDropped(file: []const u8) void {}
+pub fn onFileDropped(file: []const u8) void {
+
+    if (std.mem.endsWith(u8, file, ".png")) {
+
+        // TODO: figure out file name on windows
+        const start_name = std.mem.lastIndexOf(u8, file, "/").?;
+        const end_name = std.mem.indexOf(u8, file, ".").?;
+        const name = std.fmt.allocPrint(upaya.mem.allocator, "{s}\u{0}", .{file[start_name + 1..end_name]}) catch unreachable;
+        defer upaya.mem.allocator.free(name);
+        const file_image = upaya.Image.initFromFile(file);
+        const image_width: i32 = @intCast(i32, file_image.w);
+        const image_height: i32 = @intCast(i32, file_image.h);
+
+        var new_file: types.File = .{
+            .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
+            .width = image_width,
+            .height = image_height,
+            .tileWidth = image_width,
+            .tileHeight = image_height,
+            .background = upaya.Texture.initChecker(image_width, image_height, new.checkerColor1, new.checkerColor2),
+            .layers = std.ArrayList(types.Layer).init(upaya.mem.allocator),
+            .sprites = std.ArrayList(types.Sprite).init(upaya.mem.allocator),
+        };
+
+        new_file.layers.append(.{
+            .name = "Layer 0\u{0}",
+            .texture = file_image.asTexture(.nearest),
+            .image = file_image
+        }) catch unreachable;
+
+        new_file.sprites.append(.{
+            .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
+            .index = 0,
+            .origin = .{},
+        }) catch unreachable;
+
+        canvas.newFile(new_file);        
+    }
+}
 
 pub fn shutdown() void {
     canvas.close();

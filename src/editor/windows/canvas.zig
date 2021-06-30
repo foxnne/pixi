@@ -7,9 +7,9 @@ pub const Camera = @import("../utils/camera.zig").Camera;
 const editor = @import("../editor.zig");
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
-const toolbar = @import("../windows/toolbar.zig");
-const layers = @import("../windows/layers.zig");
-const sprites = @import("../windows/sprites.zig");
+const toolbar = @import("toolbar.zig");
+const layers = @import("layers.zig");
+const sprites = @import("sprites.zig");
 
 const File = types.File;
 const Layer = types.Layer;
@@ -48,11 +48,11 @@ pub fn getActiveFile() ?*File {
     return &files.items[active_file_index];
 }
 
+var zoom_time: usize = 0;
+
 pub fn draw() void {
     if (!imgui.igBegin("Canvas", null, imgui.ImGuiWindowFlags_None)) return;
     defer imgui.igEnd();
-
-    
 
     // setup screen position and size
     screen_pos = imgui.ogGetCursorScreenPos();
@@ -74,14 +74,12 @@ pub fn draw() void {
                 continue;
 
             layer.updateTexture();
+            files.items[active_file_index].layers.items[i].dirty = false;
             drawTexture(layer.texture, texture_position, 0xFFFFFFFF);
         }
 
         // draw tile grid
         drawGrid(files.items[active_file_index], texture_position);
-
-        // draw selection from sprites list
-        drawSelection();
 
         var cursor_position = imgui.ogGetCursorPos();
         imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_position, .{ .x = imgui.ogGetWindowSize().x * 2, .y = 40 }, imgui.ogColorConvertFloat4ToU32(editor.background_color));
@@ -113,7 +111,10 @@ pub fn draw() void {
         // handle inputs
         if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None) and files.items.len > 0) {
 
-            //pan 
+            const io = imgui.igGetIO();
+            var mouse_position = io.MousePos;
+
+            //pan
             if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
@@ -127,12 +128,24 @@ pub fn draw() void {
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
 
+            
             // zoom
-            if (imgui.igGetIO().MouseWheel != 0) {
-                input.zoom(&camera);
+            if (io.MouseWheel != 0) {
+                input.zoom(&camera, mouse_position);
+                zoom_time = 10;
             }
 
-           
+            if (zoom_time > 0) {
+
+                //TODO: make tooltip remain for a second or so after stop scrolling
+                imgui.igBeginTooltip();
+                var zoom_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d}x\u{0}", .{ imgui.icons.search, camera.zoom }) catch unreachable;
+                imgui.igText(@ptrCast([*c]const u8, zoom_text));
+                upaya.mem.allocator.free(zoom_text);
+                imgui.igEndTooltip();
+
+                zoom_time -= 1;
+            }
 
             // round positions if we are finished changing cameras position
             if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Middle) or imgui.ogKeyUp(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
@@ -140,14 +153,14 @@ pub fn draw() void {
                 camera.position.y = @trunc(camera.position.y);
             }
 
-            if (toolbar.selected_tool == .hand and imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)){
+            if (toolbar.selected_tool == .hand and imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
                 camera.position.x = @trunc(camera.position.x);
                 camera.position.y = @trunc(camera.position.y);
             }
 
             if (layers.getActiveLayer()) |layer| {
-                if (getPixelCoords(layer.texture, texture_position, imgui.igGetIO().MousePos)) |pixel_coords| {
-    
+                
+                if (getPixelCoords(layer.texture, texture_position, mouse_position)) |pixel_coords| {
                     var tiles_wide = @divExact(@intCast(usize, files.items[active_file_index].width), @intCast(usize, files.items[active_file_index].tileWidth));
                     var tiles_tall = @divExact(@intCast(usize, files.items[active_file_index].height), @intCast(usize, files.items[active_file_index].tileHeight));
 
@@ -158,11 +171,11 @@ pub fn draw() void {
                     var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
                     // set active sprite window
-                    if (imgui.igGetIO().MouseDown[0] and toolbar.selected_tool != toolbar.Tool.hand)
+                    if (io.MouseDown[0] and toolbar.selected_tool != toolbar.Tool.hand)
                         sprites.setActiveSpriteIndex(tile_index);
 
                     // color dropper input
-                    if (imgui.igGetIO().MouseDown[1] or ((imgui.igGetIO().KeyAlt or imgui.igGetIO().KeySuper) and imgui.igGetIO().MouseDown[0])) {
+                    if (io.MouseDown[1] or ((io.KeyAlt or io.KeySuper) and io.MouseDown[0])) {
                         imgui.igBeginTooltip();
                         var coord_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d},{d}\u{0}", .{ imgui.icons.eye_dropper, pixel_coords.x + 1, pixel_coords.y + 1 }) catch unreachable;
                         imgui.igText(@ptrCast([*c]const u8, coord_text));
@@ -187,8 +200,9 @@ pub fn draw() void {
                     if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0))
                             layer.image.pixels[pixel_index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+                            layer.dirty = true;
                     }
-                } 
+                }
             }
 
             toolbar.selected_tool = previous_tool;
@@ -238,10 +252,6 @@ fn drawGrid(file: File, position: imgui.ImVec2) void {
     }
 }
 
-fn drawSelection() void {
-
-}
-
 fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void {
     const tl = camera.matrix().transformImVec2(position).add(screen_pos);
     var br = position;
@@ -258,7 +268,6 @@ fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void 
         .{ .x = 1, .y = 1 },
         color,
     );
-
 }
 
 fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?imgui.ImVec2 {

@@ -10,6 +10,7 @@ pub const File = struct {
     background: upaya.Texture,
     layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
+    dirty: bool = false,
 
     pub fn deinit (self: *File) void {
         for (self.layers.items) |layer| {
@@ -27,9 +28,11 @@ pub const Layer = struct {
     texture: upaya.Texture,
     image: upaya.Image,
     hidden: bool = false,
+    dirty: bool = false,
 
     pub fn updateTexture (self: Layer) void {
-        self.texture.setColorData(self.image.pixels);
+        if (self.dirty)
+            self.texture.setColorData(self.image.pixels);
     }
 };
 

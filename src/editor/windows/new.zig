@@ -9,8 +9,8 @@ const File = types.File;
 const Layer = types.Layer;
 const Sprite = types.Sprite;
 
-const checkerColor1: upaya.math.Color = .{ .value = 0xFFDDDDDD };
-const checkerColor2: upaya.math.Color = .{ .value = 0xFFEEEEEE };
+pub const checkerColor1: upaya.math.Color = .{ .value = 0xFFDDDDDD };
+pub const checkerColor2: upaya.math.Color = .{ .value = 0xFFEEEEEE };
 
 var new_file: File = .{
     .name = "untitled",
