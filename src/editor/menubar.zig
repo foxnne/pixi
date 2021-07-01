@@ -27,7 +27,7 @@ pub fn draw() void {
         if (imgui.igBeginMenu("File", true)) {
             defer imgui.igEndMenu();
 
-            if (imgui.igMenuItemBool(imgui.icons.file ++ " New", "cmd+n", false, true))
+            if (imgui.igMenuItemBool(imgui.icons.file ++ "  New", "cmd+n", false, true))
                 new_file_popup = true;
 
             if (imgui.igMenuItemBool(imgui.icons.box_open ++ " Open...", "", false, true)) {}

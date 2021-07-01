@@ -57,6 +57,8 @@ pub fn init() void {
     style.WindowTitleAlign = .{ .x = 0.5, .y = 0.5};
     style.Colors[imgui.ImGuiCol_WindowBg] = background_color;
     style.Colors[imgui.ImGuiCol_MenuBarBg] = foreground_color;
+    style.Colors[imgui.ImGuiCol_DockingEmptyBg] = background_color;
+    style.Colors[imgui.ImGuiCol_Separator] = foreground_color;
     style.Colors[imgui.ImGuiCol_TitleBg] = background_color;
     style.Colors[imgui.ImGuiCol_Tab] = background_color;
     style.Colors[imgui.ImGuiCol_TabUnfocused] = background_color;
