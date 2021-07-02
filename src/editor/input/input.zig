@@ -19,27 +19,24 @@ pub fn pan(camera: *Camera, button: imgui.ImGuiMouseButton) void {
 }
 
 pub fn zoom(camera: *Camera) void {
-
     const io = imgui.igGetIO();
     var target = io.MousePos.subtract(imgui.ogGetCursorScreenPos()).subtract(imgui.ogGetWindowCenter());
 
-    target = target.subtract(.{.x = camera.position.x, .y = camera.position.y});
-   
-    
+    target = target.subtract(.{ .x = camera.position.x, .y = camera.position.y });
+
     zoom_tolerance += io.MouseWheel;
 
     if (zoom_tolerance > 2) {
         for (zoom_steps) |z, i| {
             if (z == camera.zoom and i < zoom_steps.len - 1) {
-                
                 camera.zoom = zoom_steps[i + 1];
-                std.debug.print("mouse_pos: ({d},{d})\n", .{target.x, target.y});
 
-                camera.position.x += target.x * 1 / camera.zoom;
-                camera.position.y += target.y * 1 / camera.zoom;
-                
+                if (camera.zoom > 1) {
+                    camera.position.x += target.x * 1 / camera.zoom;
+                    camera.position.y += target.y * 1 / camera.zoom;
+                }
+
                 break;
-               
             }
         }
         zoom_tolerance = 0;
@@ -47,18 +44,18 @@ pub fn zoom(camera: *Camera) void {
     if (zoom_tolerance < -2) {
         for (zoom_steps) |z, i| {
             if (z == camera.zoom and i > 0) {
-                
                 camera.zoom = zoom_steps[i - 1];
-                camera.position.x += target.x * 1 / camera.zoom;
+
+                if (camera.zoom > 1) {
+                    camera.position.x += target.x * 1 / camera.zoom;
+                    camera.position.y += target.y * 1 / camera.zoom;
+                }
 
                 break;
-                
             }
         }
         zoom_tolerance = 0;
     }
-    
-    
 
     imgui.igGetIO().MouseWheel = 0;
 }
