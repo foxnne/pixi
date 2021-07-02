@@ -1,16 +1,17 @@
 const std = @import("std");
 const upaya = @import("upaya");
 const imgui = @import("imgui");
-const canvas = @import("../windows/canvas.zig");
-const menubar = @import("../menubar.zig");
+
+const editor = @import("../editor.zig");
+
+const canvas = editor.canvas;
+const menubar = editor.menubar;
 
 const types = @import("../types/types.zig");
 const File = types.File;
 const Layer = types.Layer;
 const Sprite = types.Sprite;
-
-pub const checkerColor1: upaya.math.Color = .{ .value = 0xFFDDDDDD };
-pub const checkerColor2: upaya.math.Color = .{ .value = 0xFFEEEEEE };
+const Animation = types.Animation;
 
 var new_file: File = .{
     .name = "untitled",
@@ -21,6 +22,7 @@ var new_file: File = .{
     .background = undefined,
     .layers = undefined,
     .sprites = undefined,
+    .animations = undefined,
 };
 var tiles_wide: i32 = 1;
 var tiles_tall: i32 = 1;
@@ -49,9 +51,10 @@ pub fn draw() void {
             defer upaya.mem.allocator.free(name);
 
             new_file.name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable;
-            new_file.background = upaya.Texture.initChecker(new_file.width, new_file.height, checkerColor1, checkerColor2);
+            new_file.background = upaya.Texture.initChecker(new_file.width, new_file.height, editor.checkerColor1, editor.checkerColor2);
             new_file.layers = std.ArrayList(Layer).init(upaya.mem.allocator);
             new_file.sprites = std.ArrayList(Sprite).initCapacity(upaya.mem.allocator, @intCast(usize, tiles_wide * tiles_tall)) catch unreachable;
+            new_file.animations = std.ArrayList(Animation).init(upaya.mem.allocator);
 
             var image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
             image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);

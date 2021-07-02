@@ -16,13 +16,7 @@ pub fn draw() void {
     if (imgui.igBeginMenuBar()) {
         defer imgui.igEndMenuBar();
 
-        var header_color = editor.highlight_color;
-        var header_hover_color = editor.highlight_hover_color;
-        header_color = upaya.colors.hsvShiftColor(header_color, 0.8, 0, 0);
-        header_hover_color = upaya.colors.hsvShiftColor(header_color, 0.8, 0, 0);
-        imgui.igPushStyleColorVec4(imgui.ImGuiCol_Header, header_color);
-        imgui.igPushStyleColorVec4(imgui.ImGuiCol_HeaderActive, header_hover_color);
-        imgui.igPushStyleColorVec4(imgui.ImGuiCol_HeaderHovered, header_hover_color);
+        
 
         if (imgui.igBeginMenu("File", true)) {
             defer imgui.igEndMenu();
@@ -86,7 +80,7 @@ pub fn draw() void {
         }
     }
 
-    imgui.igPopStyleColor(3);
+   
 
     if (new_file_popup)
         imgui.igOpenPopup("New File");

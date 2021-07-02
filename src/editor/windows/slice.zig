@@ -4,7 +4,7 @@ const imgui = @import("imgui");
 
 const editor = @import("../editor.zig");
 const canvas = editor.canvas;
-const menubar = editor.menuBar;
+const menubar = editor.menubar;
 const sprites = editor.sprites;
 
 const types = @import("../types/types.zig");
@@ -28,10 +28,14 @@ pub fn draw() void {
             _ = imgui.ogDrag(i32, "Tiles Wide", &tiles_wide, 1, 1, 1024);
             _ = imgui.ogDrag(i32, "Tiles Tall", &tiles_tall, 1, 1, 1024);
 
+            var remainder_height = @mod(file.height, tiles_tall);
+            var remainder_width = @mod(file.width, tiles_wide);
+
+            imgui.ogPushDisabled(remainder_height != 0 or remainder_width != 0);
+
             if (imgui.ogButton("Slice")) {
                 sprites.setActiveSpriteIndex(0);
 
-                // TODO: this will crash if not divisible
                 file.tileHeight = @divExact(file.height, tiles_tall);
                 file.tileWidth = @divExact(file.width, tiles_wide);
 
@@ -50,6 +54,16 @@ pub fn draw() void {
 
                 menubar.slice_popup = false;
             }
+            if (remainder_height != 0 or remainder_width != 0) {
+                
+                imgui.igBeginTooltip();
+                imgui.igText("Width or Height not divisible by Tiles wide or Tiles tall!");
+                imgui.igEndTooltip();
+
+                imgui.ogPopDisabled(true);
+            }
+
+            
         }
     }
 }
