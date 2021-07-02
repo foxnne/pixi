@@ -32,7 +32,7 @@ pub var pixi_orange: imgui.ImVec4 = undefined;
 pub var pixi_orange_hover: imgui.ImVec4 = undefined;
 
 pub fn init() void {
-    background_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(35, 36, 44, 255));
+    background_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(30, 31, 39, 255));
     foreground_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(42, 44, 54, 255));
     text_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(230, 175, 137, 255));
     highlight_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(47, 179, 135, 150));
@@ -50,12 +50,13 @@ pub fn init() void {
     style.TabRounding = 2;
     style.FrameRounding = 8;
     style.WindowBorderSize = 1;
-    style.WindowRounding = 8;
+    style.WindowRounding = 0;
     style.WindowMinSize = .{ .x = 100, .y = 100 };
     style.WindowMenuButtonPosition = imgui.ImGuiDir_None;
     style.PopupRounding = 8;
     style.WindowTitleAlign = .{ .x = 0.5, .y = 0.5};
     style.Colors[imgui.ImGuiCol_WindowBg] = background_color;
+    style.Colors[imgui.ImGuiCol_Border] = foreground_color;
     style.Colors[imgui.ImGuiCol_MenuBarBg] = foreground_color;
     style.Colors[imgui.ImGuiCol_DockingEmptyBg] = background_color;
     style.Colors[imgui.ImGuiCol_Separator] = foreground_color;
@@ -66,7 +67,7 @@ pub fn init() void {
     style.Colors[imgui.ImGuiCol_TitleBgActive] = foreground_color;
     style.Colors[imgui.ImGuiCol_TabActive] = foreground_color;
     style.Colors[imgui.ImGuiCol_TabHovered] = foreground_color;
-    style.Colors[imgui.ImGuiCol_PopupBg] = foreground_color;
+    style.Colors[imgui.ImGuiCol_PopupBg] = background_color;
     style.Colors[imgui.ImGuiCol_Text] = text_color;
     style.Colors[imgui.ImGuiCol_Header] = highlight_color;
     style.Colors[imgui.ImGuiCol_HeaderHovered] = highlight_hover_color;
