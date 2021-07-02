@@ -10,7 +10,7 @@ pub fn draw() void {
     if (imgui.igBegin("Animations", 0, imgui.ImGuiWindowFlags_NoResize)) {
         defer imgui.igEnd();
 
-        if (canvas.getActiveFile()) |file| {
+        if (canvas.getActiveFile()) |_| {
             if (imgui.ogColoredButton(0x00000000, imgui.icons.plus_circle)) {}
             imgui.igSameLine(0, 5);
             if (imgui.ogColoredButton(0x00000000, imgui.icons.minus_circle)) {}

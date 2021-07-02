@@ -18,16 +18,26 @@ pub fn pan(camera: *Camera, button: imgui.ImGuiMouseButton) void {
     return;
 }
 
-pub fn zoom(camera: *Camera, target: imgui.ImVec2) void {
-    zoom_tolerance += imgui.igGetIO().MouseWheel;
+pub fn zoom(camera: *Camera) void {
 
-    var direction: imgui.ImVec2 = .{ .x = target.x - camera.position.x, .y = target.y - camera.position.y};
-    direction = direction.scale(0.5);
+    const io = imgui.igGetIO();
+    var target = io.MousePos.subtract(imgui.ogGetCursorScreenPos()).subtract(imgui.ogGetWindowCenter());
+
+    target = target.subtract(.{.x = camera.position.x, .y = camera.position.y});
+   
+    
+    zoom_tolerance += io.MouseWheel;
 
     if (zoom_tolerance > 2) {
         for (zoom_steps) |z, i| {
             if (z == camera.zoom and i < zoom_steps.len - 1) {
+                
                 camera.zoom = zoom_steps[i + 1];
+                std.debug.print("mouse_pos: ({d},{d})\n", .{target.x, target.y});
+
+                camera.position.x += target.x * 1 / camera.zoom;
+                camera.position.y += target.y * 1 / camera.zoom;
+                
                 break;
                
             }
@@ -37,7 +47,10 @@ pub fn zoom(camera: *Camera, target: imgui.ImVec2) void {
     if (zoom_tolerance < -2) {
         for (zoom_steps) |z, i| {
             if (z == camera.zoom and i > 0) {
+                
                 camera.zoom = zoom_steps[i - 1];
+                camera.position.x += target.x * 1 / camera.zoom;
+
                 break;
                 
             }

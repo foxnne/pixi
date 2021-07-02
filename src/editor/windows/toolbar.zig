@@ -7,7 +7,7 @@ pub var background_color: upaya.math.Color = upaya.math.Color.white;
 
 pub var selected_tool = Tool.arrow;
 
-pub const Tool = enum {
+pub const Tool = enum(usize) {
     arrow = 0,
     hand = 1,
     pencil = 2,

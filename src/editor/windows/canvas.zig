@@ -101,7 +101,7 @@ pub fn draw() void {
                     // TODO: do i need to deinit all the layers and background?
                     active_file_index = 0;
                     sprites.setActiveSpriteIndex(0);
-                    var f = files.swapRemove(i);
+                    _ = files.swapRemove(i);
                     //f.deinit();
                 }
             }
@@ -127,17 +127,15 @@ pub fn draw() void {
                 toolbar.selected_tool = .hand;
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
-
             
             // zoom
             if (io.MouseWheel != 0) {
-                input.zoom(&camera, mouse_position);
-                zoom_time = 10;
+                input.zoom(&camera);
+                zoom_time = 20;
             }
 
             if (zoom_time > 0) {
 
-                //TODO: make tooltip remain for a second or so after stop scrolling
                 imgui.igBeginTooltip();
                 var zoom_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d}x\u{0}", .{ imgui.icons.search, camera.zoom }) catch unreachable;
                 imgui.igText(@ptrCast([*c]const u8, zoom_text));
@@ -162,7 +160,6 @@ pub fn draw() void {
                 
                 if (getPixelCoords(layer.texture, texture_position, mouse_position)) |pixel_coords| {
                     var tiles_wide = @divExact(@intCast(usize, files.items[active_file_index].width), @intCast(usize, files.items[active_file_index].tileWidth));
-                    var tiles_tall = @divExact(@intCast(usize, files.items[active_file_index].height), @intCast(usize, files.items[active_file_index].tileHeight));
 
                     var tile_column = @divTrunc(@floatToInt(usize, pixel_coords.x), @intCast(usize, files.items[active_file_index].tileWidth));
                     var tile_row = @divTrunc(@floatToInt(usize, pixel_coords.y), @intCast(usize, files.items[active_file_index].tileHeight));
@@ -300,7 +297,7 @@ fn getPixelIndex(texture: upaya.Texture, texture_position: imgui.ImVec2, positio
 
 pub fn close() void {
     logo.?.deinit();
-    for (files.items) |file, i| {
+    for (files.items) |_, i| {
         files.items[i].deinit();
     }
 }

@@ -38,7 +38,6 @@ pub fn draw() void {
                 };
 
                 const tiles_wide = @divExact(file.width, file.tileWidth);
-                const tiles_tall = @divExact(file.height, file.tileHeight);
 
                 const column = @mod(@intCast(i32, sprite.index), tiles_wide);
                 const row = @divTrunc(@intCast(i32, sprite.index), tiles_wide);
@@ -68,7 +67,7 @@ pub fn draw() void {
                     if (layers.getActiveLayer()) |layer| {
 
                         const io = imgui.igGetIO();
-                        const mouse_position = io.MousePos;
+                        //const mouse_position = io.MousePos;
 
                         //pan
                         if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
@@ -86,8 +85,8 @@ pub fn draw() void {
 
                         // zoom
                         if (io.MouseWheel != 0) {
-                            input.zoom(&camera, mouse_position);
-                            zoom_time = 10;
+                            input.zoom(&camera);
+                            zoom_time = 20;
                         }
 
                         if (zoom_time > 0) {
@@ -113,7 +112,7 @@ pub fn draw() void {
                             camera.position.y = @trunc(camera.position.y);
                         }
 
-                        if (getPixelCoords(layer.texture, sprite_position, sprite_rect, imgui.igGetIO().MousePos)) |pixel_coords| {
+                        if (getPixelCoords(sprite_position, sprite_rect, imgui.igGetIO().MousePos)) |pixel_coords| {
                             var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
                             // color dropper input
@@ -212,7 +211,7 @@ fn drawSprite(texture: upaya.Texture, position: imgui.ImVec2, rect: upaya.math.R
     );
 }
 
-fn getPixelCoords(texture: upaya.Texture, sprite_position: imgui.ImVec2, rect: upaya.math.RectF, position: imgui.ImVec2) ?imgui.ImVec2 {
+fn getPixelCoords( sprite_position: imgui.ImVec2, rect: upaya.math.RectF, position: imgui.ImVec2) ?imgui.ImVec2 {
     var tl = camera.matrix().transformImVec2(sprite_position).add(screen_pos);
     var br: imgui.ImVec2 = sprite_position;
     br.x += rect.width;
