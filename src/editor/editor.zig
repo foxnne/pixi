@@ -116,11 +116,8 @@ pub fn resetDockLayout() void {
 }
 
 pub fn update() void {
-    imgui.igPushStyleColorVec4(imgui.ImGuiCol_Header, highlight_color_red);
-    imgui.igPushStyleColorVec4(imgui.ImGuiCol_HeaderActive, highlight_color_red);
-    imgui.igPushStyleColorVec4(imgui.ImGuiCol_HeaderHovered, highlight_hover_color_red);
+   
     menubar.draw();
-     imgui.igPopStyleColor(3);
     canvas.draw();
     layers.draw();
     toolbar.draw();
