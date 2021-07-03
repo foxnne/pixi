@@ -55,9 +55,17 @@ pub fn draw() void {
                 // draw transparency background sprite
                 drawSprite(file.background, sprite_position, sprite_rect, 0xFFFFFFFF);
 
-                // draw sprite of each layer
-                for (file.layers.items) |layer| {
-                    drawSprite(layer.texture, sprite_position, sprite_rect, 0xFFFFFFFF);
+                // draw sprite of each layer (reverse order)
+                var layer_index: usize = file.layers.items.len;
+                while (layer_index > 0) {
+                    layer_index -= 1;
+
+                    if (file.layers.items[layer_index].hidden)
+                        continue;
+
+                    file.layers.items[layer_index].updateTexture();
+                    file.layers.items[layer_index].dirty = false;
+                    drawSprite(file.layers.items[layer_index].texture, sprite_position, sprite_rect, 0xFFFFFFFF);
                 }
 
                 // store previous tool and reapply it after to allow quick switching
@@ -65,7 +73,6 @@ pub fn draw() void {
                 // handle inputs
                 if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
                     if (layers.getActiveLayer()) |layer| {
-
                         const io = imgui.igGetIO();
                         //const mouse_position = io.MousePos;
 
@@ -211,7 +218,7 @@ fn drawSprite(texture: upaya.Texture, position: imgui.ImVec2, rect: upaya.math.R
     );
 }
 
-fn getPixelCoords( sprite_position: imgui.ImVec2, rect: upaya.math.RectF, position: imgui.ImVec2) ?imgui.ImVec2 {
+fn getPixelCoords(sprite_position: imgui.ImVec2, rect: upaya.math.RectF, position: imgui.ImVec2) ?imgui.ImVec2 {
     var tl = camera.matrix().transformImVec2(sprite_position).add(screen_pos);
     var br: imgui.ImVec2 = sprite_position;
     br.x += rect.width;
