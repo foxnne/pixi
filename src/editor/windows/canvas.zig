@@ -69,13 +69,18 @@ pub fn draw() void {
         drawTexture(files.items[active_file_index].background, texture_position, 0xFFFFFFFF);
 
         // draw layers
-        for (files.items[active_file_index].layers.items) |layer, i| {
-            if (layer.hidden)
+
+        var layer_index: usize = files.items[active_file_index].layers.items.len;
+        while(layer_index > 0) {
+            layer_index -= 1;
+            
+
+            if (files.items[active_file_index].layers.items[layer_index].hidden)
                 continue;
 
-            layer.updateTexture();
-            files.items[active_file_index].layers.items[i].dirty = false;
-            drawTexture(layer.texture, texture_position, 0xFFFFFFFF);
+            files.items[active_file_index].layers.items[layer_index].updateTexture();
+            files.items[active_file_index].layers.items[layer_index].dirty = false;
+            drawTexture(files.items[active_file_index].layers.items[layer_index].texture, texture_position, 0xFFFFFFFF);
         }
 
         // draw tile grid
@@ -85,7 +90,7 @@ pub fn draw() void {
         imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_position, .{ .x = imgui.ogGetWindowSize().x * 2, .y = 40 }, imgui.ogColorConvertFloat4ToU32(editor.background_color));
 
         // draw open files tabs
-        if (imgui.igBeginTabBar("Canvas Tab Bar", imgui.ImGuiTabBarFlags_Reorderable)) {
+        if (imgui.igBeginTabBar("Canvas Tab Bar", imgui.ImGuiTabBarFlags_Reorderable | imgui.ImGuiTabBarFlags_AutoSelectNewTabs)) {
             defer imgui.igEndTabBar();
 
             for (files.items) |file, i| {

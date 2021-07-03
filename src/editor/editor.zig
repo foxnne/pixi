@@ -80,11 +80,16 @@ pub fn init() void {
     style.Colors[imgui.ImGuiCol_TabHovered] = foreground_color;
     style.Colors[imgui.ImGuiCol_PopupBg] = background_color;
     style.Colors[imgui.ImGuiCol_Text] = text_color;
+    style.Colors[imgui.ImGuiCol_ResizeGrip] = highlight_color_green;
+    style.Colors[imgui.ImGuiCol_ScrollbarGrabActive] = highlight_color_green;
+    style.Colors[imgui.ImGuiCol_ScrollbarGrabHovered] = highlight_hover_color_green;
+
     style.Colors[imgui.ImGuiCol_Header] = highlight_color_red;
     style.Colors[imgui.ImGuiCol_HeaderHovered] = highlight_hover_color_red;
     style.Colors[imgui.ImGuiCol_HeaderActive] = highlight_color_red;
     style.Colors[imgui.ImGuiCol_ScrollbarBg] = background_color;
     style.Colors[imgui.ImGuiCol_ScrollbarGrab] = foreground_color;
+    style.Colors[imgui.ImGuiCol_DockingPreview] = highlight_color_green;
     style.Colors[imgui.ImGuiCol_ModalWindowDimBg] = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(10, 10, 15, 100));
 
     canvas.init();
