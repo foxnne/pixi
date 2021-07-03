@@ -68,12 +68,10 @@ pub fn draw() void {
         // draw background texture
         drawTexture(files.items[active_file_index].background, texture_position, 0xFFFFFFFF);
 
-        // draw layers
-
+        // draw layers (reverse order)
         var layer_index: usize = files.items[active_file_index].layers.items.len;
-        while(layer_index > 0) {
+        while (layer_index > 0) {
             layer_index -= 1;
-            
 
             if (files.items[active_file_index].layers.items[layer_index].hidden)
                 continue;
@@ -115,7 +113,6 @@ pub fn draw() void {
         var previous_tool = toolbar.selected_tool;
         // handle inputs
         if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None) and files.items.len > 0) {
-
             const io = imgui.igGetIO();
             var mouse_position = io.MousePos;
 
@@ -132,7 +129,7 @@ pub fn draw() void {
                 toolbar.selected_tool = .hand;
                 input.pan(&camera, imgui.ImGuiMouseButton_Left);
             }
-            
+
             // zoom
             if (io.MouseWheel != 0) {
                 input.zoom(&camera);
@@ -140,7 +137,6 @@ pub fn draw() void {
             }
 
             if (zoom_time > 0) {
-
                 imgui.igBeginTooltip();
                 var zoom_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d}x\u{0}", .{ imgui.icons.search, camera.zoom }) catch unreachable;
                 imgui.igText(@ptrCast([*c]const u8, zoom_text));
@@ -162,7 +158,6 @@ pub fn draw() void {
             }
 
             if (layers.getActiveLayer()) |layer| {
-                
                 if (getPixelCoords(layer.texture, texture_position, mouse_position)) |pixel_coords| {
                     var tiles_wide = @divExact(@intCast(usize, files.items[active_file_index].width), @intCast(usize, files.items[active_file_index].tileWidth));
 
@@ -202,7 +197,7 @@ pub fn draw() void {
                     if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0))
                             layer.image.pixels[pixel_index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
-                            layer.dirty = true;
+                        layer.dirty = true;
                     }
                 }
             }

@@ -44,6 +44,16 @@ pub fn draw() void {
                 }
             }
 
+            imgui.igSameLine(0, 5);
+            if (imgui.ogColoredButton(0x00000000, imgui.icons.download)) {
+                
+            }
+
+            imgui.igSameLine(0, 5);
+            if (imgui.ogColoredButton(0x00000000, imgui.icons.upload)) {
+                
+            }
+
             imgui.igSeparator();
 
             for (f.layers.items) |layer, i| {
