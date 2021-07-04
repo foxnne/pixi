@@ -14,8 +14,11 @@ pub const animations = @import("windows/animations.zig");
 pub const canvas = @import("windows/canvas.zig");
 pub const sprites = @import("windows/sprites.zig");
 pub const spriteedit = @import("windows/spriteedit.zig");
+
+// popups
 pub const newfile = @import("windows/newfile.zig");
 pub const slice = @import("windows/slice.zig");
+pub const newanimation = @import("windows/newanimation.zig");
 
 //editor colors
 pub var background_color: imgui.ImVec4 = undefined;
@@ -129,8 +132,10 @@ pub fn update() void {
     animations.draw();
     sprites.draw();
     spriteedit.draw();
+
     newfile.draw();
     slice.draw();
+    newanimation.draw();
 }
 
 pub fn onFileDropped(file: []const u8) void {
@@ -167,7 +172,8 @@ pub fn onFileDropped(file: []const u8) void {
         new_file.sprites.append(.{
             .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
             .index = 0,
-            .origin = .{},
+            .origin_x = 0,
+            .origin_y = 0,
         }) catch unreachable;
 
         canvas.newFile(new_file);        

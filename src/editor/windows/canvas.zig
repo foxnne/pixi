@@ -26,7 +26,17 @@ var files: std.ArrayList(File) = undefined;
 
 pub fn init() void {
     files = std.ArrayList(File).init(upaya.mem.allocator);
-    logo = upaya.Texture.initFromFile("assets/pixi.png", .nearest) catch unreachable;
+    var logo_pixels = [_]u32{
+        0x00000000, 0xFF89AFEF, 0xFF89AFEF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+        0xFF7391D8, 0xFF201a19, 0xFF7391D8, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+        0xFF5C6DC2, 0xFF5C6DC2, 0xFF5C6DC2, 0xFF89AFEF, 0xFF89AFEF, 0xFF89AFEF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+        0x8C5058FF, 0xFF201a19, 0xFF201a19, 0xFF201a19, 0xFF7391D8, 0xFF201a19, 0xFF89E6C5, 0x00000000, 0xFF89E6C5, 0x00000000, 0x00000000, 0x00000000,
+        0xFF201a19, 0x00000000, 0x00000000, 0xFF5C6DC2, 0xFF5C6DC2, 0xFF5C6DC2, 0xFF201a19, 0xFF7BC167, 0xFF201a19, 0xFFC5E689, 0xFFC5E689, 0xFFC5E689,
+        0x00000000, 0x00000000, 0x00000000, 0xFF201a19, 0xFF201a19, 0xFF201a19, 0xFF678540, 0xFF201a19, 0xFF678540, 0xFF201a19, 0xFFA78F4A, 0xFF201a19,
+        0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF201a19, 0xFF201a19, 0xFF201a19, 0xFF844531, 0xFF844531, 0xFF844531,
+        0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF201a19, 0xFF201a19, 0xFF201a19,
+    };
+    logo = upaya.Texture.initWithColorData(&logo_pixels, 12, 8, .nearest, .clamp);
 }
 
 pub fn newFile(file: File) void {
@@ -168,8 +178,16 @@ pub fn draw() void {
                     var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
                     // set active sprite window
-                    if (io.MouseDown[0] and toolbar.selected_tool != toolbar.Tool.hand)
+                    if (io.MouseDown[0] and toolbar.selected_tool != toolbar.Tool.hand) {
                         sprites.setActiveSpriteIndex(tile_index);
+
+                        if (toolbar.selected_tool == toolbar.Tool.arrow) {
+                            imgui.igBeginTooltip();
+                            var index_text = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "Index: {d}", .{tile_index}) catch unreachable;
+                            imgui.igText(@ptrCast([*c]const u8, index_text));
+                            imgui.igEndTooltip();
+                        }
+                    }
 
                     // color dropper input
                     if (io.MouseDown[1] or ((io.KeyAlt or io.KeySuper) and io.MouseDown[0])) {
@@ -206,7 +224,7 @@ pub fn draw() void {
         }
     } else {
         camera.position = .{ .x = 0, .y = 0 };
-        camera.zoom = 2;
+        camera.zoom = 28;
 
         var logo_pos = .{ .x = -@intToFloat(f32, logo.?.width) / 2, .y = -@intToFloat(f32, logo.?.height) / 2 };
         // draw background texture
@@ -214,7 +232,7 @@ pub fn draw() void {
 
         var text_pos = imgui.ogGetWindowCenter();
         text_pos.y += @intToFloat(f32, logo.?.height);
-        text_pos.y += 60;
+        text_pos.y += 175;
         text_pos.x -= 60;
 
         imgui.ogSetCursorPos(text_pos);

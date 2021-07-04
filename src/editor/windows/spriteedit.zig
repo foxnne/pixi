@@ -7,10 +7,12 @@ pub const Camera = @import("../utils/camera.zig").Camera;
 const editor = @import("../editor.zig");
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
-const toolbar = @import("../windows/toolbar.zig");
-const layers = @import("../windows/layers.zig");
-const sprites = @import("../windows/sprites.zig");
-const canvas = @import("../windows/canvas.zig");
+const toolbar = editor.toolbar;
+const layers = editor.layers;
+const sprites = editor.sprites;
+const canvas = editor.canvas;
+const animations = editor.animations;
+
 
 const File = types.File;
 const Layer = types.Layer;
@@ -31,6 +33,7 @@ pub fn draw() void {
         if (window_size.x == 0 or window_size.y == 0) return;
 
         if (canvas.getActiveFile()) |file| {
+
             if (sprites.getActiveSprite()) |sprite| {
                 var sprite_position: imgui.ImVec2 = .{
                     .x = -@intToFloat(f32, file.tileWidth) / 2,
@@ -93,9 +96,8 @@ pub fn draw() void {
 
                             //TODO: make tooltip remain for a second or so after stop scrolling
                             imgui.igBeginTooltip();
-                            var zoom_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d}x\u{0}", .{ imgui.icons.search, camera.zoom }) catch unreachable;
+                            var zoom_text = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s} {d}", .{ imgui.icons.search, camera.zoom }) catch unreachable;
                             imgui.igText(@ptrCast([*c]const u8, zoom_text));
-                            upaya.mem.allocator.free(zoom_text);
                             imgui.igEndTooltip();
 
                             zoom_time -= 1;

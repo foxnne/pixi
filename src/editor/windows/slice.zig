@@ -48,7 +48,8 @@ pub fn draw() void {
                     file.sprites.append(.{
                         .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
                         .index = i,
-                        .origin = .{},
+                        .origin_x = 0,
+                        .origin_y = 0,
                     }) catch unreachable;
                 }
 

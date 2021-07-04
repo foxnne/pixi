@@ -40,11 +40,13 @@ pub const Layer = struct {
 pub const Sprite = struct {
     name: []const u8,
     index: usize,
-    origin: upaya.math.Vec2,
+    origin_x: f32,
+    origin_y: f32,
 };
 
 pub const Animation = struct {
     name: []const u8,
     start: usize,
     length: usize,
+    fps: usize,
 };
