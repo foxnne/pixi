@@ -74,7 +74,7 @@ pub fn draw() void {
             imgui.igSameLine(0, 5);
             if (imgui.ogColoredButton(0x00000000, imgui.icons.minus_circle)) {}
             imgui.igSameLine(0, 5);
-            var play_pause_icon = if (animation_state == .pause) imgui.icons.play_circle else imgui.icons.pause_circle;
+            var play_pause_icon = if (animation_state == .pause) imgui.icons.play else imgui.icons.pause;
             if (imgui.ogColoredButton(0x00000000, play_pause_icon)) {
                 if (animation_state == .pause) {
                     animation_state = .play;

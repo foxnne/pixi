@@ -7,7 +7,6 @@ const canvas = editor.canvas;
 const animations = editor.animations;
 const sprites = editor.sprites;
 
-
 const types = @import("../types/types.zig");
 const File = types.File;
 const Layer = types.Layer;
@@ -36,8 +35,6 @@ pub fn draw() void {
         if (imgui.igBeginPopupModal("New Animation", &animations.new_animation_popup, imgui.ImGuiWindowFlags_Popup | imgui.ImGuiWindowFlags_NoResize)) {
             defer imgui.igEndPopup();
 
-
-            
             if (imgui.igInputTextWithHint("Name", "New Animation", &name_buffer, name_buffer.len, imgui.ImGuiInputTextFlags_None, null, null)) {
                 name_buffer[127] = 0;
             }
@@ -52,10 +49,8 @@ pub fn draw() void {
                 file.animations.append(new_animation) catch unreachable;
                 animations.new_animation_popup = false;
                 var i: usize = 0;
-                while (i < new_animation.length) : (i += 1){
-                    
-                        file.sprites.items[i + new_animation.start].name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_{d}", .{name, i}) catch unreachable;
-                    
+                while (i < new_animation.length) : (i += 1) {
+                    file.sprites.items[i + new_animation.start].name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_{d}", .{ name, i }) catch unreachable;
                 }
             }
         }
