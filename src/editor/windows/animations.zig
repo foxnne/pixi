@@ -26,7 +26,7 @@ pub fn newAnimation (animation: *Animation) void {
     }
 }
 
-pub fn getAnimation () ?*Animation {
+pub fn getActiveAnimation () ?*Animation {
     if (canvas.getActiveFile()) |file| {
         if (active_animation_index < file.animations.items.len){
             return &file.animations.items[active_animation_index];
@@ -46,7 +46,7 @@ pub fn draw() void {
 
             // advance frame if playing
             if (animation_state == .play) {
-                if (getAnimation()) |animation| {
+                if (getActiveAnimation()) |animation| {
                     elapsed_time += imgui.igGetIO().DeltaTime;
 
                     if (elapsed_time > 1 / @intToFloat(f32, animation.fps)) {

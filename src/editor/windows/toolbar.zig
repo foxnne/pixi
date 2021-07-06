@@ -10,8 +10,15 @@ pub var selected_tool = Tool.arrow;
 pub const Tool = enum(usize) {
     arrow = 0,
     hand = 1,
-    pencil = 2,
-    eraser = 3,
+    selection = 2,
+    wand = 3,
+
+    pencil = 4,
+    eraser = 5,
+    bucket = 6,
+    dropper = 7,
+
+    animation = 8,
 };
 
 pub fn draw() void {
@@ -52,28 +59,95 @@ pub fn draw() void {
             }
         }
 
-        // draw tools
-        imgui.igText("Draw");
-        imgui.igSeparator();
         imgui.ogPushStyleVarVec2(imgui.ImGuiStyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
+
+        //animation tools
+        imgui.igText("Selection");
+        imgui.igSeparator();
 
         if (imgui.ogSelectableBool(imgui.icons.mouse_pointer, selected_tool == .arrow, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .arrow;
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
+            imgui.igBeginTooltip();
+            imgui.igText("Pointer (esc)");
+            imgui.igEndTooltip();
+        }
 
         imgui.igSameLine(0, space);
         if (imgui.ogSelectableBool(imgui.icons.hand_pointer, selected_tool == .hand, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .hand;
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
+            imgui.igBeginTooltip();
+            imgui.igText("Pan (space + " ++ imgui.icons.mouse ++ ")");
+            imgui.igEndTooltip();
+        }
+
+        if (imgui.ogSelectableBool(imgui.icons.border_style, selected_tool == .selection, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
+            selected_tool = .selection;
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
+            imgui.igBeginTooltip();
+            imgui.igText("Select (s)");
+            imgui.igEndTooltip();
+        }
+
+        imgui.igSameLine(0, space);
+        if (imgui.ogSelectableBool(imgui.icons.magic, selected_tool == .wand, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
+            selected_tool = .wand;
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
+            imgui.igBeginTooltip();
+            imgui.igText("Wand (w)");
+            imgui.igEndTooltip();
+        }
+
+        // draw tools
+        imgui.igText("Draw");
+        imgui.igSeparator();
 
         if (imgui.ogSelectableBool(imgui.icons.pencil_alt, selected_tool == .pencil, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .pencil;
-            
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
+            imgui.igBeginTooltip();
+            imgui.igText("Draw (d)");
+            imgui.igEndTooltip();
+        }
+
         imgui.igSameLine(0, space);
         if (imgui.ogSelectableBool(imgui.icons.eraser, selected_tool == .eraser, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .eraser;
-        imgui.igPopStyleVar(1);
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
+            imgui.igBeginTooltip();
+            imgui.igText("Erase (e)");
+            imgui.igEndTooltip();
+        }
+
+        if (imgui.ogSelectableBool(imgui.icons.fill, selected_tool == .bucket, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
+            selected_tool = .bucket;
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
+            imgui.igBeginTooltip();
+            imgui.igText("Fill (f)");
+            imgui.igEndTooltip();
+        }
+        
+        imgui.igSameLine(0, space);
+        if (imgui.ogSelectableBool(imgui.icons.eye_dropper, selected_tool == .dropper, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
+            selected_tool = .dropper;
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
+            imgui.igBeginTooltip();
+            imgui.igText("Dropper (right " ++ imgui.icons.mouse ++ ")");
+            imgui.igEndTooltip();
+        }
 
         //animation tools
         imgui.igText("Animation");
         imgui.igSeparator();
+
+        if (imgui.ogSelectableBool(imgui.icons.border_none, selected_tool == .animation, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
+            selected_tool = .animation;
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
+            imgui.igBeginTooltip();
+            imgui.igText("Animation (a)");
+            imgui.igEndTooltip();
+        }
+        imgui.igPopStyleVar(1);
     }
 }

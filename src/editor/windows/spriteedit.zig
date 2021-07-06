@@ -70,6 +70,7 @@ pub fn draw() void {
                     file.layers.items[layer_index].dirty = false;
                     drawSprite(file.layers.items[layer_index].texture, sprite_position, sprite_rect, 0xFFFFFFFF);
                 }
+                
 
                 // store previous tool and reapply it after to allow quick switching
                 var previous_tool = toolbar.selected_tool;

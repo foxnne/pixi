@@ -39,6 +39,8 @@ pub var pixi_orange_hover: imgui.ImVec4 = undefined;
 pub const checkerColor1: upaya.math.Color = .{ .value = 0xFFDDDDDD };
 pub const checkerColor2: upaya.math.Color = .{ .value = 0xFFEEEEEE };
 
+pub const gridColor: upaya.math.Color = .{ .value = 0xFF999999 };
+
 pub fn init() void {
     background_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(30, 31, 39, 255));
     foreground_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(42, 44, 54, 255));
@@ -125,6 +127,38 @@ pub fn resetDockLayout() void {
 }
 
 pub fn update() void {
+
+    const io = imgui.igGetIO();
+
+    // global hotkeys
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_ESCAPE))
+        toolbar.selected_tool = .arrow;
+
+    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_D))
+        toolbar.selected_tool = .pencil;
+
+    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_E))
+        toolbar.selected_tool = .eraser;
+
+    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_F))
+        toolbar.selected_tool = .bucket;
+
+    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_N) and io.KeySuper) 
+        menubar.new_file_popup = true;
+
+    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_S )and !io.KeySuper)
+        toolbar.selected_tool = .selection;
+
+    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_A )and !io.KeySuper)
+        toolbar.selected_tool = .animation;
+    
+    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_S) and io.KeySuper) {}
+        //TODO: save
+
+    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_W))
+        toolbar.selected_tool = .wand;
+
+    
     menubar.draw();
     canvas.draw();
     layers.draw();
@@ -132,7 +166,6 @@ pub fn update() void {
     animations.draw();
     sprites.draw();
     spriteedit.draw();
-
     newfile.draw();
     slice.draw();
     newanimation.draw();

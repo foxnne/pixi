@@ -7,9 +7,10 @@ pub const Camera = @import("../utils/camera.zig").Camera;
 const editor = @import("../editor.zig");
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
-const toolbar = @import("toolbar.zig");
-const layers = @import("layers.zig");
-const sprites = @import("sprites.zig");
+const toolbar = editor.toolbar;
+const layers = editor.layers;
+const sprites = editor.sprites;
+const animations = editor.animations;
 
 const File = types.File;
 const Layer = types.Layer;
@@ -18,7 +19,7 @@ const Animation = types.Animation;
 var camera: Camera = .{ .zoom = 2 };
 var screen_pos: imgui.ImVec2 = undefined;
 
-const gridColor: upaya.math.Color = .{ .value = 0xFF999999 };
+
 var logo: ?upaya.Texture = null;
 
 var active_file_index: usize = 0;
@@ -94,6 +95,7 @@ pub fn draw() void {
         // draw tile grid
         drawGrid(files.items[active_file_index], texture_position);
 
+        // draw fill to hide canvas behind transparent tab bar
         var cursor_position = imgui.ogGetCursorPos();
         imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_position, .{ .x = imgui.ogGetWindowSize().x * 2, .y = 40 }, imgui.ogColorConvertFloat4ToU32(editor.background_color));
 
@@ -146,6 +148,7 @@ pub fn draw() void {
                 zoom_time = 20;
             }
 
+            // show tool tip for a few frames after zoom is completed
             if (zoom_time > 0) {
                 imgui.igBeginTooltip();
                 var zoom_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d}x\u{0}", .{ imgui.icons.search, camera.zoom }) catch unreachable;
@@ -252,7 +255,7 @@ fn drawGrid(file: File, position: imgui.ImVec2) void {
         top = camera.matrix().transformImVec2(top).add(screen_pos);
         bottom = camera.matrix().transformImVec2(bottom).add(screen_pos);
 
-        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), top, bottom, gridColor.value, 1);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), top, bottom, editor.gridColor.value, 1);
     }
 
     var y: i32 = 0;
@@ -263,7 +266,54 @@ fn drawGrid(file: File, position: imgui.ImVec2) void {
         left = camera.matrix().transformImVec2(left).add(screen_pos);
         right = camera.matrix().transformImVec2(right).add(screen_pos);
 
-        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), left, right, gridColor.value, 1);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), left, right, editor.gridColor.value, 1);
+    }
+
+    if (sprites.getActiveSprite()) |sprite| {
+        var column = @mod(@intCast(i32, sprite.index), tilesWide);
+        var row = @divTrunc(@intCast(i32, sprite.index), tilesWide);
+
+        var tl: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, column * file.tileWidth), .y = @intToFloat(f32, row * file.tileHeight)});
+        tl = camera.matrix().transformImVec2(tl).add(screen_pos);
+        var size: imgui.ImVec2 = .{ .x = @intToFloat(f32, file.tileWidth), .y = @intToFloat(f32, file.tileHeight)};
+        size = size.scale(camera.zoom);
+
+        imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, imgui.ogColorConvertFloat4ToU32(editor.highlight_color_green), 2);
+    } 
+
+    if (animations.getActiveAnimation()) |animation| {
+        const start_column = @mod(@intCast(i32, animation.start), tilesWide);
+        const start_row = @divTrunc(@intCast(i32, animation.start), tilesWide);
+
+        var start_tl: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, start_column * file.tileWidth), .y = @intToFloat(f32, start_row * file.tileHeight)});
+        var start_bl: imgui.ImVec2 = start_tl.add(.{ .x = 0, .y = @intToFloat(f32, file.tileHeight)});
+        var start_tm: imgui.ImVec2 = start_tl.add(.{.x = @intToFloat(f32, @divTrunc(file.tileWidth, 2))});
+        var start_bm: imgui.ImVec2 = start_bl.add(.{.x = @intToFloat(f32, @divTrunc(file.tileWidth, 2))});
+        start_tl = camera.matrix().transformImVec2(start_tl).add(screen_pos);
+        start_bl = camera.matrix().transformImVec2(start_bl).add(screen_pos);
+
+        start_tm = camera.matrix().transformImVec2(start_tm).add(screen_pos);
+        start_bm = camera.matrix().transformImVec2(start_bm).add(screen_pos);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), start_tl, start_bl, 0xFFFFAA00, 2);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), start_tl, start_tm, 0xFFFFAA00, 2);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), start_bl, start_bm, 0xFFFFAA00, 2);
+
+        const end_column = @mod(@intCast(i32, animation.start + animation.length - 1), tilesWide);
+        const end_row = @divTrunc(@intCast(i32, animation.start + animation.length - 1), tilesWide);
+
+        var end_tr: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, end_column * file.tileWidth + file.tileWidth), .y = @intToFloat(f32, end_row * file.tileHeight)});
+        var end_br: imgui.ImVec2 = end_tr.add(.{ .x = 0, .y = @intToFloat(f32, file.tileHeight)});
+        var end_tm: imgui.ImVec2 = end_tr.subtract(.{.x = @intToFloat(f32, @divTrunc(file.tileWidth, 2))});
+        var end_bm: imgui.ImVec2 = end_br.subtract(.{.x = @intToFloat(f32, @divTrunc(file.tileWidth, 2))});
+        end_tr = camera.matrix().transformImVec2(end_tr).add(screen_pos);
+        end_br = camera.matrix().transformImVec2(end_br).add(screen_pos);
+
+        end_tm = camera.matrix().transformImVec2(end_tm).add(screen_pos);
+        end_bm = camera.matrix().transformImVec2(end_bm).add(screen_pos);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), end_tr, end_br, 0xFFAA00FF, 2);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), end_tr, end_tm, 0xFFAA00FF, 2);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), end_br, end_bm, 0xFFAA00FF, 2);
+
     }
 }
 
