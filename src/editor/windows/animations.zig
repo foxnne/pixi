@@ -84,8 +84,10 @@ pub fn draw() void {
 
             for (file.animations.items) |animation, i| {
 
+                imgui.igPushIDInt(@intCast(c_int, i));
                 if (imgui.ogSelectableBool(@ptrCast([*c]const u8, animation.name), i == active_animation_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
                     active_animation_index = i;
+                imgui.igPopID();
 
 
                 

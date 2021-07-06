@@ -19,7 +19,6 @@ const Animation = types.Animation;
 var camera: Camera = .{ .zoom = 2 };
 var screen_pos: imgui.ImVec2 = undefined;
 
-
 var logo: ?upaya.Texture = null;
 
 var active_file_index: usize = 0;
@@ -181,7 +180,7 @@ pub fn draw() void {
                     var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
                     // set active sprite window
-                    if (io.MouseDown[0] and toolbar.selected_tool != toolbar.Tool.hand) {
+                    if (io.MouseDown[0] and toolbar.selected_tool != toolbar.Tool.hand and animations.animation_state != .play) {
                         sprites.setActiveSpriteIndex(tile_index);
 
                         if (toolbar.selected_tool == toolbar.Tool.arrow) {
@@ -193,7 +192,7 @@ pub fn draw() void {
                     }
 
                     // color dropper input
-                    if (io.MouseDown[1] or ((io.KeyAlt or io.KeySuper) and io.MouseDown[0])) {
+                    if (io.MouseDown[1] or ((io.KeyAlt or io.KeySuper) and io.MouseDown[0]) or (io.MouseDown[0] and toolbar.selected_tool == .dropper)) {
                         imgui.igBeginTooltip();
                         var coord_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d},{d}\u{0}", .{ imgui.icons.eye_dropper, pixel_coords.x + 1, pixel_coords.y + 1 }) catch unreachable;
                         imgui.igText(@ptrCast([*c]const u8, coord_text));
@@ -201,11 +200,16 @@ pub fn draw() void {
                         imgui.igEndTooltip();
 
                         if (layer.image.pixels[pixel_index] == 0x00000000) {
-                            toolbar.selected_tool = .eraser;
-                            previous_tool = toolbar.selected_tool;
+                            if (toolbar.selected_tool != .dropper) {
+                                toolbar.selected_tool = .eraser;
+                                previous_tool = toolbar.selected_tool;
+                            }
                         } else {
-                            toolbar.selected_tool = .pencil;
-                            previous_tool = toolbar.selected_tool;
+                            if (toolbar.selected_tool != .dropper){
+                                toolbar.selected_tool = .pencil;
+                                previous_tool = toolbar.selected_tool;
+                            }
+                            
                             toolbar.foreground_color = upaya.math.Color{ .value = layer.image.pixels[pixel_index] };
 
                             imgui.igBeginTooltip();
@@ -219,6 +223,21 @@ pub fn draw() void {
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0))
                             layer.image.pixels[pixel_index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
                         layer.dirty = true;
+                    }
+
+                    if (toolbar.selected_tool == .animation) {
+                        if (io.MouseClicked[0] and !imgui.ogKeyDown(upaya.sokol.SAPP_KEYCODE_SPACE)) {
+                            if (animations.getActiveAnimation()) |animation| {
+                                animation.start = tile_index;
+                            }
+                        }
+
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
+                            if (animations.getActiveAnimation()) |animation| {
+                                if (@intCast(i32, tile_index) - @intCast(i32, animation.start) + 1 >= 0)
+                                    animation.length = tile_index - animation.start + 1;
+                            }
+                        }
                     }
                 }
             }
@@ -273,22 +292,22 @@ fn drawGrid(file: File, position: imgui.ImVec2) void {
         var column = @mod(@intCast(i32, sprite.index), tilesWide);
         var row = @divTrunc(@intCast(i32, sprite.index), tilesWide);
 
-        var tl: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, column * file.tileWidth), .y = @intToFloat(f32, row * file.tileHeight)});
+        var tl: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, column * file.tileWidth), .y = @intToFloat(f32, row * file.tileHeight) });
         tl = camera.matrix().transformImVec2(tl).add(screen_pos);
-        var size: imgui.ImVec2 = .{ .x = @intToFloat(f32, file.tileWidth), .y = @intToFloat(f32, file.tileHeight)};
+        var size: imgui.ImVec2 = .{ .x = @intToFloat(f32, file.tileWidth), .y = @intToFloat(f32, file.tileHeight) };
         size = size.scale(camera.zoom);
 
         imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, imgui.ogColorConvertFloat4ToU32(editor.highlight_color_green), 2);
-    } 
+    }
 
     if (animations.getActiveAnimation()) |animation| {
         const start_column = @mod(@intCast(i32, animation.start), tilesWide);
         const start_row = @divTrunc(@intCast(i32, animation.start), tilesWide);
 
-        var start_tl: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, start_column * file.tileWidth), .y = @intToFloat(f32, start_row * file.tileHeight)});
-        var start_bl: imgui.ImVec2 = start_tl.add(.{ .x = 0, .y = @intToFloat(f32, file.tileHeight)});
-        var start_tm: imgui.ImVec2 = start_tl.add(.{.x = @intToFloat(f32, @divTrunc(file.tileWidth, 2))});
-        var start_bm: imgui.ImVec2 = start_bl.add(.{.x = @intToFloat(f32, @divTrunc(file.tileWidth, 2))});
+        var start_tl: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, start_column * file.tileWidth), .y = @intToFloat(f32, start_row * file.tileHeight) });
+        var start_bl: imgui.ImVec2 = start_tl.add(.{ .x = 0, .y = @intToFloat(f32, file.tileHeight) });
+        var start_tm: imgui.ImVec2 = start_tl.add(.{ .x = @intToFloat(f32, @divTrunc(file.tileWidth, 2)) });
+        var start_bm: imgui.ImVec2 = start_bl.add(.{ .x = @intToFloat(f32, @divTrunc(file.tileWidth, 2)) });
         start_tl = camera.matrix().transformImVec2(start_tl).add(screen_pos);
         start_bl = camera.matrix().transformImVec2(start_bl).add(screen_pos);
 
@@ -301,10 +320,10 @@ fn drawGrid(file: File, position: imgui.ImVec2) void {
         const end_column = @mod(@intCast(i32, animation.start + animation.length - 1), tilesWide);
         const end_row = @divTrunc(@intCast(i32, animation.start + animation.length - 1), tilesWide);
 
-        var end_tr: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, end_column * file.tileWidth + file.tileWidth), .y = @intToFloat(f32, end_row * file.tileHeight)});
-        var end_br: imgui.ImVec2 = end_tr.add(.{ .x = 0, .y = @intToFloat(f32, file.tileHeight)});
-        var end_tm: imgui.ImVec2 = end_tr.subtract(.{.x = @intToFloat(f32, @divTrunc(file.tileWidth, 2))});
-        var end_bm: imgui.ImVec2 = end_br.subtract(.{.x = @intToFloat(f32, @divTrunc(file.tileWidth, 2))});
+        var end_tr: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, end_column * file.tileWidth + file.tileWidth), .y = @intToFloat(f32, end_row * file.tileHeight) });
+        var end_br: imgui.ImVec2 = end_tr.add(.{ .x = 0, .y = @intToFloat(f32, file.tileHeight) });
+        var end_tm: imgui.ImVec2 = end_tr.subtract(.{ .x = @intToFloat(f32, @divTrunc(file.tileWidth, 2)) });
+        var end_bm: imgui.ImVec2 = end_br.subtract(.{ .x = @intToFloat(f32, @divTrunc(file.tileWidth, 2)) });
         end_tr = camera.matrix().transformImVec2(end_tr).add(screen_pos);
         end_br = camera.matrix().transformImVec2(end_br).add(screen_pos);
 
@@ -313,7 +332,6 @@ fn drawGrid(file: File, position: imgui.ImVec2) void {
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), end_tr, end_br, 0xFFAA00FF, 2);
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), end_tr, end_tm, 0xFFAA00FF, 2);
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), end_br, end_bm, 0xFFAA00FF, 2);
-
     }
 }
 
@@ -351,6 +369,14 @@ fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, positi
         return pixel_pos;
     } else return null;
 }
+
+// fn getTileIndexFromCoords( file: File, coords: imgui.ImVec2) usize {
+//    var column = @divTrunc(@floatToInt(usize, coords.x), @intCast(usize, file.tileWidth));
+//    var row = @divTrunc(@floatToInt(usize, coords.y), @intCast(usize, file.tileHeight));
+
+//    return column + row * @intCast(usize, @divTrunc(file.width, file.tileWidth));
+
+// }
 
 fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
     return @floatToInt(usize, coords.x + coords.y * @intToFloat(f32, texture.width));

@@ -53,7 +53,7 @@ pub fn draw() void {
                     active_sprite_index = i;
                 imgui.igPopID();
                 
-                if (set_from_outside and active_sprite_index == i and !imgui.igIsItemVisible()) {
+                if (set_from_outside and active_sprite_index == i and !imgui.igIsItemVisible() and !imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
                     imgui.igSetScrollHereY(0.5);
                     set_from_outside = false;
                 }

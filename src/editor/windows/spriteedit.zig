@@ -13,7 +13,6 @@ const sprites = editor.sprites;
 const canvas = editor.canvas;
 const animations = editor.animations;
 
-
 const File = types.File;
 const Layer = types.Layer;
 const Animation = types.Animation;
@@ -33,7 +32,6 @@ pub fn draw() void {
         if (window_size.x == 0 or window_size.y == 0) return;
 
         if (canvas.getActiveFile()) |file| {
-
             if (sprites.getActiveSprite()) |sprite| {
                 var sprite_position: imgui.ImVec2 = .{
                     .x = -@intToFloat(f32, file.tileWidth) / 2,
@@ -70,7 +68,6 @@ pub fn draw() void {
                     file.layers.items[layer_index].dirty = false;
                     drawSprite(file.layers.items[layer_index].texture, sprite_position, sprite_rect, 0xFFFFFFFF);
                 }
-                
 
                 // store previous tool and reapply it after to allow quick switching
                 var previous_tool = toolbar.selected_tool;
@@ -126,7 +123,7 @@ pub fn draw() void {
                             var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
                             // color dropper input
-                            if (imgui.igGetIO().MouseDown[1] or ((imgui.igGetIO().KeyAlt or imgui.igGetIO().KeySuper) and imgui.igGetIO().MouseDown[0])) {
+                            if (imgui.igGetIO().MouseDown[1] or ((imgui.igGetIO().KeyAlt or imgui.igGetIO().KeySuper) and imgui.igGetIO().MouseDown[0]) or (io.MouseDown[0] and toolbar.selected_tool == .dropper)) {
                                 imgui.igBeginTooltip();
                                 var coord_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d},{d}\u{0}", .{ imgui.icons.eye_dropper, pixel_coords.x + 1, pixel_coords.y + 1 }) catch unreachable;
                                 imgui.igText(@ptrCast([*c]const u8, coord_text));
@@ -134,11 +131,15 @@ pub fn draw() void {
                                 imgui.igEndTooltip();
 
                                 if (layer.image.pixels[pixel_index] == 0x00000000) {
-                                    toolbar.selected_tool = .eraser;
-                                    previous_tool = toolbar.selected_tool;
+                                    if (toolbar.selected_tool != .dropper) {
+                                        toolbar.selected_tool = .eraser;
+                                        previous_tool = toolbar.selected_tool;
+                                    }
                                 } else {
-                                    toolbar.selected_tool = .pencil;
-                                    previous_tool = toolbar.selected_tool;
+                                    if (toolbar.selected_tool != .dropper) {
+                                        toolbar.selected_tool = .pencil;
+                                        previous_tool = toolbar.selected_tool;
+                                    }
                                     toolbar.foreground_color = upaya.math.Color{ .value = layer.image.pixels[pixel_index] };
 
                                     imgui.igBeginTooltip();
