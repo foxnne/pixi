@@ -58,7 +58,6 @@ pub fn getActiveFile() ?*File {
     return &files.items[active_file_index];
 }
 
-var zoom_time: usize = 0;
 
 pub fn draw() void {
     if (!imgui.igBegin("Canvas", null, imgui.ImGuiWindowFlags_None)) return;
@@ -144,18 +143,6 @@ pub fn draw() void {
             // zoom
             if (io.MouseWheel != 0) {
                 input.zoom(&camera);
-                zoom_time = 20;
-            }
-
-            // show tool tip for a few frames after zoom is completed
-            if (zoom_time > 0) {
-                imgui.igBeginTooltip();
-                var zoom_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d}x\u{0}", .{ imgui.icons.search, camera.zoom }) catch unreachable;
-                imgui.igText(@ptrCast([*c]const u8, zoom_text));
-                upaya.mem.allocator.free(zoom_text);
-                imgui.igEndTooltip();
-
-                zoom_time -= 1;
             }
 
             // round positions if we are finished changing cameras position

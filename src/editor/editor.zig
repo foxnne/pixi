@@ -6,6 +6,8 @@ const sokol = @import("sokol");
 
 pub const types = @import("types/types.zig");
 
+pub const input = @import("input/input.zig");
+
 //windows and bars
 pub const menubar = @import("menubar.zig");
 pub const toolbar = @import("windows/toolbar.zig");
@@ -158,6 +160,7 @@ pub fn update() void {
     if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_W))
         toolbar.selected_tool = .wand;
 
+    input.update();
     
     menubar.draw();
     canvas.draw();

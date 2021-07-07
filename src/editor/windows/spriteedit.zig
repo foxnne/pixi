@@ -20,8 +20,6 @@ const Animation = types.Animation;
 var camera: Camera = .{ .zoom = 4 };
 var screen_pos: imgui.ImVec2 = undefined;
 
-var zoom_time: usize = 0;
-
 pub fn draw() void {
     if (imgui.igBegin("SpriteEdit", 0, imgui.ImGuiWindowFlags_None)) {
         defer imgui.igEnd();
@@ -94,19 +92,10 @@ pub fn draw() void {
                         // zoom
                         if (io.MouseWheel != 0) {
                             input.zoom(&camera);
-                            zoom_time = 20;
+                            
                         }
 
-                        if (zoom_time > 0) {
-
-                            //TODO: make tooltip remain for a second or so after stop scrolling
-                            imgui.igBeginTooltip();
-                            var zoom_text = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s} {d}", .{ imgui.icons.search, camera.zoom }) catch unreachable;
-                            imgui.igText(@ptrCast([*c]const u8, zoom_text));
-                            imgui.igEndTooltip();
-
-                            zoom_time -= 1;
-                        }
+                        
 
                         // round positions if we are finished changing cameras position
                         if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Middle) or imgui.ogKeyUp(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
