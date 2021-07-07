@@ -29,12 +29,14 @@ pub fn zoom(camera: *Camera) void {
     if (zoom_tolerance > 2) {
         for (zoom_steps) |z, i| {
             if (z == camera.zoom and i < zoom_steps.len - 1) {
+                const previous_zoom = camera.zoom;
                 camera.zoom = zoom_steps[i + 1];
 
-                if (camera.zoom > 1) {
-                    camera.position.x += target.x * 1 / camera.zoom;
-                    camera.position.y += target.y * 1 / camera.zoom;
-                }
+                const previous = target.scale(1 / previous_zoom);
+                const next = target.scale(1 / camera.zoom);
+
+                camera.position.x += previous.x - next.x;
+                camera.position.y += previous.y - next.y;
 
                 break;
             }
@@ -44,12 +46,14 @@ pub fn zoom(camera: *Camera) void {
     if (zoom_tolerance < -2) {
         for (zoom_steps) |z, i| {
             if (z == camera.zoom and i > 0) {
+                const previous_zoom = camera.zoom;
                 camera.zoom = zoom_steps[i - 1];
 
-                if (camera.zoom > 1) {
-                    camera.position.x += target.x * 1 / camera.zoom;
-                    camera.position.y += target.y * 1 / camera.zoom;
-                }
+                const previous = target.scale(1 / previous_zoom);
+                const next = target.scale(1 / camera.zoom);
+
+                camera.position.x += previous.x - next.x;
+                camera.position.y += previous.y - next.y;
 
                 break;
             }

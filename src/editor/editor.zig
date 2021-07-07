@@ -178,14 +178,14 @@ pub fn onFileDropped(file: []const u8) void {
         // TODO: figure out file name on windows
         const start_name = std.mem.lastIndexOf(u8, file, "/").?;
         const end_name = std.mem.indexOf(u8, file, ".").?;
-        const name = std.fmt.allocPrint(upaya.mem.allocator, "{s}\u{0}", .{file[start_name + 1..end_name]}) catch unreachable;
-        defer upaya.mem.allocator.free(name);
+        const name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}", .{file[start_name + 1..end_name]}) catch unreachable;
+        const sprite_name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_0", .{name}) catch unreachable;
         const file_image = upaya.Image.initFromFile(file);
         const image_width: i32 = @intCast(i32, file_image.w);
         const image_height: i32 = @intCast(i32, file_image.h);
 
         var new_file: types.File = .{
-            .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
+            .name = name,
             .width = image_width,
             .height = image_height,
             .tileWidth = image_width,
@@ -203,7 +203,7 @@ pub fn onFileDropped(file: []const u8) void {
         }) catch unreachable;
 
         new_file.sprites.append(.{
-            .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
+            .name = sprite_name,
             .index = 0,
             .origin_x = 0,
             .origin_y = 0,
