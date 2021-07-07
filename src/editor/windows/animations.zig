@@ -110,7 +110,7 @@ pub fn draw() void {
                     // TODO: disallow multiple same-name animations
                     if (imgui.ogInputText("Name", &animation_name_buffer, animation_name_buffer.len)) {}
 
-                    var name_buf = std.mem.trimRight(u8, animation_name_buffer[0..], "\u{0}");
+                    var name_buf = std.mem.trim(u8, animation_name_buffer[0..animation_name_buffer.len], "\u{0}");
                     var name = std.fmt.allocPrint(upaya.mem.allocator, "{s}\u{0}", .{name_buf}) catch unreachable;
                     defer upaya.mem.allocator.free(name);
                     file.animations.items[i].name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable;

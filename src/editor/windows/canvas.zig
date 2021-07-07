@@ -210,7 +210,7 @@ pub fn draw() void {
 
                     // drawing input
                     if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
-                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyShift) {
                             if (getPixelCoords(layer.texture, texture_position, previous_mouse_position)) |prev_pixel_coords| {
                                 var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
 
