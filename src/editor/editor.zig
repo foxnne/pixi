@@ -171,7 +171,6 @@ pub fn update() void {
     spriteedit.draw();
     newfile.draw();
     slice.draw();
-    newanimation.draw();
 }
 
 pub fn onFileDropped(file: []const u8) void {
