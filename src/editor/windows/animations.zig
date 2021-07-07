@@ -18,7 +18,6 @@ pub const State = enum(usize) {
 };
 
 pub var animation_state: State = .pause;
-pub var new_animation_popup: bool = false;
 
 var active_animation_index: usize = 0;
 
@@ -68,18 +67,19 @@ pub fn draw() void {
             // add new animation
             if (imgui.ogColoredButton(0x00000000, imgui.icons.plus_circle)) {
                 var new_animation: Animation = .{
-                    .name = "New Animation\u{0}",
+                    .name = "New Animation",
                     .start = 0,
                     .length = 1,
                     .fps = 8,
                 };
 
                 file.animations.insert(0, new_animation) catch unreachable;
+                sprites.resetNames();
                 toolbar.selected_tool = .animation;
             }
 
             imgui.igSameLine(0, 5);
-            // delete selection 
+            // delete selection
             if (imgui.ogColoredButton(0x00000000, imgui.icons.minus_circle)) {
                 _ = file.animations.swapRemove(active_animation_index);
                 sprites.resetNames();
@@ -96,7 +96,9 @@ pub fn draw() void {
 
             for (file.animations.items) |animation, i| {
                 imgui.igPushIDInt(@intCast(c_int, i));
-                if (imgui.ogSelectableBool(@ptrCast([*c]const u8, animation.name), i == active_animation_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
+                const animation_name_z = upaya.mem.allocator.dupeZ(u8, animation.name) catch unreachable;
+                defer upaya.mem.allocator.free(animation_name_z);
+                if (imgui.ogSelectableBool(@ptrCast([*c]const u8, animation_name_z), i == active_animation_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
                     active_animation_index = i;
 
                 if (imgui.igBeginPopupContextItem("Animation Settings", imgui.ImGuiMouseButton_Right)) {
@@ -104,30 +106,38 @@ pub fn draw() void {
                     imgui.igText("Animation Settings");
                     imgui.igSeparator();
 
-                    for (animation.name) |c, j|
-                        animation_name_buffer[j] = c;
+                    for (animation_name_buffer) |_, j|
+                        animation_name_buffer[j] = if (j < animation.name.len) animation.name[j] else 0;
 
                     // TODO: disallow multiple same-name animations
-                    if (imgui.ogInputText("Name", &animation_name_buffer, animation_name_buffer.len)) {}
+                    if (imgui.ogInputTextEnter("Name", &animation_name_buffer, animation_name_buffer.len)) {
 
-                    var name_buf = std.mem.trim(u8, animation_name_buffer[0..animation_name_buffer.len], "\u{0}");
-                    var name = std.fmt.allocPrint(upaya.mem.allocator, "{s}\u{0}", .{name_buf}) catch unreachable;
-                    defer upaya.mem.allocator.free(name);
-                    file.animations.items[i].name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable;
+                        var end = std.mem.indexOf(u8, animation_name_buffer[0..], "\u{0}");
+
+                        if (end) |e| {
+
+                            file.animations.items[i].name = upaya.mem.allocator.dupe(u8, animation_name_buffer[0..e]) catch unreachable;
+                            sprites.resetNames();
+
+                        }
+                        //var name = std.mem.trim(u8, animation_name_buffer[0..], "\u{0}");
+                        
+                    }
+
+                    //TODO: potentially require pushing a "confirm" button to allow history state to record name changes?
 
                     _ = imgui.ogDrag(usize, "Fps", &file.animations.items[i].fps, 0.1, 1, 60);
-                    if (imgui.ogDrag(usize, "Start", &file.animations.items[i].start, 0.1, 0, file.sprites.items.len - 1)) {}
-                    if (imgui.ogDrag(usize, "Length", &file.animations.items[i].length, 0.1, 1, file.sprites.items.len - 1 - file.animations.items[i].start)) {}
+                    if (imgui.ogDrag(usize, "Start", &file.animations.items[i].start, 0.1, 0, file.sprites.items.len - 1)) {
+                        sprites.resetNames();
+                    }
+                    if (imgui.ogDrag(usize, "Length", &file.animations.items[i].length, 0.1, 1, file.sprites.items.len - 1 - file.animations.items[i].start)) {
+                        sprites.resetNames();
+                    }
 
-                    //TODO: Only trigger this if start, length, or name changes. for some reason the bool for ogInputText isn't true on every character change (missing last)
-                    sprites.resetNames();
                 }
 
                 imgui.igPopID();
             }
         }
     }
-
-    if (new_animation_popup)
-        imgui.igOpenPopup("New Animation");
 }

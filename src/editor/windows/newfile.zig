@@ -47,7 +47,7 @@ pub fn draw() void {
             new_file.height = new_file.tileHeight * tiles_tall;
             new_file.width = new_file.tileWidth * tiles_wide;
 
-            var name = std.fmt.allocPrint(upaya.mem.allocator, "untitled_{d}\u{0}", .{canvas.getNumberOfFiles()}) catch unreachable;
+            var name = std.fmt.allocPrint(upaya.mem.allocator, "untitled_{d}", .{canvas.getNumberOfFiles()}) catch unreachable;
             defer upaya.mem.allocator.free(name);
 
             new_file.name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable;
@@ -59,15 +59,15 @@ pub fn draw() void {
             var image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
             image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
 
-            new_file.layers.append(.{.name = "Layer 0\u{0}", .image = image, .texture = image.asTexture(.nearest)}) catch unreachable;
+            new_file.layers.append(.{.name = "Layer 0", .image = image, .texture = image.asTexture(.nearest)}) catch unreachable;
             
             var i : usize = 0;
             while (i < tiles_wide * tiles_tall) : (i += 1) {
-                var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}\u{0}", .{new_file.name[0..new_file.name.len -1], i}) catch unreachable;
+                var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}", .{new_file.name, i}) catch unreachable;
                 defer upaya.mem.allocator.free(sprite_name);
                 var sprite_origin: upaya.math.Vec2 = .{.x = @intToFloat(f32, @divTrunc(new_file.tileWidth, 2)), .y = @intToFloat(f32, @divTrunc(new_file.tileHeight, 2))};
                 var new_sprite: Sprite = .{
-                    .name = upaya.mem.allocator.dupeZ(u8, sprite_name) catch unreachable,
+                    .name = upaya.mem.allocator.dupe(u8, sprite_name) catch unreachable,
                     .origin_x = sprite_origin.x,
                     .origin_y = sprite_origin.y,
                     .index = i,

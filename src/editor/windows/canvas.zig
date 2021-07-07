@@ -107,8 +107,9 @@ pub fn draw() void {
             for (files.items) |file, i| {
                 var open: bool = true;
 
-                var namePtr = @ptrCast([*c]const u8, file.name);
-                if (imgui.igBeginTabItem(namePtr, &open, imgui.ImGuiTabItemFlags_UnsavedDocument)) {
+                var name_z = upaya.mem.allocator.dupeZ(u8, file.name) catch unreachable;
+                defer upaya.mem.allocator.free(name_z);
+                if (imgui.igBeginTabItem(@ptrCast([*c]const u8, name_z), &open, imgui.ImGuiTabItemFlags_UnsavedDocument)) {
                     defer imgui.igEndTabItem();
                     active_file_index = i;
                 }
@@ -184,7 +185,7 @@ pub fn draw() void {
                     // color dropper input
                     if (io.MouseDown[1] or ((io.KeyAlt or io.KeySuper) and io.MouseDown[0]) or (io.MouseDown[0] and toolbar.selected_tool == .dropper)) {
                         imgui.igBeginTooltip();
-                        var coord_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d},{d}\u{0}", .{ imgui.icons.eye_dropper, pixel_coords.x + 1, pixel_coords.y + 1 }) catch unreachable;
+                        var coord_text = std.fmt.allocPrintZ(upaya.mem.allocator, "{s} {d},{d}", .{ imgui.icons.eye_dropper, pixel_coords.x + 1, pixel_coords.y + 1 }) catch unreachable;
                         imgui.igText(@ptrCast([*c]const u8, coord_text));
                         upaya.mem.allocator.free(coord_text);
                         imgui.igEndTooltip();

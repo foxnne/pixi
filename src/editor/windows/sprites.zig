@@ -40,24 +40,23 @@ pub fn setActiveSpriteIndex(index: usize) void {
 
 pub fn resetNames() void {
     if (canvas.getActiveFile()) |file| {
-
         for (file.sprites.items) |sprite, i| {
-            const file_name = std.mem.trim(u8, file.name, "\u{0}");
-            const name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}\u{0}", .{ file_name, i}) catch unreachable;
+            const file_name = std.mem.trimRight(u8, file.name, "\u{0}");
+            const name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}", .{ file_name, i }) catch unreachable;
             file.sprites.items[i].name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable;
             upaya.mem.allocator.free(name);
         }
 
         for (file.animations.items) |animation| {
             var i = animation.start;
-            while (i < animation.start + animation.length) : (i += 1){
+            while (i < animation.start + animation.length) : (i += 1) {
                 const animation_index = i - animation.start;
 
-                const animation_name = std.mem.trim(u8, animation.name, "\u{0}");
-                const name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}\u{0}", .{ animation_name, animation_index }) catch unreachable;
+                var animation_name = std.mem.trimRight(u8, animation.name, "\u{0}");
+
+                const name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}", .{ animation_name, animation_index }) catch unreachable;
                 file.sprites.items[i].name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable;
                 upaya.mem.allocator.free(name);
-
             }
         }
     }
@@ -70,17 +69,18 @@ pub fn draw() void {
         if (canvas.getActiveFile()) |file| {
             for (file.sprites.items) |sprite, i| {
                 imgui.igPushIDInt(@intCast(c_int, i));
-                if (imgui.ogSelectableBool(@ptrCast([*c]const u8, sprite.name), active_sprite_index == i, imgui.ImGuiSelectableFlags_None, .{}))
+
+                const sprite_name_z = upaya.mem.allocator.dupeZ(u8, sprite.name) catch unreachable;
+                defer upaya.mem.allocator.free(sprite_name_z);
+                if (imgui.ogSelectableBool(@ptrCast([*c]const u8, sprite_name_z), active_sprite_index == i, imgui.ImGuiSelectableFlags_None, .{}))
                     active_sprite_index = i;
-              
 
                 if (set_from_outside and active_sprite_index == i and !imgui.igIsItemVisible() and !imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
                     imgui.igSetScrollHereY(0.5);
                     set_from_outside = false;
                 }
 
-                
-                if (imgui.igBeginPopupContextItem(@ptrCast([*c]const u8, sprite.name), imgui.ImGuiMouseButton_Right)) {
+                if (imgui.igBeginPopupContextItem(@ptrCast([*c]const u8, sprite_name_z), imgui.ImGuiMouseButton_Right)) {
                     defer imgui.igEndPopup();
 
                     imgui.igText("Sprite Settings");

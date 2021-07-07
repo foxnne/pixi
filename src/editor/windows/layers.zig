@@ -29,11 +29,11 @@ pub fn draw() void {
                 var image = upaya.Image.init(@intCast(usize, file.width), @intCast(usize, file.height));
                 image.fillRect(.{ .x = 0, .y = 0, .width = file.width, .height = file.height }, upaya.math.Color.transparent);
 
-                var name = std.fmt.allocPrint(upaya.mem.allocator, "Layer {d}\u{0}", .{file.layers.items.len}) catch unreachable;
+                var name = std.fmt.allocPrint(upaya.mem.allocator, "Layer {d}", .{file.layers.items.len}) catch unreachable;
                 defer upaya.mem.allocator.free(name);
 
                 file.layers.insert(0, .{
-                    .name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable,
+                    .name = upaya.mem.allocator.dupe(u8, name) catch unreachable,
                     .image = image,
                     .texture = image.asTexture(.nearest),
                 }) catch unreachable;
@@ -72,7 +72,9 @@ pub fn draw() void {
                 imgui.igPopID();
                 imgui.igSameLine(0, 5);
 
-                if (imgui.ogSelectableBool(@ptrCast([*c]const u8, layer.name), i == active_layer_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
+                var layer_name_z = upaya.mem.allocator.dupeZ(u8, layer.name) catch unreachable;
+                defer upaya.mem.allocator.free(layer_name_z);
+                if (imgui.ogSelectableBool(@ptrCast([*c]const u8, layer_name_z), i == active_layer_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
                     active_layer_index = i;
 
                 imgui.igEndGroup();
@@ -85,15 +87,13 @@ pub fn draw() void {
                     imgui.igText("Layer Settings");
                     imgui.igSeparator();
 
-                    for (layer.name) |c, j| 
-                        layer_name_buffer[j] = c;
+                    for (layer_name_buffer) |_, j|
+                        layer_name_buffer[j] = if (j < layer.name.len) layer.name[j] else 0;
 
-                    _ = imgui.ogInputText("Name", &layer_name_buffer, layer_name_buffer.len);
-
-                    var name_buf = std.mem.trimRight(u8, layer_name_buffer[0..], "\u{0}");
-                    var name = std.fmt.allocPrint(upaya.mem.allocator, "{s}\u{0}", .{name_buf}) catch unreachable;
-                    defer upaya.mem.allocator.free(name);
-                    file.layers.items[i].name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable;
+                    if (imgui.ogInputTextEnter("Name", &layer_name_buffer, layer_name_buffer.len)) {
+                        var name = std.mem.trim(u8, layer_name_buffer[0..], "\u{0}");
+                        file.layers.items[i].name = upaya.mem.allocator.dupe(u8, name) catch unreachable;
+                    }
                 }
                 imgui.igPopID();
 
