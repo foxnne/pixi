@@ -225,10 +225,12 @@ pub fn draw() void {
                         layer.dirty = true;
                     }
 
+                    // set animation
                     if (toolbar.selected_tool == .animation) {
                         if (io.MouseClicked[0] and !imgui.ogKeyDown(upaya.sokol.SAPP_KEYCODE_SPACE)) {
                             if (animations.getActiveAnimation()) |animation| {
                                 animation.start = tile_index;
+                                sprites.resetNames();
                             }
                         }
 
@@ -236,6 +238,7 @@ pub fn draw() void {
                             if (animations.getActiveAnimation()) |animation| {
                                 if (@intCast(i32, tile_index) - @intCast(i32, animation.start) + 1 >= 0)
                                     animation.length = tile_index - animation.start + 1;
+                                    sprites.resetNames();
                             }
                         }
                     }
