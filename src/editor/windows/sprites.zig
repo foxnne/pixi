@@ -42,8 +42,9 @@ pub fn resetNames() void {
     if (canvas.getActiveFile()) |file| {
 
         for (file.sprites.items) |sprite, i| {
-            const name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_{d}", .{ file.name[0..file.name.len - 1], i}) catch unreachable;
-            file.sprites.items[i].name = name;
+            const name = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}_{d}", .{ file.name[0..file.name.len - 1], i}) catch unreachable;
+            file.sprites.items[i].name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable;
+            upaya.mem.allocator.free(name);
         }
 
         for (file.animations.items) |animation| {
@@ -51,8 +52,10 @@ pub fn resetNames() void {
             while (i < animation.start + animation.length) : (i += 1){
                 const animation_index = i - animation.start;
 
-                const name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_{d}", .{ animation.name[0..if (animation.name.len > 0) animation.name.len - 1 else 0], animation_index }) catch unreachable;
-                file.sprites.items[i].name = name;
+                const name = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}_{d}", .{ animation.name[0..if (animation.name.len > 0) animation.name.len - 1 else 0], animation_index }) catch unreachable;
+                file.sprites.items[i].name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable;
+                upaya.mem.allocator.free(name);
+
             }
         }
     }
