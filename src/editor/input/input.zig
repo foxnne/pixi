@@ -22,15 +22,13 @@ pub fn zoom(camera: *Camera) void {
     const io = imgui.igGetIO();
     var target = io.MousePos.subtract(imgui.ogGetCursorScreenPos()).subtract(imgui.ogGetWindowCenter());
 
-    target = target.subtract(.{ .x = camera.position.x, .y = camera.position.y });
-
     zoom_tolerance += io.MouseWheel;
 
-    if (zoom_tolerance > 2) {
+    if (std.math.fabs(zoom_tolerance) > 2) {
         for (zoom_steps) |z, i| {
-            if (z == camera.zoom and i < zoom_steps.len - 1) {
+            if (z == camera.zoom) {
                 const previous_zoom = camera.zoom;
-                camera.zoom = zoom_steps[i + 1];
+                camera.zoom = if (i > 0 and zoom_tolerance < -2) zoom_steps[i - 1] else if (zoom_tolerance > 2 and i < zoom_steps.len - 1) zoom_steps[i + 1] else zoom_steps[i] ;
 
                 const previous = target.scale(1 / previous_zoom);
                 const next = target.scale(1 / camera.zoom);
@@ -43,23 +41,7 @@ pub fn zoom(camera: *Camera) void {
         }
         zoom_tolerance = 0;
     }
-    if (zoom_tolerance < -2) {
-        for (zoom_steps) |z, i| {
-            if (z == camera.zoom and i > 0) {
-                const previous_zoom = camera.zoom;
-                camera.zoom = zoom_steps[i - 1];
-
-                const previous = target.scale(1 / previous_zoom);
-                const next = target.scale(1 / camera.zoom);
-
-                camera.position.x += previous.x - next.x;
-                camera.position.y += previous.y - next.y;
-
-                break;
-            }
-        }
-        zoom_tolerance = 0;
-    }
+   
 
     imgui.igGetIO().MouseWheel = 0;
 }
