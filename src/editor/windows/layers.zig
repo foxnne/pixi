@@ -91,8 +91,11 @@ pub fn draw() void {
                         layer_name_buffer[j] = if (j < layer.name.len) layer.name[j] else 0;
 
                     if (imgui.ogInputTextEnter("Name", &layer_name_buffer, layer_name_buffer.len)) {
-                        var name = std.mem.trim(u8, layer_name_buffer[0..], "\u{0}");
-                        file.layers.items[i].name = upaya.mem.allocator.dupe(u8, name) catch unreachable;
+                        var end = std.mem.indexOf(u8, layer_name_buffer[0..], "\u{0}");
+
+                        if (end) |e| {
+                            file.layers.items[i].name = upaya.mem.allocator.dupe(u8, layer_name_buffer[0..e]) catch unreachable;
+                        }
                     }
                 }
                 imgui.igPopID();

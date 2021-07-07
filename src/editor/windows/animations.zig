@@ -111,20 +111,13 @@ pub fn draw() void {
 
                     // TODO: disallow multiple same-name animations
                     if (imgui.ogInputTextEnter("Name", &animation_name_buffer, animation_name_buffer.len)) {
-
                         var end = std.mem.indexOf(u8, animation_name_buffer[0..], "\u{0}");
 
                         if (end) |e| {
-
                             file.animations.items[i].name = upaya.mem.allocator.dupe(u8, animation_name_buffer[0..e]) catch unreachable;
                             sprites.resetNames();
-
                         }
-                        //var name = std.mem.trim(u8, animation_name_buffer[0..], "\u{0}");
-                        
                     }
-
-                    //TODO: potentially require pushing a "confirm" button to allow history state to record name changes?
 
                     _ = imgui.ogDrag(usize, "Fps", &file.animations.items[i].fps, 0.1, 1, 60);
                     if (imgui.ogDrag(usize, "Start", &file.animations.items[i].start, 0.1, 0, file.sprites.items.len - 1)) {
@@ -133,7 +126,6 @@ pub fn draw() void {
                     if (imgui.ogDrag(usize, "Length", &file.animations.items[i].length, 0.1, 1, file.sprites.items.len - 1 - file.animations.items[i].start)) {
                         sprites.resetNames();
                     }
-
                 }
 
                 imgui.igPopID();
