@@ -20,7 +20,6 @@ pub const spriteedit = @import("windows/spriteedit.zig");
 // popups
 pub const newfile = @import("windows/newfile.zig");
 pub const slice = @import("windows/slice.zig");
-pub const newanimation = @import("windows/newanimation.zig");
 
 //editor colors
 pub var background_color: imgui.ImVec4 = undefined;

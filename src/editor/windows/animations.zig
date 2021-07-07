@@ -110,7 +110,7 @@ pub fn draw() void {
                     if (imgui.ogInputText("Name", &animation_name_buffer, animation_name_buffer.len)) {}
 
                     var name = std.mem.trimRight(u8, animation_name_buffer[0..], "\u{0}");
-                    file.animations.items[i].name = std.fmt.allocPrint(upaya.mem.tmp_allocator, "{s}\u{0}", .{name}) catch unreachable;
+                    file.animations.items[i].name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}", .{name}) catch unreachable;
 
                     _ = imgui.ogDrag(usize, "Fps", &file.animations.items[i].fps, 0.1, 1, 60);
                     if (imgui.ogDrag(usize, "Start", &file.animations.items[i].start, 0.1, 0, file.sprites.items.len - 1)) {}
