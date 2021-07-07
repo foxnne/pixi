@@ -46,7 +46,7 @@ pub fn draw() void {
                     var name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}\u{0}", .{ file.name[0 .. file.name.len - 1], i }) catch unreachable;
                     defer upaya.mem.allocator.free(name);
                     file.sprites.append(.{
-                        .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
+                        .name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable,
                         .index = i,
                         .origin_x = @intToFloat(f32, @divTrunc(file.tileWidth, 2)),
                         .origin_y = @intToFloat(f32, @divTrunc(file.tileHeight, 2)),

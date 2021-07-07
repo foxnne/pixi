@@ -29,8 +29,11 @@ pub fn draw() void {
                 var image = upaya.Image.init(@intCast(usize, file.width), @intCast(usize, file.height));
                 image.fillRect(.{ .x = 0, .y = 0, .width = file.width, .height = file.height }, upaya.math.Color.transparent);
 
+                var name = std.fmt.allocPrint(upaya.mem.allocator, "Layer {d}\u{0}", .{file.layers.items.len}) catch unreachable;
+                defer upaya.mem.allocator.free(name);
+
                 file.layers.insert(0, .{
-                    .name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "Layer {d}", .{file.layers.items.len}) catch unreachable,
+                    .name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable,
                     .image = image,
                     .texture = image.asTexture(.nearest),
                 }) catch unreachable;
@@ -87,8 +90,10 @@ pub fn draw() void {
 
                     _ = imgui.ogInputText("Name", &layer_name_buffer, layer_name_buffer.len);
 
-                    var name = std.mem.trimRight(u8, layer_name_buffer[0..], "\u{0}");
-                    file.layers.items[i].name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}", .{name}) catch unreachable;
+                    var name_buf = std.mem.trimRight(u8, layer_name_buffer[0..], "\u{0}");
+                    var name = std.fmt.allocPrint(upaya.mem.allocator, "{s}\u{0}", .{name_buf}) catch unreachable;
+                    defer upaya.mem.allocator.free(name);
+                    file.layers.items[i].name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable;
                 }
                 imgui.igPopID();
 

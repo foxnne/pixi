@@ -63,10 +63,11 @@ pub fn draw() void {
             
             var i : usize = 0;
             while (i < tiles_wide * tiles_tall) : (i += 1) {
-                var sprite_name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_{d}", .{new_file.name[0..new_file.name.len -1], i}) catch unreachable;
+                var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}\u{0}", .{new_file.name[0..new_file.name.len -1], i}) catch unreachable;
+                defer upaya.mem.allocator.free(sprite_name);
                 var sprite_origin: upaya.math.Vec2 = .{.x = @intToFloat(f32, @divTrunc(new_file.tileWidth, 2)), .y = @intToFloat(f32, @divTrunc(new_file.tileHeight, 2))};
                 var new_sprite: Sprite = .{
-                    .name = sprite_name,
+                    .name = upaya.mem.allocator.dupeZ(u8, sprite_name) catch unreachable,
                     .origin_x = sprite_origin.x,
                     .origin_y = sprite_origin.y,
                     .index = i,

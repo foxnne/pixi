@@ -373,14 +373,6 @@ fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, positi
     } else return null;
 }
 
-// fn getTileIndexFromCoords( file: File, coords: imgui.ImVec2) usize {
-//    var column = @divTrunc(@floatToInt(usize, coords.x), @intCast(usize, file.tileWidth));
-//    var row = @divTrunc(@floatToInt(usize, coords.y), @intCast(usize, file.tileHeight));
-
-//    return column + row * @intCast(usize, @divTrunc(file.width, file.tileWidth));
-
-// }
-
 fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
     return @floatToInt(usize, coords.x + coords.y * @intToFloat(f32, texture.width));
 }
