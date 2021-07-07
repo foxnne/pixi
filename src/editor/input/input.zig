@@ -10,7 +10,7 @@ pub const Camera = @import("../utils/camera.zig").Camera;
 
 var zoom_target: f32 = 2; 
 const zoom_time: f32 = 0.5;
-var elapsed_time: f32 = 0;
+var elapsed_time: f32 = 0.5;
 
 pub fn update() void {
 
@@ -18,9 +18,8 @@ pub fn update() void {
     if (elapsed_time < zoom_time) {
 
         imgui.igBeginTooltip();
-        var zoom_text = std.fmt.allocPrint(upaya.mem.allocator, "{s} {d}x\u{0}", .{ imgui.icons.search, zoom_target }) catch unreachable;
+        var zoom_text = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s} {d}", .{ imgui.icons.search, zoom_target }) catch unreachable;
         imgui.igText(@ptrCast([*c]const u8, zoom_text));
-        upaya.mem.allocator.free(zoom_text);
         imgui.igEndTooltip();
 
         elapsed_time += imgui.igGetIO().DeltaTime;
