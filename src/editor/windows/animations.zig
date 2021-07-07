@@ -107,6 +107,7 @@ pub fn draw() void {
                     for (animation.name) |c, j|
                         animation_name_buffer[j] = c;
 
+                    // TODO: disallow multiple same-name animations
                     if (imgui.ogInputText("Name", &animation_name_buffer, animation_name_buffer.len)) {}
 
                     var name = std.mem.trimRight(u8, animation_name_buffer[0..], "\u{0}");

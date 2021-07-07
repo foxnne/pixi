@@ -12,6 +12,8 @@ const layers = editor.layers;
 const sprites = editor.sprites;
 const animations = editor.animations;
 
+const algorithms = @import("../utils/algorithms.zig");
+
 const File = types.File;
 const Layer = types.Layer;
 const Animation = types.Animation;
@@ -23,6 +25,8 @@ var logo: ?upaya.Texture = null;
 
 var active_file_index: usize = 0;
 var files: std.ArrayList(File) = undefined;
+
+var previous_mouse_position: imgui.ImVec2 = undefined;
 
 pub fn init() void {
     files = std.ArrayList(File).init(upaya.mem.allocator);
@@ -57,7 +61,6 @@ pub fn getActiveFile() ?*File {
 
     return &files.items[active_file_index];
 }
-
 
 pub fn draw() void {
     if (!imgui.igBegin("Canvas", null, imgui.ImGuiWindowFlags_None)) return;
@@ -124,7 +127,7 @@ pub fn draw() void {
         // handle inputs
         if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None) and files.items.len > 0) {
             const io = imgui.igGetIO();
-            var mouse_position = io.MousePos;
+            const mouse_position = io.MousePos;
 
             //pan
             if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
@@ -192,11 +195,11 @@ pub fn draw() void {
                                 previous_tool = toolbar.selected_tool;
                             }
                         } else {
-                            if (toolbar.selected_tool != .dropper){
+                            if (toolbar.selected_tool != .dropper) {
                                 toolbar.selected_tool = .pencil;
                                 previous_tool = toolbar.selected_tool;
                             }
-                            
+
                             toolbar.foreground_color = upaya.math.Color{ .value = layer.image.pixels[pixel_index] };
 
                             imgui.igBeginTooltip();
@@ -207,9 +210,18 @@ pub fn draw() void {
 
                     // drawing input
                     if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
-                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0))
-                            layer.image.pixels[pixel_index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
-                        layer.dirty = true;
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
+                            if (getPixelCoords(layer.texture, texture_position, previous_mouse_position)) |prev_pixel_coords| {
+                                var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
+
+                                for (output) |coords| {
+                                    var index = getPixelIndexFromCoords(layer.texture, coords);
+                                    layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+                                }
+                                upaya.mem.allocator.free(output);
+                                layer.dirty = true;
+                            }
+                        }
                     }
 
                     // set animation
@@ -225,7 +237,7 @@ pub fn draw() void {
                             if (animations.getActiveAnimation()) |animation| {
                                 if (@intCast(i32, tile_index) - @intCast(i32, animation.start) + 1 >= 0)
                                     animation.length = tile_index - animation.start + 1;
-                                    sprites.resetNames();
+                                sprites.resetNames();
                             }
                         }
                     }
@@ -233,6 +245,7 @@ pub fn draw() void {
             }
 
             toolbar.selected_tool = previous_tool;
+            previous_mouse_position = mouse_position;
         }
     } else {
         camera.position = .{ .x = 0, .y = 0 };

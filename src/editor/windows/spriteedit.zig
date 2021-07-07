@@ -13,12 +13,16 @@ const sprites = editor.sprites;
 const canvas = editor.canvas;
 const animations = editor.animations;
 
+const algorithms = @import("../utils/algorithms.zig");
+
 const File = types.File;
 const Layer = types.Layer;
 const Animation = types.Animation;
 
 var camera: Camera = .{ .zoom = 4 };
 var screen_pos: imgui.ImVec2 = undefined;
+
+var previous_mouse_position: imgui.ImVec2 = undefined;
 
 pub fn draw() void {
     if (imgui.igBegin("SpriteEdit", 0, imgui.ImGuiWindowFlags_None)) {
@@ -73,7 +77,7 @@ pub fn draw() void {
                 if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
                     if (layers.getActiveLayer()) |layer| {
                         const io = imgui.igGetIO();
-                        //const mouse_position = io.MousePos;
+                        const mouse_position = io.MousePos;
 
                         //pan
                         if (toolbar.selected_tool == .hand and imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
@@ -92,10 +96,7 @@ pub fn draw() void {
                         // zoom
                         if (io.MouseWheel != 0) {
                             input.zoom(&camera);
-                            
                         }
-
-                        
 
                         // round positions if we are finished changing cameras position
                         if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Middle) or imgui.ogKeyUp(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
@@ -108,7 +109,7 @@ pub fn draw() void {
                             camera.position.y = @trunc(camera.position.y);
                         }
 
-                        if (getPixelCoords(sprite_position, sprite_rect, imgui.igGetIO().MousePos)) |pixel_coords| {
+                        if (getPixelCoords(sprite_position, sprite_rect, mouse_position)) |pixel_coords| {
                             var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
                             // color dropper input
@@ -140,14 +141,24 @@ pub fn draw() void {
                             // drawing input
                             if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
                                 if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
-                                    layer.image.pixels[pixel_index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
-                                    layer.*.dirty = true;
+                                    if (getPixelCoords(sprite_position, sprite_rect, previous_mouse_position)) |prev_pixel_coords| {
+                                        var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
+
+                                        for (output) |coords| {
+                                            var index = getPixelIndexFromCoords(layer.texture, coords);
+                                            layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+                                        }
+                                        upaya.mem.allocator.free(output);
+                                        layer.dirty = true;
+                                    }
                                 }
                             }
                         }
+                        toolbar.selected_tool = previous_tool;
+                    previous_mouse_position = mouse_position;
                     }
 
-                    toolbar.selected_tool = previous_tool;
+                    
                 }
             }
         }
