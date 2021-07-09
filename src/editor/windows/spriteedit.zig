@@ -21,6 +21,8 @@ const Animation = types.Animation;
 
 var camera: Camera = .{ .zoom = 4 };
 var screen_pos: imgui.ImVec2 = undefined;
+var sprite_position: imgui.ImVec2 = undefined;
+var sprite_rect: upaya.math.RectF = undefined;
 
 var previous_mouse_position: imgui.ImVec2 = undefined;
 
@@ -35,7 +37,7 @@ pub fn draw() void {
 
         if (canvas.getActiveFile()) |file| {
             if (sprites.getActiveSprite()) |sprite| {
-                var sprite_position: imgui.ImVec2 = .{
+                sprite_position = .{
                     .x = -@intToFloat(f32, file.tileWidth) / 2,
                     .y = -@intToFloat(f32, file.tileHeight) / 2 - 4,
                 };
@@ -48,7 +50,7 @@ pub fn draw() void {
                 const src_x = column * file.tileWidth;
                 const src_y = row * file.tileHeight;
 
-                var sprite_rect: upaya.math.RectF = .{
+                sprite_rect = .{
                     .width = @intToFloat(f32, file.tileWidth),
                     .height = @intToFloat(f32, file.tileHeight),
                     .x = @intToFloat(f32, src_x),
@@ -114,7 +116,7 @@ pub fn draw() void {
                             camera.position.y = @trunc(camera.position.y);
                         }
 
-                        if (getPixelCoords(sprite_position, sprite_rect, mouse_position)) |pixel_coords| {
+                        if (getPixelCoords(mouse_position)) |pixel_coords| {
                             var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
                             // color dropper input
@@ -154,7 +156,7 @@ pub fn draw() void {
                                 }
 
                                 if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyShift) {
-                                    if (getPixelCoords(sprite_position, sprite_rect, previous_mouse_position)) |prev_pixel_coords| {
+                                    if (getPixelCoords(previous_mouse_position)) |prev_pixel_coords| {
                                         var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
 
                                         for (output) |coords| {
@@ -167,7 +169,7 @@ pub fn draw() void {
                                 }
 
                                 if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and io.KeyShift) {
-                                    if (getPixelCoords(sprite_position, sprite_rect, io.MouseClickedPos[0])) |prev_pixel_coords| {
+                                    if (getPixelCoords(io.MouseClickedPos[0])) |prev_pixel_coords| {
                                         var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
 
                                         for (output) |coords| {
@@ -180,7 +182,7 @@ pub fn draw() void {
                                 }
 
                                 if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and io.KeyShift) {
-                                    if (getPixelCoords(sprite_position, sprite_rect, io.MouseClickedPos[0])) |prev_pixel_coords| {
+                                    if (getPixelCoords(io.MouseClickedPos[0])) |prev_pixel_coords| {
                                         var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
 
                                         for (output) |coords| {
@@ -259,11 +261,11 @@ fn drawSprite(texture: upaya.Texture, position: imgui.ImVec2, rect: upaya.math.R
     );
 }
 
-pub fn getPixelCoords(sprite_position: imgui.ImVec2, rect: upaya.math.RectF, position: imgui.ImVec2) ?imgui.ImVec2 {
+pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
     var tl = camera.matrix().transformImVec2(sprite_position).add(screen_pos);
     var br: imgui.ImVec2 = sprite_position;
-    br.x += rect.width;
-    br.y += rect.height;
+    br.x += sprite_rect.width;
+    br.y += sprite_rect.height;
     br = camera.matrix().transformImVec2(br).add(screen_pos);
 
     if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
@@ -274,8 +276,8 @@ pub fn getPixelCoords(sprite_position: imgui.ImVec2, rect: upaya.math.RectF, pos
         pixel_pos.y = @divTrunc(position.y - tl.y, camera.zoom);
 
         //add src x and y (top left of sprite)
-        pixel_pos.x += rect.x;
-        pixel_pos.y += rect.y;
+        pixel_pos.x += sprite_rect.x;
+        pixel_pos.y += sprite_rect.y;
 
         return pixel_pos;
     } else return null;

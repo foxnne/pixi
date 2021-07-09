@@ -20,6 +20,7 @@ const Animation = types.Animation;
 
 var camera: Camera = .{ .zoom = 2 };
 var screen_pos: imgui.ImVec2 = undefined;
+var texture_position: imgui.ImVec2 = undefined;
 
 var logo: ?upaya.Texture = null;
 
@@ -82,7 +83,7 @@ pub fn draw() void {
     if (window_size.x == 0 or window_size.y == 0) return;
 
     if (getActiveFile()) |file| {
-        var texture_position = .{
+        texture_position = .{
             .x = -@intToFloat(f32, file.background.width) / 2,
             .y = -@intToFloat(f32, file.background.height) / 2,
         };
@@ -189,7 +190,7 @@ pub fn draw() void {
             }
 
             if (layers.getActiveLayer()) |layer| {
-                if (getPixelCoords(layer.texture, texture_position, mouse_position)) |pixel_coords| {
+                if (getPixelCoords(layer.texture, mouse_position)) |pixel_coords| {
                     var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tileWidth));
 
                     var tile_column = @divTrunc(@floatToInt(usize, pixel_coords.x), @intCast(usize, file.tileWidth));
@@ -246,7 +247,7 @@ pub fn draw() void {
                         file.temporary.dirty = true;
 
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyShift) {
-                            if (getPixelCoords(layer.texture, texture_position, previous_mouse_position)) |prev_pixel_coords| {
+                            if (getPixelCoords(layer.texture, previous_mouse_position)) |prev_pixel_coords| {
                                 var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
 
                                 for (output) |coords| {
@@ -259,7 +260,7 @@ pub fn draw() void {
                         }
 
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and io.KeyShift) {
-                            if (getPixelCoords(layer.texture, texture_position, io.MouseClickedPos[0])) |prev_pixel_coords| {
+                            if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |prev_pixel_coords| {
                                 var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
 
                                 for (output) |coords| {
@@ -272,7 +273,7 @@ pub fn draw() void {
                         }
 
                         if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and io.KeyShift) {
-                            if (getPixelCoords(layer.texture, texture_position, io.MouseClickedPos[0])) |prev_pixel_coords| {
+                            if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |prev_pixel_coords| {
                                 var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
 
                                 for (output) |coords| {
@@ -417,7 +418,7 @@ fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void 
     );
 }
 
-pub fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?imgui.ImVec2 {
+pub fn getPixelCoords(texture: upaya.Texture, position: imgui.ImVec2) ?imgui.ImVec2 {
     var tl = camera.matrix().transformImVec2(texture_position).add(screen_pos);
     var br: imgui.ImVec2 = texture_position;
     br.x += @intToFloat(f32, texture.width);
