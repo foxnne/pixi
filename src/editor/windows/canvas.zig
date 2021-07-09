@@ -102,7 +102,7 @@ pub fn draw() void {
             drawTexture(file.layers.items[layer_index].texture, texture_position, 0xFFFFFFFF);
 
             // draw temporary texture over active layer
-            if (layer_index == active_file_index) {
+            if (layer_index == layers.getActiveIndex()) {
                 file.temporary.updateTexture();
                 drawTexture(file.temporary.texture, texture_position, 0xFFFFFFFF);
             }
@@ -239,12 +239,9 @@ pub fn draw() void {
                     if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
                         if (toolbar.selected_tool == .pencil) {
                             file.temporary.image.pixels[pixel_index] = toolbar.foreground_color.value;
-                            file.temporary.dirty = true;
-                        } else {
-                            file.temporary.image.pixels[pixel_index] = 0xFFFFFFFF;
-                            file.temporary.dirty = true;
-
-                        }
+                        } else file.temporary.image.pixels[pixel_index] = 0xFFFFFFFF;
+                        
+                        file.temporary.dirty = true;
 
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyShift) {
                             if (getPixelCoords(layer.texture, texture_position, previous_mouse_position)) |prev_pixel_coords| {

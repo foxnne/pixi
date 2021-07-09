@@ -18,6 +18,10 @@ pub fn getActiveLayer() ?*Layer {
     } else return null;
 }
 
+pub fn getActiveIndex() usize {
+    return active_layer_index;
+}
+
 pub fn draw() void {
     if (imgui.igBegin("Layers", 0, imgui.ImGuiWindowFlags_NoResize)) {
         defer imgui.igEnd();

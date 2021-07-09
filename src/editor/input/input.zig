@@ -3,6 +3,12 @@ const upaya = @import("upaya");
 const imgui = @import("imgui");
 const sokol = @import("sokol");
 
+const editor = @import("../editor.zig");
+const canvas = editor.canvas;
+const layers = editor.layers;
+const spriteedit = editor.spriteedit;
+const toolbar = editor.toolbar;
+
 var zoom_tolerance: f32 = 0;
 pub const zoom_steps = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 5, 6, 8, 12, 18, 28, 38, 50, 70, 90, 128 };
 
@@ -67,3 +73,4 @@ pub fn zoom(camera: *Camera) void {
 
     imgui.igGetIO().MouseWheel = 0;
 }
+

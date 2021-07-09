@@ -66,10 +66,24 @@ pub fn draw() void {
                     if (file.layers.items[layer_index].hidden)
                         continue;
 
-                    file.layers.items[layer_index].updateTexture();
-                    file.layers.items[layer_index].dirty = false;
+                    //file.layers.items[layer_index].updateTexture();
+                    //file.layers.items[layer_index].dirty = false;
                     drawSprite(file.layers.items[layer_index].texture, sprite_position, sprite_rect, 0xFFFFFFFF);
+
+                    if (layer_index == layers.getActiveIndex()){
+                        //file.temporary.updateTexture();
+                        drawSprite(file.temporary.texture, sprite_position, sprite_rect, 0xFFFFFFFF);
+                    }
                 }
+
+                // // blank out image for next frame
+                // file.temporary.image.fillRect(.{
+                //     .x = 0,
+                //     .y = 0,
+                //     .width = file.width,
+                //     .height = file.height,
+                // }, upaya.math.Color.transparent);
+                // file.temporary.dirty = true;
 
                 // store previous tool and reapply it after to allow quick switching
                 var previous_tool = toolbar.selected_tool;
@@ -140,7 +154,15 @@ pub fn draw() void {
 
                             // drawing input
                             if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
-                                if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
+                                if (toolbar.selected_tool == .pencil) {
+                                    file.temporary.image.pixels[pixel_index] = toolbar.foreground_color.value;
+                                    file.temporary.dirty = true;
+                                } else {
+                                    file.temporary.image.pixels[pixel_index] = 0xFFFFFFFF;
+                                    file.temporary.dirty = true;
+                                }
+
+                                if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyShift) {
                                     if (getPixelCoords(sprite_position, sprite_rect, previous_mouse_position)) |prev_pixel_coords| {
                                         var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
 
@@ -152,13 +174,37 @@ pub fn draw() void {
                                         layer.dirty = true;
                                     }
                                 }
+
+                                if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and io.KeyShift) {
+                                    if (getPixelCoords(sprite_position, sprite_rect, io.MouseClickedPos[0])) |prev_pixel_coords| {
+                                        var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
+
+                                        for (output) |coords| {
+                                            var index = getPixelIndexFromCoords(layer.texture, coords);
+                                            file.temporary.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF;
+                                        }
+                                        upaya.mem.allocator.free(output);
+                                        file.temporary.dirty = true;
+                                    }
+                                }
+
+                                if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and io.KeyShift) {
+                                    if (getPixelCoords(sprite_position, sprite_rect, io.MouseClickedPos[0])) |prev_pixel_coords| {
+                                        var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
+
+                                        for (output) |coords| {
+                                            var index = getPixelIndexFromCoords(layer.texture, coords);
+                                            layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF;
+                                        }
+                                        upaya.mem.allocator.free(output);
+                                        layer.dirty = true;
+                                    }
+                                }
                             }
                         }
                         toolbar.selected_tool = previous_tool;
-                    previous_mouse_position = mouse_position;
+                        previous_mouse_position = mouse_position;
                     }
-
-                    
                 }
             }
         }
