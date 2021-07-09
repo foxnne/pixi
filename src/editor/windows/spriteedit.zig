@@ -66,24 +66,13 @@ pub fn draw() void {
                     if (file.layers.items[layer_index].hidden)
                         continue;
 
-                    //file.layers.items[layer_index].updateTexture();
-                    //file.layers.items[layer_index].dirty = false;
+                
                     drawSprite(file.layers.items[layer_index].texture, sprite_position, sprite_rect, 0xFFFFFFFF);
 
-                    if (layer_index == layers.getActiveIndex()){
-                        //file.temporary.updateTexture();
+                    if (layer_index == layers.getActiveIndex())
                         drawSprite(file.temporary.texture, sprite_position, sprite_rect, 0xFFFFFFFF);
-                    }
+                    
                 }
-
-                // // blank out image for next frame
-                // file.temporary.image.fillRect(.{
-                //     .x = 0,
-                //     .y = 0,
-                //     .width = file.width,
-                //     .height = file.height,
-                // }, upaya.math.Color.transparent);
-                // file.temporary.dirty = true;
 
                 // store previous tool and reapply it after to allow quick switching
                 var previous_tool = toolbar.selected_tool;
@@ -110,6 +99,8 @@ pub fn draw() void {
                         // zoom
                         if (io.MouseWheel != 0) {
                             input.zoom(&camera);
+                            camera.position.x = @trunc(camera.position.x);
+                            camera.position.y = @trunc(camera.position.y);
                         }
 
                         // round positions if we are finished changing cameras position

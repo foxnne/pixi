@@ -173,6 +173,8 @@ pub fn draw() void {
             // zoom
             if (io.MouseWheel != 0) {
                 input.zoom(&camera);
+                camera.position.x = @trunc(camera.position.x);
+                camera.position.y = @trunc(camera.position.y);
             }
 
             // round positions if we are finished changing cameras position
