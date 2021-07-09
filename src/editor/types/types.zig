@@ -8,6 +8,7 @@ pub const File = struct {
     tileWidth: i32,
     tileHeight: i32,
     background: upaya.Texture,
+    temporary: Layer,
     layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
@@ -20,6 +21,8 @@ pub const File = struct {
         }
         self.layers.deinit();
         self.background.deinit();
+        self.temporary.texture.deinit();
+        self.temporary.image.deinit();
         self.sprites.deinit();
     }
 };
@@ -31,9 +34,11 @@ pub const Layer = struct {
     hidden: bool = false,
     dirty: bool = false,
 
-    pub fn updateTexture (self: Layer) void {
-        if (self.dirty)
+    pub fn updateTexture (self: *Layer) void {
+        if (self.dirty) {
             self.texture.setColorData(self.image.pixels);
+            self.dirty = false;
+        }
     }
 };
 

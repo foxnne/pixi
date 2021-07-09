@@ -20,6 +20,7 @@ var new_file: File = .{
     .tileWidth = 32,
     .tileHeight = 32,
     .background = undefined,
+    .temporary = undefined,
     .layers = undefined,
     .sprites = undefined,
     .animations = undefined,
@@ -60,6 +61,15 @@ pub fn draw() void {
             image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
 
             new_file.layers.append(.{.name = "Layer 0", .image = image, .texture = image.asTexture(.nearest)}) catch unreachable;
+
+            var temp_image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
+            temp_image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
+
+            new_file.temporary = .{
+                .name = "Temporary",
+                .texture = temp_image.asTexture(.nearest),
+                .image = temp_image,
+            };
             
             var i : usize = 0;
             while (i < tiles_wide * tiles_tall) : (i += 1) {

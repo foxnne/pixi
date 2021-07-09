@@ -56,10 +56,20 @@ pub fn getActiveFile() ?*File {
     if (files.items.len == 0)
         return null;
 
+    // this is trash but i cant see a way i can
+    // get around it without having to track state of
+    // the canvas tabs outside of the loop...
     if (active_file_index >= files.items.len)
         active_file_index = files.items.len - 1;
 
     return &files.items[active_file_index];
+}
+
+pub fn getFile(index: usize) ?*File {
+    if (index < files.items.len)
+        return &files.items[index];
+
+    return null;
 }
 
 pub fn draw() void {
@@ -71,30 +81,44 @@ pub fn draw() void {
     const window_size = imgui.ogGetContentRegionAvail();
     if (window_size.x == 0 or window_size.y == 0) return;
 
-    if (files.items.len > 0) {
+    if (getActiveFile()) |file| {
         var texture_position = .{
-            .x = -@intToFloat(f32, files.items[active_file_index].background.width) / 2,
-            .y = -@intToFloat(f32, files.items[active_file_index].background.height) / 2,
+            .x = -@intToFloat(f32, file.background.width) / 2,
+            .y = -@intToFloat(f32, file.background.height) / 2,
         };
 
         // draw background texture
-        drawTexture(files.items[active_file_index].background, texture_position, 0xFFFFFFFF);
+        drawTexture(file.background, texture_position, 0xFFFFFFFF);
 
         // draw layers (reverse order)
-        var layer_index: usize = files.items[active_file_index].layers.items.len;
+        var layer_index: usize = file.layers.items.len;
         while (layer_index > 0) {
             layer_index -= 1;
 
-            if (files.items[active_file_index].layers.items[layer_index].hidden)
+            if (file.layers.items[layer_index].hidden)
                 continue;
 
-            files.items[active_file_index].layers.items[layer_index].updateTexture();
-            files.items[active_file_index].layers.items[layer_index].dirty = false;
-            drawTexture(files.items[active_file_index].layers.items[layer_index].texture, texture_position, 0xFFFFFFFF);
+            file.layers.items[layer_index].updateTexture();
+            drawTexture(file.layers.items[layer_index].texture, texture_position, 0xFFFFFFFF);
+
+            // draw temporary texture over active layer
+            if (layer_index == active_file_index) {
+                file.temporary.updateTexture();
+                drawTexture(file.temporary.texture, texture_position, 0xFFFFFFFF);
+            }
         }
 
+        // blank out image for next frame
+        file.temporary.image.fillRect(.{
+            .x = 0,
+            .y = 0,
+            .width = file.width,
+            .height = file.height,
+        }, upaya.math.Color.transparent);
+        file.temporary.dirty = true;
+
         // draw tile grid
-        drawGrid(files.items[active_file_index], texture_position);
+        drawGrid(file, texture_position);
 
         // draw fill to hide canvas behind transparent tab bar
         var cursor_position = imgui.ogGetCursorPos();
@@ -104,15 +128,17 @@ pub fn draw() void {
         if (imgui.igBeginTabBar("Canvas Tab Bar", imgui.ImGuiTabBarFlags_Reorderable | imgui.ImGuiTabBarFlags_AutoSelectNewTabs)) {
             defer imgui.igEndTabBar();
 
-            for (files.items) |file, i| {
+            for (files.items) |f, i| {
                 var open: bool = true;
 
-                var name_z = upaya.mem.allocator.dupeZ(u8, file.name) catch unreachable;
+                var name_z = upaya.mem.allocator.dupeZ(u8, f.name) catch unreachable;
                 defer upaya.mem.allocator.free(name_z);
+                imgui.igPushIDInt(@intCast(c_int, i));
                 if (imgui.igBeginTabItem(@ptrCast([*c]const u8, name_z), &open, imgui.ImGuiTabItemFlags_UnsavedDocument)) {
                     defer imgui.igEndTabItem();
                     active_file_index = i;
                 }
+                imgui.igPopID();
 
                 if (!open) {
                     // TODO: do i need to deinit all the layers and background?
@@ -126,7 +152,7 @@ pub fn draw() void {
         // store previous tool and reapply it after to allow quick switching
         var previous_tool = toolbar.selected_tool;
         // handle inputs
-        if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None) and files.items.len > 0) {
+        if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
             const io = imgui.igGetIO();
             const mouse_position = io.MousePos;
 
@@ -162,10 +188,10 @@ pub fn draw() void {
 
             if (layers.getActiveLayer()) |layer| {
                 if (getPixelCoords(layer.texture, texture_position, mouse_position)) |pixel_coords| {
-                    var tiles_wide = @divExact(@intCast(usize, files.items[active_file_index].width), @intCast(usize, files.items[active_file_index].tileWidth));
+                    var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tileWidth));
 
-                    var tile_column = @divTrunc(@floatToInt(usize, pixel_coords.x), @intCast(usize, files.items[active_file_index].tileWidth));
-                    var tile_row = @divTrunc(@floatToInt(usize, pixel_coords.y), @intCast(usize, files.items[active_file_index].tileHeight));
+                    var tile_column = @divTrunc(@floatToInt(usize, pixel_coords.x), @intCast(usize, file.tileWidth));
+                    var tile_row = @divTrunc(@floatToInt(usize, pixel_coords.y), @intCast(usize, file.tileHeight));
 
                     var tile_index = tile_column + tile_row * tiles_wide;
                     var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
@@ -211,6 +237,15 @@ pub fn draw() void {
 
                     // drawing input
                     if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
+                        if (toolbar.selected_tool == .pencil) {
+                            file.temporary.image.pixels[pixel_index] = toolbar.foreground_color.value;
+                            file.temporary.dirty = true;
+                        } else {
+                            file.temporary.image.pixels[pixel_index] = 0xFFFFFFFF;
+                            file.temporary.dirty = true;
+
+                        }
+
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyShift) {
                             if (getPixelCoords(layer.texture, texture_position, previous_mouse_position)) |prev_pixel_coords| {
                                 var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
@@ -218,6 +253,32 @@ pub fn draw() void {
                                 for (output) |coords| {
                                     var index = getPixelIndexFromCoords(layer.texture, coords);
                                     layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+                                }
+                                upaya.mem.allocator.free(output);
+                                layer.dirty = true;
+                            }
+                        }
+
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and io.KeyShift) {
+                            if (getPixelCoords(layer.texture, texture_position, io.MouseClickedPos[0])) |prev_pixel_coords| {
+                                var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
+
+                                for (output) |coords| {
+                                    var index = getPixelIndexFromCoords(layer.texture, coords);
+                                    file.temporary.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF;
+                                }
+                                upaya.mem.allocator.free(output);
+                                file.temporary.dirty = true;
+                            }
+                        }
+
+                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and io.KeyShift) {
+                            if (getPixelCoords(layer.texture, texture_position, io.MouseClickedPos[0])) |prev_pixel_coords| {
+                                var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
+
+                                for (output) |coords| {
+                                    var index = getPixelIndexFromCoords(layer.texture, coords);
+                                    layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF;
                                 }
                                 upaya.mem.allocator.free(output);
                                 layer.dirty = true;
@@ -266,7 +327,7 @@ pub fn draw() void {
     }
 }
 
-fn drawGrid(file: File, position: imgui.ImVec2) void {
+fn drawGrid(file: *File, position: imgui.ImVec2) void {
     var tilesWide = @divExact(file.width, file.tileWidth);
     var tilesTall = @divExact(file.height, file.tileHeight);
 
@@ -357,7 +418,7 @@ fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void 
     );
 }
 
-fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?imgui.ImVec2 {
+pub fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?imgui.ImVec2 {
     var tl = camera.matrix().transformImVec2(texture_position).add(screen_pos);
     var br: imgui.ImVec2 = texture_position;
     br.x += @intToFloat(f32, texture.width);
@@ -374,15 +435,8 @@ fn getPixelCoords(texture: upaya.Texture, texture_position: imgui.ImVec2, positi
     } else return null;
 }
 
-fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
+pub fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
     return @floatToInt(usize, coords.x + coords.y * @intToFloat(f32, texture.width));
-}
-
-// helper for getting texture pixel index from screen position
-fn getPixelIndex(texture: upaya.Texture, texture_position: imgui.ImVec2, position: imgui.ImVec2) ?usize {
-    if (getPixelCoords(texture, texture_position, position)) |coords| {
-        return getPixelIndexFromCoords(texture, coords);
-    } else return null;
 }
 
 pub fn close() void {

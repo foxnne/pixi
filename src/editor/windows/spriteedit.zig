@@ -222,7 +222,7 @@ fn drawSprite(texture: upaya.Texture, position: imgui.ImVec2, rect: upaya.math.R
     );
 }
 
-fn getPixelCoords(sprite_position: imgui.ImVec2, rect: upaya.math.RectF, position: imgui.ImVec2) ?imgui.ImVec2 {
+pub fn getPixelCoords(sprite_position: imgui.ImVec2, rect: upaya.math.RectF, position: imgui.ImVec2) ?imgui.ImVec2 {
     var tl = camera.matrix().transformImVec2(sprite_position).add(screen_pos);
     var br: imgui.ImVec2 = sprite_position;
     br.x += rect.width;
@@ -244,6 +244,6 @@ fn getPixelCoords(sprite_position: imgui.ImVec2, rect: upaya.math.RectF, positio
     } else return null;
 }
 
-fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
+pub fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
     return @floatToInt(usize, coords.x + coords.y * @intToFloat(f32, texture.width));
 }

@@ -184,6 +184,8 @@ pub fn onFileDropped(file: []const u8) void {
         const file_image = upaya.Image.initFromFile(file);
         const image_width: i32 = @intCast(i32, file_image.w);
         const image_height: i32 = @intCast(i32, file_image.h);
+        var temp_image = upaya.Image.init(@intCast(usize, image_width), @intCast(usize, image_height));
+        temp_image.fillRect(.{.x = 0, .y = 0, .width = image_width, .height = image_height}, upaya.math.Color.transparent);
 
         var new_file: types.File = .{
             .name = name,
@@ -192,13 +194,18 @@ pub fn onFileDropped(file: []const u8) void {
             .tileWidth = image_width,
             .tileHeight = image_height,
             .background = upaya.Texture.initChecker(image_width, image_height, checkerColor1, checkerColor2),
+            .temporary = .{ 
+                .name = "Temporary", 
+                .texture = temp_image.asTexture(.nearest),
+                .image = temp_image,
+                },
             .layers = std.ArrayList(types.Layer).init(upaya.mem.allocator),
             .sprites = std.ArrayList(types.Sprite).init(upaya.mem.allocator),
             .animations = std.ArrayList(types.Animation).init(upaya.mem.allocator),
         };
 
         new_file.layers.append(.{
-            .name = "Layer 0\u{0}",
+            .name = "Layer 0",
             .texture = file_image.asTexture(.nearest),
             .image = file_image
         }) catch unreachable;
