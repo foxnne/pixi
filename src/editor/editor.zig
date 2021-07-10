@@ -5,7 +5,7 @@ const imgui = @import("imgui");
 const sokol = @import("sokol");
 
 pub const types = @import("types/types.zig");
-
+pub const history = @import("history/history.zig");
 pub const input = @import("input/input.zig");
 
 //windows and bars
@@ -152,6 +152,9 @@ pub fn update() void {
 
     if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_A )and !io.KeySuper)
         toolbar.selected_tool = .animation;
+
+    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_Z )and !io.KeySuper) {}
+        // history.undo();
     
     if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_S) and io.KeySuper) {}
         //TODO: save

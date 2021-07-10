@@ -22,6 +22,14 @@ pub fn getActiveIndex() usize {
     return active_layer_index;
 }
 
+pub fn getLayer(index: usize) ?*Layer {
+    if (canvas.getActiveFile()) |file| {
+        if (index < file.layers.items.len)
+            return &file.layers.items[index];
+    }
+    return null;
+}
+
 pub fn draw() void {
     if (imgui.igBegin("Layers", 0, imgui.ImGuiWindowFlags_NoResize)) {
         defer imgui.igEnd();
@@ -66,25 +74,32 @@ pub fn draw() void {
             for (file.layers.items) |layer, i| {
                 imgui.igPushIDInt(@intCast(i32, i));
                 imgui.igBeginGroup();
-                imgui.igPushIDInt(@intCast(i32, i));
+                
 
                 var eye = if (!layer.hidden) imgui.icons.eye else imgui.icons.eye_slash;
                 if (imgui.ogColoredButton(0x00000000, eye)) {
                     file.layers.items[i].hidden = !layer.hidden;
                 }
 
-                imgui.igPopID();
                 imgui.igSameLine(0, 5);
 
                 var layer_name_z = upaya.mem.allocator.dupeZ(u8, layer.name) catch unreachable;
                 defer upaya.mem.allocator.free(layer_name_z);
                 if (imgui.ogSelectableBool(@ptrCast([*c]const u8, layer_name_z), i == active_layer_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
                     active_layer_index = i;
-
+                
                 imgui.igEndGroup();
                 imgui.igPopID();
 
-                imgui.igPushIDInt(@intCast(c_int, i));
+                if (imgui.igIsItemActive() and !imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_RectOnly)) {
+                    var i_next = @intCast(i32, i) + if (imgui.ogGetMouseDragDelta(imgui.ImGuiMouseButton_Left, 0).y < 0) @as(i32, -1) else @as(i32, 1);
+                    if (i_next >= 0 and i_next < file.layers.items.len) {
+                        std.mem.swap(Layer, &file.layers.items[i], &file.layers.items[@intCast(usize, i_next)]);
+                        active_layer_index = @intCast(usize, i_next);
+                        imgui.igResetMouseDragDelta(imgui.ImGuiMouseButton_Left);
+                    }
+                }
+
                 if (imgui.igBeginPopupContextItem("Layer Settings", imgui.ImGuiMouseButton_Right)) {
                     defer imgui.igEndPopup();
 
@@ -102,16 +117,9 @@ pub fn draw() void {
                         }
                     }
                 }
-                imgui.igPopID();
+               
 
-                if (imgui.igIsItemActive() and !imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_AllowWhenDisabled)) {
-                    var i_next = @intCast(i32, i) + if (imgui.ogGetMouseDragDelta(imgui.ImGuiMouseButton_Left, 0).y < 0) @as(i32, -1) else @as(i32, 1);
-                    if (i_next >= 0 and i_next < file.layers.items.len) {
-                        std.mem.swap(Layer, &file.layers.items[i], &file.layers.items[@intCast(usize, i_next)]);
-                        active_layer_index = @intCast(usize, i_next);
-                        imgui.igResetMouseDragDelta(imgui.ImGuiMouseButton_Left);
-                    }
-                }
+                
             }
 
             if (imgui.igIsWindowFocused(imgui.ImGuiFocusedFlags_None)) {
