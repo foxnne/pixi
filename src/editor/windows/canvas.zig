@@ -7,6 +7,7 @@ pub const Camera = @import("../utils/camera.zig").Camera;
 const editor = @import("../editor.zig");
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
+const history = editor.history;
 const toolbar = editor.toolbar;
 const layers = editor.layers;
 const sprites = editor.sprites;
@@ -29,8 +30,13 @@ var files: std.ArrayList(File) = undefined;
 
 var previous_mouse_position: imgui.ImVec2 = undefined;
 
+pub var current_stroke_colors: std.ArrayList(u32) = undefined;
+pub var current_stroke_indexes: std.ArrayList(usize) = undefined;
+
 pub fn init() void {
     files = std.ArrayList(File).init(upaya.mem.allocator);
+    current_stroke_colors = std.ArrayList(u32).init(upaya.mem.allocator);
+    current_stroke_indexes = std.ArrayList(usize).init(upaya.mem.allocator);
     var logo_pixels = [_]u32{
         0x00000000, 0xFF89AFEF, 0xFF89AFEF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
         0xFF7391D8, 0xFF201a19, 0xFF7391D8, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -243,7 +249,7 @@ pub fn draw() void {
                         if (toolbar.selected_tool == .pencil) {
                             file.temporary.image.pixels[pixel_index] = toolbar.foreground_color.value;
                         } else file.temporary.image.pixels[pixel_index] = 0xFFFFFFFF;
-                        
+
                         file.temporary.dirty = true;
 
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyShift) {
@@ -252,7 +258,12 @@ pub fn draw() void {
 
                                 for (output) |coords| {
                                     var index = getPixelIndexFromCoords(layer.texture, coords);
-                                    layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+
+                                    if (toolbar.selected_tool == .pencil and layer.image.pixels[index] != toolbar.foreground_color.value or toolbar.selected_tool == .eraser and layer.image.pixels[index] != 0x00000000) {
+                                        current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                                        current_stroke_indexes.append(index) catch unreachable;
+                                        layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+                                    }
                                 }
                                 upaya.mem.allocator.free(output);
                                 layer.dirty = true;
@@ -278,11 +289,24 @@ pub fn draw() void {
 
                                 for (output) |coords| {
                                     var index = getPixelIndexFromCoords(layer.texture, coords);
+                                    current_stroke_indexes.append(index) catch unreachable;
+                                    current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
                                     layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF;
                                 }
                                 upaya.mem.allocator.free(output);
                                 layer.dirty = true;
                             }
+                        }
+
+                        //write to history
+                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
+
+                            history.push(.{
+                                .tag = .stroke,
+                                .pixel_colors = current_stroke_colors.toOwnedSlice(),
+                                .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
+                                .layer_id = layer.id,
+                            });
                         }
                     }
 

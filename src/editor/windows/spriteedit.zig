@@ -7,6 +7,7 @@ pub const Camera = @import("../utils/camera.zig").Camera;
 const editor = @import("../editor.zig");
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
+const history = editor.history;
 const toolbar = editor.toolbar;
 const layers = editor.layers;
 const sprites = editor.sprites;
@@ -68,12 +69,10 @@ pub fn draw() void {
                     if (file.layers.items[layer_index].hidden)
                         continue;
 
-                
                     drawSprite(file.layers.items[layer_index].texture, sprite_position, sprite_rect, 0xFFFFFFFF);
 
                     if (layer_index == layers.getActiveIndex())
                         drawSprite(file.temporary.texture, sprite_position, sprite_rect, 0xFFFFFFFF);
-                    
                 }
 
                 // store previous tool and reapply it after to allow quick switching
@@ -161,7 +160,12 @@ pub fn draw() void {
 
                                         for (output) |coords| {
                                             var index = getPixelIndexFromCoords(layer.texture, coords);
-                                            layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+
+                                            if (toolbar.selected_tool == .pencil and layer.image.pixels[index] != toolbar.foreground_color.value or toolbar.selected_tool == .eraser and layer.image.pixels[index] != 0x00000000) {
+                                                canvas.current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                                                canvas.current_stroke_indexes.append(index) catch unreachable;
+                                                layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+                                            }
                                         }
                                         upaya.mem.allocator.free(output);
                                         layer.dirty = true;
@@ -187,11 +191,23 @@ pub fn draw() void {
 
                                         for (output) |coords| {
                                             var index = getPixelIndexFromCoords(layer.texture, coords);
+                                            canvas.current_stroke_indexes.append(index) catch unreachable;
+                                            canvas.current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
                                             layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF;
                                         }
                                         upaya.mem.allocator.free(output);
                                         layer.dirty = true;
                                     }
+                                }
+
+                                //write to history
+                                if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
+                                    history.push(.{
+                                        .tag = .stroke,
+                                        .pixel_colors = canvas.current_stroke_colors.toOwnedSlice(),
+                                        .pixel_indexes = canvas.current_stroke_indexes.toOwnedSlice(),
+                                        .layer_id = layer.id,
+                                    });
                                 }
                             }
                         }

@@ -26,9 +26,9 @@ pub fn getActiveIndex() usize {
 
 pub fn getLayer(id: usize) ?*Layer {
     if (canvas.getActiveFile()) |file| {
-        for (file.layers.items) |layer| {
+        for (file.layers.items) |layer, i| {
             if (layer.id == id)
-                return &layer;
+                return &file.layers.items[i];
         }
     }
     return null;
