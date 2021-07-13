@@ -84,7 +84,7 @@ pub fn draw() void {
                 if (file.layers.items.len > 1) {
                     var old_index = active_layer_index;
                     active_layer_index = 0;
-                    var layer = file.layers.swapRemove(old_index);
+                    var layer = file.layers.orderedRemove(old_index);
                     history.push(.{
                         .tag = .delete_layer,
                         .layer_id = layer.id,

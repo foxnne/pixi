@@ -56,7 +56,7 @@ fn undoNewLayer(item: HistoryItem) void {
 
             for (file.layers.items) |l, i| {
                 if (l.id == layer_id)
-                    layer = file.layers.swapRemove(i);
+                    layer = file.layers.orderedRemove(i);
             }
 
             var new_item = item;
@@ -95,7 +95,7 @@ fn redoDeleteLayer(item: HistoryItem) void {
 
             for (file.layers.items) |l, i| {
                 if (l.id == layer_id)
-                    layer = file.layers.swapRemove(i);
+                    layer = file.layers.orderedRemove(i);
             }
 
             var new_item = item;
