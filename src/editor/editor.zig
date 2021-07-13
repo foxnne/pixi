@@ -49,7 +49,7 @@ pub fn init() void {
 
     highlight_color_green = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(47, 179, 135, 255));
     highlight_hover_color_green = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(76, 148, 123, 255));
-    
+
     highlight_color_red = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(76, 48, 67, 255));
     highlight_hover_color_red = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(105, 50, 68, 255));
 
@@ -71,7 +71,7 @@ pub fn init() void {
     style.WindowMinSize = .{ .x = 100, .y = 100 };
     style.WindowMenuButtonPosition = imgui.ImGuiDir_None;
     style.PopupRounding = 8;
-    style.WindowTitleAlign = .{ .x = 0.5, .y = 0.5};
+    style.WindowTitleAlign = .{ .x = 0.5, .y = 0.5 };
     style.Colors[imgui.ImGuiCol_WindowBg] = background_color;
     style.Colors[imgui.ImGuiCol_Border] = foreground_color;
     style.Colors[imgui.ImGuiCol_MenuBarBg] = foreground_color;
@@ -99,6 +99,7 @@ pub fn init() void {
     style.Colors[imgui.ImGuiCol_ModalWindowDimBg] = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(10, 10, 15, 100));
 
     canvas.init();
+    history.init();
 }
 
 pub fn setupDockLayout(id: imgui.ImGuiID) void {
@@ -128,42 +129,44 @@ pub fn resetDockLayout() void {
 }
 
 pub fn update() void {
-
     const io = imgui.igGetIO();
 
     // global hotkeys
     if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_ESCAPE))
         toolbar.selected_tool = .arrow;
 
-    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_D))
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_D))
         toolbar.selected_tool = .pencil;
 
-    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_E))
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_E))
         toolbar.selected_tool = .eraser;
 
-    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_F))
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F))
         toolbar.selected_tool = .bucket;
 
-    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_N) and io.KeySuper) 
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_N) and io.KeySuper)
         menubar.new_file_popup = true;
 
-    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_S )and !io.KeySuper)
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and !io.KeySuper)
         toolbar.selected_tool = .selection;
 
-    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_A )and !io.KeySuper)
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_A) and !io.KeySuper)
         toolbar.selected_tool = .animation;
 
-    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_Z )and !io.KeySuper) {}
-        // history.undo();
-    
-    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_S) and io.KeySuper) {}
-        //TODO: save
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and !io.KeyShift)
+        history.undo();
 
-    if (imgui.ogKeyDown(sokol.SAPP_KEYCODE_W))
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and io.KeyShift)
+        history.redo();
+
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and io.KeySuper) {}
+    //TODO: save
+
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_W))
         toolbar.selected_tool = .wand;
 
     input.update();
-    
+
     menubar.draw();
     canvas.draw();
     layers.draw();
@@ -176,19 +179,18 @@ pub fn update() void {
 }
 
 pub fn onFileDropped(file: []const u8) void {
-
     if (std.mem.endsWith(u8, file, ".png")) {
 
         // TODO: figure out file name on windows
         const start_name = std.mem.lastIndexOf(u8, file, "/").?;
         const end_name = std.mem.indexOf(u8, file, ".").?;
-        const name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}", .{file[start_name + 1..end_name]}) catch unreachable;
+        const name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}", .{file[start_name + 1 .. end_name]}) catch unreachable;
         const sprite_name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_0", .{name}) catch unreachable;
         const file_image = upaya.Image.initFromFile(file);
         const image_width: i32 = @intCast(i32, file_image.w);
         const image_height: i32 = @intCast(i32, file_image.h);
         var temp_image = upaya.Image.init(@intCast(usize, image_width), @intCast(usize, image_height));
-        temp_image.fillRect(.{.x = 0, .y = 0, .width = image_width, .height = image_height}, upaya.math.Color.transparent);
+        temp_image.fillRect(.{ .x = 0, .y = 0, .width = image_width, .height = image_height }, upaya.math.Color.transparent);
 
         var new_file: types.File = .{
             .name = name,
@@ -197,21 +199,18 @@ pub fn onFileDropped(file: []const u8) void {
             .tileWidth = image_width,
             .tileHeight = image_height,
             .background = upaya.Texture.initChecker(image_width, image_height, checkerColor1, checkerColor2),
-            .temporary = .{ 
-                .name = "Temporary", 
+            .temporary = .{
+                .name = "Temporary",
+                .id = layers.getNewID(),
                 .texture = temp_image.asTexture(.nearest),
                 .image = temp_image,
-                },
+            },
             .layers = std.ArrayList(types.Layer).init(upaya.mem.allocator),
             .sprites = std.ArrayList(types.Sprite).init(upaya.mem.allocator),
             .animations = std.ArrayList(types.Animation).init(upaya.mem.allocator),
         };
 
-        new_file.layers.append(.{
-            .name = "Layer 0",
-            .texture = file_image.asTexture(.nearest),
-            .image = file_image
-        }) catch unreachable;
+        new_file.layers.append(.{ .name = "Layer 0", .id = layers.getNewID(), .texture = file_image.asTexture(.nearest), .image = file_image }) catch unreachable;
 
         new_file.sprites.append(.{
             .name = sprite_name,
@@ -220,7 +219,7 @@ pub fn onFileDropped(file: []const u8) void {
             .origin_y = 0,
         }) catch unreachable;
 
-        canvas.newFile(new_file);        
+        canvas.newFile(new_file);
     }
 }
 

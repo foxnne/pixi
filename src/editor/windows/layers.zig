@@ -4,12 +4,14 @@ const imgui = @import("imgui");
 
 const types = @import("../types/types.zig");
 const editor = @import("../editor.zig");
-const canvas = @import("canvas.zig");
+const canvas = editor.canvas;
+const history = editor.history;
 
 const Layer = types.Layer;
 
 var layer_name_buffer: [128]u8 = [_]u8{0} ** 128;
 
+var current_id: usize = 0;
 var active_layer_index: usize = 0;
 
 pub fn getActiveLayer() ?*Layer {
@@ -22,12 +24,29 @@ pub fn getActiveIndex() usize {
     return active_layer_index;
 }
 
-pub fn getLayer(index: usize) ?*Layer {
+pub fn getLayer(id: usize) ?*Layer {
     if (canvas.getActiveFile()) |file| {
-        if (index < file.layers.items.len)
-            return &file.layers.items[index];
+        for (file.layers.items) |layer| {
+            if (layer.id == id)
+                return &layer;
+        }
     }
     return null;
+}
+
+//find a better way to get a unique id per layer?
+pub fn getNewID() usize {
+    var id = current_id;
+    current_id += 1;
+
+    if (canvas.getActiveFile()) |file| {
+        for (file.layers.items) |layer| {
+            if (layer.id == id)
+                current_id += 1;
+        }
+    }
+
+    return id;
 }
 
 pub fn draw() void {
@@ -44,12 +63,20 @@ pub fn draw() void {
                 var name = std.fmt.allocPrint(upaya.mem.allocator, "Layer {d}", .{file.layers.items.len}) catch unreachable;
                 defer upaya.mem.allocator.free(name);
 
-                file.layers.insert(0, .{
+                var new_layer: Layer = .{
                     .name = upaya.mem.allocator.dupe(u8, name) catch unreachable,
+                    .id = getNewID(),
                     .image = image,
                     .texture = image.asTexture(.nearest),
-                }) catch unreachable;
+                };
+
+                file.layers.insert(0, new_layer) catch unreachable;
                 active_layer_index = 0;
+
+                history.push(.{
+                    .tag = .new_layer,
+                    .layer_id = new_layer.id,
+                });
             }
             imgui.igSameLine(0, 5);
             // delete
@@ -57,7 +84,12 @@ pub fn draw() void {
                 if (file.layers.items.len > 1) {
                     var old_index = active_layer_index;
                     active_layer_index = 0;
-                    _ = file.layers.swapRemove(old_index);
+                    var layer = file.layers.swapRemove(old_index);
+                    history.push(.{
+                        .tag = .delete_layer,
+                        .layer_id = layer.id,
+                        .layer_state = layer,
+                    });
                 }
             }
 
@@ -72,9 +104,8 @@ pub fn draw() void {
             imgui.igSeparator();
 
             for (file.layers.items) |layer, i| {
-                imgui.igPushIDInt(@intCast(i32, i));
+                imgui.igPushIDInt(@intCast(i32, layer.id));
                 imgui.igBeginGroup();
-                
 
                 var eye = if (!layer.hidden) imgui.icons.eye else imgui.icons.eye_slash;
                 if (imgui.ogColoredButton(0x00000000, eye)) {
@@ -87,18 +118,6 @@ pub fn draw() void {
                 defer upaya.mem.allocator.free(layer_name_z);
                 if (imgui.ogSelectableBool(@ptrCast([*c]const u8, layer_name_z), i == active_layer_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
                     active_layer_index = i;
-                
-                imgui.igEndGroup();
-                imgui.igPopID();
-
-                if (imgui.igIsItemActive() and !imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_RectOnly)) {
-                    var i_next = @intCast(i32, i) + if (imgui.ogGetMouseDragDelta(imgui.ImGuiMouseButton_Left, 0).y < 0) @as(i32, -1) else @as(i32, 1);
-                    if (i_next >= 0 and i_next < file.layers.items.len) {
-                        std.mem.swap(Layer, &file.layers.items[i], &file.layers.items[@intCast(usize, i_next)]);
-                        active_layer_index = @intCast(usize, i_next);
-                        imgui.igResetMouseDragDelta(imgui.ImGuiMouseButton_Left);
-                    }
-                }
 
                 if (imgui.igBeginPopupContextItem("Layer Settings", imgui.ImGuiMouseButton_Right)) {
                     defer imgui.igEndPopup();
@@ -117,9 +136,18 @@ pub fn draw() void {
                         }
                     }
                 }
-               
 
-                
+                imgui.igEndGroup();
+                imgui.igPopID();
+
+                if (imgui.igIsItemActive() and !imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_RectOnly)) {
+                    var i_next = @intCast(i32, i) + if (imgui.ogGetMouseDragDelta(imgui.ImGuiMouseButton_Left, 0).y < 0) @as(i32, -1) else @as(i32, 1);
+                    if (i_next >= 0 and i_next < file.layers.items.len) {
+                        std.mem.swap(Layer, &file.layers.items[i], &file.layers.items[@intCast(usize, i_next)]);
+                        active_layer_index = @intCast(usize, i_next);
+                        imgui.igResetMouseDragDelta(imgui.ImGuiMouseButton_Left);
+                    }
+                }
             }
 
             if (imgui.igIsWindowFocused(imgui.ImGuiFocusedFlags_None)) {

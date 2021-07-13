@@ -31,6 +31,7 @@ pub const Layer = struct {
     name: []const u8,
     texture: upaya.Texture,
     image: upaya.Image,
+    id: usize,
     hidden: bool = false,
     dirty: bool = false,
 

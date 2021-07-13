@@ -6,6 +6,7 @@ const editor = @import("../editor.zig");
 
 const canvas = editor.canvas;
 const menubar = editor.menubar;
+const layers = editor.layers;
 
 const types = @import("../types/types.zig");
 const File = types.File;
@@ -60,13 +61,14 @@ pub fn draw() void {
             var image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
             image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
 
-            new_file.layers.append(.{.name = "Layer 0", .image = image, .texture = image.asTexture(.nearest)}) catch unreachable;
+            new_file.layers.append(.{.name = "Layer 0", .image = image, .id = layers.getNewID(), .texture = image.asTexture(.nearest)}) catch unreachable;
 
             var temp_image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
             temp_image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
 
             new_file.temporary = .{
                 .name = "Temporary",
+                .id = layers.getNewID(),
                 .texture = temp_image.asTexture(.nearest),
                 .image = temp_image,
             };
