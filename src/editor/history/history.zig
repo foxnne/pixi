@@ -20,113 +20,120 @@ pub const HistoryTag = enum {
     stroke,
 };
 
-var undoStack: std.ArrayList(HistoryItem) = undefined;
-var redoStack: std.ArrayList(HistoryItem) = undefined;
+pub const History = struct {
+    undoStack: std.ArrayList(HistoryItem),
+    redoStack: std.ArrayList(HistoryItem),
 
-pub fn init() void {
-    undoStack = std.ArrayList(HistoryItem).init(upaya.mem.allocator);
-    redoStack = std.ArrayList(HistoryItem).init(upaya.mem.allocator);
-}
+    pub fn init() History {
 
-pub fn push(item: HistoryItem) void {
-    undoStack.append(item) catch unreachable;
-    // do we free things inside of the stack?
-    if (redoStack.items.len > 0)
-        redoStack.clearAndFree();
-}
-
-pub fn undo() void {
-    if (undoStack.popOrNull()) |item| {
-        switch (item.tag) {
-            .new_layer => undoNewLayer(item),
-            .delete_layer => undoDeleteLayer(item),
-            .stroke => undoStroke(item),
-        }
+        var history: History = .{
+            .undoStack = std.ArrayList(HistoryItem).init(upaya.mem.allocator),
+            .redoStack = std.ArrayList(HistoryItem).init(upaya.mem.allocator),
+        };
+        return history;
+        
     }
-}
 
-pub fn redo() void {
-    if (redoStack.popOrNull()) |item| {
-        switch (item.tag) {
-            .new_layer => undoDeleteLayer(item), //reusing the same functions, maybe better names?
-            .delete_layer => undoNewLayer(item),
-            .stroke => redoStroke(item),
-        }
+    pub fn push(self: *History, item: HistoryItem) void {
+        self.undoStack.append(item) catch unreachable;
+        // do we free things inside of the stack?
+        if (self.redoStack.items.len > 0)
+            self.redoStack.clearAndFree();
     }
-}
 
-fn undoNewLayer(item: HistoryItem) void {
-    if (canvas.getActiveFile()) |file| {
-        if (item.layer_id) |layer_id| {
-            var layer: types.Layer = undefined;
-
-            for (file.layers.items) |l, i| {
-                if (l.id == layer_id)
-                    layer = file.layers.orderedRemove(i);
+    pub fn undo(self: *History) void {
+        if (self.undoStack.popOrNull()) |item| {
+            switch (item.tag) {
+                .new_layer => self.undoNewLayer(item),
+                .delete_layer => self.undoDeleteLayer(item),
+                .stroke => self.undoStroke(item),
             }
-
-            var new_item = item;
-            new_item.layer_state = layer;
-            redoStack.append(new_item) catch unreachable;
         }
     }
-}
 
-fn undoDeleteLayer(item: HistoryItem) void {
-    if (canvas.getActiveFile()) |file| {
-        if (item.layer_state) |layer| {
-            file.layers.insert(0, layer) catch unreachable;
-            var new_item = item;
-            new_item.layer_state = null;
-            undoStack.append(new_item) catch unreachable;
+    pub fn redo(self: *History) void {
+        if (self.redoStack.popOrNull()) |item| {
+            switch (item.tag) {
+                .new_layer => self.undoDeleteLayer(item), //reusing the same functions, maybe better names?
+                .delete_layer => self.undoNewLayer(item),
+                .stroke => self.redoStroke(item),
+            }
         }
     }
-}
 
-fn undoStroke(item: HistoryItem) void {
-    if (canvas.getActiveFile()) |file| {
-        if (item.pixel_indexes) |indexes| {
-            if (item.pixel_colors) |colors| {
-                if (item.layer_id) |layer_id| {
-                    if (layers.getLayer(layer_id)) |layer| {
-                        var new_item = item;
+    fn undoNewLayer(self: *History, item: HistoryItem) void {
+        if (canvas.getActiveFile()) |file| {
+            if (item.layer_id) |layer_id| {
+                var layer: types.Layer = undefined;
 
-                        for (indexes) |index, i| {
-                            var prev_color = layer.image.pixels[index];
-                            
-                            layer.image.pixels[index] = colors[i];
-                            new_item.pixel_colors.?[i] = prev_color;
+                for (file.layers.items) |l, i| {
+                    if (l.id == layer_id)
+                        layer = file.layers.orderedRemove(i);
+                }
+
+                var new_item = item;
+                new_item.layer_state = layer;
+                self.redoStack.append(new_item) catch unreachable;
+            }
+        }
+    }
+
+    fn undoDeleteLayer(self: *History, item: HistoryItem) void {
+        if (canvas.getActiveFile()) |file| {
+            if (item.layer_state) |layer| {
+                file.layers.insert(0, layer) catch unreachable;
+                var new_item = item;
+                new_item.layer_state = null;
+                self.undoStack.append(new_item) catch unreachable;
+            }
+        }
+    }
+
+    fn undoStroke(self: *History, item: HistoryItem) void {
+        if (canvas.getActiveFile()) |file| {
+            if (item.pixel_indexes) |indexes| {
+                if (item.pixel_colors) |colors| {
+                    if (item.layer_id) |layer_id| {
+                        if (layers.getLayer(layer_id)) |layer| {
+                            var new_item = item;
+
+                            for (indexes) |index, i| {
+                                var prev_color = layer.image.pixels[index];
+
+                                layer.image.pixels[index] = colors[i];
+                                new_item.pixel_colors.?[i] = prev_color;
+                            }
+                            layer.dirty = true;
+
+                            self.redoStack.append(new_item) catch unreachable;
                         }
-                        layer.dirty = true;
-
-                        redoStack.append(new_item) catch unreachable;
                     }
                 }
             }
         }
     }
-}
 
-fn redoStroke(item: HistoryItem) void {
-    if (canvas.getActiveFile()) |file| {
-        if (item.pixel_indexes) |indexes| {
-            if (item.pixel_colors) |colors| {
-                if (item.layer_id) |layer_id| {
-                    if (layers.getLayer(layer_id)) |layer| {
-                        var new_item = item;
+    fn redoStroke(self: *History, item: HistoryItem) void {
+        if (canvas.getActiveFile()) |file| {
+            if (item.pixel_indexes) |indexes| {
+                if (item.pixel_colors) |colors| {
+                    if (item.layer_id) |layer_id| {
+                        if (layers.getLayer(layer_id)) |layer| {
+                            var new_item = item;
 
-                        for (indexes) |index, i| {
-                            var prev_color = layer.image.pixels[index];
-                            
-                            layer.image.pixels[index] = colors[i];
-                            new_item.pixel_colors.?[i] = prev_color;
+                            for (indexes) |index, i| {
+                                var prev_color = layer.image.pixels[index];
+
+                                layer.image.pixels[index] = colors[i];
+                                new_item.pixel_colors.?[i] = prev_color;
+                            }
+                            layer.dirty = true;
+
+                            self.undoStack.append(new_item) catch unreachable;
                         }
-                        layer.dirty = true;
-
-                        undoStack.append(new_item) catch unreachable;
                     }
                 }
             }
         }
     }
-}
+};

@@ -202,7 +202,7 @@ pub fn draw() void {
 
                                 //write to history
                                 if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
-                                    history.push(.{
+                                    file.history.push(.{
                                         .tag = .stroke,
                                         .pixel_colors = canvas.current_stroke_colors.toOwnedSlice(),
                                         .pixel_indexes = canvas.current_stroke_indexes.toOwnedSlice(),

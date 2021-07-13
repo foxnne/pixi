@@ -73,7 +73,7 @@ pub fn draw() void {
                 file.layers.insert(0, new_layer) catch unreachable;
                 active_layer_index = 0;
 
-                history.push(.{
+                file.history.push(.{
                     .tag = .new_layer,
                     .layer_id = new_layer.id,
                 });
@@ -85,7 +85,7 @@ pub fn draw() void {
                     var old_index = active_layer_index;
                     active_layer_index = 0;
                     var layer = file.layers.orderedRemove(old_index);
-                    history.push(.{
+                    file.history.push(.{
                         .tag = .delete_layer,
                         .layer_id = layer.id,
                         .layer_state = layer,

@@ -3,7 +3,7 @@ const upaya = @import("upaya");
 const imgui = @import("imgui");
 
 const editor = @import("../editor.zig");
-
+const history = editor.history;
 const canvas = editor.canvas;
 const menubar = editor.menubar;
 const layers = editor.layers;
@@ -25,6 +25,7 @@ var new_file: File = .{
     .layers = undefined,
     .sprites = undefined,
     .animations = undefined,
+    .history = undefined,
 };
 var tiles_wide: i32 = 1;
 var tiles_tall: i32 = 1;
@@ -86,6 +87,8 @@ pub fn draw() void {
                 };
                 new_file.sprites.append(new_sprite) catch unreachable;
             }
+
+            new_file.history = history.History.init();
 
             canvas.newFile(new_file);
             menubar.new_file_popup = false;

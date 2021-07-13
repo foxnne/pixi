@@ -99,7 +99,7 @@ pub fn init() void {
     style.Colors[imgui.ImGuiCol_ModalWindowDimBg] = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(10, 10, 15, 100));
 
     canvas.init();
-    history.init();
+    //history.init();
 }
 
 pub fn setupDockLayout(id: imgui.ImGuiID) void {
@@ -153,11 +153,21 @@ pub fn update() void {
     if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_A) and !io.KeySuper)
         toolbar.selected_tool = .animation;
 
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and !io.KeyShift)
-        history.undo();
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and !io.KeyShift){
+        if (canvas.getActiveFile()) |file| {
+            file.history.undo();
+        }
 
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and io.KeyShift)
-        history.redo();
+    }
+        
+
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and io.KeyShift) {
+        if (canvas.getActiveFile()) |file| {
+            file.history.redo();
+        }
+
+    }
+        
 
     if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and io.KeySuper) {}
     //TODO: save
@@ -208,6 +218,7 @@ pub fn onFileDropped(file: []const u8) void {
             .layers = std.ArrayList(types.Layer).init(upaya.mem.allocator),
             .sprites = std.ArrayList(types.Sprite).init(upaya.mem.allocator),
             .animations = std.ArrayList(types.Animation).init(upaya.mem.allocator),
+            .history = history.History.init(),
         };
 
         new_file.layers.append(.{ .name = "Layer 0", .id = layers.getNewID(), .texture = file_image.asTexture(.nearest), .image = file_image }) catch unreachable;

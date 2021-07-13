@@ -1,5 +1,7 @@
 const std = @import("std");
 const upaya = @import("upaya");
+const editor = @import("../editor.zig");
+const history = editor.history;
 
 pub const File = struct {
     name: []const u8,
@@ -12,6 +14,7 @@ pub const File = struct {
     layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
+    history: history.History,
     dirty: bool = false,
 
     pub fn deinit (self: *File) void {
