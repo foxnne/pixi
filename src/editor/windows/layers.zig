@@ -161,7 +161,7 @@ pub fn draw() void {
 
             if (imgui.igIsWindowFocused(imgui.ImGuiFocusedFlags_None)) {
                 // down arrow changes layer
-                if (imgui.ogKeyPressed(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_DownArrow)))) {
+                if (imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_DOWN)) {
                     if (imgui.igGetIO().KeySuper) {
                         if (active_layer_index < file.layers.items.len - 1) {
                             std.mem.swap(Layer, &file.layers.items[active_layer_index], &file.layers.items[active_layer_index + 1]);
@@ -174,7 +174,7 @@ pub fn draw() void {
                 }
 
                 // up arrow changes layer
-                if (imgui.ogKeyPressed(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_UpArrow)))) {
+                if (imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_UP)) {
                     if (imgui.igGetIO().KeySuper) {
                         if (active_layer_index > 0) {
                             std.mem.swap(Layer, &file.layers.items[active_layer_index], &file.layers.items[active_layer_index - 1]);

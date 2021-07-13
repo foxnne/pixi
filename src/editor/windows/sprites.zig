@@ -22,7 +22,7 @@ pub fn getActiveSprite() ?*Sprite {
         if (file.sprites.items.len == 0)
             return null;
 
-        if (active_sprite_index >= file.sprites.items.len and active_sprite_index > 0)
+        if (active_sprite_index >= file.sprites.items.len)
             active_sprite_index = file.sprites.items.len - 1;
 
         return &file.sprites.items[active_sprite_index];
@@ -91,6 +91,18 @@ pub fn draw() void {
                     _ = imgui.ogDrag(f32, "Origin Y", &file.sprites.items[i].origin_y, 0.1, 0, @intToFloat(f32, file.tileHeight));
                 }
                 imgui.igPopID();
+            }
+
+            if (imgui.igIsWindowFocused(imgui.ImGuiFocusedFlags_None)) {
+                // down arrow changes sprite
+                if (imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_DOWN)) {
+                    setActiveSpriteIndex(active_sprite_index + 1);
+                }
+
+                // up arrow changes sprite
+                if (imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_UP)) {
+                    setActiveSpriteIndex(active_sprite_index - 1);
+                }
             }
         }
     }
