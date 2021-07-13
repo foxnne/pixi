@@ -9,6 +9,7 @@ const layers = editor.layers;
 pub const HistoryItem = struct {
     layer_id: ?usize = null,
     layer_state: ?types.Layer = null,
+    layer_name: ?[]const u8 = null,
     pixel_colors: ?[]u32 = null,
     pixel_indexes: ?[]usize = null,
     tag: HistoryTag,
@@ -17,6 +18,7 @@ pub const HistoryItem = struct {
 pub const HistoryTag = enum {
     new_layer,
     delete_layer,
+    rename_layer,
     stroke,
 };
 
@@ -25,13 +27,11 @@ pub const History = struct {
     redoStack: std.ArrayList(HistoryItem),
 
     pub fn init() History {
-
         var history: History = .{
             .undoStack = std.ArrayList(HistoryItem).init(upaya.mem.allocator),
             .redoStack = std.ArrayList(HistoryItem).init(upaya.mem.allocator),
         };
         return history;
-        
     }
 
     pub fn push(self: *History, item: HistoryItem) void {
@@ -46,6 +46,7 @@ pub const History = struct {
             switch (item.tag) {
                 .new_layer => self.undoNewLayer(item),
                 .delete_layer => self.undoDeleteLayer(item),
+                .rename_layer => self.undoLayerRename(item),
                 .stroke => self.undoStroke(item),
             }
         }
@@ -56,6 +57,7 @@ pub const History = struct {
             switch (item.tag) {
                 .new_layer => self.undoDeleteLayer(item), //reusing the same functions, maybe better names?
                 .delete_layer => self.undoNewLayer(item),
+                .rename_layer => self.redoLayerRename(item),
                 .stroke => self.redoStroke(item),
             }
         }
@@ -85,6 +87,40 @@ pub const History = struct {
                 var new_item = item;
                 new_item.layer_state = null;
                 self.undoStack.append(new_item) catch unreachable;
+            }
+        }
+    }
+
+    fn undoLayerRename(self: *History, item: HistoryItem) void {
+        if (canvas.getActiveFile()) |file| {
+            if (item.layer_name) |name| {
+                if (item.layer_id) |id| {
+                    if (layers.getLayer(id)) |layer| {
+                        var old_name = layer.name;
+                        layer.name = name;
+
+                        var new_item = item;
+                        new_item.layer_name = old_name;
+                        self.redoStack.append(new_item) catch unreachable;
+                    }
+                }
+            }
+        }
+    }
+
+    fn redoLayerRename(self: *History, item: HistoryItem) void {
+        if (canvas.getActiveFile()) |file| {
+            if (item.layer_name) |name| {
+                if (item.layer_id) |id| {
+                    if (layers.getLayer(id)) |layer| {
+                        var old_name = layer.name;
+                        layer.name = name;
+
+                        var new_item = item;
+                        new_item.layer_name = old_name;
+                        self.undoStack.append(new_item) catch unreachable;
+                    }
+                }
             }
         }
     }

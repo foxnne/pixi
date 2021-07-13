@@ -99,7 +99,6 @@ pub fn init() void {
     style.Colors[imgui.ImGuiCol_ModalWindowDimBg] = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(10, 10, 15, 100));
 
     canvas.init();
-    //history.init();
 }
 
 pub fn setupDockLayout(id: imgui.ImGuiID) void {
@@ -153,21 +152,17 @@ pub fn update() void {
     if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_A) and !io.KeySuper)
         toolbar.selected_tool = .animation;
 
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and !io.KeyShift){
+    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and !io.KeyShift) {
         if (canvas.getActiveFile()) |file| {
             file.history.undo();
         }
-
     }
-        
 
     if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and io.KeyShift) {
         if (canvas.getActiveFile()) |file| {
             file.history.redo();
         }
-
     }
-        
 
     if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and io.KeySuper) {}
     //TODO: save

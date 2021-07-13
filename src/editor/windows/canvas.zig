@@ -48,6 +48,8 @@ pub fn init() void {
         0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF201a19, 0xFF201a19, 0xFF201a19,
     };
     logo = upaya.Texture.initWithColorData(&logo_pixels, 12, 8, .nearest, .clamp);
+    
+    upaya.sokol.sapp_set_icon(&.{ .sokol_default = true, .images = undefined});
 }
 
 pub fn newFile(file: File) void {

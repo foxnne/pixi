@@ -119,6 +119,8 @@ pub fn draw() void {
                 if (imgui.ogSelectableBool(@ptrCast([*c]const u8, layer_name_z), i == active_layer_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
                     active_layer_index = i;
 
+                imgui.igEndGroup();
+
                 if (imgui.igBeginPopupContextItem("Layer Settings", imgui.ImGuiMouseButton_Right)) {
                     defer imgui.igEndPopup();
 
@@ -132,12 +134,19 @@ pub fn draw() void {
                         var end = std.mem.indexOf(u8, layer_name_buffer[0..], "\u{0}");
 
                         if (end) |e| {
-                            file.layers.items[i].name = upaya.mem.allocator.dupe(u8, layer_name_buffer[0..e]) catch unreachable;
+                            if (!std.mem.eql(u8, file.layers.items[i].name, layer_name_buffer[0..e]) and !std.mem.eql(u8, layer_name_buffer[0..e], "")) {
+                                file.history.push(.{
+                                    .tag = .rename_layer,
+                                    .layer_name = upaya.mem.allocator.dupe(u8, file.layers.items[i].name) catch unreachable,
+                                    .layer_id = file.layers.items[i].id,
+                                });
+
+                                file.layers.items[i].name = upaya.mem.allocator.dupe(u8, layer_name_buffer[0..e]) catch unreachable;
+                            }
                         }
                     }
                 }
 
-                imgui.igEndGroup();
                 imgui.igPopID();
 
                 if (imgui.igIsItemActive() and !imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_RectOnly)) {

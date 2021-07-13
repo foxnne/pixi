@@ -22,6 +22,14 @@ fn createExe(b: *Builder, target: std.build.Target, name: []const u8, source: []
     exe.setBuildMode(b.standardReleaseOptions());
     exe.setOutputDir(std.fs.path.join(b.allocator, &[_][]const u8{ b.cache_root, "bin" }) catch unreachable);
 
+    if (target.isWindows() and b.is_release){ 
+        exe.subsystem = .Windows;
+    }
+
+    if (b.is_release and std.builtin.os.tag == .macos and std.builtin.cpu.arch == std.Target.Cpu.Arch.aarch64 ){
+        exe.subsystem = .Native;
+    }
+
     upaya_build.addUpayaToArtifact(b, exe, target, "src/deps/upaya/");
 
     const pixi_package = std.build.Pkg {
