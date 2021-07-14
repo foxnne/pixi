@@ -80,7 +80,7 @@ pub fn draw() void {
                     set_from_outside = false;
                 }
 
-                if (imgui.igBeginPopupContextItem(@ptrCast([*c]const u8, sprite_name_z), imgui.ImGuiMouseButton_Right)) {
+                if (imgui.igBeginPopupContextItem("Sprite Settings", imgui.ImGuiMouseButton_Right)) {
                     defer imgui.igEndPopup();
 
                     imgui.igText("Sprite Settings");

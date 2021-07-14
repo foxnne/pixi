@@ -34,6 +34,8 @@ var next_sprite_rect: upaya.math.RectF = undefined;
 
 var previous_mouse_position: imgui.ImVec2 = undefined;
 
+var previous_next_opacity: f32 = 100;
+
 pub fn draw() void {
     if (imgui.igBegin("SpriteEdit", 0, imgui.ImGuiWindowFlags_None)) {
         defer imgui.igEnd();
@@ -265,6 +267,29 @@ pub fn draw() void {
 
                                 //write to history
                                 if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
+                                    file.history.push(.{
+                                        .tag = .stroke,
+                                        .pixel_colors = canvas.current_stroke_colors.toOwnedSlice(),
+                                        .pixel_indexes = canvas.current_stroke_indexes.toOwnedSlice(),
+                                        .layer_id = layer.id,
+                                    });
+                                }
+                            }
+
+                            //fill
+                            if (toolbar.selected_tool == .bucket) {
+                                if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false)) {
+                                    var output = algorithms.floodfill(pixel_coords, layer.image, toolbar.contiguous_fill);
+
+                                    for (output) |index| {
+                                        if (layer.image.pixels[index] != toolbar.foreground_color.value) {
+                                            canvas.current_stroke_indexes.append(index) catch unreachable;
+                                            canvas.current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                                            layer.image.pixels[index] = toolbar.foreground_color.value;
+                                        }
+                                    }
+                                    layer.dirty = true;
+
                                     file.history.push(.{
                                         .tag = .stroke,
                                         .pixel_colors = canvas.current_stroke_colors.toOwnedSlice(),

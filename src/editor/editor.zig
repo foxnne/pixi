@@ -42,6 +42,8 @@ pub const checkerColor2: upaya.math.Color = .{ .value = 0xFFEEEEEE };
 
 pub const gridColor: upaya.math.Color = .{ .value = 0xFF999999 };
 
+pub var enable_hotkeys: bool = true;
+
 pub fn init() void {
     background_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(30, 31, 39, 255));
     foreground_color = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(42, 44, 54, 255));
@@ -128,50 +130,7 @@ pub fn resetDockLayout() void {
 }
 
 pub fn update() void {
-    const io = imgui.igGetIO();
-
-    // global hotkeys
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_ESCAPE))
-        toolbar.selected_tool = .arrow;
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_D))
-        toolbar.selected_tool = .pencil;
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_E))
-        toolbar.selected_tool = .eraser;
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F))
-        toolbar.selected_tool = .bucket;
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_N) and io.KeySuper)
-        menubar.new_file_popup = true;
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and !io.KeySuper)
-        toolbar.selected_tool = .selection;
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_A) and !io.KeySuper)
-        toolbar.selected_tool = .animation;
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and !io.KeyShift) {
-        if (canvas.getActiveFile()) |file| {
-            file.history.undo();
-        }
-    }
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and io.KeyShift) {
-        if (canvas.getActiveFile()) |file| {
-            file.history.redo();
-        }
-    }
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and io.KeySuper) {}
-    //TODO: save
-
-    if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_W))
-        toolbar.selected_tool = .wand;
-
     input.update();
-
     menubar.draw();
     canvas.draw();
     layers.draw();
@@ -181,6 +140,52 @@ pub fn update() void {
     spriteedit.draw();
     newfile.draw();
     slice.draw();
+
+    if (enable_hotkeys) {
+        const io = imgui.igGetIO();
+
+        // global hotkeys
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_ESCAPE))
+            toolbar.selected_tool = .arrow;
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_D))
+            toolbar.selected_tool = .pencil;
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_E))
+            toolbar.selected_tool = .eraser;
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F))
+            toolbar.selected_tool = .bucket;
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_N) and io.KeySuper)
+            menubar.new_file_popup = true;
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and !io.KeySuper)
+            toolbar.selected_tool = .selection;
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_A) and !io.KeySuper)
+            toolbar.selected_tool = .animation;
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and !io.KeyShift) {
+            if (canvas.getActiveFile()) |file| {
+                file.history.undo();
+            }
+        }
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and io.KeyShift) {
+            if (canvas.getActiveFile()) |file| {
+                file.history.redo();
+            }
+        }
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and io.KeySuper) {}
+        //TODO: save
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_W))
+            toolbar.selected_tool = .wand;
+    }
+
+    enable_hotkeys = true;
 }
 
 pub fn onFileDropped(file: []const u8) void {

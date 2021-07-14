@@ -102,6 +102,7 @@ pub fn draw() void {
                     active_animation_index = i;
 
                 if (imgui.igBeginPopupContextItem("Animation Settings", imgui.ImGuiMouseButton_Right)) {
+
                     defer imgui.igEndPopup();
                     imgui.igText("Animation Settings");
                     imgui.igSeparator();

@@ -121,6 +121,7 @@ pub fn draw() void {
                 imgui.igEndGroup();
 
                 if (imgui.igBeginPopupContextItem("Layer Settings", imgui.ImGuiMouseButton_Right)) {
+                    editor.enable_hotkeys = false;
                     defer imgui.igEndPopup();
 
                     imgui.igText("Layer Settings");
