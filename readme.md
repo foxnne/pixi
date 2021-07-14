@@ -1,5 +1,5 @@
 <p align="center">  
-  <img width="40%" src="assets/pixi.png">
+  <img width="25%" src="assets/pixi.png">
   <h3 align=center></h3>
 </p>
 
