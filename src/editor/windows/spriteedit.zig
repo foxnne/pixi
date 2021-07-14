@@ -40,6 +40,16 @@ pub fn draw() void {
     if (imgui.igBegin("SpriteEdit", 0, imgui.ImGuiWindowFlags_None)) {
         defer imgui.igEnd();
 
+        if (imgui.igBeginPopupContextItem("Testing", imgui.ImGuiMouseButton_Right)) {
+            defer imgui.igEndPopup();
+
+            imgui.igText("SpriteEdit Settings");
+            imgui.igSeparator();
+
+            _ = imgui.igSliderFloat("Preview Opacity", &previous_next_opacity, 0, 100, "%.0f", 1);
+
+        }
+
         // setup screen position and size
         screen_pos = imgui.ogGetCursorScreenPos();
         const window_size = imgui.ogGetContentRegionAvail();
@@ -70,8 +80,13 @@ pub fn draw() void {
                 // draw transparency background sprite
                 drawSprite(file.background, sprite_position, sprite_rect, 0xFFFFFFFF);
 
+                const preview_color = upaya.math.Color.fromRgba(1, 1, 1, previous_next_opacity / 100);
+
                 if (animations.getActiveAnimation()) |animation| {
                     if (animation.length > 1 and sprite.index >= animation.start and sprite.index < animation.start + animation.length) {
+
+                        
+
                         const previous_sprite_index = if (sprite.index > animation.start) sprite.index - 1 else sprite.index + animation.length - 1;
                         previous_sprite_position = sprite_position.subtract(.{ .x = @intToFloat(f32, file.tileWidth + 1), .y = 0 });
 
@@ -88,7 +103,7 @@ pub fn draw() void {
                             .y = @intToFloat(f32, previous_src_y),
                         };
 
-                        drawSprite(file.background, previous_sprite_position, previous_sprite_rect, 0xAAFFFFFF);
+                        drawSprite(file.background, previous_sprite_position, previous_sprite_rect, preview_color.value);
 
                         const next_sprite_index = if (sprite.index < animation.start + animation.length - 1) sprite.index + 1 else animation.start;
 
@@ -107,7 +122,7 @@ pub fn draw() void {
                             .y = @intToFloat(f32, next_src_y),
                         };
 
-                        drawSprite(file.background, next_sprite_position, next_sprite_rect, 0xAAFFFFFF);
+                        drawSprite(file.background, next_sprite_position, next_sprite_rect, preview_color.value);
                     }
                 }
 
@@ -123,8 +138,8 @@ pub fn draw() void {
 
                     if (animations.getActiveAnimation()) |animation| {
                         if (animation.length > 1 and sprite.index >= animation.start and sprite.index < animation.start + animation.length) {
-                            drawSprite(file.layers.items[layer_index].texture, previous_sprite_position, previous_sprite_rect, 0xAAFFFFFF);
-                            drawSprite(file.layers.items[layer_index].texture, next_sprite_position, next_sprite_rect, 0xAAFFFFFF);
+                            drawSprite(file.layers.items[layer_index].texture, previous_sprite_position, previous_sprite_rect, preview_color.value);
+                            drawSprite(file.layers.items[layer_index].texture, next_sprite_position, next_sprite_rect, preview_color.value);
                         }
                     }
 
