@@ -69,7 +69,7 @@ pub fn draw() void {
                 drawSprite(file.background, sprite_position, sprite_rect, 0xFFFFFFFF);
 
                 if (animations.getActiveAnimation()) |animation| {
-                    if (animation.length > 1 and sprite.index >= animation.start and sprite.index <animation.start + animation.length) {
+                    if (animation.length > 1 and sprite.index >= animation.start and sprite.index < animation.start + animation.length) {
                         const previous_sprite_index = if (sprite.index > animation.start) sprite.index - 1 else sprite.index + animation.length - 1;
                         previous_sprite_position = sprite_position.subtract(.{ .x = @intToFloat(f32, file.tileWidth + 1), .y = 0 });
 
@@ -120,7 +120,7 @@ pub fn draw() void {
                     drawSprite(file.layers.items[layer_index].texture, sprite_position, sprite_rect, 0xFFFFFFFF);
 
                     if (animations.getActiveAnimation()) |animation| {
-                        if (animation.length > 1 and sprite.index >= animation.start and sprite.index <animation.start + animation.length) {
+                        if (animation.length > 1 and sprite.index >= animation.start and sprite.index < animation.start + animation.length) {
                             drawSprite(file.layers.items[layer_index].texture, previous_sprite_position, previous_sprite_rect, 0xAAFFFFFF);
                             drawSprite(file.layers.items[layer_index].texture, next_sprite_position, next_sprite_rect, 0xAAFFFFFF);
                         }
@@ -130,7 +130,7 @@ pub fn draw() void {
                         drawSprite(file.temporary.texture, sprite_position, sprite_rect, 0xFFFFFFFF);
 
                         if (animations.getActiveAnimation()) |animation| {
-                            if (animation.length > 1 and sprite.index >= animation.start and sprite.index <animation.start + animation.length) {
+                            if (animation.length > 1 and sprite.index >= animation.start and sprite.index < animation.start + animation.length) {
                                 drawSprite(file.temporary.texture, previous_sprite_position, previous_sprite_rect, 0xFFFFFFFF);
                                 drawSprite(file.temporary.texture, next_sprite_position, next_sprite_rect, 0xFFFFFFFF);
                             }

@@ -34,11 +34,11 @@ pub const History = struct {
         return history;
     }
 
-    pub fn getNumberOfUndos (self: History) usize {
+    pub fn getNumberOfUndos(self: History) usize {
         return self.undoStack.items.len;
     }
 
-    pub fn getNumberOfRedos (self: History) usize {
+    pub fn getNumberOfRedos(self: History) usize {
         return self.redoStack.items.len;
     }
 

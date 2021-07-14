@@ -45,7 +45,6 @@ pub fn getNewID() usize {
                 current_id += 1;
         }
     }
-
     return id;
 }
 

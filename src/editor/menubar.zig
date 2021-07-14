@@ -74,7 +74,7 @@ pub fn draw() void {
         if (imgui.igBeginMenu("Document", true)) {
             defer imgui.igEndMenu();
 
-            if (imgui.igMenuItemBool(imgui.icons.square ++ " Resize Canvas...", "", false, canvas.getNumberOfFiles() > 0)) {}
+            if (imgui.igMenuItemBool(imgui.icons.arrows_alt ++ " Resize Canvas...", "", false, canvas.getNumberOfFiles() > 0)) {}
 
             var sliceable: bool = false;
             if (canvas.getActiveFile()) |file| {

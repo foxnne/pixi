@@ -47,3 +47,44 @@ pub fn brezenham(start: imgui.ImVec2, end: imgui.ImVec2) []imgui.ImVec2 {
 
     return output.toOwnedSlice();
 }
+
+
+pub fn floodfill (coords: imgui.ImVec2, image: upaya.Image) []usize {
+
+    var output: std.ArrayList(usize) = std.ArrayList(usize).init(upaya.mem.allocator);
+
+    var x = @floatToInt(usize, coords.x);
+    var y = @floatToInt(usize, coords.y);
+
+    var index = x + y * image.w;
+
+    //output.append(index) catch unreachable;
+
+    floodFillRecursive(x,y, image, image.pixels[index], &output );
+
+    return output.toOwnedSlice();
+}
+
+fn floodFillRecursive (x: usize, y: usize, image: upaya.Image, previousColor: u32, output: *std.ArrayList(usize)) void {
+
+    var index = x + y * image.w;
+
+    // if out of bounds
+    if (x < 0 or x > image.w or y < 0 or y > image.h)
+        return;
+
+    if (image.pixels[index] != previousColor)
+        return;
+    
+    for (output.items) |i| {
+        if (i == index)
+            return;
+    }
+
+    output.append(index) catch unreachable;
+
+    floodFillRecursive(x+1, y, image, previousColor, output);
+    floodFillRecursive(x, y+1, image, previousColor, output);
+    floodFillRecursive(x-1, y, image, previousColor, output);
+    floodFillRecursive(x, y-1, image, previousColor, output);
+}

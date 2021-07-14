@@ -49,9 +49,7 @@ pub fn init() void {
     };
     logo = upaya.Texture.initWithColorData(&logo_pixels, 12, 8, .nearest, .clamp);
 
-
-    
-    upaya.sokol.sapp_set_icon(&.{ .sokol_default = true, .images = undefined});
+    upaya.sokol.sapp_set_icon(&.{ .sokol_default = true, .images = undefined });
 }
 
 pub fn newFile(file: File) void {
@@ -304,13 +302,29 @@ pub fn draw() void {
 
                         //write to history
                         if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
-
                             file.history.push(.{
                                 .tag = .stroke,
                                 .pixel_colors = current_stroke_colors.toOwnedSlice(),
                                 .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
                                 .layer_id = layer.id,
                             });
+                        }
+                    }
+
+                    //fill
+                    if (toolbar.selected_tool == .bucket) {
+                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false)){
+
+                            var output = algorithms.floodfill(pixel_coords, layer.image);
+
+                            for (output) |index| {
+                                if (layer.image.pixels[index] != toolbar.foreground_color.value) {
+                                    layer.image.pixels[index] = toolbar.foreground_color.value;
+                                }
+                            }
+
+                            layer.dirty = true;
+                            
                         }
                     }
 
