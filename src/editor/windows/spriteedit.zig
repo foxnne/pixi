@@ -22,8 +22,15 @@ const Animation = types.Animation;
 
 var camera: Camera = .{ .zoom = 4 };
 var screen_pos: imgui.ImVec2 = undefined;
+
 var sprite_position: imgui.ImVec2 = undefined;
 var sprite_rect: upaya.math.RectF = undefined;
+
+var previous_sprite_position: imgui.ImVec2 = undefined;
+var next_sprite_position: imgui.ImVec2 = undefined;
+
+var previous_sprite_rect: upaya.math.RectF = undefined;
+var next_sprite_rect: upaya.math.RectF = undefined;
 
 var previous_mouse_position: imgui.ImVec2 = undefined;
 
@@ -61,6 +68,47 @@ pub fn draw() void {
                 // draw transparency background sprite
                 drawSprite(file.background, sprite_position, sprite_rect, 0xFFFFFFFF);
 
+                if (animations.getActiveAnimation()) |animation| {
+                    if (animation.length > 1 and sprite.index >= animation.start and sprite.index <animation.start + animation.length) {
+                        const previous_sprite_index = if (sprite.index > animation.start) sprite.index - 1 else sprite.index + animation.length - 1;
+                        previous_sprite_position = sprite_position.subtract(.{ .x = @intToFloat(f32, file.tileWidth + 1), .y = 0 });
+
+                        const previous_column = @mod(@intCast(i32, previous_sprite_index), tiles_wide);
+                        const previous_row = @divTrunc(@intCast(i32, previous_sprite_index), tiles_wide);
+
+                        const previous_src_x = previous_column * file.tileWidth;
+                        const previous_src_y = previous_row * file.tileHeight;
+
+                        previous_sprite_rect = .{
+                            .width = @intToFloat(f32, file.tileWidth),
+                            .height = @intToFloat(f32, file.tileHeight),
+                            .x = @intToFloat(f32, previous_src_x),
+                            .y = @intToFloat(f32, previous_src_y),
+                        };
+
+                        drawSprite(file.background, previous_sprite_position, previous_sprite_rect, 0xAAFFFFFF);
+
+                        const next_sprite_index = if (sprite.index < animation.start + animation.length - 1) sprite.index + 1 else animation.start;
+
+                        next_sprite_position = sprite_position.add(.{ .x = @intToFloat(f32, file.tileWidth + 1), .y = 0 });
+
+                        const next_column = @mod(@intCast(i32, next_sprite_index), tiles_wide);
+                        const next_row = @divTrunc(@intCast(i32, next_sprite_index), tiles_wide);
+
+                        const next_src_x = next_column * file.tileWidth;
+                        const next_src_y = next_row * file.tileHeight;
+
+                        next_sprite_rect = .{
+                            .width = @intToFloat(f32, file.tileWidth),
+                            .height = @intToFloat(f32, file.tileHeight),
+                            .x = @intToFloat(f32, next_src_x),
+                            .y = @intToFloat(f32, next_src_y),
+                        };
+
+                        drawSprite(file.background, next_sprite_position, next_sprite_rect, 0xAAFFFFFF);
+                    }
+                }
+
                 // draw sprite of each layer (reverse order)
                 var layer_index: usize = file.layers.items.len;
                 while (layer_index > 0) {
@@ -71,8 +119,23 @@ pub fn draw() void {
 
                     drawSprite(file.layers.items[layer_index].texture, sprite_position, sprite_rect, 0xFFFFFFFF);
 
-                    if (layer_index == layers.getActiveIndex())
+                    if (animations.getActiveAnimation()) |animation| {
+                        if (animation.length > 1 and sprite.index >= animation.start and sprite.index <animation.start + animation.length) {
+                            drawSprite(file.layers.items[layer_index].texture, previous_sprite_position, previous_sprite_rect, 0xAAFFFFFF);
+                            drawSprite(file.layers.items[layer_index].texture, next_sprite_position, next_sprite_rect, 0xAAFFFFFF);
+                        }
+                    }
+
+                    if (layer_index == layers.getActiveIndex()) {
                         drawSprite(file.temporary.texture, sprite_position, sprite_rect, 0xFFFFFFFF);
+
+                        if (animations.getActiveAnimation()) |animation| {
+                            if (animation.length > 1 and sprite.index >= animation.start and sprite.index <animation.start + animation.length) {
+                                drawSprite(file.temporary.texture, previous_sprite_position, previous_sprite_rect, 0xFFFFFFFF);
+                                drawSprite(file.temporary.texture, next_sprite_position, next_sprite_rect, 0xFFFFFFFF);
+                            }
+                        }
+                    }
                 }
 
                 // store previous tool and reapply it after to allow quick switching
@@ -296,7 +359,51 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
         pixel_pos.y += sprite_rect.y;
 
         return pixel_pos;
-    } else return null;
+    }
+
+    //previous sprite
+    tl = camera.matrix().transformImVec2(previous_sprite_position).add(screen_pos);
+    br = previous_sprite_position;
+    br.x += previous_sprite_rect.width;
+    br.y += previous_sprite_rect.height;
+    br = camera.matrix().transformImVec2(br).add(screen_pos);
+
+    if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
+        var pixel_pos: imgui.ImVec2 = .{};
+
+        //sprite pixel position
+        pixel_pos.x = @divTrunc(position.x - tl.x, camera.zoom);
+        pixel_pos.y = @divTrunc(position.y - tl.y, camera.zoom);
+
+        //add src x and y (top left of sprite)
+        pixel_pos.x += previous_sprite_rect.x;
+        pixel_pos.y += previous_sprite_rect.y;
+
+        return pixel_pos;
+    }
+
+    //next sprite
+    tl = camera.matrix().transformImVec2(next_sprite_position).add(screen_pos);
+    br = next_sprite_position;
+    br.x += next_sprite_rect.width;
+    br.y += next_sprite_rect.height;
+    br = camera.matrix().transformImVec2(br).add(screen_pos);
+
+    if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
+        var pixel_pos: imgui.ImVec2 = .{};
+
+        //sprite pixel position
+        pixel_pos.x = @divTrunc(position.x - tl.x, camera.zoom);
+        pixel_pos.y = @divTrunc(position.y - tl.y, camera.zoom);
+
+        //add src x and y (top left of sprite)
+        pixel_pos.x += next_sprite_rect.x;
+        pixel_pos.y += next_sprite_rect.y;
+
+        return pixel_pos;
+    }
+
+    return null;
 }
 
 pub fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
