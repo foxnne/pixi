@@ -5,8 +5,8 @@ const imgui = @import("imgui");
 pub const Camera = @import("../utils/camera.zig").Camera;
 
 const editor = @import("../editor.zig");
-const input = @import("../input/input.zig");
-const types = @import("../types/types.zig");
+const input = editor.input;
+const types = editor.types;
 const history = editor.history;
 const toolbar = editor.toolbar;
 const layers = editor.layers;
@@ -48,6 +48,8 @@ pub fn init() void {
         0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF201a19, 0xFF201a19, 0xFF201a19,
     };
     logo = upaya.Texture.initWithColorData(&logo_pixels, 12, 8, .nearest, .clamp);
+
+
     
     upaya.sokol.sapp_set_icon(&.{ .sokol_default = true, .images = undefined});
 }

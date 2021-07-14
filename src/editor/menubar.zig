@@ -16,8 +16,6 @@ pub fn draw() void {
     if (imgui.igBeginMenuBar()) {
         defer imgui.igEndMenuBar();
 
-        
-
         if (imgui.igBeginMenu("File", true)) {
             defer imgui.igEndMenu();
 
@@ -50,6 +48,33 @@ pub fn draw() void {
             }
         }
 
+        if (imgui.igBeginMenu("Edit", true)) {
+            defer imgui.igEndMenu();
+
+            var numUndos: usize = 0;
+            var numRedos: usize = 0;
+
+            if (canvas.getActiveFile()) |file| {
+                numUndos = file.history.getNumberOfUndos();
+                numRedos = file.history.getNumberOfRedos();
+            }
+
+            if (imgui.igMenuItemBool(imgui.icons.hand_point_left ++ " Undo", "(cmd+z)", false, numUndos > 0)) {
+                if (canvas.getActiveFile()) |file| {
+                    file.history.undo();
+                }
+            }
+
+            if (imgui.igMenuItemBool(imgui.icons.hand_point_right ++ " Redo", "(cmd+shift+z)", false, numRedos > 0)) {
+                if (canvas.getActiveFile()) |file| {
+                    file.history.redo();
+                }
+            }
+
+
+        
+        }
+
         if (imgui.igBeginMenu("Document", true)) {
             defer imgui.igEndMenu();
 
@@ -63,7 +88,6 @@ pub fn draw() void {
 
             if (imgui.igMenuItemBool(imgui.icons.pizza_slice ++ " Slice...", "", false, sliceable)) {
                 slice_popup = true;
-
             }
         }
 
@@ -79,8 +103,6 @@ pub fn draw() void {
             }
         }
     }
-
-   
 
     if (new_file_popup)
         imgui.igOpenPopup("New File");

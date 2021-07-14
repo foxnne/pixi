@@ -34,6 +34,14 @@ pub const History = struct {
         return history;
     }
 
+    pub fn getNumberOfUndos (self: History) usize {
+        return self.undoStack.items.len;
+    }
+
+    pub fn getNumberOfRedos (self: History) usize {
+        return self.redoStack.items.len;
+    }
+
     pub fn push(self: *History, item: HistoryItem) void {
         self.undoStack.append(item) catch unreachable;
         // do we free things inside of the stack?
