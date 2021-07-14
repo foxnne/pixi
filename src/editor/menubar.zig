@@ -4,9 +4,7 @@ const imgui = @import("imgui");
 const sokol = @import("sokol");
 
 const editor = @import("editor.zig");
-
-const new = @import("windows/new.zig");
-const canvas = @import("windows/canvas.zig");
+const canvas = editor.canvas;
 
 pub var new_file_popup: bool = false;
 pub var slice_popup: bool = false;
@@ -59,20 +57,18 @@ pub fn draw() void {
                 numRedos = file.history.getNumberOfRedos();
             }
 
-            if (imgui.igMenuItemBool(imgui.icons.hand_point_left ++ " Undo", "(cmd+z)", false, numUndos > 0)) {
+            if (imgui.igMenuItemBool(imgui.icons.undo ++ " Undo", "(cmd+z)", false, numUndos > 0)) {
                 if (canvas.getActiveFile()) |file| {
                     file.history.undo();
                 }
             }
 
-            if (imgui.igMenuItemBool(imgui.icons.hand_point_right ++ " Redo", "(cmd+shift+z)", false, numRedos > 0)) {
+            if (imgui.igMenuItemBool(imgui.icons.redo ++ " Redo", "(cmd+shift+z)", false, numRedos > 0)) {
                 if (canvas.getActiveFile()) |file| {
                     file.history.redo();
                 }
             }
-
-
-        
+            imgui.igSeparator();
         }
 
         if (imgui.igBeginMenu("Document", true)) {
