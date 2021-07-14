@@ -47,6 +47,7 @@ pub fn init() void {
         0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF201a19, 0xFF201a19, 0xFF201a19, 0xFF844531, 0xFF844531, 0xFF844531,
         0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xFF201a19, 0xFF201a19, 0xFF201a19,
     };
+
     logo = upaya.Texture.initWithColorData(&logo_pixels, 12, 8, .nearest, .clamp);
 
     upaya.sokol.sapp_set_icon(&.{ .sokol_default = true, .images = undefined });
@@ -313,18 +314,24 @@ pub fn draw() void {
 
                     //fill
                     if (toolbar.selected_tool == .bucket) {
-                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false)){
-
-                            var output = algorithms.floodfill(pixel_coords, layer.image);
+                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false)) {
+                            var output = algorithms.floodfill(pixel_coords, layer.image, toolbar.contiguous_fill);
 
                             for (output) |index| {
                                 if (layer.image.pixels[index] != toolbar.foreground_color.value) {
+                                    current_stroke_indexes.append(index) catch unreachable;
+                                    current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
                                     layer.image.pixels[index] = toolbar.foreground_color.value;
                                 }
                             }
-
                             layer.dirty = true;
-                            
+
+                            file.history.push(.{
+                                .tag = .stroke,
+                                .pixel_colors = current_stroke_colors.toOwnedSlice(),
+                                .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
+                                .layer_id = layer.id,
+                            });
                         }
                     }
 

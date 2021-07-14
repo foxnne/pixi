@@ -6,6 +6,7 @@ pub var foreground_color: upaya.math.Color = upaya.math.Color.black;
 pub var background_color: upaya.math.Color = upaya.math.Color.white;
 
 pub var selected_tool = Tool.arrow;
+pub var contiguous_fill: bool = true;
 
 pub const Tool = enum(usize) {
     arrow = 0,
@@ -122,12 +123,13 @@ pub fn draw() void {
 
         if (imgui.ogSelectableBool(imgui.icons.fill, selected_tool == .bucket, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .bucket;
+        
         if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)){
             imgui.igBeginTooltip();
             imgui.igText("Fill (f)");
             imgui.igEndTooltip();
         }
-        
+
         imgui.igSameLine(0, space);
         if (imgui.ogSelectableBool(imgui.icons.eye_dropper, selected_tool == .dropper, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .dropper;
@@ -136,6 +138,12 @@ pub fn draw() void {
             imgui.igText("Dropper (right " ++ imgui.icons.mouse ++ ")");
             imgui.igEndTooltip();
         }
+        
+        if (selected_tool == .bucket) {
+            _ = imgui.igCheckbox("Contiguous", &contiguous_fill);
+        }
+        
+        
 
         //animation tools
         imgui.igText("Animation");
