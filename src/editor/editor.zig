@@ -238,7 +238,7 @@ pub fn onFileDropped(file: []const u8) void {
 pub fn save() void {
     if (canvas.getActiveFile()) |file| {
         if (file.path) |path| {
-            //var ioFile = file.toIOFile();
+            saveAs();
         } else {
             saveAs();
         }
@@ -305,7 +305,6 @@ fn writePng(context: ?*c_void, data: ?*c_void, size: c_int) callconv(.C) void {
 }
 
 pub fn load(file: []const u8) void {
-    @setEvalBranchQuota(2000);
     var name = std.fs.path.basename(file);
     name = name[0 .. name.len - 5]; //trim off .pixi
 
@@ -321,6 +320,8 @@ pub fn load(file: []const u8) void {
         }
     }
 
+    @setEvalBranchQuota(2000);
+
     var zip_path = file;
     var zip_path_z = std.cstr.addNullByte(upaya.mem.tmp_allocator, zip_path) catch unreachable;
 
@@ -332,6 +333,7 @@ pub fn load(file: []const u8) void {
         var size: u64 = 0;
         _ = upaya.zip.zip_entry_open(z, "pixidata.json");
         _ = upaya.zip.zip_entry_read(z, &buf, &size);
+        _ = upaya.zip.zip_entry_close(z);
 
         var content: []const u8 = @ptrCast([*]const u8, buf)[0..size];
 
@@ -340,9 +342,93 @@ pub fn load(file: []const u8) void {
         const ioFile = std.json.parse(types.IOFile, &std.json.TokenStream.init(content), options) catch unreachable;
         defer std.json.parseFree(types.IOFile, ioFile, options);
 
+        var temporary_image: upaya.Image = upaya.Image.init(@intCast(usize, ioFile.width), @intCast(usize, ioFile.height));
+        temporary_image.fillRect(.{ .x = 0, .y = 0, .width = ioFile.width, .height = ioFile.height }, upaya.math.Color.transparent);
+        var temporary: types.Layer = .{
+            .name = "Temporary",
+            .texture = temporary_image.asTexture(.nearest),
+            .image = temporary_image,
+            .id = layers.getNewID(),
+            .hidden = false,
+            .dirty = false,
+        };
+
+        var new_layers: std.ArrayList(types.Layer) = std.ArrayList(types.Layer).init(upaya.mem.allocator);
+        var new_sprites: std.ArrayList(types.Sprite) = std.ArrayList(types.Sprite).init(upaya.mem.allocator);
+        var new_animations: std.ArrayList(types.Animation) = std.ArrayList(types.Animation).init(upaya.mem.allocator);
+
+        for (ioFile.layers) |layer| {
+
+            std.debug.print("{s}", .{layer.name});
+            const layer_name_z = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}.png\u{0}", .{layer.name}) catch unreachable;
+
+            var img_buf: ?*c_void = null;
+            var img_len: u64 = 0;
+            _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name_z));
+            _ = upaya.zip.zip_entry_read(z, &img_buf, &img_len);
+           
+            //const img_content_z = std.cstr.addNullByte(upaya.mem.allocator, img_content) catch unreachable;
+
+            var new_image: upaya.Image = upaya.Image.initFromData(@ptrCast([*c]const u8, img_buf), img_len);
+
+             _ = upaya.zip.zip_entry_close(z);
+
+            var new_layer: types.Layer = .{
+                .name = std.mem.dupe(upaya.mem.allocator, u8, layer.name) catch unreachable,
+                .texture = new_image.asTexture(.nearest),
+                .image = new_image,
+                .id = layers.getNewID(),
+                .hidden = false,
+                .dirty = false,
+            };
+
+            new_layers.append(new_layer) catch unreachable;
+        }
+
+        for (ioFile.sprites) |sprite, i| {
+            var new_sprite: types.Sprite = .{
+                .name = std.mem.dupe(upaya.mem.allocator, u8, sprite.name) catch unreachable,
+                .index = i,
+                .origin_x = sprite.origin_x,
+                .origin_y = sprite.origin_y,
+            };
+
+            new_sprites.append(new_sprite) catch unreachable;
+        }
+
+        for (ioFile.animations) |animation| {
+            var new_animation: types.Animation = .{
+                .name = std.mem.dupe(upaya.mem.allocator, u8, animation.name) catch unreachable,
+                .start = animation.start,
+                .length = animation.length,
+                .fps = animation.fps,
+            };
+
+            new_animations.append(new_animation) catch unreachable;
+        }
+
+        var new_file: types.File = .{
+            .name = std.mem.dupe(upaya.mem.allocator, u8, ioFile.name) catch unreachable,
+            .path = std.mem.dupe(upaya.mem.allocator, u8, file) catch unreachable,
+            .width = ioFile.width,
+            .height = ioFile.height,
+            .tileWidth = ioFile.tileWidth,
+            .tileHeight = ioFile.tileHeight,
+            .background = upaya.Texture.initChecker(ioFile.width, ioFile.height, checkerColor1, checkerColor2),
+            .temporary = temporary,
+            .layers = new_layers,
+            .sprites = new_sprites,
+            .animations = new_animations,
+            .history = history.History.init(),
+            .dirty = false,
+        };
+
+        canvas.addFile(new_file);
 
         upaya.zip.zip_close(z);
     }
+
+    @setEvalBranchQuota(1000);
 }
 
 pub fn shutdown() void {
