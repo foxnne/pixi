@@ -53,7 +53,7 @@ pub fn init() void {
     upaya.sokol.sapp_set_icon(&.{ .sokol_default = true, .images = undefined });
 }
 
-pub fn newFile(file: File) void {
+pub fn addFile(file: File) void {
     active_file_index = 0;
     files.insert(0, file) catch unreachable;
 }

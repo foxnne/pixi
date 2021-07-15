@@ -90,7 +90,7 @@ pub fn draw() void {
 
             new_file.history = history.History.init();
 
-            canvas.newFile(new_file);
+            canvas.addFile(new_file);
             menubar.new_file_popup = false;
         }
     }

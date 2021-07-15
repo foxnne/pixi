@@ -190,11 +190,8 @@ pub fn update() void {
 
 pub fn onFileDropped(file: []const u8) void {
     if (std.mem.endsWith(u8, file, ".png")) {
-
-        // TODO: figure out file name on windows
-        const start_name = std.mem.lastIndexOf(u8, file, "/").?;
-        const end_name = std.mem.indexOf(u8, file, ".").?;
-        const name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}", .{file[start_name + 1 .. end_name]}) catch unreachable;
+        var name = std.fs.path.basename(file);
+        name = name[0 .. name.len - 4]; //trim off .png extension
         const sprite_name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_0", .{name}) catch unreachable;
         const file_image = upaya.Image.initFromFile(file);
         const image_width: i32 = @intCast(i32, file_image.w);
@@ -230,7 +227,11 @@ pub fn onFileDropped(file: []const u8) void {
             .origin_y = 0,
         }) catch unreachable;
 
-        canvas.newFile(new_file);
+        canvas.addFile(new_file);
+    }
+
+    if (std.mem.endsWith(u8, file, ".pixi")) {
+        load(file);
     }
 }
 
@@ -303,7 +304,46 @@ fn writePng(context: ?*c_void, data: ?*c_void, size: c_int) callconv(.C) void {
     }
 }
 
-pub fn load() void {}
+pub fn load(file: []const u8) void {
+    @setEvalBranchQuota(2000);
+    var name = std.fs.path.basename(file);
+    name = name[0 .. name.len - 5]; //trim off .pixi
+
+    if (canvas.getNumberOfFiles() > 0) {
+        var i: usize = 0;
+        while (i < canvas.getNumberOfFiles()) : (i += 0) {
+            if (canvas.getFile(i)) |active_file| {
+                if (active_file.path) |path| {
+                    if (std.mem.eql(u8, path, file))
+                        return; //do nothing if we already have this file loaded
+                }
+            }
+        }
+    }
+
+    var zip_path = file;
+    var zip_path_z = std.cstr.addNullByte(upaya.mem.tmp_allocator, zip_path) catch unreachable;
+
+    // open zip for reading
+    var zip = upaya.zip.zip_open(@ptrCast([*c]const u8, zip_path_z), 0, 'r');
+
+    if (zip) |z| {
+        var buf: ?*c_void = null;
+        var size: u64 = 0;
+        _ = upaya.zip.zip_entry_open(z, "pixidata.json");
+        _ = upaya.zip.zip_entry_read(z, &buf, &size);
+
+        var content: []const u8 = @ptrCast([*]const u8, buf)[0..size];
+
+        const options = std.json.ParseOptions{ .allocator = upaya.mem.allocator, .duplicate_field_behavior = .UseFirst, .ignore_unknown_fields = true, .allow_trailing_data = true };
+
+        const ioFile = std.json.parse(types.IOFile, &std.json.TokenStream.init(content), options) catch unreachable;
+        defer std.json.parseFree(types.IOFile, ioFile, options);
+
+
+        upaya.zip.zip_close(z);
+    }
+}
 
 pub fn shutdown() void {
     canvas.close();
