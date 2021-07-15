@@ -234,6 +234,57 @@ pub fn onFileDropped(file: []const u8) void {
     }
 }
 
+pub fn save() void {
+    if (canvas.getActiveFile()) |file| {
+        if (file.path) |path| {
+            var ioFile = file.toIOFile();
+        } else {
+            saveAs();
+        }
+    }
+}
+
+pub fn saveAs() void {
+    if (canvas.getActiveFile()) |file| {
+        //open dialog to choose file path to save
+        //currently just save to the desktop?
+
+        // create a saveable copy of the current file
+        var ioFile = file.toIOFile();
+        var desktop = upaya.known_folders.getPath(upaya.mem.tmp_allocator, upaya.known_folders.KnownFolder.desktop) catch unreachable;
+        if (desktop) |path| {
+            const json_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ ioFile.name, ".json\u{0}" }) catch unreachable;
+            const zip_filepath = std.fs.path.join(upaya.mem.tmp_allocator, &[_][]const u8{ path, ioFile.name}) catch unreachable;
+            const zip_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ zip_filepath, ".pixi\u{0}"}) catch unreachable;
+
+            var zip = upaya.zip.zip_open(@ptrCast([*c]const u8, zip_filename), upaya.zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
+
+            var json: std.ArrayList(u8) = std.ArrayList(u8).init(upaya.mem.allocator);
+
+            const out_stream = json.writer();
+            const options = std.json.StringifyOptions{ .whitespace = .{} };
+
+            std.json.stringify(ioFile, options, out_stream) catch unreachable;
+
+            var j = json.toOwnedSlice();
+            defer upaya.mem.allocator.free(j);
+
+            if (zip) |z| {
+                _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, json_filename));
+
+                _ = upaya.zip.zip_entry_write(z, j.ptr, j.len);
+                _ = upaya.zip.zip_entry_close(z);
+
+                upaya.zip.zip_close(z);
+            }
+
+            file.dirty = false;
+        }
+    }
+}
+
+pub fn load() void {}
+
 pub fn shutdown() void {
     canvas.close();
 }

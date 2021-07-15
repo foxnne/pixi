@@ -22,7 +22,9 @@ pub fn draw() void {
 
             if (imgui.igMenuItemBool(imgui.icons.box_open ++ " Open...", "", false, true)) {}
 
-            if (imgui.igMenuItemBool("Save", "cmd+s", false, true)) {}
+            if (imgui.igMenuItemBool("Save", "cmd+s", false, true)) {
+                editor.save();
+            }
             if (imgui.igMenuItemBool("Save As...", "cmd+shift+s", false, true)) {}
 
             imgui.igSeparator();

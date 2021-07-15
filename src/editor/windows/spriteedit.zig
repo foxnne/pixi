@@ -4,6 +4,8 @@ const imgui = @import("imgui");
 
 pub const Camera = @import("../utils/camera.zig").Camera;
 
+
+
 const editor = @import("../editor.zig");
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
@@ -46,7 +48,6 @@ pub fn draw() void {
             imgui.igSeparator();
 
             _ = imgui.igSliderFloat("Preview Opacity", &preview_opacity, 0, 100, "%.0f", 1);
-
         }
 
         // setup screen position and size
@@ -83,9 +84,6 @@ pub fn draw() void {
 
                 if (animations.getActiveAnimation()) |animation| {
                     if (animation.length > 1 and sprite.index >= animation.start and sprite.index < animation.start + animation.length) {
-
-                        
-
                         const previous_sprite_index = if (sprite.index > animation.start) sprite.index - 1 else sprite.index + animation.length - 1;
                         previous_sprite_position = sprite_position.subtract(.{ .x = @intToFloat(f32, file.tileWidth + 1), .y = 0 });
 
