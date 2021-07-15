@@ -237,7 +237,7 @@ pub fn onFileDropped(file: []const u8) void {
 pub fn save() void {
     if (canvas.getActiveFile()) |file| {
         if (file.path) |path| {
-            var ioFile = file.toIOFile();
+            //var ioFile = file.toIOFile();
         } else {
             saveAs();
         }
@@ -253,9 +253,8 @@ pub fn saveAs() void {
         var ioFile = file.toIOFile();
         var desktop = upaya.known_folders.getPath(upaya.mem.tmp_allocator, upaya.known_folders.KnownFolder.desktop) catch unreachable;
         if (desktop) |path| {
-            const json_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ ioFile.name, ".json\u{0}" }) catch unreachable;
-            const zip_filepath = std.fs.path.join(upaya.mem.tmp_allocator, &[_][]const u8{ path, ioFile.name}) catch unreachable;
-            const zip_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ zip_filepath, ".pixi\u{0}"}) catch unreachable;
+            const zip_filepath = std.fs.path.join(upaya.mem.tmp_allocator, &[_][]const u8{ path, ioFile.name }) catch unreachable;
+            const zip_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ zip_filepath, ".pixi\u{0}" }) catch unreachable;
 
             var zip = upaya.zip.zip_open(@ptrCast([*c]const u8, zip_filename), upaya.zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
@@ -270,16 +269,37 @@ pub fn saveAs() void {
             defer upaya.mem.allocator.free(j);
 
             if (zip) |z| {
-                _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, json_filename));
+                _ = upaya.zip.zip_entry_open(z, "pixidata.json");
 
                 _ = upaya.zip.zip_entry_write(z, j.ptr, j.len);
                 _ = upaya.zip.zip_entry_close(z);
+
+                for (file.layers.items) |layer| {
+                    var bytes = std.mem.sliceAsBytes(layer.image.pixels);
+                    var stride = @intCast(c_int, layer.image.w * 4);
+
+                    var layer_name = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}.png\u{0}", .{layer.name}) catch unreachable;
+                    defer upaya.mem.allocator.free(layer_name);
+
+                    _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name));
+
+                    _ = upaya.stb.stbi_write_png_to_func(writePng, z, @intCast(c_int, layer.image.w), @intCast(c_int, layer.image.h), 4, bytes.ptr, stride);
+                    _ = upaya.zip.zip_entry_close(z);
+                }
 
                 upaya.zip.zip_close(z);
             }
 
             file.dirty = false;
         }
+    }
+}
+
+fn writePng(context: ?*c_void, data: ?*c_void, size: c_int) callconv(.C) void {
+    const zip = @ptrCast(?*upaya.zip.struct_zip_t, context);
+
+    if (zip) |z| {
+        _ = upaya.zip.zip_entry_write(z, data, @intCast(usize, size));
     }
 }
 
