@@ -33,20 +33,19 @@ var previous_sprite_rect: upaya.math.RectF = undefined;
 var next_sprite_rect: upaya.math.RectF = undefined;
 
 var previous_mouse_position: imgui.ImVec2 = undefined;
-
-var previous_next_opacity: f32 = 100;
+pub var preview_opacity: f32 = 100;
 
 pub fn draw() void {
     if (imgui.igBegin("SpriteEdit", 0, imgui.ImGuiWindowFlags_None)) {
         defer imgui.igEnd();
 
-        if (imgui.igBeginPopupContextItem("Testing", imgui.ImGuiMouseButton_Right)) {
+        if (imgui.igBeginPopupContextItem("SpriteEdit Settings", imgui.ImGuiMouseButton_Right)) {
             defer imgui.igEndPopup();
 
             imgui.igText("SpriteEdit Settings");
             imgui.igSeparator();
 
-            _ = imgui.igSliderFloat("Preview Opacity", &previous_next_opacity, 0, 100, "%.0f", 1);
+            _ = imgui.igSliderFloat("Preview Opacity", &preview_opacity, 0, 100, "%.0f", 1);
 
         }
 
@@ -80,7 +79,7 @@ pub fn draw() void {
                 // draw transparency background sprite
                 drawSprite(file.background, sprite_position, sprite_rect, 0xFFFFFFFF);
 
-                const preview_color = upaya.math.Color.fromRgba(1, 1, 1, previous_next_opacity / 100);
+                const preview_color = upaya.math.Color.fromRgba(1, 1, 1, preview_opacity / 100);
 
                 if (animations.getActiveAnimation()) |animation| {
                     if (animation.length > 1 and sprite.index >= animation.start and sprite.index < animation.start + animation.length) {
