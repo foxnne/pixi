@@ -178,8 +178,9 @@ pub fn update() void {
             }
         }
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and io.KeySuper) {}
-        //TODO: save
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and io.KeySuper) {
+            save();
+        }
 
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_W))
             toolbar.selected_tool = .wand;
@@ -238,24 +239,31 @@ pub fn onFileDropped(file: []const u8) void {
 pub fn save() void {
     if (canvas.getActiveFile()) |file| {
         if (file.path) |path| {
-            saveAs();
+            saveAs(path);
         } else {
-            saveAs();
+            var path = upaya.filebrowser.saveFileDialog("Choose a file location...", "", "*.pixi");
+            if (path != null) {
+                var out_path = path[0..std.mem.len(path)];
+                var out_name = std.fs.path.basename(out_path);
+                if (!std.mem.endsWith(u8, out_path, ".pixi")) {
+                    out_path = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ out_path, ".pixi" }) catch unreachable;
+                }
+
+                saveAs(out_path);
+                file.name = out_name;
+            }
         }
     }
 }
 
-pub fn saveAs() void {
+pub fn saveAs(file_path: ?[]const u8) void {
     if (canvas.getActiveFile()) |file| {
-        //open dialog to choose file path to save
-        //currently just save to the desktop?
-
         // create a saveable copy of the current file
         var ioFile = file.toIOFile();
-        var desktop = upaya.known_folders.getPath(upaya.mem.tmp_allocator, upaya.known_folders.KnownFolder.desktop) catch unreachable;
-        if (desktop) |path| {
-            const zip_filepath = std.fs.path.join(upaya.mem.tmp_allocator, &[_][]const u8{ path, ioFile.name }) catch unreachable;
-            const zip_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ zip_filepath, ".pixi\u{0}" }) catch unreachable;
+        if (file_path) |path| {
+            //const zip_filepath = std.fs.path.join(upaya.mem.tmp_allocator, &[_][]const u8{ path, ioFile.name }) catch unreachable;
+            const zip_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ path, "\u{0}" }) catch unreachable;
+
 
             var zip = upaya.zip.zip_open(@ptrCast([*c]const u8, zip_filename), upaya.zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
@@ -358,20 +366,18 @@ pub fn load(file: []const u8) void {
         var new_animations: std.ArrayList(types.Animation) = std.ArrayList(types.Animation).init(upaya.mem.allocator);
 
         for (ioFile.layers) |layer| {
-
-            std.debug.print("{s}", .{layer.name});
             const layer_name_z = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}.png\u{0}", .{layer.name}) catch unreachable;
 
             var img_buf: ?*c_void = null;
             var img_len: u64 = 0;
             _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name_z));
             _ = upaya.zip.zip_entry_read(z, &img_buf, &img_len);
-           
+
             //const img_content_z = std.cstr.addNullByte(upaya.mem.allocator, img_content) catch unreachable;
 
             var new_image: upaya.Image = upaya.Image.initFromData(@ptrCast([*c]const u8, img_buf), img_len);
 
-             _ = upaya.zip.zip_entry_close(z);
+            _ = upaya.zip.zip_entry_close(z);
 
             var new_layer: types.Layer = .{
                 .name = std.mem.dupe(upaya.mem.allocator, u8, layer.name) catch unreachable,
@@ -424,6 +430,8 @@ pub fn load(file: []const u8) void {
         };
 
         canvas.addFile(new_file);
+
+        //TODO: free memory
 
         upaya.zip.zip_close(z);
     }
