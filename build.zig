@@ -34,7 +34,7 @@ fn createExe(b: *Builder, target: std.build.Target, name: []const u8, source: []
 
     const pixi_package = std.build.Pkg {
         .name = "pixi",
-        .path = "src/pixi.zig",
+        .path = .{.path="src/pixi.zig"},
     };
 
     const run_cmd = exe.run();

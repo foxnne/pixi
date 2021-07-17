@@ -40,7 +40,7 @@ pub fn setActiveSpriteIndex(index: usize) void {
 
 pub fn resetNames() void {
     if (canvas.getActiveFile()) |file| {
-        for (file.sprites.items) |sprite, i| {
+        for (file.sprites.items) |_, i| {
             const file_name = std.mem.trimRight(u8, file.name, "\u{0}");
             const name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}", .{ file_name, i }) catch unreachable;
             file.sprites.items[i].name = upaya.mem.allocator.dupeZ(u8, name) catch unreachable;
