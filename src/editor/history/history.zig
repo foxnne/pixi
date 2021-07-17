@@ -100,7 +100,7 @@ pub const History = struct {
     }
 
     fn undoLayerRename(self: *History, item: HistoryItem) void {
-        if (canvas.getActiveFile()) |file| {
+        if (canvas.getActiveFile()) |_| {
             if (item.layer_name) |name| {
                 if (item.layer_id) |id| {
                     if (layers.getLayer(id)) |layer| {
@@ -117,7 +117,7 @@ pub const History = struct {
     }
 
     fn redoLayerRename(self: *History, item: HistoryItem) void {
-        if (canvas.getActiveFile()) |file| {
+        if (canvas.getActiveFile()) |_| {
             if (item.layer_name) |name| {
                 if (item.layer_id) |id| {
                     if (layers.getLayer(id)) |layer| {
@@ -134,7 +134,7 @@ pub const History = struct {
     }
 
     fn undoStroke(self: *History, item: HistoryItem) void {
-        if (canvas.getActiveFile()) |file| {
+        if (canvas.getActiveFile()) |_| {
             if (item.pixel_indexes) |indexes| {
                 if (item.pixel_colors) |colors| {
                     if (item.layer_id) |layer_id| {
@@ -158,7 +158,7 @@ pub const History = struct {
     }
 
     fn redoStroke(self: *History, item: HistoryItem) void {
-        if (canvas.getActiveFile()) |file| {
+        if (canvas.getActiveFile()) |_| {
             if (item.pixel_indexes) |indexes| {
                 if (item.pixel_colors) |colors| {
                     if (item.layer_id) |layer_id| {
