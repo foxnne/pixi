@@ -51,10 +51,10 @@ pub fn brezenham(start: imgui.ImVec2, end: imgui.ImVec2) []imgui.ImVec2 {
 pub fn floodfill(coords: imgui.ImVec2, image: upaya.Image, contiguous: bool) []usize {
     var output: std.ArrayList(usize) = std.ArrayList(usize).init(upaya.mem.allocator);
 
-    var x = @floatToInt(usize, coords.x);
-    var y = @floatToInt(usize, coords.y);
+    var x = @floatToInt(i32, coords.x);
+    var y = @floatToInt(i32, coords.y);
 
-    var index = x + y * image.w;
+    var index = @intCast(usize, x) + @intCast(usize, y) *  image.w;
 
     if (contiguous){
         floodFillRecursive(x, y, image, image.pixels[index], &output);
@@ -67,15 +67,15 @@ pub fn floodfill(coords: imgui.ImVec2, image: upaya.Image, contiguous: bool) []u
         }
     }
     
-
     return output.toOwnedSlice();
 }
 
-fn floodFillRecursive(x: usize, y: usize, image: upaya.Image, previousColor: u32, output: *std.ArrayList(usize)) void {
-    var index = x + y * image.w;
+fn floodFillRecursive(x: i32, y: i32, image: upaya.Image, previousColor: u32, output: *std.ArrayList(usize)) void {
 
-    // if out of bounds
-    if (x < 0 or x > image.w or y < 0 or y > image.h)
+    const index_check = x + y * @intCast(i32, image.w);
+    var index = if (index_check >= 0) @intCast(usize, index_check) else 0;
+
+    if (index >= image.pixels.len)
         return;
 
     if (image.pixels[index] != previousColor)
