@@ -129,6 +129,15 @@ pub fn resetDockLayout() void {
     //TODO
 }
 
+pub fn isModKeyDown() bool {
+    if(std.builtin.os.tag == .windows) {
+        return imgui.ogKeyDown(sokol.SAPP_KEYCODE_LEFT_CONTROL) or imgui.ogKeyDown(sokol.SAPP_KEYCODE_LEFT_CONTROL);
+    } else {
+        const io = imgui.igGetIO();
+        return io.KeySuper;
+    }
+}
+
 pub fn update() void {
     input.update();
     menubar.draw();
@@ -143,6 +152,7 @@ pub fn update() void {
 
     if (enable_hotkeys) {
         const io = imgui.igGetIO();
+        const mod = isModKeyDown();
 
         // global hotkeys
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_ESCAPE))
@@ -157,28 +167,28 @@ pub fn update() void {
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F))
             toolbar.selected_tool = .bucket;
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_N) and io.KeySuper)
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_N) and mod)
             menubar.new_file_popup = true;
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and !io.KeySuper)
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and !mod)
             toolbar.selected_tool = .selection;
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_A) and !io.KeySuper)
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_A) and !mod)
             toolbar.selected_tool = .animation;
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and !io.KeyShift) {
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and mod and !io.KeyShift) {
             if (canvas.getActiveFile()) |file| {
                 file.history.undo();
             }
         }
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and io.KeySuper and io.KeyShift) {
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and mod and io.KeyShift) {
             if (canvas.getActiveFile()) |file| {
                 file.history.redo();
             }
         }
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and io.KeySuper) {
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and mod) {
             save();
         }
 
@@ -241,6 +251,10 @@ pub fn save() void {
         if (file.path) |path| {
             saveAs(path);
         } else {
+            // Temporary flags that get reset on next update.
+            // Needed for file dialogs.
+            upaya.inputBlocked = true;
+            upaya.inputClearRequired = true;
             var path = upaya.filebrowser.saveFileDialog("Choose a file location...", "", "*.pixi");
             if (path != null) {
                 var out_path = path[0..std.mem.len(path)];
@@ -251,6 +265,7 @@ pub fn save() void {
 
                 saveAs(out_path);
                 file.name = out_name;
+                file.path = std.mem.dupeZ(upaya.mem.allocator, u8, out_path) catch unreachable;
             }
         }
     }
