@@ -19,12 +19,16 @@ fn createExe(b: *Builder, target: std.build.Target, name: []const u8, source: []
     var exe = b.addExecutable(name, source);
     exe.setBuildMode(b.standardReleaseOptions());
 
-    if (target.isWindows() and b.is_release) {
-        exe.subsystem = .Windows;
-    }
+    if (b.is_release) {
+        exe.want_lto = false; //workaround until this is supported
 
-    if (b.is_release and std.builtin.os.tag == .macos and std.builtin.cpu.arch == std.Target.Cpu.Arch.aarch64) {
-        exe.subsystem = .Native;
+        if (target.isWindows()) {
+            exe.subsystem = .Windows;
+        }
+
+        if (std.builtin.os.tag == .macos and std.builtin.cpu.arch == std.Target.Cpu.Arch.aarch64) {
+            exe.subsystem = .Posix;
+        }
     }
 
     upaya_build.addUpayaToArtifact(b, exe, target, "src/deps/upaya/");
