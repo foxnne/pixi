@@ -187,8 +187,13 @@ pub fn update() void {
                 file.history.redo();
             }
         }
-
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and mod) {
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and mod and !io.KeyShift) {
+            save();
+        }
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and mod and io.KeyShift) {
+            if (canvas.getActiveFile()) |file| {
+                file.path = null;
+            }
             save();
         }
 
@@ -263,9 +268,13 @@ pub fn save() void {
                     out_path = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ out_path, ".pixi" }) catch unreachable;
                 }
 
-                saveAs(out_path);
-                file.name = out_name;
-                file.path = std.mem.dupeZ(upaya.mem.allocator, u8, out_path) catch unreachable;
+                var end = std.mem.indexOf(u8, out_name, ".");
+
+                if (end) |end_index| {
+                    file.name = out_name[0..end_index];
+                    sprites.resetNames();
+                    saveAs(out_path);
+                }
             }
         }
     }
@@ -278,7 +287,6 @@ pub fn saveAs(file_path: ?[]const u8) void {
         if (file_path) |path| {
             //const zip_filepath = std.fs.path.join(upaya.mem.tmp_allocator, &[_][]const u8{ path, ioFile.name }) catch unreachable;
             const zip_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ path, "\u{0}" }) catch unreachable;
-
 
             var zip = upaya.zip.zip_open(@ptrCast([*c]const u8, zip_filename), upaya.zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
@@ -333,7 +341,7 @@ pub fn load(file: []const u8) void {
 
     if (canvas.getNumberOfFiles() > 0) {
         var i: usize = 0;
-        while (i < canvas.getNumberOfFiles()) : (i += 0) {
+        while (i < canvas.getNumberOfFiles()) : (i += 1) {
             if (canvas.getFile(i)) |active_file| {
                 if (active_file.path) |path| {
                     if (std.mem.eql(u8, path, file))
@@ -429,7 +437,7 @@ pub fn load(file: []const u8) void {
         }
 
         var new_file: types.File = .{
-            .name = std.mem.dupe(upaya.mem.allocator, u8, ioFile.name) catch unreachable,
+            .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
             .path = std.mem.dupe(upaya.mem.allocator, u8, file) catch unreachable,
             .width = ioFile.width,
             .height = ioFile.height,
@@ -445,6 +453,7 @@ pub fn load(file: []const u8) void {
         };
 
         canvas.addFile(new_file);
+        sprites.resetNames();
 
         //TODO: free memory
 
