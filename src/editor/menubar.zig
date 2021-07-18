@@ -25,7 +25,12 @@ pub fn draw() void {
             if (imgui.igMenuItemBool("Save", "cmd+s", false, true)) {
                 editor.save();
             }
-            if (imgui.igMenuItemBool("Save As...", "cmd+shift+s", false, true)) {}
+            if (imgui.igMenuItemBool("Save As...", "cmd+shift+s", false, true)) {
+                if (canvas.getActiveFile()) |file| {
+                    file.path = null;
+                }   
+                editor.save();
+            }
 
             imgui.igSeparator();
 
