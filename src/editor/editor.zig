@@ -275,6 +275,8 @@ pub fn save() void {
                     sprites.resetNames();
                     saveAs(out_path);
                 }
+
+                file.path = std.mem.dupeZ(upaya.mem.allocator, u8, out_path) catch unreachable;
             }
         }
     }
