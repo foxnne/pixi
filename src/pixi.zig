@@ -17,6 +17,8 @@ pub fn main() !void {
         .window_title = "Pixi",
         .onFileDropped = editor.onFileDropped,
         .fullscreen = true, //currently broken on macOS
+        .ini_file_storage = .saved_games_dir,
+        .app_name = "Pixi",
     });
 }
 
