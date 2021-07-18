@@ -131,7 +131,7 @@ pub fn resetDockLayout() void {
 
 pub fn isModKeyDown() bool {
     if(std.builtin.os.tag == .windows) {
-        return imgui.ogKeyDown(sokol.SAPP_KEYCODE_LEFT_CONTROL) or imgui.ogKeyDown(sokol.SAPP_KEYCODE_LEFT_CONTROL);
+        return imgui.ogKeyDown(sokol.SAPP_KEYCODE_LEFT_CONTROL) or imgui.ogKeyDown(sokol.SAPP_KEYCODE_RIGHT_CONTROL);
     } else {
         const io = imgui.igGetIO();
         return io.KeySuper;
