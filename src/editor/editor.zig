@@ -126,7 +126,7 @@ pub fn setupDockLayout(id: imgui.ImGuiID) void {
 }
 
 pub fn resetDockLayout() void {
-    //TODO
+    imgui.igDockContextClearNodes(imgui.igGetCurrentContext(), 0,  true);
 }
 
 pub fn isModKeyDown() bool {
