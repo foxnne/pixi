@@ -10,7 +10,7 @@ pub fn build(b: *Builder) !void {
     const target = b.standardTargetOptions(.{});
 
     // use a different cache folder for macos arm builds
-    b.cache_root = if (std.builtin.os.tag == .macos and std.builtin.cpu.arch == std.Target.Cpu.Arch.aarch64) "zig-arm-cache" else "zig-cache";
+    //b.cache_root = if (std.builtin.os.tag == .macos and std.builtin.cpu.arch == std.Target.Cpu.Arch.aarch64) "zig-arm-cache" else "zig-cache";
     var exe = createExe(b, target, "pixi", "src/pixi.zig");
     b.default_step.dependOn(&exe.step);
 }
