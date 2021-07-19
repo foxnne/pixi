@@ -8,6 +8,7 @@ const editor = @import("../editor.zig");
 const input = editor.input;
 const types = editor.types;
 const history = editor.history;
+const menubar = editor.menubar;
 const toolbar = editor.toolbar;
 const layers = editor.layers;
 const sprites = editor.sprites;
@@ -58,8 +59,20 @@ pub fn addFile(file: File) void {
     files.insert(0, file) catch unreachable;
 }
 
+pub fn closeFile(index: usize) void {
+
+    active_file_index = 0;
+    sprites.setActiveSpriteIndex(0);
+    _ = files.swapRemove(index);
+    // TODO: clear memory??
+}
+
 pub fn getNumberOfFiles() usize {
     return files.items.len;
+}
+
+pub fn getActiveFileIndex() usize {
+    return active_file_index;
 }
 
 pub fn getActiveFile() ?*File {
@@ -80,6 +93,11 @@ pub fn getFile(index: usize) ?*File {
         return &files.items[index];
 
     return null;
+}
+
+pub fn setActiveFile(index: usize) void {
+    if (index < files.items.len)
+        active_file_index = index;
 }
 
 pub fn draw() void {
@@ -152,11 +170,17 @@ pub fn draw() void {
                 imgui.igPopID();
 
                 if (!open) {
-                    // TODO: do i need to deinit all the layers and background?
-                    active_file_index = 0;
-                    sprites.setActiveSpriteIndex(0);
-                    _ = files.swapRemove(i);
-                    //f.deinit();
+                    if (files.items[i].dirty) {
+                        menubar.close_file_popup = true;
+                    } else {
+
+                        closeFile(i);
+                        // TODO: do i need to deinit all the layers and background?
+                        // active_file_index = 0;
+                        // sprites.setActiveSpriteIndex(0);
+                        // _ = files.swapRemove(i);
+                        //f.deinit(); this crashes
+                    }
                 }
             }
         }
@@ -373,7 +397,7 @@ pub fn draw() void {
         text_pos.x -= 60;
 
         imgui.ogSetCursorPos(text_pos);
-        const mod_name = if(std.builtin.os.tag == .windows) "ctrl" else if (std.builtin.os.tag == .linux) "super" else "cmd";
+        const mod_name = if (std.builtin.os.tag == .windows) "ctrl" else if (std.builtin.os.tag == .linux) "super" else "cmd";
         imgui.ogColoredText(0.3, 0.3, 0.3, "New File " ++ imgui.icons.file ++ " (" ++ mod_name ++ "+n)");
     }
 }

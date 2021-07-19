@@ -19,6 +19,7 @@ pub const spriteedit = @import("windows/spriteedit.zig");
 
 // popups
 pub const newfile = @import("windows/newfile.zig");
+pub const closefile = @import("windows/closefile.zig");
 pub const slice = @import("windows/slice.zig");
 
 //editor colors
@@ -148,6 +149,7 @@ pub fn update() void {
     sprites.draw();
     spriteedit.draw();
     newfile.draw();
+    closefile.draw();
     slice.draw();
 
     if (enable_hotkeys) {

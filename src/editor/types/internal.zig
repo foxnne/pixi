@@ -11,7 +11,6 @@ const IOFile = types.IOFile;
 const IOLayer = types.IOLayer;
 const IOSprite = types.IOSprite;
 
-
 // internal file
 pub const File = struct {
     name: []const u8,
@@ -26,9 +25,9 @@ pub const File = struct {
     sprites: std.ArrayList(Sprite) = undefined,
     animations: std.ArrayList(Animation) = undefined,
     history: history.History = undefined,
-    dirty: bool = true,
+    dirty: bool = false,
 
-    pub fn deinit (self: *File) void {
+    pub fn deinit(self: *File) void {
         for (self.layers.items) |layer| {
             layer.texture.deinit();
             layer.image.deinit();
@@ -40,8 +39,7 @@ pub const File = struct {
         self.sprites.deinit();
     }
 
-    pub fn toIOFile (self: File) IOFile {
-
+    pub fn toIOFile(self: File) IOFile {
         var layers: std.ArrayList(IOLayer) = std.ArrayList(IOLayer).initCapacity(upaya.mem.allocator, self.layers.items.len) catch unreachable;
 
         for (self.layers.items) |layer| {
@@ -50,7 +48,7 @@ pub const File = struct {
             }) catch unreachable;
         }
 
-        var sprites: std.ArrayList(IOSprite) = std.ArrayList(IOSprite).initCapacity(upaya.mem.allocator, self.sprites.items.len) catch unreachable; 
+        var sprites: std.ArrayList(IOSprite) = std.ArrayList(IOSprite).initCapacity(upaya.mem.allocator, self.sprites.items.len) catch unreachable;
 
         for (self.sprites.items) |sprite| {
             sprites.append(.{
@@ -83,6 +81,10 @@ pub const File = struct {
         };
 
         layers.deinit();
+        sprites.deinit();
+        animations.deinit();
+
+        //TODO: should I free all the fields in the IOFile?
 
         return ioFile;
     }
@@ -97,12 +99,10 @@ pub const Layer = struct {
     hidden: bool = false,
     dirty: bool = false,
 
-    pub fn updateTexture (self: *Layer) void {
+    pub fn updateTexture(self: *Layer) void {
         if (self.dirty) {
             self.texture.setColorData(self.image.pixels);
             self.dirty = false;
         }
     }
 };
-
-

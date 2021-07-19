@@ -16,22 +16,6 @@ pub const IOFile = struct {
     layers: []IOLayer,
     sprites: []IOSprite,
     animations: []IOAnimation,
-
-    // pub fn toInternalFile (self: IOFile) File {
-
-        
-
-    //     return .{
-    //         .name = std.mem.dupe(upaya.mem.allocator, u8, self.name) catch unreachable,
-    //         .width = self.width,
-    //         .height = self.height,
-    //         .tileWidth = self.tileWidth,
-    //         .tileHeight = self.tileHeight,
-    //         .background = upaya.Texture.initChecker(self.width, self.height, editor.checkerColor1, editor.checkerColor2),
-            
-
-    //     };
-    // }
 };
 
 pub const IOLayer = struct {

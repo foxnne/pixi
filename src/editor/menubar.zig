@@ -7,6 +7,7 @@ const editor = @import("editor.zig");
 const canvas = editor.canvas;
 
 pub var new_file_popup: bool = false;
+pub var close_file_popup: bool = false;
 pub var slice_popup: bool = false;
 pub var demo_window: bool = false;
 

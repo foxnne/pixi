@@ -29,5 +29,4 @@ pub const Camera = struct {
 
         return transform;
     }
-
 };

@@ -70,6 +70,7 @@ pub fn floodfill(coords: imgui.ImVec2, image: upaya.Image, contiguous: bool) []u
     return output.toOwnedSlice();
 }
 
+//TODO: this crashes with a stack overflow on canvases large enough...
 fn floodFillRecursive(x: i32, y: i32, image: upaya.Image, previousColor: u32, output: *std.ArrayList(usize)) void {
 
     const index_check = x + y * @intCast(i32, image.w);
