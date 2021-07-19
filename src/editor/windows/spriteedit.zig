@@ -33,7 +33,9 @@ var previous_sprite_rect: upaya.math.RectF = undefined;
 var next_sprite_rect: upaya.math.RectF = undefined;
 
 var previous_mouse_position: imgui.ImVec2 = undefined;
-pub var preview_opacity: f32 = 100;
+
+pub var preview_opacity: f32 = 50; //default
+pub var preview_origin: bool = false;
 
 pub fn draw() void {
     if (imgui.igBegin("SpriteEdit", 0, imgui.ImGuiWindowFlags_None)) {
@@ -46,6 +48,7 @@ pub fn draw() void {
             imgui.igSeparator();
 
             _ = imgui.igSliderFloat("Preview Opacity", &preview_opacity, 0, 100, "%.0f", 1);
+            _ = imgui.igCheckbox("Preview Origin", &preview_origin);
         }
 
         // setup screen position and size
@@ -148,6 +151,20 @@ pub fn draw() void {
                             }
                         }
                     }
+                }
+
+                if (preview_origin) {
+                    var origin: imgui.ImVec2 = .{ .x = sprite.origin_x, .y = sprite.origin_y };
+                    origin = origin.add(sprite_position);
+                    origin = camera.matrix().transformImVec2(origin).add(screen_pos);
+
+                    const tl = origin.add(.{ .x = -4, .y = -4 });
+                    const tr = origin.add(.{ .x = 4, .y = -4 });
+                    const bl = origin.add(.{ .x = -4, .y = 4 });
+                    const br = origin.add(.{ .x = 4, .y = 4 });
+
+                    imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), tl, br, 0xFF0000FF, 1);
+                    imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), bl, tr, 0xFF0000FF, 1);
                 }
 
                 // store previous tool and reapply it after to allow quick switching

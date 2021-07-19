@@ -133,7 +133,7 @@ pub fn draw() void {
         imgui.igSameLine(0, space);
         if (imgui.ogSelectableBool(imgui.icons.eye_dropper, selected_tool == .dropper, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
             selected_tool = .dropper;
-       
+
         if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)) {
             imgui.igBeginTooltip();
             imgui.igText("Dropper (right " ++ imgui.icons.mouse ++ ")");

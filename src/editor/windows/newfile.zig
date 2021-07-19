@@ -45,6 +45,8 @@ pub fn draw() void {
         _ = imgui.ogDrag(i32, "Tiles Wide", &tiles_wide, 1, 1, 1024);
         _ = imgui.ogDrag(i32, "Tiles Tall", &tiles_tall, 1, 1, 1024);
 
+        imgui.igSeparator();
+        imgui.igSetCursorPosX(imgui.ogGetWindowCenter().x - 25);
         if (imgui.ogButton("Create")) {
 
             new_file.height = new_file.tileHeight * tiles_tall;

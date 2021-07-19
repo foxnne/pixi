@@ -84,6 +84,8 @@ pub fn draw() void {
                     defer imgui.igEndPopup();
 
                     //TODO: make undoable, confirmation of settings change button triggers so undo queue isnt filled with tiny changes
+
+                    //TODO: allow multiple selections for changing origins
                     imgui.igText("Sprite Settings");
                     imgui.igSeparator();
 
