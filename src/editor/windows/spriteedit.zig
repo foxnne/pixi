@@ -4,8 +4,6 @@ const imgui = @import("imgui");
 
 pub const Camera = @import("../utils/camera.zig").Camera;
 
-
-
 const editor = @import("../editor.zig");
 const input = @import("../input/input.zig");
 const types = @import("../types/types.zig");
@@ -313,6 +311,21 @@ pub fn draw() void {
                         }
                         toolbar.selected_tool = previous_tool;
                         previous_mouse_position = mouse_position;
+                    }
+                }
+            }
+
+            if (imgui.igIsWindowFocused(imgui.ImGuiFocusedFlags_None)) {
+                if (sprites.getActiveSprite()) |sprite| {
+
+                    // right/down arrow changes sprite
+                    if (imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_RIGHT) or imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_DOWN)) {
+                        sprites.setActiveSpriteIndex(sprite.index + 1);
+                    }
+
+                    // left/up arrow changes sprite
+                    if ((imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_LEFT) or imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_UP)) and @intCast(i32, sprite.index) - 1 >= 0) {
+                        sprites.setActiveSpriteIndex(sprite.index - 1);
                     }
                 }
             }

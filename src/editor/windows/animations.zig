@@ -79,7 +79,7 @@ pub fn draw() void {
             }
 
             imgui.igSameLine(0, 5);
-            // delete selection
+            // delete selected animation
             if (imgui.ogColoredButton(0x00000000, imgui.icons.minus_circle)) {
                 _ = file.animations.swapRemove(active_animation_index);
                 sprites.resetNames();
@@ -102,6 +102,7 @@ pub fn draw() void {
                     active_animation_index = i;
 
                 if (imgui.igBeginPopupContextItem("Animation Settings", imgui.ImGuiMouseButton_Right)) {
+                    editor.enable_hotkeys = false;
 
                     defer imgui.igEndPopup();
                     imgui.igText("Animation Settings");

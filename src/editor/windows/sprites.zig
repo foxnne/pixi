@@ -83,6 +83,7 @@ pub fn draw() void {
                 if (imgui.igBeginPopupContextItem("Sprite Settings", imgui.ImGuiMouseButton_Right)) {
                     defer imgui.igEndPopup();
 
+                    //TODO: make undoable, confirmation of settings change button triggers so undo queue isnt filled with tiny changes
                     imgui.igText("Sprite Settings");
                     imgui.igSeparator();
 
@@ -94,13 +95,14 @@ pub fn draw() void {
             }
 
             if (imgui.igIsWindowFocused(imgui.ImGuiFocusedFlags_None)) {
-                // down arrow changes sprite
-                if (imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_DOWN)) {
+
+                // down/right arrow changes sprite
+                if (imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_DOWN) or imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_RIGHT)) {
                     setActiveSpriteIndex(active_sprite_index + 1);
                 }
 
-                // up arrow changes sprite
-                if (imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_UP)) {
+                // up/left arrow changes sprite
+                if ((imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_UP)or imgui.ogKeyPressed(upaya.sokol.SAPP_KEYCODE_LEFT) )and @intCast(i32, active_sprite_index) - 1 >= 0) {
                     setActiveSpriteIndex(active_sprite_index - 1);
                 }
             }

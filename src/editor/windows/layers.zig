@@ -90,7 +90,9 @@ pub fn draw() void {
                         .layer_id = layer.id,
                         .layer_state = layer,
                     });
-                  
+                    layer.image.deinit();
+                    // i assume we shouldnt clean up memory for the layer texture
+                    // since we are passing that to history to save the entire layer state?
                 }
             }
 
