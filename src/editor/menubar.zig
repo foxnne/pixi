@@ -14,18 +14,20 @@ pub fn draw() void {
     if (imgui.igBeginMenuBar()) {
         defer imgui.igEndMenuBar();
 
+        const mod_name = if(std.builtin.os.tag == .windows) "ctrl" else if (std.builtin.os.tag == .linux) "super" else "cmd";
+
         if (imgui.igBeginMenu("File", true)) {
             defer imgui.igEndMenu();
 
-            if (imgui.igMenuItemBool(imgui.icons.file ++ "  New", "cmd+n", false, true))
+            if (imgui.igMenuItemBool(imgui.icons.file ++ "  New", mod_name ++ "+n", false, true))
                 new_file_popup = true;
 
             if (imgui.igMenuItemBool(imgui.icons.box_open ++ " Open...", "", false, true)) {}
 
-            if (imgui.igMenuItemBool("Save", "cmd+s", false, true)) {
+            if (imgui.igMenuItemBool("Save", mod_name ++ "+s", false, true)) {
                 editor.save();
             }
-            if (imgui.igMenuItemBool("Save As...", "cmd+shift+s", false, true)) {
+            if (imgui.igMenuItemBool("Save As...", mod_name ++ "+shift+s", false, true)) {
                 if (canvas.getActiveFile()) |file| {
                     file.path = null;
                 }   
@@ -48,7 +50,7 @@ pub fn draw() void {
 
             imgui.igSeparator();
 
-            if (imgui.igMenuItemBool(imgui.icons.door_closed ++ " Close", "cmd+q", false, true)) {
+            if (imgui.igMenuItemBool(imgui.icons.door_closed ++ " Close", if (std.builtin.os.tag == .windows) "alt+f4" else mod_name ++ "+q", false, true)) {
                 editor.shutdown();
             }
         }
@@ -64,13 +66,13 @@ pub fn draw() void {
                 numRedos = file.history.getNumberOfRedos();
             }
 
-            if (imgui.igMenuItemBool(imgui.icons.undo ++ " Undo", "(cmd+z)", false, numUndos > 0)) {
+            if (imgui.igMenuItemBool(imgui.icons.undo ++ " Undo", mod_name ++ "+z", false, numUndos > 0)) {
                 if (canvas.getActiveFile()) |file| {
                     file.history.undo();
                 }
             }
 
-            if (imgui.igMenuItemBool(imgui.icons.redo ++ " Redo", "(cmd+shift+z)", false, numRedos > 0)) {
+            if (imgui.igMenuItemBool(imgui.icons.redo ++ " Redo", mod_name ++ "+shift+z", false, numRedos > 0)) {
                 if (canvas.getActiveFile()) |file| {
                     file.history.redo();
                 }

@@ -372,7 +372,8 @@ pub fn draw() void {
         text_pos.x -= 60;
 
         imgui.ogSetCursorPos(text_pos);
-        imgui.ogColoredText(0.3, 0.3, 0.3, "New File " ++ imgui.icons.file ++ " (cmd + n)");
+        const mod_name = if(std.builtin.os.tag == .windows) "ctrl" else if (std.builtin.os.tag == .linux) "super" else "cmd";
+        imgui.ogColoredText(0.3, 0.3, 0.3, "New File " ++ imgui.icons.file ++ " (" ++ mod_name ++ "+n)");
     }
 }
 
