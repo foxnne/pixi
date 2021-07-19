@@ -14,7 +14,7 @@ pub fn draw() void {
     if (imgui.igBeginMenuBar()) {
         defer imgui.igEndMenuBar();
 
-        const mod_name = if(std.builtin.os.tag == .windows) "ctrl" else if (std.builtin.os.tag == .linux) "super" else "cmd";
+        const mod_name = if (std.builtin.os.tag == .windows) "ctrl" else if (std.builtin.os.tag == .linux) "super" else "cmd";
 
         if (imgui.igBeginMenu("File", true)) {
             defer imgui.igEndMenu();
@@ -22,7 +22,21 @@ pub fn draw() void {
             if (imgui.igMenuItemBool(imgui.icons.file ++ "  New", mod_name ++ "+n", false, true))
                 new_file_popup = true;
 
-            if (imgui.igMenuItemBool(imgui.icons.box_open ++ " Open...", "", false, true)) {}
+            if (imgui.igMenuItemBool(imgui.icons.box_open ++ " Open...", "", false, true)) {
+                // Temporary flags that get reset on next update.
+                // Needed for file dialogs.
+                upaya.inputBlocked = true;
+                upaya.inputClearRequired = true;
+                var path = upaya.filebrowser.openFileDialog("Choose a file to open...", "", "*.pixi");
+                if (path != null){
+                    var in_path = path[0..std.mem.len(path)];
+                    if (std.mem.endsWith(u8, in_path, ".pixi")) {
+                        editor.load(in_path);
+                    }
+
+                }
+                
+            }
 
             if (imgui.igMenuItemBool("Save", mod_name ++ "+s", false, true)) {
                 editor.save();
@@ -30,7 +44,7 @@ pub fn draw() void {
             if (imgui.igMenuItemBool("Save As...", mod_name ++ "+shift+s", false, true)) {
                 if (canvas.getActiveFile()) |file| {
                     file.path = null;
-                }   
+                }
                 editor.save();
             }
 
