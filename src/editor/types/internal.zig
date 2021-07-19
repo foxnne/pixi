@@ -26,7 +26,7 @@ pub const File = struct {
     sprites: std.ArrayList(Sprite) = undefined,
     animations: std.ArrayList(Animation) = undefined,
     history: history.History = undefined,
-    dirty: bool = false,
+    dirty: bool = true,
 
     pub fn deinit (self: *File) void {
         for (self.layers.items) |layer| {

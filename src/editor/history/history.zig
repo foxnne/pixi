@@ -44,6 +44,12 @@ pub const History = struct {
 
     pub fn push(self: *History, item: HistoryItem) void {
         self.undoStack.append(item) catch unreachable;
+        
+        // anything that could change the file needs to be undoable,
+        // so this should be a good place to catch all the things that dirty a file?
+        if (canvas.getActiveFile()) |file| {
+            file.dirty = true;
+        }
         // do we free things inside of the stack?
         if (self.redoStack.items.len > 0)
             self.redoStack.clearAndFree();

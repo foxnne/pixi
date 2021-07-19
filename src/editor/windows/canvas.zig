@@ -144,7 +144,8 @@ pub fn draw() void {
                 var name_z = upaya.mem.allocator.dupeZ(u8, f.name) catch unreachable;
                 defer upaya.mem.allocator.free(name_z);
                 imgui.igPushIDInt(@intCast(c_int, i));
-                if (imgui.igBeginTabItem(@ptrCast([*c]const u8, name_z), &open, imgui.ImGuiTabItemFlags_UnsavedDocument)) {
+                var dirty_flag = if (file.dirty) imgui.ImGuiTabItemFlags_UnsavedDocument else imgui.ImGuiTabItemFlags_None;
+                if (imgui.igBeginTabItem(@ptrCast([*c]const u8, name_z), &open, dirty_flag)) {
                     defer imgui.igEndTabItem();
                     active_file_index = i;
                 }

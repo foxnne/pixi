@@ -76,6 +76,7 @@ pub fn draw() void {
                     .tag = .new_layer,
                     .layer_id = new_layer.id,
                 });
+                
             }
             imgui.igSameLine(0, 5);
             // delete
@@ -89,6 +90,7 @@ pub fn draw() void {
                         .layer_id = layer.id,
                         .layer_state = layer,
                     });
+                  
                 }
             }
 
