@@ -49,8 +49,7 @@ pub fn draw() void {
             if (animation_state == .play) {
                 if (getActiveAnimation()) |animation| {
                     elapsed_time += imgui.igGetIO().DeltaTime;
-
-                    if (elapsed_time > 1 / @intToFloat(f32, animation.fps)) {
+                    if (elapsed_time > (imgui.igGetIO().Framerate / 60) / @intToFloat(f32, animation.fps)) {
                         elapsed_time = 0;
 
                         if (sprites.getActiveSprite()) |sprite| {

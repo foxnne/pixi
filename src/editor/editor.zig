@@ -127,11 +127,11 @@ pub fn setupDockLayout(id: imgui.ImGuiID) void {
 }
 
 pub fn resetDockLayout() void {
-    imgui.igDockContextClearNodes(imgui.igGetCurrentContext(), 0,  true);
+    imgui.igDockContextClearNodes(imgui.igGetCurrentContext(), 0, true);
 }
 
 pub fn isModKeyDown() bool {
-    if(std.builtin.os.tag == .windows) {
+    if (std.builtin.os.tag == .windows) {
         return imgui.ogKeyDown(sokol.SAPP_KEYCODE_LEFT_CONTROL) or imgui.ogKeyDown(sokol.SAPP_KEYCODE_RIGHT_CONTROL);
     } else {
         const io = imgui.igGetIO();
@@ -262,6 +262,7 @@ pub fn save() bool {
             // Needed for file dialogs.
             upaya.inputBlocked = true;
             upaya.inputClearRequired = true;
+
             var path = upaya.filebrowser.saveFileDialog("Choose a file location...", "", "*.pixi");
             if (path != null) {
                 var out_path = path[0..std.mem.len(path)];
@@ -280,8 +281,7 @@ pub fn save() bool {
 
                 file.path = std.mem.dupeZ(upaya.mem.allocator, u8, out_path) catch unreachable;
                 return true;
-            }
-            else return false;
+            } else return false;
         }
     }
     return false;
@@ -292,7 +292,6 @@ pub fn saveAs(file_path: ?[]const u8) bool {
         // create a saveable copy of the current file
         var ioFile = file.toIOFile();
         if (file_path) |path| {
-            //const zip_filepath = std.fs.path.join(upaya.mem.tmp_allocator, &[_][]const u8{ path, ioFile.name }) catch unreachable;
             const zip_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ path, "\u{0}" }) catch unreachable;
 
             var zip = upaya.zip.zip_open(@ptrCast([*c]const u8, zip_filename), upaya.zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
@@ -330,11 +329,9 @@ pub fn saveAs(file_path: ?[]const u8) bool {
             }
 
             file.dirty = false;
-
             return true;
         }
     }
-
     return false;
 }
 
