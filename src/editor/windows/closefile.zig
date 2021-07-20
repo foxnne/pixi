@@ -29,7 +29,7 @@ pub fn draw() void {
             imgui.igSetCursorPosX(imgui.ogGetWindowCenter().x - 20);
             if (imgui.ogButton("Save")) {
                 menubar.close_file_popup = false;
-                editor.save();
+                if (editor.save())
                 canvas.closeFile(canvas.getActiveFileIndex());
             }
             imgui.igSetCursorPosX(imgui.ogGetWindowCenter().x - 40);

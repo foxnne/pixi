@@ -79,7 +79,7 @@ pub fn draw() void {
             }
 
             imgui.igSameLine(0, 5);
-            // delete selected animation
+            // delete selection
             if (imgui.ogColoredButton(0x00000000, imgui.icons.minus_circle)) {
                 _ = file.animations.swapRemove(active_animation_index);
                 sprites.resetNames();
@@ -101,8 +101,8 @@ pub fn draw() void {
                 if (imgui.ogSelectableBool(@ptrCast([*c]const u8, animation_name_z), i == active_animation_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
                     active_animation_index = i;
 
+            
                 if (imgui.igBeginPopupContextItem("Animation Settings", imgui.ImGuiMouseButton_Right)) {
-                    editor.enable_hotkeys = false;
 
                     defer imgui.igEndPopup();
                     imgui.igText("Animation Settings");
@@ -112,6 +112,8 @@ pub fn draw() void {
                         animation_name_buffer[j] = if (j < animation.name.len) animation.name[j] else 0;
 
                     // TODO: disallow multiple same-name animations
+                    // TODO: only actually change the animation on a "okay" button, and add to history state
+                    
                     if (imgui.ogInputTextEnter("Name", &animation_name_buffer, animation_name_buffer.len)) {
                         var end = std.mem.indexOf(u8, animation_name_buffer[0..], "\u{0}");
 

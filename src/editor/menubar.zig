@@ -40,13 +40,13 @@ pub fn draw() void {
             }
 
             if (imgui.igMenuItemBool("Save", mod_name ++ "+s", false, true)) {
-                editor.save();
+                _ = editor.save();
             }
             if (imgui.igMenuItemBool("Save As...", mod_name ++ "+shift+s", false, true)) {
                 if (canvas.getActiveFile()) |file| {
                     file.path = null;
                 }
-                editor.save();
+                _ = editor.save();
             }
 
             imgui.igSeparator();

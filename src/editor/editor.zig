@@ -190,13 +190,13 @@ pub fn update() void {
             }
         }
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and mod and !io.KeyShift) {
-            save();
+            _ = save();
         }
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and mod and io.KeyShift) {
             if (canvas.getActiveFile()) |file| {
                 file.path = null;
             }
-            save();
+            _ = save();
         }
 
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_W))
@@ -253,10 +253,10 @@ pub fn onFileDropped(file: []const u8) void {
     }
 }
 
-pub fn save() void {
+pub fn save() bool {
     if (canvas.getActiveFile()) |file| {
         if (file.path) |path| {
-            saveAs(path);
+            return saveAs(path);
         } else {
             // Temporary flags that get reset on next update.
             // Needed for file dialogs.
@@ -275,16 +275,19 @@ pub fn save() void {
                 if (end) |end_index| {
                     file.name = out_name[0..end_index];
                     sprites.resetNames();
-                    saveAs(out_path);
+                    _ = saveAs(out_path);
                 }
 
                 file.path = std.mem.dupeZ(upaya.mem.allocator, u8, out_path) catch unreachable;
+                return true;
             }
+            else return false;
         }
     }
+    return false;
 }
 
-pub fn saveAs(file_path: ?[]const u8) void {
+pub fn saveAs(file_path: ?[]const u8) bool {
     if (canvas.getActiveFile()) |file| {
         // create a saveable copy of the current file
         var ioFile = file.toIOFile();
@@ -327,8 +330,12 @@ pub fn saveAs(file_path: ?[]const u8) void {
             }
 
             file.dirty = false;
+
+            return true;
         }
     }
+
+    return false;
 }
 
 fn writePng(context: ?*c_void, data: ?*c_void, size: c_int) callconv(.C) void {
