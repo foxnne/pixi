@@ -23,6 +23,7 @@
 - The user interface is driven by [Dear Imgui](https://github.com/ocornut/imgui) which should be familiar to many.
 
 ## Planned Features
+- Sprite packing
 - Export/import options.
     - Possibly .pyxel and .asesprite import
     - Export to .zig to directly use in Zig frameworks
