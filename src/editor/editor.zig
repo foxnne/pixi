@@ -170,9 +170,6 @@ pub fn update() void {
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F))
             toolbar.selected_tool = .bucket;
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_N) and mod)
-            menubar.new_file_popup = true;
-
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_S) and !mod)
             toolbar.selected_tool = .selection;
 
@@ -181,6 +178,9 @@ pub fn update() void {
 
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_W))
             toolbar.selected_tool = .wand;
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_N) and mod)
+            menubar.new_file_popup = true;
 
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and mod and !io.KeyShift) {
             if (canvas.getActiveFile()) |file| {
@@ -216,44 +216,7 @@ pub fn update() void {
 
 pub fn onFileDropped(file: []const u8) void {
     if (std.mem.endsWith(u8, file, ".png")) {
-        var name = std.fs.path.basename(file);
-        name = name[0 .. name.len - 4]; //trim off .png extension
-        const sprite_name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_0", .{name}) catch unreachable;
-        const file_image = upaya.Image.initFromFile(file);
-        const image_width: i32 = @intCast(i32, file_image.w);
-        const image_height: i32 = @intCast(i32, file_image.h);
-        var temp_image = upaya.Image.init(@intCast(usize, image_width), @intCast(usize, image_height));
-        temp_image.fillRect(.{ .x = 0, .y = 0, .width = image_width, .height = image_height }, upaya.math.Color.transparent);
-
-        var new_file: types.File = .{
-            .name = name,
-            .width = image_width,
-            .height = image_height,
-            .tileWidth = image_width,
-            .tileHeight = image_height,
-            .background = upaya.Texture.initChecker(image_width, image_height, checkerColor1, checkerColor2),
-            .temporary = .{
-                .name = "Temporary",
-                .id = layers.getNewID(),
-                .texture = temp_image.asTexture(.nearest),
-                .image = temp_image,
-            },
-            .layers = std.ArrayList(types.Layer).init(upaya.mem.allocator),
-            .sprites = std.ArrayList(types.Sprite).init(upaya.mem.allocator),
-            .animations = std.ArrayList(types.Animation).init(upaya.mem.allocator),
-            .history = history.History.init(),
-        };
-
-        new_file.layers.append(.{ .name = "Layer 0", .id = layers.getNewID(), .texture = file_image.asTexture(.nearest), .image = file_image }) catch unreachable;
-
-        new_file.sprites.append(.{
-            .name = sprite_name,
-            .index = 0,
-            .origin_x = 0,
-            .origin_y = 0,
-        }) catch unreachable;
-
-        canvas.addFile(new_file);
+        importPng(file);
     }
 
     if (std.mem.endsWith(u8, file, ".pixi")) {
@@ -482,6 +445,47 @@ pub fn load(file: []const u8) void {
     }
 
     @setEvalBranchQuota(1000);
+}
+
+pub fn importPng(file: []const u8) void {
+    var name = std.fs.path.basename(file);
+    name = name[0 .. name.len - 4]; //trim off .png extension
+    const sprite_name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_0", .{name}) catch unreachable;
+    const file_image = upaya.Image.initFromFile(file);
+    const image_width: i32 = @intCast(i32, file_image.w);
+    const image_height: i32 = @intCast(i32, file_image.h);
+    var temp_image = upaya.Image.init(@intCast(usize, image_width), @intCast(usize, image_height));
+    temp_image.fillRect(.{ .x = 0, .y = 0, .width = image_width, .height = image_height }, upaya.math.Color.transparent);
+
+    var new_file: types.File = .{
+        .name = name,
+        .width = image_width,
+        .height = image_height,
+        .tileWidth = image_width,
+        .tileHeight = image_height,
+        .background = upaya.Texture.initChecker(image_width, image_height, checkerColor1, checkerColor2),
+        .temporary = .{
+            .name = "Temporary",
+            .id = layers.getNewID(),
+            .texture = temp_image.asTexture(.nearest),
+            .image = temp_image,
+        },
+        .layers = std.ArrayList(types.Layer).init(upaya.mem.allocator),
+        .sprites = std.ArrayList(types.Sprite).init(upaya.mem.allocator),
+        .animations = std.ArrayList(types.Animation).init(upaya.mem.allocator),
+        .history = history.History.init(),
+    };
+
+    new_file.layers.append(.{ .name = "Layer 0", .id = layers.getNewID(), .texture = file_image.asTexture(.nearest), .image = file_image }) catch unreachable;
+
+    new_file.sprites.append(.{
+        .name = sprite_name,
+        .index = 0,
+        .origin_x = 0,
+        .origin_y = 0,
+    }) catch unreachable;
+
+    canvas.addFile(new_file);
 }
 
 pub fn shutdown() void {
