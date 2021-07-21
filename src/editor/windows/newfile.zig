@@ -33,7 +33,7 @@ var tiles_tall: i32 = 1;
 pub fn draw() void {
 
     const width = 300;
-    const height = 150;
+    const height = 160;
     const center = imgui.ogGetWindowCenter();
     imgui.ogSetNextWindowSize(.{ .x = width, .y = height }, imgui.ImGuiCond_Appearing);
     imgui.ogSetNextWindowPos(.{ .x = center.x - width/2, .y = center.y - height/ 2 }, imgui.ImGuiCond_Appearing, .{});
@@ -46,8 +46,7 @@ pub fn draw() void {
         _ = imgui.ogDrag(i32, "Tiles Tall", &tiles_tall, 1, 1, 1024);
 
         imgui.igSeparator();
-        imgui.igSetCursorPosX(imgui.ogGetWindowCenter().x - 25);
-        if (imgui.ogButton("Create")) {
+        if (imgui.ogButtonEx("Create", .{.x = imgui.igGetWindowWidth() - 20, .y = 20})) {
 
             new_file.height = new_file.tileHeight * tiles_tall;
             new_file.width = new_file.tileWidth * tiles_wide;

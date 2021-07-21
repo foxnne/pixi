@@ -26,19 +26,18 @@ pub fn draw() void {
             imgui.igSeparator();
             imgui.ogDummy(.{.x = 5, .y = 5});
 
-            imgui.igSetCursorPosX(imgui.ogGetWindowCenter().x - 20);
-            if (imgui.ogButton("Save")) {
+            const w = imgui.igGetWindowWidth() - 20;
+            const h = 20;
+            if (imgui.ogButtonEx("Save", .{.x = w, .y = h})) {
                 menubar.close_file_popup = false;
                 if (editor.save())
                 canvas.closeFile(canvas.getActiveFileIndex());
             }
-            imgui.igSetCursorPosX(imgui.ogGetWindowCenter().x - 40);
-            if (imgui.ogButton("Don't Save")) {
+            if (imgui.ogButtonEx("Don't Save", .{.x = w, .y = h})) {
                 menubar.close_file_popup = false;
                 canvas.closeFile(canvas.getActiveFileIndex());
             }
-            imgui.igSetCursorPosX(imgui.ogGetWindowCenter().x - 25);
-            if (imgui.ogButton("Cancel")) {
+            if (imgui.ogButtonEx("Cancel", .{.x = w, .y = h})) {
                 menubar.close_file_popup = false;
             }
         }

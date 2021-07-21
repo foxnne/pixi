@@ -21,6 +21,7 @@ pub const spriteedit = @import("windows/spriteedit.zig");
 pub const newfile = @import("windows/newfile.zig");
 pub const closefile = @import("windows/closefile.zig");
 pub const slice = @import("windows/slice.zig");
+pub const pack = @import("windows/pack.zig");
 
 //editor colors
 pub var background_color: imgui.ImVec4 = undefined;
@@ -152,6 +153,7 @@ pub fn update() void {
     newfile.draw();
     closefile.draw();
     slice.draw();
+    pack.draw();
 
     if (enable_hotkeys) {
         const io = imgui.igGetIO();
@@ -236,9 +238,9 @@ pub fn save() bool {
 
             var path: [*c]u8 = null;
             if (std.builtin.os.tag == .macos) {
-                path = upaya.filebrowser.saveFileDialog("Choose a file to open...", ".pixi", "");
+                path = upaya.filebrowser.saveFileDialog("Choose a file name...", ".pixi", "");
             } else {
-                path = upaya.filebrowser.saveFileDialog("Choose a file to open...", ".pixi", "*.pixi");
+                path = upaya.filebrowser.saveFileDialog("Choose a file name...", ".pixi", "*.pixi");
             }
             if (path != null) {
                 var out_path = path[0..std.mem.len(path)];

@@ -18,10 +18,10 @@ var tiles_tall: i32 = 1;
 pub fn draw() void {
     if (canvas.getActiveFile()) |file| {
         const width = 300;
-        const height = 100;
+        const height = 110;
         const center = imgui.ogGetWindowCenter();
-        imgui.ogSetNextWindowSize(.{ .x = width, .y = height }, imgui.ImGuiCond_Always);
-        imgui.ogSetNextWindowPos(.{ .x = center.x - width / 2, .y = center.y - height / 2 }, imgui.ImGuiCond_Always, .{});
+        imgui.ogSetNextWindowSize(.{ .x = width, .y = height }, imgui.ImGuiCond_Appearing);
+        imgui.ogSetNextWindowPos(.{ .x = center.x - width / 2, .y = center.y - height / 2 }, imgui.ImGuiCond_Appearing, .{});
         if (imgui.igBeginPopupModal("Slice", &menubar.slice_popup, imgui.ImGuiWindowFlags_Popup | imgui.ImGuiWindowFlags_NoResize)) {
             defer imgui.igEndPopup();
 
@@ -33,7 +33,9 @@ pub fn draw() void {
 
             imgui.ogPushDisabled(remainder_height != 0 or remainder_width != 0);
 
-            if (imgui.ogButton("Slice")) {
+            imgui.igSeparator();
+            
+            if (imgui.ogButtonEx("Slice", .{.x = imgui.igGetWindowWidth() - 20, .y = 20})) {
                 sprites.setActiveSpriteIndex(0);
 
                 file.tileHeight = @divExact(file.height, tiles_tall);
