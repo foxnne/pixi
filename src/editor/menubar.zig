@@ -28,7 +28,13 @@ pub fn draw() void {
                 // Needed for file dialogs.
                 upaya.inputBlocked = true;
                 upaya.inputClearRequired = true;
-                var path = upaya.filebrowser.openFileDialog("Choose a file to open...", "", "*.pixi");
+                var path: [*c]u8 = null;
+                if (std.builtin.os.tag == .macos){
+                    path = upaya.filebrowser.openFileDialog("Choose a file to open...", ".pixi", "");
+                } else {
+                    path = upaya.filebrowser.openFileDialog("Choose a file to open...", ".pixi", "*.pixi");
+                }
+                
                 if (path != null) {
                     var in_path = path[0..std.mem.len(path)];
                     if (std.mem.endsWith(u8, in_path, ".pixi")) {

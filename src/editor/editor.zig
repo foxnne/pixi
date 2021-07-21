@@ -117,8 +117,8 @@ pub fn setupDockLayout(id: imgui.ImGuiID) void {
     imgui.igDockBuilderDockWindow("Toolbar", left_id);
     imgui.igDockBuilderDockWindow("Layers", right_id);
 
-    var bottom_right_id = imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.2, null, &bottom_id);
-    var bottom_mid_id = imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.8, null, &bottom_id);
+    var bottom_right_id = imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.15, null, &bottom_id);
+    var bottom_mid_id = imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.85, null, &bottom_id);
 
     imgui.igDockBuilderDockWindow("Animations", bottom_right_id);
     imgui.igDockBuilderDockWindow("SpriteEdit", bottom_mid_id);
@@ -271,7 +271,12 @@ pub fn save() bool {
             upaya.inputBlocked = true;
             upaya.inputClearRequired = true;
 
-            var path = upaya.filebrowser.saveFileDialog("Choose a file location...", "", "*.pixi");
+            var path: [*c]u8 = null;
+            if (std.builtin.os.tag == .macos) {
+                path = upaya.filebrowser.saveFileDialog("Choose a file to open...", ".pixi", "");
+            } else {
+                path = upaya.filebrowser.saveFileDialog("Choose a file to open...", ".pixi", "*.pixi");
+            }
             if (path != null) {
                 var out_path = path[0..std.mem.len(path)];
                 var out_name = std.fs.path.basename(out_path);
