@@ -109,7 +109,7 @@ pub fn setupDockLayout(id: imgui.ImGuiID) void {
     var dock_main_id = id;
 
     var bottom_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Down, 0.3, null, &dock_main_id);
-    var left_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Left, 0.05, null, &dock_main_id);
+    var left_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Left, 0.11, null, &dock_main_id);
     var mid_id: imgui.ImGuiID = 0;
     var right_id = imgui.igDockBuilderSplitNode(dock_main_id, imgui.ImGuiDir_Right, 0.15, null, &mid_id);
 
@@ -179,12 +179,14 @@ pub fn update() void {
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_A) and !mod)
             toolbar.selected_tool = .animation;
 
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_W))
+            toolbar.selected_tool = .wand;
+
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and mod and !io.KeyShift) {
             if (canvas.getActiveFile()) |file| {
                 file.history.undo();
             }
         }
-
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_Z) and mod and io.KeyShift) {
             if (canvas.getActiveFile()) |file| {
                 file.history.redo();
@@ -200,8 +202,13 @@ pub fn update() void {
             _ = save();
         }
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_W))
-            toolbar.selected_tool = .wand;
+        if (std.builtin.os.tag == .macos) {
+            if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F) and io.KeyCtrl and io.KeySuper)
+                sokol.sapp_toggle_fullscreen();
+        } else {
+            if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F11))
+                sokol.sapp_toggle_fullscreen();
+        }
     }
 
     enable_hotkeys = true;

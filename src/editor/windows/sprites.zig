@@ -130,8 +130,6 @@ pub fn draw() void {
                     defer imgui.igEndPopup();
 
                     //TODO: make undoable, confirmation of settings change button triggers so undo queue isnt filled with tiny changes
-
-                    //TODO: allow multiple selections for changing origins
                     imgui.igText("Sprite Settings");
                     imgui.igSeparator();
 
@@ -139,6 +137,7 @@ pub fn draw() void {
                     _ = imgui.ogDrag(f32, "Origin X", &file.sprites.items[i].origin_x, 1, 0, @intToFloat(f32, file.tileWidth));
                     _ = imgui.ogDrag(f32, "Origin Y", &file.sprites.items[i].origin_y, 1, 0, @intToFloat(f32, file.tileHeight));
 
+                    // sync all selected sprites with the selected sprite origin
                     if (selected_sprites.items.len > 0) {
                         for (selected_sprites.items) |selected_index| {
                             file.sprites.items[selected_index].origin_x = file.sprites.items[i].origin_x;

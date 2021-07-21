@@ -29,14 +29,12 @@ pub fn draw() void {
                 upaya.inputBlocked = true;
                 upaya.inputClearRequired = true;
                 var path = upaya.filebrowser.openFileDialog("Choose a file to open...", "", "*.pixi");
-                if (path != null){
+                if (path != null) {
                     var in_path = path[0..std.mem.len(path)];
                     if (std.mem.endsWith(u8, in_path, ".pixi")) {
                         editor.load(in_path);
                     }
-
                 }
-                
             }
 
             if (imgui.igMenuItemBool("Save", mod_name ++ "+s", false, true)) {
@@ -98,7 +96,7 @@ pub fn draw() void {
         if (imgui.igBeginMenu("Document", true)) {
             defer imgui.igEndMenu();
 
-            if (imgui.igMenuItemBool(imgui.icons.arrows_alt ++ " Resize Canvas...", "", false, canvas.getNumberOfFiles() > 0)) {}
+            //if (imgui.igMenuItemBool(imgui.icons.arrows_alt ++ " Resize Canvas...", "", false, canvas.getNumberOfFiles() > 0)) {}
 
             var sliceable: bool = false;
             if (canvas.getActiveFile()) |file| {
@@ -106,21 +104,26 @@ pub fn draw() void {
                     sliceable = true;
             }
 
-            if (imgui.igMenuItemBool(imgui.icons.pizza_slice ++ " Slice...", "", false, sliceable)) {
+            if (imgui.igMenuItemBool(imgui.icons.pizza_slice ++ " Slice...", "", false, sliceable)) 
                 slice_popup = true;
-            }
+            
         }
 
         if (imgui.igBeginMenu("View", true)) {
             defer imgui.igEndMenu();
 
-            if (imgui.igMenuItemBool("Reset Views", 0, false, true)) {
-                editor.resetDockLayout();
-            }
+            const fullscreen_hotkey = if (std.builtin.os.tag == .macos) "cmd+ctrl+f" else "f11";
+            if (imgui.igMenuItemBool(imgui.icons.tv ++ " Fullscreen", fullscreen_hotkey, false, true))
+                sokol.sapp_toggle_fullscreen();
 
-            if (imgui.igMenuItemBool("IMGUI Demo Window", 0, false, true)) {
+            imgui.igSeparator();
+
+            if (imgui.igMenuItemBool(imgui.icons.undo ++ "  Reset Views", 0, false, true))
+                editor.resetDockLayout();
+
+            if (imgui.igMenuItemBool(imgui.icons.question ++ "  IMGUI Demo Window", 0, false, true))
                 demo_window = !demo_window;
-            }
+            
         }
     }
 
