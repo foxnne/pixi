@@ -102,6 +102,7 @@ pub fn init() void {
     style.Colors[imgui.ImGuiCol_ModalWindowDimBg] = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(10, 10, 15, 100));
 
     canvas.init();
+    sprites.init();
 }
 
 pub fn setupDockLayout(id: imgui.ImGuiID) void {

@@ -47,8 +47,8 @@ pub fn draw() void {
             imgui.igText("SpriteEdit Settings");
             imgui.igSeparator();
 
-            _ = imgui.igSliderFloat("Preview Opacity", &preview_opacity, 0, 100, "%.0f", 1);
-            _ = imgui.igCheckbox("Preview Origin", &preview_origin);
+            _ = imgui.igSliderFloat("Adjacent Opacity", &preview_opacity, 0, 100, "%.0f", 1);
+            _ = imgui.igCheckbox("Show Origin", &preview_origin);
         }
 
         // setup screen position and size
