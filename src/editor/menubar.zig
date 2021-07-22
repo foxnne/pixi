@@ -104,7 +104,7 @@ pub fn draw() void {
         if (imgui.igBeginMenu("Document", true)) {
             defer imgui.igEndMenu();
 
-            if (imgui.igMenuItemBool(imgui.icons.parachute_box ++ " Pack...", "", false, canvas.getNumberOfFiles() > 0)) {
+            if (imgui.igMenuItemBool(imgui.icons.tape ++ " Pack...", "", false, canvas.getNumberOfFiles() > 0)) {
                 pack.pack();
                 pack_popup = true;
             }

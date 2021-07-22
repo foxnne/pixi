@@ -20,9 +20,7 @@ var camera: Camera = .{ .zoom = 0.5 };
 var screen_position: imgui.ImVec2 = undefined;
 var texture_position: imgui.ImVec2 = undefined;
 
-var packed_image: ?upaya.Image = null;
 var packed_texture: ?upaya.Texture = null;
-
 var background: ?upaya.Texture = null;
 var atlas: ?upaya.TexturePacker.Atlas = null;
 
@@ -114,20 +112,17 @@ pub fn pack() void {
 
                 var sprite_image = upaya.Image.init(@intCast(usize, file.tileWidth), @intCast(usize, file.tileHeight));
                 var sprite_origin: upaya.math.Point = .{ .x = @floatToInt(i32, sprite.origin_x), .y = @floatToInt(i32, sprite.origin_y) };
+                var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{s}", .{layer.name, sprite.name}) catch unreachable;
 
-                var y: usize = @intCast(usize, src_y);
-                var dst_y: usize = 0;
-                var yy: usize = y;
-                var data = sprite_image.pixels[dst_y * sprite_image.w ..];
+                var y: usize = src_y;
+                var dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];
 
                 while (y < src_y + @intCast(usize, file.tileHeight)) : (y += 1) {
                     const texture_width = @intCast(usize, layer.texture.width);
-                    var src_row = layer.image.pixels[src_x + (yy * texture_width) .. (src_x + (yy * texture_width)) + sprite_image.w];
+                    var src_row = layer.image.pixels[src_x + (y * texture_width) .. (src_x + (y * texture_width)) + sprite_image.w];
 
-                    std.mem.copy(u32, data, src_row);
-                    yy += 1;
-                    dst_y += 1;
-                    data = sprite_image.pixels[dst_y * sprite_image.w ..];
+                    std.mem.copy(u32, dst, src_row);
+                    dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];
                 }
 
                 var containsColor: bool = false;
@@ -145,7 +140,7 @@ pub fn pack() void {
                     sprite_origin = .{ .x = sprite_origin.x - offset.x, .y = sprite_origin.y - offset.y};
 
                     images.append(sprite_image) catch unreachable;
-                    names.append(sprite.name) catch unreachable;
+                    names.append(sprite_name) catch unreachable;
                     frames.append(sprite_rect) catch unreachable;
                     origins.append(sprite_origin) catch unreachable;
                 } else {
