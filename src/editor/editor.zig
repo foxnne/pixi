@@ -64,6 +64,11 @@ pub fn init() void {
     pixi_orange = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(194, 109, 92, 150));
     pixi_orange_hover = imgui.ogColorConvertU32ToFloat4(upaya.colors.rgbaToU32(140, 80, 88, 150));
 
+    imgui.igGetIO().ConfigWindowsMoveFromTitleBarOnly = true;
+
+    if (std.builtin.os.tag == .macos)
+        imgui.igGetIO().ConfigMacOSXBehaviors = true;
+
     // set colors, move this to its own file soon?
     var style = imgui.igGetStyle();
     style.TabRounding = 2;

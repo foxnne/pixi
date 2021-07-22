@@ -21,7 +21,7 @@ const Layer = types.Layer;
 const Animation = types.Animation;
 
 var camera: Camera = .{ .zoom = 4 };
-var screen_pos: imgui.ImVec2 = undefined;
+var screen_position: imgui.ImVec2 = undefined;
 
 var sprite_position: imgui.ImVec2 = undefined;
 var sprite_rect: upaya.math.RectF = undefined;
@@ -52,7 +52,7 @@ pub fn draw() void {
         }
 
         // setup screen position and size
-        screen_pos = imgui.ogGetCursorScreenPos();
+        screen_position = imgui.ogGetCursorScreenPos();
         const window_size = imgui.ogGetContentRegionAvail();
         if (window_size.x == 0 or window_size.y == 0) return;
 
@@ -156,7 +156,7 @@ pub fn draw() void {
                 if (preview_origin) {
                     var origin: imgui.ImVec2 = .{ .x = sprite.origin_x, .y = sprite.origin_y };
                     origin = origin.add(sprite_position);
-                    origin = camera.matrix().transformImVec2(origin).add(screen_pos);
+                    origin = camera.matrix().transformImVec2(origin).add(screen_position);
 
                     const tl = origin.add(.{ .x = -4, .y = -4 });
                     const tr = origin.add(.{ .x = 4, .y = -4 });
@@ -352,11 +352,11 @@ pub fn draw() void {
 
 //TODO fix this....
 fn fitToWindow(position: imgui.ImVec2, rect: upaya.math.RectF) void {
-    const tl = camera.matrix().transformImVec2(position).add(screen_pos);
+    const tl = camera.matrix().transformImVec2(position).add(screen_position);
     var br = position;
     br.x += rect.width;
     br.y += rect.height;
-    br = camera.matrix().transformImVec2(br).add(screen_pos);
+    br = camera.matrix().transformImVec2(br).add(screen_position);
 
     var window_size = imgui.ogGetWindowContentRegionMax();
     var sprite_size: imgui.ImVec2 = .{ .x = br.x - tl.x, .y = br.y - tl.y };
@@ -384,11 +384,11 @@ fn fitToWindow(position: imgui.ImVec2, rect: upaya.math.RectF) void {
 }
 
 fn drawSprite(texture: upaya.Texture, position: imgui.ImVec2, rect: upaya.math.RectF, color: u32) void {
-    const tl = camera.matrix().transformImVec2(position).add(screen_pos);
+    const tl = camera.matrix().transformImVec2(position).add(screen_position);
     var br = position;
     br.x += rect.width;
     br.y += rect.height;
-    br = camera.matrix().transformImVec2(br).add(screen_pos);
+    br = camera.matrix().transformImVec2(br).add(screen_position);
 
     const inv_w = 1.0 / @intToFloat(f32, texture.width);
     const inv_h = 1.0 / @intToFloat(f32, texture.height);
@@ -408,11 +408,11 @@ fn drawSprite(texture: upaya.Texture, position: imgui.ImVec2, rect: upaya.math.R
 }
 
 pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
-    var tl = camera.matrix().transformImVec2(sprite_position).add(screen_pos);
+    var tl = camera.matrix().transformImVec2(sprite_position).add(screen_position);
     var br: imgui.ImVec2 = sprite_position;
     br.x += sprite_rect.width;
     br.y += sprite_rect.height;
-    br = camera.matrix().transformImVec2(br).add(screen_pos);
+    br = camera.matrix().transformImVec2(br).add(screen_position);
 
     if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
         var pixel_pos: imgui.ImVec2 = .{};
@@ -429,11 +429,11 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
     }
 
     //previous sprite
-    tl = camera.matrix().transformImVec2(previous_sprite_position).add(screen_pos);
+    tl = camera.matrix().transformImVec2(previous_sprite_position).add(screen_position);
     br = previous_sprite_position;
     br.x += previous_sprite_rect.width;
     br.y += previous_sprite_rect.height;
-    br = camera.matrix().transformImVec2(br).add(screen_pos);
+    br = camera.matrix().transformImVec2(br).add(screen_position);
 
     if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
         var pixel_pos: imgui.ImVec2 = .{};
@@ -450,11 +450,11 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
     }
 
     //next sprite
-    tl = camera.matrix().transformImVec2(next_sprite_position).add(screen_pos);
+    tl = camera.matrix().transformImVec2(next_sprite_position).add(screen_position);
     br = next_sprite_position;
     br.x += next_sprite_rect.width;
     br.y += next_sprite_rect.height;
-    br = camera.matrix().transformImVec2(br).add(screen_pos);
+    br = camera.matrix().transformImVec2(br).add(screen_position);
 
     if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
         var pixel_pos: imgui.ImVec2 = .{};

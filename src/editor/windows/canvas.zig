@@ -21,7 +21,7 @@ const Layer = types.Layer;
 const Animation = types.Animation;
 
 var camera: Camera = .{ .zoom = 2 };
-var screen_pos: imgui.ImVec2 = undefined;
+var screen_position: imgui.ImVec2 = undefined;
 var texture_position: imgui.ImVec2 = undefined;
 
 var logo: ?upaya.Texture = null;
@@ -105,7 +105,7 @@ pub fn draw() void {
     defer imgui.igEnd();
 
     // setup screen position and size
-    screen_pos = imgui.ogGetCursorScreenPos();
+    screen_position = imgui.ogGetCursorScreenPos();
     const window_size = imgui.ogGetContentRegionAvail();
     if (window_size.x == 0 or window_size.y == 0) return;
 
@@ -411,8 +411,8 @@ fn drawGrid(file: *File, position: imgui.ImVec2) void {
         var top = position.add(.{ .x = @intToFloat(f32, x * file.tileWidth), .y = 0 });
         var bottom = position.add(.{ .x = @intToFloat(f32, x * file.tileWidth), .y = @intToFloat(f32, file.height) });
 
-        top = camera.matrix().transformImVec2(top).add(screen_pos);
-        bottom = camera.matrix().transformImVec2(bottom).add(screen_pos);
+        top = camera.matrix().transformImVec2(top).add(screen_position);
+        bottom = camera.matrix().transformImVec2(bottom).add(screen_position);
 
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), top, bottom, editor.gridColor.value, 1);
     }
@@ -422,8 +422,8 @@ fn drawGrid(file: *File, position: imgui.ImVec2) void {
         var left = position.add(.{ .x = 0, .y = @intToFloat(f32, y * file.tileHeight) });
         var right = position.add(.{ .x = @intToFloat(f32, file.width), .y = @intToFloat(f32, y * file.tileHeight) });
 
-        left = camera.matrix().transformImVec2(left).add(screen_pos);
-        right = camera.matrix().transformImVec2(right).add(screen_pos);
+        left = camera.matrix().transformImVec2(left).add(screen_position);
+        right = camera.matrix().transformImVec2(right).add(screen_position);
 
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), left, right, editor.gridColor.value, 1);
     }
@@ -433,7 +433,7 @@ fn drawGrid(file: *File, position: imgui.ImVec2) void {
         var row = @divTrunc(@intCast(i32, sprite.index), tilesWide);
 
         var tl: imgui.ImVec2 = position.add(.{ .x = @intToFloat(f32, column * file.tileWidth), .y = @intToFloat(f32, row * file.tileHeight) });
-        tl = camera.matrix().transformImVec2(tl).add(screen_pos);
+        tl = camera.matrix().transformImVec2(tl).add(screen_position);
         var size: imgui.ImVec2 = .{ .x = @intToFloat(f32, file.tileWidth), .y = @intToFloat(f32, file.tileHeight) };
         size = size.scale(camera.zoom);
 
@@ -448,11 +448,11 @@ fn drawGrid(file: *File, position: imgui.ImVec2) void {
         var start_bl: imgui.ImVec2 = start_tl.add(.{ .x = 0, .y = @intToFloat(f32, file.tileHeight) });
         var start_tm: imgui.ImVec2 = start_tl.add(.{ .x = @intToFloat(f32, @divTrunc(file.tileWidth, 2)) });
         var start_bm: imgui.ImVec2 = start_bl.add(.{ .x = @intToFloat(f32, @divTrunc(file.tileWidth, 2)) });
-        start_tl = camera.matrix().transformImVec2(start_tl).add(screen_pos);
-        start_bl = camera.matrix().transformImVec2(start_bl).add(screen_pos);
+        start_tl = camera.matrix().transformImVec2(start_tl).add(screen_position);
+        start_bl = camera.matrix().transformImVec2(start_bl).add(screen_position);
 
-        start_tm = camera.matrix().transformImVec2(start_tm).add(screen_pos);
-        start_bm = camera.matrix().transformImVec2(start_bm).add(screen_pos);
+        start_tm = camera.matrix().transformImVec2(start_tm).add(screen_position);
+        start_bm = camera.matrix().transformImVec2(start_bm).add(screen_position);
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), start_tl, start_bl, 0xFFFFAA00, 2);
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), start_tl, start_tm, 0xFFFFAA00, 2);
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), start_bl, start_bm, 0xFFFFAA00, 2);
@@ -464,11 +464,11 @@ fn drawGrid(file: *File, position: imgui.ImVec2) void {
         var end_br: imgui.ImVec2 = end_tr.add(.{ .x = 0, .y = @intToFloat(f32, file.tileHeight) });
         var end_tm: imgui.ImVec2 = end_tr.subtract(.{ .x = @intToFloat(f32, @divTrunc(file.tileWidth, 2)) });
         var end_bm: imgui.ImVec2 = end_br.subtract(.{ .x = @intToFloat(f32, @divTrunc(file.tileWidth, 2)) });
-        end_tr = camera.matrix().transformImVec2(end_tr).add(screen_pos);
-        end_br = camera.matrix().transformImVec2(end_br).add(screen_pos);
+        end_tr = camera.matrix().transformImVec2(end_tr).add(screen_position);
+        end_br = camera.matrix().transformImVec2(end_br).add(screen_position);
 
-        end_tm = camera.matrix().transformImVec2(end_tm).add(screen_pos);
-        end_bm = camera.matrix().transformImVec2(end_bm).add(screen_pos);
+        end_tm = camera.matrix().transformImVec2(end_tm).add(screen_position);
+        end_bm = camera.matrix().transformImVec2(end_bm).add(screen_position);
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), end_tr, end_br, 0xFFAA00FF, 2);
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), end_tr, end_tm, 0xFFAA00FF, 2);
         imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), end_br, end_bm, 0xFFAA00FF, 2);
@@ -476,11 +476,11 @@ fn drawGrid(file: *File, position: imgui.ImVec2) void {
 }
 
 fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void {
-    const tl = camera.matrix().transformImVec2(position).add(screen_pos);
+    const tl = camera.matrix().transformImVec2(position).add(screen_position);
     var br = position;
     br.x += @intToFloat(f32, texture.width);
     br.y += @intToFloat(f32, texture.height);
-    br = camera.matrix().transformImVec2(br).add(screen_pos);
+    br = camera.matrix().transformImVec2(br).add(screen_position);
 
     imgui.ogImDrawList_AddImage(
         imgui.igGetWindowDrawList(),
@@ -494,11 +494,11 @@ fn drawTexture(texture: upaya.Texture, position: imgui.ImVec2, color: u32) void 
 }
 
 pub fn getPixelCoords(texture: upaya.Texture, position: imgui.ImVec2) ?imgui.ImVec2 {
-    var tl = camera.matrix().transformImVec2(texture_position).add(screen_pos);
+    var tl = camera.matrix().transformImVec2(texture_position).add(screen_position);
     var br: imgui.ImVec2 = texture_position;
     br.x += @intToFloat(f32, texture.width);
     br.y += @intToFloat(f32, texture.height);
-    br = camera.matrix().transformImVec2(br).add(screen_pos);
+    br = camera.matrix().transformImVec2(br).add(screen_position);
 
     if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
         var pixel_pos: imgui.ImVec2 = .{};

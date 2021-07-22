@@ -5,10 +5,12 @@ const sokol = @import("sokol");
 
 const editor = @import("editor.zig");
 const canvas = editor.canvas;
+const pack = editor.pack;
 
 pub var new_file_popup: bool = false;
 pub var close_file_popup: bool = false;
 pub var slice_popup: bool = false;
+pub var pack_popup: bool = false;
 pub var demo_window: bool = false;
 
 pub fn draw() void {
@@ -102,7 +104,10 @@ pub fn draw() void {
         if (imgui.igBeginMenu("Document", true)) {
             defer imgui.igEndMenu();
 
-            //if (imgui.igMenuItemBool(imgui.icons.arrows_alt ++ " Resize Canvas...", "", false, canvas.getNumberOfFiles() > 0)) {}
+            if (imgui.igMenuItemBool(imgui.icons.parachute_box ++ " Pack...", "", false, canvas.getNumberOfFiles() > 0)) {
+                pack.pack();
+                pack_popup = true;
+            }
 
             var sliceable: bool = false;
             if (canvas.getActiveFile()) |file| {
@@ -138,6 +143,9 @@ pub fn draw() void {
 
     if (slice_popup)
         imgui.igOpenPopup("Slice");
+
+    if (pack_popup)
+        imgui.igOpenPopup("Pack");
 
     if (demo_window)
         imgui.igShowDemoWindow(&demo_window);
