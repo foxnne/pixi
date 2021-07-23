@@ -16,7 +16,7 @@ const File = types.File;
 const Layer = types.Layer;
 const Sprite = types.Sprite;
 
-var camera: Camera = .{ .zoom = 0.5 };
+var camera: Camera = .{ .zoom = 1 };
 var screen_position: imgui.ImVec2 = undefined;
 var texture_position: imgui.ImVec2 = undefined;
 
@@ -32,13 +32,21 @@ var origins: std.ArrayList(upaya.math.Point) = undefined;
 
 pub fn addFile(file: File) void {
     if (canvas.getActiveFile()) |f| {
-        if (std.mem.eql(u8, f.path.?, file.path.?))
-            return;
+        if (f.path) |path1| {
+            if (file.path) |path2| {
+                if (std.mem.eql(u8, path1, path2))
+                    return;
+            }
+        }
     }
 
     for (files.items) |f| {
-        if (std.mem.eql(u8, f.path.?, file.path.?))
-            return;
+        if (f.path) |path1| {
+            if (file.path) |path2| {
+                if (std.mem.eql(u8, path1, path2))
+                    return;
+            }
+        }
     }
 
     files.append(file) catch unreachable;
@@ -53,8 +61,9 @@ pub fn removeFile(index: usize) void {
     }
 }
 
-pub fn clear () void {
+pub fn clear() void {
     if (files.items.len > 0) {
+        //TODO: free memory
         files.clearAndFree();
     }
 }
@@ -192,9 +201,7 @@ pub fn pack() void {
         if (atlas) |a| {
             background = upaya.Texture.initChecker(a.width, a.height, editor.checkerColor1, editor.checkerColor2);
             packed_texture = a.image.asTexture(.nearest);
-
         }
-        
     }
 }
 
@@ -213,7 +220,6 @@ fn packFile(file: *types.File) void {
             var sprite_origin: upaya.math.Point = .{ .x = @floatToInt(i32, sprite.origin_x), .y = @floatToInt(i32, sprite.origin_y) };
             var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{s}", .{ layer.name, sprite.name }) catch unreachable;
 
-            
             var y: usize = src_y;
             var dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];
 
@@ -232,8 +238,6 @@ fn packFile(file: *types.File) void {
                     break;
                 }
             }
-
-            
 
             if (containsColor) {
                 const offset = sprite_image.crop();
