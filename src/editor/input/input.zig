@@ -14,7 +14,7 @@ pub const zoom_steps = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 
 
 pub const Camera = @import("../utils/camera.zig").Camera;
 
-var zoom_target: f32 = 2; 
+pub var zoom_target: f32 = 2; 
 const zoom_time: f32 = 0.5;
 var elapsed_time: f32 = 0.5;
 

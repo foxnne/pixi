@@ -3,7 +3,7 @@ const upaya = @import("upaya");
 const imgui = @import("imgui");
 
 pub const Camera = struct {
-    position: upaya.math.Vec2 = .{},
+    position: imgui.ImVec2 = .{},
     zoom: f32 = 1,
 
     pub fn matrix (self: Camera) upaya.math.Mat32 {

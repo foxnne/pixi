@@ -96,8 +96,10 @@ pub fn getFile(index: usize) ?*File {
 }
 
 pub fn setActiveFile(index: usize) void {
-    if (index < files.items.len)
+    if (index < files.items.len and active_file_index != index) {
         active_file_index = index;
+    }
+        
 }
 
 pub fn draw() void {
@@ -165,7 +167,7 @@ pub fn draw() void {
                 var dirty_flag = if (files.items[i].dirty) imgui.ImGuiTabItemFlags_UnsavedDocument else imgui.ImGuiTabItemFlags_None;
                 if (imgui.igBeginTabItem(@ptrCast([*c]const u8, name_z), &open, dirty_flag)) {
                     defer imgui.igEndTabItem();
-                    active_file_index = i;
+                    setActiveFile(i);
                 }
                 imgui.igPopID();
 

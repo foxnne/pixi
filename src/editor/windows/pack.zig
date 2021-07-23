@@ -86,6 +86,8 @@ pub fn draw() void {
         if (imgui.igBeginPopupModal("Pack", &menubar.pack_popup, imgui.ImGuiWindowFlags_NoResize)) {
             defer imgui.igEndPopup();
 
+            imgui.igPushStyleVarFloat(imgui.ImGuiStyleVar_ChildRounding, 8);
+
             if (imgui.ogBeginChildEx("Info", 1, .{ .y = 60 }, true, imgui.ImGuiWindowFlags_MenuBar)) {
                 defer imgui.igEndChild();
 
@@ -182,6 +184,8 @@ pub fn draw() void {
                     }
                 }
             }
+
+            imgui.igPopStyleVar(1);
         }
     }
 }
@@ -217,17 +221,19 @@ fn packFile(file: *types.File) void {
             const src_y = @intCast(usize, row * file.tileHeight);
 
             var sprite_image = upaya.Image.init(@intCast(usize, file.tileWidth), @intCast(usize, file.tileHeight));
+            sprite_image.fillRect(.{.width = file.tileWidth, .y = file.tileHeight}, upaya.math.Color.transparent);
             var sprite_origin: upaya.math.Point = .{ .x = @floatToInt(i32, sprite.origin_x), .y = @floatToInt(i32, sprite.origin_y) };
             var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{s}", .{ layer.name, sprite.name }) catch unreachable;
 
             var y: usize = src_y;
             var dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];
 
-            while (y < src_y + @intCast(usize, file.tileHeight)) : (y += 1) {
+            while (y < src_y + sprite_image.w) {
                 const texture_width = @intCast(usize, layer.texture.width);
                 var src_row = layer.image.pixels[src_x + (y * texture_width) .. (src_x + (y * texture_width)) + sprite_image.w];
 
                 std.mem.copy(u32, dst, src_row);
+                y += 1;
                 dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];
             }
 
@@ -241,7 +247,7 @@ fn packFile(file: *types.File) void {
 
             if (containsColor) {
                 const offset = sprite_image.crop();
-                const sprite_rect: stb.stbrp_rect = .{ .id = @intCast(c_int, sprite.index), .w = @intCast(c_ushort, sprite_image.w), .h = @intCast(c_ushort, sprite_image.h) };
+                const sprite_rect: stb.stbrp_rect = .{ .id = @intCast(c_int, sprite.index), .x = 0, .y = 0, .w = @intCast(c_ushort, sprite_image.w), .h = @intCast(c_ushort, sprite_image.h) };
 
                 sprite_origin = .{ .x = sprite_origin.x - offset.x, .y = sprite_origin.y - offset.y };
 
