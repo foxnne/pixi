@@ -10,6 +10,7 @@
 ![Home](assets/home.png)
 
 ![Example](https://user-images.githubusercontent.com/49629865/126435631-c41c7b2a-d1b8-4f74-ae75-1cfb509c0c44.gif)
+
 # 
 ## Features
 - Typical pixel art operations. (draw, erase, color select, fill etc.)
@@ -18,12 +19,15 @@
 - Set sprite origins for drawing sprites easily in game frameworks.
 - Import and slice existing .png spritesheets.
 - Intuitive and customizeable user interface.
+- Sprite packing
+
+![Packing](https://user-images.githubusercontent.com/49629865/126735928-b11a0b06-58f3-4117-96c8-84d374dcabf3.gif)
 
 ## User Interface
 - The user interface is driven by [Dear Imgui](https://github.com/ocornut/imgui) which should be familiar to many.
 
 ## Planned Features
-- Sprite packing
+
 - Export/import options.
     - Possibly .pyxel and .asesprite import
     - Export to .zig to directly use in Zig frameworks
