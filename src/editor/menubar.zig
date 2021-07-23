@@ -144,8 +144,11 @@ pub fn draw() void {
     if (slice_popup)
         imgui.igOpenPopup("Slice");
 
-    if (pack_popup)
+    if (pack_popup) {
         imgui.igOpenPopup("Pack");
+    } else {
+        pack.clear();
+    }
 
     if (demo_window)
         imgui.igShowDemoWindow(&demo_window);

@@ -109,6 +109,7 @@ pub fn init() void {
 
     canvas.init();
     sprites.init();
+    pack.init();
 }
 
 pub fn setupDockLayout(id: imgui.ImGuiID) void {
@@ -222,11 +223,15 @@ pub fn update() void {
 }
 
 pub fn onFileDropped(file: []const u8) void {
-    if (std.mem.endsWith(u8, file, ".png")) {
-        importPng(file);
-    }
+    if (menubar.pack_popup) {
+        const ext = std.fs.path.extension(file);
 
-    if (std.mem.endsWith(u8, file, ".pixi")) {
+        if (std.mem.eql(u8, ext, ".pixi")) {
+            if (importPixi(file)) |pixi| {
+                pack.addFile(pixi);
+            }
+        }
+    } else {
         load(file);
     }
 }
@@ -327,9 +332,6 @@ fn writePng(context: ?*c_void, data: ?*c_void, size: c_int) callconv(.C) void {
 }
 
 pub fn load(file: []const u8) void {
-    var name = std.fs.path.basename(file);
-    name = name[0 .. name.len - 5]; //trim off .pixi
-
     if (canvas.getNumberOfFiles() > 0) {
         var i: usize = 0;
         while (i < canvas.getNumberOfFiles()) : (i += 1) {
@@ -342,15 +344,38 @@ pub fn load(file: []const u8) void {
         }
     }
 
+    const ext = std.fs.path.extension(file);
+
+    if (std.mem.eql(u8, ext, ".pixi")) {
+        if (importPixi(file)) |pixi| {
+            canvas.addFile(pixi);
+            sprites.resetNames();
+        }
+    }
+
+    if (std.mem.eql(u8, ext, ".png")) {
+        if (importPng(file)) |png| {
+            canvas.addFile(png);
+        }
+    }
+}
+
+pub fn importPixi(file: []const u8) ?types.File {
     @setEvalBranchQuota(2000);
+
+    var name = std.fs.path.basename(file);
+    name = name[0 .. name.len - 5]; //trim off .pixi
 
     var zip_path = file;
     var zip_path_z = std.cstr.addNullByte(upaya.mem.tmp_allocator, zip_path) catch unreachable;
 
     // open zip for reading
     var zip = upaya.zip.zip_open(@ptrCast([*c]const u8, zip_path_z), 0, 'r');
+    var new_file: types.File = undefined;
 
     if (zip) |z| {
+        defer upaya.zip.zip_close(z);
+
         var buf: ?*c_void = null;
         var size: u64 = 0;
         _ = upaya.zip.zip_entry_open(z, "pixidata.json");
@@ -386,8 +411,6 @@ pub fn load(file: []const u8) void {
             var img_len: u64 = 0;
             _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name_z));
             _ = upaya.zip.zip_entry_read(z, &img_buf, &img_len);
-
-            //const img_content_z = std.cstr.addNullByte(upaya.mem.allocator, img_content) catch unreachable;
 
             var new_image: upaya.Image = upaya.Image.initFromData(@ptrCast([*c]const u8, img_buf), img_len);
 
@@ -427,7 +450,7 @@ pub fn load(file: []const u8) void {
             new_animations.append(new_animation) catch unreachable;
         }
 
-        var new_file: types.File = .{
+        new_file = .{
             .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
             .path = std.mem.dupe(upaya.mem.allocator, u8, file) catch unreachable,
             .width = ioFile.width,
@@ -442,19 +465,18 @@ pub fn load(file: []const u8) void {
             .history = history.History.init(),
             .dirty = false,
         };
-
-        canvas.addFile(new_file);
-        sprites.resetNames();
-
-        //TODO: free memory
-
-        upaya.zip.zip_close(z);
+    } else {
+        return null;
     }
 
+    //TODO: free memory
+
     @setEvalBranchQuota(1000);
+
+    return new_file;
 }
 
-pub fn importPng(file: []const u8) void {
+pub fn importPng(file: []const u8) ?types.File {
     var name = std.fs.path.basename(file);
     name = name[0 .. name.len - 4]; //trim off .png extension
     const sprite_name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_0", .{name}) catch unreachable;
@@ -492,7 +514,7 @@ pub fn importPng(file: []const u8) void {
         .origin_y = 0,
     }) catch unreachable;
 
-    canvas.addFile(new_file);
+    return new_file;
 }
 
 pub fn shutdown() void {
