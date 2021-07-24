@@ -37,6 +37,17 @@ pub fn getActiveAnimation() ?*Animation {
     return null;
 }
 
+pub fn getAnimationFromSprite(sprite_index: usize) ?*Animation {
+    if (canvas.getActiveFile()) |file| {
+        for (file.animations.items) |animation, i| {
+            if (sprite_index >= animation.start and sprite_index < animation.start + animation.length) {
+                return &file.animations.items[i];
+            }
+        }
+    }
+    return null;
+}
+
 var elapsed_time: f32 = 0;
 
 pub fn draw() void {
@@ -100,9 +111,7 @@ pub fn draw() void {
                 if (imgui.ogSelectableBool(@ptrCast([*c]const u8, animation_name_z), i == active_animation_index, imgui.ImGuiSelectableFlags_DrawHoveredWhenHeld, .{}))
                     active_animation_index = i;
 
-            
                 if (imgui.igBeginPopupContextItem("Animation Settings", imgui.ImGuiMouseButton_Right)) {
-
                     defer imgui.igEndPopup();
                     imgui.igText("Animation Settings");
                     imgui.igSeparator();
@@ -112,7 +121,7 @@ pub fn draw() void {
 
                     // TODO: disallow multiple same-name animations
                     // TODO: only actually change the animation on a "okay" button, and add to history state
-                    
+
                     if (imgui.ogInputTextEnter("Name", &animation_name_buffer, animation_name_buffer.len)) {
                         var end = std.mem.indexOf(u8, animation_name_buffer[0..], "\u{0}");
 

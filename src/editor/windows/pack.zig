@@ -101,6 +101,11 @@ pub fn draw() void {
                     imgui.igSameLine(0, 10);
                     imgui.igValueInt("Height", @intCast(c_int, texture.height));
                 }
+
+                if (atlas) |a| {
+                    imgui.igSameLine(0, 10);
+                    imgui.igValueInt("Sprites", @intCast(c_int, a.sprites.len));
+                }
             }
 
             if (imgui.ogBeginChildEx("Files", 2, .{ .x = 200 }, true, imgui.ImGuiWindowFlags_MenuBar)) {
@@ -123,7 +128,7 @@ pub fn draw() void {
                     imgui.igText(@ptrCast([*c]const u8, file_name_z));
 
                     imgui.igSameLine(0, 5);
-                    if (imgui.ogColoredButton(0x00000000, imgui.icons.minus_circle)) {
+                    if (imgui.igSmallButton("X")) {
                         removeFile(i);
                     }
                 }
@@ -200,7 +205,7 @@ pub fn pack() void {
     }
 
     if (upaya.TexturePacker.runRectPacker(frames.items)) |size| {
-        atlas = upaya.TexturePacker.Atlas.initImages(frames.toOwnedSlice(), origins.toOwnedSlice(), names.toOwnedSlice(), images.toOwnedSlice(), size);
+        atlas = upaya.TexturePacker.Atlas.init(frames.toOwnedSlice(), origins.toOwnedSlice(), names.toOwnedSlice(), images.toOwnedSlice(), size);
 
         if (atlas) |a| {
             background = upaya.Texture.initChecker(a.width, a.height, editor.checkerColor1, editor.checkerColor2);
