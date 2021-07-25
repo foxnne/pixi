@@ -34,10 +34,18 @@ var previous_mouse_position: imgui.ImVec2 = undefined;
 pub var current_stroke_colors: std.ArrayList(u32) = undefined;
 pub var current_stroke_indexes: std.ArrayList(usize) = undefined;
 
+pub var current_selection_colors: std.ArrayList(u32) = undefined;
+pub var current_selection_indexes: std.ArrayList(usize) = undefined;
+
 pub fn init() void {
     files = std.ArrayList(File).init(upaya.mem.allocator);
+
     current_stroke_colors = std.ArrayList(u32).init(upaya.mem.allocator);
     current_stroke_indexes = std.ArrayList(usize).init(upaya.mem.allocator);
+
+    current_selection_colors = std.ArrayList(u32).init(upaya.mem.allocator);
+    current_selection_indexes = std.ArrayList(usize).init(upaya.mem.allocator);
+
     var logo_pixels = [_]u32{
         0x00000000, 0xFF89AFEF, 0xFF89AFEF, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
         0xFF7391D8, 0xFF201a19, 0xFF7391D8, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -60,7 +68,6 @@ pub fn addFile(file: File) void {
 }
 
 pub fn closeFile(index: usize) void {
-
     active_file_index = 0;
     sprites.setActiveSpriteIndex(0);
     _ = files.swapRemove(index);
@@ -99,7 +106,6 @@ pub fn setActiveFile(index: usize) void {
     if (index < files.items.len and active_file_index != index) {
         active_file_index = index;
     }
-        
 }
 
 pub fn draw() void {
@@ -172,10 +178,9 @@ pub fn draw() void {
                 imgui.igPopID();
 
                 if (!open) {
-                    if (files.items[i].dirty) {
+                    if (f.dirty) {
                         menubar.close_file_popup = true;
                     } else {
-
                         closeFile(i);
                         // TODO: do i need to deinit all the layers and background?
                         // active_file_index = 0;
@@ -236,10 +241,10 @@ pub fn draw() void {
                     var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
                     // set active sprite window
-                    if (io.MouseDown[0] and toolbar.selected_tool != toolbar.Tool.hand and animations.animation_state != .play) {
+                    if (io.MouseDown[0] and toolbar.selected_tool != .hand and toolbar.selected_tool != .selection and toolbar.selected_tool != .wand and animations.animation_state != .play) {
                         sprites.setActiveSpriteIndex(tile_index);
 
-                        if (toolbar.selected_tool == toolbar.Tool.arrow) {
+                        if (toolbar.selected_tool == .arrow) {
                             imgui.igBeginTooltip();
                             var index_text = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "Index: {d}", .{tile_index}) catch unreachable;
                             imgui.igText(@ptrCast([*c]const u8, index_text));
@@ -359,6 +364,40 @@ pub fn draw() void {
                                 .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
                                 .layer_id = layer.id,
                             });
+                        }
+                    }
+
+                    //selection
+                    if (toolbar.selected_tool == .selection) {
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
+                            if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |mouse_clicked_position| {
+                                //var clicked_index = getPixelIndexFromCoords(layer.texture, mouse_clicked_position);
+
+                                if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
+
+                                    //var current_index = getPixelIndexFromCoords(layer.texture, mouse_current_position);
+
+                                    var tl = texture_position.add(mouse_clicked_position);
+                                    tl = camera.matrix().transformImVec2(tl).add(screen_position);
+                                    const size = mouse_current_position.subtract(mouse_clicked_position).scale(camera.zoom);
+
+                                    imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, 0xFF0000FF, 1);
+                                }
+                            }
+                        }
+
+                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
+                            if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |_| {
+                                //var clicked_index = getPixelIndexFromCoords(layer.texture, mouse_clicked_position);
+
+                                if (getPixelCoords(layer.texture, io.MousePos)) |_| {
+                                    //var current_index = getPixelIndexFromCoords(layer.texture, mouse_current_position);
+
+                                    // don't scale because this is the actual selection size
+                                    //const size = mouse_current_position.subtract(mouse_clicked_position);
+
+                                }
+                            }
                         }
                     }
 
