@@ -34,6 +34,10 @@ var next_sprite_rect: upaya.math.RectF = undefined;
 
 var previous_mouse_position: imgui.ImVec2 = undefined;
 
+const SpriteEditPanel = enum { left, middle, right };
+
+var selected_sprite_panel: SpriteEditPanel = .middle;
+
 pub var preview_opacity: f32 = 50; //default
 pub var preview_origin: bool = false;
 
@@ -325,6 +329,76 @@ pub fn draw() void {
                                     });
                                 }
                             }
+
+                            //selection
+                            if (toolbar.selected_tool == .selection) {
+                                // feedback
+                                if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
+                                    if (getPixelCoords(io.MouseClickedPos[0])) |mouse_clicked_position| {
+                                        if (getPixelCoords(io.MousePos)) |mouse_current_position| {
+                                            const panel_position = switch(selected_sprite_panel) {
+                                                .left => previous_sprite_position,
+                                                .right => next_sprite_position,
+                                                .middle => sprite_position,
+                                            };
+                                            var relative_clicked_position = .{ .x = @mod(mouse_clicked_position.x, @intToFloat(f32, file.tileWidth)), .y = @mod(mouse_clicked_position.y, @intToFloat(f32, file.tileHeight))};
+                                            var tl = panel_position.add(relative_clicked_position);
+                                            tl = camera.matrix().transformImVec2(tl).add(screen_position);
+                                            const size = mouse_current_position.subtract(mouse_clicked_position).scale(camera.zoom);
+
+                                            imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, 0xFF0000FF, 1);
+                                        }
+                                    }
+                                }
+
+                                // actual selection storing
+                                if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
+                                    if (getPixelCoords(io.MouseClickedPos[0])) |mouse_clicked_position| {
+                                        if (getPixelCoords(io.MousePos)) |mouse_current_position| {
+                                            var start_index: usize = 0;
+                                            var selection_size: imgui.ImVec2 = .{};
+
+                                            if (mouse_current_position.x < mouse_clicked_position.x and mouse_current_position.y < mouse_clicked_position.y) {
+                                                start_index = getPixelIndexFromCoords(layer.texture, mouse_current_position);
+                                                selection_size = mouse_clicked_position.subtract(mouse_current_position);
+                                            } else if (mouse_current_position.x < mouse_clicked_position.x and mouse_current_position.y > mouse_clicked_position.y) {
+                                                const tl = .{ .x = mouse_current_position.x, .y = mouse_clicked_position.y };
+                                                const br = .{ .x = mouse_clicked_position.x, .y = mouse_current_position.y };
+                                                start_index = getPixelIndexFromCoords(layer.texture, tl);
+                                                selection_size = imgui.ImVec2.subtract(br, tl);
+                                            } else if (mouse_current_position.x > mouse_clicked_position.x and mouse_current_position.y > mouse_clicked_position.y) {
+                                                start_index = getPixelIndexFromCoords(layer.texture, mouse_clicked_position);
+                                                selection_size = mouse_current_position.subtract(mouse_clicked_position);
+                                            } else if (mouse_current_position.x > mouse_clicked_position.x and mouse_current_position.y < mouse_clicked_position.y) {
+                                                const tl = .{ .x = mouse_clicked_position.x, .y = mouse_current_position.y };
+                                                const br = .{ .x = mouse_current_position.x, .y = mouse_clicked_position.y };
+                                                start_index = getPixelIndexFromCoords(layer.texture, tl);
+                                                selection_size = imgui.ImVec2.subtract(br, tl);
+                                            }
+
+                                            const selection_width = @floatToInt(usize, selection_size.x) + 1;
+                                            const selection_height = @floatToInt(usize, selection_size.y) + 1;
+
+                                            if (canvas.current_selection_colors.items.len > 0)
+                                                canvas.current_selection_colors.clearAndFree();
+
+                                            if (canvas.current_selection_indexes.items.len > 0)
+                                                canvas.current_selection_indexes.clearAndFree();
+
+                                            var y: usize = 0;
+                                            while (y < selection_height) : (y += 1) {
+                                                const color_slice = layer.image.pixels[start_index + (y * layer.image.w) .. start_index + (y * layer.image.w) + selection_width];
+                                                canvas.current_selection_colors.appendSlice(color_slice) catch unreachable;
+
+                                                var x: usize = start_index + (y * layer.image.w);
+                                                while (x < start_index + (y * layer.image.w) + selection_width) : (x += 1) {
+                                                    canvas.current_selection_indexes.append(x) catch unreachable;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                         toolbar.selected_tool = previous_tool;
                         previous_mouse_position = mouse_position;
@@ -425,6 +499,7 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
         pixel_pos.x += sprite_rect.x;
         pixel_pos.y += sprite_rect.y;
 
+        selected_sprite_panel = .middle;
         return pixel_pos;
     }
 
@@ -446,6 +521,7 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
         pixel_pos.x += previous_sprite_rect.x;
         pixel_pos.y += previous_sprite_rect.y;
 
+        selected_sprite_panel = .left;
         return pixel_pos;
     }
 
@@ -467,6 +543,7 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
         pixel_pos.x += next_sprite_rect.x;
         pixel_pos.y += next_sprite_rect.y;
 
+        selected_sprite_panel = .right;
         return pixel_pos;
     }
 
@@ -475,4 +552,11 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
 
 pub fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
     return @floatToInt(usize, coords.x + coords.y * @intToFloat(f32, texture.width));
+}
+
+pub fn getPixelCoordsFromIndex(texture: upaya.Texture, index: usize) imgui.ImVec2 {
+    const x = @intToFloat(f32, @mod(@intCast(i32, index), texture.width));
+    const y = @intToFloat(f32, @divTrunc(@intCast(i32, index), texture.width));
+
+    return .{ .x = x, .y = y };
 }

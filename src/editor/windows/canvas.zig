@@ -156,6 +156,23 @@ pub fn draw() void {
         // draw tile grid
         drawGrid(file, texture_position);
 
+        // draw current selection feedback
+        if (current_selection_indexes.items.len > 0 and current_selection_colors.items.len == current_selection_indexes.items.len) {
+            if (layers.getActiveLayer()) |layer| {
+                const start_index = current_selection_indexes.items[0];
+                const end_index = current_selection_indexes.items[current_selection_indexes.items.len - 1];
+
+                const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
+                const end_position = getPixelCoordsFromIndex(layer.texture, end_index);
+
+                const size = end_position.subtract(start_position).scale(camera.zoom);
+
+                const tl = camera.matrix().transformImVec2(start_position.add(texture_position)).add(screen_position);
+
+                imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, 0xFF0000FF, 1);
+            }
+        }
+
         // draw fill to hide canvas behind transparent tab bar
         var cursor_position = imgui.ogGetCursorPos();
         imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_position, .{ .x = imgui.ogGetWindowSize().x * 2, .y = 40 }, imgui.ogColorConvertFloat4ToU32(editor.background_color));
@@ -192,22 +209,7 @@ pub fn draw() void {
             }
         }
 
-        // draw current selection feedback
-        if (current_selection_indexes.items.len > 0 and current_selection_colors.items.len == current_selection_indexes.items.len) {
-            if (layers.getActiveLayer()) |layer| {
-                const start_index = current_selection_indexes.items[0];
-                const end_index = current_selection_indexes.items[current_selection_indexes.items.len - 1];
-
-                const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
-                const end_position = getPixelCoordsFromIndex(layer.texture, end_index);
-
-                const size = end_position.subtract(start_position).scale(camera.zoom);
-
-                const tl = camera.matrix().transformImVec2(start_position.add(texture_position)).add(screen_position);
-
-                imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, 0xFF0000FF, 1);
-            }
-        }
+        
 
         // store previous tool and reapply it after to allow quick switching
         var previous_tool = toolbar.selected_tool;
@@ -404,10 +406,27 @@ pub fn draw() void {
                         if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
                             if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |mouse_clicked_position| {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
-                                    var start_index = getPixelIndexFromCoords(layer.texture, mouse_clicked_position);
+                                    var start_index: usize = 0;
+                                    var selection_size: imgui.ImVec2 = .{};
 
-                                    // don't scale because this is the actual selection size
-                                    const selection_size = mouse_current_position.subtract(mouse_clicked_position);
+                                    if (mouse_current_position.x < mouse_clicked_position.x and mouse_current_position.y < mouse_clicked_position.y) {
+                                        start_index = getPixelIndexFromCoords(layer.texture, mouse_current_position);
+                                        selection_size = mouse_clicked_position.subtract(mouse_current_position);
+                                    } else if (mouse_current_position.x < mouse_clicked_position.x and mouse_current_position.y > mouse_clicked_position.y) {
+                                        const tl = .{ .x = mouse_current_position.x, .y = mouse_clicked_position.y };
+                                        const br = .{ .x = mouse_clicked_position.x, .y = mouse_current_position.y };
+                                        start_index = getPixelIndexFromCoords(layer.texture, tl);
+                                        selection_size = imgui.ImVec2.subtract(br, tl);
+                                    } else if (mouse_current_position.x > mouse_clicked_position.x and mouse_current_position.y > mouse_clicked_position.y) {
+                                        start_index = getPixelIndexFromCoords(layer.texture, mouse_clicked_position);
+                                        selection_size = mouse_current_position.subtract(mouse_clicked_position);
+                                    } else if (mouse_current_position.x > mouse_clicked_position.x and mouse_current_position.y < mouse_clicked_position.y) {
+                                        const tl = .{ .x = mouse_clicked_position.x, .y = mouse_current_position.y };
+                                        const br = .{ .x = mouse_current_position.x, .y = mouse_clicked_position.y };
+                                        start_index = getPixelIndexFromCoords(layer.texture, tl);
+                                        selection_size = imgui.ImVec2.subtract(br, tl);
+                                    }
+
                                     const selection_width = @floatToInt(usize, selection_size.x) + 1;
                                     const selection_height = @floatToInt(usize, selection_size.y) + 1;
 
