@@ -12,6 +12,8 @@ const Animation = types.Animation;
 
 var animation_name_buffer: [128]u8 = [_]u8{0} ** 128;
 
+var elapsed_time: f32 = 0;
+
 pub const State = enum(usize) {
     pause = 0,
     play = 1,
@@ -48,19 +50,20 @@ pub fn getAnimationFromSprite(sprite_index: usize) ?*Animation {
     return null;
 }
 
-var elapsed_time: f32 = 0;
-
 pub fn draw() void {
     if (imgui.igBegin("Animations", 0, imgui.ImGuiWindowFlags_NoResize)) {
         defer imgui.igEnd();
 
         if (canvas.getActiveFile()) |file| {
 
+            const io = imgui.igGetIO();
+
             // advance frame if playing
             if (animation_state == .play) {
                 if (getActiveAnimation()) |animation| {
-                    elapsed_time += imgui.igGetIO().DeltaTime;
-                    if (elapsed_time > (imgui.igGetIO().Framerate / 60) / @intToFloat(f32, animation.fps)) {
+                    elapsed_time += io.DeltaTime;
+
+                    if (elapsed_time > 1 / @intToFloat(f32, animation.fps)) {
                         elapsed_time = 0;
 
                         if (sprites.getActiveSprite()) |sprite| {
