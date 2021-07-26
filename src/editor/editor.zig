@@ -43,7 +43,7 @@ pub const checker_color_1: upaya.math.Color = .{ .value = 0xFFDDDDDD };
 pub const checker_color_2: upaya.math.Color = .{ .value = 0xFFEEEEEE };
 
 pub const grid_color: upaya.math.Color = .{ .value = 0xFF999999 };
-pub const selection_feedback_color: upaya.math.Color = upaya.math.Color.red;
+pub var selection_feedback_color: upaya.math.Color = upaya.math.Color.red;
 pub var selection_color: upaya.math.Color = upaya.math.Color.red;
 
 pub var enable_hotkeys: bool = true;
@@ -150,11 +150,8 @@ pub fn isModKeyDown() bool {
 }
 
 pub fn update() void {
-
-    selection_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_color.value), 0.005,0, 0));
-
-    
-
+    selection_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_color.value), 0.005, 0, 0));
+    selection_feedback_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_feedback_color.value), 0.005, 0, 0));
 
     input.update();
     menubar.draw();
