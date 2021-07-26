@@ -39,10 +39,12 @@ pub var pixi_blue_hover: imgui.ImVec4 = undefined;
 pub var pixi_orange: imgui.ImVec4 = undefined;
 pub var pixi_orange_hover: imgui.ImVec4 = undefined;
 
-pub const checkerColor1: upaya.math.Color = .{ .value = 0xFFDDDDDD };
-pub const checkerColor2: upaya.math.Color = .{ .value = 0xFFEEEEEE };
+pub const checker_color_1: upaya.math.Color = .{ .value = 0xFFDDDDDD };
+pub const checker_color_2: upaya.math.Color = .{ .value = 0xFFEEEEEE };
 
-pub const gridColor: upaya.math.Color = .{ .value = 0xFF999999 };
+pub const grid_color: upaya.math.Color = .{ .value = 0xFF999999 };
+pub const selection_feedback_color: upaya.math.Color = upaya.math.Color.red;
+pub var selection_color: upaya.math.Color = upaya.math.Color.red;
 
 pub var enable_hotkeys: bool = true;
 
@@ -148,6 +150,12 @@ pub fn isModKeyDown() bool {
 }
 
 pub fn update() void {
+
+    selection_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_color.value), 0.005,0, 0));
+
+    
+
+
     input.update();
     menubar.draw();
     canvas.draw();
@@ -457,7 +465,7 @@ pub fn importPixi(file: []const u8) ?types.File {
             .height = ioFile.height,
             .tileWidth = ioFile.tileWidth,
             .tileHeight = ioFile.tileHeight,
-            .background = upaya.Texture.initChecker(ioFile.width, ioFile.height, checkerColor1, checkerColor2),
+            .background = upaya.Texture.initChecker(ioFile.width, ioFile.height, checker_color_1, checker_color_2),
             .temporary = temporary,
             .layers = new_layers,
             .sprites = new_sprites,
@@ -492,7 +500,7 @@ pub fn importPng(file: []const u8) ?types.File {
         .height = image_height,
         .tileWidth = image_width,
         .tileHeight = image_height,
-        .background = upaya.Texture.initChecker(image_width, image_height, checkerColor1, checkerColor2),
+        .background = upaya.Texture.initChecker(image_width, image_height, checker_color_1, checker_color_2),
         .temporary = .{
             .name = "Temporary",
             .id = layers.getNewID(),

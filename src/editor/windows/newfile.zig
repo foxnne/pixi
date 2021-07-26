@@ -55,7 +55,7 @@ pub fn draw() void {
             defer upaya.mem.allocator.free(name);
 
             new_file.name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable;
-            new_file.background = upaya.Texture.initChecker(new_file.width, new_file.height, editor.checkerColor1, editor.checkerColor2);
+            new_file.background = upaya.Texture.initChecker(new_file.width, new_file.height, editor.checker_color_1, editor.checker_color_2);
             new_file.layers = std.ArrayList(Layer).init(upaya.mem.allocator);
             new_file.sprites = std.ArrayList(Sprite).initCapacity(upaya.mem.allocator, @intCast(usize, tiles_wide * tiles_tall)) catch unreachable;
             new_file.animations = std.ArrayList(Animation).init(upaya.mem.allocator);

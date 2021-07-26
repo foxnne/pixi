@@ -208,7 +208,7 @@ pub fn pack() void {
         atlas = upaya.TexturePacker.Atlas.init(frames.toOwnedSlice(), origins.toOwnedSlice(), names.toOwnedSlice(), images.toOwnedSlice(), size);
 
         if (atlas) |a| {
-            background = upaya.Texture.initChecker(a.width, a.height, editor.checkerColor1, editor.checkerColor2);
+            background = upaya.Texture.initChecker(a.width, a.height, editor.checker_color_1, editor.checker_color_2);
             packed_texture = a.image.asTexture(.nearest);
         }
     }

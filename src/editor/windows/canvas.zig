@@ -169,7 +169,7 @@ pub fn draw() void {
 
                 const tl = camera.matrix().transformImVec2(start_position.add(texture_position)).add(screen_position);
 
-                imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, 0xFF0000FF, 1);
+                imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_color.value, 2);
             }
         }
 
@@ -397,7 +397,7 @@ pub fn draw() void {
                                     tl = camera.matrix().transformImVec2(tl).add(screen_position);
                                     const size = mouse_current_position.subtract(mouse_clicked_position).scale(camera.zoom);
 
-                                    imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, 0xFF0000FF, 1);
+                                    imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_feedback_color.value, 1);
                                 }
                             }
                         }
@@ -507,7 +507,7 @@ fn drawGrid(file: *File, position: imgui.ImVec2) void {
         top = camera.matrix().transformImVec2(top).add(screen_position);
         bottom = camera.matrix().transformImVec2(bottom).add(screen_position);
 
-        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), top, bottom, editor.gridColor.value, 1);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), top, bottom, editor.grid_color.value, 1);
     }
 
     var y: i32 = 0;
@@ -518,7 +518,7 @@ fn drawGrid(file: *File, position: imgui.ImVec2) void {
         left = camera.matrix().transformImVec2(left).add(screen_position);
         right = camera.matrix().transformImVec2(right).add(screen_position);
 
-        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), left, right, editor.gridColor.value, 1);
+        imgui.ogImDrawList_AddLine(imgui.igGetWindowDrawList(), left, right, editor.grid_color.value, 1);
     }
 
     if (sprites.getActiveSprite()) |sprite| {
