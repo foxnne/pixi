@@ -405,7 +405,9 @@ pub fn draw() void {
                     if (toolbar.selected_tool == .animation) {
                         if (io.MouseClicked[0] and !imgui.ogKeyDown(upaya.sokol.SAPP_KEYCODE_SPACE)) {
                             if (animations.getActiveAnimation()) |animation| {
+                                animation.length = 1;
                                 animation.start = tile_index;
+
                                 sprites.resetNames();
                             }
                         }
