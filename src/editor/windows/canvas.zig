@@ -20,6 +20,8 @@ const File = types.File;
 const Layer = types.Layer;
 const Animation = types.Animation;
 
+const SelectionMode = enum { rect, pixel };
+
 var camera: Camera = .{ .zoom = 2 };
 var screen_position: imgui.ImVec2 = undefined;
 var texture_position: imgui.ImVec2 = undefined;
@@ -36,6 +38,7 @@ pub var current_stroke_indexes: std.ArrayList(usize) = undefined;
 
 pub var current_selection_colors: std.ArrayList(u32) = undefined;
 pub var current_selection_indexes: std.ArrayList(usize) = undefined;
+pub var current_selection_mode: SelectionMode = .rect;
 
 pub fn init() void {
     files = std.ArrayList(File).init(upaya.mem.allocator);
@@ -159,17 +162,26 @@ pub fn draw() void {
         // draw current selection feedback
         if (current_selection_indexes.items.len > 0 and current_selection_colors.items.len == current_selection_indexes.items.len) {
             if (layers.getActiveLayer()) |layer| {
-                const start_index = current_selection_indexes.items[0];
-                const end_index = current_selection_indexes.items[current_selection_indexes.items.len - 1];
+                switch (current_selection_mode) {
+                    .rect => {
+                        const start_index = current_selection_indexes.items[0];
+                        const end_index = current_selection_indexes.items[current_selection_indexes.items.len - 1];
 
-                const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
-                const end_position = getPixelCoordsFromIndex(layer.texture, end_index);
+                        const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
+                        const end_position = getPixelCoordsFromIndex(layer.texture, end_index);
 
-                const size = end_position.subtract(start_position).scale(camera.zoom);
+                        const size = end_position.subtract(start_position).scale(camera.zoom);
 
-                const tl = camera.matrix().transformImVec2(start_position.add(texture_position)).add(screen_position);
+                        const tl = camera.matrix().transformImVec2(start_position.add(texture_position)).add(screen_position);
 
-                imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_color.value, 2);
+                        imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_color.value, 2);
+                    },
+                    .pixel => {
+                        for (current_selection_indexes.items) |index| {
+                            file.temporary.image.pixels[index] = editor.selection_color.value;
+                        }
+                    },
+                }
             }
         }
 
@@ -208,8 +220,6 @@ pub fn draw() void {
                 }
             }
         }
-
-        
 
         // store previous tool and reapply it after to allow quick switching
         var previous_tool = toolbar.selected_tool;
@@ -446,8 +456,25 @@ pub fn draw() void {
                                             current_selection_indexes.append(x) catch unreachable;
                                         }
                                     }
+
+                                    current_selection_mode = .rect;
                                 }
                             }
+                        }
+                    }
+
+                    if (toolbar.selected_tool == .wand) {
+                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !io.KeyShift and !io.KeyCtrl) {
+                            current_selection_indexes.clearAndFree();
+                            current_selection_colors.clearAndFree();
+
+                            var selection = algorithms.floodfill(pixel_coords, layer.image, false);
+                            current_selection_indexes.appendSlice(selection) catch unreachable;
+
+                            for (current_selection_indexes.items) |index| {
+                                current_selection_colors.append(layer.image.pixels[index]) catch unreachable;
+                            }
+                            current_selection_mode = .pixel;
                         }
                     }
 
