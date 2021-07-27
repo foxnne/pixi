@@ -150,8 +150,9 @@ pub fn isModKeyDown() bool {
 }
 
 pub fn update() void {
-    selection_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_color.value), 0.005, 0, 0));
-    selection_feedback_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_feedback_color.value), 0.005, 0, 0));
+    const color_update = imgui.igGetIO().DeltaTime / 5;
+    selection_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_color.value), color_update, 0, 0));
+    selection_feedback_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_feedback_color.value), color_update, 0, 0));
 
     input.update();
     menubar.draw();

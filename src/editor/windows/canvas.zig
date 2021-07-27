@@ -39,6 +39,8 @@ pub var current_stroke_indexes: std.ArrayList(usize) = undefined;
 pub var current_selection_colors: std.ArrayList(u32) = undefined;
 pub var current_selection_indexes: std.ArrayList(usize) = undefined;
 pub var current_selection_mode: SelectionMode = .rect;
+pub var current_selection_layer: ?Layer = null;
+pub var current_selection_position: imgui.ImVec2 = .{};
 
 pub fn init() void {
     files = std.ArrayList(File).init(upaya.mem.allocator);
@@ -158,6 +160,12 @@ pub fn draw() void {
 
         // draw tile grid
         drawGrid(file, texture_position);
+
+        // draw selection layer
+        if (current_selection_layer) |*selection_layer| {
+            selection_layer.updateTexture();
+            drawTexture(selection_layer.*.texture, current_selection_position, 0xFFFFFFFF);
+        }
 
         // draw current selection feedback
         if (current_selection_indexes.items.len > 0 and current_selection_colors.items.len == current_selection_indexes.items.len) {
@@ -400,7 +408,7 @@ pub fn draw() void {
                     //selection
                     if (toolbar.selected_tool == .selection) {
                         // feedback
-                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyCtrl) {
                             if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |mouse_clicked_position| {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
                                     var tl = texture_position.add(mouse_clicked_position);
@@ -413,7 +421,7 @@ pub fn draw() void {
                         }
 
                         // actual selection storing
-                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)) {
+                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and !io.KeyCtrl) {
                             if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |mouse_clicked_position| {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
                                     var start_index: usize = 0;
@@ -456,9 +464,35 @@ pub fn draw() void {
                                             current_selection_indexes.append(x) catch unreachable;
                                         }
                                     }
-
+                                    current_selection_position = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
                                     current_selection_mode = .rect;
                                 }
+                            }
+                        }
+
+                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and io.KeyCtrl and isOverSelection(io.MouseClickedPos[0])) {
+                            if (current_selection_layer == null) {
+                                const tl = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
+                                const br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]);
+                                const size = br.subtract(tl);
+
+                                var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
+                                for (image.pixels) |_, i| {
+                                    image.pixels[i] = current_selection_colors.items[i];
+                                }
+
+                                current_selection_layer = .{
+                                    .name = "Selection",
+                                    .texture = image.asTexture(.nearest),
+                                    .image = image,
+                                    .id = layers.getNewID(),
+                                };
+                            }
+
+                            
+                            for (current_selection_indexes.items) |index| {
+                                layer.image.pixels[index] = 0x00000000;
+                                layer.dirty = true;
                             }
                         }
                     }
@@ -628,6 +662,21 @@ pub fn getPixelCoords(texture: upaya.Texture, position: imgui.ImVec2) ?imgui.ImV
 
         return pixel_pos;
     } else return null;
+}
+
+pub fn isOverSelection(position: imgui.ImVec2) bool {
+    if (current_selection_layer) |layer| {
+        var tl = camera.matrix().transformImVec2(current_selection_position).add(screen_position);
+        var br: imgui.ImVec2 = current_selection_position;
+        br.x += @intToFloat(f32, layer.texture.width);
+        br.y += @intToFloat(f32, layer.texture.height);
+        br = camera.matrix().transformImVec2(br).add(screen_position);
+
+        if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
+            return true;
+        }
+    }
+    return false;
 }
 
 pub fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
