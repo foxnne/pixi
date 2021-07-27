@@ -68,9 +68,6 @@ pub fn init() void {
 
     imgui.igGetIO().ConfigWindowsMoveFromTitleBarOnly = true;
 
-    if (std.builtin.os.tag == .macos)
-        imgui.igGetIO().ConfigMacOSXBehaviors = true;
-
     // set colors, move this to its own file soon?
     var style = imgui.igGetStyle();
     style.TabRounding = 2;

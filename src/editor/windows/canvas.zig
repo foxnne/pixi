@@ -41,6 +41,7 @@ pub var current_selection_indexes: std.ArrayList(usize) = undefined;
 pub var current_selection_mode: SelectionMode = .rect;
 pub var current_selection_layer: ?Layer = null;
 pub var current_selection_position: imgui.ImVec2 = .{};
+pub var current_selection_size: imgui.ImVec2 = .{};
 
 pub fn init() void {
     files = std.ArrayList(File).init(upaya.mem.allocator);
@@ -165,6 +166,16 @@ pub fn draw() void {
         if (current_selection_layer) |*selection_layer| {
             selection_layer.updateTexture();
             drawTexture(selection_layer.*.texture, current_selection_position, 0xFFFFFFFF);
+
+            const tl = camera.matrix().transformImVec2(current_selection_position).add(screen_position);
+            var br = current_selection_position;
+            br.x += @intToFloat(f32, selection_layer.texture.width);
+            br.y += @intToFloat(f32, selection_layer.texture.height);
+            br = camera.matrix().transformImVec2(br).add(screen_position);
+
+            var size = br.subtract(tl);
+
+            imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_color.value, 2);
         }
 
         // draw current selection feedback
@@ -269,14 +280,14 @@ pub fn draw() void {
             }
 
             if (layers.getActiveLayer()) |layer| {
-                if (getPixelCoords(layer.texture, mouse_position)) |pixel_coords| {
+                if (getPixelCoords(layer.texture, mouse_position)) |mouse_pixel_coords| {
                     var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tileWidth));
 
-                    var tile_column = @divTrunc(@floatToInt(usize, pixel_coords.x), @intCast(usize, file.tileWidth));
-                    var tile_row = @divTrunc(@floatToInt(usize, pixel_coords.y), @intCast(usize, file.tileHeight));
+                    var tile_column = @divTrunc(@floatToInt(usize, mouse_pixel_coords.x), @intCast(usize, file.tileWidth));
+                    var tile_row = @divTrunc(@floatToInt(usize, mouse_pixel_coords.y), @intCast(usize, file.tileHeight));
 
                     var tile_index = tile_column + tile_row * tiles_wide;
-                    var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
+                    var pixel_index = getPixelIndexFromCoords(layer.texture, mouse_pixel_coords);
 
                     // set active sprite window
                     if (io.MouseDown[0] and toolbar.selected_tool != .hand and toolbar.selected_tool != .selection and toolbar.selected_tool != .wand and animations.animation_state != .play) {
@@ -291,9 +302,9 @@ pub fn draw() void {
                     }
 
                     // color dropper input
-                    if (io.MouseDown[1] or ((io.KeyAlt or io.KeySuper) and io.MouseDown[0]) or (io.MouseDown[0] and toolbar.selected_tool == .dropper)) {
+                    if (io.MouseDown[1] or (io.MouseDown[0] and toolbar.selected_tool == .dropper)) {
                         imgui.igBeginTooltip();
-                        var coord_text = std.fmt.allocPrintZ(upaya.mem.allocator, "{s} {d},{d}", .{ imgui.icons.eye_dropper, pixel_coords.x + 1, pixel_coords.y + 1 }) catch unreachable;
+                        var coord_text = std.fmt.allocPrintZ(upaya.mem.allocator, "{s} {d},{d}", .{ imgui.icons.eye_dropper, mouse_pixel_coords.x + 1, mouse_pixel_coords.y + 1 }) catch unreachable;
                         imgui.igText(@ptrCast([*c]const u8, coord_text));
                         upaya.mem.allocator.free(coord_text);
                         imgui.igEndTooltip();
@@ -326,8 +337,8 @@ pub fn draw() void {
                         file.temporary.dirty = true;
 
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyShift) {
-                            if (getPixelCoords(layer.texture, previous_mouse_position)) |prev_pixel_coords| {
-                                var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
+                            if (getPixelCoords(layer.texture, previous_mouse_position)) |prev_mouse_pixel_coords| {
+                                var output = algorithms.brezenham(prev_mouse_pixel_coords, mouse_pixel_coords);
 
                                 for (output) |coords| {
                                     var index = getPixelIndexFromCoords(layer.texture, coords);
@@ -344,8 +355,8 @@ pub fn draw() void {
                         }
 
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and io.KeyShift) {
-                            if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |prev_pixel_coords| {
-                                var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
+                            if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |prev_mouse_pixel_coords| {
+                                var output = algorithms.brezenham(prev_mouse_pixel_coords, mouse_pixel_coords);
 
                                 for (output) |coords| {
                                     var index = getPixelIndexFromCoords(layer.texture, coords);
@@ -357,8 +368,8 @@ pub fn draw() void {
                         }
 
                         if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and io.KeyShift) {
-                            if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |prev_pixel_coords| {
-                                var output = algorithms.brezenham(prev_pixel_coords, pixel_coords);
+                            if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |prev_mouse_pixel_coords| {
+                                var output = algorithms.brezenham(prev_mouse_pixel_coords, mouse_pixel_coords);
 
                                 for (output) |coords| {
                                     var index = getPixelIndexFromCoords(layer.texture, coords);
@@ -385,7 +396,7 @@ pub fn draw() void {
                     //fill
                     if (toolbar.selected_tool == .bucket) {
                         if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false)) {
-                            var output = algorithms.floodfill(pixel_coords, layer.image, toolbar.contiguous_fill);
+                            var output = algorithms.floodfill(mouse_pixel_coords, layer.image, toolbar.contiguous_fill);
 
                             for (output) |index| {
                                 if (layer.image.pixels[index] != toolbar.foreground_color.value) {
@@ -408,7 +419,7 @@ pub fn draw() void {
                     //selection
                     if (toolbar.selected_tool == .selection) {
                         // feedback
-                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !io.KeyCtrl) {
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !editor.isModKeyDown() and current_selection_layer == null) {
                             if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |mouse_clicked_position| {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
                                     var tl = texture_position.add(mouse_clicked_position);
@@ -420,8 +431,31 @@ pub fn draw() void {
                             }
                         }
 
+                        if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and isOverSelectionImage(mouse_position)) {
+                            current_selection_position = current_selection_position.add(io.MouseDelta.scale(1 / camera.zoom));
+                            imgui.igResetMouseDragDelta(imgui.ImGuiMouseButton_Left);
+                        }
+
+                        if(imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and current_selection_layer != null) {
+                            current_selection_position.x = @round(current_selection_position.x);
+                            current_selection_position.y = @round(current_selection_position.y);
+                        }
+
+                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !editor.isModKeyDown() and !isOverSelectionImage(mouse_position)) {
+                            if (current_selection_layer) |selection_layer| {
+                                const index = getPixelIndexFromCoords(layer.texture, current_selection_position.subtract(texture_position));
+                                const x = @mod(index, @intCast(usize, layer.texture.width));
+                                const y = @divTrunc(index, @intCast(usize, layer.texture.width)) + 1;
+                                layer.image.blit(selection_layer.image, x, y);
+                                layer.dirty = true;
+                                current_selection_layer = null;
+                            }
+                        }
+
+                        
+
                         // actual selection storing
-                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and !io.KeyCtrl) {
+                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and current_selection_layer == null) {
                             if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |mouse_clicked_position| {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
                                     var start_index: usize = 0;
@@ -445,8 +479,8 @@ pub fn draw() void {
                                         selection_size = imgui.ImVec2.subtract(br, tl);
                                     }
 
-                                    const selection_width = @floatToInt(usize, selection_size.x) + 1;
-                                    const selection_height = @floatToInt(usize, selection_size.y) + 1;
+                                    const selection_width = @floatToInt(usize, selection_size.x);
+                                    const selection_height = @floatToInt(usize, selection_size.y);
 
                                     if (current_selection_colors.items.len > 0)
                                         current_selection_colors.clearAndFree();
@@ -464,45 +498,49 @@ pub fn draw() void {
                                             current_selection_indexes.append(x) catch unreachable;
                                         }
                                     }
-                                    current_selection_position = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
+
                                     current_selection_mode = .rect;
                                 }
                             }
                         }
 
-                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and io.KeyCtrl and isOverSelection(io.MouseClickedPos[0])) {
-                            if (current_selection_layer == null) {
-                                const tl = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
-                                const br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]);
-                                const size = br.subtract(tl);
+                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and editor.isModKeyDown() and current_selection_indexes.items.len > 0 and isOverSelection(mouse_position)) {
+                            const tl = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
+                            var br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]);
+                            br.x += 1;
+                            br.y += 1;
+                            const size = br.subtract(tl);
 
-                                var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
-                                for (image.pixels) |_, i| {
-                                    image.pixels[i] = current_selection_colors.items[i];
-                                }
+                            current_selection_position = texture_position.add(tl);
+                            current_selection_size = size;
 
-                                current_selection_layer = .{
-                                    .name = "Selection",
-                                    .texture = image.asTexture(.nearest),
-                                    .image = image,
-                                    .id = layers.getNewID(),
-                                };
-                            }
+                            var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
+                            std.mem.copy(u32, image.pixels, current_selection_colors.items);
 
-                            
+                            current_selection_layer = .{
+                                .name = "Selection",
+                                .texture = image.asTexture(.nearest),
+                                .image = image,
+                                .id = layers.getNewID(),
+                            };
+
                             for (current_selection_indexes.items) |index| {
                                 layer.image.pixels[index] = 0x00000000;
                                 layer.dirty = true;
                             }
+
+                            // clear selection
+                            current_selection_indexes.clearAndFree();
+                            current_selection_colors.clearAndFree();
                         }
                     }
 
                     if (toolbar.selected_tool == .wand) {
-                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !io.KeyShift and !io.KeyCtrl) {
+                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !io.KeyShift and !editor.isModKeyDown()) {
                             current_selection_indexes.clearAndFree();
                             current_selection_colors.clearAndFree();
 
-                            var selection = algorithms.floodfill(pixel_coords, layer.image, false);
+                            var selection = algorithms.floodfill(mouse_pixel_coords, layer.image, false);
                             current_selection_indexes.appendSlice(selection) catch unreachable;
 
                             for (current_selection_indexes.items) |index| {
@@ -664,18 +702,35 @@ pub fn getPixelCoords(texture: upaya.Texture, position: imgui.ImVec2) ?imgui.ImV
     } else return null;
 }
 
-pub fn isOverSelection(position: imgui.ImVec2) bool {
-    if (current_selection_layer) |layer| {
-        var tl = camera.matrix().transformImVec2(current_selection_position).add(screen_position);
-        var br: imgui.ImVec2 = current_selection_position;
-        br.x += @intToFloat(f32, layer.texture.width);
-        br.y += @intToFloat(f32, layer.texture.height);
-        br = camera.matrix().transformImVec2(br).add(screen_position);
+pub fn isOverSelectionImage(position: imgui.ImVec2) bool {
+    if (current_selection_layer) |_| {
+        const tl = camera.matrix().transformImVec2(current_selection_position).add(screen_position);
+        const br = camera.matrix().transformImVec2(current_selection_position.add(current_selection_size)).add(screen_position);
 
         if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
             return true;
         }
     }
+    return false;
+}
+
+pub fn isOverSelection(position: imgui.ImVec2) bool {
+    switch (current_selection_mode) {
+        .rect => {
+            if (layers.getActiveLayer()) |layer| {
+                if (getPixelCoords(layer.texture, position)) |coords| {
+                    const index = getPixelIndexFromCoords(layer.texture, coords);
+
+                    for (current_selection_indexes.items) |i| {
+                        if (i == index)
+                            return true;
+                    }
+                }
+            }
+        },
+        .pixel => {},
+    }
+
     return false;
 }
 
