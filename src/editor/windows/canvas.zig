@@ -189,7 +189,7 @@ pub fn draw() void {
                         const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
                         const end_position = getPixelCoordsFromIndex(layer.texture, end_index);
 
-                        const size = end_position.subtract(start_position).scale(camera.zoom);
+                        const size = end_position.subtract(start_position).add(.{.x = 1, .y = 1}).scale(camera.zoom);
 
                         const tl = camera.matrix().transformImVec2(start_position.add(texture_position)).add(screen_position);
 
@@ -424,7 +424,7 @@ pub fn draw() void {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
                                     var tl = texture_position.add(mouse_clicked_position);
                                     tl = camera.matrix().transformImVec2(tl).add(screen_position);
-                                    const size = mouse_current_position.subtract(mouse_clicked_position).scale(camera.zoom);
+                                    const size = mouse_current_position.subtract(mouse_clicked_position).add(.{.x = 1, .y = 1}).scale(camera.zoom);
 
                                     imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_feedback_color.value, 1);
                                 }
@@ -445,9 +445,10 @@ pub fn draw() void {
                             if (current_selection_layer) |selection_layer| {
                                 const index = getPixelIndexFromCoords(layer.texture, current_selection_position.subtract(texture_position));
                                 const x = @mod(index, @intCast(usize, layer.texture.width));
-                                const y = @divTrunc(index, @intCast(usize, layer.texture.width)) + 1;
+                                const y = @divTrunc(index, @intCast(usize, layer.texture.width));
                                 layer.image.blit(selection_layer.image, x, y);
                                 layer.dirty = true;
+                                selection_layer.image.deinit();
                                 current_selection_layer = null;
                             }
                         }
@@ -479,8 +480,8 @@ pub fn draw() void {
                                         selection_size = imgui.ImVec2.subtract(br, tl);
                                     }
 
-                                    const selection_width = @floatToInt(usize, selection_size.x);
-                                    const selection_height = @floatToInt(usize, selection_size.y);
+                                    const selection_width = @floatToInt(usize, selection_size.x) + 1;
+                                    const selection_height = @floatToInt(usize, selection_size.y) + 1;
 
                                     if (current_selection_colors.items.len > 0)
                                         current_selection_colors.clearAndFree();
