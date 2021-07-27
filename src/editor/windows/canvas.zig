@@ -431,22 +431,25 @@ pub fn draw() void {
                             }
                         }
 
+                        // move the selection image
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and isOverSelectionImage(mouse_position)) {
                             current_selection_position = current_selection_position.add(io.MouseDelta.scale(1 / camera.zoom));
                             imgui.igResetMouseDragDelta(imgui.ImGuiMouseButton_Left);
                         }
 
+                        // round the position of the selection image if done moving
                         if(imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and current_selection_layer != null) {
                             current_selection_position.x = @round(current_selection_position.x);
                             current_selection_position.y = @round(current_selection_position.y);
                         }
 
+                        // blit the selection image
                         if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !editor.isModKeyDown() and !isOverSelectionImage(mouse_position)) {
                             if (current_selection_layer) |selection_layer| {
                                 const index = getPixelIndexFromCoords(layer.texture, current_selection_position.subtract(texture_position));
                                 const x = @mod(index, @intCast(usize, layer.texture.width));
                                 const y = @divTrunc(index, @intCast(usize, layer.texture.width));
-                                layer.image.blit(selection_layer.image, x, y);
+                                layer.image.blitWithoutTransparent(selection_layer.image, x, y);
                                 layer.dirty = true;
                                 selection_layer.image.deinit();
                                 current_selection_layer = null;
