@@ -146,7 +146,20 @@ pub fn isModKeyDown() bool {
     }
 }
 
+pub fn isMouseDoubleClickReleased () bool {
+    if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and release_double_clicked){
+        return true;
+    }
+    return false;
+}
+var release_double_clicked: bool = false;
+
 pub fn update() void {
+
+    if (imgui.igIsMouseDoubleClicked(imgui.ImGuiMouseButton_Left)){
+        release_double_clicked = true;
+    }
+
     const color_update = imgui.igGetIO().DeltaTime / 5;
     selection_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_color.value), color_update, 0, 0));
     selection_feedback_color.value = imgui.ogColorConvertFloat4ToU32(upaya.colors.hsvShiftColor(imgui.ogColorConvertU32ToFloat4(selection_feedback_color.value), color_update, 0, 0));
@@ -223,6 +236,9 @@ pub fn update() void {
     }
 
     enable_hotkeys = true;
+
+    if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and release_double_clicked)
+        release_double_clicked = false;
 }
 
 pub fn onFileDropped(file: []const u8) void {

@@ -464,7 +464,7 @@ pub fn draw() void {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
                                     var tl = texture_position.add(mouse_clicked_position);
                                     tl = camera.matrix().transformImVec2(tl).add(screen_position);
-                                    const size = mouse_current_position.subtract(mouse_clicked_position).add(.{ .x = 1, .y = 1 }).scale(camera.zoom);
+                                    const size = mouse_current_position.subtract(mouse_clicked_position).scale(camera.zoom);
 
                                     imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_feedback_color.value, 1);
                                 }
@@ -528,10 +528,10 @@ pub fn draw() void {
                         
 
                         // actual selection storing
-                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and current_selection_layer == null) {
+                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left)  and !editor.isMouseDoubleClickReleased() and current_selection_layer == null) {
                             if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |mouse_clicked_position| {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
-                                    if (mouse_clicked_position.x != mouse_current_position.x or mouse_clicked_position.y != mouse_current_position.y) {
+                                    
                                         var start_index: usize = 0;
                                         var selection_size: imgui.ImVec2 = .{};
 
@@ -554,8 +554,8 @@ pub fn draw() void {
                                             selection_size = imgui.ImVec2.subtract(br, tl);
                                         }
 
-                                        const selection_width = @floatToInt(usize, selection_size.x) + 1;
-                                        const selection_height = @floatToInt(usize, selection_size.y) + 1;
+                                        const selection_width = @floatToInt(usize, selection_size.x);
+                                        const selection_height = @floatToInt(usize, selection_size.y);
 
                                         if (current_selection_colors.items.len > 0)
                                             current_selection_colors.clearAndFree();
@@ -575,15 +575,7 @@ pub fn draw() void {
                                         }
 
                                         current_selection_mode = .rect;
-                                    } else {
-                                        //clear selection if clicking again?
-
-                                        if (current_selection_indexes.items.len > 0)
-                                            current_selection_indexes.clearAndFree();
-
-                                        if (current_selection_colors.items.len > 0)
-                                            current_selection_colors.clearAndFree();
-                                    }
+                                  
                                 }
                             }
                         }
