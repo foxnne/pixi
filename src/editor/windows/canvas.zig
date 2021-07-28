@@ -510,9 +510,7 @@ pub fn draw() void {
 
                         if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and editor.isModKeyDown() and current_selection_indexes.items.len > 0 and isOverSelection(mouse_position)) {
                             const tl = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
-                            var br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]);
-                            br.x += 1;
-                            br.y += 1;
+                            var br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]).add(.{.x = 1, .y = 1});
                             const size = br.subtract(tl);
 
                             current_selection_position = texture_position.add(tl);
@@ -732,7 +730,10 @@ pub fn isOverSelection(position: imgui.ImVec2) bool {
                 }
             }
         },
-        .pixel => {},
+        .pixel => {
+            //TODO: handle wand selections here, find bounding pixels and check as rect
+            // or during selection, fill with transparent pixels between?
+        },
     }
 
     return false;
