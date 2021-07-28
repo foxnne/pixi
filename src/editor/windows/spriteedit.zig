@@ -157,6 +157,7 @@ pub fn draw() void {
                     }
                 }
 
+
                 if (preview_origin) {
                     var origin: imgui.ImVec2 = .{ .x = sprite.origin_x, .y = sprite.origin_y };
                     origin = origin.add(sprite_position);

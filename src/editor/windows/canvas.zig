@@ -179,7 +179,7 @@ pub fn draw() void {
         }
 
         // draw current selection feedback
-        if (current_selection_indexes.items.len > 0 and current_selection_colors.items.len == current_selection_indexes.items.len) {
+        if (current_selection_indexes.items.len > 1 and current_selection_colors.items.len == current_selection_indexes.items.len) {
             if (layers.getActiveLayer()) |layer| {
                 switch (current_selection_mode) {
                     .rect => {
@@ -189,7 +189,7 @@ pub fn draw() void {
                         const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
                         const end_position = getPixelCoordsFromIndex(layer.texture, end_index);
 
-                        const size = end_position.subtract(start_position).add(.{.x = 1, .y = 1}).scale(camera.zoom);
+                        const size = end_position.subtract(start_position).add(.{ .x = 1, .y = 1 }).scale(camera.zoom);
 
                         const tl = camera.matrix().transformImVec2(start_position.add(texture_position)).add(screen_position);
 
@@ -280,6 +280,46 @@ pub fn draw() void {
             }
 
             if (layers.getActiveLayer()) |layer| {
+
+                // clear selection on escape
+                if (imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_ESCAPE, false)) {
+                    if (current_selection_indexes.items.len > 0) {
+                        current_selection_indexes.clearAndFree();
+                    }
+                    if (current_selection_colors.items.len > 0) {
+                        current_selection_colors.clearAndFree();
+                    }
+                }
+
+                // delete selection if present
+                if (imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_DELETE, false) or imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_BACKSPACE, false)) {
+                    if (current_selection_layer) |selection_layer| {
+                        selection_layer.image.deinit();
+                        current_selection_layer = null;
+                    }
+                    if (current_selection_indexes.items.len > 0) {
+                        for (current_selection_indexes.items) |index| {
+                            layer.image.pixels[index] = 0x00000000;
+                        }
+                        current_selection_indexes.clearAndFree();
+                        current_selection_colors.clearAndFree();
+                    }
+                    layer.dirty = true;
+                }
+
+                // move selection if present
+                if (current_selection_layer) |_| {
+                    if (imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_DOWN, true))
+                        current_selection_position.y += 1;
+                    if (imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_UP, true))
+                        current_selection_position.y -= 1;
+                    if (imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_LEFT, true))
+                        current_selection_position.x -= 1;
+                    if (imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_RIGHT, true))
+                        current_selection_position.x += 1;
+                }
+
+                // mouse is hovering over the artboard
                 if (getPixelCoords(layer.texture, mouse_position)) |mouse_pixel_coords| {
                     var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tileWidth));
 
@@ -424,7 +464,7 @@ pub fn draw() void {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
                                     var tl = texture_position.add(mouse_clicked_position);
                                     tl = camera.matrix().transformImVec2(tl).add(screen_position);
-                                    const size = mouse_current_position.subtract(mouse_clicked_position).add(.{.x = 1, .y = 1}).scale(camera.zoom);
+                                    const size = mouse_current_position.subtract(mouse_clicked_position).add(.{ .x = 1, .y = 1 }).scale(camera.zoom);
 
                                     imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_feedback_color.value, 1);
                                 }
@@ -438,7 +478,7 @@ pub fn draw() void {
                         }
 
                         // round the position of the selection image if done moving
-                        if(imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and current_selection_layer != null) {
+                        if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and current_selection_layer != null) {
                             current_selection_position.x = @round(current_selection_position.x);
                             current_selection_position.y = @round(current_selection_position.y);
                         }
@@ -456,61 +496,103 @@ pub fn draw() void {
                             }
                         }
 
+                        // shortcut for selecting an entire tile
+                        if (imgui.igIsMouseDoubleClicked(imgui.ImGuiMouseButton_Left) and current_selection_layer == null) {
+                            if (getPixelCoords(layer.texture, io.MousePos)) |_| {
+                                const tl_x = tile_column * @intCast(usize, file.tileWidth);
+                                const tl_y = tile_row * @intCast(usize, file.tileHeight);
+                                const start_index = tl_x + tl_y * @intCast(usize, file.width);
+
+                                const size: imgui.ImVec2 = .{ .x = @intToFloat(f32, file.tileWidth), .y = @intToFloat(f32, file.tileHeight) };
+
+                                if (current_selection_indexes.items.len > 0) {
+                                    current_selection_indexes.clearAndFree();
+                                    current_selection_colors.clearAndFree();
+                                }
+
+                                const selection_width = @floatToInt(usize, size.x);
+                                const selection_height = @floatToInt(usize, size.y);
+
+                                var y: usize = 0;
+                                while (y < selection_height) : (y += 1) {
+                                    const color_slice = layer.image.pixels[start_index + (y * layer.image.w) .. start_index + (y * layer.image.w) + selection_width];
+                                    current_selection_colors.appendSlice(color_slice) catch unreachable;
+
+                                    var x: usize = start_index + (y * layer.image.w);
+                                    while (x < start_index + (y * layer.image.w) + selection_width) : (x += 1) {
+                                        current_selection_indexes.append(x) catch unreachable;
+                                    }
+                                }
+                            }
+                        }
                         
 
                         // actual selection storing
                         if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and current_selection_layer == null) {
                             if (getPixelCoords(layer.texture, io.MouseClickedPos[0])) |mouse_clicked_position| {
                                 if (getPixelCoords(layer.texture, io.MousePos)) |mouse_current_position| {
-                                    var start_index: usize = 0;
-                                    var selection_size: imgui.ImVec2 = .{};
+                                    if (mouse_clicked_position.x != mouse_current_position.x or mouse_clicked_position.y != mouse_current_position.y) {
+                                        var start_index: usize = 0;
+                                        var selection_size: imgui.ImVec2 = .{};
 
-                                    if (mouse_current_position.x < mouse_clicked_position.x and mouse_current_position.y < mouse_clicked_position.y) {
-                                        start_index = getPixelIndexFromCoords(layer.texture, mouse_current_position);
-                                        selection_size = mouse_clicked_position.subtract(mouse_current_position);
-                                    } else if (mouse_current_position.x < mouse_clicked_position.x and mouse_current_position.y > mouse_clicked_position.y) {
-                                        const tl = .{ .x = mouse_current_position.x, .y = mouse_clicked_position.y };
-                                        const br = .{ .x = mouse_clicked_position.x, .y = mouse_current_position.y };
-                                        start_index = getPixelIndexFromCoords(layer.texture, tl);
-                                        selection_size = imgui.ImVec2.subtract(br, tl);
-                                    } else if (mouse_current_position.x > mouse_clicked_position.x and mouse_current_position.y > mouse_clicked_position.y) {
-                                        start_index = getPixelIndexFromCoords(layer.texture, mouse_clicked_position);
-                                        selection_size = mouse_current_position.subtract(mouse_clicked_position);
-                                    } else if (mouse_current_position.x > mouse_clicked_position.x and mouse_current_position.y < mouse_clicked_position.y) {
-                                        const tl = .{ .x = mouse_clicked_position.x, .y = mouse_current_position.y };
-                                        const br = .{ .x = mouse_current_position.x, .y = mouse_clicked_position.y };
-                                        start_index = getPixelIndexFromCoords(layer.texture, tl);
-                                        selection_size = imgui.ImVec2.subtract(br, tl);
-                                    }
-
-                                    const selection_width = @floatToInt(usize, selection_size.x) + 1;
-                                    const selection_height = @floatToInt(usize, selection_size.y) + 1;
-
-                                    if (current_selection_colors.items.len > 0)
-                                        current_selection_colors.clearAndFree();
-
-                                    if (current_selection_indexes.items.len > 0)
-                                        current_selection_indexes.clearAndFree();
-
-                                    var y: usize = 0;
-                                    while (y < selection_height) : (y += 1) {
-                                        const color_slice = layer.image.pixels[start_index + (y * layer.image.w) .. start_index + (y * layer.image.w) + selection_width];
-                                        current_selection_colors.appendSlice(color_slice) catch unreachable;
-
-                                        var x: usize = start_index + (y * layer.image.w);
-                                        while (x < start_index + (y * layer.image.w) + selection_width) : (x += 1) {
-                                            current_selection_indexes.append(x) catch unreachable;
+                                        // allow dragging in any direction
+                                        if (mouse_current_position.x < mouse_clicked_position.x and mouse_current_position.y < mouse_clicked_position.y) {
+                                            start_index = getPixelIndexFromCoords(layer.texture, mouse_current_position);
+                                            selection_size = mouse_clicked_position.subtract(mouse_current_position);
+                                        } else if (mouse_current_position.x < mouse_clicked_position.x and mouse_current_position.y > mouse_clicked_position.y) {
+                                            const tl = .{ .x = mouse_current_position.x, .y = mouse_clicked_position.y };
+                                            const br = .{ .x = mouse_clicked_position.x, .y = mouse_current_position.y };
+                                            start_index = getPixelIndexFromCoords(layer.texture, tl);
+                                            selection_size = imgui.ImVec2.subtract(br, tl);
+                                        } else if (mouse_current_position.x > mouse_clicked_position.x and mouse_current_position.y > mouse_clicked_position.y) {
+                                            start_index = getPixelIndexFromCoords(layer.texture, mouse_clicked_position);
+                                            selection_size = mouse_current_position.subtract(mouse_clicked_position);
+                                        } else if (mouse_current_position.x > mouse_clicked_position.x and mouse_current_position.y < mouse_clicked_position.y) {
+                                            const tl = .{ .x = mouse_clicked_position.x, .y = mouse_current_position.y };
+                                            const br = .{ .x = mouse_current_position.x, .y = mouse_clicked_position.y };
+                                            start_index = getPixelIndexFromCoords(layer.texture, tl);
+                                            selection_size = imgui.ImVec2.subtract(br, tl);
                                         }
-                                    }
 
-                                    current_selection_mode = .rect;
+                                        const selection_width = @floatToInt(usize, selection_size.x) + 1;
+                                        const selection_height = @floatToInt(usize, selection_size.y) + 1;
+
+                                        if (current_selection_colors.items.len > 0)
+                                            current_selection_colors.clearAndFree();
+
+                                        if (current_selection_indexes.items.len > 0)
+                                            current_selection_indexes.clearAndFree();
+
+                                        var y: usize = 0;
+                                        while (y < selection_height) : (y += 1) {
+                                            const color_slice = layer.image.pixels[start_index + (y * layer.image.w) .. start_index + (y * layer.image.w) + selection_width];
+                                            current_selection_colors.appendSlice(color_slice) catch unreachable;
+
+                                            var x: usize = start_index + (y * layer.image.w);
+                                            while (x < start_index + (y * layer.image.w) + selection_width) : (x += 1) {
+                                                current_selection_indexes.append(x) catch unreachable;
+                                            }
+                                        }
+
+                                        current_selection_mode = .rect;
+                                    } else {
+                                        //clear selection if clicking again?
+
+                                        if (current_selection_indexes.items.len > 0)
+                                            current_selection_indexes.clearAndFree();
+
+                                        if (current_selection_colors.items.len > 0)
+                                            current_selection_colors.clearAndFree();
+                                    }
                                 }
                             }
                         }
+                        
 
+                        // turn selection into a temporary layer and clear the pixels in the current layer image
                         if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and editor.isModKeyDown() and current_selection_indexes.items.len > 0 and isOverSelection(mouse_position)) {
                             const tl = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
-                            var br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]).add(.{.x = 1, .y = 1});
+                            var br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]).add(.{ .x = 1, .y = 1 });
                             const size = br.subtract(tl);
 
                             current_selection_position = texture_position.add(tl);
