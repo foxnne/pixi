@@ -15,7 +15,7 @@ pub const layers = @import("windows/layers.zig");
 pub const animations = @import("windows/animations.zig");
 pub const canvas = @import("windows/canvas.zig");
 pub const sprites = @import("windows/sprites.zig");
-pub const spriteedit = @import("windows/spriteedit.zig");
+pub const flipbook = @import("windows/flipbook.zig");
 
 // popups
 pub const newfile = @import("windows/newfile.zig");
@@ -127,7 +127,7 @@ pub fn setupDockLayout(id: imgui.ImGuiID) void {
     var bottom_mid_id = imgui.igDockBuilderSplitNode(bottom_id, imgui.ImGuiDir_Right, 0.85, null, &bottom_id);
 
     imgui.igDockBuilderDockWindow("Animations", bottom_right_id);
-    imgui.igDockBuilderDockWindow("SpriteEdit", bottom_mid_id);
+    imgui.igDockBuilderDockWindow("Flipbook", bottom_mid_id);
     imgui.igDockBuilderDockWindow("Sprites", bottom_id);
 
     imgui.igDockBuilderFinish(id);
@@ -171,7 +171,7 @@ pub fn update() void {
     toolbar.draw();
     animations.draw();
     sprites.draw();
-    spriteedit.draw();
+    flipbook.draw();
     newfile.draw();
     closefile.draw();
     slice.draw();

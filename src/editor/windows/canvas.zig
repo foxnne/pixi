@@ -293,14 +293,21 @@ pub fn draw() void {
 
                 // delete selection if present
                 if (imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_DELETE, false) or imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_BACKSPACE, false)) {
-                    if (current_selection_layer) |selection_layer| {
-                        selection_layer.image.deinit();
-                        current_selection_layer = null;
-                    }
                     if (current_selection_indexes.items.len > 0) {
                         for (current_selection_indexes.items) |index| {
+                            current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                            current_stroke_indexes.append(index) catch unreachable;
+
                             layer.image.pixels[index] = 0x00000000;
                         }
+
+                        file.history.push(.{
+                            .tag = .stroke,
+                            .pixel_colors = current_stroke_colors.toOwnedSlice(),
+                            .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
+                            .layer_id = layer.id,
+                        });
+
                         current_selection_indexes.clearAndFree();
                         current_selection_colors.clearAndFree();
                     }
@@ -583,10 +590,17 @@ pub fn draw() void {
                                 .id = layers.getNewID(),
                             };
 
-                            for (current_selection_indexes.items) |index| {
-                                layer.image.pixels[index] = 0x00000000;
-                                layer.dirty = true;
+                            if (!io.KeyShift) {
+                                for (current_selection_indexes.items) |index| {
+                                    //store for history state
+                                    current_stroke_indexes.append(index) catch unreachable;
+                                    current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+
+                                    layer.image.pixels[index] = 0x00000000;
+                                    layer.dirty = true;
+                                }
                             }
+
                             // clear selection
                             current_selection_indexes.clearAndFree();
                             current_selection_colors.clearAndFree();
@@ -596,13 +610,31 @@ pub fn draw() void {
                     // blit the selection image
                     if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !isOverSelectionImage(mouse_position)) {
                         if (current_selection_layer) |selection_layer| {
-
                             const selection_position = current_selection_position.subtract(texture_position);
                             const x = @floatToInt(usize, selection_position.x);
                             const y = @floatToInt(usize, selection_position.y);
 
                             //TODO: crop the layer.image if its not within the artboard bounds
                             // or completely remove if it doesnt overlap
+
+
+
+                            for (selection_layer.image.pixels) |_, i| {
+                                var pix_coord_x = @intToFloat(f32, x + @mod(i, selection_layer.image.w));
+                                var pix_coord_y = @intToFloat(f32, y + @divTrunc(i, selection_layer.image.w));
+                                var index = getPixelIndexFromCoords(layer.texture, .{ .x = pix_coord_x, .y = pix_coord_y });
+
+                                // store current colors for history state
+                                current_stroke_indexes.append(index) catch unreachable;
+                                current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                            }
+
+                            file.history.push(.{
+                                .tag = .stroke,
+                                .pixel_colors = current_stroke_colors.toOwnedSlice(),
+                                .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
+                                .layer_id = layer.id,
+                            });
 
                             layer.image.blitWithoutTransparent(selection_layer.image, x, y);
                             layer.dirty = true;
@@ -613,7 +645,7 @@ pub fn draw() void {
                     }
 
                     if (toolbar.selected_tool == .wand) {
-                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !io.KeyShift and !editor.isModKeyDown()) {
+                        if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !editor.isModKeyDown()) {
                             current_selection_indexes.clearAndFree();
                             current_selection_colors.clearAndFree();
 

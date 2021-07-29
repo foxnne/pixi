@@ -42,13 +42,13 @@ pub var preview_opacity: f32 = 50; //default
 pub var preview_origin: bool = false;
 
 pub fn draw() void {
-    if (imgui.igBegin("SpriteEdit", 0, imgui.ImGuiWindowFlags_None)) {
+    if (imgui.igBegin("Flipbook", 0, imgui.ImGuiWindowFlags_None)) {
         defer imgui.igEnd();
 
-        if (imgui.igBeginPopupContextItem("SpriteEdit Settings", imgui.ImGuiMouseButton_Right)) {
+        if (imgui.igBeginPopupContextItem("Flipbook Settings", imgui.ImGuiMouseButton_Right)) {
             defer imgui.igEndPopup();
 
-            imgui.igText("SpriteEdit Settings");
+            imgui.igText("Flipbook Settings");
             imgui.igSeparator();
 
             _ = imgui.igSliderFloat("Adjacent Opacity", &preview_opacity, 0, 100, "%.0f", 1);

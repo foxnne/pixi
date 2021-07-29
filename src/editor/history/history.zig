@@ -12,6 +12,8 @@ pub const HistoryItem = struct {
     layer_name: ?[]const u8 = null,
     pixel_colors: ?[]u32 = null,
     pixel_indexes: ?[]usize = null,
+    selection_colors: ?[]u32 = null,
+    selection_indexes: ?[]usize = null,
     tag: HistoryTag,
 };
 
@@ -44,7 +46,7 @@ pub const History = struct {
 
     pub fn push(self: *History, item: HistoryItem) void {
         self.undoStack.append(item) catch unreachable;
-        
+
         // anything that could change the file needs to be undoable,
         // so this should be a good place to catch all the things that dirty a file?
         if (canvas.getActiveFile()) |file| {
