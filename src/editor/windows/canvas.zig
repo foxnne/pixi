@@ -598,7 +598,15 @@ pub fn draw() void {
 
                                     layer.image.pixels[index] = 0x00000000;
                                     layer.dirty = true;
+
+                                    
                                 }
+                                file.history.push(.{
+                                        .tag = .stroke,
+                                        .pixel_colors = current_stroke_colors.toOwnedSlice(),
+                                        .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
+                                        .layer_id = layer.id,
+                                    });
                             }
 
                             // clear selection
@@ -616,8 +624,6 @@ pub fn draw() void {
 
                             //TODO: crop the layer.image if its not within the artboard bounds
                             // or completely remove if it doesnt overlap
-
-
 
                             for (selection_layer.image.pixels) |_, i| {
                                 var pix_coord_x = @intToFloat(f32, x + @mod(i, selection_layer.image.w));
