@@ -598,15 +598,13 @@ pub fn draw() void {
 
                                     layer.image.pixels[index] = 0x00000000;
                                     layer.dirty = true;
-
-                                    
                                 }
                                 file.history.push(.{
-                                        .tag = .stroke,
-                                        .pixel_colors = current_stroke_colors.toOwnedSlice(),
-                                        .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
-                                        .layer_id = layer.id,
-                                    });
+                                    .tag = .stroke,
+                                    .pixel_colors = current_stroke_colors.toOwnedSlice(),
+                                    .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
+                                    .layer_id = layer.id,
+                                });
                             }
 
                             // clear selection
@@ -619,20 +617,25 @@ pub fn draw() void {
                     if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !isOverSelectionImage(mouse_position)) {
                         if (current_selection_layer) |selection_layer| {
                             const selection_position = current_selection_position.subtract(texture_position);
-                            const x = @floatToInt(usize, selection_position.x);
-                            const y = @floatToInt(usize, selection_position.y);
+                            const x = @floatToInt(i32, selection_position.x);
+                            const y = @floatToInt(i32, selection_position.y);
 
                             //TODO: crop the layer.image if its not within the artboard bounds
                             // or completely remove if it doesnt overlap
 
                             for (selection_layer.image.pixels) |_, i| {
-                                var pix_coord_x = @intToFloat(f32, x + @mod(i, selection_layer.image.w));
-                                var pix_coord_y = @intToFloat(f32, y + @divTrunc(i, selection_layer.image.w));
-                                var index = getPixelIndexFromCoords(layer.texture, .{ .x = pix_coord_x, .y = pix_coord_y });
+                                var pix_coord_x = @intToFloat(f32, x + @mod(@intCast(i32, i), selection_layer.texture.width));
+                                var pix_coord_y = @intToFloat(f32, y + @divTrunc(@intCast(i32, i), selection_layer.texture.width));
+                                var test_index = getPixelIndexFromCoordsUnsafe(layer.texture, .{ .x = pix_coord_x, .y = pix_coord_y });
 
-                                // store current colors for history state
-                                current_stroke_indexes.append(index) catch unreachable;
-                                current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                                if (test_index) |index| {
+
+                                    // store current colors for history state
+                                    if (index < layer.image.pixels.len) {
+                                        current_stroke_indexes.append(index) catch unreachable;
+                                        current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                                    }
+                                }
                             }
 
                             file.history.push(.{
@@ -853,6 +856,12 @@ pub fn isOverSelection(position: imgui.ImVec2) bool {
 }
 
 pub fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
+    return @floatToInt(usize, coords.x + coords.y * @intToFloat(f32, texture.width));
+}
+
+pub fn getPixelIndexFromCoordsUnsafe(texture: upaya.Texture, coords: imgui.ImVec2) ?usize {
+    if (coords.x < 0 or coords.x > @intToFloat(f32, texture.width) or coords.y < 0 or coords.y > @intToFloat(f32, texture.height))
+        return null;
     return @floatToInt(usize, coords.x + coords.y * @intToFloat(f32, texture.width));
 }
 
