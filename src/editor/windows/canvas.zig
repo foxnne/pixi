@@ -475,7 +475,7 @@ pub fn draw() void {
                         }
                     }
 
-                    //selection
+                    //selections
                     if (toolbar.selected_tool == .selection) {
                         // feedback
                         if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !editor.isModKeyDown() and current_selection_layer == null) {

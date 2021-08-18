@@ -51,7 +51,7 @@ pub fn draw() void {
             imgui.igText("Flipbook Settings");
             imgui.igSeparator();
 
-            _ = imgui.igSliderFloat("Adjacent Opacity", &preview_opacity, 0, 100, "%.0f", 1);
+            _ = imgui.igSliderFloat("Flipbook Opacity", &preview_opacity, 0, 100, "%.0f", 1);
             _ = imgui.igCheckbox("Show Origin", &preview_origin);
         }
 
@@ -157,6 +157,52 @@ pub fn draw() void {
                     }
                 }
 
+                // draw current selection feedback
+                if (canvas.current_selection_indexes.items.len > 1 and canvas.current_selection_colors.items.len == canvas.current_selection_indexes.items.len) {
+                    if (layers.getActiveLayer()) |layer| {
+                        const panel_position = switch (selected_sprite_panel) {
+                            .left => previous_sprite_position,
+                            .right => next_sprite_position,
+                            .middle => sprite_position,
+                        };
+
+                        const panel_rect = switch (selected_sprite_panel) {
+                            .left => previous_sprite_rect,
+                            .right => next_sprite_rect,
+                            .middle => sprite_rect,
+                        };
+
+                        var panel_offset: imgui.ImVec2 = .{.x = panel_rect.x, .y = panel_rect.y};
+                        panel_offset = panel_offset.scale(camera.zoom);
+
+                        //const inv_w = 1.0 / @intToFloat(f32, layer.texture.width);
+                        //const inv_h = 1.0 / @intToFloat(f32, layer.texture.height);
+
+                        //const uv0 = imgui.ImVec2{ .x = panel_rect.x * inv_w, .y = panel_rect.y * inv_h };
+                        //const uv1 = imgui.ImVec2{ .x = (panel_rect.x + panel_rect.width) * inv_w, .y = (panel_rect.y + panel_rect.height) * inv_h };
+
+                        switch (canvas.current_selection_mode) {
+                            .rect => {
+                                const start_index = canvas.current_selection_indexes.items[0];
+                                const end_index = canvas.current_selection_indexes.items[canvas.current_selection_indexes.items.len - 1];
+
+                                //const offset: imgui.ImVec2 = .{ .x = @intToFloat(f32, @mod(start_index, layer.image.w)), .y = @intToFloat(f32, @divTrunc(start_index, layer.image.w) )};
+
+                                const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
+                                const end_position = getPixelCoordsFromIndex(layer.texture, end_index);
+                                const size = end_position.subtract(start_position).scale(camera.zoom);
+                                const tl = camera.matrix().transformImVec2(start_position.add(panel_position)).add(screen_position);
+
+                                imgui.ogAddRect(imgui.igGetWindowDrawList(), tl.subtract(panel_offset), size, editor.selection_color.value, 2);
+                            },
+                            .pixel => {
+                                for (canvas.current_selection_indexes.items) |index| {
+                                    file.temporary.image.pixels[index] = editor.selection_color.value;
+                                }
+                            },
+                        }
+                    }
+                }
 
                 if (preview_origin) {
                     var origin: imgui.ImVec2 = .{ .x = sprite.origin_x, .y = sprite.origin_y };
@@ -216,7 +262,7 @@ pub fn draw() void {
                             var pixel_index = getPixelIndexFromCoords(layer.texture, pixel_coords);
 
                             // color dropper input
-                            if (imgui.igGetIO().MouseDown[1] or ((imgui.igGetIO().KeyAlt or imgui.igGetIO().KeySuper) and imgui.igGetIO().MouseDown[0]) or (io.MouseDown[0] and toolbar.selected_tool == .dropper)) {
+                            if (imgui.igGetIO().MouseDown[1] or (io.MouseDown[0] and toolbar.selected_tool == .dropper)) {
                                 imgui.igBeginTooltip();
                                 var coord_text = std.fmt.allocPrintZ(upaya.mem.allocator, "{s} {d},{d}", .{ imgui.icons.eye_dropper, pixel_coords.x + 1, pixel_coords.y + 1 }) catch unreachable;
                                 imgui.igText(@ptrCast([*c]const u8, coord_text));
@@ -333,21 +379,26 @@ pub fn draw() void {
 
                             //selection
                             if (toolbar.selected_tool == .selection) {
+                                if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !canvas.isOverSelection(mouse_position)) {
+                                    canvas.current_selection_indexes.clearAndFree();
+                                    canvas.current_selection_colors.clearAndFree();
+                                }
+
                                 // feedback
-                                if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
+                                if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and !editor.isModKeyDown() and canvas.current_selection_layer == null) {
                                     if (getPixelCoords(io.MouseClickedPos[0])) |mouse_clicked_position| {
                                         if (getPixelCoords(io.MousePos)) |mouse_current_position| {
-                                            const panel_position = switch(selected_sprite_panel) {
+                                            const panel_position = switch (selected_sprite_panel) {
                                                 .left => previous_sprite_position,
                                                 .right => next_sprite_position,
                                                 .middle => sprite_position,
                                             };
-                                            var relative_clicked_position = .{ .x = @mod(mouse_clicked_position.x, @intToFloat(f32, file.tileWidth)), .y = @mod(mouse_clicked_position.y, @intToFloat(f32, file.tileHeight))};
+                                            var relative_clicked_position = .{ .x = @mod(mouse_clicked_position.x, @intToFloat(f32, file.tileWidth)), .y = @mod(mouse_clicked_position.y, @intToFloat(f32, file.tileHeight)) };
                                             var tl = panel_position.add(relative_clicked_position);
                                             tl = camera.matrix().transformImVec2(tl).add(screen_position);
                                             const size = mouse_current_position.subtract(mouse_clicked_position).scale(camera.zoom);
 
-                                            imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, 0xFF0000FF, 1);
+                                            imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_feedback_color.value, 1);
                                         }
                                     }
                                 }
@@ -396,8 +447,51 @@ pub fn draw() void {
                                                     canvas.current_selection_indexes.append(x) catch unreachable;
                                                 }
                                             }
+
+                                            canvas.current_selection_mode = .rect;
                                         }
                                     }
+                                }
+
+                                // turn selection into a temporary layer and clear the pixels in the current layer image
+                                if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and editor.isModKeyDown() and canvas.current_selection_indexes.items.len > 0 and canvas.isOverSelection(mouse_position)) {
+                                    var tl = getPixelCoordsFromIndex(layer.texture, canvas.current_selection_indexes.items[0]);
+                                    var br = getPixelCoordsFromIndex(layer.texture, canvas.current_selection_indexes.items[canvas.current_selection_indexes.items.len - 1]).add(.{ .x = 1, .y = 1 });
+                                    var size = br.subtract(tl);
+
+                                    canvas.current_selection_position = sprite_position.add(tl);
+                                    canvas.current_selection_size = size;
+
+                                    var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
+                                    std.mem.copy(u32, image.pixels, canvas.current_selection_colors.items);
+
+                                    canvas.current_selection_layer = .{
+                                        .name = "Selection",
+                                        .texture = image.asTexture(.nearest),
+                                        .image = image,
+                                        .id = layers.getNewID(),
+                                    };
+
+                                    if (!io.KeyShift) {
+                                        for (canvas.current_selection_indexes.items) |index| {
+                                            //store for history state
+                                            canvas.current_stroke_indexes.append(index) catch unreachable;
+                                            canvas.current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+
+                                            layer.image.pixels[index] = 0x00000000;
+                                            layer.dirty = true;
+                                        }
+                                        file.history.push(.{
+                                            .tag = .stroke,
+                                            .pixel_colors = canvas.current_stroke_colors.toOwnedSlice(),
+                                            .pixel_indexes = canvas.current_stroke_indexes.toOwnedSlice(),
+                                            .layer_id = layer.id,
+                                        });
+                                    }
+
+                                    // clear selection
+                                    canvas.current_selection_indexes.clearAndFree();
+                                    canvas.current_selection_colors.clearAndFree();
                                 }
                             }
                         }
@@ -500,7 +594,9 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
         pixel_pos.x += sprite_rect.x;
         pixel_pos.y += sprite_rect.y;
 
-        selected_sprite_panel = .middle;
+        if (imgui.igGetIO().MouseClicked[0])
+            selected_sprite_panel = .middle;
+
         return pixel_pos;
     }
 
@@ -522,7 +618,9 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
         pixel_pos.x += previous_sprite_rect.x;
         pixel_pos.y += previous_sprite_rect.y;
 
-        selected_sprite_panel = .left;
+        if (imgui.igGetIO().MouseClicked[0])
+            selected_sprite_panel = .left;
+
         return pixel_pos;
     }
 
@@ -544,7 +642,9 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
         pixel_pos.x += next_sprite_rect.x;
         pixel_pos.y += next_sprite_rect.y;
 
-        selected_sprite_panel = .right;
+        if (imgui.igGetIO().MouseClicked[0])
+            selected_sprite_panel = .right;
+
         return pixel_pos;
     }
 
