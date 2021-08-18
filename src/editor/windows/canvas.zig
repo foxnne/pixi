@@ -24,7 +24,7 @@ const SelectionMode = enum { rect, pixel };
 
 var camera: Camera = .{ .zoom = 2 };
 var screen_position: imgui.ImVec2 = undefined;
-var texture_position: imgui.ImVec2 = undefined;
+pub var texture_position: imgui.ImVec2 = undefined;
 
 var logo: ?upaya.Texture = null;
 

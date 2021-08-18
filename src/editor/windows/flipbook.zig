@@ -172,21 +172,13 @@ pub fn draw() void {
                             .middle => sprite_rect,
                         };
 
-                        var panel_offset: imgui.ImVec2 = .{.x = panel_rect.x, .y = panel_rect.y};
+                        var panel_offset: imgui.ImVec2 = .{ .x = panel_rect.x, .y = panel_rect.y };
                         panel_offset = panel_offset.scale(camera.zoom);
-
-                        //const inv_w = 1.0 / @intToFloat(f32, layer.texture.width);
-                        //const inv_h = 1.0 / @intToFloat(f32, layer.texture.height);
-
-                        //const uv0 = imgui.ImVec2{ .x = panel_rect.x * inv_w, .y = panel_rect.y * inv_h };
-                        //const uv1 = imgui.ImVec2{ .x = (panel_rect.x + panel_rect.width) * inv_w, .y = (panel_rect.y + panel_rect.height) * inv_h };
 
                         switch (canvas.current_selection_mode) {
                             .rect => {
                                 const start_index = canvas.current_selection_indexes.items[0];
                                 const end_index = canvas.current_selection_indexes.items[canvas.current_selection_indexes.items.len - 1];
-
-                                //const offset: imgui.ImVec2 = .{ .x = @intToFloat(f32, @mod(start_index, layer.image.w)), .y = @intToFloat(f32, @divTrunc(start_index, layer.image.w) )};
 
                                 const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
                                 const end_position = getPixelCoordsFromIndex(layer.texture, end_index);
@@ -379,7 +371,7 @@ pub fn draw() void {
 
                             //selection
                             if (toolbar.selected_tool == .selection) {
-                                if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !canvas.isOverSelection(mouse_position)) {
+                                if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and !isOverSelection(layer.texture, mouse_position)) {
                                     canvas.current_selection_indexes.clearAndFree();
                                     canvas.current_selection_colors.clearAndFree();
                                 }
@@ -454,12 +446,12 @@ pub fn draw() void {
                                 }
 
                                 // turn selection into a temporary layer and clear the pixels in the current layer image
-                                if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and editor.isModKeyDown() and canvas.current_selection_indexes.items.len > 0 and canvas.isOverSelection(mouse_position)) {
+                                if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and editor.isModKeyDown() and canvas.current_selection_indexes.items.len > 0 and isOverSelection(layer.texture, mouse_position)) {
                                     var tl = getPixelCoordsFromIndex(layer.texture, canvas.current_selection_indexes.items[0]);
                                     var br = getPixelCoordsFromIndex(layer.texture, canvas.current_selection_indexes.items[canvas.current_selection_indexes.items.len - 1]).add(.{ .x = 1, .y = 1 });
                                     var size = br.subtract(tl);
 
-                                    canvas.current_selection_position = sprite_position.add(tl);
+                                    canvas.current_selection_position = sprite_position.add(tl).add(canvas.texture_position);
                                     canvas.current_selection_size = size;
 
                                     var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
@@ -649,6 +641,49 @@ pub fn getPixelCoords(position: imgui.ImVec2) ?imgui.ImVec2 {
     }
 
     return null;
+}
+
+pub fn isOverSelection(texture: upaya.Texture, position: imgui.ImVec2) bool {
+    if (canvas.current_selection_indexes.items.len == 0)
+        return false;
+
+    const panel_position = switch (selected_sprite_panel) {
+        .left => previous_sprite_position,
+        .right => next_sprite_position,
+        .middle => sprite_position,
+    };
+
+    const panel_rect = switch (selected_sprite_panel) {
+        .left => previous_sprite_rect,
+        .right => next_sprite_rect,
+        .middle => sprite_rect,
+    };
+
+    var panel_offset: imgui.ImVec2 = .{ .x = panel_rect.x, .y = panel_rect.y };
+    panel_offset = panel_offset.scale(camera.zoom);
+
+    switch (canvas.current_selection_mode) {
+        .rect => {
+            const start_index = canvas.current_selection_indexes.items[0];
+            const end_index = canvas.current_selection_indexes.items[canvas.current_selection_indexes.items.len - 1];
+
+            const start_position = getPixelCoordsFromIndex(texture, start_index);
+            const end_position = getPixelCoordsFromIndex(texture, end_index);
+            const size = end_position.subtract(start_position).scale(camera.zoom);
+            const tl = camera.matrix().transformImVec2(start_position.add(panel_position)).add(screen_position).subtract(panel_offset);
+            const br = tl.add(size);
+
+            if (position.x > tl.x and position.x < br.x and position.y < br.y and position.y > tl.y) {
+                return true;
+            }
+        },
+        .pixel => {
+            //TODO: handle wand selections
+            return false;
+        },
+    }
+
+    return false;
 }
 
 pub fn getPixelIndexFromCoords(texture: upaya.Texture, coords: imgui.ImVec2) usize {
