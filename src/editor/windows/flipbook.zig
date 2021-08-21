@@ -181,7 +181,7 @@ pub fn draw() void {
                                 const end_index = canvas.current_selection_indexes.items[canvas.current_selection_indexes.items.len - 1];
 
                                 const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
-                                const end_position = getPixelCoordsFromIndex(layer.texture, end_index);
+                                const end_position = getPixelCoordsFromIndex(layer.texture, end_index).add(.{.x = 1, .y = 1});
                                 const size = end_position.subtract(start_position).scale(camera.zoom);
                                 const tl = camera.matrix().transformImVec2(start_position.add(panel_position)).add(screen_position);
 
@@ -388,7 +388,7 @@ pub fn draw() void {
                                             var relative_clicked_position = .{ .x = @mod(mouse_clicked_position.x, @intToFloat(f32, file.tileWidth)), .y = @mod(mouse_clicked_position.y, @intToFloat(f32, file.tileHeight)) };
                                             var tl = panel_position.add(relative_clicked_position);
                                             tl = camera.matrix().transformImVec2(tl).add(screen_position);
-                                            const size = mouse_current_position.subtract(mouse_clicked_position).scale(camera.zoom);
+                                            const size = mouse_current_position.subtract(mouse_clicked_position).add(.{.x = 1, .y = 1}).scale(camera.zoom);
 
                                             imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_feedback_color.value, 1);
                                         }
