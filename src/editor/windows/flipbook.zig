@@ -157,6 +157,24 @@ pub fn draw() void {
                     }
                 }
 
+                // draw selection layer
+                if (canvas.current_selection_layer) |*selection_layer| {
+                    selection_layer.updateTexture();
+                    const current_selection_rect: upaya.math.RectF = .{ .x = 0, .y = 0, .width = canvas.current_selection_size.x, .height = canvas.current_selection_size.y };
+                    const current_selection_position = canvas.current_selection_position.subtract(canvas.texture_position);
+                    drawSprite(selection_layer.*.texture, current_selection_position, current_selection_rect, 0xFFFFFFFF);
+
+                    const tl = camera.matrix().transformImVec2(current_selection_position).add(screen_position);
+                    var br = current_selection_position;
+                    br.x += @intToFloat(f32, selection_layer.texture.width);
+                    br.y += @intToFloat(f32, selection_layer.texture.height);
+                    br = camera.matrix().transformImVec2(br).add(screen_position);
+
+                    var size = br.subtract(tl);
+
+                    imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_color.value, 2);
+                }
+
                 // draw current selection feedback
                 if (canvas.current_selection_indexes.items.len > 1 and canvas.current_selection_colors.items.len == canvas.current_selection_indexes.items.len) {
                     if (layers.getActiveLayer()) |layer| {
@@ -181,7 +199,7 @@ pub fn draw() void {
                                 const end_index = canvas.current_selection_indexes.items[canvas.current_selection_indexes.items.len - 1];
 
                                 const start_position = getPixelCoordsFromIndex(layer.texture, start_index);
-                                const end_position = getPixelCoordsFromIndex(layer.texture, end_index).add(.{.x = 1, .y = 1});
+                                const end_position = getPixelCoordsFromIndex(layer.texture, end_index).add(.{ .x = 1, .y = 1 });
                                 const size = end_position.subtract(start_position).scale(camera.zoom);
                                 const tl = camera.matrix().transformImVec2(start_position.add(panel_position)).add(screen_position);
 
@@ -388,7 +406,7 @@ pub fn draw() void {
                                             var relative_clicked_position = .{ .x = @mod(mouse_clicked_position.x, @intToFloat(f32, file.tileWidth)), .y = @mod(mouse_clicked_position.y, @intToFloat(f32, file.tileHeight)) };
                                             var tl = panel_position.add(relative_clicked_position);
                                             tl = camera.matrix().transformImVec2(tl).add(screen_position);
-                                            const size = mouse_current_position.subtract(mouse_clicked_position).add(.{.x = 1, .y = 1}).scale(camera.zoom);
+                                            const size = mouse_current_position.subtract(mouse_clicked_position).add(.{ .x = 1, .y = 1 }).scale(camera.zoom);
 
                                             imgui.ogAddRect(imgui.igGetWindowDrawList(), tl, size, editor.selection_feedback_color.value, 1);
                                         }
@@ -451,7 +469,7 @@ pub fn draw() void {
                                     var br = getPixelCoordsFromIndex(layer.texture, canvas.current_selection_indexes.items[canvas.current_selection_indexes.items.len - 1]).add(.{ .x = 1, .y = 1 });
                                     var size = br.subtract(tl);
 
-                                    canvas.current_selection_position = sprite_position.add(tl).add(canvas.texture_position);
+                                    canvas.current_selection_position = tl.add(canvas.texture_position);
                                     canvas.current_selection_size = size;
 
                                     var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
