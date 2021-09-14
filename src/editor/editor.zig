@@ -146,8 +146,8 @@ pub fn isModKeyDown() bool {
     }
 }
 
-pub fn isMouseDoubleClickReleased () bool {
-    if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and release_double_clicked){
+pub fn isMouseDoubleClickReleased() bool {
+    if (imgui.igIsMouseReleased(imgui.ImGuiMouseButton_Left) and release_double_clicked) {
         return true;
     }
     return false;
@@ -155,8 +155,7 @@ pub fn isMouseDoubleClickReleased () bool {
 var release_double_clicked: bool = false;
 
 pub fn update() void {
-
-    if (imgui.igIsMouseDoubleClicked(imgui.ImGuiMouseButton_Left)){
+    if (imgui.igIsMouseDoubleClicked(imgui.ImGuiMouseButton_Left)) {
         release_double_clicked = true;
     }
 
@@ -185,7 +184,7 @@ pub fn update() void {
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_ESCAPE))
             toolbar.selected_tool = .arrow;
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_D))
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_D)) 
             toolbar.selected_tool = .pencil;
 
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_E))
@@ -199,6 +198,9 @@ pub fn update() void {
 
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_A) and !mod)
             toolbar.selected_tool = .animation;
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_H) and !mod)
+            toolbar.selected_tool = .heightmap;
 
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_W))
             toolbar.selected_tool = .wand;
@@ -410,10 +412,16 @@ pub fn importPixi(file: []const u8) ?types.File {
 
         var temporary_image: upaya.Image = upaya.Image.init(@intCast(usize, ioFile.width), @intCast(usize, ioFile.height));
         temporary_image.fillRect(.{ .x = 0, .y = 0, .width = ioFile.width, .height = ioFile.height }, upaya.math.Color.transparent);
+
+        var temporary_heightmap: upaya.Image = upaya.Image.init(@intCast(usize, ioFile.width), @intCast(usize, ioFile.height));
+        temporary_heightmap.fillRect(.{ .x = 0, .y = 0, .width = ioFile.width, .height = ioFile.height }, upaya.math.Color.transparent);
+
         var temporary: types.Layer = .{
             .name = "Temporary",
             .texture = temporary_image.asTexture(.nearest),
             .image = temporary_image,
+            .heightmap_image = temporary_heightmap,
+            .heightmap_texture = temporary_heightmap.asTexture(.nearest),
             .id = layers.getNewID(),
             .hidden = false,
             .dirty = false,
@@ -425,13 +433,26 @@ pub fn importPixi(file: []const u8) ?types.File {
 
         for (ioFile.layers) |layer| {
             const layer_name_z = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}.png\u{0}", .{layer.name}) catch unreachable;
+            const layer_heightmap_z = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}_h.png\u{0}", .{layer.name}) catch unreachable;
 
             var img_buf: ?*c_void = null;
             var img_len: u64 = 0;
             _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name_z));
             _ = upaya.zip.zip_entry_read(z, &img_buf, &img_len);
 
+            var heightmap_buf: ?*c_void = null;
+            var heightmap_len: u64 = 0;
+            _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_heightmap_z));
+            _ = upaya.zip.zip_entry_read(z, &heightmap_buf, &heightmap_len);
+
             var new_image: upaya.Image = upaya.Image.initFromData(@ptrCast([*c]const u8, img_buf), img_len);
+            var new_heightmap: upaya.Image = undefined;
+            if (heightmap_buf != null) {
+                new_heightmap = upaya.Image.initFromData(@ptrCast([*c]const u8, heightmap_buf), heightmap_len);
+            } else {
+                new_heightmap = upaya.Image.init(new_image.w, new_image.h);
+                new_heightmap.fillRect(.{ .x = 0, .y = 0, .width = @intCast(i32, new_image.w), .height = @intCast(i32, new_image.h) }, upaya.math.Color.transparent);
+            }
 
             _ = upaya.zip.zip_entry_close(z);
 
@@ -439,6 +460,8 @@ pub fn importPixi(file: []const u8) ?types.File {
                 .name = std.mem.dupe(upaya.mem.allocator, u8, layer.name) catch unreachable,
                 .texture = new_image.asTexture(.nearest),
                 .image = new_image,
+                .heightmap_image = new_heightmap,
+                .heightmap_texture = new_heightmap.asTexture(.nearest),
                 .id = layers.getNewID(),
                 .hidden = false,
                 .dirty = false,
@@ -500,10 +523,16 @@ pub fn importPng(file: []const u8) ?types.File {
     name = name[0 .. name.len - 4]; //trim off .png extension
     const sprite_name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_0", .{name}) catch unreachable;
     const file_image = upaya.Image.initFromFile(file);
+    var file_heightmap = upaya.Image.init(file_image.w, file_image.h);
+    file_heightmap.fillRect(.{ .x = 0, .y = 0, .width = @intCast(i32, file_image.w), .height = @intCast(i32, file_image.h) }, upaya.math.Color.transparent);
     const image_width: i32 = @intCast(i32, file_image.w);
     const image_height: i32 = @intCast(i32, file_image.h);
+
     var temp_image = upaya.Image.init(@intCast(usize, image_width), @intCast(usize, image_height));
     temp_image.fillRect(.{ .x = 0, .y = 0, .width = image_width, .height = image_height }, upaya.math.Color.transparent);
+
+    var temp_heightmap = upaya.Image.init(@intCast(usize, image_width), @intCast(usize, image_height));
+    temp_heightmap.fillRect(.{ .x = 0, .y = 0, .width = image_width, .height = image_height }, upaya.math.Color.transparent);
 
     var new_file: types.File = .{
         .name = name,
@@ -517,6 +546,8 @@ pub fn importPng(file: []const u8) ?types.File {
             .id = layers.getNewID(),
             .texture = temp_image.asTexture(.nearest),
             .image = temp_image,
+            .heightmap_image = temp_heightmap,
+            .heightmap_texture = temp_heightmap.asTexture(.nearest),
         },
         .layers = std.ArrayList(types.Layer).init(upaya.mem.allocator),
         .sprites = std.ArrayList(types.Sprite).init(upaya.mem.allocator),
@@ -524,7 +555,14 @@ pub fn importPng(file: []const u8) ?types.File {
         .history = history.History.init(),
     };
 
-    new_file.layers.append(.{ .name = "Layer 0", .id = layers.getNewID(), .texture = file_image.asTexture(.nearest), .image = file_image }) catch unreachable;
+    new_file.layers.append(.{
+        .name = "Layer 0",
+        .id = layers.getNewID(),
+        .texture = file_image.asTexture(.nearest),
+        .image = file_image,
+        .heightmap_image = file_heightmap,
+        .heightmap_texture = file_heightmap.asTexture(.nearest),
+    }) catch unreachable;
 
     new_file.sprites.append(.{
         .name = sprite_name,

@@ -38,6 +38,7 @@ const SpriteEditPanel = enum { left, middle, right };
 
 var selected_sprite_panel: SpriteEditPanel = .middle;
 
+pub var background_opacity: f32 = 80; //default
 pub var preview_opacity: f32 = 50; //default
 pub var preview_origin: bool = false;
 
@@ -52,6 +53,7 @@ pub fn draw() void {
             imgui.igSeparator();
 
             _ = imgui.igSliderFloat("Flipbook Opacity", &preview_opacity, 0, 100, "%.0f", 1);
+            _ = imgui.igSliderFloat("Background Opacity", &background_opacity, 0, 100, "%.0f", 1);
             _ = imgui.igCheckbox("Show Origin", &preview_origin);
         }
 
@@ -82,8 +84,9 @@ pub fn draw() void {
                     .y = @intToFloat(f32, src_y),
                 };
 
+                const background_color = upaya.math.Color.fromRgba(1, 1, 1, background_opacity / 100);
                 // draw transparency background sprite
-                drawSprite(file.background, sprite_position, sprite_rect, 0xFFFFFFFF);
+                drawSprite(file.background, sprite_position, sprite_rect, background_color.value);
 
                 const preview_color = upaya.math.Color.fromRgba(1, 1, 1, preview_opacity / 100);
 
@@ -475,10 +478,15 @@ pub fn draw() void {
                                     var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
                                     std.mem.copy(u32, image.pixels, canvas.current_selection_colors.items);
 
+                                    var heightmap_image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
+                                    heightmap_image.fillRect(.{.x = 0, .y = 0, .width = @floatToInt(i32, size.x), .height = @floatToInt(i32, size.y)}, upaya.math.Color.transparent);
+
                                     canvas.current_selection_layer = .{
                                         .name = "Selection",
                                         .texture = image.asTexture(.nearest),
                                         .image = image,
+                                        .heightmap_image = heightmap_image,
+                                        .heightmap_texture = heightmap_image.asTexture(.nearest),
                                         .id = layers.getNewID(),
                                     };
 

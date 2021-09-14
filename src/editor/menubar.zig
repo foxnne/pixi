@@ -118,6 +118,20 @@ pub fn draw() void {
             if (imgui.igMenuItemBool(imgui.icons.pizza_slice ++ " Slice...", "", false, sliceable)) 
                 slice_popup = true;
             
+            if (imgui.igMenuItemBool(imgui.icons.file_upload ++ " Generate Heightmaps", "", false, canvas.getNumberOfFiles() > 0)) {
+
+                if (canvas.getActiveFile()) |file| {
+                    for (file.layers.items) |layer| {
+                        
+
+
+
+                        
+                    }
+                }
+
+            }
+            
         }
 
         if (imgui.igBeginMenu("View", true)) {

@@ -3,6 +3,7 @@ const upaya = @import("upaya");
 
 const editor = @import("../editor.zig");
 const types = @import("../types/types.zig");
+const toolbar = editor.toolbar;
 const canvas = editor.canvas;
 const layers = editor.layers;
 
@@ -10,6 +11,7 @@ pub const HistoryItem = struct {
     layer_id: ?usize = null,
     layer_state: ?types.Layer = null,
     layer_name: ?[]const u8 = null,
+    layer_mode: ?toolbar.Mode = .diffuse,
     pixel_colors: ?[]u32 = null,
     pixel_indexes: ?[]usize = null,
     selection_colors: ?[]u32 = null,
@@ -150,9 +152,15 @@ pub const History = struct {
                             var new_item = item;
 
                             for (indexes) |index, i| {
-                                var prev_color = layer.image.pixels[index];
+                                var prev_color = switch (item.layer_mode.?) {
+                                    .diffuse => layer.image.pixels[index],
+                                    .height => layer.heightmap_image.pixels[index],
+                                };
 
-                                layer.image.pixels[index] = colors[i];
+                                switch (item.layer_mode.?) {
+                                    .diffuse => layer.image.pixels[index] = colors[i],
+                                    .height => layer.heightmap_image.pixels[index] = colors[i],
+                                }
                                 new_item.pixel_colors.?[i] = prev_color;
                             }
                             layer.dirty = true;
@@ -174,9 +182,15 @@ pub const History = struct {
                             var new_item = item;
 
                             for (indexes) |index, i| {
-                                var prev_color = layer.image.pixels[index];
+                                var prev_color = switch (item.layer_mode.?) {
+                                    .diffuse => layer.image.pixels[index],
+                                    .height => layer.heightmap_image.pixels[index],
+                                };
 
-                                layer.image.pixels[index] = colors[i];
+                                switch (item.layer_mode.?) {
+                                    .diffuse => layer.image.pixels[index] = colors[i],
+                                    .height => layer.heightmap_image.pixels[index] = colors[i],
+                                }
                                 new_item.pixel_colors.?[i] = prev_color;
                             }
                             layer.dirty = true;

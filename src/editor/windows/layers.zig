@@ -59,6 +59,9 @@ pub fn draw() void {
                 var image = upaya.Image.init(@intCast(usize, file.width), @intCast(usize, file.height));
                 image.fillRect(.{ .x = 0, .y = 0, .width = file.width, .height = file.height }, upaya.math.Color.transparent);
 
+                var heightmap_image = upaya.Image.init(@intCast(usize, file.width), @intCast(usize, file.height));
+                heightmap_image.fillRect(.{.x = 0, .y = 0, .width = file.width, .height = file.height}, upaya.math.Color.transparent);
+
                 var name = std.fmt.allocPrint(upaya.mem.allocator, "Layer {d}", .{file.layers.items.len}) catch unreachable;
                 defer upaya.mem.allocator.free(name);
 
@@ -67,6 +70,8 @@ pub fn draw() void {
                     .id = getNewID(),
                     .image = image,
                     .texture = image.asTexture(.nearest),
+                    .heightmap_image = heightmap_image,
+                    .heightmap_texture = heightmap_image.asTexture(.nearest),
                 };
 
                 file.layers.insert(0, new_layer) catch unreachable;

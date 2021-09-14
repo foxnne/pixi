@@ -95,6 +95,8 @@ pub const Layer = struct {
     name: []const u8,
     texture: upaya.Texture,
     image: upaya.Image,
+    heightmap_image: upaya.Image,
+    heightmap_texture: upaya.Texture,
     id: usize,
     hidden: bool = false,
     dirty: bool = false,
@@ -102,6 +104,7 @@ pub const Layer = struct {
     pub fn updateTexture(self: *Layer) void {
         if (self.dirty) {
             self.texture.setColorData(self.image.pixels);
+            self.heightmap_texture.setColorData(self.heightmap_image.pixels);
             self.dirty = false;
         }
     }

@@ -31,12 +31,11 @@ var tiles_wide: i32 = 1;
 var tiles_tall: i32 = 1;
 
 pub fn draw() void {
-
     const width = 300;
     const height = 160;
     const center = imgui.ogGetWindowCenter();
     imgui.ogSetNextWindowSize(.{ .x = width, .y = height }, imgui.ImGuiCond_Appearing);
-    imgui.ogSetNextWindowPos(.{ .x = center.x - width/2, .y = center.y - height/ 2 }, imgui.ImGuiCond_Appearing, .{});
+    imgui.ogSetNextWindowPos(.{ .x = center.x - width / 2, .y = center.y - height / 2 }, imgui.ImGuiCond_Appearing, .{});
     if (imgui.igBeginPopupModal("New File", &menubar.new_file_popup, imgui.ImGuiWindowFlags_Popup | imgui.ImGuiWindowFlags_NoResize)) {
         defer imgui.igEndPopup();
 
@@ -46,8 +45,7 @@ pub fn draw() void {
         _ = imgui.ogDrag(i32, "Tiles Tall", &tiles_tall, 1, 1, 1024);
 
         imgui.igSeparator();
-        if (imgui.ogButtonEx("Create", .{.x = imgui.igGetWindowWidth() - 20, .y = 20})) {
-
+        if (imgui.ogButtonEx("Create", .{ .x = imgui.igGetWindowWidth() - 20, .y = 20 })) {
             new_file.height = new_file.tileHeight * tiles_tall;
             new_file.width = new_file.tileWidth * tiles_wide;
 
@@ -61,25 +59,40 @@ pub fn draw() void {
             new_file.animations = std.ArrayList(Animation).init(upaya.mem.allocator);
 
             var image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
-            image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
+            image.fillRect(.{ .x = 0, .y = 0, .width = new_file.width, .height = new_file.height }, upaya.math.Color.transparent);
 
-            new_file.layers.append(.{.name = "Layer 0", .image = image, .id = layers.getNewID(), .texture = image.asTexture(.nearest)}) catch unreachable;
+            var heightmap_image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
+            heightmap_image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
+
+            new_file.layers.append(.{
+                .name = "Layer 0",
+                .image = image,
+                .id = layers.getNewID(),
+                .texture = image.asTexture(.nearest),
+                .heightmap_image = heightmap_image,
+                .heightmap_texture = heightmap_image.asTexture(.nearest),
+            }) catch unreachable;
 
             var temp_image = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
-            temp_image.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
+            temp_image.fillRect(.{ .x = 0, .y = 0, .width = new_file.width, .height = new_file.height }, upaya.math.Color.transparent);
+
+            var temp_heightmap = upaya.Image.init(@intCast(usize, new_file.width), @intCast(usize, new_file.height));
+            temp_heightmap.fillRect(.{.x = 0, .y = 0, .width = new_file.width, .height = new_file.height}, upaya.math.Color.transparent);
 
             new_file.temporary = .{
                 .name = "Temporary",
                 .id = layers.getNewID(),
                 .texture = temp_image.asTexture(.nearest),
                 .image = temp_image,
+                .heightmap_image = temp_heightmap,
+                .heightmap_texture = temp_heightmap.asTexture(.nearest),
             };
-            
-            var i : usize = 0;
+
+            var i: usize = 0;
             while (i < tiles_wide * tiles_tall) : (i += 1) {
-                var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}", .{new_file.name, i}) catch unreachable;
+                var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{d}", .{ new_file.name, i }) catch unreachable;
                 defer upaya.mem.allocator.free(sprite_name);
-                var sprite_origin: upaya.math.Vec2 = .{.x = @intToFloat(f32, @divTrunc(new_file.tileWidth, 2)), .y = @intToFloat(f32, @divTrunc(new_file.tileHeight, 2))};
+                var sprite_origin: upaya.math.Vec2 = .{ .x = @intToFloat(f32, @divTrunc(new_file.tileWidth, 2)), .y = @intToFloat(f32, @divTrunc(new_file.tileHeight, 2)) };
                 var new_sprite: Sprite = .{
                     .name = upaya.mem.allocator.dupe(u8, sprite_name) catch unreachable,
                     .origin_x = sprite_origin.x,

@@ -25,6 +25,7 @@ const SelectionMode = enum { rect, pixel };
 var camera: Camera = .{ .zoom = 2 };
 var screen_position: imgui.ImVec2 = undefined;
 pub var texture_position: imgui.ImVec2 = undefined;
+pub var background_opacity: f32 = 80; //default
 
 var logo: ?upaya.Texture = null;
 
@@ -118,6 +119,17 @@ pub fn draw() void {
     if (!imgui.igBegin("Canvas", null, imgui.ImGuiWindowFlags_None)) return;
     defer imgui.igEnd();
 
+    if (imgui.igBeginPopupContextItem("Canvas Settings", imgui.ImGuiMouseButton_Right)) {
+        defer imgui.igEndPopup();
+
+        imgui.igText("Canvas Settings");
+        imgui.igSeparator();
+
+        _ = imgui.igSliderFloat("Background Opacity", &background_opacity, 0, 100, "%.0f", 1);
+    }
+
+    const background_color = upaya.math.Color.fromRgba(1, 1, 1, background_opacity / 100);
+
     // setup screen position and size
     screen_position = imgui.ogGetCursorScreenPos();
     const window_size = imgui.ogGetContentRegionAvail();
@@ -130,7 +142,7 @@ pub fn draw() void {
         };
 
         // draw background texture
-        drawTexture(file.background, texture_position, 0xFFFFFFFF);
+        drawTexture(file.background, texture_position, background_color.value);
 
         // draw layers (reverse order)
         var layer_index: usize = file.layers.items.len;
@@ -141,17 +153,36 @@ pub fn draw() void {
                 continue;
 
             file.layers.items[layer_index].updateTexture();
-            drawTexture(file.layers.items[layer_index].texture, texture_position, 0xFFFFFFFF);
+
+            switch (toolbar.selected_mode) {
+                .diffuse => drawTexture(file.layers.items[layer_index].texture, texture_position, 0xFFFFFFFF),
+                .height => {
+                    drawTexture(file.layers.items[layer_index].texture, texture_position, 0x55FFFFFF);
+                    drawTexture(file.layers.items[layer_index].heightmap_texture, texture_position, 0xFFFFFFFF);
+
+                },
+            }
 
             // draw temporary texture over active layer
             if (layer_index == layers.getActiveIndex()) {
                 file.temporary.updateTexture();
-                drawTexture(file.temporary.texture, texture_position, 0xFFFFFFFF);
+
+                switch (toolbar.selected_mode) {
+                    .diffuse => drawTexture(file.temporary.texture, texture_position, 0xFFFFFFFF),
+                    .height => drawTexture(file.temporary.heightmap_texture, texture_position, 0xFFFFFFFF),
+                }
             }
         }
 
-        // blank out image for next frame
+        // blank out images for next frame
         file.temporary.image.fillRect(.{
+            .x = 0,
+            .y = 0,
+            .width = file.width,
+            .height = file.height,
+        }, upaya.math.Color.transparent);
+
+        file.temporary.heightmap_image.fillRect(.{
             .x = 0,
             .y = 0,
             .width = file.width,
@@ -165,7 +196,11 @@ pub fn draw() void {
         // draw selection layer
         if (current_selection_layer) |*selection_layer| {
             selection_layer.updateTexture();
-            drawTexture(selection_layer.*.texture, current_selection_position, 0xFFFFFFFF);
+
+            switch (toolbar.selected_mode) {
+                .diffuse => drawTexture(selection_layer.*.texture, current_selection_position, 0xFFFFFFFF),
+                .height => drawTexture(selection_layer.*.heightmap_texture, current_selection_position, 0xFFFFFFFF),
+            }
 
             const tl = camera.matrix().transformImVec2(current_selection_position).add(screen_position);
             var br = current_selection_position;
@@ -295,10 +330,17 @@ pub fn draw() void {
                 if (imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_DELETE, false) or imgui.igIsKeyPressed(upaya.sokol.SAPP_KEYCODE_BACKSPACE, false)) {
                     if (current_selection_indexes.items.len > 0) {
                         for (current_selection_indexes.items) |index| {
-                            current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                            const color = switch (toolbar.selected_mode) {
+                                .diffuse => layer.image.pixels[index],
+                                .height => layer.heightmap_image.pixels[index],
+                            };
+                            current_stroke_colors.append(color) catch unreachable;
                             current_stroke_indexes.append(index) catch unreachable;
 
-                            layer.image.pixels[index] = 0x00000000;
+                            switch (toolbar.selected_mode) {
+                                .diffuse => layer.image.pixels[index] = 0x00000000,
+                                .height => layer.heightmap_image.pixels[index] = 0x00000000,
+                            }
                         }
 
                         file.history.push(.{
@@ -306,6 +348,7 @@ pub fn draw() void {
                             .pixel_colors = current_stroke_colors.toOwnedSlice(),
                             .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
                             .layer_id = layer.id,
+                            .layer_mode = toolbar.selected_mode,
                         });
 
                         current_selection_indexes.clearAndFree();
@@ -379,7 +422,10 @@ pub fn draw() void {
                                 previous_tool = toolbar.selected_tool;
                             }
 
-                            toolbar.foreground_color = upaya.math.Color{ .value = layer.image.pixels[pixel_index] };
+                            toolbar.foreground_color = switch (toolbar.selected_mode) {
+                                .diffuse => upaya.math.Color{ .value = layer.image.pixels[pixel_index] },
+                                .height => upaya.math.Color{ .value = layer.heightmap_image.pixels[pixel_index] },
+                            };
 
                             imgui.igBeginTooltip();
                             _ = imgui.ogColoredButtonEx(toolbar.foreground_color.value, "###1", .{ .x = 100, .y = 100 });
@@ -390,8 +436,16 @@ pub fn draw() void {
                     // drawing input
                     if (toolbar.selected_tool == .pencil or toolbar.selected_tool == .eraser) {
                         if (toolbar.selected_tool == .pencil) {
-                            file.temporary.image.pixels[pixel_index] = toolbar.foreground_color.value;
-                        } else file.temporary.image.pixels[pixel_index] = 0xFFFFFFFF;
+                            switch (toolbar.selected_mode) {
+                                .diffuse => file.temporary.image.pixels[pixel_index] = toolbar.foreground_color.value,
+                                .height => file.temporary.heightmap_image.pixels[pixel_index] = toolbar.foreground_color.value,
+                            }
+                        } else {
+                            switch (toolbar.selected_mode) {
+                                .diffuse => file.temporary.image.pixels[pixel_index] = 0xFFFFFFFF,
+                                .height => file.temporary.heightmap_image.pixels[pixel_index] = 0xFFFFFFFF,
+                            }
+                        }
 
                         file.temporary.dirty = true;
 
@@ -400,12 +454,20 @@ pub fn draw() void {
                                 var output = algorithms.brezenham(prev_mouse_pixel_coords, mouse_pixel_coords);
 
                                 for (output) |coords| {
-                                    var index = getPixelIndexFromCoords(layer.texture, coords);
+                                    const index = getPixelIndexFromCoords(layer.texture, coords);
+                                    const color = switch (toolbar.selected_mode) {
+                                        .diffuse => layer.image.pixels[index],
+                                        .height => layer.heightmap_image.pixels[index],
+                                    };
 
-                                    if (toolbar.selected_tool == .pencil and layer.image.pixels[index] != toolbar.foreground_color.value or toolbar.selected_tool == .eraser and layer.image.pixels[index] != 0x00000000) {
-                                        current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                                    if (toolbar.selected_tool == .pencil and color != toolbar.foreground_color.value or toolbar.selected_tool == .eraser and color != 0x00000000) {
+                                        current_stroke_colors.append(color) catch unreachable;
                                         current_stroke_indexes.append(index) catch unreachable;
-                                        layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000;
+
+                                        switch (toolbar.selected_mode) {
+                                            .diffuse => layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000,
+                                            .height => layer.heightmap_image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0x00000000,
+                                        }
                                     }
                                 }
                                 upaya.mem.allocator.free(output);
@@ -419,7 +481,11 @@ pub fn draw() void {
 
                                 for (output) |coords| {
                                     var index = getPixelIndexFromCoords(layer.texture, coords);
-                                    file.temporary.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF;
+
+                                    switch (toolbar.selected_mode) {
+                                        .diffuse => file.temporary.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF,
+                                        .height => file.temporary.heightmap_image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF,
+                                    }
                                 }
                                 upaya.mem.allocator.free(output);
                                 file.temporary.dirty = true;
@@ -434,7 +500,10 @@ pub fn draw() void {
                                     var index = getPixelIndexFromCoords(layer.texture, coords);
                                     current_stroke_indexes.append(index) catch unreachable;
                                     current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
-                                    layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF;
+                                    switch (toolbar.selected_mode) {
+                                        .diffuse => layer.image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF,
+                                        .height => layer.heightmap_image.pixels[index] = if (toolbar.selected_tool == .pencil) toolbar.foreground_color.value else 0xFFFFFFFF,
+                                    }
                                 }
                                 upaya.mem.allocator.free(output);
                                 layer.dirty = true;
@@ -448,6 +517,7 @@ pub fn draw() void {
                                 .pixel_colors = current_stroke_colors.toOwnedSlice(),
                                 .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
                                 .layer_id = layer.id,
+                                .layer_mode = toolbar.selected_mode,
                             });
                         }
                     }
@@ -458,10 +528,18 @@ pub fn draw() void {
                             var output = algorithms.floodfill(mouse_pixel_coords, layer.image, toolbar.contiguous_fill);
 
                             for (output) |index| {
-                                if (layer.image.pixels[index] != toolbar.foreground_color.value) {
+                                const color = switch (toolbar.selected_mode) {
+                                    .diffuse => layer.image.pixels[index],
+                                    .height => layer.heightmap_image.pixels[index],
+                                };
+                                if (color != toolbar.foreground_color.value) {
                                     current_stroke_indexes.append(index) catch unreachable;
-                                    current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
-                                    layer.image.pixels[index] = toolbar.foreground_color.value;
+                                    current_stroke_colors.append(color) catch unreachable;
+
+                                    switch (toolbar.selected_mode) {
+                                        .diffuse => layer.image.pixels[index] = toolbar.foreground_color.value,
+                                        .height => layer.heightmap_image.pixels[index] = toolbar.foreground_color.value,
+                                    }
                                 }
                             }
                             layer.dirty = true;
@@ -471,6 +549,7 @@ pub fn draw() void {
                                 .pixel_colors = current_stroke_colors.toOwnedSlice(),
                                 .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
                                 .layer_id = layer.id,
+                                .layer_mode = toolbar.selected_mode,
                             });
                         }
                     }
@@ -509,7 +588,10 @@ pub fn draw() void {
 
                                 var y: usize = 0;
                                 while (y < selection_height) : (y += 1) {
-                                    const color_slice = layer.image.pixels[start_index + (y * layer.image.w) .. start_index + (y * layer.image.w) + selection_width];
+                                    const color_slice = switch (toolbar.selected_mode) {
+                                        .diffuse => layer.image.pixels[start_index + (y * layer.image.w) .. start_index + (y * layer.image.w) + selection_width],
+                                        .height => layer.heightmap_image.pixels[start_index + (y * layer.heightmap_image.w) .. start_index + (y * layer.heightmap_image.w) + selection_width],
+                                    };
                                     current_selection_colors.appendSlice(color_slice) catch unreachable;
 
                                     var x: usize = start_index + (y * layer.image.w);
@@ -557,7 +639,10 @@ pub fn draw() void {
 
                                     var y: usize = 0;
                                     while (y < selection_height) : (y += 1) {
-                                        const color_slice = layer.image.pixels[start_index + (y * layer.image.w) .. start_index + (y * layer.image.w) + selection_width];
+                                        const color_slice = switch (toolbar.selected_mode) {
+                                            .diffuse => layer.image.pixels[start_index + (y * layer.image.w) .. start_index + (y * layer.image.w) + selection_width],
+                                            .height => layer.heightmap_image.pixels[start_index + (y * layer.heightmap_image.w) .. start_index + (y * layer.heightmap_image.w) + selection_width],
+                                        };
                                         current_selection_colors.appendSlice(color_slice) catch unreachable;
 
                                         var x: usize = start_index + (y * layer.image.w);
@@ -583,20 +668,33 @@ pub fn draw() void {
                             var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
                             std.mem.copy(u32, image.pixels, current_selection_colors.items);
 
+                            var heightmap_image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
+                            std.mem.copy(u32, heightmap_image.pixels, current_selection_colors.items);
+
                             current_selection_layer = .{
                                 .name = "Selection",
                                 .texture = image.asTexture(.nearest),
                                 .image = image,
+                                .heightmap_image = heightmap_image,
+                                .heightmap_texture = heightmap_image.asTexture(.nearest),
                                 .id = layers.getNewID(),
                             };
 
                             if (!io.KeyShift) {
                                 for (current_selection_indexes.items) |index| {
+                                    const color = switch (toolbar.selected_mode) {
+                                        .diffuse => layer.image.pixels[index],
+                                        .height => layer.heightmap_image.pixels[index],
+                                    };
                                     //store for history state
                                     current_stroke_indexes.append(index) catch unreachable;
-                                    current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                                    current_stroke_colors.append(color) catch unreachable;
 
-                                    layer.image.pixels[index] = 0x00000000;
+                                    switch (toolbar.selected_mode) {
+                                        .diffuse => layer.image.pixels[index] = 0x00000000,
+                                        .height => layer.heightmap_image.pixels[index] = 0x00000000,
+                                    }
+
                                     layer.dirty = true;
                                 }
                                 file.history.push(.{
@@ -604,6 +702,7 @@ pub fn draw() void {
                                     .pixel_colors = current_stroke_colors.toOwnedSlice(),
                                     .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
                                     .layer_id = layer.id,
+                                    .layer_mode = toolbar.selected_mode,
                                 });
                             }
 
@@ -629,11 +728,14 @@ pub fn draw() void {
                                 var test_index = getPixelIndexFromCoordsUnsafe(layer.texture, .{ .x = pix_coord_x, .y = pix_coord_y });
 
                                 if (test_index) |index| {
-
+                                    const color = switch (toolbar.selected_mode) {
+                                        .diffuse => layer.image.pixels[index],
+                                        .height => layer.heightmap_image.pixels[index],
+                                    };
                                     // store current colors for history state
                                     if (index < layer.image.pixels.len) {
                                         current_stroke_indexes.append(index) catch unreachable;
-                                        current_stroke_colors.append(layer.image.pixels[index]) catch unreachable;
+                                        current_stroke_colors.append(color) catch unreachable;
                                     }
                                 }
                             }
@@ -643,12 +745,17 @@ pub fn draw() void {
                                 .pixel_colors = current_stroke_colors.toOwnedSlice(),
                                 .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
                                 .layer_id = layer.id,
+                                .layer_mode = toolbar.selected_mode,
                             });
 
-                            layer.image.blitWithoutTransparent(selection_layer.image, x, y);
+                            switch (toolbar.selected_mode) {
+                                .diffuse => layer.image.blitWithoutTransparent(selection_layer.image, x, y),
+                                .height => layer.heightmap_image.blitWithoutTransparent(selection_layer.heightmap_image, x, y),
+                            }
                             layer.dirty = true;
 
                             selection_layer.image.deinit();
+                            selection_layer.heightmap_image.deinit();
                             current_selection_layer = null;
                         }
                     }
@@ -658,7 +765,14 @@ pub fn draw() void {
                             current_selection_indexes.clearAndFree();
                             current_selection_colors.clearAndFree();
 
-                            var selection = algorithms.floodfill(mouse_pixel_coords, layer.image, false);
+                            var selection = algorithms.floodfill(
+                                mouse_pixel_coords,
+                                switch (toolbar.selected_mode) {
+                                    .diffuse => layer.image,
+                                    .height => layer.heightmap_image,
+                                },
+                                false,
+                            );
                             current_selection_indexes.appendSlice(selection) catch unreachable;
 
                             for (current_selection_indexes.items) |index| {

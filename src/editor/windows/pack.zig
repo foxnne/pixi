@@ -21,6 +21,7 @@ var screen_position: imgui.ImVec2 = undefined;
 var texture_position: imgui.ImVec2 = undefined;
 
 var packed_texture: ?upaya.Texture = null;
+var packed_heightmap: ?upaya.Texture = null;
 var background: ?upaya.Texture = null;
 var atlas: ?upaya.TexturePacker.Atlas = null;
 
@@ -77,7 +78,7 @@ pub fn init() void {
 }
 
 pub fn draw() void {
-    if (atlas) |_| {
+    if (atlas) |a| {
         const width = 1024;
         const height = 768;
         const center = imgui.ogGetWindowCenter();
@@ -93,7 +94,47 @@ pub fn draw() void {
 
                 if (imgui.igBeginMenuBar()) {
                     defer imgui.igEndMenuBar();
-                    imgui.igText("Info");
+
+                    if (imgui.igMenuItemBool("Include...", "drag n' drop", false, true)) {
+
+                        // Temporary flags that get reset on next update.
+                        // Needed for file dialogs.
+                        upaya.inputBlocked = true;
+                        upaya.inputClearRequired = true;
+                        var path: [*c]u8 = null;
+                        if (std.builtin.os.tag == .macos) {
+                            path = upaya.filebrowser.openFileDialog("Choose a file to include...", ".pixi", "");
+                        } else {
+                            path = upaya.filebrowser.openFileDialog("Choose a file to include...", ".pixi", "*.pixi");
+                        }
+
+                        if (path != null) {
+                            var in_path = path[0..std.mem.len(path)];
+                            if (std.mem.endsWith(u8, in_path, ".pixi")) {
+                                if (editor.importPixi(in_path)) |pixi| {
+                                    addFile(pixi);
+                                }
+                            }
+                        }
+                    }
+
+                    if (imgui.igMenuItemBool("Export...", "", false, true)) {
+                        if (canvas.getActiveFile()) |file| {
+                            upaya.inputBlocked = true;
+                            upaya.inputClearRequired = true;
+                            var select_path: [*c]u8 = null;
+                            select_path = upaya.filebrowser.selectFolderDialog("Choose an export folder...", "");
+
+                            if (select_path) |path| {
+                                //const png_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}.png", .{file.name}) catch unreachable;
+                                //const png_path = std.fs.path.join(upaya.mem.allocator, &[_][]const u8{ path, png_name });
+                                //const atlas_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}.atlas", .{file.name}) catch unreachable;
+                                //const atlas_path = std.fs.path.join(upaya.mem.allocator, &[_][]const u8{ path, atlas_name });
+
+                                a.save(path[0..std.mem.len(path)], file.name);
+                            }
+                        }
+                    }
                 }
 
                 if (packed_texture) |texture| {
@@ -102,10 +143,8 @@ pub fn draw() void {
                     imgui.igValueInt("Height", @intCast(c_int, texture.height));
                 }
 
-                if (atlas) |a| {
-                    imgui.igSameLine(0, 10);
-                    imgui.igValueInt("Sprites", @intCast(c_int, a.sprites.len));
-                }
+                imgui.igSameLine(0, 10);
+                imgui.igValueInt("Sprites", @intCast(c_int, a.sprites.len));
             }
 
             if (imgui.ogBeginChildEx("Files", 2, .{ .x = 200 }, true, imgui.ImGuiWindowFlags_MenuBar)) {
@@ -159,8 +198,8 @@ pub fn draw() void {
                     br = camera.matrix().transformImVec2(br).add(screen_position);
 
                     imgui.ogImDrawList_AddImage(imgui.igGetWindowDrawList(), background.?.imTextureID(), tl, br, .{}, .{ .x = 1, .y = 1 }, 0xFFFFFFFF);
-
                     imgui.ogImDrawList_AddImage(imgui.igGetWindowDrawList(), texture.imTextureID(), tl, br, .{}, .{ .x = 1, .y = 1 }, 0xFFFFFFFF);
+
                 }
 
                 if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
@@ -210,6 +249,7 @@ pub fn pack() void {
         if (atlas) |a| {
             background = upaya.Texture.initChecker(a.width, a.height, editor.checker_color_1, editor.checker_color_2);
             packed_texture = a.image.asTexture(.nearest);
+            
         }
     }
 }
@@ -226,9 +266,9 @@ fn packFile(file: *types.File) void {
             const src_y = @intCast(usize, row * file.tileHeight);
 
             var sprite_image = upaya.Image.init(@intCast(usize, file.tileWidth), @intCast(usize, file.tileHeight));
-            sprite_image.fillRect(.{.width = file.tileWidth, .y = file.tileHeight}, upaya.math.Color.transparent);
+            sprite_image.fillRect(.{ .width = file.tileWidth, .y = file.tileHeight }, upaya.math.Color.transparent);
             var sprite_origin: upaya.math.Point = .{ .x = @floatToInt(i32, sprite.origin_x), .y = @floatToInt(i32, sprite.origin_y) };
-            var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{s}", .{ layer.name, sprite.name }) catch unreachable;
+            var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{s}", .{ sprite.name, layer.name }) catch unreachable;
 
             var y: usize = src_y;
             var dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];

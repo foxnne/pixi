@@ -6,7 +6,13 @@ pub var foreground_color: upaya.math.Color = upaya.math.Color.black;
 pub var background_color: upaya.math.Color = upaya.math.Color.white;
 
 pub var selected_tool = Tool.arrow;
+pub var selected_mode = Mode.diffuse;
 pub var contiguous_fill: bool = true;
+
+pub const Mode = enum(usize){
+    diffuse,
+    height,
+};
 
 pub const Tool = enum(usize) {
     arrow = 0,
@@ -20,6 +26,7 @@ pub const Tool = enum(usize) {
     dropper = 7,
 
     animation = 8,
+    heightmap = 9,
 };
 
 pub fn draw() void {
@@ -28,6 +35,7 @@ pub fn draw() void {
 
         const space = 5;
         const toolbar_half_width = (imgui.igGetWindowContentRegionWidth() / 2) - (space / 2);
+        imgui.ogPushStyleVarVec2(imgui.ImGuiStyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
 
         //color tools
         imgui.igText("Color");
@@ -60,9 +68,27 @@ pub fn draw() void {
             }
         }
 
-        imgui.ogPushStyleVarVec2(imgui.ImGuiStyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
+        // mode
+        imgui.igText("Mode");
+        imgui.igSeparator();
 
-        //animation tools
+        if (imgui.ogSelectableBool(imgui.icons.file_image, selected_mode == .diffuse, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
+            selected_mode = .diffuse;
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)) {
+            imgui.igBeginTooltip();
+            imgui.igText("Diffuse Map");
+            imgui.igEndTooltip();
+        }
+        imgui.igSameLine(0, space);
+        if (imgui.ogSelectableBool(imgui.icons.file_upload, selected_mode == .height, imgui.ImGuiSelectableFlags_None, .{ .x = toolbar_half_width, .y = 20 }))
+            selected_mode = .height;
+        if (imgui.igIsItemHovered(imgui.ImGuiHoveredFlags_None)) {
+            imgui.igBeginTooltip();
+            imgui.igText("Height Map");
+            imgui.igEndTooltip();
+        }
+
+        //selection tools
         imgui.igText("Selection");
         imgui.igSeparator();
 
@@ -99,6 +125,8 @@ pub fn draw() void {
             imgui.igText("Wand (w)");
             imgui.igEndTooltip();
         }
+
+        
 
         // draw tools
         imgui.igText("Draw");
@@ -144,7 +172,7 @@ pub fn draw() void {
             _ = imgui.igCheckbox("Contiguous", &contiguous_fill);
         }
 
-        //animation tools
+        //special tools
         imgui.igText("Animation");
         imgui.igSeparator();
 
