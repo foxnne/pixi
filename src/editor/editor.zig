@@ -323,14 +323,22 @@ pub fn saveAs(file_path: ?[]const u8) bool {
 
                 for (file.layers.items) |layer| {
                     var bytes = std.mem.sliceAsBytes(layer.image.pixels);
+                    var heightmap_bytes = std.mem.sliceAsBytes(layer.heightmap_image.pixels);
                     var stride = @intCast(c_int, layer.image.w * 4);
+                    var heightmap_stride = @intCast(c_int, layer.heightmap_image.w * 4);
 
                     var layer_name = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}.png\u{0}", .{layer.name}) catch unreachable;
                     defer upaya.mem.allocator.free(layer_name);
 
-                    _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name));
+                    var heightmap_name = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}_h.png", .{layer.name}) catch unreachable;
+                    defer upaya.mem.allocator.free(heightmap_name);
 
+                    _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name));
                     _ = upaya.stb.stbi_write_png_to_func(writePng, z, @intCast(c_int, layer.image.w), @intCast(c_int, layer.image.h), 4, bytes.ptr, stride);
+                    _ = upaya.zip.zip_entry_close(z);
+
+                    _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, heightmap_name));
+                    _ = upaya.stb.stbi_write_png_to_func(writePng, z, @intCast(c_int, layer.heightmap_image.w), @intCast(c_int, layer.heightmap_image.h), 4, heightmap_bytes.ptr, heightmap_stride);
                     _ = upaya.zip.zip_entry_close(z);
                 }
 

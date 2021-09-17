@@ -31,6 +31,8 @@ pub const File = struct {
         for (self.layers.items) |layer| {
             layer.texture.deinit();
             layer.image.deinit();
+            layer.heightmap_texture.deinit();
+            layer.heightmap_image.deinit();
         }
         self.layers.deinit();
         self.background.deinit();

@@ -129,13 +129,14 @@ pub fn draw() void {
                         const src_x = @intCast(usize, column * file.tileWidth);
                         const src_y = @intCast(usize, row * file.tileHeight);
 
-                        var lowest: usize = src_y + @intCast(usize, file.tileHeight);
+                        var lowest: usize = src_y + @intCast(usize, file.tileHeight) - 1;
 
                         for (file.layers.items) |*layer| {
                             var y: usize = src_y + @intCast(usize, file.tileHeight) - 1;
 
                             blk: {
                                 while (y > src_y) : (y -= 1) {
+                                    
                                     var read_slice = layer.image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
 
                                     for (read_slice) |p| {
@@ -154,8 +155,8 @@ pub fn draw() void {
 
                         for (file.layers.items) |*layer| {
                             var y: usize = src_y + @intCast(usize, file.tileHeight) - 1;
-                            while (y > src_y) : (y -= 1) {
-                                if (y < lowest) {
+                            while (y > src_y) : (y -= 1){
+                                if (y <= lowest) {
                                     var read_slice = layer.image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
                                     var write_slice = layer.heightmap_image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
 
