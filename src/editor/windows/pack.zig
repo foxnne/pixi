@@ -19,6 +19,7 @@ const Sprite = types.Sprite;
 var camera: Camera = .{ .zoom = 1 };
 var screen_position: imgui.ImVec2 = undefined;
 var texture_position: imgui.ImVec2 = undefined;
+var heightmap_position: imgui.ImVec2 = undefined;
 
 var packed_texture: ?upaya.Texture = null;
 var packed_heightmap: ?upaya.Texture = null;
@@ -27,6 +28,7 @@ var atlas: ?upaya.TexturePacker.Atlas = null;
 
 var files: std.ArrayList(types.File) = undefined;
 var images: std.ArrayList(upaya.Image) = undefined;
+var heightmaps: std.ArrayList(upaya.Image) = undefined;
 var frames: std.ArrayList(upaya.stb.stbrp_rect) = undefined;
 var names: std.ArrayList([]const u8) = undefined;
 var origins: std.ArrayList(upaya.math.Point) = undefined;
@@ -72,6 +74,7 @@ pub fn clear() void {
 pub fn init() void {
     files = std.ArrayList(types.File).init(upaya.mem.allocator);
     images = std.ArrayList(upaya.Image).init(upaya.mem.allocator);
+    heightmaps = std.ArrayList(upaya.Image).init(upaya.mem.allocator);
     frames = std.ArrayList(upaya.stb.stbrp_rect).init(upaya.mem.allocator);
     names = std.ArrayList([]const u8).init(upaya.mem.allocator);
     origins = std.ArrayList(upaya.math.Point).init(upaya.mem.allocator);
@@ -199,7 +202,22 @@ pub fn draw() void {
 
                     imgui.ogImDrawList_AddImage(imgui.igGetWindowDrawList(), background.?.imTextureID(), tl, br, .{}, .{ .x = 1, .y = 1 }, 0xFFFFFFFF);
                     imgui.ogImDrawList_AddImage(imgui.igGetWindowDrawList(), texture.imTextureID(), tl, br, .{}, .{ .x = 1, .y = 1 }, 0xFFFFFFFF);
+                }
 
+                if (packed_heightmap) |heightmap| {
+                    heightmap_position = .{
+                        .x = @intToFloat(f32, heightmap.width) / 2 + 5,
+                        .y = -@intToFloat(f32, heightmap.height) / 2,
+                    };
+
+                    const tl = camera.matrix().transformImVec2(heightmap_position).add(screen_position);
+                    var br = heightmap_position;
+                    br.x += @intToFloat(f32, heightmap.width);
+                    br.y += @intToFloat(f32, heightmap.height);
+                    br = camera.matrix().transformImVec2(br).add(screen_position);
+
+                    imgui.ogImDrawList_AddImage(imgui.igGetWindowDrawList(), background.?.imTextureID(), tl, br, .{}, .{ .x = 1, .y = 1 }, 0xFFFFFFFF);
+                    imgui.ogImDrawList_AddImage(imgui.igGetWindowDrawList(), heightmap.imTextureID(), tl, br, .{}, .{ .x = 1, .y = 1 }, 0xFFFFFFFF);
                 }
 
                 if (imgui.igIsWindowHovered(imgui.ImGuiHoveredFlags_None)) {
@@ -244,12 +262,12 @@ pub fn pack() void {
     }
 
     if (upaya.TexturePacker.runRectPacker(frames.items)) |size| {
-        atlas = upaya.TexturePacker.Atlas.init(frames.toOwnedSlice(), origins.toOwnedSlice(), names.toOwnedSlice(), images.toOwnedSlice(), size);
+        atlas = upaya.TexturePacker.Atlas.init(frames.toOwnedSlice(), origins.toOwnedSlice(), names.toOwnedSlice(), images.toOwnedSlice(), heightmaps.toOwnedSlice(), size);
 
         if (atlas) |a| {
             background = upaya.Texture.initChecker(a.width, a.height, editor.checker_color_1, editor.checker_color_2);
             packed_texture = a.image.asTexture(.nearest);
-            
+            packed_heightmap = a.heightmap.asTexture(.nearest);
         }
     }
 }
@@ -267,19 +285,25 @@ fn packFile(file: *types.File) void {
 
             var sprite_image = upaya.Image.init(@intCast(usize, file.tileWidth), @intCast(usize, file.tileHeight));
             sprite_image.fillRect(.{ .width = file.tileWidth, .y = file.tileHeight }, upaya.math.Color.transparent);
+            var sprite_heightmap = upaya.Image.init(@intCast(usize, file.tileWidth), @intCast(usize, file.tileHeight));
+            sprite_heightmap.fillRect(.{ .width = file.tileWidth, .y = file.tileHeight }, upaya.math.Color.transparent);
             var sprite_origin: upaya.math.Point = .{ .x = @floatToInt(i32, sprite.origin_x), .y = @floatToInt(i32, sprite.origin_y) };
             var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{s}", .{ sprite.name, layer.name }) catch unreachable;
 
             var y: usize = src_y;
             var dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];
+            var height_dst = sprite_heightmap.pixels[(y - src_y) * sprite_heightmap.w ..];
 
             while (y < src_y + sprite_image.w) {
                 const texture_width = @intCast(usize, layer.texture.width);
                 var src_row = layer.image.pixels[src_x + (y * texture_width) .. (src_x + (y * texture_width)) + sprite_image.w];
+                var heightmap_row = layer.heightmap_image.pixels[src_x + (y * texture_width) .. (src_x + (y * texture_width)) + sprite_heightmap.w];
 
                 std.mem.copy(u32, dst, src_row);
+                std.mem.copy(u32, height_dst, heightmap_row);
                 y += 1;
                 dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];
+                height_dst = sprite_heightmap.pixels[(y - src_y) * sprite_heightmap.w ..];
             }
 
             var containsColor: bool = false;
@@ -292,16 +316,19 @@ fn packFile(file: *types.File) void {
 
             if (containsColor) {
                 const offset = sprite_image.crop();
+                _ = sprite_heightmap.crop();
                 const sprite_rect: stb.stbrp_rect = .{ .id = @intCast(c_int, sprite.index), .x = 0, .y = 0, .w = @intCast(c_ushort, sprite_image.w), .h = @intCast(c_ushort, sprite_image.h) };
 
                 sprite_origin = .{ .x = sprite_origin.x - offset.x, .y = sprite_origin.y - offset.y };
 
                 images.append(sprite_image) catch unreachable;
+                heightmaps.append(sprite_heightmap) catch unreachable;
                 names.append(sprite_name) catch unreachable;
                 frames.append(sprite_rect) catch unreachable;
                 origins.append(sprite_origin) catch unreachable;
             } else {
                 sprite_image.deinit();
+                sprite_heightmap.deinit();
             }
         }
     }

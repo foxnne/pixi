@@ -31,12 +31,12 @@ pub fn draw() void {
                 upaya.inputBlocked = true;
                 upaya.inputClearRequired = true;
                 var path: [*c]u8 = null;
-                if (std.builtin.os.tag == .macos){
+                if (std.builtin.os.tag == .macos) {
                     path = upaya.filebrowser.openFileDialog("Choose a file to open...", ".pixi", "");
                 } else {
                     path = upaya.filebrowser.openFileDialog("Choose a file to open...", ".pixi", "*.pixi");
                 }
-                
+
                 if (path != null) {
                     var in_path = path[0..std.mem.len(path)];
                     if (std.mem.endsWith(u8, in_path, ".pixi")) {
@@ -115,23 +115,67 @@ pub fn draw() void {
                     sliceable = true;
             }
 
-            if (imgui.igMenuItemBool(imgui.icons.pizza_slice ++ " Slice...", "", false, sliceable)) 
+            if (imgui.igMenuItemBool(imgui.icons.pizza_slice ++ " Slice...", "", false, sliceable))
                 slice_popup = true;
-            
+
             if (imgui.igMenuItemBool(imgui.icons.file_upload ++ " Generate Heightmaps", "", false, canvas.getNumberOfFiles() > 0)) {
-
                 if (canvas.getActiveFile()) |file| {
-                    for (file.layers.items) |layer| {
-                        
+                    const tiles_wide = @divExact(file.width, file.tileWidth);
 
+                    for (file.sprites.items) |_, sprite_index| {
+                        const column = @mod(@intCast(i32, sprite_index), tiles_wide);
+                        const row = @divTrunc(@intCast(i32, sprite_index), tiles_wide);
 
+                        const src_x = @intCast(usize, column * file.tileWidth);
+                        const src_y = @intCast(usize, row * file.tileHeight);
 
-                        
+                        var lowest: usize = src_y + @intCast(usize, file.tileHeight);
+
+                        for (file.layers.items) |*layer| {
+                            var y: usize = src_y + @intCast(usize, file.tileHeight) - 1;
+
+                            blk: {
+                                while (y > src_y) : (y -= 1) {
+                                    var read_slice = layer.image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
+
+                                    for (read_slice) |p| {
+                                        if (p & 0xFF000000 != 0) {
+                                            if (y < lowest) {
+                                                lowest = y;
+                                                break :blk;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        var height: u8 = 0;
+
+                        for (file.layers.items) |*layer| {
+                            var y: usize = src_y + @intCast(usize, file.tileHeight) - 1;
+                            while (y > src_y) : (y -= 1) {
+                                if (y < lowest) {
+                                    var read_slice = layer.image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
+                                    var write_slice = layer.heightmap_image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
+
+                                    for (read_slice) |p, i| {
+                                        if (p & 0xFF000000 != 0) {
+                                            write_slice[i] = upaya.math.Color.fromBytes(height, 0, 0, 255).value;
+                                        } else
+                                            write_slice[i] = 0x00000000;
+                                    }
+
+                                    if (height < 255)
+                                        height += 1;
+                                }
+                            }
+
+                            layer.dirty = true;
+                        }
                     }
                 }
-
             }
-            
         }
 
         if (imgui.igBeginMenu("View", true)) {
@@ -148,7 +192,6 @@ pub fn draw() void {
 
             if (imgui.igMenuItemBool(imgui.icons.question ++ "  IMGUI Demo Window", 0, false, true))
                 demo_window = !demo_window;
-            
         }
     }
 
@@ -166,4 +209,14 @@ pub fn draw() void {
 
     if (demo_window)
         imgui.igShowDemoWindow(&demo_window);
+}
+
+fn containsColor(pixels: []u32) bool {
+    for (pixels) |p| {
+        if (p & 0xFF000000 != 0) {
+            return true;
+        }
+    }
+
+    return false;
 }

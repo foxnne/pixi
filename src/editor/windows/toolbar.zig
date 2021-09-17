@@ -33,7 +33,7 @@ pub fn draw() void {
     if (imgui.igBegin("Toolbar", 0, imgui.ImGuiWindowFlags_NoResize)) {
         defer imgui.igEnd();
 
-        const space = 5;
+        const space = 10;
         const toolbar_half_width = (imgui.igGetWindowContentRegionWidth() / 2) - (space / 2);
         imgui.ogPushStyleVarVec2(imgui.ImGuiStyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
 
@@ -55,7 +55,7 @@ pub fn draw() void {
         }
 
         // background color and picker
-        imgui.igSameLine(0, space);
+        imgui.igSameLine(0, space / 2);
         cursor_pos = imgui.ogGetCursorScreenPos();
         imgui.ogDummy(.{ .x = toolbar_half_width, .y = 40 });
         imgui.ogAddRectFilled(imgui.igGetWindowDrawList(), cursor_pos, .{ .x = toolbar_half_width, .y = 40 }, background_color.value);
