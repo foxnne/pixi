@@ -37,6 +37,10 @@ var previous_mouse_position: imgui.ImVec2 = undefined;
 pub var current_stroke_colors: std.ArrayList(u32) = undefined;
 pub var current_stroke_indexes: std.ArrayList(usize) = undefined;
 
+pub var clipboard_layer: ?Layer = null;
+pub var clipboard_position: imgui.ImVec2 = .{};
+pub var clipboard_size: imgui.ImVec2 = .{};
+
 pub var current_selection_colors: std.ArrayList(u32) = undefined;
 pub var current_selection_indexes: std.ArrayList(usize) = undefined;
 pub var current_selection_mode: SelectionMode = .rect;
@@ -159,7 +163,6 @@ pub fn draw() void {
                 .height => {
                     drawTexture(file.layers.items[layer_index].texture, texture_position, 0x55FFFFFF);
                     drawTexture(file.layers.items[layer_index].heightmap_texture, texture_position, 0xFFFFFFFF);
-
                 },
             }
 
@@ -754,8 +757,9 @@ pub fn draw() void {
                             }
                             layer.dirty = true;
 
-                            selection_layer.image.deinit();
-                            selection_layer.heightmap_image.deinit();
+                            //TODO: this breaks pasting, crashes on second paste 
+                            //selection_layer.image.deinit();
+                            //selection_layer.heightmap_image.deinit();
                             current_selection_layer = null;
                         }
                     }
@@ -984,6 +988,82 @@ pub fn getPixelCoordsFromIndex(texture: upaya.Texture, index: usize) imgui.ImVec
     const y = @intToFloat(f32, @divTrunc(@intCast(i32, index), texture.width));
 
     return .{ .x = x, .y = y };
+}
+
+pub fn copy() void {
+    if (getActiveFile()) |_| {
+        if (layers.getActiveLayer()) |layer| {
+            if (current_selection_indexes.items.len > 0) {
+                var tl = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
+                var br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]).add(.{ .x = 1, .y = 1 });
+                var size = br.subtract(tl);
+
+                clipboard_position = texture_position.add(tl);
+                clipboard_size = size;
+
+                var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
+                std.mem.copy(u32, image.pixels, current_selection_colors.items);
+
+                var heightmap_image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
+                std.mem.copy(u32, heightmap_image.pixels, current_selection_colors.items);
+
+                clipboard_layer = .{
+                    .name = "Clipboard",
+                    .texture = image.asTexture(.nearest),
+                    .image = image,
+                    .heightmap_image = heightmap_image,
+                    .heightmap_texture = heightmap_image.asTexture(.nearest),
+                    .id = layers.getNewID(),
+                };
+            }
+        }
+    }
+}
+
+pub fn cut() void {
+    if (getActiveFile()) |_| {
+        if (layers.getActiveLayer()) |layer| {
+            var tl = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
+            var br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]).add(.{ .x = 1, .y = 1 });
+            var size = br.subtract(tl);
+
+            clipboard_position = texture_position.add(tl);
+            clipboard_size = size;
+
+            var image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
+            std.mem.copy(u32, image.pixels, current_selection_colors.items);
+
+            var heightmap_image = upaya.Image.init(@floatToInt(usize, size.x), @floatToInt(usize, size.y));
+            std.mem.copy(u32, heightmap_image.pixels, current_selection_colors.items);
+
+            clipboard_layer = .{
+                .name = "Clipboard",
+                .texture = image.asTexture(.nearest),
+                .image = image,
+                .heightmap_image = heightmap_image,
+                .heightmap_texture = heightmap_image.asTexture(.nearest),
+                .id = layers.getNewID(),
+            };
+        }
+    }
+}
+
+pub fn paste() void {
+    if (getActiveFile()) |_| {
+        if (clipboard_layer) |clipboard| {
+            current_selection_position = clipboard_position;
+            current_selection_size = clipboard_size;
+            current_selection_layer = .{
+                .name = "Selection",
+                .texture = clipboard.texture,
+                .image = clipboard.image,
+                .heightmap_image = clipboard.heightmap_image,
+                .heightmap_texture = clipboard.heightmap_texture,
+                .id = layers.getNewID(),
+            };
+
+        }
+    }
 }
 
 pub fn close() void {

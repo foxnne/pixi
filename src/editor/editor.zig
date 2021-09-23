@@ -235,6 +235,14 @@ pub fn update() void {
             if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F11))
                 sokol.sapp_toggle_fullscreen();
         }
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_C) and mod) {
+            canvas.copy();
+        }
+
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_V) and mod) {
+            canvas.paste();
+        }
     }
 
     enable_hotkeys = true;

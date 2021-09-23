@@ -129,11 +129,6 @@ pub fn draw() void {
                             select_path = upaya.filebrowser.selectFolderDialog("Choose an export folder...", "");
 
                             if (select_path) |path| {
-                                //const png_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}.png", .{file.name}) catch unreachable;
-                                //const png_path = std.fs.path.join(upaya.mem.allocator, &[_][]const u8{ path, png_name });
-                                //const atlas_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}.atlas", .{file.name}) catch unreachable;
-                                //const atlas_path = std.fs.path.join(upaya.mem.allocator, &[_][]const u8{ path, atlas_name });
-
                                 a.save(path[0..std.mem.len(path)], file.name);
                             }
                         }
@@ -170,7 +165,7 @@ pub fn draw() void {
                     imgui.igText(@ptrCast([*c]const u8, file_name_z));
 
                     imgui.igSameLine(0, 5);
-                    if (imgui.igSmallButton("X")) {
+                    if (imgui.igSmallButton("x")) {
                         removeFile(i);
                     }
                 }
