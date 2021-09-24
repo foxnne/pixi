@@ -99,6 +99,19 @@ pub fn draw() void {
                 }
             }
             imgui.igSeparator();
+
+            if (imgui.igMenuItemBool(imgui.icons.copy ++ " Copy", mod_name ++ "+c", false, canvas.current_selection_indexes.items.len > 0)) {
+                canvas.copy();
+            }
+
+            if (imgui.igMenuItemBool(imgui.icons.cut ++ " Cut", mod_name ++ "+x", false, canvas.current_selection_indexes.items.len > 0)) {
+                canvas.cut();
+            }
+
+            if (imgui.igMenuItemBool(imgui.icons.paste ++ " Paste", mod_name ++ "+v", false, canvas.clipboard_layer != null)) {
+                canvas.paste();
+            }
+
         }
 
         if (imgui.igBeginMenu("Document", true)) {

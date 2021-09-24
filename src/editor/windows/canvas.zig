@@ -1021,7 +1021,7 @@ pub fn copy() void {
 }
 
 pub fn cut() void {
-    if (getActiveFile()) |_| {
+    if (getActiveFile()) |file| {
         if (layers.getActiveLayer()) |layer| {
             var tl = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[0]);
             var br = getPixelCoordsFromIndex(layer.texture, current_selection_indexes.items[current_selection_indexes.items.len - 1]).add(.{ .x = 1, .y = 1 });
@@ -1044,6 +1044,24 @@ pub fn cut() void {
                 .heightmap_texture = heightmap_image.asTexture(.nearest),
                 .id = layers.getNewID(),
             };
+
+            for (current_selection_indexes.items) |index| {
+                var color = layer.image.pixels[index];
+                current_stroke_indexes.append(index) catch unreachable;
+                current_stroke_colors.append(color) catch unreachable;
+                layer.image.pixels[index] = 0x00000000;
+
+            }
+
+            layer.dirty = true;
+
+            file.history.push(.{
+                .tag = .stroke,
+                .pixel_colors = current_stroke_colors.toOwnedSlice(),
+                .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
+                .layer_id = layer.id,
+                .layer_mode = toolbar.selected_mode,
+            });
         }
     }
 }

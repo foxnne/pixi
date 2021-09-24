@@ -184,7 +184,7 @@ pub fn update() void {
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_ESCAPE))
             toolbar.selected_tool = .arrow;
 
-        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_D)) 
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_D))
             toolbar.selected_tool = .pencil;
 
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_E))
@@ -227,7 +227,6 @@ pub fn update() void {
             }
             _ = save();
         }
-
         if (std.builtin.os.tag == .macos) {
             if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F) and io.KeyCtrl and io.KeySuper)
                 sokol.sapp_toggle_fullscreen();
@@ -235,11 +234,12 @@ pub fn update() void {
             if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F11))
                 sokol.sapp_toggle_fullscreen();
         }
-
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_C) and mod) {
             canvas.copy();
         }
-
+        if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_X) and mod) {
+            canvas.cut();
+        }
         if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_V) and mod) {
             canvas.paste();
         }
