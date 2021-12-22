@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const upaya = @import("upaya");
 const imgui = @import("imgui");
 const sokol = @import("sokol");
@@ -17,7 +18,7 @@ pub fn draw() void {
     if (imgui.igBeginMenuBar()) {
         defer imgui.igEndMenuBar();
 
-        const mod_name = if (std.builtin.os.tag == .windows) "ctrl" else if (std.builtin.os.tag == .linux) "super" else "cmd";
+        const mod_name = if (builtin.os.tag == .windows) "ctrl" else if (builtin.os.tag == .linux) "super" else "cmd";
 
         if (imgui.igBeginMenu("File", true)) {
             defer imgui.igEndMenu();
@@ -31,7 +32,7 @@ pub fn draw() void {
                 upaya.inputBlocked = true;
                 upaya.inputClearRequired = true;
                 var path: [*c]u8 = null;
-                if (std.builtin.os.tag == .macos) {
+                if (builtin.os.tag == .macos) {
                     path = upaya.filebrowser.openFileDialog("Choose a file to open...", ".pixi", "");
                 } else {
                     path = upaya.filebrowser.openFileDialog("Choose a file to open...", ".pixi", "*.pixi");
@@ -71,7 +72,7 @@ pub fn draw() void {
 
             imgui.igSeparator();
 
-            if (imgui.igMenuItemBool(imgui.icons.door_closed ++ " Close", if (std.builtin.os.tag == .windows) "alt+f4" else mod_name ++ "+q", false, true)) {
+            if (imgui.igMenuItemBool(imgui.icons.door_closed ++ " Close", if (builtin.os.tag == .windows) "alt+f4" else mod_name ++ "+q", false, true)) {
                 editor.shutdown();
             }
         }
@@ -195,7 +196,7 @@ pub fn draw() void {
         if (imgui.igBeginMenu("View", true)) {
             defer imgui.igEndMenu();
 
-            const fullscreen_hotkey = if (std.builtin.os.tag == .macos) "cmd+ctrl+f" else "f11";
+            const fullscreen_hotkey = if (builtin.os.tag == .macos) "cmd+ctrl+f" else "f11";
             if (imgui.igMenuItemBool(imgui.icons.tv ++ " Fullscreen", fullscreen_hotkey, false, true))
                 sokol.sapp_toggle_fullscreen();
 

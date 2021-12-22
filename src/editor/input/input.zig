@@ -24,7 +24,8 @@ pub fn update() void {
     if (elapsed_time < zoom_time) {
 
         imgui.igBeginTooltip();
-        var zoom_text = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s} {d}", .{ imgui.icons.search, zoom_target }) catch unreachable;
+        var zoom_text = std.fmt.allocPrintZ(upaya.mem.allocator, "{s} {d}", .{ imgui.icons.search, zoom_target }) catch unreachable;
+        defer upaya.mem.allocator.free(zoom_text);
         imgui.igText(@ptrCast([*c]const u8, zoom_text));
         imgui.igEndTooltip();
 

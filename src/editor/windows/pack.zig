@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const upaya = @import("upaya");
 const stb = @import("stb");
 const imgui = @import("imgui");
@@ -105,7 +106,7 @@ pub fn draw() void {
                         upaya.inputBlocked = true;
                         upaya.inputClearRequired = true;
                         var path: [*c]u8 = null;
-                        if (std.builtin.os.tag == .macos) {
+                        if (builtin.os.tag == .macos) {
                             path = upaya.filebrowser.openFileDialog("Choose a file to include...", ".pixi", "");
                         } else {
                             path = upaya.filebrowser.openFileDialog("Choose a file to include...", ".pixi", "*.pixi");

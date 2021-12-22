@@ -46,7 +46,7 @@ pub const File = struct {
 
         for (self.layers.items) |layer| {
             layers.append(.{
-                .name = std.mem.dupe(upaya.mem.allocator, u8, layer.name) catch unreachable,
+                .name = upaya.mem.allocator.dupe(u8, layer.name) catch unreachable,
             }) catch unreachable;
         }
 
@@ -54,7 +54,7 @@ pub const File = struct {
 
         for (self.sprites.items) |sprite| {
             sprites.append(.{
-                .name = std.mem.dupe(upaya.mem.allocator, u8, sprite.name) catch unreachable,
+                .name = upaya.mem.allocator.dupe(u8, sprite.name) catch unreachable,
                 .origin_x = sprite.origin_x,
                 .origin_y = sprite.origin_y,
             }) catch unreachable;
@@ -64,7 +64,7 @@ pub const File = struct {
 
         for (self.animations.items) |animation| {
             animations.append(.{
-                .name = std.mem.dupe(upaya.mem.allocator, u8, animation.name) catch unreachable,
+                .name = upaya.mem.allocator.dupe(u8, animation.name) catch unreachable,
                 .start = animation.start,
                 .length = animation.length,
                 .fps = animation.fps,
@@ -72,7 +72,7 @@ pub const File = struct {
         }
 
         var ioFile: IOFile = .{
-            .name = std.mem.dupe(upaya.mem.allocator, u8, self.name) catch unreachable,
+            .name = upaya.mem.allocator.dupe(u8, self.name) catch unreachable,
             .width = self.width,
             .height = self.height,
             .tileWidth = self.tileWidth,

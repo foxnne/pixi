@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const upaya = @import("upaya");
 const imgui = @import("imgui");
 
@@ -400,7 +401,8 @@ pub fn draw() void {
 
                         if (toolbar.selected_tool == .arrow) {
                             imgui.igBeginTooltip();
-                            var index_text = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "Index: {d}", .{tile_index}) catch unreachable;
+                            var index_text = std.fmt.allocPrintZ(upaya.mem.allocator, "Index: {d}", .{tile_index}) catch unreachable;
+                            defer upaya.mem.allocator.free(index_text);
                             imgui.igText(@ptrCast([*c]const u8, index_text));
                             imgui.igEndTooltip();
                         }
@@ -825,7 +827,7 @@ pub fn draw() void {
         text_pos.x -= 60;
 
         imgui.ogSetCursorPos(text_pos);
-        const mod_name = if (std.builtin.os.tag == .windows) "ctrl" else if (std.builtin.os.tag == .linux) "super" else "cmd";
+        const mod_name = if (builtin.os.tag == .windows) "ctrl" else if (builtin.os.tag == .linux) "super" else "cmd";
         imgui.ogColoredText(0.3, 0.3, 0.3, "New File " ++ imgui.icons.file ++ " (" ++ mod_name ++ "+n)");
     }
 }

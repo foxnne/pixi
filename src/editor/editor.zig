@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const upaya = @import("upaya");
 const imgui = @import("imgui");
@@ -73,7 +74,7 @@ pub fn init() void {
     style.TabRounding = 2;
     style.FrameRounding = 8;
     style.WindowBorderSize = 1;
-    if (std.builtin.os.tag == .macos) {
+    if (builtin.os.tag == .macos) {
         style.WindowRounding = 8;
     } else style.WindowRounding = 0;
     style.WindowMinSize = .{ .x = 100, .y = 100 };
@@ -138,7 +139,7 @@ pub fn resetDockLayout() void {
 }
 
 pub fn isModKeyDown() bool {
-    if (std.builtin.os.tag == .windows) {
+    if (builtin.os.tag == .windows) {
         return imgui.ogKeyDown(sokol.SAPP_KEYCODE_LEFT_CONTROL) or imgui.ogKeyDown(sokol.SAPP_KEYCODE_RIGHT_CONTROL);
     } else {
         const io = imgui.igGetIO();
@@ -227,7 +228,7 @@ pub fn update() void {
             }
             _ = save();
         }
-        if (std.builtin.os.tag == .macos) {
+        if (builtin.os.tag == .macos) {
             if (imgui.ogKeyPressed(sokol.SAPP_KEYCODE_F) and io.KeyCtrl and io.KeySuper)
                 sokol.sapp_toggle_fullscreen();
         } else {
@@ -276,7 +277,7 @@ pub fn save() bool {
             upaya.inputClearRequired = true;
 
             var path: [*c]u8 = null;
-            if (std.builtin.os.tag == .macos) {
+            if (builtin.os.tag == .macos) {
                 path = upaya.filebrowser.saveFileDialog("Choose a file name...", ".pixi", "");
             } else {
                 path = upaya.filebrowser.saveFileDialog("Choose a file name...", ".pixi", "*.pixi");
@@ -285,7 +286,7 @@ pub fn save() bool {
                 var out_path = path[0..std.mem.len(path)];
                 var out_name = std.fs.path.basename(out_path);
                 if (!std.mem.endsWith(u8, out_path, ".pixi")) {
-                    out_path = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ out_path, ".pixi" }) catch unreachable;
+                    out_path = std.mem.concat(upaya.mem.allocator, u8, &[_][]const u8{ out_path, ".pixi" }) catch unreachable;
                 }
 
                 var end = std.mem.indexOf(u8, out_name, ".");
@@ -296,7 +297,7 @@ pub fn save() bool {
                     _ = saveAs(out_path);
                 }
 
-                file.path = std.mem.dupeZ(upaya.mem.allocator, u8, out_path) catch unreachable;
+                file.path = upaya.mem.allocator.dupeZ(u8, out_path) catch unreachable;
                 return true;
             } else return false;
         }
@@ -309,7 +310,8 @@ pub fn saveAs(file_path: ?[]const u8) bool {
         // create a saveable copy of the current file
         var ioFile = file.toIOFile();
         if (file_path) |path| {
-            const zip_filename = std.mem.concat(upaya.mem.tmp_allocator, u8, &[_][]const u8{ path, "\u{0}" }) catch unreachable;
+            const zip_filename = std.mem.concat(upaya.mem.allocator, u8, &[_][]const u8{ path, "\u{0}" }) catch unreachable;
+            defer upaya.mem.allocator.free(zip_filename);
 
             var zip = upaya.zip.zip_open(@ptrCast([*c]const u8, zip_filename), upaya.zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
@@ -404,7 +406,8 @@ pub fn importPixi(file: []const u8) ?types.File {
     name = name[0 .. name.len - 5]; //trim off .pixi
 
     var zip_path = file;
-    var zip_path_z = std.cstr.addNullByte(upaya.mem.tmp_allocator, zip_path) catch unreachable;
+    var zip_path_z = std.cstr.addNullByte(upaya.mem.allocator, zip_path) catch unreachable;
+    defer upaya.mem.allocator.free(zip_path_z);
 
     // open zip for reading
     var zip = upaya.zip.zip_open(@ptrCast([*c]const u8, zip_path_z), 0, 'r');
@@ -473,7 +476,7 @@ pub fn importPixi(file: []const u8) ?types.File {
             _ = upaya.zip.zip_entry_close(z);
 
             var new_layer: types.Layer = .{
-                .name = std.mem.dupe(upaya.mem.allocator, u8, layer.name) catch unreachable,
+                .name = upaya.mem.allocator.dupe(u8, layer.name) catch unreachable,
                 .texture = new_image.asTexture(.nearest),
                 .image = new_image,
                 .heightmap_image = new_heightmap,
@@ -488,7 +491,7 @@ pub fn importPixi(file: []const u8) ?types.File {
 
         for (ioFile.sprites) |sprite, i| {
             var new_sprite: types.Sprite = .{
-                .name = std.mem.dupe(upaya.mem.allocator, u8, sprite.name) catch unreachable,
+                .name = upaya.mem.allocator.dupe(u8, sprite.name) catch unreachable,
                 .index = i,
                 .origin_x = sprite.origin_x,
                 .origin_y = sprite.origin_y,
@@ -499,7 +502,7 @@ pub fn importPixi(file: []const u8) ?types.File {
 
         for (ioFile.animations) |animation| {
             var new_animation: types.Animation = .{
-                .name = std.mem.dupe(upaya.mem.allocator, u8, animation.name) catch unreachable,
+                .name = upaya.mem.allocator.dupe(u8, animation.name) catch unreachable,
                 .start = animation.start,
                 .length = animation.length,
                 .fps = animation.fps,
@@ -509,8 +512,8 @@ pub fn importPixi(file: []const u8) ?types.File {
         }
 
         new_file = .{
-            .name = std.mem.dupe(upaya.mem.allocator, u8, name) catch unreachable,
-            .path = std.mem.dupe(upaya.mem.allocator, u8, file) catch unreachable,
+            .name = upaya.mem.allocator.dupe(u8, name) catch unreachable,
+            .path = upaya.mem.allocator.dupe(u8, file) catch unreachable,
             .width = ioFile.width,
             .height = ioFile.height,
             .tileWidth = ioFile.tileWidth,
@@ -537,7 +540,8 @@ pub fn importPixi(file: []const u8) ?types.File {
 pub fn importPng(file: []const u8) ?types.File {
     var name = std.fs.path.basename(file);
     name = name[0 .. name.len - 4]; //trim off .png extension
-    const sprite_name = std.fmt.allocPrintZ(upaya.mem.tmp_allocator, "{s}_0", .{name}) catch unreachable;
+    const sprite_name = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}_0", .{name}) catch unreachable;
+    defer upaya.mem.allocator.free(sprite_name);
     const file_image = upaya.Image.initFromFile(file);
     var file_heightmap = upaya.Image.init(file_image.w, file_image.h);
     file_heightmap.fillRect(.{ .x = 0, .y = 0, .width = @intCast(i32, file_image.w), .height = @intCast(i32, file_image.h) }, upaya.math.Color.transparent);

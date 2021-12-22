@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const upaya = @import("upaya");
 const imgui = @import("imgui");
 
@@ -86,7 +87,7 @@ pub fn draw() void {
                 imgui.igPushIDInt(@intCast(c_int, i));
 
                 const io = imgui.igGetIO();
-                const mod: bool = if (std.builtin.os.tag == .windows) io.KeyCtrl else io.KeySuper;
+                const mod: bool = if (builtin.os.tag == .windows) io.KeyCtrl else io.KeySuper;
                 const shift: bool = io.KeyShift;
 
                 const sprite_name_z = upaya.mem.allocator.dupeZ(u8, sprite.name) catch unreachable;
