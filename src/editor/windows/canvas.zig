@@ -260,6 +260,16 @@ pub fn draw() void {
                 var dirty_flag = if (f.dirty) imgui.ImGuiTabItemFlags_UnsavedDocument else imgui.ImGuiTabItemFlags_None;
                 if (imgui.igBeginTabItem(@ptrCast([*c]const u8, name_z), &open, dirty_flag)) {
                     defer imgui.igEndTabItem();
+
+                    if (imgui.igBeginPopupContextItem("File Settings", imgui.ImGuiMouseButton_Right)) {
+                        defer imgui.igEndPopup();
+
+                        imgui.igText("File Settings");
+                        imgui.igSeparator();
+
+                    
+                    }
+
                     setActiveFile(i);
                 }
                 imgui.igPopID();
@@ -759,7 +769,7 @@ pub fn draw() void {
                             }
                             layer.dirty = true;
 
-                            //TODO: this breaks pasting, crashes on second paste 
+                            //TODO: this breaks pasting, crashes on second paste
                             //selection_layer.image.deinit();
                             //selection_layer.heightmap_image.deinit();
                             current_selection_layer = null;
@@ -1052,7 +1062,6 @@ pub fn cut() void {
                 current_stroke_indexes.append(index) catch unreachable;
                 current_stroke_colors.append(color) catch unreachable;
                 layer.image.pixels[index] = 0x00000000;
-
             }
 
             layer.dirty = true;
@@ -1081,7 +1090,6 @@ pub fn paste() void {
                 .heightmap_texture = clipboard.heightmap_texture,
                 .id = layers.getNewID(),
             };
-
         }
     }
 }

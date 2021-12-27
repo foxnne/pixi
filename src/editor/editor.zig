@@ -362,7 +362,7 @@ pub fn saveAs(file_path: ?[]const u8) bool {
     return false;
 }
 
-fn writePng(context: ?*c_void, data: ?*c_void, size: c_int) callconv(.C) void {
+fn writePng(context: ?*anyopaque, data: ?*anyopaque, size: c_int) callconv(.C) void {
     const zip = @ptrCast(?*upaya.zip.struct_zip_t, context);
 
     if (zip) |z| {
@@ -416,7 +416,7 @@ pub fn importPixi(file: []const u8) ?types.File {
     if (zip) |z| {
         defer upaya.zip.zip_close(z);
 
-        var buf: ?*c_void = null;
+        var buf: ?*anyopaque = null;
         var size: u64 = 0;
         _ = upaya.zip.zip_entry_open(z, "pixidata.json");
         _ = upaya.zip.zip_entry_read(z, &buf, &size);
@@ -454,12 +454,12 @@ pub fn importPixi(file: []const u8) ?types.File {
             const layer_name_z = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}.png\u{0}", .{layer.name}) catch unreachable;
             const layer_heightmap_z = std.fmt.allocPrintZ(upaya.mem.allocator, "{s}_h.png\u{0}", .{layer.name}) catch unreachable;
 
-            var img_buf: ?*c_void = null;
+            var img_buf: ?*anyopaque = null;
             var img_len: u64 = 0;
             _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name_z));
             _ = upaya.zip.zip_entry_read(z, &img_buf, &img_len);
 
-            var heightmap_buf: ?*c_void = null;
+            var heightmap_buf: ?*anyopaque = null;
             var heightmap_len: u64 = 0;
             _ = upaya.zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_heightmap_z));
             _ = upaya.zip.zip_entry_read(z, &heightmap_buf, &heightmap_len);
