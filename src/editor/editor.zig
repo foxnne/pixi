@@ -585,7 +585,7 @@ pub fn importPng(file: []const u8) ?types.File {
     }) catch unreachable;
 
     new_file.sprites.append(.{
-        .name = sprite_name,
+        .name = upaya.mem.allocator.dupe(u8, sprite_name) catch unreachable,
         .index = 0,
         .origin_x = 0,
         .origin_y = 0,

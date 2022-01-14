@@ -112,7 +112,6 @@ pub fn draw() void {
             if (imgui.igMenuItemBool(imgui.icons.paste ++ " Paste", mod_name ++ "+v", false, canvas.clipboard_layer != null)) {
                 canvas.paste();
             }
-
         }
 
         if (imgui.igBeginMenu("Document", true)) {
@@ -140,23 +139,29 @@ pub fn draw() void {
                         const column = @mod(@intCast(i32, sprite_index), tiles_wide);
                         const row = @divTrunc(@intCast(i32, sprite_index), tiles_wide);
 
+                        // corresponds to the x and y of the first pixel of the sprite (top left)
                         const src_x = @intCast(usize, column * file.tileWidth);
                         const src_y = @intCast(usize, row * file.tileHeight);
 
-                        var lowest: usize = src_y + @intCast(usize, file.tileHeight) - 1;
+                        // the y of the first opaque pixel in the sprite from the bottom
+                        var sprite_lowest: usize = src_y;
 
+                        // iterate layers inside of sprites just to locate the "lowest" opaque pixel in the sprite across all layers
                         for (file.layers.items) |*layer| {
-                            var y: usize = src_y + @intCast(usize, file.tileHeight) - 1;
 
+                            // start at the first pixel from the bottom
+                            var y: usize = src_y + @intCast(usize, file.tileHeight) - 1;
                             blk: {
                                 while (y > src_y) : (y -= 1) {
-                                    
+
+                                    //row of pixels the width of the sprite
                                     var read_slice = layer.image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
 
                                     for (read_slice) |p| {
                                         if (p & 0xFF000000 != 0) {
-                                            if (y < lowest) {
-                                                lowest = y;
+                                            if (y > sprite_lowest) {
+                                                sprite_lowest = y;
+
                                                 break :blk;
                                             }
                                         }
@@ -165,25 +170,36 @@ pub fn draw() void {
                             }
                         }
 
-                        var height: u8 = 0;
-
+                        // now that we have the "lowest" opaque pixel, iterate layers again to color heights
                         for (file.layers.items) |*layer| {
-                            var y: usize = src_y + @intCast(usize, file.tileHeight) - 1;
-                            while (y > src_y) : (y -= 1){
-                                if (y <= lowest) {
-                                    var read_slice = layer.image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
-                                    var write_slice = layer.heightmap_image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
 
-                                    for (read_slice) |p, i| {
-                                        if (p & 0xFF000000 != 0) {
-                                            write_slice[i] = upaya.math.Color.fromBytes(height, 0, 0, 255).value;
-                                        } else
-                                            write_slice[i] = 0x00000000;
-                                    }
+                            //reset the height for each layer
+                            var height: u8 = 1;
 
-                                    if (height < 255)
-                                        height += 1;
+                            // here, start at the sprite's first opaque pixel from the bottom
+                            var y: usize = sprite_lowest;
+                            while (y > src_y) : (y -= 1) {
+
+                                //rows of pixels the width of the sprite, one for each mode
+                                var read_slice = layer.image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
+                                var write_slice = layer.heightmap_image.pixels[src_x + y * @intCast(usize, file.width) .. src_x + y * @intCast(usize, file.width) + @intCast(usize, file.tileWidth)];
+
+                                for (read_slice) |p, i| {
+                                    if (p & 0xFF000000 != 0) {
+
+                                        const color_array = [_]u8{32, 64, 96, 128, 160, 192, 224, 255} ** 32;
+                                        // alternate g and b channels so its easier to see, only really using the red channel
+                                        if (@mod(height, 2) == 0) {
+                                            write_slice[i] = upaya.math.Color.fromBytes(height, color_array[height], 64, 255).value;
+                                        } else {
+                                            write_slice[i] = upaya.math.Color.fromBytes(height, 64, color_array[height], 255).value;
+                                        }
+                                    } else write_slice[i] = 0x00000000;
                                 }
+
+                                //increment the height so we achieve a red channel gradient
+                                if (height < 255)
+                                    height += 1;
                             }
 
                             layer.dirty = true;

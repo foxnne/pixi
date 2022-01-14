@@ -422,8 +422,15 @@ pub fn draw() void {
                     if (io.MouseDown[1] or (io.MouseDown[0] and toolbar.selected_tool == .dropper)) {
                         imgui.igBeginTooltip();
                         var coord_text = std.fmt.allocPrintZ(upaya.mem.allocator, "{s} {d},{d}", .{ imgui.icons.eye_dropper, mouse_pixel_coords.x + 1, mouse_pixel_coords.y + 1 }) catch unreachable;
+                        var color = switch(toolbar.selected_mode) {
+                            .diffuse => upaya.math.Color{ .value = layer.image.pixels[pixel_index]},
+                            .height => upaya.math.Color{ .value = layer.heightmap_image.pixels[pixel_index]},
+                        };
+                        var color_text = std.fmt.allocPrintZ(upaya.mem.allocator, "R: {d}, G: {d}, B: {d}", .{color.r_val(), color.g_val(), color.b_val()}) catch unreachable;
                         imgui.igText(@ptrCast([*c]const u8, coord_text));
+                        imgui.igText(@ptrCast([*c]const u8, color_text));
                         upaya.mem.allocator.free(coord_text);
+                        upaya.mem.allocator.free(color_text);
                         imgui.igEndTooltip();
 
                         if (layer.image.pixels[pixel_index] == 0x00000000) {
@@ -817,6 +824,61 @@ pub fn draw() void {
                             }
                         }
                     }
+                } else { //mouse is not over the art board
+
+
+                    // TODO: This is duplicated code from above, lets try to make this a function and reuse?
+
+                    if (imgui.igIsMouseClicked(imgui.ImGuiMouseButton_Left, false) and current_selection_layer != null) {
+
+                        if (current_selection_layer) |selection_layer| {
+                            const selection_position = current_selection_position.subtract(texture_position);
+                            const x = @floatToInt(i32, selection_position.x);
+                            const y = @floatToInt(i32, selection_position.y);
+
+                            //TODO: crop the layer.image if its not within the artboard bounds
+                            // or completely remove if it doesnt overlap
+
+                            for (selection_layer.image.pixels) |_, i| {
+                                var pix_coord_x = @intToFloat(f32, x + @mod(@intCast(i32, i), selection_layer.texture.width));
+                                var pix_coord_y = @intToFloat(f32, y + @divTrunc(@intCast(i32, i), selection_layer.texture.width));
+                                var test_index = getPixelIndexFromCoordsUnsafe(layer.texture, .{ .x = pix_coord_x, .y = pix_coord_y });
+
+                                if (test_index) |index| {
+                                    const color = switch (toolbar.selected_mode) {
+                                        .diffuse => layer.image.pixels[index],
+                                        .height => layer.heightmap_image.pixels[index],
+                                    };
+                                    // store current colors for history state
+                                    if (index < layer.image.pixels.len) {
+                                        current_stroke_indexes.append(index) catch unreachable;
+                                        current_stroke_colors.append(color) catch unreachable;
+                                    }
+                                }
+                            }
+
+                            file.history.push(.{
+                                .tag = .stroke,
+                                .pixel_colors = current_stroke_colors.toOwnedSlice(),
+                                .pixel_indexes = current_stroke_indexes.toOwnedSlice(),
+                                .layer_id = layer.id,
+                                .layer_mode = toolbar.selected_mode,
+                            });
+
+                            switch (toolbar.selected_mode) {
+                                .diffuse => layer.image.blitWithoutTransparent(selection_layer.image, x, y),
+                                .height => layer.heightmap_image.blitWithoutTransparent(selection_layer.heightmap_image, x, y),
+                            }
+                            layer.dirty = true;
+
+                            //TODO: this breaks pasting, crashes on second paste
+                            //selection_layer.image.deinit();
+                            //selection_layer.heightmap_image.deinit();
+                            current_selection_layer = null;
+                        }
+
+                    }
+
                 }
             }
 
