@@ -310,7 +310,7 @@ fn packFile(file: *types.File) void {
             var dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];
             var height_dst = sprite_heightmap.pixels[(y - src_y) * sprite_heightmap.w ..];
 
-            while (y < src_y + sprite_image.w) {
+            while (y < src_y + sprite_image.h) {
                 const texture_width = @intCast(usize, layer.texture.width);
                 var src_row = layer.image.pixels[src_x + (y * texture_width) .. (src_x + (y * texture_width)) + sprite_image.w];
                 var heightmap_row = layer.heightmap_image.pixels[src_x + (y * texture_width) .. (src_x + (y * texture_width)) + sprite_heightmap.w];
@@ -322,15 +322,7 @@ fn packFile(file: *types.File) void {
                 height_dst = sprite_heightmap.pixels[(y - src_y) * sprite_heightmap.w ..];
             }
 
-            var containsColor: bool = false;
-            for (sprite_image.pixels) |p| {
-                if (p & 0xFF000000 != 0) {
-                    containsColor = true;
-                    break;
-                }
-            }
-
-            if (containsColor) {
+            if (upaya.Image.containsColor(sprite_image.pixels)) {
                 const offset = sprite_image.crop();
                 _ = sprite_heightmap.crop();
                 const sprite_rect: stb.stbrp_rect = .{ .id = @intCast(c_int, sprite.index), .x = 0, .y = 0, .w = @intCast(c_ushort, sprite_image.w), .h = @intCast(c_ushort, sprite_image.h) };

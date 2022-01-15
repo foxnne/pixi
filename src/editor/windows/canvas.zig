@@ -426,7 +426,7 @@ pub fn draw() void {
                             .diffuse => upaya.math.Color{ .value = layer.image.pixels[pixel_index]},
                             .height => upaya.math.Color{ .value = layer.heightmap_image.pixels[pixel_index]},
                         };
-                        var color_text = std.fmt.allocPrintZ(upaya.mem.allocator, "R: {d}, G: {d}, B: {d}", .{color.r_val(), color.g_val(), color.b_val()}) catch unreachable;
+                        var color_text = std.fmt.allocPrintZ(upaya.mem.allocator, "R: {d}, G: {d}, B: {d}, A: {d}", .{color.r_val(), color.g_val(), color.b_val(), color.a_val()}) catch unreachable;
                         imgui.igText(@ptrCast([*c]const u8, coord_text));
                         imgui.igText(@ptrCast([*c]const u8, color_text));
                         upaya.mem.allocator.free(coord_text);
