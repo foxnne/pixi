@@ -33,6 +33,7 @@ var heightmaps: std.ArrayList(upaya.Image) = undefined;
 var frames: std.ArrayList(upaya.stb.stbrp_rect) = undefined;
 var names: std.ArrayList([]const u8) = undefined;
 var origins: std.ArrayList(upaya.math.Point) = undefined;
+var animations: std.ArrayList(upaya.TexturePacker.Animation) = undefined;
 
 pub fn addFile(file: File) void {
     if (canvas.getActiveFile()) |f| {
@@ -66,10 +67,26 @@ pub fn removeFile(index: usize) void {
 }
 
 pub fn clear() void {
-    if (files.items.len > 0) {
-        //TODO: free memory
+    if (files.items.len > 0)
         files.clearAndFree();
-    }
+
+    if (images.items.len > 0)
+        images.clearAndFree();
+
+    if (heightmaps.items.len > 0)
+        heightmaps.clearAndFree();
+
+    if (frames.items.len > 0)
+        frames.clearAndFree();
+
+    if (names.items.len > 0)
+        names.clearAndFree();
+
+    if (origins.items.len > 0)
+        origins.clearAndFree();
+
+    if (animations.items.len > 0)
+        animations.clearAndFree();
 }
 
 pub fn init() void {
@@ -79,6 +96,7 @@ pub fn init() void {
     frames = std.ArrayList(upaya.stb.stbrp_rect).init(upaya.mem.allocator);
     names = std.ArrayList([]const u8).init(upaya.mem.allocator);
     origins = std.ArrayList(upaya.math.Point).init(upaya.mem.allocator);
+    animations = std.ArrayList(upaya.TexturePacker.Animation).init(upaya.mem.allocator);
 }
 
 pub fn draw() void {
@@ -224,7 +242,7 @@ pub fn draw() void {
                         input.pan(&camera, imgui.ImGuiMouseButton_Middle);
                     }
 
-                    if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0) and imgui.ogKeyDown(@intCast(usize, imgui.igGetKeyIndex(imgui.ImGuiKey_Space)))) {
+                    if (imgui.igIsMouseDragging(imgui.ImGuiMouseButton_Left, 0)) {
                         input.pan(&camera, imgui.ImGuiMouseButton_Left);
                     }
 
@@ -258,7 +276,7 @@ pub fn pack() void {
     }
 
     if (upaya.TexturePacker.runRectPacker(frames.items)) |size| {
-        atlas = upaya.TexturePacker.Atlas.init(frames.toOwnedSlice(), origins.toOwnedSlice(), names.toOwnedSlice(), images.toOwnedSlice(), heightmaps.toOwnedSlice(), size);
+        atlas = upaya.TexturePacker.Atlas.init(frames.toOwnedSlice(), origins.toOwnedSlice(), names.toOwnedSlice(), images.toOwnedSlice(), heightmaps.toOwnedSlice(), animations.toOwnedSlice(), size);
 
         if (atlas) |a| {
             background = upaya.Texture.initChecker(a.width, a.height, editor.checker_color_1, editor.checker_color_2);
@@ -269,6 +287,7 @@ pub fn pack() void {
 }
 
 fn packFile(file: *types.File) void {
+    // sprites
     for (file.layers.items) |layer| {
         for (file.sprites.items) |sprite| {
             const tiles_wide = @divExact(file.width, file.tileWidth);
@@ -285,6 +304,7 @@ fn packFile(file: *types.File) void {
             sprite_heightmap.fillRect(.{ .width = file.tileWidth, .y = file.tileHeight }, upaya.math.Color.transparent);
             var sprite_origin: upaya.math.Point = .{ .x = @floatToInt(i32, sprite.origin_x), .y = @floatToInt(i32, sprite.origin_y) };
             var sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{s}", .{ sprite.name, layer.name }) catch unreachable;
+            defer upaya.mem.allocator.free(sprite_name);
 
             var y: usize = src_y;
             var dst = sprite_image.pixels[(y - src_y) * sprite_image.w ..];
@@ -319,13 +339,44 @@ fn packFile(file: *types.File) void {
 
                 images.append(sprite_image) catch unreachable;
                 heightmaps.append(sprite_heightmap) catch unreachable;
-                names.append(sprite_name) catch unreachable;
+                names.append(upaya.mem.allocator.dupe(u8, sprite_name) catch unreachable) catch unreachable;
                 frames.append(sprite_rect) catch unreachable;
                 origins.append(sprite_origin) catch unreachable;
             } else {
                 sprite_image.deinit();
                 sprite_heightmap.deinit();
             }
+        }
+    }
+
+    // animations
+    for (file.animations.items) |animation| {
+        for (file.layers.items) |layer| {
+            const animation_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{s}", .{ animation.name, layer.name }) catch unreachable;
+            defer upaya.mem.allocator.free(animation_name);
+            var sprite_indexes = std.ArrayList(usize).initCapacity(upaya.mem.allocator, animation.length) catch unreachable;
+
+            var i: usize = 0;
+            while (i < animation.length) : (i += 1) {
+                const sprite_name = std.fmt.allocPrint(upaya.mem.allocator, "{s}_{s}", .{ file.sprites.items[animation.start + i].name, layer.name }) catch unreachable;
+                defer upaya.mem.allocator.free(sprite_name);
+
+                for (names.items) |name, j| {
+                    if (std.mem.eql(u8, name, sprite_name)) {
+                        sprite_indexes.append(j) catch unreachable;
+                    }
+                }
+            }
+
+            if (sprite_indexes.items.len > 0) {
+                animations.append(.{
+                .name = upaya.mem.allocator.dupe(u8, animation_name) catch unreachable,
+                .indexes = sprite_indexes.toOwnedSlice(),
+                .fps = animation.fps,
+            }) catch unreachable;
+
+            }
+            
         }
     }
 }
