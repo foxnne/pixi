@@ -154,6 +154,10 @@ pub fn draw() void {
                             }
                         }
                     }
+                    
+                    _ = imgui.igCheckbox("Index On Export", &file.layers.items[i].index_on_export);
+
+                    
                 }
 
                 imgui.igPopID();

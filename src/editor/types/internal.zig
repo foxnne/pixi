@@ -47,6 +47,7 @@ pub const File = struct {
         for (self.layers.items) |layer| {
             layers.append(.{
                 .name = upaya.mem.allocator.dupe(u8, layer.name) catch unreachable,
+                .index_on_export = layer.index_on_export,
             }) catch unreachable;
         }
 
@@ -102,6 +103,7 @@ pub const Layer = struct {
     id: usize,
     hidden: bool = false,
     dirty: bool = false,
+    index_on_export: bool = false,
 
     pub fn updateTexture(self: *Layer) void {
         if (self.dirty) {

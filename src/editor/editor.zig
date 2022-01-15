@@ -484,6 +484,7 @@ pub fn importPixi(file: []const u8) ?types.File {
                 .id = layers.getNewID(),
                 .hidden = false,
                 .dirty = false,
+                .index_on_export = layer.index_on_export,
             };
 
             new_layers.append(new_layer) catch unreachable;

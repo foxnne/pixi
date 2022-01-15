@@ -289,6 +289,41 @@ pub fn pack() void {
 fn packFile(file: *types.File) void {
     // sprites
     for (file.layers.items) |layer| {
+        var colors = std.ArrayList(u32).init(upaya.mem.allocator);
+        var indexed_colors = std.ArrayList(u32).init(upaya.mem.allocator);
+
+        if (layer.index_on_export) {
+            for (layer.image.pixels) |p| {
+                if (p & 0xFF000000 != 0) {
+                    var contains: bool = false;
+                    for (colors.items) |color| {
+                        if (p == color) {
+                            contains = true;
+                            break;
+                        }
+                    }
+
+                    if (contains == false) {
+                        colors.append(p) catch unreachable;
+                    }
+                }
+            }
+        }
+
+        if (colors.items.len > 0) {
+
+            // sort the layers colors by luminance
+            std.sort.sort(u32, colors.items, {}, sort);
+
+            const step = @divTrunc(256, colors.items.len);
+            //number of colors is the number of steps we need
+            for (colors.items) |_, i| {
+                const r = upaya.math.Color.fromBytes(@intCast(u8, step * i + 1), 0, 0, 255);
+
+                indexed_colors.append(r.value) catch unreachable;
+            }
+        }
+
         for (file.sprites.items) |sprite| {
             const tiles_wide = @divExact(file.width, file.tileWidth);
 
@@ -325,6 +360,18 @@ fn packFile(file: *types.File) void {
             if (upaya.Image.containsColor(sprite_image.pixels)) {
                 const offset = sprite_image.crop();
                 _ = sprite_heightmap.crop();
+
+                if (layer.index_on_export and colors.items.len > 0 and indexed_colors.items.len > 0) {
+                    for (sprite_image.pixels) |p, i| {
+                        if (p & 0xFF000000 != 0) {
+                            for (colors.items) |color, j| {
+                                if (p == color)
+                                    sprite_image.pixels[i] = indexed_colors.items[j];
+                            }
+                        }
+                    }
+                }
+
                 const sprite_rect: stb.stbrp_rect = .{ .id = @intCast(c_int, sprite.index), .x = 0, .y = 0, .w = @intCast(c_ushort, sprite_image.w), .h = @intCast(c_ushort, sprite_image.h) };
 
                 sprite_origin = .{ .x = sprite_origin.x - offset.x, .y = sprite_origin.y - offset.y };
@@ -362,13 +409,24 @@ fn packFile(file: *types.File) void {
 
             if (sprite_indexes.items.len > 0) {
                 animations.append(.{
-                .name = upaya.mem.allocator.dupe(u8, animation_name) catch unreachable,
-                .indexes = sprite_indexes.toOwnedSlice(),
-                .fps = animation.fps,
-            }) catch unreachable;
-
+                    .name = upaya.mem.allocator.dupe(u8, animation_name) catch unreachable,
+                    .indexes = sprite_indexes.toOwnedSlice(),
+                    .fps = animation.fps,
+                }) catch unreachable;
             }
-            
         }
     }
+}
+
+fn sort(ctx: void, lhs: u32, rhs: u32) bool {
+    _ = ctx;
+    const color1 = upaya.math.Color{ .value = lhs };
+    const color2 = upaya.math.Color{ .value = rhs };
+
+    //L = 0.2126 R + 0.7152 G + 0.0722 B
+
+    const lum1 = @intToFloat(f32, color1.r_val()) * 0.2126 + @intToFloat(f32, color1.g_val()) * 0.7152 + @intToFloat(f32, color1.b_val()) * 0.0722;
+    const lum2 = @intToFloat(f32, color2.r_val()) * 0.2126 + @intToFloat(f32, color2.g_val()) * 0.7152 + @intToFloat(f32, color2.b_val()) * 0.0722;
+
+    return lum1 < lum2;
 }

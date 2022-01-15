@@ -20,6 +20,7 @@ pub const IOFile = struct {
 
 pub const IOLayer = struct {
     name: []const u8,
+    index_on_export: bool = false,
 };
 
 pub const IOSprite = struct {
