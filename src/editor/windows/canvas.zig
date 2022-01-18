@@ -71,7 +71,6 @@ pub fn init() void {
 
     logo = upaya.Texture.initWithColorData(&logo_pixels, 12, 8, .nearest, .clamp);
 
-    upaya.sokol.sapp_set_icon(&.{ .sokol_default = true, .images = undefined });
 }
 
 pub fn addFile(file: File) void {
