@@ -2,7 +2,7 @@
 #import <objc/runtime.h>
 
 // part of your application
-extern void forward_load_message(const char * filename); 
+extern void forward_load_message(const char * filename, size_t filename_len); 
 
 @implementation CustomDelegate
 
@@ -38,12 +38,14 @@ extern void forward_load_message(const char * filename);
 }
 
 - (BOOL)swz_application:(NSApplication *)sender openFile:(NSString *)filename{
-	forward_load_message(filename.UTF8String);
+	forward_load_message(filename.UTF8String, [filename length]);
     return TRUE;
 }
 
 - (void)swz_application:(NSApplication *)sender openFiles:(NSArray<NSString *> *)filenames{
-	forward_load_message(filenames.firstObject.UTF8String);
+	for (NSString* filename in filenames) {
+		forward_load_message(filenames.firstObject.UTF8String, [filename length]);
+	}
 }
 
 @end
