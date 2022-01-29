@@ -39,6 +39,7 @@ extern void forward_load_message(const char * filename);
 
 - (BOOL)swz_application:(NSApplication *)sender openFile:(NSString *)filename{
 	forward_load_message(filename.UTF8String);
+    return TRUE;
 }
 
 - (void)swz_application:(NSApplication *)sender openFiles:(NSArray<NSString *> *)filenames{

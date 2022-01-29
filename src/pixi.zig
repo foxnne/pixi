@@ -5,8 +5,10 @@ const sokol = @import("sokol");
 
 pub const editor = @import("editor/editor.zig");
 
-pub fn forward_load_message(path: [*c]const u8) callconv(.C) void {
+pub fn _forward_load_message(path: [*c]const u8) callconv(.C) void {
     std.log.debug("{s}", .{path});
+
+    editor.onFileDropped(path);
 }
 
 pub fn main() !void {
