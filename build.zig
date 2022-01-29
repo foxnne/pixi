@@ -20,6 +20,11 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     var exe = b.addExecutable(name, source);
     exe.setBuildMode(b.standardReleaseOptions());
 
+    if (builtin.os.tag == .macos) {
+            const c_flags = [_][]const u8{ "-std=c99", "-ObjC" };
+            exe.addCSourceFile("appdelegate/appdelegate.m", &c_flags);
+        }
+
     if (b.is_release) {
         exe.want_lto = false; //workaround until this is supported
 
@@ -27,8 +32,10 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
             exe.subsystem = .Windows;
         }
 
-        if (builtin.os.tag == .macos and builtin.cpu.arch == std.Target.Cpu.Arch.aarch64) {
+        if (builtin.os.tag == .macos) {
             exe.subsystem = .Posix;
+            const c_flags = [_][]const u8{ "-std=c99", "-ObjC" };
+            exe.addCSourceFile("appdelegate/appdelegate.m", &c_flags);
         }
     }
 
