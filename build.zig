@@ -21,9 +21,9 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     exe.setBuildMode(b.standardReleaseOptions());
 
     if (builtin.os.tag == .macos) {
-            const c_flags = [_][]const u8{ "-std=c99", "-ObjC" };
-            exe.addCSourceFile("appdelegate/appdelegate.m", &c_flags);
-        }
+        const c_flags = [_][]const u8{ "-std=c99", "-ObjC" };
+        exe.addCSourceFile("appdelegate/appdelegate.m", &c_flags);
+    }
 
     if (b.is_release) {
         exe.want_lto = false; //workaround until this is supported
@@ -47,6 +47,16 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     };
 
     exe.install();
+
+    if (builtin.os.tag == .macos) {
+        const install_path = std.fmt.allocPrint(b.allocator, "{s}/bin/Pixi", .{b.install_path}) catch unreachable;
+        defer b.allocator.free(install_path);
+        b.installFile(install_path, "bin/Pixi.app/Contents/MacOS/Pixi");
+        b.installFile("Info.plist", "bin/Pixi.app/Contents/Info.plist");
+        b.installFile("Icon.icns", "bin/Pixi.app/Contents/Resources/Icon.icns");
+    }
+
+    
 
     const run_cmd = exe.run();
     const exe_step = b.step("run", b.fmt("run {s}.zig", .{name}));
