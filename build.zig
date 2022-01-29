@@ -34,8 +34,6 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
 
         if (builtin.os.tag == .macos) {
             exe.subsystem = .Posix;
-            const c_flags = [_][]const u8{ "-std=c99", "-ObjC" };
-            exe.addCSourceFile("appdelegate/appdelegate.m", &c_flags);
         }
     }
 
@@ -55,8 +53,6 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
         b.installFile("Info.plist", "bin/Pixi.app/Contents/Info.plist");
         b.installFile("Icon.icns", "bin/Pixi.app/Contents/Resources/Icon.icns");
     }
-
-    
 
     const run_cmd = exe.run();
     const exe_step = b.step("run", b.fmt("run {s}.zig", .{name}));
