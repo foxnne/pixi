@@ -31,8 +31,6 @@ pub const Tool = enum(usize) {
 
 pub fn draw() void {
     if (imgui.igBegin("Toolbar", 0, imgui.ImGuiWindowFlags_NoResize)) {
-        defer imgui.igEnd();
-
         const space = 10;
         const toolbar_half_width = (imgui.igGetWindowContentRegionWidth() / 2) - (space / 2);
         imgui.ogPushStyleVarVec2(imgui.ImGuiStyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
@@ -185,4 +183,5 @@ pub fn draw() void {
         }
         imgui.igPopStyleVar(1);
     }
+    imgui.igEnd();
 }
