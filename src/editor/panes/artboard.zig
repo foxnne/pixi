@@ -41,6 +41,24 @@ pub fn draw() void {
 
             zgui.endTabBar();
         }
+
+        if (zgui.beginChild("Canvas", .{
+            .w = 0.0,
+            .h = pixi.state.window.size[1] / 1.5 * pixi.state.window.scale[1],
+            .border = false,
+            .flags = .{},
+        })) {
+            zgui.endChild();
+        }
+        zgui.separator();
+        if (zgui.beginChild("Flipbook", .{
+            .w = 0.0,
+            .h = 0.0,
+            .border = false,
+            .flags = .{},
+        })) {
+            zgui.endChild();
+        }
     }
     zgui.end();
 }
