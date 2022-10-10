@@ -13,44 +13,10 @@
         },
     },
     "tasks": [
-
-        // {
-        //     "label": "Build and Run Specific Target",
-        //     "type": "shell",
-        //     "command": "zig build ${input:zigTarget}",
-        //     "problemMatcher": [
-        //         "$gcc"
-        //     ],
-        //     "group": {
-        //         "kind": "build",
-        //         "isDefault": true
-        //     },
-        //     "presentation": {
-        //         "clear": true
-        //     }
-        // },
-        // {
-        //     "label": "Build and Run Last Target",
-        //     "type": "shell",
-        //     "command": "zig build ${input:zigLastTarget}",
-        //     "problemMatcher": [
-        //         "$gcc"
-        //     ],
-        //     "group": {
-        //         "kind": "build",
-        //         "isDefault": true
-        //     },
-        //     "presentation": {
-        //         "clear": true
-        //     }
-        // },
         {
             "label": "Build Project",
             "type": "shell",
             "command": "zig build",
-            "problemMatcher": [
-                "$gcc"
-            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -63,24 +29,6 @@
             "label": "Build and Run Project",
             "type": "shell",
             "command": "zig build run",
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "presentation": {
-                "clear": true
-            }
-        },
-        {
-            "label": "Build and Run Project (imgui)",
-            "type": "shell",
-            "command": "zig build run -Dimgui=true",
-            "problemMatcher": [
-                "$gcc"
-            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -93,9 +41,6 @@
             "label": "Build and Run Project (release-fast)",
             "type": "shell",
             "command": "zig build run -Drelease-fast",
-            "problemMatcher": [
-                "$gcc"
-            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -108,9 +53,6 @@
             "label": "Build and Run Project (release-small)",
             "type": "shell",
             "command": "zig build run -Drelease-small",
-            "problemMatcher": [
-                "$gcc"
-            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -123,9 +65,6 @@
             "label": "Test Project",
             "type": "shell",
             "command": "zig build test",
-            "problemMatcher": [
-                "$gcc"
-            ],
             "group": "build",
             "presentation": {
                 "clear": true,
@@ -135,56 +74,20 @@
             "label": "Test File",
             "type": "shell",
             "command": "zig test ${file}",
-            "problemMatcher": [
-                "$gcc"
-            ],
             "presentation": {
                 "clear": true
             },
             "group": "build",
         },
         {
-            "label": "Compile Shaders",
-            "type": "shell",
-            "command": "zig build compile-shaders",
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": "build",
-            "presentation": {
-                "clear": true
-            }
-        },
-        {
             "label": "Process Assets",
             "type": "shell",
             "command": "zig build process-assets",
-            "problemMatcher": [
-                "$gcc"
-            ],
             "group": "build",
             "presentation": {
                 "clear": true
             }
         },
-        // {
-        //     "label": "apitrace run executable",
-        //     "type": "shell",
-        //     "command": "apitrace",
-        //     "args": [
-        //         "trace",
-        //         "--api",
-        //         "gl",
-        //         "${workspaceFolder}/zig-cache/bin/run"
-        //     ],
-        //     "problemMatcher": [
-        //         "$gcc"
-        //     ],
-        //     "presentation": {
-        //         "clear": true
-        //     },
-        //     "group": "build",
-        // },
     ],
     "inputs": [
         {
