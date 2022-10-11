@@ -7,6 +7,7 @@ const Color = pixi.math.Color;
 background: Color = Color.initBytes(30, 31, 39, 255),
 foreground: Color = Color.initBytes(42, 44, 54, 255),
 text: Color = Color.initBytes(230, 175, 137, 255),
+text_secondary: Color = Color.initBytes(138, 138, 147, 255),
 
 highlight_primary: Color = Color.initBytes(47, 179, 135, 255),
 hover_primary: Color = Color.initBytes(76, 148, 123, 255),

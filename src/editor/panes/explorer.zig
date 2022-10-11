@@ -39,15 +39,7 @@ pub fn draw() void {
                     // Open Files
 
                     // File Tree
-                    // var dir = std.fs.cwd().openDir(path, .{ .access_sub_paths = true }) catch unreachable;
-                    // defer dir.close();
                     recurseFiles(pixi.state.allocator, path);
-                    // for (files) |file| {
-                    //     zgui.text("{s}", .{file});
-                    //     pixi.state.allocator.free(file);
-                    // }
-                    // pixi.state.allocator.free(files);
-
                 }
             },
             .tools => {},
@@ -58,7 +50,9 @@ pub fn draw() void {
 }
 
 pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) void {
-    //var list = std.ArrayList([:0]const u8).init(allocator);
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 4.0, 4.0 } });
+    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 32.0 });
+    defer zgui.popStyleVar(.{ .count = 2 });
 
     const recursor = struct {
         fn search(alloc: std.mem.Allocator, directory: []const u8) void {
@@ -68,14 +62,19 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
             var iter = dir.iterate();
             while (iter.next() catch unreachable) |entry| {
                 if (entry.kind == .File) {
-                    if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{})) {}
-                    //const name_null_term = std.mem.concat(alloc, u8, &[_][]const u8{ entry.name, "\x00" }) catch unreachable;
-                    //const abs_path = std.fs.path.join(alloc, &[_][]const u8{ directory, name }) catch unreachable;
-                    //filelist.append(abs_path[0 .. abs_path.len - 1 :0]) catch unreachable;
+                    const ext = std.fs.path.extension(entry.name);
+
+                    if (std.mem.eql(u8, ext, ".pixi")) {
+                        if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{})) {
+                            std.log.debug("{s}", .{entry.name});
+                        }
+                    }
                 } else if (entry.kind == .Directory) {
-                    const name = entry.name[0..];
-                    const abs_path = std.fs.path.join(alloc, &[_][]const u8{ directory, name }) catch unreachable;
-                    const folder = zgui.formatZ("{s}", .{name});
+                    const abs_path = std.fs.path.join(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
+                    const folder = zgui.formatZ("{s}", .{entry.name});
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+                    defer zgui.popStyleColor(.{ .count = 1 });
+
                     if (zgui.treeNode(folder)) {
                         search(alloc, abs_path);
                         zgui.treePop();
@@ -90,5 +89,4 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
     recursor(allocator, root_directory);
 
     return;
-    //return list.toOwnedSlice();
 }
