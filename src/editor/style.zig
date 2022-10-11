@@ -28,12 +28,18 @@ pub fn set(self: @This()) void {
     if (builtin.os.tag != .windows) {
         style.window_rounding = 8.0;
         style.popup_rounding = 8.0;
-        style.tab_rounding = 2.0;
+        style.tab_rounding = 8.0;
         style.frame_rounding = 8.0;
+        style.grab_rounding = 4.0;
     }
+    style.frame_padding = .{ 24.0, 8.0 };
+    style.window_padding = .{ 10.0, 10.0 };
+    style.item_spacing = .{ 14.0, 8.0 };
+    style.item_inner_spacing = .{ 6.0, 4.0 };
     style.window_min_size = .{ 100.0, 100.0 };
     style.window_menu_button_position = .none;
     style.window_title_align = .{ 0.5, 0.5 };
+    style.grab_min_size = 6.5 * pixi.state.window.scale[0];
     style.setColor(zgui.StyleCol.window_bg, bg);
     style.setColor(zgui.StyleCol.border, fg);
     style.setColor(zgui.StyleCol.menu_bar_bg, fg);

@@ -18,6 +18,8 @@ const zglfw = @import("src/deps/zig-gamedev/zglfw/build.zig");
 const zstbi = @import("src/deps/zig-gamedev/zstbi/build.zig");
 const zgui = @import("src/deps/zig-gamedev/zgui/build.zig");
 
+const filebrowser = @import("src/deps/filebrowser/build.zig");
+
 const content_dir = "assets/";
 
 const ProcessAssetsStep = @import("src/tools/process_assets.zig").ProcessAssetsStep;
@@ -88,11 +90,13 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     exe.addPackage(zgui_pkg);
     exe.addPackage(zstbi.pkg);
     exe.addPackage(zmath.pkg);
+    exe.addPackage(filebrowser.pkg);
 
     zgpu.link(exe);
     zglfw.link(exe);
     zstbi.link(exe);
     zgui.link(exe);
+    filebrowser.link(exe);
 
     return exe;
 }

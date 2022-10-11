@@ -37,6 +37,7 @@ pub const PixiState = struct {
     window: Window,
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
+    project_folder: ?[:0]const u8 = null,
     //bind_group_default: zgpu.BindGroupHandle,
     //batcher: gfx.Batcher,
 };
