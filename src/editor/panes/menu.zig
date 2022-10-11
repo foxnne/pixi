@@ -3,6 +3,7 @@ const zgui = @import("zgui");
 const pixi = @import("pixi");
 const settings = pixi.settings;
 const filebrowser = @import("filebrowser");
+const nfd = @import("nfd");
 
 pub fn draw() void {
     if (zgui.beginMenuBar()) {
@@ -10,9 +11,9 @@ pub fn draw() void {
             if (zgui.menuItem("Open Folder...", .{
                 .shortcut = "Cmd+F",
             })) {
-                const folder = filebrowser.tinyfd_selectFolderDialog("Open project folder...", null);
-                if (folder != null) {
-                    pixi.editor.setProjectFolder(folder);
+                const folder = nfd.openFolderDialog(null) catch unreachable;
+                if (folder) |path| {
+                    pixi.editor.setProjectFolder(path);
                 }
             }
             if (zgui.beginMenu("Recents", true)) {

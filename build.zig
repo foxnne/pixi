@@ -18,7 +18,7 @@ const zglfw = @import("src/deps/zig-gamedev/zglfw/build.zig");
 const zstbi = @import("src/deps/zig-gamedev/zstbi/build.zig");
 const zgui = @import("src/deps/zig-gamedev/zgui/build.zig");
 
-const filebrowser = @import("src/deps/filebrowser/build.zig");
+const nfd = @import("src/deps/nfd-zig/build.zig");
 
 const content_dir = "assets/";
 
@@ -90,13 +90,15 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     exe.addPackage(zgui_pkg);
     exe.addPackage(zstbi.pkg);
     exe.addPackage(zmath.pkg);
-    exe.addPackage(filebrowser.pkg);
+    exe.addPackage(nfd.getPackage("nfd"));
+
+    const nfd_lib = nfd.makeLib(b, b.standardReleaseOptions(), target);
 
     zgpu.link(exe);
     zglfw.link(exe);
     zstbi.link(exe);
     zgui.link(exe);
-    filebrowser.link(exe);
+    exe.linkLibrary(nfd_lib);
 
     return exe;
 }

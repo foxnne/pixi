@@ -15,7 +15,7 @@ pub fn draw() void {
     });
     zgui.setNextWindowSize(.{
         .w = settings.explorer_width * pixi.state.window.scale[0],
-        .h = pixi.state.window.size[1] * pixi.state.window.scale[1] + 5.0,
+        .h = pixi.state.window.size[1] * pixi.state.window.scale[1],
     });
 
     if (zgui.begin("Explorer", .{
@@ -24,6 +24,7 @@ pub fn draw() void {
             .no_resize = true,
             .no_move = true,
             .no_collapse = true,
+            .horizontal_scrollbar = true,
         },
     })) {
         switch (pixi.state.sidebar) {

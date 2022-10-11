@@ -3,18 +3,16 @@ const pixi = @import("pixi");
 const settings = pixi.settings;
 
 pub fn draw() void {
-    const width_offset = 5.0;
-
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     defer zgui.popStyleVar(.{ .count = 1 });
     zgui.setNextWindowPos(.{
-        .x = -width_offset,
+        .x = 0.0,
         .y = -2.5 * pixi.state.window.scale[1],
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = settings.sidebar_width * pixi.state.window.scale[0] + width_offset,
-        .h = pixi.state.window.size[1] * pixi.state.window.scale[1] + 5.0,
+        .w = settings.sidebar_width * pixi.state.window.scale[0],
+        .h = pixi.state.window.size[1] * pixi.state.window.scale[1],
     });
 
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.5 } });

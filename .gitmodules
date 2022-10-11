@@ -3,3 +3,6 @@
 	path = src/deps/zig-gamedev/zgpu/libs/dawn
 	url = https://github.com/michal-z/dawn-bin
 	branch = main
+[submodule "src/deps/nfd-zig"]
+	path = src/deps/nfd-zig
+	url = https://github.com/fabioarnold/nfd-zig.git

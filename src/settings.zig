@@ -23,7 +23,7 @@ pub const zoom_scroll_tolerance: f32 = 0.2;
 pub const batcher_max_sprites = 1000;
 
 /// The font size used by zgui elements.
-pub const zgui_font_size = 12;
+pub const zgui_font_size = 13;
 
 pub const sidebar_width = 50;
 pub const explorer_width = 200;
