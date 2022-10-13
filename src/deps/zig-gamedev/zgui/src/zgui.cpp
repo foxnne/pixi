@@ -1122,6 +1122,10 @@ ZGUI_API ImFont* zguiIoAddFontFromFile(const char* filename, float size_pixels) 
     return ImGui::GetIO().Fonts->AddFontFromFileTTF(filename, size_pixels, nullptr, nullptr);
 }
 
+ZGUI_API ImFont* zguiIoAddFontFromFileConfig(const char* filename, float size_pixels, ImFontConfig* config, unsigned short ranges[]) {
+    return ImGui::GetIO().Fonts->AddFontFromFileTTF(filename, size_pixels, config, ranges);
+}
+
 ZGUI_API ImFont* zguiIoGetFont(unsigned int index) {
     return ImGui::GetIO().Fonts->Fonts[index];
 }

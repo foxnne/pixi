@@ -41,7 +41,7 @@ pub fn draw() void {
         } else {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
         }
-        if (zgui.selectable("Files", .{
+        if (zgui.selectable(pixi.fa.folder_open, .{
             .selected = pixi.state.sidebar == .files,
             .w = selectable_width,
             .h = selectable_height,
@@ -59,7 +59,7 @@ pub fn draw() void {
         } else {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
         }
-        if (zgui.selectable("Tools", .{
+        if (zgui.selectable(pixi.fa.edit, .{
             .selected = pixi.state.sidebar == .tools,
             .w = selectable_width,
             .h = selectable_height,

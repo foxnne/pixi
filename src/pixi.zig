@@ -6,6 +6,9 @@ const zgui = @import("zgui");
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
 
+// TODO: Add build instructions to readme, and note requires xcode for nativefiledialogs to build.
+// TODO: Nativefiledialogs requires xcode appkit frameworks.
+
 pub const name: [*:0]const u8 = @typeName(@This())[std.mem.lastIndexOf(u8, @typeName(@This()), ".").? + 1 ..];
 pub const settings = @import("settings.zig");
 
@@ -18,6 +21,8 @@ pub const fs = @import("tools/fs.zig");
 pub const math = @import("math/math.zig");
 pub const gfx = @import("gfx/gfx.zig");
 pub const input = @import("input/input.zig");
+
+pub const fa = @import("tools/font_awesome.zig");
 
 test {
     _ = math;
@@ -38,8 +43,14 @@ pub const PixiState = struct {
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
+    fonts: Fonts = .{},
     //bind_group_default: zgpu.BindGroupHandle,
     //batcher: gfx.Batcher,
+};
+
+pub const Fonts = struct {
+    cozette: zgui.Font = undefined,
+    font_awesome: zgui.Font = undefined,
 };
 
 pub const Sidebar = enum {
@@ -188,7 +199,11 @@ pub fn main() !void {
 
     zgui.init(allocator);
     zgui.io.setIniFilename(assets.root ++ "imgui.ini");
-    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", settings.zgui_font_size * scale_factor);
+    state.fonts.cozette = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", settings.zgui_font_size * scale_factor);
+    var config: zgui.FontConfig = .{};
+    config.merge_mode = true;
+    const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
+    state.fonts.font_awesome = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor, &config, ranges.ptr);
     zgui.backend.init(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format));
 
     // Base style
