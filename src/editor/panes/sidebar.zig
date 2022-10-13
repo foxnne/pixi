@@ -14,7 +14,6 @@ pub fn draw() void {
         .w = settings.sidebar_width * pixi.state.window.scale[0],
         .h = pixi.state.window.size[1] * pixi.state.window.scale[1],
     });
-
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.5 } });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = pixi.state.style.foreground.toSlice() });

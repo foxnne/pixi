@@ -197,8 +197,8 @@ pub fn main() !void {
     var config: zgui.FontConfig = .{};
     config.merge_mode = true;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
-    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor * 1.2, &config, ranges.ptr);
-    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-solid-900.ttf", settings.zgui_font_size * scale_factor * 1.2, &config, ranges.ptr);
+    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor * 1.1, &config, ranges.ptr);
+    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-solid-900.ttf", settings.zgui_font_size * scale_factor * 1.1, &config, ranges.ptr);
     zgui.backend.init(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format));
 
     // Base style

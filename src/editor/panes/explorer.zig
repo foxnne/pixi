@@ -36,6 +36,15 @@ pub fn draw() void {
                     const folder = std.fs.path.basename(path);
                     if (zgui.beginMenuBar()) {
                         zgui.text("  {s}  {s}", .{ pixi.fa.folder, folder });
+                        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+                        defer zgui.popStyleColor(.{ .count = 1 });
+                        zgui.dummy(.{ .w = 24.0 * pixi.state.window.scale[0], .h = settings.zgui_font_size * pixi.state.window.scale[1] });
+                        if (zgui.beginMenu(pixi.fa.ellipsis_h, true)) {
+                            if (zgui.menuItem("Close folder", .{})) {
+                                pixi.state.project_folder = null;
+                            }
+                            zgui.endMenu();
+                        }
                         zgui.endMenuBar();
                     }
 
@@ -51,7 +60,7 @@ pub fn draw() void {
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 2 });
-                    if (zgui.button("Select a folder...", .{
+                    if (zgui.button("Select a folder", .{
                         .w = -1,
                     })) {
                         const folder = nfd.openFolderDialog(null) catch unreachable;
