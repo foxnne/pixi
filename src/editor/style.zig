@@ -44,11 +44,11 @@ pub fn set(self: @This()) void {
     style.setColor(zgui.StyleCol.border, fg);
     style.setColor(zgui.StyleCol.menu_bar_bg, fg);
     style.setColor(zgui.StyleCol.separator, fg);
-    style.setColor(zgui.StyleCol.title_bg, bg);
+    style.setColor(zgui.StyleCol.title_bg, fg);
     style.setColor(zgui.StyleCol.title_bg_active, fg);
     style.setColor(zgui.StyleCol.tab, bg);
     style.setColor(zgui.StyleCol.tab_unfocused, bg);
-    style.setColor(zgui.StyleCol.tab_unfocused_active, bg);
+    style.setColor(zgui.StyleCol.tab_unfocused_active, fg);
     style.setColor(zgui.StyleCol.tab_active, fg);
     style.setColor(zgui.StyleCol.tab_hovered, fg);
     style.setColor(zgui.StyleCol.popup_bg, bg);
@@ -61,4 +61,7 @@ pub fn set(self: @This()) void {
     style.setColor(zgui.StyleCol.header, highlight_secondary);
     style.setColor(zgui.StyleCol.header_hovered, hover_secondary);
     style.setColor(zgui.StyleCol.header_active, highlight_secondary);
+    style.setColor(zgui.StyleCol.button, fg);
+    style.setColor(zgui.StyleCol.button_hovered, hover_secondary);
+    style.setColor(zgui.StyleCol.button_active, highlight_secondary);
 }

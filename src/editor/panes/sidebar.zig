@@ -7,7 +7,7 @@ pub fn draw() void {
     defer zgui.popStyleVar(.{ .count = 1 });
     zgui.setNextWindowPos(.{
         .x = 0.0,
-        .y = -2.5 * pixi.state.window.scale[1],
+        .y = 0.0,
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
@@ -16,7 +16,7 @@ pub fn draw() void {
     });
 
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.5 } });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.background.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = pixi.state.style.foreground.toSlice() });
     defer zgui.popStyleVar(.{ .count = 1 });
     defer zgui.popStyleColor(.{ .count = 2 });
@@ -31,6 +31,16 @@ pub fn draw() void {
     })) {
         const selectable_width = (settings.sidebar_width - 8) * pixi.state.window.scale[0];
         const selectable_height = (settings.sidebar_width - 8) * pixi.state.window.scale[1];
+
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.style.background.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.style.background.toSlice() });
+
+        // Files
+        if (pixi.state.sidebar == .files) {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+        } else {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+        }
         if (zgui.selectable("Files", .{
             .selected = pixi.state.sidebar == .files,
             .w = selectable_width,
@@ -40,6 +50,14 @@ pub fn draw() void {
             },
         })) {
             pixi.state.sidebar = .files;
+        }
+        zgui.popStyleColor(.{ .count = 1 });
+
+        // Tools
+        if (pixi.state.sidebar == .tools) {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+        } else {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
         }
         if (zgui.selectable("Tools", .{
             .selected = pixi.state.sidebar == .tools,
@@ -51,6 +69,7 @@ pub fn draw() void {
         })) {
             pixi.state.sidebar = .tools;
         }
+        zgui.popStyleColor(.{ .count = 3 });
     }
 
     zgui.end();

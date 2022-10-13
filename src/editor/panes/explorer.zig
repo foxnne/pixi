@@ -2,6 +2,7 @@ const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("pixi");
 const settings = pixi.settings;
+const nfd = @import("nfd");
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
@@ -25,22 +26,39 @@ pub fn draw() void {
             .no_move = true,
             .no_collapse = true,
             .horizontal_scrollbar = true,
+            .menu_bar = true,
         },
     })) {
         switch (pixi.state.sidebar) {
             .files => {
                 if (pixi.state.project_folder) |path| {
                     // Header
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.background.toSlice() });
-                    defer zgui.popStyleColor(.{ .count = 1 });
                     const folder = std.fs.path.basename(path);
-                    zgui.text("{s}", .{folder});
-                    zgui.separator();
+                    if (zgui.beginMenuBar()) {
+                        zgui.text("{s}", .{folder});
+                        zgui.endMenuBar();
+                    }
 
                     // Open Files
 
                     // File Tree
                     recurseFiles(pixi.state.allocator, path);
+                } else {
+                    if (zgui.beginMenuBar()) {
+                        zgui.text("Explorer", .{});
+                        zgui.endMenuBar();
+                    }
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
+                    defer zgui.popStyleColor(.{ .count = 2 });
+                    if (zgui.button("Select a folder...", .{
+                        .w = -1,
+                    })) {
+                        const folder = nfd.openFolderDialog(null) catch unreachable;
+                        if (folder) |path| {
+                            pixi.editor.setProjectFolder(path);
+                        }
+                    }
                 }
             },
             .tools => {},
