@@ -59,7 +59,7 @@ pub fn draw() void {
         } else {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
         }
-        if (zgui.selectable(pixi.fa.edit, .{
+        if (zgui.selectable(pixi.fa.pen_fancy, .{
             .selected = pixi.state.sidebar == .tools,
             .w = selectable_width,
             .h = selectable_height,

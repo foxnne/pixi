@@ -35,7 +35,7 @@ pub fn draw() void {
                     // Header
                     const folder = std.fs.path.basename(path);
                     if (zgui.beginMenuBar()) {
-                        zgui.text("{s}", .{folder});
+                        zgui.text("  {s}  {s}", .{ pixi.fa.folder, folder });
                         zgui.endMenuBar();
                     }
 

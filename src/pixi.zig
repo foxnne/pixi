@@ -43,14 +43,8 @@ pub const PixiState = struct {
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
-    fonts: Fonts = .{},
     //bind_group_default: zgpu.BindGroupHandle,
     //batcher: gfx.Batcher,
-};
-
-pub const Fonts = struct {
-    cozette: zgui.Font = undefined,
-    font_awesome: zgui.Font = undefined,
 };
 
 pub const Sidebar = enum {
@@ -199,11 +193,12 @@ pub fn main() !void {
 
     zgui.init(allocator);
     zgui.io.setIniFilename(assets.root ++ "imgui.ini");
-    state.fonts.cozette = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", settings.zgui_font_size * scale_factor);
+    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", settings.zgui_font_size * scale_factor);
     var config: zgui.FontConfig = .{};
     config.merge_mode = true;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
-    state.fonts.font_awesome = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor, &config, ranges.ptr);
+    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor * 1.2, &config, ranges.ptr);
+    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-solid-900.ttf", settings.zgui_font_size * scale_factor * 1.2, &config, ranges.ptr);
     zgui.backend.init(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format));
 
     // Base style
