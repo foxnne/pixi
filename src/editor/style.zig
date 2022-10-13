@@ -40,6 +40,7 @@ pub fn set(self: @This()) void {
     style.window_menu_button_position = .none;
     style.window_title_align = .{ 0.5, 0.5 };
     style.grab_min_size = 6.5 * pixi.state.window.scale[0];
+    style.scrollbar_size = 12 * pixi.state.window.scale[0];
     style.setColor(zgui.StyleCol.window_bg, bg);
     style.setColor(zgui.StyleCol.border, fg);
     style.setColor(zgui.StyleCol.menu_bar_bg, fg);
