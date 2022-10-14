@@ -27,27 +27,35 @@ pub fn draw() void {
     })) {
         editor.menu.draw();
 
-        if (zgui.beginTabBar("Files", .{
-            .reorderable = true,
-            .auto_select_new_tabs = true,
-        })) {
-            if (zgui.beginTabItem("Test1", .{})) {
-                zgui.endTabItem();
-            }
-
-            if (zgui.beginTabItem("Test2", .{})) {
-                zgui.endTabItem();
-            }
-
-            zgui.endTabBar();
-        }
-
         if (zgui.beginChild("Canvas", .{
             .w = 0.0,
             .h = pixi.state.window.size[1] / 1.5 * pixi.state.window.scale[1],
             .border = false,
             .flags = .{},
         })) {
+            if (zgui.beginTabBar("Files", .{
+                .reorderable = true,
+                .auto_select_new_tabs = true,
+            })) {
+                if (zgui.beginTabItem("  " ++ pixi.fa.file_powerpoint ++ "  Test1  ", .{})) {
+                    const w = @intToFloat(f32, pixi.state.background_logo.width) * 1.5 * pixi.state.window.scale[0];
+                    const h = @intToFloat(f32, pixi.state.background_logo.height) * 1.5 * pixi.state.window.scale[1];
+                    zgui.setCursorPosX((zgui.getWindowWidth() - w) / 2);
+                    zgui.setCursorPosY((zgui.getWindowHeight() - h) / 2);
+                    zgui.image(pixi.state.gctx.lookupResource(pixi.state.background_logo.view_handle).?, .{
+                        .w = w,
+                        .h = h,
+                        .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
+                    });
+                    zgui.endTabItem();
+                }
+
+                if (zgui.beginTabItem("  " ++ pixi.fa.file_powerpoint ++ "  Test2  ", .{})) {
+                    zgui.endTabItem();
+                }
+
+                zgui.endTabBar();
+            }
             zgui.endChild();
         }
         zgui.separator();

@@ -78,7 +78,27 @@ pub fn draw() void {
                     }
                 }
             },
-            .tools => {},
+            .tools => {
+                if (zgui.beginMenuBar()) {
+                    zgui.text("Tools", .{});
+                    zgui.endMenuBar();
+                }
+                zgui.separator();
+            },
+            .sprites => {
+                if (zgui.beginMenuBar()) {
+                    zgui.text("Sprites", .{});
+                    zgui.endMenuBar();
+                }
+                zgui.separator();
+            },
+            .settings => {
+                if (zgui.beginMenuBar()) {
+                    zgui.text("Settings", .{});
+                    zgui.endMenuBar();
+                }
+                zgui.separator();
+            },
         }
     }
 

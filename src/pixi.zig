@@ -43,6 +43,7 @@ pub const PixiState = struct {
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
+    background_logo: gfx.Texture,
     //bind_group_default: zgpu.BindGroupHandle,
     //batcher: gfx.Batcher,
 };
@@ -50,12 +51,16 @@ pub const PixiState = struct {
 pub const Sidebar = enum {
     files,
     tools,
+    sprites,
+    settings,
 };
 
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
 
 fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
     const gctx = try zgpu.GraphicsContext.init(allocator, window);
+
+    const background_logo = try gfx.Texture.initFromFile(gctx, assets.pixi_png.path, .{});
 
     //const batcher = try gfx.Batcher.init(allocator, gctx, settings.batcher_max_sprites);
 
@@ -88,6 +93,7 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
         .gctx = gctx,
         .camera = camera,
         .window = state_window,
+        .background_logo = background_logo,
         //.batcher = batcher,
         //.bind_group_default = bind_group_default,
     };
@@ -197,8 +203,8 @@ pub fn main() !void {
     var config: zgui.FontConfig = .{};
     config.merge_mode = true;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
-    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor * 1.1, &config, ranges.ptr);
     _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-solid-900.ttf", settings.zgui_font_size * scale_factor * 1.1, &config, ranges.ptr);
+    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor * 1.1, &config, ranges.ptr);
     zgui.backend.init(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format));
 
     // Base style

@@ -6,8 +6,12 @@ const filebrowser = @import("filebrowser");
 const nfd = @import("nfd");
 
 pub fn draw() void {
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = pixi.state.style.foreground.toSlice() });
+    defer zgui.popStyleColor(.{ .count = 2 });
     if (zgui.beginMenuBar()) {
         if (zgui.beginMenu("File", true)) {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
             if (zgui.menuItem("Open Folder...", .{
                 .shortcut = "Cmd+F",
             })) {
@@ -20,15 +24,22 @@ pub fn draw() void {
                 zgui.endMenu();
             }
 
+            zgui.popStyleColor(.{ .count = 1 });
             zgui.endMenu();
         }
         if (zgui.beginMenu("Edit", true)) {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+            zgui.popStyleColor(.{ .count = 1 });
             zgui.endMenu();
         }
         if (zgui.beginMenu("Tools", true)) {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+            zgui.popStyleColor(.{ .count = 1 });
             zgui.endMenu();
         }
         if (zgui.beginMenu("About", true)) {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+            zgui.popStyleColor(.{ .count = 1 });
             zgui.endMenu();
         }
         zgui.endMenuBar();
