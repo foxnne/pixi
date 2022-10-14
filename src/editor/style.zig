@@ -10,7 +10,7 @@ text: Color = Color.initBytes(230, 175, 137, 255),
 text_secondary: Color = Color.initBytes(138, 138, 147, 255),
 
 text_blue: Color = Color.initBytes(110, 150, 200, 255),
-text_orange: Color = Color.initBytes(189, 136, 119, 255),
+text_orange: Color = Color.initBytes(183, 113, 96, 255),
 text_yellow: Color = Color.initBytes(211, 196, 129, 155),
 
 highlight_primary: Color = Color.initBytes(47, 179, 135, 255),
@@ -38,13 +38,14 @@ pub fn set(self: @This()) void {
         style.grab_rounding = 4.0;
     }
     style.frame_padding = .{ 12.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] };
-    style.window_padding = .{ 5.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] };
+    style.window_padding = .{ 5.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] };
     style.item_spacing = .{ 7.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] };
     style.item_inner_spacing = .{ 3.0 * pixi.state.window.scale[0], 3.0 * pixi.state.window.scale[1] };
     style.window_menu_button_position = .none;
     style.window_title_align = .{ 0.5, 0.5 };
     style.grab_min_size = 6.5 * pixi.state.window.scale[0];
     style.scrollbar_size = 12 * pixi.state.window.scale[0];
+    style.frame_padding = .{ 4.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] };
     style.setColor(zgui.StyleCol.window_bg, bg);
     style.setColor(zgui.StyleCol.border, fg);
     style.setColor(zgui.StyleCol.menu_bar_bg, fg);
