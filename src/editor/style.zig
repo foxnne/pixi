@@ -9,6 +9,10 @@ foreground: Color = Color.initBytes(42, 44, 54, 255),
 text: Color = Color.initBytes(230, 175, 137, 255),
 text_secondary: Color = Color.initBytes(138, 138, 147, 255),
 
+text_blue: Color = Color.initBytes(110, 150, 200, 255),
+text_orange: Color = Color.initBytes(189, 136, 119, 255),
+text_yellow: Color = Color.initBytes(211, 196, 129, 155),
+
 highlight_primary: Color = Color.initBytes(47, 179, 135, 255),
 hover_primary: Color = Color.initBytes(76, 148, 123, 255),
 

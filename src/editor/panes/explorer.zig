@@ -34,7 +34,9 @@ pub fn draw() void {
                 if (pixi.state.project_folder) |path| {
                     // Header
                     const folder = std.fs.path.basename(path);
+                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 10.0 * pixi.state.window.scale[1] } });
                     if (zgui.beginMenuBar()) {
+                        zgui.popStyleVar(.{ .count = 1 });
                         zgui.text("  {s}  {s}", .{ pixi.fa.folder, folder });
                         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                         defer zgui.popStyleColor(.{ .count = 1 });
@@ -53,6 +55,8 @@ pub fn draw() void {
                     // File Tree
                     recurseFiles(pixi.state.allocator, path);
                 } else {
+                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 8.0 * pixi.state.window.scale[1] } });
+                    defer zgui.popStyleVar(.{ .count = 1 });
                     if (zgui.beginMenuBar()) {
                         zgui.text("Explorer", .{});
                         zgui.endMenuBar();
@@ -93,13 +97,13 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     const ext = std.fs.path.extension(entry.name);
 
                     if (std.mem.eql(u8, ext, ".pixi")) {
-                        if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{})) {
-                            std.log.debug("{s}", .{entry.name});
-                        }
+                        zgui.textColored(pixi.state.style.text_blue.toSlice(), " {s} ", .{pixi.fa.file_powerpoint});
+                        zgui.sameLine(.{});
+                        if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{})) {}
                     }
                 } else if (entry.kind == .Directory) {
                     const abs_path = std.fs.path.join(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
-                    const folder = zgui.formatZ("{s}", .{entry.name});
+                    const folder = zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder, entry.name });
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 1 });
 

@@ -36,7 +36,7 @@ pub fn draw() void {
 
         // Files
         if (pixi.state.sidebar == .files) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.highlight_primary.toSlice() });
         } else {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
         }
@@ -54,7 +54,7 @@ pub fn draw() void {
 
         // Tools
         if (pixi.state.sidebar == .tools) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_blue.toSlice() });
         } else {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
         }
