@@ -60,7 +60,7 @@ pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
 fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
     const gctx = try zgpu.GraphicsContext.init(allocator, window);
 
-    const background_logo = try gfx.Texture.initFromFile(gctx, assets.pixi_png.path, .{});
+    const background_logo = try gfx.Texture.initFromFile(gctx, assets.Icon1024_png.path, .{});
 
     //const batcher = try gfx.Batcher.init(allocator, gctx, settings.batcher_max_sprites);
 

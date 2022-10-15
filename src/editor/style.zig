@@ -8,6 +8,7 @@ background: Color = Color.initBytes(30, 31, 39, 255),
 foreground: Color = Color.initBytes(42, 44, 54, 255),
 text: Color = Color.initBytes(230, 175, 137, 255),
 text_secondary: Color = Color.initBytes(138, 138, 147, 255),
+text_background: Color = Color.initFloats(0.3, 0.3, 0.35, 1.0),
 
 text_blue: Color = Color.initBytes(110, 150, 200, 255),
 text_orange: Color = Color.initBytes(183, 113, 96, 255),
