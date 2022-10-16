@@ -215,6 +215,24 @@ pub fn createStandardCursor(shape: CursorShape) Error!Cursor {
 extern fn glfwCreateStandardCursor(shape: CursorShape) ?Cursor;
 //--------------------------------------------------------------------------------------------------
 //
+// Input mode
+//
+//--------------------------------------------------------------------------------------------------
+pub const InputMode = enum(i32) {
+    cursor = 0x00033001,
+    sticky_keys = 0x00033002,
+    sticky_mouse_buttons = 0x00033003,
+    lock_key_mods = 0x00033004,
+    raw_mouse_motion = 0x00033005,
+};
+
+pub const CursorMode = enum(i32) {
+    normal = 0x00034001,
+    hidden = 0x00034002,
+    disabled = 0x00034003,
+};
+//--------------------------------------------------------------------------------------------------
+//
 // Error
 //
 //--------------------------------------------------------------------------------------------------
@@ -377,12 +395,23 @@ pub const Window = *opaque {
 
     pub const setCursor = glfwSetCursor;
     extern fn glfwSetCursor(window: Window, cursor: ?Cursor) void;
+
+    pub fn setInputMode(window: Window, mode: InputMode, value: anytype) void {
+        const T = @TypeOf(value);
+        const i32_value = switch (@typeInfo(T)) {
+            .Enum, .EnumLiteral => @enumToInt(@as(CursorMode, value)),
+            .Bool => @boolToInt(value),
+            else => unreachable,
+        };
+        glfwSetInputMode(window, mode, i32_value);
+    }
+    extern fn glfwSetInputMode(window: Window, mode: InputMode, value: i32) void;
 };
 
 pub fn createWindow(
     width: i32,
     height: i32,
-    title: [*:0]const u8,
+    title: [:0]const u8,
     monitor: ?Monitor,
     share: ?Window,
 ) Error!Window {

@@ -1,21 +1,27 @@
 //--------------------------------------------------------------------------------------------------
-// zgpu v0.2
+// zgpu v0.9
 //
-// `zgpu` is a cross-platform (Windows/Linux/macOS) graphics layer built on top of wgpu API (Dawn).
+// zgpu is a small helper library built on top of native wgpu implementation (Dawn).
+//
+// It supports Windows 10+ (DirectX 12), macOS 12+ (Metal) and Linux (Vulkan).
+//
+// https://github.com/michal-z/zig-gamedev/tree/main/libs/zgpu
 //--------------------------------------------------------------------------------------------------
 const std = @import("std");
 const math = std.math;
 const assert = std.debug.assert;
-const glfw = @import("zglfw");
+const zglfw = @import("zglfw");
 const wgsl = @import("common_wgsl.zig");
+const zgpu_options = @import("zgpu_options");
 pub const wgpu = @import("wgpu.zig");
 
 pub const GraphicsContext = struct {
     pub const swapchain_format = wgpu.TextureFormat.bgra8_unorm;
 
-    window: glfw.Window,
+    window: zglfw.Window,
     stats: FrameStats = .{},
 
+    native_instance: DawnNativeInstance,
     instance: wgpu.Instance,
     device: wgpu.Device,
     queue: wgpu.Queue,
@@ -46,20 +52,47 @@ pub const GraphicsContext = struct {
         } = .{},
     } = .{},
 
-    // TODO: Adjust pool sizes.
-    const buffer_pool_size = 256;
-    const texture_pool_size = 256;
-    const texture_view_pool_size = 256;
-    const sampler_pool_size = 16;
-    const render_pipeline_pool_size = 128;
-    const compute_pipeline_pool_size = 128;
-    const bind_group_pool_size = 32;
-    const bind_group_layout_pool_size = 32;
-    const pipeline_layout_pool_size = 32;
+    pub fn create(allocator: std.mem.Allocator, window: zglfw.Window) !*GraphicsContext {
+        const checkGraphicsApiSupport = (struct {
+            fn impl() error{VulkanNotSupported}!void {
+                // TODO: On Windows we should check if DirectX 12 is supported (Windows 10+).
 
-    pub fn init(allocator: std.mem.Allocator, window: glfw.Window) !*GraphicsContext {
-        const instance = createWgpuInstance();
-        errdefer instance.release();
+                // On Linux we require Vulkan support.
+                if (@import("builtin").target.os.tag == .linux) {
+                    if (!zglfw.vulkanSupported()) {
+                        return error.VulkanNotSupported;
+                    }
+                    _ = zglfw.getRequiredInstanceExtensions() catch return error.VulkanNotSupported;
+                }
+            }
+        }).impl;
+
+        checkGraphicsApiSupport() catch |err| switch (err) {
+            error.VulkanNotSupported => {
+                std.log.err("\n" ++
+                    \\---------------------------------------------------------------------------
+                    \\
+                    \\This program requires:
+                    \\
+                    \\  * Vulkan graphics driver on Linux (OpenGL is NOT supported)
+                    \\
+                    \\Please install latest supported driver and try again.
+                    \\
+                    \\---------------------------------------------------------------------------
+                    \\
+                , .{});
+                return err;
+            },
+        };
+
+        dawnProcSetProcs(dnGetProcs());
+
+        const native_instance = dniCreate();
+        errdefer dniDestroy(native_instance);
+
+        dniDiscoverDefaultAdapters(native_instance);
+
+        const instance = dniGetWgpuInstance(native_instance).?;
 
         const adapter = adapter: {
             const Response = struct {
@@ -89,7 +122,7 @@ pub const GraphicsContext = struct {
             );
 
             if (response.status != .success) {
-                std.debug.print("Failed to request GPU adapter (status: {any}).\n", .{response.status});
+                std.log.err("Failed to request GPU adapter (status: {s}).", .{@tagName(response.status)});
                 return error.NoGraphicsAdapter;
             }
             break :adapter response.adapter;
@@ -98,11 +131,11 @@ pub const GraphicsContext = struct {
 
         var properties: wgpu.AdapterProperties = undefined;
         adapter.getProperties(&properties);
-        std.debug.print("[zgpu] High-performance device has been selected:\n", .{});
-        std.debug.print("[zgpu]   Name: {s}\n", .{properties.name});
-        std.debug.print("[zgpu]   Driver: {s}\n", .{properties.driver_description});
-        std.debug.print("[zgpu]   Adapter type: {s}\n", .{@tagName(properties.adapter_type)});
-        std.debug.print("[zgpu]   Backend type: {s}\n", .{@tagName(properties.backend_type)});
+        std.log.info("[zgpu] High-performance device has been selected:", .{});
+        std.log.info("[zgpu]   Name: {s}", .{properties.name});
+        std.log.info("[zgpu]   Driver: {s}", .{properties.driver_description});
+        std.log.info("[zgpu]   Adapter type: {s}", .{@tagName(properties.adapter_type)});
+        std.log.info("[zgpu]   Backend type: {s}", .{@tagName(properties.backend_type)});
 
         const device = device: {
             const Response = struct {
@@ -124,22 +157,34 @@ pub const GraphicsContext = struct {
                 }
             }).callback;
 
+            const toggles = [_][*:0]const u8{"skip_validation"};
+            const dawn_toggles = wgpu.DawnTogglesDeviceDescriptor{
+                .chain = .{ .next = null, .struct_type = .dawn_toggles_device_descriptor },
+                .force_enabled_toggles_count = toggles.len,
+                .force_enabled_toggles = &toggles,
+            };
+
             var response = Response{};
             adapter.requestDevice(
-                wgpu.DeviceDescriptor{},
+                wgpu.DeviceDescriptor{
+                    .next_in_chain = if (zgpu_options.dawn_skip_validation)
+                        @ptrCast(*const wgpu.ChainedStruct, &dawn_toggles)
+                    else
+                        null,
+                },
                 callback,
                 @ptrCast(*anyopaque, &response),
             );
 
             if (response.status != .success) {
-                std.debug.print("Failed to request GPU device (status: {any}).\n", .{response.status});
+                std.log.err("Failed to request GPU device (status: {s}).", .{@tagName(response.status)});
                 return error.NoGraphicsDevice;
             }
             break :device response.device;
         };
         errdefer device.release();
 
-        device.setUncapturedErrorCallback(printUnhandledError, null);
+        device.setUncapturedErrorCallback(logUnhandledError, null);
 
         const surface = createSurfaceForWindow(instance, window);
         errdefer surface.release();
@@ -160,6 +205,7 @@ pub const GraphicsContext = struct {
 
         const gctx = try allocator.create(GraphicsContext);
         gctx.* = .{
+            .native_instance = native_instance,
             .instance = instance,
             .device = device,
             .queue = device.getQueue(),
@@ -167,15 +213,15 @@ pub const GraphicsContext = struct {
             .surface = surface,
             .swapchain = swapchain,
             .swapchain_descriptor = swapchain_descriptor,
-            .buffer_pool = BufferPool.init(allocator, buffer_pool_size),
-            .texture_pool = TexturePool.init(allocator, texture_pool_size),
-            .texture_view_pool = TextureViewPool.init(allocator, texture_view_pool_size),
-            .sampler_pool = SamplerPool.init(allocator, sampler_pool_size),
-            .render_pipeline_pool = RenderPipelinePool.init(allocator, render_pipeline_pool_size),
-            .compute_pipeline_pool = ComputePipelinePool.init(allocator, compute_pipeline_pool_size),
-            .bind_group_pool = BindGroupPool.init(allocator, bind_group_pool_size),
-            .bind_group_layout_pool = BindGroupLayoutPool.init(allocator, bind_group_layout_pool_size),
-            .pipeline_layout_pool = PipelineLayoutPool.init(allocator, pipeline_layout_pool_size),
+            .buffer_pool = BufferPool.init(allocator, zgpu_options.buffer_pool_size),
+            .texture_pool = TexturePool.init(allocator, zgpu_options.texture_pool_size),
+            .texture_view_pool = TextureViewPool.init(allocator, zgpu_options.texture_view_pool_size),
+            .sampler_pool = SamplerPool.init(allocator, zgpu_options.sampler_pool_size),
+            .render_pipeline_pool = RenderPipelinePool.init(allocator, zgpu_options.render_pipeline_pool_size),
+            .compute_pipeline_pool = ComputePipelinePool.init(allocator, zgpu_options.compute_pipeline_pool_size),
+            .bind_group_pool = BindGroupPool.init(allocator, zgpu_options.bind_group_pool_size),
+            .bind_group_layout_pool = BindGroupLayoutPool.init(allocator, zgpu_options.bind_group_layout_pool_size),
+            .pipeline_layout_pool = PipelineLayoutPool.init(allocator, zgpu_options.pipeline_layout_pool_size),
             .mipgens = std.AutoHashMap(wgpu.TextureFormat, MipgenResources).init(allocator),
         };
 
@@ -183,9 +229,7 @@ pub const GraphicsContext = struct {
         return gctx;
     }
 
-    pub fn deinit(gctx: *GraphicsContext, allocator: std.mem.Allocator) void {
-        // TODO: How to release `native_instance`?
-
+    pub fn destroy(gctx: *GraphicsContext, allocator: std.mem.Allocator) void {
         // Wait for the GPU to finish all encoded commands.
         while (gctx.stats.cpu_frame_number != gctx.stats.gpu_frame_number) {
             gctx.device.tick();
@@ -217,6 +261,7 @@ pub const GraphicsContext = struct {
         gctx.swapchain.release();
         gctx.queue.release();
         gctx.device.release();
+        dniDestroy(gctx.native_instance);
         allocator.destroy(gctx);
     }
 
@@ -234,7 +279,8 @@ pub const GraphicsContext = struct {
         const offset = gctx.uniforms.offset;
         const aligned_size = (size + (uniforms_alloc_alignment - 1)) & ~(uniforms_alloc_alignment - 1);
         if ((offset + aligned_size) >= uniforms_buffer_size) {
-            // TODO: Better error handling; pool is full; flush it?
+            std.log.err("[zgpu] Uniforms buffer size is too small. " ++
+                "Consider increasing 'zgpu.BuildOptions.uniforms_buffer_size' constant.", .{});
             return .{ .slice = @as([*]T, undefined)[0..0], .offset = 0 };
         }
 
@@ -252,7 +298,7 @@ pub const GraphicsContext = struct {
         slice: ?[]u8 = null,
         buffer: wgpu.Buffer = undefined,
     };
-    const uniforms_buffer_size = 4 * 1024 * 1024;
+    const uniforms_buffer_size = zgpu_options.uniforms_buffer_size;
     const uniforms_staging_pipeline_len = 8;
     const uniforms_alloc_alignment: u32 = 256;
 
@@ -270,7 +316,7 @@ pub const GraphicsContext = struct {
         if (status == .success) {
             usb.slice = usb.buffer.getMappedRange(u8, 0, uniforms_buffer_size).?;
         } else {
-            std.debug.print("[zgpu] Failed to map buffer (code: {d})\n", .{@enumToInt(status)});
+            std.log.err("[zgpu] Failed to map buffer (status: {s}).", .{@tagName(status)});
         }
     }
 
@@ -376,7 +422,7 @@ pub const GraphicsContext = struct {
         const gpu_frame_number = @ptrCast(*u64, @alignCast(@sizeOf(usize), userdata));
         gpu_frame_number.* += 1;
         if (status != .success) {
-            std.debug.print("[zgpu] Failed to complete GPU work (code: {d})\n", .{@enumToInt(status)});
+            std.log.err("[zgpu] Failed to complete GPU work (status: {s}).", .{@tagName(status)});
         }
     }
 
@@ -396,8 +442,8 @@ pub const GraphicsContext = struct {
 
             gctx.swapchain = gctx.device.createSwapChain(gctx.surface, gctx.swapchain_descriptor);
 
-            std.debug.print(
-                "[zgpu] Window has been resized to: {d}x{d}\n",
+            std.log.info(
+                "[zgpu] Window has been resized to: {d}x{d}.",
                 .{ gctx.swapchain_descriptor.width, gctx.swapchain_descriptor.height },
             );
             return .swap_chain_resized;
@@ -511,9 +557,9 @@ pub const GraphicsContext = struct {
                     .{ .gpuobj = pipeline, .pipeline_layout_handle = op.pipeline_layout },
                 );
             } else {
-                std.debug.print(
-                    "[zgpu] Failed to async create render pipeline (code: {s})\n{s}\n",
-                    .{ @tagName(status), if (message) |msg| msg else "[zgpu] No error details from the driver" },
+                std.log.err(
+                    "[zgpu] Failed to async create render pipeline (status: {s}, message: {?s}).",
+                    .{ @tagName(status), message },
                 );
             }
             op.allocator.destroy(op);
@@ -572,9 +618,9 @@ pub const GraphicsContext = struct {
                     .{ .gpuobj = pipeline, .pipeline_layout_handle = op.pipeline_layout },
                 );
             } else {
-                std.debug.print(
-                    "[zgpu] Failed to async create compute pipeline (code: {s})\n{s}\n",
-                    .{ @tagName(status), if (message) |msg| msg else "[zgpu] No error details from the driver" },
+                std.log.err(
+                    "[zgpu] Failed to async create compute pipeline (status: {s}, message: {?s}).",
+                    .{ @tagName(status), message },
                 );
             }
             op.allocator.destroy(op);
@@ -851,12 +897,12 @@ pub const GraphicsContext = struct {
 
         if (!entry.found_existing) {
             mipgen.bind_group_layout = gctx.createBindGroupLayout(&.{
-                bglBuffer(0, .{ .compute = true }, .uniform, true, 0),
-                bglTexture(1, .{ .compute = true }, .unfilterable_float, .tvdim_2d, false),
-                bglStorageTexture(2, .{ .compute = true }, .write_only, format, .tvdim_2d),
-                bglStorageTexture(3, .{ .compute = true }, .write_only, format, .tvdim_2d),
-                bglStorageTexture(4, .{ .compute = true }, .write_only, format, .tvdim_2d),
-                bglStorageTexture(5, .{ .compute = true }, .write_only, format, .tvdim_2d),
+                bufferEntry(0, .{ .compute = true }, .uniform, true, 0),
+                textureEntry(1, .{ .compute = true }, .unfilterable_float, .tvdim_2d, false),
+                storageTextureEntry(2, .{ .compute = true }, .write_only, format, .tvdim_2d),
+                storageTextureEntry(3, .{ .compute = true }, .write_only, format, .tvdim_2d),
+                storageTextureEntry(4, .{ .compute = true }, .write_only, format, .tvdim_2d),
+                storageTextureEntry(5, .{ .compute = true }, .write_only, format, .tvdim_2d),
             });
 
             const pipeline_layout = gctx.createPipelineLayout(&.{
@@ -865,7 +911,7 @@ pub const GraphicsContext = struct {
             defer gctx.releaseResource(pipeline_layout);
 
             const wgsl_src = wgsl.csGenerateMipmaps(arena, formatToShaderFormat(format));
-            const cs_module = util.createWgslShaderModule(gctx.device, wgsl_src, "zgpu_cs_generate_mipmaps");
+            const cs_module = createWgslShaderModule(gctx.device, wgsl_src, "zgpu_cs_generate_mipmaps");
             defer {
                 arena.free(wgsl_src);
                 cs_module.release();
@@ -983,155 +1029,227 @@ pub const GraphicsContext = struct {
 };
 
 // Defined in dawn.cpp
-pub const DawnNativeInstance = ?*opaque {};
-pub const DawnProcsTable = ?*opaque {};
-pub extern fn dniCreate() DawnNativeInstance;
-pub extern fn dniDestroy(native_instance: DawnNativeInstance) void;
-pub extern fn dniGetWgpuInstance(native_instance: DawnNativeInstance) ?wgpu.Instance;
-pub extern fn dniDiscoverDefaultAdapters(native_instance: DawnNativeInstance) void;
-pub extern fn dniEnableBackendValidation(native_instance: DawnNativeInstance, enable: bool) void;
-
-pub extern fn dnGetProcs() DawnProcsTable;
+const DawnNativeInstance = ?*opaque {};
+const DawnProcsTable = ?*opaque {};
+extern fn dniCreate() DawnNativeInstance;
+extern fn dniDestroy(dni: DawnNativeInstance) void;
+extern fn dniGetWgpuInstance(dni: DawnNativeInstance) ?wgpu.Instance;
+extern fn dniDiscoverDefaultAdapters(dni: DawnNativeInstance) void;
+extern fn dnGetProcs() DawnProcsTable;
 
 // Defined in Dawn codebase
-pub extern fn dawnProcSetProcs(procs: DawnProcsTable) void;
+extern fn dawnProcSetProcs(procs: DawnProcsTable) void;
 
-pub fn createWgpuInstance() wgpu.Instance {
-    dawnProcSetProcs(dnGetProcs());
-    const native_instance = dniCreate();
-    dniDiscoverDefaultAdapters(native_instance);
-    //dniEnableBackendValidation(native_instance, true);
-    return dniGetWgpuInstance(native_instance).?;
+/// Helper to create a buffer BindGroupLayoutEntry.
+pub fn bufferEntry(
+    binding: u32,
+    visibility: wgpu.ShaderStage,
+    binding_type: wgpu.BufferBindingType,
+    has_dynamic_offset: bool,
+    min_binding_size: u64,
+) wgpu.BindGroupLayoutEntry {
+    return .{
+        .binding = binding,
+        .visibility = visibility,
+        .buffer = .{
+            .binding_type = binding_type,
+            .has_dynamic_offset = has_dynamic_offset,
+            .min_binding_size = min_binding_size,
+        },
+    };
 }
 
-pub const bglBuffer = wgpu.BindGroupLayoutEntry.buffer;
-pub const bglTexture = wgpu.BindGroupLayoutEntry.texture;
-pub const bglSampler = wgpu.BindGroupLayoutEntry.sampler;
-pub const bglStorageTexture = wgpu.BindGroupLayoutEntry.storageTexture;
+/// Helper to create a sampler BindGroupLayoutEntry.
+pub fn samplerEntry(
+    binding: u32,
+    visibility: wgpu.ShaderStage,
+    binding_type: wgpu.SamplerBindingType,
+) wgpu.BindGroupLayoutEntry {
+    return .{
+        .binding = binding,
+        .visibility = visibility,
+        .sampler = .{ .binding_type = binding_type },
+    };
+}
 
-pub const util = struct {
-    /// You may disable async shader compilation for debugging purposes.
-    const enable_async_shader_compilation = true;
+/// Helper to create a texture BindGroupLayoutEntry.
+pub fn textureEntry(
+    binding: u32,
+    visibility: wgpu.ShaderStage,
+    sample_type: wgpu.TextureSampleType,
+    view_dimension: wgpu.TextureViewDimension,
+    multisampled: bool,
+) wgpu.BindGroupLayoutEntry {
+    return .{
+        .binding = binding,
+        .visibility = visibility,
+        .texture = .{
+            .sample_type = sample_type,
+            .view_dimension = view_dimension,
+            .multisampled = multisampled,
+        },
+    };
+}
 
-    /// Helper function for creating render pipelines.
-    /// Supports: one vertex buffer, one non-blending render target,
-    /// one vertex shader module and one fragment shader module.
-    pub fn createRenderPipelineSimple(
-        allocator: std.mem.Allocator,
-        gctx: *GraphicsContext,
-        bgls: []const BindGroupLayoutHandle,
-        wgsl_vs: [:0]const u8,
-        wgsl_fs: [:0]const u8,
-        vertex_stride: ?u64,
-        vertex_attribs: ?[]const wgpu.VertexAttribute,
-        primitive_state: wgpu.PrimitiveState,
-        rt_format: wgpu.TextureFormat,
-        depth_state: ?wgpu.DepthStencilState,
-        out_pipe: *RenderPipelineHandle,
-    ) void {
-        const pl = gctx.createPipelineLayout(bgls);
-        defer gctx.releaseResource(pl);
+/// Helper to create a storage texture BindGroupLayoutEntry.
+pub fn storageTextureEntry(
+    binding: u32,
+    visibility: wgpu.ShaderStage,
+    access: wgpu.StorageTextureAccess,
+    format: wgpu.TextureFormat,
+    view_dimension: wgpu.TextureViewDimension,
+) wgpu.BindGroupLayoutEntry {
+    return .{
+        .binding = binding,
+        .visibility = visibility,
+        .storage_texture = .{
+            .access = access,
+            .format = format,
+            .view_dimension = view_dimension,
+        },
+    };
+}
 
-        const vs_mod = createWgslShaderModule(gctx.device, wgsl_vs, null);
-        defer vs_mod.release();
+/// You may disable async shader compilation for debugging purposes.
+const enable_async_shader_compilation = true;
 
-        const fs_mod = createWgslShaderModule(gctx.device, wgsl_fs, null);
-        defer fs_mod.release();
+/// Helper function for creating render pipelines.
+/// Supports: one vertex buffer, one non-blending render target,
+/// one vertex shader module and one fragment shader module.
+pub fn createRenderPipelineSimple(
+    allocator: std.mem.Allocator,
+    gctx: *GraphicsContext,
+    bgls: []const BindGroupLayoutHandle,
+    wgsl_vs: [:0]const u8,
+    wgsl_fs: [:0]const u8,
+    vertex_stride: ?u64,
+    vertex_attribs: ?[]const wgpu.VertexAttribute,
+    primitive_state: wgpu.PrimitiveState,
+    rt_format: wgpu.TextureFormat,
+    depth_state: ?wgpu.DepthStencilState,
+    out_pipe: *RenderPipelineHandle,
+) void {
+    const pl = gctx.createPipelineLayout(bgls);
+    defer gctx.releaseResource(pl);
 
-        const color_targets = [_]wgpu.ColorTargetState{.{ .format = rt_format }};
+    const vs_mod = createWgslShaderModule(gctx.device, wgsl_vs, null);
+    defer vs_mod.release();
 
-        const vertex_buffers = if (vertex_stride) |vs| [_]wgpu.VertexBufferLayout{.{
-            .array_stride = vs,
-            .attribute_count = @intCast(u32, vertex_attribs.?.len),
-            .attributes = vertex_attribs.?.ptr,
-        }} else null;
+    const fs_mod = createWgslShaderModule(gctx.device, wgsl_fs, null);
+    defer fs_mod.release();
 
-        const pipe_desc = wgpu.RenderPipelineDescriptor{
-            .vertex = wgpu.VertexState{
-                .module = vs_mod,
-                .entry_point = "main",
-                .buffer_count = if (vertex_buffers) |vbs| vbs.len else 0,
-                .buffers = if (vertex_buffers) |vbs| &vbs else null,
-            },
-            .fragment = &wgpu.FragmentState{
-                .module = fs_mod,
-                .entry_point = "main",
-                .target_count = color_targets.len,
-                .targets = &color_targets,
-            },
-            .depth_stencil = if (depth_state) |ds| &ds else null,
-            .primitive = primitive_state,
-        };
+    const color_targets = [_]wgpu.ColorTargetState{.{ .format = rt_format }};
 
-        if (enable_async_shader_compilation) {
-            gctx.createRenderPipelineAsync(allocator, pl, pipe_desc, out_pipe);
-        } else {
-            out_pipe.* = gctx.createRenderPipeline(pl, pipe_desc);
-        }
+    const vertex_buffers = if (vertex_stride) |vs| [_]wgpu.VertexBufferLayout{.{
+        .array_stride = vs,
+        .attribute_count = @intCast(u32, vertex_attribs.?.len),
+        .attributes = vertex_attribs.?.ptr,
+    }} else null;
+
+    const pipe_desc = wgpu.RenderPipelineDescriptor{
+        .vertex = wgpu.VertexState{
+            .module = vs_mod,
+            .entry_point = "main",
+            .buffer_count = if (vertex_buffers) |vbs| vbs.len else 0,
+            .buffers = if (vertex_buffers) |vbs| &vbs else null,
+        },
+        .fragment = &wgpu.FragmentState{
+            .module = fs_mod,
+            .entry_point = "main",
+            .target_count = color_targets.len,
+            .targets = &color_targets,
+        },
+        .depth_stencil = if (depth_state) |ds| &ds else null,
+        .primitive = primitive_state,
+    };
+
+    if (enable_async_shader_compilation) {
+        gctx.createRenderPipelineAsync(allocator, pl, pipe_desc, out_pipe);
+    } else {
+        out_pipe.* = gctx.createRenderPipeline(pl, pipe_desc);
     }
+}
 
-    /// Helper function for creating render passes.
-    /// Supports: One color attachment and optional depth attachment.
-    pub fn beginRenderPassSimple(
-        encoder: wgpu.CommandEncoder,
-        load_op: wgpu.LoadOp,
-        color_texv: wgpu.TextureView,
-        clear_color: ?wgpu.Color,
-        depth_texv: ?wgpu.TextureView,
-        clear_depth: ?f32,
-    ) wgpu.RenderPassEncoder {
-        if (depth_texv == null) {
-            assert(clear_depth == null);
-        }
-        const color_attachments = [_]wgpu.RenderPassColorAttachment{.{
-            .view = color_texv,
-            .load_op = load_op,
-            .store_op = .store,
-            .clear_value = if (clear_color) |cc| cc else .{ .r = 0, .g = 0, .b = 0, .a = 0 },
-        }};
-        if (depth_texv) |dtexv| {
-            const depth_attachment = wgpu.RenderPassDepthStencilAttachment{
-                .view = dtexv,
-                .depth_load_op = load_op,
-                .depth_store_op = .store,
-                .depth_clear_value = if (clear_depth) |cd| cd else 0.0,
-            };
-            return encoder.beginRenderPass(.{
-                .color_attachment_count = color_attachments.len,
-                .color_attachments = &color_attachments,
-                .depth_stencil_attachment = &depth_attachment,
-            });
-        }
+/// Helper function for creating render passes.
+/// Supports: One color attachment and optional depth attachment.
+pub fn beginRenderPassSimple(
+    encoder: wgpu.CommandEncoder,
+    load_op: wgpu.LoadOp,
+    color_texv: wgpu.TextureView,
+    clear_color: ?wgpu.Color,
+    depth_texv: ?wgpu.TextureView,
+    clear_depth: ?f32,
+) wgpu.RenderPassEncoder {
+    if (depth_texv == null) {
+        assert(clear_depth == null);
+    }
+    const color_attachments = [_]wgpu.RenderPassColorAttachment{.{
+        .view = color_texv,
+        .load_op = load_op,
+        .store_op = .store,
+        .clear_value = if (clear_color) |cc| cc else .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+    }};
+    if (depth_texv) |dtexv| {
+        const depth_attachment = wgpu.RenderPassDepthStencilAttachment{
+            .view = dtexv,
+            .depth_load_op = load_op,
+            .depth_store_op = .store,
+            .depth_clear_value = if (clear_depth) |cd| cd else 0.0,
+        };
         return encoder.beginRenderPass(.{
             .color_attachment_count = color_attachments.len,
             .color_attachments = &color_attachments,
+            .depth_stencil_attachment = &depth_attachment,
         });
     }
+    return encoder.beginRenderPass(.{
+        .color_attachment_count = color_attachments.len,
+        .color_attachments = &color_attachments,
+    });
+}
 
-    pub fn endRelease(pass: anytype) void {
-        pass.end();
-        pass.release();
-    }
+pub fn endReleasePass(pass: anytype) void {
+    pass.end();
+    pass.release();
+}
 
-    pub fn createWgslShaderModule(
-        device: wgpu.Device,
-        source: [*:0]const u8,
-        label: ?[*:0]const u8,
-    ) wgpu.ShaderModule {
-        const wgsl_desc = wgpu.ShaderModuleWgslDescriptor{
-            .chain = .{
-                .next = null,
-                .struct_type = .shader_module_wgsl_descriptor,
-            },
-            .source = source,
-        };
-        const desc = wgpu.ShaderModuleDescriptor{
-            .next_in_chain = @ptrCast(*const wgpu.ChainedStruct, &wgsl_desc),
-            .label = if (label) |l| l else null,
-        };
-        return device.createShaderModule(desc);
+pub fn createWgslShaderModule(
+    device: wgpu.Device,
+    source: [*:0]const u8,
+    label: ?[*:0]const u8,
+) wgpu.ShaderModule {
+    const wgsl_desc = wgpu.ShaderModuleWgslDescriptor{
+        .chain = .{ .next = null, .struct_type = .shader_module_wgsl_descriptor },
+        .source = source,
+    };
+    const desc = wgpu.ShaderModuleDescriptor{
+        .next_in_chain = @ptrCast(*const wgpu.ChainedStruct, &wgsl_desc),
+        .label = if (label) |l| l else null,
+    };
+    return device.createShaderModule(desc);
+}
+
+pub fn imageInfoToTextureFormat(num_components: u32, bytes_per_component: u32, is_hdr: bool) wgpu.TextureFormat {
+    assert(num_components == 1 or num_components == 2 or num_components == 4);
+    assert(bytes_per_component == 1 or bytes_per_component == 2);
+    assert(if (is_hdr and bytes_per_component != 2) false else true);
+
+    if (is_hdr) {
+        if (num_components == 1) return .r16_float;
+        if (num_components == 2) return .rg16_float;
+        if (num_components == 4) return .rgba16_float;
+    } else {
+        if (bytes_per_component == 1) {
+            if (num_components == 1) return .r8_unorm;
+            if (num_components == 2) return .rg8_unorm;
+            if (num_components == 4) return .rgba8_unorm;
+        } else {
+            // TODO: Looks like wgpu does not support 16 bit unorm formats.
+            unreachable;
+        }
     }
-};
+    unreachable;
+}
 
 pub const BufferInfo = struct {
     gpuobj: ?wgpu.Buffer = null,
@@ -1353,78 +1471,6 @@ fn ResourcePool(comptime Info: type, comptime Resource: type) type {
     };
 }
 
-pub fn checkSystem(comptime content_dir: []const u8) !void {
-    const doSystemCheck = (struct {
-        fn impl() error{ GraphicsApiUnavailable, InvalidDataFiles }!void {
-            // TODO: On Windows we should check if DirectX 12 is supported (Windows 10+).
-            // On Linux we require Vulkan support.
-            if (@import("builtin").target.os.tag == .linux) {
-                if (!glfw.vulkanSupported()) {
-                    return error.GraphicsApiUnavailable;
-                }
-                _ = glfw.getRequiredInstanceExtensions() catch return error.GraphicsApiUnavailable;
-            }
-            // Change directory to where an executable is located.
-            {
-                var exe_path_buffer: [1024]u8 = undefined;
-                const exe_path = std.fs.selfExeDirPath(exe_path_buffer[0..]) catch ".";
-                std.os.chdir(exe_path) catch {};
-            }
-            // Make sure font file is a valid data file and not just a Git LFS pointer.
-            {
-                const file = std.fs.cwd().openFile(
-                    content_dir ++ "Roboto-Medium.ttf",
-                    .{},
-                ) catch return error.InvalidDataFiles;
-                defer file.close();
-
-                const size = file.getEndPos() catch return error.InvalidDataFiles;
-                if (size <= 1024) {
-                    return error.InvalidDataFiles;
-                }
-            }
-        }
-    }).impl;
-
-    doSystemCheck() catch |err| switch (err) {
-        error.GraphicsApiUnavailable => {
-            std.log.err("\n" ++
-                \\---------------------------------------------------------------------------
-                \\
-                \\This program requires:
-                \\
-                \\  * DirectX 12 graphics driver on Windows
-                \\  * Vulkan graphics driver on Linux (OpenGL is NOT supported)
-                \\  * Metal graphics driver on macOS
-                \\
-                \\Please install latest supported driver and try again.
-                \\
-                \\---------------------------------------------------------------------------
-                \\
-            , .{});
-            return err;
-        },
-        error.InvalidDataFiles => {
-            std.log.err("\n" ++
-                \\---------------------------------------------------------------------------
-                \\
-                \\Invalid data files or missing content folder.
-                \\Please install Git LFS (Large File Support) and run (in the repo):
-                \\
-                \\'git lfs install'
-                \\'git lfs pull'
-                \\
-                \\For more info see: https://git-lfs.github.com/
-                \\
-                \\---------------------------------------------------------------------------
-                \\
-            , .{});
-            return err;
-        },
-        else => unreachable,
-    };
-}
-
 const FrameStats = struct {
     time: f64 = 0.0,
     delta_time: f32 = 0.0,
@@ -1437,7 +1483,7 @@ const FrameStats = struct {
     gpu_frame_number: u64 = 0,
 
     fn tick(stats: *FrameStats) void {
-        stats.time = glfw.getTime();
+        stats.time = zglfw.getTime();
         stats.delta_time = @floatCast(f32, stats.time - stats.previous_time);
         stats.previous_time = stats.time;
 
@@ -1479,23 +1525,23 @@ const SurfaceDescriptor = union(SurfaceDescriptorTag) {
     },
 };
 
-pub fn createSurfaceForWindow(instance: wgpu.Instance, window: glfw.Window) wgpu.Surface {
+fn createSurfaceForWindow(instance: wgpu.Instance, window: zglfw.Window) wgpu.Surface {
     const os_tag = @import("builtin").target.os.tag;
 
     const descriptor = if (os_tag == .windows) SurfaceDescriptor{
         .windows_hwnd = .{
             .label = "basic surface",
             .hinstance = std.os.windows.kernel32.GetModuleHandleW(null).?,
-            .hwnd = glfw.getWin32Window(window) catch unreachable,
+            .hwnd = zglfw.getWin32Window(window) catch unreachable,
         },
     } else if (os_tag == .linux) SurfaceDescriptor{
         .xlib = .{
             .label = "basic surface",
-            .display = glfw.getX11Display() catch unreachable,
-            .window = glfw.getX11Window(window) catch unreachable,
+            .display = zglfw.getX11Display() catch unreachable,
+            .window = zglfw.getX11Window(window) catch unreachable,
         },
     } else if (os_tag == .macos) blk: {
-        const ns_window = glfw.getCocoaWindow(window) catch unreachable;
+        const ns_window = zglfw.getCocoaWindow(window) catch unreachable;
         const ns_view = msgSend(ns_window, "contentView", .{}, *anyopaque); // [nsWindow contentView]
 
         // Create a CAMetalLayer that covers the whole window that will be passed to CreateSurface.
@@ -1553,12 +1599,12 @@ pub fn createSurfaceForWindow(instance: wgpu.Instance, window: glfw.Window) wgpu
 }
 
 const objc = struct {
-    pub const SEL = ?*opaque {};
-    pub const Class = ?*opaque {};
+    const SEL = ?*opaque {};
+    const Class = ?*opaque {};
 
-    pub extern fn sel_getUid(str: [*:0]const u8) SEL;
-    pub extern fn objc_getClass(name: [*:0]const u8) Class;
-    pub extern fn objc_msgSend() void;
+    extern fn sel_getUid(str: [*:0]const u8) SEL;
+    extern fn objc_getClass(name: [*:0]const u8) Class;
+    extern fn objc_msgSend() void;
 };
 
 fn msgSend(obj: anytype, sel_name: [:0]const u8, args: anytype, comptime ReturnType: type) ReturnType {
@@ -1597,21 +1643,23 @@ fn msgSend(obj: anytype, sel_name: [:0]const u8, args: anytype, comptime ReturnT
     return @call(.{}, func, .{ obj, sel } ++ args);
 }
 
-fn printUnhandledError(
+fn logUnhandledError(
     err_type: wgpu.ErrorType,
-    message: [*:0]const u8,
+    message: ?[*:0]const u8,
     userdata: ?*anyopaque,
 ) callconv(.C) void {
     _ = userdata;
     switch (err_type) {
-        .validation => std.debug.print("[zgpu] Validation error: {s}\n", .{message}),
-        .out_of_memory => std.debug.print("[zgpu] Out of memory: {s}\n", .{message}),
-        .device_lost => std.debug.print("[zgpu] Device lost: {s}\n", .{message}),
-        .unknown => std.debug.print("[zgpu] Unknown error: {s}\n", .{message}),
-        else => unreachable,
+        .no_error => std.log.info("[zgpu] No error: {?s}", .{message}),
+        .validation => std.log.err("[zgpu] Validation: {?s}", .{message}),
+        .out_of_memory => std.log.err("[zgpu] Out of memory: {?s}", .{message}),
+        .device_lost => std.log.err("[zgpu] Device lost: {?s}", .{message}),
+        .unknown => std.log.err("[zgpu] Unknown error: {?s}", .{message}),
     }
-    // TODO: Do something better.
-    std.process.exit(1);
+
+    // Exit the process for easier debugging.
+    if (@import("builtin").mode == .Debug)
+        std.process.exit(1);
 }
 
 fn handleToGpuResourceType(comptime T: type) type {
@@ -1658,7 +1706,15 @@ fn formatToShaderFormat(format: wgpu.TextureFormat) []const u8 {
 const expect = std.testing.expect;
 
 test "zgpu.wgpu.init" {
-    const instance = createWgpuInstance();
+    dawnProcSetProcs(dnGetProcs());
+
+    const native_instance = dniCreate();
+    defer dniDestroy(native_instance);
+
+    dniDiscoverDefaultAdapters(native_instance);
+
+    const instance = dniGetWgpuInstance(native_instance).?;
+
     instance.reference();
     instance.release();
 
@@ -1676,14 +1732,9 @@ test "zgpu.wgpu.init" {
                 userdata: ?*anyopaque,
             ) callconv(.C) void {
                 _ = message;
-
                 var response = @ptrCast(*Response, @alignCast(@sizeOf(usize), userdata));
                 response.status = status;
                 response.adapter = adapter;
-
-                if (status != .success) {
-                    std.debug.print("Failed to request GPU adapter (status: {any}).\n", .{status});
-                }
             }
         }).callback;
 
@@ -1723,14 +1774,9 @@ test "zgpu.wgpu.init" {
                 userdata: ?*anyopaque,
             ) callconv(.C) void {
                 _ = message;
-
                 var response = @ptrCast(*Response, @alignCast(@sizeOf(usize), userdata));
                 response.status = status;
                 response.device = device;
-
-                if (status != .success) {
-                    std.debug.print("Failed to request GPU device (status: {any}).\n", .{status});
-                }
             }
         }).callback;
 

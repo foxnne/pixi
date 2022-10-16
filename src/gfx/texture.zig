@@ -48,8 +48,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn initFromFile(gctx: *zgpu.GraphicsContext, file: [*:0]const u8, options: Texture.SamplerOptions) !Texture {
-        var image = try zstbi.Image(u8).init(file, 4);
+    pub fn initFromFile(gctx: *zgpu.GraphicsContext, file: [:0]const u8, options: Texture.SamplerOptions) !Texture {
+        var image = try zstbi.Image.init(file, 4);
         defer image.deinit();
 
         const handle = gctx.createTexture(.{
@@ -59,7 +59,11 @@ pub const Texture = struct {
                 .height = image.height,
                 .depth_or_array_layers = 1,
             },
-            .format = .rgba8_unorm,
+            .format = zgpu.imageInfoToTextureFormat(
+                image.num_components,
+                image.bytes_per_component,
+                image.is_hdr,
+            ),
         });
 
         const view_handle = gctx.createTextureView(handle, .{});
@@ -67,7 +71,7 @@ pub const Texture = struct {
         gctx.queue.writeTexture(
             .{ .texture = gctx.lookupResource(handle).? },
             .{
-                .bytes_per_row = image.width * image.channels_in_memory,
+                .bytes_per_row = image.bytes_per_row,
                 .rows_per_image = image.height,
             },
             .{ .width = image.width, .height = image.height },

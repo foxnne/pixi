@@ -33,7 +33,7 @@ pub fn draw() void {
         defer zgui.popStyleColor(.{ .count = 2 });
 
         drawOption(.files, pixi.fa.folder_open);
-        drawOption(.tools, pixi.fa.paint_brush);
+        drawOption(.tools, pixi.fa.pencil_alt);
         drawOption(.sprites, pixi.fa.th);
         drawOption(.settings, pixi.fa.cog);
     }

@@ -88,25 +88,30 @@ pub const ConfigFlags = enum(u32) {
 };
 
 pub const FontConfig = extern struct {
-    font_data: *u0 = undefined,
-    font_data_size: i32 = 0,
-    font_data_owned_by_atlas: bool = true,
-    font_no: i32 = 0,
-    size_pixels: f32 = 0.0,
-    oversample_h: i32 = 3,
-    oversample_v: i32 = 1,
-    pixel_snap_h: bool = false,
-    glyph_extra_spacing: [2]f32 = .{ 0.0, 0.0 },
-    glyph_offset: [2]f32 = .{ 0.0, 0.0 },
-    glyph_ranges: [*c]u16 = null,
-    glyph_min_advance_x: f32 = 0.0,
-    glyph_max_advance_x: f32 = 0.0,
-    merge_mode: bool = false,
-    font_builder_flags: u32 = 0,
-    rasterizer_multiply: f32 = 1.0,
-    ellipsis_char: u16 = 0.0,
-    name: [40]u8 = undefined,
-    dst_font: *Font = undefined,
+    font_data: ?*anyopaque,
+    font_data_size: i32,
+    font_data_owned_by_atlas: bool,
+    font_no: i32,
+    size_pixels: f32,
+    oversample_h: i32,
+    oversample_v: i32,
+    pixel_snap_h: bool,
+    glyph_extra_spacing: [2]f32,
+    glyph_offset: [2]f32,
+    glyph_ranges: [*c]u16,
+    glyph_min_advance_x: f32,
+    glyph_max_advance_x: f32,
+    merge_mode: bool,
+    font_builder_flags: u32,
+    rasterizer_multiply: f32,
+    ellipsis_char: Wchar,
+    name: [40]u8,
+    dst_font: *Font,
+
+    pub fn init() FontConfig {
+        return zguiFontConfig_Init();
+    }
+    extern fn zguiFontConfig_Init() FontConfig;
 };
 
 pub const io = struct {
@@ -115,10 +120,20 @@ pub const io = struct {
     }
     extern fn zguiIoAddFontFromFile(filename: [*:0]const u8, size_pixels: f32) Font;
 
-    pub fn addFontFromFileConfig(filename: [:0]const u8, size_pixels: f32, config: *FontConfig, ranges: [*c]const u16) Font {
-        return zguiIoAddFontFromFileConfig(filename, size_pixels, config, ranges);
+    pub fn addFontFromFileWithConfig(
+        filename: [:0]const u8,
+        size_pixels: f32,
+        config: ?FontConfig,
+        ranges: ?[*]const Wchar,
+    ) Font {
+        return zguiIoAddFontFromFileWithConfig(filename, size_pixels, if (config) |c| &c else null, ranges);
     }
-    extern fn zguiIoAddFontFromFileConfig(filename: [*:0]const u8, size_pixels: f32, config: *FontConfig, ranges: [*c]const u16) Font;
+    extern fn zguiIoAddFontFromFileWithConfig(
+        filename: [*:0]const u8,
+        size_pixels: f32,
+        config: ?*const FontConfig,
+        ranges: ?[*]const Wchar,
+    ) Font;
 
     /// `pub fn getFont(index: u32) Font`
     pub const getFont = zguiIoGetFont;
@@ -430,8 +445,8 @@ pub fn isWindowHovered(flags: HoveredFlags) bool {
 }
 extern fn zguiIsWindowAppearing() bool;
 extern fn zguiIsWindowCollapsed() bool;
-extern fn zguiIsWindowFocused(flags: WindowFlags) bool;
-extern fn zguiIsWindowHovered(flags: WindowFlags) bool;
+extern fn zguiIsWindowFocused(flags: FocusedFlags) bool;
+extern fn zguiIsWindowHovered(flags: HoveredFlags) bool;
 //--------------------------------------------------------------------------------------------------
 pub fn getWindowPos() [2]f32 {
     var pos: [2]f32 = undefined;
@@ -789,7 +804,7 @@ extern fn zguiGetCursorStartPos(pos: *[2]f32) void;
 extern fn zguiGetCursorScreenPos(pos: *[2]f32) void;
 extern fn zguiSetCursorScreenPos(screen_x: f32, screen_y: f32) void;
 //--------------------------------------------------------------------------------------------------
-pub const MouseCursor = enum(i32) {
+pub const Cursor = enum(i32) {
     none = -1,
     arrow = 0,
     text_input,
@@ -802,9 +817,12 @@ pub const MouseCursor = enum(i32) {
     not_allowed,
     count,
 };
-/// 'pub fn setMouseCursor(cursor: MouseCursor) void'
+/// `pub fn getMouseCursor() MouseCursor`
+pub const getMouseCursor = zguiGetMouseCursor;
+/// `pub fn setMouseCursor(cursor: MouseCursor) void`
 pub const setMouseCursor = zguiSetMouseCursor;
-extern fn zguiSetMouseCursor(cursor: MouseCursor) void;
+extern fn zguiGetMouseCursor() Cursor;
+extern fn zguiSetMouseCursor(cursor: Cursor) void;
 //--------------------------------------------------------------------------------------------------
 /// `pub fn alignTextToFramePadding() void`
 pub const alignTextToFramePadding = zguiAlignTextToFramePadding;
@@ -2433,18 +2451,19 @@ pub fn typeToDataTypeEnum(comptime T: type) DataType {
 // Menus
 //
 //--------------------------------------------------------------------------------------------------
-
-/// 'pub fn zguiBeginMenuBar() bool'
+/// `pub fn beginMenuBar() bool`
 pub const beginMenuBar = zguiBeginMenuBar;
-/// 'pub fn zguiEndMenuBar() void'
+/// `pub fn endMenuBar() void`
 pub const endMenuBar = zguiEndMenuBar;
-/// 'pub fn zguiBeginMainMenuBar() bool'
+/// `pub fn beginMainMenuBar() bool`
 pub const beginMainMenuBar = zguiBeginMainMenuBar;
-/// 'pub fn zguiEndMainMenuBar() void'
+/// `pub fn endMainMenuBar() void`
 pub const endMainMenuBar = zguiEndMainMenuBar;
-/// 'pub fn zguiBeginMenu(label: [:0]const u8, enabled: bool) bool'
-pub const beginMenu = zguiBeginMenu;
-/// 'pub fn zguiEndMenu() void'
+
+pub fn beginMenu(label: [:0]const u8, enabled: bool) bool {
+    return zguiBeginMenu(label, enabled);
+}
+/// `pub fn endMenu() void'
 pub const endMenu = zguiEndMenu;
 
 const MenuItem = struct {
@@ -2464,7 +2483,6 @@ extern fn zguiEndMainMenuBar() void;
 extern fn zguiBeginMenu(label: [*:0]const u8, enabled: bool) bool;
 extern fn zguiEndMenu() void;
 extern fn zguiMenuItem(label: [*:0]const u8, shortcut: ?[*:0]const u8, selected: bool, enabled: bool) bool;
-
 //--------------------------------------------------------------------------------------------------
 //
 // Tabs

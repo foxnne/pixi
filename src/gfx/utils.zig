@@ -26,10 +26,10 @@ pub fn createPipelineAsync(
     });
     defer gctx.releaseResource(pipeline_layout);
 
-    const vs_module = zgpu.util.createWgslShaderModule(gctx.device, settings.vertex_shader, "vs");
+    const vs_module = zgpu.createWgslShaderModule(gctx.device, settings.vertex_shader, "vs");
     defer vs_module.release();
 
-    const fs_module = zgpu.util.createWgslShaderModule(gctx.device, settings.fragment_shader, "fs");
+    const fs_module = zgpu.createWgslShaderModule(gctx.device, settings.fragment_shader, "fs");
     defer fs_module.release();
 
     // Set blend mode so sprites can overlap

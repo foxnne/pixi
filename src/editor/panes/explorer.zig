@@ -40,14 +40,6 @@ pub fn draw() void {
                         zgui.text("  {s}  {s}", .{ pixi.fa.folder, folder });
                         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                         defer zgui.popStyleColor(.{ .count = 1 });
-                        const size = zgui.calcTextSize(zgui.format("  {s}  {s}      ", .{ pixi.fa.folder, folder }), .{});
-                        zgui.dummy(.{ .w = zgui.getWindowWidth() - size[0], .h = settings.zgui_font_size * pixi.state.window.scale[1] });
-                        if (zgui.beginMenu(pixi.fa.ellipsis_h, true)) {
-                            if (zgui.menuItem("Close folder", .{})) {
-                                pixi.state.project_folder = null;
-                            }
-                            zgui.endMenu();
-                        }
                         zgui.endMenuBar();
                     }
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.background.toSlice() });

@@ -218,6 +218,10 @@ ZGUI_API void zguiSetCursorScreenPos(float screen_x, float screen_y) {
     ImGui::SetCursorScreenPos({ screen_x, screen_y });
 }
 
+ZGUI_API int zguiGetMouseCursor(void) {
+    return ImGui::GetMouseCursor();
+}
+
 ZGUI_API void zguiSetMouseCursor(int cursor) {
     ImGui::SetMouseCursor(cursor);
 }
@@ -1122,8 +1126,17 @@ ZGUI_API ImFont* zguiIoAddFontFromFile(const char* filename, float size_pixels) 
     return ImGui::GetIO().Fonts->AddFontFromFileTTF(filename, size_pixels, nullptr, nullptr);
 }
 
-ZGUI_API ImFont* zguiIoAddFontFromFileConfig(const char* filename, float size_pixels, ImFontConfig* config, unsigned short ranges[]) {
+ZGUI_API ImFont* zguiIoAddFontFromFileWithConfig(
+    const char* filename,
+    float size_pixels,
+    const ImFontConfig* config,
+    const ImWchar* ranges
+) {
     return ImGui::GetIO().Fonts->AddFontFromFileTTF(filename, size_pixels, config, ranges);
+}
+
+ZGUI_API ImFontConfig zguiFontConfig_Init(void) {
+    return ImFontConfig();
 }
 
 ZGUI_API ImFont* zguiIoGetFont(unsigned int index) {
@@ -1267,7 +1280,6 @@ ZGUI_API void zguiEndMenu(void) {
 ZGUI_API bool zguiMenuItem(const char* label, const char* shortcut, bool selected, bool enabled) {
     return ImGui::MenuItem(label, shortcut, selected, enabled);
 }
-
 //--------------------------------------------------------------------------------------------------
 //
 // DrawList

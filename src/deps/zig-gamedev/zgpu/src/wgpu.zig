@@ -621,72 +621,6 @@ pub const BindGroupLayoutEntry = extern struct {
     sampler: SamplerBindingLayout = .{ .binding_type = .undef },
     texture: TextureBindingLayout = .{ .sample_type = .undef },
     storage_texture: StorageTextureBindingLayout = .{ .access = .undef, .format = .undef },
-
-    /// Helper to create a buffer BindGroupLayoutEntry.
-    pub fn buffer(
-        binding: u32,
-        visibility: ShaderStage,
-        binding_type: BufferBindingType,
-        has_dynamic_offset: bool,
-        min_binding_size: u64,
-    ) BindGroupLayoutEntry {
-        return .{
-            .binding = binding,
-            .visibility = visibility,
-            .buffer = .{
-                .binding_type = binding_type,
-                .has_dynamic_offset = has_dynamic_offset,
-                .min_binding_size = min_binding_size,
-            },
-        };
-    }
-
-    /// Helper to create a sampler BindGroupLayoutEntry.
-    pub fn sampler(binding: u32, visibility: ShaderStage, binding_type: SamplerBindingType) BindGroupLayoutEntry {
-        return .{
-            .binding = binding,
-            .visibility = visibility,
-            .sampler = .{ .binding_type = binding_type },
-        };
-    }
-
-    /// Helper to create a texture BindGroupLayoutEntry.
-    pub fn texture(
-        binding: u32,
-        visibility: ShaderStage,
-        sample_type: TextureSampleType,
-        view_dimension: TextureViewDimension,
-        multisampled: bool,
-    ) BindGroupLayoutEntry {
-        return .{
-            .binding = binding,
-            .visibility = visibility,
-            .texture = .{
-                .sample_type = sample_type,
-                .view_dimension = view_dimension,
-                .multisampled = multisampled,
-            },
-        };
-    }
-
-    /// Helper to create a storage texture BindGroupLayoutEntry.
-    pub fn storageTexture(
-        binding: u32,
-        visibility: ShaderStage,
-        access: StorageTextureAccess,
-        format: TextureFormat,
-        view_dimension: TextureViewDimension,
-    ) BindGroupLayoutEntry {
-        return .{
-            .binding = binding,
-            .visibility = visibility,
-            .storage_texture = .{
-                .access = access,
-                .format = format,
-                .view_dimension = view_dimension,
-            },
-        };
-    }
 };
 
 pub const BindGroupLayoutDescriptor = extern struct {
@@ -966,6 +900,14 @@ pub const QueueDescription = extern struct {
     label: ?[*:0]const u8 = null,
 };
 
+pub const DawnTogglesDeviceDescriptor = extern struct {
+    chain: ChainedStruct,
+    force_enabled_toggles_count: u32 = 0,
+    force_enabled_toggles: ?[*]const [*:0]const u8 = null,
+    force_disabled_toggles_count: u32 = 0,
+    force_disabled_toggles: ?[*]const [*:0]const u8 = null,
+};
+
 pub const DeviceDescriptor = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
     label: ?[*:0]const u8 = null,
@@ -1145,7 +1087,7 @@ pub const CreateRenderPipelineAsyncCallback = *const fn (
 
 pub const ErrorCallback = *const fn (
     err_type: ErrorType,
-    message: [*:0]const u8,
+    message: ?[*:0]const u8,
     userdata: ?*anyopaque,
 ) callconv(.C) void;
 

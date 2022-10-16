@@ -1,12 +1,14 @@
-# zgpu v0.2 - Cross-platform graphics layer
+# zgpu v0.9 - Cross-platform graphics library
 
-`zgpu` is a cross-platform (Windows/Linux/macOS) graphics layer built on top of native wgpu API (Dawn).
+`zgpu` is a small helper library built on top of native wgpu implementation (Dawn).
+
+It supports Windows 10+ (DirectX 12), macOS 12+ (Metal) and Linux (Vulkan).
 
 ## Features:
 
 * Zero-overhead wgpu API bindings ([source code](https://github.com/michal-z/zig-gamedev/blob/main/libs/zgpu/src/wgpu.zig))
 * Uniform buffer pool for fast CPU->GPU transfers
-* Resource pools and resources identified by 32-bit integer handles
+* Resource pools and handle-based GPU resources
 * Async shader compilation
 * GPU mipmap generator
 
@@ -18,20 +20,23 @@ Copy `zgpu`, `zpool` and `zglfw` folders to a `libs` subdirectory of the root of
 
 Then in your `build.zig` add:
 ```zig
+const std = @import("std");
 const zgpu = @import("libs/zgpu/build.zig");
 const zpool = @import("libs/zpool/build.zig");
 const zglfw = @import("libs/zglfw/build.zig");
 
 pub fn build(b: *std.build.Builder) void {
-    const zgpu_pkg = zgpu.getPkg(&.{ zpool.pkg, zglfw.pkg });
+    const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
+    const zgpu_pkg = zgpu.getPkg(&.{ zgpu_options.getPkg(), zpool.pkg, zglfw.pkg });
 
     exe.addPackage(zgpu_pkg);
     exe.addPackage(zglfw.pkg);
 
-    zgpu.link(exe);
+    zgpu.link(exe, zgpu_options);
     zglfw.link(exe);
 }
 ```
+------------
 #### NOTE
 
 `zgpu/libs/dawn` folder contains large binary files - Dawn/WebGPU static libs compiled for several platforms/architectures.
@@ -43,6 +48,7 @@ rm -rf libs/zgpu/libs
 git submodule add -b main https://github.com/michal-z/dawn-bin libs/zgpu/libs/dawn
 git submodule update --init --remote
 ```
+--------------
 ## Sample applications
 
 * [gui test (wgpu)](https://github.com/michal-z/zig-gamedev/tree/main/samples/gui_test_wgpu)
@@ -56,12 +62,40 @@ git submodule update --init --remote
 
 Below you can find an overview of main `zgpu` features.
 
-### Init
-```zig
-const gctx = try zgpu.GraphicsContext.init(allocator, window);
+### Compile-time options
 
-// When you are done:
-gctx.deinit(allocator);
+The list of compile-time options with default values:
+
+```zig
+pub const BuildOptions = struct {
+    uniforms_buffer_size: u64 = 4 * 1024 * 1024,
+
+    dawn_skip_validation: bool = false, // Skip expensive Dawn validation
+
+    buffer_pool_size: u32 = 256,
+    texture_pool_size: u32 = 256,
+    texture_view_pool_size: u32 = 256,
+    sampler_pool_size: u32 = 16,
+    render_pipeline_pool_size: u32 = 128,
+    compute_pipeline_pool_size: u32 = 128,
+    bind_group_pool_size: u32 = 32,
+    bind_group_layout_pool_size: u32 = 32,
+    pipeline_layout_pool_size: u32 = 32,
+};
+```
+You can override default values in your `build.zig`:
+```zig
+pub fn build(b: *std.build.Builder) void {
+    ...
+    const zgpu_options = zgpu.BuildOptionsStep.init(b, .{
+        .uniforms_buffer_size = 8 * 1024 * 1024,
+        .dawn_skip_validation = true,
+    });
+    const zgpu_pkg = zgpu.getPkg(&.{ zgpu_options.getPkg(), zpool.pkg, zglfw.pkg });
+
+    zgpu.link(exe, zgpu_options);
+    ...
+}
 ```
 ### Uniforms
 

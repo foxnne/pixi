@@ -9,7 +9,7 @@ const zm = @import("zmath");
 // TODO: Add build instructions to readme, and note requires xcode for nativefiledialogs to build.
 // TODO: Nativefiledialogs requires xcode appkit frameworks.
 
-pub const name: [*:0]const u8 = @typeName(@This())[std.mem.lastIndexOf(u8, @typeName(@This()), ".").? + 1 ..];
+pub const name: [:0]const u8 = "Pixi";
 pub const settings = @import("settings.zig");
 
 pub const editor = @import("editor/editor.zig");
@@ -58,7 +58,14 @@ pub const Sidebar = enum {
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
 
 fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
-    const gctx = try zgpu.GraphicsContext.init(allocator, window);
+    const gctx = try zgpu.GraphicsContext.create(allocator, window);
+
+    var arena_state = std.heap.ArenaAllocator.init(allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    zstbi.init(arena);
+    defer zstbi.deinit();
 
     const background_logo = try gfx.Texture.initFromFile(gctx, assets.Icon1024_png.path, .{});
 
@@ -75,9 +82,9 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
 
     // Build the default bind group.
     const bind_group_layout_default = gctx.createBindGroupLayout(&.{
-        zgpu.bglBuffer(0, .{ .vertex = true }, .uniform, true, 0),
-        zgpu.bglTexture(1, .{ .fragment = true }, .float, .tvdim_2d, false),
-        zgpu.bglSampler(2, .{ .fragment = true }, .filtering),
+        zgpu.bufferEntry(0, .{ .vertex = true }, .uniform, true, 0),
+        zgpu.textureEntry(1, .{ .fragment = true }, .float, .tvdim_2d, false),
+        zgpu.samplerEntry(2, .{ .fragment = true }, .filtering),
     });
     defer gctx.releaseResource(bind_group_layout_default);
 
@@ -109,9 +116,9 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
 
 fn deinit(allocator: std.mem.Allocator) void {
     //state.batcher.deinit();
-    state.gctx.deinit(allocator);
     zgui.backend.deinit();
     zgui.deinit();
+    state.gctx.destroy(allocator);
     allocator.destroy(state);
 }
 
@@ -133,15 +140,8 @@ fn draw() void {
 
         // Gui pass.
         {
-            const pass = zgpu.util.beginRenderPassSimple(
-                encoder,
-                .load,
-                swapchain_texv,
-                null,
-                null,
-                null,
-            );
-            defer zgpu.util.endRelease(pass);
+            const pass = zgpu.beginRenderPassSimple(encoder, .load, swapchain_texv, null, null, null);
+            defer zgpu.endReleasePass(pass);
             zgui.backend.draw(pass);
         }
 
@@ -200,11 +200,11 @@ pub fn main() !void {
     zgui.init(allocator);
     zgui.io.setIniFilename(assets.root ++ "imgui.ini");
     _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", settings.zgui_font_size * scale_factor);
-    var config: zgui.FontConfig = .{};
+    var config = zgui.FontConfig.init();
     config.merge_mode = true;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
-    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-solid-900.ttf", settings.zgui_font_size * scale_factor * 1.1, &config, ranges.ptr);
-    _ = zgui.io.addFontFromFileConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor * 1.1, &config, ranges.ptr);
+    _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", settings.zgui_font_size * scale_factor * 1.1, config, ranges.ptr);
+    _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor * 1.1, config, ranges.ptr);
     zgui.backend.init(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format));
 
     // Base style

@@ -30,19 +30,19 @@ pub fn build(b: *Builder) !void {
     var exe = createExe(b, target, "run", "src/pixi.zig");
     b.default_step.dependOn(&exe.step);
 
+    const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
     const zgpu_pkg = zgpu.getPkg(&.{ zpool.pkg, zglfw.pkg });
-    const zgui_pkg = zgui.getPkg(&.{zglfw.pkg});
 
     const tests = b.step("test", "Run all tests");
     const pixi_tests = b.addTest(pixi_pkg.source.path);
     pixi_tests.addPackage(pixi_pkg);
     pixi_tests.addPackage(zgpu_pkg);
     pixi_tests.addPackage(zglfw.pkg);
-    pixi_tests.addPackage(zgui_pkg);
+    pixi_tests.addPackage(zgui.pkg);
     pixi_tests.addPackage(zstbi.pkg);
     pixi_tests.addPackage(zmath.pkg);
 
-    zgpu.link(pixi_tests);
+    zgpu.link(pixi_tests, zgpu_options);
     zglfw.link(pixi_tests);
     zstbi.link(pixi_tests);
     zgui.link(pixi_tests);
@@ -75,8 +75,8 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
         }
     }
 
-    const zgpu_pkg = zgpu.getPkg(&.{ zpool.pkg, zglfw.pkg });
-    const zgui_pkg = zgui.getPkg(&.{zglfw.pkg});
+    const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
+    const zgpu_pkg = zgpu.getPkg(&.{ zgpu_options.getPkg(), zpool.pkg, zglfw.pkg });
 
     exe.install();
 
@@ -87,14 +87,14 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     exe.addPackage(pixi_pkg);
     exe.addPackage(zgpu_pkg);
     exe.addPackage(zglfw.pkg);
-    exe.addPackage(zgui_pkg);
+    exe.addPackage(zgui.pkg);
     exe.addPackage(zstbi.pkg);
     exe.addPackage(zmath.pkg);
     exe.addPackage(nfd.getPackage("nfd"));
 
     const nfd_lib = nfd.makeLib(b, b.standardReleaseOptions(), target);
 
-    zgpu.link(exe);
+    zgpu.link(exe, zgpu_options);
     zglfw.link(exe);
     zstbi.link(exe);
     zgui.link(exe);
