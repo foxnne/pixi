@@ -33,34 +33,31 @@ pub fn draw() void {
             .border = false,
             .flags = .{},
         })) {
-            if (zgui.beginTabBar("Files", .{
-                .reorderable = true,
-                .auto_select_new_tabs = true,
-            })) {
-                if (zgui.beginTabItem("  " ++ pixi.fa.file_powerpoint ++ "  Test1  ", .{})) {
-                    const w = @intToFloat(f32, (pixi.state.background_logo.width) / 4) * pixi.state.window.scale[0];
-                    const h = @intToFloat(f32, (pixi.state.background_logo.height) / 4) * pixi.state.window.scale[1];
-                    zgui.setCursorPosX((zgui.getWindowWidth() - w) / 2);
-                    zgui.setCursorPosY((zgui.getWindowHeight() - h) / 2);
-                    zgui.image(pixi.state.gctx.lookupResource(pixi.state.background_logo.view_handle).?, .{
-                        .w = w,
-                        .h = h,
-                        .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
-                    });
-                    const text = zgui.formatZ("Open Folder    {s}  ", .{pixi.fa.folder_open});
-                    const size = zgui.calcTextSize(text, .{});
-                    zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
-                    zgui.textColored(pixi.state.style.text_background.toSlice(), "Open Folder    {s}  ", .{pixi.fa.folder_open});
-                    zgui.endTabItem();
-                }
+            defer zgui.endChild();
+            if (pixi.state.open_files.items.len > 0) {
+                if (zgui.beginTabBar("Files", .{
+                    .reorderable = true,
+                    .auto_select_new_tabs = true,
+                })) {
+                    defer zgui.endTabBar();
 
-                if (zgui.beginTabItem("  " ++ pixi.fa.file_powerpoint ++ "  Test2  ", .{})) {
-                    zgui.endTabItem();
+                    for (pixi.state.open_files.items) |files| {}
                 }
-
-                zgui.endTabBar();
+            } else {
+                const w = @intToFloat(f32, (pixi.state.background_logo.width) / 4) * pixi.state.window.scale[0];
+                const h = @intToFloat(f32, (pixi.state.background_logo.height) / 4) * pixi.state.window.scale[1];
+                zgui.setCursorPosX((zgui.getWindowWidth() - w) / 2);
+                zgui.setCursorPosY((zgui.getWindowHeight() - h) / 2);
+                zgui.image(pixi.state.gctx.lookupResource(pixi.state.background_logo.view_handle).?, .{
+                    .w = w,
+                    .h = h,
+                    .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
+                });
+                const text = zgui.formatZ("Open Folder    {s}  ", .{pixi.fa.folder_open});
+                const size = zgui.calcTextSize(text, .{});
+                zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
+                zgui.textColored(pixi.state.style.text_background.toSlice(), "Open Folder    {s}  ", .{pixi.fa.folder_open});
             }
-            zgui.endChild();
         }
         zgui.separator();
         if (zgui.beginChild("Flipbook", .{

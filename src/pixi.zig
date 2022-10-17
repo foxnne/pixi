@@ -21,6 +21,7 @@ pub const fs = @import("tools/fs.zig");
 pub const math = @import("math/math.zig");
 pub const gfx = @import("gfx/gfx.zig");
 pub const input = @import("input/input.zig");
+pub const storage = @import("storage/storage.zig");
 
 pub const fa = @import("tools/font_awesome.zig");
 
@@ -44,6 +45,8 @@ pub const PixiState = struct {
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
     background_logo: gfx.Texture,
+    open_files: std.ArrayList(storage.File),
+    open_file_index: usize = 0,
     //bind_group_default: zgpu.BindGroupHandle,
     //batcher: gfx.Batcher,
 };
@@ -94,6 +97,8 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
     //     .{ .binding = 2, .sampler_handle = diffusemap.sampler_handle },
     // });
 
+    var open_files = std.ArrayList(storage.File).init(allocator);
+
     state = try allocator.create(PixiState);
     state.* = .{
         .allocator = allocator,
@@ -101,6 +106,7 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
         .camera = camera,
         .window = state_window,
         .background_logo = background_logo,
+        .open_files = open_files,
         //.batcher = batcher,
         //.bind_group_default = bind_group_default,
     };
