@@ -2467,13 +2467,17 @@ pub fn beginMenu(label: [:0]const u8, enabled: bool) bool {
 pub const endMenu = zguiEndMenu;
 
 const MenuItem = struct {
-    shortcut: ?[*:0]const u8 = null,
+    shortcut: ?[:0]const u8 = null,
     selected: bool = false,
     enabled: bool = true,
 };
 
 pub fn menuItem(label: [:0]const u8, args: MenuItem) bool {
-    return zguiMenuItem(label, args.shortcut, args.selected, args.enabled);
+    if (args.shortcut) |shortcut| {
+        return zguiMenuItem(label, shortcut.ptr, args.selected, args.enabled);
+    } else {
+        return zguiMenuItem(label, null, args.selected, args.enabled);
+    }
 }
 
 extern fn zguiBeginMenuBar() bool;
@@ -2483,6 +2487,18 @@ extern fn zguiEndMainMenuBar() void;
 extern fn zguiBeginMenu(label: [*:0]const u8, enabled: bool) bool;
 extern fn zguiEndMenu() void;
 extern fn zguiMenuItem(label: [*:0]const u8, shortcut: ?[*:0]const u8, selected: bool, enabled: bool) bool;
+
+//--------------------------------------------------------------------------------------------------
+//
+// Popups
+//
+//--------------------------------------------------------------------------------------------------
+/// 'pub fn beginTooltip() bool'
+pub const beginTooltip = zguiBeginTooltip;
+/// 'pub fn endTooltip() void'
+pub const endTooltip = zguiEndTooltip;
+extern fn zguiBeginTooltip() void;
+extern fn zguiEndTooltip() void;
 //--------------------------------------------------------------------------------------------------
 //
 // Tabs

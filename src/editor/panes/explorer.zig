@@ -54,15 +54,20 @@ pub fn draw() void {
                             defer zgui.popStyleVar(.{ .count = 2 });
 
                             zgui.separator();
-                            zgui.spacing();
 
-                            if (zgui.beginChild("OpenFiles", .{ .h = @intToFloat(f32, std.math.min(file_count, 6)) * (zgui.getTextLineHeight() + 5.0 * pixi.state.window.scale[0]) })) {
+                            if (zgui.beginChild("OpenFiles", .{ .h = @intToFloat(f32, std.math.min(file_count + 1, 6)) * (zgui.getTextLineHeight() + 6.0 * pixi.state.window.scale[0]) })) {
+                                zgui.spacing();
                                 for (pixi.state.open_files.items) |file, i| {
                                     zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
                                     zgui.sameLine(.{});
                                     const name = std.fs.path.basename(file.path);
                                     if (zgui.selectable(zgui.formatZ("{s}", .{name}), .{})) {
                                         pixi.editor.setActiveFile(i);
+                                    }
+                                    if (zgui.isItemHovered(.{})) {
+                                        zgui.beginTooltip();
+                                        defer zgui.endTooltip();
+                                        zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
                                     }
                                 }
                             }
@@ -84,6 +89,7 @@ pub fn draw() void {
                         if (zgui.beginChild("FileTree", .{ .flags = .{
                             .horizontal_scrollbar = true,
                         } })) {
+                            zgui.spacing();
                             // File Tree
                             recurseFiles(pixi.state.allocator, path);
                         }
