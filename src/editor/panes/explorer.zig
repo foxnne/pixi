@@ -32,23 +32,68 @@ pub fn draw() void {
         switch (pixi.state.sidebar) {
             .files => {
                 if (pixi.state.project_folder) |path| {
-                    // Header
-                    const folder = std.fs.path.basename(path);
-                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 10.0 * pixi.state.window.scale[1] } });
                     if (zgui.beginMenuBar()) {
-                        zgui.popStyleVar(.{ .count = 1 });
-                        zgui.text("  {s}  {s}", .{ pixi.fa.folder, folder });
-                        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
-                        defer zgui.popStyleColor(.{ .count = 1 });
+                        zgui.text("Explorer", .{});
                         zgui.endMenuBar();
                     }
+                    const folder = std.fs.path.basename(path);
+                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.background.toSlice() });
-                    zgui.separator();
-                    zgui.spacing();
-                    zgui.popStyleColor(.{ .count = 1 });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.background.toSlice() });
+                    defer zgui.popStyleColor(.{ .count = 3 });
 
-                    // File Tree
-                    recurseFiles(pixi.state.allocator, path);
+                    // Open files
+                    const file_count = pixi.state.open_files.items.len;
+                    if (file_count > 0) {
+                        if (zgui.collapsingHeader(zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder_open, "Open Files" }), .{
+                            .default_open = true,
+                        })) {
+                            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
+                            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
+                            defer zgui.popStyleVar(.{ .count = 2 });
+
+                            zgui.separator();
+                            zgui.spacing();
+
+                            if (zgui.beginChild("OpenFiles", .{ .h = @intToFloat(f32, std.math.min(file_count, 6)) * (zgui.getTextLineHeight() + 5.0 * pixi.state.window.scale[0]) })) {
+                                for (pixi.state.open_files.items) |file, i| {
+                                    zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
+                                    zgui.sameLine(.{});
+                                    const name = std.fs.path.basename(file.path);
+                                    if (zgui.selectable(zgui.formatZ("{s}", .{name}), .{})) {
+                                        pixi.editor.setActiveFile(i);
+                                    }
+                                }
+                            }
+                            defer zgui.endChild();
+                        }
+                    }
+
+                    // File tree
+                    var open: bool = true;
+                    if (zgui.collapsingHeaderStatePtr(zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder_open, folder }), .{
+                        .pvisible = &open,
+                        .flags = .{
+                            .default_open = true,
+                        },
+                    })) {
+                        zgui.separator();
+                        zgui.spacing();
+
+                        if (zgui.beginChild("FileTree", .{ .flags = .{
+                            .horizontal_scrollbar = true,
+                        } })) {
+                            // File Tree
+                            recurseFiles(pixi.state.allocator, path);
+                        }
+                        defer zgui.endChild();
+                    }
+                    zgui.popStyleVar(.{ .count = 1 });
+
+                    if (!open) {
+                        pixi.state.project_folder = null;
+                    }
                 } else {
                     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 8.0 * pixi.state.window.scale[1] } });
                     defer zgui.popStyleVar(.{ .count = 1 });
