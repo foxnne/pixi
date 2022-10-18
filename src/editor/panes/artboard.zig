@@ -96,7 +96,6 @@ pub fn draw() void {
             .border = false,
             .flags = .{},
         })) {
-            zgui.text("Active Index: {d}", .{pixi.state.open_file_index});
             zgui.endChild();
         }
     }
