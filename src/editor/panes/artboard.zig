@@ -53,10 +53,16 @@ pub fn draw() void {
                         if (zgui.beginTabItem(zgui.formatZ("  {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name }), .{
                             .p_open = &open,
                             .flags = .{
+                                .set_selected = pixi.state.open_file_index == i,
                                 .unsaved_document = file.dirty,
                             },
                         })) {
                             defer zgui.endTabItem();
+                            //pixi.editor.setActiveFile(i);
+                            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "File Path: {s}", .{file.path});
+                        }
+                        if (zgui.isItemClicked(.left)) {
+                            pixi.editor.setActiveFile(i);
                         }
 
                         if (!open) {
@@ -87,6 +93,7 @@ pub fn draw() void {
             .border = false,
             .flags = .{},
         })) {
+            zgui.text("Active Index: {d}", .{pixi.state.open_file_index});
             zgui.endChild();
         }
     }

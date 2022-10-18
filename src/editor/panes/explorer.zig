@@ -117,7 +117,8 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         zgui.sameLine(.{});
                         if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{})) {
                             const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
-                            _ = pixi.editor.openFile(abs_path) catch unreachable;
+                            defer alloc.free(abs_path);
+                            _ = pixi.editor.openFile(alloc.dupeZ(u8, abs_path) catch unreachable) catch unreachable;
                         }
                     }
                 } else if (entry.kind == .Directory) {

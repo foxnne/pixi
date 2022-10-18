@@ -19,8 +19,11 @@ pub fn setProjectFolder(path: [*:0]const u8) void {
 }
 
 pub fn openFile(path: [:0]const u8) !bool {
-    for (pixi.state.open_files.items) |file| {
+    for (pixi.state.open_files.items) |file, i| {
         if (std.mem.eql(u8, file.path, path)) {
+            // Free path since we aren't adding it to open files again.
+            pixi.state.allocator.free(path);
+            setActiveFile(i);
             return false;
         }
     }
@@ -33,8 +36,27 @@ pub fn openFile(path: [:0]const u8) !bool {
     };
 
     try pixi.state.open_files.insert(0, file);
-    pixi.state.open_file_index = 0;
+    setActiveFile(0);
     return true;
+}
+
+pub fn setActiveFile(index: usize) void {
+    if (index >= pixi.state.open_files.items.len) return;
+    pixi.state.open_file_index = index;
+}
+
+pub fn getFileIndex(path: [:0]const u8) ?usize {
+    for (pixi.state.open_files.items) |file, i| {
+        if (std.mem.eql(u8, file.path, path))
+            return i;
+    }
+    return null;
+}
+
+pub fn getFile(index: usize) ?*pixi.storage.File {
+    if (index >= pixi.state.open_files.items.len) return null;
+
+    return &pixi.state.open_files.items[index];
 }
 
 pub fn closeFile(index: usize) !void {
