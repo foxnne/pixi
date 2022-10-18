@@ -58,11 +58,14 @@ pub fn draw() void {
                             },
                         })) {
                             defer zgui.endTabItem();
-                            //pixi.editor.setActiveFile(i);
-                            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "File Path: {s}", .{file.path});
                         }
                         if (zgui.isItemClicked(.left)) {
                             pixi.editor.setActiveFile(i);
+                        }
+                        if (zgui.isItemHovered(.{})) {
+                            zgui.beginTooltip();
+                            defer zgui.endTooltip();
+                            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
                         }
 
                         if (!open) {
