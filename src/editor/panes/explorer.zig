@@ -115,9 +115,12 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     if (std.mem.eql(u8, ext, ".pixi")) {
                         zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
                         zgui.sameLine(.{});
-                        if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{})) {
-                            const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
-                            defer alloc.free(abs_path);
+                        const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
+                        defer alloc.free(abs_path);
+
+                        if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{
+                            .selected = if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
+                        })) {
                             _ = pixi.editor.openFile(alloc.dupeZ(u8, abs_path) catch unreachable) catch unreachable;
                         }
                     }

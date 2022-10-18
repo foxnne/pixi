@@ -12,7 +12,7 @@ text_background: Color = Color.initFloats(0.3, 0.3, 0.35, 1.0),
 
 text_blue: Color = Color.initBytes(110, 150, 200, 255),
 text_orange: Color = Color.initBytes(183, 113, 96, 255),
-text_yellow: Color = Color.initBytes(211, 196, 129, 155),
+text_yellow: Color = Color.initBytes(214, 199, 130, 255),
 
 highlight_primary: Color = Color.initBytes(47, 179, 135, 255),
 hover_primary: Color = Color.initBytes(76, 148, 123, 255),
