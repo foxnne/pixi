@@ -47,8 +47,6 @@ pub fn draw() void {
                     zgui.spacing();
                     zgui.popStyleColor(.{ .count = 1 });
 
-                    // Open Files
-
                     // File Tree
                     recurseFiles(pixi.state.allocator, path);
                 } else {
@@ -105,7 +103,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
     defer zgui.popStyleVar(.{ .count = 3 });
 
     const recursor = struct {
-        fn search(alloc: std.mem.Allocator, directory: []const u8) void {
+        fn search(alloc: std.mem.Allocator, directory: [:0]const u8) void {
             var dir = std.fs.cwd().openIterableDir(directory, .{ .access_sub_paths = true }) catch unreachable;
             defer dir.close();
 
@@ -117,10 +115,14 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     if (std.mem.eql(u8, ext, ".pixi")) {
                         zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
                         zgui.sameLine(.{});
-                        if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{})) {}
+                        if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{})) {
+                            const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
+                            _ = pixi.editor.openFile(abs_path) catch unreachable;
+                        }
                     }
                 } else if (entry.kind == .Directory) {
-                    const abs_path = std.fs.path.join(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
+                    const abs_path = std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
+                    defer alloc.free(abs_path);
                     const folder = zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder, entry.name });
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 1 });
@@ -128,8 +130,6 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         search(alloc, abs_path);
                         zgui.treePop();
                     }
-
-                    alloc.free(abs_path);
                 }
             }
         }

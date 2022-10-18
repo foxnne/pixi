@@ -1,3 +1,4 @@
+const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("pixi");
 const settings = pixi.settings;
@@ -41,7 +42,27 @@ pub fn draw() void {
                 })) {
                     defer zgui.endTabBar();
 
-                    for (pixi.state.open_files.items) |files| {}
+                    for (pixi.state.open_files.items) |file, i| {
+                        var open: bool = true;
+
+                        const file_name = std.fs.path.basename(file.path);
+
+                        zgui.pushIntId(@intCast(i32, i));
+                        defer zgui.popId();
+
+                        if (zgui.beginTabItem(zgui.formatZ("  {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name }), .{
+                            .p_open = &open,
+                            .flags = .{
+                                .unsaved_document = file.dirty,
+                            },
+                        })) {
+                            defer zgui.endTabItem();
+                        }
+
+                        if (!open) {
+                            pixi.editor.closeFile(i) catch unreachable;
+                        }
+                    }
                 }
             } else {
                 const w = @intToFloat(f32, (pixi.state.background_logo.width) / 4) * pixi.state.window.scale[0];

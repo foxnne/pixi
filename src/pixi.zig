@@ -121,6 +121,7 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
 }
 
 fn deinit(allocator: std.mem.Allocator) void {
+    editor.deinit();
     //state.batcher.deinit();
     zgui.backend.deinit();
     zgui.deinit();
