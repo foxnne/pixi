@@ -1,17 +1,20 @@
 
 <p align="center">  
-  <img width="25%" src="assets/pixi.png">
+  <img width="25%" src="assets/Icon1024.png">
   <h3 align=center></h3>
 </p>
 
 # 
-**Pixi** is an cross-platform open-source pixel art editor and animation editor written in Zig.
+**Pixi** is an cross-platform open-source pixel art editor and animation editor written in [Zig](https://github.com/ziglang/zig).
 
-![Home](assets/home.png)
+#### Pixi is currently undergoing a full rewrite, and will hopefully be a more useful and less buggy program soon.
 
-![Example](https://user-images.githubusercontent.com/49629865/126435631-c41c7b2a-d1b8-4f74-ae75-1cfb509c0c44.gif)
+<img width="1392" alt="Screen Shot 2022-10-18 at 12 56 53 AM" src="https://user-images.githubusercontent.com/49629865/196347392-f645c7c7-4887-4c6b-af26-b7c69af188ff.png">
 
 # 
+
+<img width="1392" alt="Screen Shot 2022-10-18 at 12 57 10 AM" src="https://user-images.githubusercontent.com/49629865/196347461-04a66eb8-c109-430d-b565-e51b5013e8ba.png">
+
 ## Features
 - Typical pixel art operations. (draw, erase, color select, fill etc.)
 - Create animations and preview easily, edit directly on the preview.
@@ -21,10 +24,9 @@
 - Intuitive and customizeable user interface.
 - Sprite packing
 
-![Packing](https://user-images.githubusercontent.com/49629865/126735928-b11a0b06-58f3-4117-96c8-84d374dcabf3.gif)
-
 ## User Interface
 - The user interface is driven by [Dear Imgui](https://github.com/ocornut/imgui) which should be familiar to many.
+- The general layout takes many ideas from VSCode, as well as general project setup using folders.
 
 ## Planned Features
 
@@ -47,8 +49,8 @@
 
 ## Credits
 - The wonderful [Dear Imgui](https://github.com/ocornut/imgui) used for almost all of the user interface.
-- [prime31](https://github.com/prime31) for all the help and for [zig-upaya](https://github.com/prime31/zig-upaya) which does most of the heavy lifting.
-- All dependencies of zig-upaya such as [sokol](https://github.com/floooh/sokol), [tinyfiledialogs](https://sourceforge.net/projects/tinyfiledialogs/), [zip](https://github.com/kuba--/zip), [stb](https://github.com/nothings/stb) and [cimgui](https://github.com/cimgui/cimgui).
+- [michal-z](https://github.com/michal-z) for all the help and [zig-gamedev](https://github.com/michal-z/zig-gamedev) which does all the heavy lifting.
+- [prime31](https://github.com/prime31) for all the help.
 - Any and all contributors
 
 
