@@ -4,6 +4,9 @@ const pixi = @import("pixi");
 const settings = pixi.settings;
 const nfd = @import("nfd");
 
+pub var hover_timer: f32 = 0.0;
+pub var hover_label: [:0]const u8 = undefined;
+
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = pixi.state.style.foreground.toSlice() });
@@ -61,13 +64,23 @@ pub fn draw() void {
                                     zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
                                     zgui.sameLine(.{});
                                     const name = std.fs.path.basename(file.path);
-                                    if (zgui.selectable(zgui.formatZ("{s}", .{name}), .{})) {
+                                    const label = zgui.formatZ("{s}", .{name});
+                                    if (zgui.selectable(label, .{})) {
                                         pixi.editor.setActiveFile(i);
                                     }
                                     if (zgui.isItemHovered(.{})) {
-                                        zgui.beginTooltip();
-                                        defer zgui.endTooltip();
-                                        zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                                        if (std.mem.eql(u8, label, hover_label)) {
+                                            hover_timer += pixi.state.gctx.stats.delta_time;
+                                        } else {
+                                            hover_label = label;
+                                            hover_timer = 0.0;
+                                        }
+
+                                        if (hover_timer >= 1.0) {
+                                            zgui.beginTooltip();
+                                            defer zgui.endTooltip();
+                                            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                                        }
                                     }
                                 }
                             }

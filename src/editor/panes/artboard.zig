@@ -4,6 +4,9 @@ const pixi = @import("pixi");
 const settings = pixi.settings;
 const editor = pixi.editor;
 
+pub var hover_timer: f32 = 0.0;
+pub var hover_label: [:0]const u8 = undefined;
+
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     defer zgui.popStyleVar(.{ .count = 1 });
@@ -50,7 +53,9 @@ pub fn draw() void {
                         zgui.pushIntId(@intCast(i32, i));
                         defer zgui.popId();
 
-                        if (zgui.beginTabItem(zgui.formatZ("  {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name }), .{
+                        const label = zgui.formatZ("  {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name });
+
+                        if (zgui.beginTabItem(label, .{
                             .p_open = &open,
                             .flags = .{
                                 .set_selected = pixi.state.open_file_index == i,
@@ -63,9 +68,18 @@ pub fn draw() void {
                             pixi.editor.setActiveFile(i);
                         }
                         if (zgui.isItemHovered(.{})) {
-                            zgui.beginTooltip();
-                            defer zgui.endTooltip();
-                            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                            if (std.mem.eql(u8, label, hover_label)) {
+                                hover_timer += pixi.state.gctx.stats.delta_time;
+                            } else {
+                                hover_label = label;
+                                hover_timer = 0.0;
+                            }
+
+                            if (hover_timer >= 1.0) {
+                                zgui.beginTooltip();
+                                defer zgui.endTooltip();
+                                zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                            }
                         }
 
                         if (!open) {
