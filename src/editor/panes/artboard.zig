@@ -20,6 +20,10 @@ pub fn draw() void {
         .h = pixi.state.window.size[1] * pixi.state.window.scale[1] + 5.0,
     });
 
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 0.0, 0.0 } });
+    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.tab_rounding, .v = 0.0 });
+    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.child_border_size, .v = 0.0 });
+    defer zgui.popStyleVar(.{ .count = 3 });
     if (zgui.begin("Art", .{
         .flags = .{
             .no_title_bar = true,
@@ -86,6 +90,38 @@ pub fn draw() void {
                             pixi.editor.closeFile(i) catch unreachable;
                         }
                     }
+                    // zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.border, .c = pixi.state.style.foreground.toSlice() });
+                    // defer zgui.popStyleColor(.{ .count = 1 });
+                    if (pixi.settings.show_rulers) {
+                        if (zgui.beginChild("TopRuler", .{
+                            .h = zgui.getTextLineHeightWithSpacing(),
+                            .border = false,
+                            .flags = .{
+                                .no_scrollbar = true,
+                            },
+                        })) {}
+                        zgui.endChild();
+
+                        if (zgui.beginChild("SideRuler", .{
+                            .h = -1.0,
+                            .w = zgui.getTextLineHeightWithSpacing(),
+                            .border = false,
+                            .flags = .{
+                                .no_scrollbar = true,
+                            },
+                        })) {}
+                        zgui.endChild();
+                        zgui.sameLine(.{});
+                    }
+                    if (zgui.beginChild("Canvas", .{
+                        .h = -1.0,
+                        .w = -1.0,
+                        .border = false,
+                        .flags = .{
+                            .no_scrollbar = true,
+                        },
+                    })) {}
+                    zgui.endChild();
                 }
             } else {
                 const w = @intToFloat(f32, (pixi.state.background_logo.width) / 4) * pixi.state.window.scale[0];
@@ -106,10 +142,17 @@ pub fn draw() void {
         zgui.separator();
         if (zgui.beginChild("Flipbook", .{
             .w = 0.0,
-            .h = 0.0,
+            .h = zgui.getContentRegionAvail()[1] - pixi.settings.info_bar_height * pixi.state.window.scale[1],
             .border = false,
             .flags = .{},
         })) {
+            zgui.endChild();
+        }
+
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
+        defer zgui.popStyleColor(.{ .count = 1 });
+        if (zgui.beginChild("InfoBar", .{})) {
+            pixi.editor.infobar.draw();
             zgui.endChild();
         }
     }

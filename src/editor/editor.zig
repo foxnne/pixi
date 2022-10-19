@@ -7,6 +7,7 @@ pub const menu = @import("panes/menu.zig");
 pub const sidebar = @import("panes/sidebar.zig");
 pub const explorer = @import("panes/explorer.zig");
 pub const artboard = @import("panes/artboard.zig");
+pub const infobar = @import("panes/infobar.zig");
 
 pub fn draw() void {
     sidebar.draw();

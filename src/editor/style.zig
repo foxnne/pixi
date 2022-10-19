@@ -47,6 +47,7 @@ pub fn set(self: @This()) void {
     style.grab_min_size = 6.5 * pixi.state.window.scale[0];
     style.scrollbar_size = 12 * pixi.state.window.scale[0];
     style.frame_padding = .{ 4.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] };
+    style.frame_border_size = 1.0;
     style.setColor(zgui.StyleCol.window_bg, bg);
     style.setColor(zgui.StyleCol.border, fg);
     style.setColor(zgui.StyleCol.menu_bar_bg, fg);
