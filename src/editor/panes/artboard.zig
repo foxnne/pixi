@@ -133,26 +133,29 @@ pub fn draw() void {
                     .h = h,
                     .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
                 });
-                const text = zgui.formatZ("Open Folder    {s}  ", .{pixi.fa.folder_open});
+                const text = zgui.formatZ("Open Folder    {s}  ", .{pixi.fa.file});
                 const size = zgui.calcTextSize(text, .{});
                 zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
-                zgui.textColored(pixi.state.style.text_background.toSlice(), "Open Folder    {s}  ", .{pixi.fa.folder_open});
+                zgui.textColored(pixi.state.style.text_background.toSlice(), "Open File    {s}  ", .{pixi.fa.file});
             }
         }
+        const flipbook_height = if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) zgui.getContentRegionAvail()[1] - pixi.settings.info_bar_height * pixi.state.window.scale[1] else 0.0;
+
         zgui.separator();
         if (zgui.beginChild("Flipbook", .{
             .w = 0.0,
-            .h = zgui.getContentRegionAvail()[1] - pixi.settings.info_bar_height * pixi.state.window.scale[1],
+            .h = flipbook_height,
             .border = false,
             .flags = .{},
-        })) {
-            zgui.endChild();
-        }
+        })) {}
+        zgui.endChild();
 
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
-        defer zgui.popStyleColor(.{ .count = 1 });
-        if (zgui.beginChild("InfoBar", .{})) {
-            pixi.editor.infobar.draw();
+        if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
+            defer zgui.popStyleColor(.{ .count = 1 });
+            if (zgui.beginChild("InfoBar", .{})) {
+                pixi.editor.infobar.draw();
+            }
             zgui.endChild();
         }
     }

@@ -17,7 +17,7 @@ pub fn draw() void {
 
     if (pixi.state.project_folder) |path| {
         zgui.setCursorPosY(y + 2.0 * pixi.state.window.scale[1]);
-        zgui.text("{s}", .{pixi.fa.folder_open});
+        zgui.textColored(pixi.state.style.foreground.toSlice(), "{s}", .{pixi.fa.folder_open});
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
         zgui.text("{s}", .{path});
@@ -28,7 +28,7 @@ pub fn draw() void {
 
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         zgui.setCursorPosY(y + 2.0 * pixi.state.window.scale[1]);
-        zgui.text("{s} ", .{pixi.fa.ruler_combined});
+        zgui.textColored(pixi.state.style.foreground.toSlice(), "{s} ", .{pixi.fa.ruler_combined});
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
         zgui.text("{d}px X {d}px", .{ file.width, file.height });
