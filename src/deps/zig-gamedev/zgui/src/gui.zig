@@ -50,8 +50,7 @@ export fn zguiMemAlloc(size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque {
         @returnAddress(),
     ) catch @panic("zgui: out of memory");
 
-    mem_allocations.?.put(@ptrToInt(mem.ptr), size) catch
-        @panic("zgui: out of memory");
+    mem_allocations.?.put(@ptrToInt(mem.ptr), size) catch @panic("zgui: out of memory");
 
     return mem.ptr;
 }
@@ -682,10 +681,10 @@ extern fn zguiPushItemWidth(item_width: f32) void;
 extern fn zguiPopItemWidth() void;
 extern fn zguiSetNextItemWidth(item_width: f32) void;
 //--------------------------------------------------------------------------------------------------
-/// `pub fn getFont() Font'
+/// `pub fn getFont() Font`
 pub const getFont = zguiGetFont;
 extern fn zguiGetFont() Font;
-/// `pub fn getFontSize() f32'
+/// `pub fn getFontSize() f32`
 pub const getFontSize = zguiGetFontSize;
 extern fn zguiGetFontSize() f32;
 /// `void pushFont(font: Font) void`
@@ -2463,7 +2462,7 @@ pub const endMainMenuBar = zguiEndMainMenuBar;
 pub fn beginMenu(label: [:0]const u8, enabled: bool) bool {
     return zguiBeginMenu(label, enabled);
 }
-/// `pub fn endMenu() void'
+/// `pub fn endMenu() void`
 pub const endMenu = zguiEndMenu;
 
 const MenuItem = struct {
@@ -2471,13 +2470,8 @@ const MenuItem = struct {
     selected: bool = false,
     enabled: bool = true,
 };
-
 pub fn menuItem(label: [:0]const u8, args: MenuItem) bool {
-    if (args.shortcut) |shortcut| {
-        return zguiMenuItem(label, shortcut.ptr, args.selected, args.enabled);
-    } else {
-        return zguiMenuItem(label, null, args.selected, args.enabled);
-    }
+    return zguiMenuItem(label, if (args.shortcut) |s| s.ptr else null, args.selected, args.enabled);
 }
 
 extern fn zguiBeginMenuBar() bool;
@@ -2487,15 +2481,14 @@ extern fn zguiEndMainMenuBar() void;
 extern fn zguiBeginMenu(label: [*:0]const u8, enabled: bool) bool;
 extern fn zguiEndMenu() void;
 extern fn zguiMenuItem(label: [*:0]const u8, shortcut: ?[*:0]const u8, selected: bool, enabled: bool) bool;
-
 //--------------------------------------------------------------------------------------------------
 //
 // Popups
 //
 //--------------------------------------------------------------------------------------------------
-/// 'pub fn beginTooltip() bool'
+/// `pub fn beginTooltip() bool`
 pub const beginTooltip = zguiBeginTooltip;
-/// 'pub fn endTooltip() void'
+/// `pub fn endTooltip() void`
 pub const endTooltip = zguiEndTooltip;
 extern fn zguiBeginTooltip() void;
 extern fn zguiEndTooltip() void;

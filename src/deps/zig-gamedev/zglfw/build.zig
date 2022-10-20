@@ -1,5 +1,4 @@
 const std = @import("std");
-const system_sdk = @import("system_sdk.zig");
 
 pub fn build(_: *std.build.Builder) void {}
 
@@ -23,7 +22,6 @@ pub const pkg = std.build.Pkg{
 pub fn link(exe: *std.build.LibExeObjStep) void {
     exe.addIncludePath(thisDir() ++ "/libs/glfw/include");
     exe.linkSystemLibraryName("c");
-    system_sdk.include(exe.builder, exe, .{});
 
     const target = (std.zig.system.NativeTargetInfo.detect(exe.target) catch unreachable).target;
 
@@ -53,6 +51,10 @@ pub fn link(exe: *std.build.LibExeObjStep) void {
             }, &.{"-D_GLFW_WIN32"});
         },
         .macos => {
+            exe.addFrameworkPath(thisDir() ++ "/../system-sdk/macos12/System/Library/Frameworks");
+            exe.addSystemIncludePath(thisDir() ++ "/../system-sdk/macos12/usr/include");
+            exe.addLibraryPath(thisDir() ++ "/../system-sdk/macos12/usr/lib");
+            exe.linkSystemLibraryName("objc");
             exe.linkFramework("IOKit");
             exe.linkFramework("CoreFoundation");
             exe.linkFramework("Metal");
@@ -60,7 +62,6 @@ pub fn link(exe: *std.build.LibExeObjStep) void {
             exe.linkFramework("CoreServices");
             exe.linkFramework("CoreGraphics");
             exe.linkFramework("Foundation");
-            exe.linkSystemLibraryName("objc");
             exe.addCSourceFiles(&.{
                 src_dir ++ "monitor.c",
                 src_dir ++ "init.c",
@@ -81,10 +82,13 @@ pub fn link(exe: *std.build.LibExeObjStep) void {
         },
         else => {
             // We assume Linux (X11)
+            exe.addSystemIncludePath(thisDir() ++ "/../system-sdk/linux/include");
+            if (target.cpu.arch.isX86()) {
+                exe.addLibraryPath(thisDir() ++ "/../system-sdk/linux/lib/x86_64-linux-gnu");
+            } else {
+                exe.addLibraryPath(thisDir() ++ "/../system-sdk/linux/lib/aarch64-linux-gnu");
+            }
             exe.linkSystemLibraryName("X11");
-            exe.linkSystemLibraryName("xcb");
-            exe.linkSystemLibraryName("Xau");
-            exe.linkSystemLibraryName("Xdmcp");
             exe.addCSourceFiles(&.{
                 src_dir ++ "monitor.c",
                 src_dir ++ "init.c",

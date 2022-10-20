@@ -75,6 +75,7 @@ pub fn link(exe: *std.build.LibExeObjStep, bos: BuildOptionsStep) void {
 
     switch (target.os.tag) {
         .windows => {
+            exe.addLibraryPath(thisDir() ++ "/../system-sdk/windows/lib/x86_64-windows-gnu");
             exe.addLibraryPath(thisDir() ++ "/libs/dawn/x86_64-windows-gnu");
 
             exe.linkSystemLibraryName("ole32");
@@ -85,15 +86,18 @@ pub fn link(exe: *std.build.LibExeObjStep, bos: BuildOptionsStep) void {
                 exe.addLibraryPath(thisDir() ++ "/libs/dawn/x86_64-linux-gnu")
             else
                 exe.addLibraryPath(thisDir() ++ "/libs/dawn/aarch64-linux-gnu");
-
-            exe.linkSystemLibraryName("X11");
         },
         .macos => {
+            exe.addFrameworkPath(thisDir() ++ "/../system-sdk/macos12/System/Library/Frameworks");
+            exe.addSystemIncludePath(thisDir() ++ "/../system-sdk/macos12/usr/include");
+            exe.addLibraryPath(thisDir() ++ "/../system-sdk/macos12/usr/lib");
+
             if (target.cpu.arch.isX86())
                 exe.addLibraryPath(thisDir() ++ "/libs/dawn/x86_64-macos-none")
             else
                 exe.addLibraryPath(thisDir() ++ "/libs/dawn/aarch64-macos-none");
 
+            exe.linkSystemLibraryName("objc");
             exe.linkFramework("Metal");
             exe.linkFramework("CoreGraphics");
             exe.linkFramework("Foundation");
