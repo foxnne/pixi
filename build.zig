@@ -19,6 +19,7 @@ const zstbi = @import("src/deps/zig-gamedev/zstbi/build.zig");
 const zgui = @import("src/deps/zig-gamedev/zgui/build.zig");
 
 const nfd = @import("src/deps/nfd-zig/build.zig");
+const zip = @import("src/deps/zip/build.zig");
 
 const content_dir = "assets/";
 
@@ -107,6 +108,7 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     exe.addPackage(zstbi.pkg);
     exe.addPackage(zmath.pkg);
     exe.addPackage(nfd.getPackage("nfd"));
+    exe.addPackage(zip.pkg);
 
     const nfd_lib = nfd.makeLib(b, b.standardReleaseOptions(), target);
 
@@ -115,6 +117,7 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     zstbi.link(exe);
     zgui.link(exe);
     exe.linkLibrary(nfd_lib);
+    zip.link(exe);
 
     return exe;
 }
