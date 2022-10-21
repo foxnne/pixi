@@ -30,7 +30,7 @@ pub fn openFile(path: [:0]const u8) !bool {
     }
 
     // TODO: Load files
-    const file: pixi.storage.File = .{
+    const file: pixi.storage.Internal.PixiFile = .{
         .path = path,
         .width = 0,
         .height = 0,
@@ -54,7 +54,7 @@ pub fn getFileIndex(path: [:0]const u8) ?usize {
     return null;
 }
 
-pub fn getFile(index: usize) ?*pixi.storage.File {
+pub fn getFile(index: usize) ?*pixi.storage.Internal.PixiFile {
     if (index >= pixi.state.open_files.items.len) return null;
 
     return &pixi.state.open_files.items[index];
