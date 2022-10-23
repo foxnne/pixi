@@ -45,7 +45,7 @@ pub const PixiState = struct {
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
     background_logo: gfx.Texture,
-    open_files: std.ArrayList(storage.Internal.PixiFile),
+    open_files: std.ArrayList(storage.Internal.Pixi),
     open_file_index: usize = 0,
     //bind_group_default: zgpu.BindGroupHandle,
     //batcher: gfx.Batcher,
@@ -97,7 +97,7 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
     //     .{ .binding = 2, .sampler_handle = diffusemap.sampler_handle },
     // });
 
-    var open_files = std.ArrayList(storage.Internal.PixiFile).init(allocator);
+    var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
     state = try allocator.create(PixiState);
     state.* = .{
