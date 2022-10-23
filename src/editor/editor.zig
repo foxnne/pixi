@@ -96,6 +96,7 @@ pub fn openFile(path: [:0]const u8) !bool {
         return true;
     }
 
+    pixi.state.allocator.free(path);
     return error.FailedToOpenFile;
 }
 
@@ -138,7 +139,7 @@ pub fn closeFile(index: usize) !void {
 
 pub fn deinit() void {
     for (pixi.state.open_files.items) |_, i| {
-        closeFile(i) catch unreachable;
+        try closeFile(i);
     }
     pixi.state.open_files.deinit();
 }
