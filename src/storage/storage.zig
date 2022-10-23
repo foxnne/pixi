@@ -7,7 +7,3 @@ pub const Internal = struct {
 pub const External = struct {
     pub usingnamespace @import("external.zig");
 };
-
-pub const Shared = struct {
-    pub usingnamespace @import("shared.zig");
-};

@@ -10,7 +10,7 @@ pub const Pixi = struct {
     tile_height: u32,
     layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
-    animations: std.ArrayList(storage.Shared.Animation),
+    animations: std.ArrayList(Animation),
     dirty: bool = true,
 
     pub fn toExternal(self: Pixi) !storage.External.Pixi {
@@ -49,4 +49,11 @@ pub const Sprite = struct {
     index: usize,
     origin_x: f32 = 0.0,
     origin_y: f32 = 0.0,
+};
+
+pub const Animation = struct {
+    name: [:0]const u8,
+    start: usize,
+    length: usize,
+    fps: usize,
 };

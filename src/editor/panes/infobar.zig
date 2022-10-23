@@ -21,6 +21,7 @@ pub fn draw() void {
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
         zgui.text("{s}", .{path});
+
         zgui.sameLine(.{});
         zgui.text(spacer, .{});
         zgui.sameLine(.{});
@@ -28,9 +29,19 @@ pub fn draw() void {
 
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         zgui.setCursorPosY(y + 2.0 * pixi.state.window.scale[1]);
-        zgui.textColored(pixi.state.style.foreground.toSlice(), "{s} ", .{pixi.fa.ruler_combined});
+        zgui.textColored(pixi.state.style.foreground.toSlice(), "{s} ", .{pixi.fa.chess_board});
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
         zgui.text("{d}px X {d}px", .{ file.width, file.height });
+
+        zgui.sameLine(.{});
+        zgui.text(spacer, .{});
+        zgui.sameLine(.{});
+
+        zgui.setCursorPosY(y + 2.0 * pixi.state.window.scale[1]);
+        zgui.textColored(pixi.state.style.foreground.toSlice(), "{s} ", .{pixi.fa.border_all});
+        zgui.setCursorPosY(y);
+        zgui.sameLine(.{ .spacing = spacing });
+        zgui.text("{d}px X {d}px", .{ file.tile_width, file.tile_height });
     }
 }

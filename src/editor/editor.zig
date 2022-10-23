@@ -63,7 +63,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             .tile_height = external.tileHeight,
             .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
             .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
-            .animations = std.ArrayList(pixi.storage.Shared.Animation).init(pixi.state.allocator),
+            .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
             .dirty = false,
         };
 
