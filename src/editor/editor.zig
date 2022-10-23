@@ -21,7 +21,7 @@ pub fn setProjectFolder(path: [*:0]const u8) void {
 }
 
 /// Returns true if a new file was opened.
-pub fn openPixiFile(path: [:0]const u8) !bool {
+pub fn openFile(path: [:0]const u8) !bool {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return false;
 
@@ -137,8 +137,8 @@ pub fn closeFile(index: usize) !void {
 }
 
 pub fn deinit() void {
-    for (pixi.state.open_files.items) |*file| {
-        pixi.state.allocator.free(file.path);
+    for (pixi.state.open_files.items) |_, i| {
+        closeFile(i) catch unreachable;
     }
     pixi.state.open_files.deinit();
 }
