@@ -32,9 +32,16 @@ pub fn draw() void {
             .menu_bar = true,
         },
     })) {
+        // Push explorer style changes.
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 8.0 * pixi.state.window.scale[1] } });
+        defer zgui.popStyleVar(.{ .count = 3 });
+
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.background.toSlice() });
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
         defer zgui.popStyleColor(.{ .count = 2 });
+
         switch (pixi.state.sidebar) {
             .files => {
                 if (pixi.state.project_folder) |path| {
@@ -51,10 +58,6 @@ pub fn draw() void {
                         if (zgui.collapsingHeader(zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder_open, "Open Files" }), .{
                             .default_open = true,
                         })) {
-                            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
-                            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
-                            defer zgui.popStyleVar(.{ .count = 2 });
-
                             zgui.separator();
 
                             if (zgui.beginChild("OpenFiles", .{ .h = @intToFloat(f32, std.math.min(file_count + 1, 6)) * (zgui.getTextLineHeight() + 6.0 * pixi.state.window.scale[0]) })) {
@@ -113,8 +116,6 @@ pub fn draw() void {
                         pixi.state.project_folder = null;
                     }
                 } else {
-                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 8.0 * pixi.state.window.scale[1] } });
-                    defer zgui.popStyleVar(.{ .count = 1 });
                     if (zgui.beginMenuBar()) {
                         zgui.text("Explorer", .{});
                         zgui.endMenuBar();
@@ -137,7 +138,12 @@ pub fn draw() void {
                     zgui.text("Tools", .{});
                     zgui.endMenuBar();
                 }
-                zgui.separator();
+            },
+            .layers => {
+                if (zgui.beginMenuBar()) {
+                    zgui.text("Layers", .{});
+                    zgui.endMenuBar();
+                }
             },
             .sprites => {
                 if (zgui.beginMenuBar()) {
@@ -167,9 +173,11 @@ pub fn draw() void {
                     zgui.separator();
                     zgui.spacing();
 
+                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
+                    defer zgui.popStyleVar(.{ .count = 1 });
                     if (zgui.beginChild("Animations", .{})) {
                         for (file.animations.items) |animation| {
-                            if (zgui.collapsingHeader(zgui.formatZ(" {s}  {s}", .{ pixi.fa.code_branch, animation.name }), .{})) {
+                            if (zgui.collapsingHeader(zgui.formatZ(" {s}  {s}", .{ pixi.fa.film, animation.name }), .{})) {
                                 zgui.indent(.{});
                                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                                 defer zgui.popStyleColor(.{ .count = 1 });
@@ -194,7 +202,6 @@ pub fn draw() void {
                     zgui.text("Settings", .{});
                     zgui.endMenuBar();
                 }
-                zgui.separator();
             },
         }
     }

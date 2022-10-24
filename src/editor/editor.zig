@@ -138,8 +138,8 @@ pub fn closeFile(index: usize) !void {
 }
 
 pub fn deinit() void {
-    for (pixi.state.open_files.items) |_, i| {
-        try closeFile(i);
+    for (pixi.state.open_files.items) |_| {
+        try closeFile(0);
     }
     pixi.state.open_files.deinit();
 }

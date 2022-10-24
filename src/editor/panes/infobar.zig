@@ -32,7 +32,7 @@ pub fn draw() void {
         zgui.textColored(pixi.state.style.foreground.toSlice(), "{s} ", .{pixi.fa.chess_board});
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
-        zgui.text("{d}px X {d}px", .{ file.width, file.height });
+        zgui.text("{d}px*{d}px", .{ file.width, file.height });
 
         zgui.sameLine(.{});
         zgui.text(spacer, .{});
@@ -42,6 +42,6 @@ pub fn draw() void {
         zgui.textColored(pixi.state.style.foreground.toSlice(), "{s} ", .{pixi.fa.border_all});
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
-        zgui.text("{d}px X {d}px", .{ file.tile_width, file.tile_height });
+        zgui.text("{d}px*{d}px", .{ file.tile_width, file.tile_height });
     }
 }

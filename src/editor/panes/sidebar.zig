@@ -26,6 +26,8 @@ pub fn draw() void {
             .no_resize = true,
             .no_move = true,
             .no_collapse = true,
+            .no_scrollbar = true,
+            .no_scroll_with_mouse = true,
         },
     })) {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.style.background.toSlice() });
@@ -34,6 +36,7 @@ pub fn draw() void {
 
         drawOption(.files, pixi.fa.folder_open);
         drawOption(.tools, pixi.fa.pencil_alt);
+        drawOption(.layers, pixi.fa.layer_group);
         drawOption(.sprites, pixi.fa.th);
         drawOption(.settings, pixi.fa.cog);
     }

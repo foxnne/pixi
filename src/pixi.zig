@@ -54,6 +54,7 @@ pub const PixiState = struct {
 pub const Sidebar = enum {
     files,
     tools,
+    layers,
     sprites,
     settings,
 };
