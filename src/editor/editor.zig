@@ -1,6 +1,8 @@
 const std = @import("std");
 const pixi = @import("pixi");
 const zip = @import("zip");
+const zstbi = @import("zstbi");
+const zgpu = @import("zgpu");
 
 pub const Style = @import("style.zig");
 
@@ -68,9 +70,46 @@ pub fn openFile(path: [:0]const u8) !bool {
         };
 
         for (external.layers) |layer| {
-            try internal.layers.append(.{
-                .name = try pixi.state.allocator.dupeZ(u8, layer.name),
-            });
+            const layer_image_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});
+
+            var img_buf: ?*anyopaque = null;
+            var img_len: usize = 0;
+
+            _ = zip.zip_entry_open(pixi_file, layer_image_name.ptr);
+            _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
+            defer _ = zip.zip_entry_close(pixi_file);
+
+            if (img_buf) |img| {
+                const texture_handle = pixi.state.gctx.createTexture(.{
+                    .usage = .{ .texture_binding = true, .copy_dst = true },
+                    .size = .{
+                        .width = external.width,
+                        .height = external.height,
+                        .depth_or_array_layers = 1,
+                    },
+                    .format = zgpu.imageInfoToTextureFormat(4, 1, false),
+                });
+
+                const texture_view_handle = pixi.state.gctx.createTextureView(texture_handle, .{});
+
+                const len = @intCast(usize, external.width * external.height * 4);
+                pixi.state.gctx.queue.writeTexture(
+                    .{ .texture = pixi.state.gctx.lookupResource(texture_handle).? },
+                    .{
+                        .bytes_per_row = 4 * external.width,
+                        .rows_per_image = external.height,
+                    },
+                    .{ .width = external.width, .height = external.height },
+                    u8,
+                    @ptrCast([*]u8, img)[0..len],
+                );
+
+                try internal.layers.append(.{
+                    .name = try pixi.state.allocator.dupeZ(u8, layer.name),
+                    .texture_handle = texture_handle,
+                    .texture_view_handle = texture_view_handle,
+                });
+            }
         }
 
         for (external.sprites) |sprite, i| {
@@ -123,6 +162,8 @@ pub fn closeFile(index: usize) !void {
     pixi.state.open_file_index = 0;
     var file = pixi.state.open_files.swapRemove(index);
     for (file.layers.items) |*layer| {
+        pixi.state.gctx.releaseResource(layer.texture_handle);
+        pixi.state.gctx.releaseResource(layer.texture_view_handle);
         pixi.state.allocator.free(layer.name);
     }
     for (file.sprites.items) |*sprite| {

@@ -1,5 +1,6 @@
 const std = @import("std");
 const pixi = @import("pixi");
+const zgpu = @import("zgpu");
 const storage = @import("storage.zig");
 
 pub const Pixi = struct {
@@ -42,6 +43,8 @@ pub const Pixi = struct {
 
 pub const Layer = struct {
     name: [:0]const u8,
+    texture_handle: zgpu.TextureHandle,
+    texture_view_handle: zgpu.TextureViewHandle,
 };
 
 pub const Sprite = struct {

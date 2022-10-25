@@ -90,8 +90,7 @@ pub fn draw() void {
                             pixi.editor.closeFile(i) catch unreachable;
                         }
                     }
-                    // zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.border, .c = pixi.state.style.foreground.toSlice() });
-                    // defer zgui.popStyleColor(.{ .count = 1 });
+
                     if (pixi.settings.show_rulers) {
                         if (zgui.beginChild("TopRuler", .{
                             .h = zgui.getTextLineHeightWithSpacing(),
@@ -120,7 +119,20 @@ pub fn draw() void {
                         .flags = .{
                             .no_scrollbar = true,
                         },
-                    })) {}
+                    })) {
+                        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                            //const window_size = zgui.getContentRegionAvail();
+
+                            for (file.layers.items) |layer| {
+                                if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
+                                    zgui.image(texture_id, .{
+                                        .w = @intToFloat(f32, file.width),
+                                        .h = @intToFloat(f32, file.height),
+                                    });
+                                }
+                            }
+                        }
+                    }
                     zgui.endChild();
                 }
             } else {

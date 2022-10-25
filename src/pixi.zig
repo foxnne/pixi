@@ -39,7 +39,6 @@ pub const PixiState = struct {
     gctx: *zgpu.GraphicsContext,
     camera: gfx.Camera,
     controls: input.Controls = .{},
-    pipeline_default: zgpu.RenderPipelineHandle = .{},
     window: Window,
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
@@ -47,8 +46,6 @@ pub const PixiState = struct {
     background_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
     open_file_index: usize = 0,
-    //bind_group_default: zgpu.BindGroupHandle,
-    //batcher: gfx.Batcher,
 };
 
 pub const Sidebar = enum {
@@ -71,9 +68,8 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
     zstbi.init(arena);
     defer zstbi.deinit();
 
+    var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
     const background_logo = try gfx.Texture.initFromFile(gctx, assets.Icon1024_png.path, .{});
-
-    //const batcher = try gfx.Batcher.init(allocator, gctx, settings.batcher_max_sprites);
 
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
@@ -84,22 +80,6 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
 
     var camera = gfx.Camera.init(settings.design_size, .{ .w = window_size[0], .h = window_size[1] }, zm.f32x4(0, 0, 0, 0));
 
-    // Build the default bind group.
-    const bind_group_layout_default = gctx.createBindGroupLayout(&.{
-        zgpu.bufferEntry(0, .{ .vertex = true }, .uniform, true, 0),
-        zgpu.textureEntry(1, .{ .fragment = true }, .float, .tvdim_2d, false),
-        zgpu.samplerEntry(2, .{ .fragment = true }, .filtering),
-    });
-    defer gctx.releaseResource(bind_group_layout_default);
-
-    // const bind_group_default = gctx.createBindGroup(bind_group_layout_default, &[_]zgpu.BindGroupEntryInfo{
-    //     .{ .binding = 0, .buffer_handle = gctx.uniforms.buffer, .offset = 0, .size = @sizeOf(gfx.Uniforms) },
-    //     .{ .binding = 1, .texture_view_handle = diffusemap.view_handle },
-    //     .{ .binding = 2, .sampler_handle = diffusemap.sampler_handle },
-    // });
-
-    var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
-
     state = try allocator.create(PixiState);
     state.* = .{
         .allocator = allocator,
@@ -108,22 +88,13 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
         .window = state_window,
         .background_logo = background_logo,
         .open_files = open_files,
-        //.batcher = batcher,
-        //.bind_group_default = bind_group_default,
     };
-
-    // Create render pipelines.
-    {
-        // (Async) Create default render pipeline.
-        gfx.utils.createPipelineAsync(allocator, bind_group_layout_default, .{}, &state.pipeline_default);
-    }
 
     return state;
 }
 
 fn deinit(allocator: std.mem.Allocator) void {
     editor.deinit();
-    //state.batcher.deinit();
     zgui.backend.deinit();
     zgui.deinit();
     state.gctx.destroy(allocator);
@@ -156,9 +127,6 @@ fn draw() void {
         break :commands encoder.finish(null);
     };
     defer zgui_commands.release();
-
-    // const batcher_commands = state.batcher.finish() catch unreachable;
-    // defer batcher_commands.release();
 
     state.gctx.submit(&.{zgui_commands});
 
