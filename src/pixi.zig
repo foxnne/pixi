@@ -168,6 +168,9 @@ pub fn main() !void {
     state = try init(allocator, window);
     defer deinit(allocator);
 
+    zstbi.init(allocator);
+    defer zstbi.deinit();
+
     const scale_factor = scale_factor: {
         const scale = window.getContentScale();
         break :scale_factor std.math.max(scale[0], scale[1]);

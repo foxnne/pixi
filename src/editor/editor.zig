@@ -71,6 +71,7 @@ pub fn openFile(path: [:0]const u8) !bool {
 
         for (external.layers) |layer| {
             const layer_image_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});
+            defer pixi.state.allocator.free(layer_image_name);
 
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;
@@ -79,7 +80,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
             defer _ = zip.zip_entry_close(pixi_file);
 
-            if (img_buf) |img| {
+            if (img_buf) |data| {
                 const texture_handle = pixi.state.gctx.createTexture(.{
                     .usage = .{ .texture_binding = true, .copy_dst = true },
                     .size = .{
@@ -92,16 +93,18 @@ pub fn openFile(path: [:0]const u8) !bool {
 
                 const texture_view_handle = pixi.state.gctx.createTextureView(texture_handle, .{});
 
-                const len = @intCast(usize, external.width * external.height * 4);
+                var image = try zstbi.Image.initFromData(@ptrCast([*]u8, data), img_len, 0);
+                defer image.deinit();
+
                 pixi.state.gctx.queue.writeTexture(
                     .{ .texture = pixi.state.gctx.lookupResource(texture_handle).? },
                     .{
-                        .bytes_per_row = 4 * external.width,
-                        .rows_per_image = external.height,
+                        .bytes_per_row = image.bytes_per_row,
+                        .rows_per_image = image.height,
                     },
-                    .{ .width = external.width, .height = external.height },
+                    .{ .width = image.width, .height = image.height },
                     u8,
-                    @ptrCast([*]u8, img)[0..len],
+                    image.data,
                 );
 
                 try internal.layers.append(.{

@@ -52,12 +52,6 @@ pub const Texture = struct {
         var image = try zstbi.Image.init(file, 4);
         defer image.deinit();
 
-        std.log.debug("image width: {d}", .{image.width});
-        std.log.debug("image height: {d}", .{image.height});
-        std.log.debug("num components: {d}", .{image.num_components});
-        std.log.debug("bytes per component: {d}", .{image.bytes_per_component});
-        std.log.debug("bytes per row: {d}", .{image.bytes_per_row});
-
         const handle = gctx.createTexture(.{
             .usage = .{ .texture_binding = true, .copy_dst = true },
             .size = .{
