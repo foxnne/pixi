@@ -93,8 +93,7 @@ pub fn openFile(path: [:0]const u8) !bool {
 
                 const texture_view_handle = pixi.state.gctx.createTextureView(texture_handle, .{});
 
-                var image = try zstbi.Image.initFromData(@ptrCast([*]u8, data), img_len, 0);
-                defer image.deinit();
+                const image = try zstbi.Image.initFromData(@ptrCast([*]u8, data)[0..img_len], 4);
 
                 pixi.state.gctx.queue.writeTexture(
                     .{ .texture = pixi.state.gctx.lookupResource(texture_handle).? },
@@ -111,6 +110,7 @@ pub fn openFile(path: [:0]const u8) !bool {
                     .name = try pixi.state.allocator.dupeZ(u8, layer.name),
                     .texture_handle = texture_handle,
                     .texture_view_handle = texture_view_handle,
+                    .image = image,
                 });
             }
         }
@@ -168,6 +168,7 @@ pub fn closeFile(index: usize) !void {
         pixi.state.gctx.releaseResource(layer.texture_handle);
         pixi.state.gctx.releaseResource(layer.texture_view_handle);
         pixi.state.allocator.free(layer.name);
+        layer.image.deinit();
     }
     for (file.sprites.items) |*sprite| {
         pixi.state.allocator.free(sprite.name);

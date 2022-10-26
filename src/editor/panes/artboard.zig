@@ -22,7 +22,7 @@ pub fn draw() void {
 
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 0.0, 0.0 } });
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.tab_rounding, .v = 0.0 });
-    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.child_border_size, .v = 0.0 });
+    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.child_border_size, .v = 1.0 });
     defer zgui.popStyleVar(.{ .count = 3 });
     if (zgui.begin("Art", .{
         .flags = .{
@@ -35,7 +35,9 @@ pub fn draw() void {
     })) {
         editor.menu.draw();
 
-        if (zgui.beginChild("Canvas", .{
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
+        defer zgui.popStyleVar(.{ .count = 1 });
+        if (zgui.beginChild("Artboard", .{
             .w = 0.0,
             .h = pixi.state.window.size[1] / 1.5 * pixi.state.window.scale[1],
             .border = false,
@@ -80,6 +82,8 @@ pub fn draw() void {
                             }
 
                             if (hover_timer >= 1.0) {
+                                zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+                                defer zgui.popStyleVar(.{ .count = 1 });
                                 zgui.beginTooltip();
                                 defer zgui.endTooltip();
                                 zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
@@ -121,13 +125,20 @@ pub fn draw() void {
                         },
                     })) {
                         if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                            //const window_size = zgui.getContentRegionAvail();
+                            const window_size = zgui.getContentRegionAvail();
+                            const image_x = (window_size[0] - @intToFloat(f32, file.width)) / 2;
+                            const image_y = (window_size[1] - @intToFloat(f32, file.height)) / 2;
 
-                            for (file.layers.items) |layer| {
+                            var i: usize = file.layers.items.len - 1;
+                            while (i > 0) : (i -= 1) {
+                                const layer = file.layers.items[i];
                                 if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
+                                    zgui.setCursorPosX(image_x);
+                                    zgui.setCursorPosY(image_y);
                                     zgui.image(texture_id, .{
                                         .w = @intToFloat(f32, file.width),
                                         .h = @intToFloat(f32, file.height),
+                                        .border_col = .{ 1.0, 1.0, 1.0, 1.0 },
                                     });
                                 }
                             }

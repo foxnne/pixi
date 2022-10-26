@@ -10,7 +10,7 @@ pub fn draw() void {
     defer zgui.popStyleColor(.{ .count = 1 });
 
     const h = zgui.getTextLineHeightWithSpacing();
-    const y = (zgui.getWindowHeight() - h) / 2;
+    const y = (zgui.getContentRegionAvail()[1] - h) / 2;
     const spacing: f32 = 2.0 * pixi.state.window.scale[0];
     zgui.setCursorPosY(y);
     zgui.setCursorPosX(5.0 * pixi.state.window.scale[0]);
@@ -28,20 +28,20 @@ pub fn draw() void {
     }
 
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-        zgui.setCursorPosY(y + 2.0 * pixi.state.window.scale[1]);
+        zgui.setCursorPosY(y + spacing);
         zgui.textColored(pixi.state.style.foreground.toSlice(), "{s} ", .{pixi.fa.chess_board});
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
-        zgui.text("{d}px*{d}px", .{ file.width, file.height });
+        zgui.text("{d}px by {d}px", .{ file.width, file.height });
 
         zgui.sameLine(.{});
         zgui.text(spacer, .{});
         zgui.sameLine(.{});
 
-        zgui.setCursorPosY(y + 2.0 * pixi.state.window.scale[1]);
+        zgui.setCursorPosY(y + spacing);
         zgui.textColored(pixi.state.style.foreground.toSlice(), "{s} ", .{pixi.fa.border_all});
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
-        zgui.text("{d}px*{d}px", .{ file.tile_width, file.tile_height });
+        zgui.text("{d}px by {d}px", .{ file.tile_width, file.tile_height });
     }
 }

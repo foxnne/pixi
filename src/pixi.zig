@@ -97,6 +97,7 @@ fn deinit(allocator: std.mem.Allocator) void {
     editor.deinit();
     zgui.backend.deinit();
     zgui.deinit();
+    zstbi.deinit();
     state.gctx.destroy(allocator);
     allocator.destroy(state);
 }
@@ -168,8 +169,7 @@ pub fn main() !void {
     state = try init(allocator, window);
     defer deinit(allocator);
 
-    zstbi.init(allocator);
-    defer zstbi.deinit();
+    zstbi.init(std.heap.c_allocator);
 
     const scale_factor = scale_factor: {
         const scale = window.getContentScale();
