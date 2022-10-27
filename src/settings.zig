@@ -27,6 +27,6 @@ pub const zgui_font_size = 13;
 
 pub const sidebar_width = 50;
 pub const explorer_width = 200;
-pub const info_bar_height = 30;
+pub const info_bar_height = 24;
 
 pub var show_rulers: bool = true;
