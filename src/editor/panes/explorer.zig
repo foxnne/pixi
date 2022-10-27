@@ -143,6 +143,12 @@ pub fn draw() void {
                 if (zgui.beginMenuBar()) {
                     zgui.text("Layers", .{});
                     zgui.endMenuBar();
+
+                    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                        for (file.layers.items) |layer| {
+                            zgui.bulletText("{s}", .{layer.name});
+                        }
+                    }
                 }
             },
             .sprites => {

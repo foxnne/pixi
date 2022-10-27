@@ -117,8 +117,8 @@ pub fn draw() void {
                         zgui.sameLine(.{});
                     }
                     if (zgui.beginChild("Canvas", .{
-                        .h = -1.0,
-                        .w = -1.0,
+                        .h = 0.0,
+                        .w = 0.0,
                         .border = false,
                         .flags = .{
                             .no_scrollbar = true,
@@ -129,8 +129,9 @@ pub fn draw() void {
                             const image_x = (window_size[0] - @intToFloat(f32, file.width)) / 2;
                             const image_y = (window_size[1] - @intToFloat(f32, file.height)) / 2;
 
-                            var i: usize = file.layers.items.len - 1;
-                            while (i > 0) : (i -= 1) {
+                            var i: usize = file.layers.items.len;
+                            while (i > 0) {
+                                i -= 1;
                                 const layer = file.layers.items[i];
                                 if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
                                     zgui.setCursorPosX(image_x);

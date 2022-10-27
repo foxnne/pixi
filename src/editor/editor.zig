@@ -93,7 +93,7 @@ pub fn openFile(path: [:0]const u8) !bool {
 
                 const texture_view_handle = pixi.state.gctx.createTextureView(texture_handle, .{});
 
-                const image = try zstbi.Image.initFromData(@ptrCast([*]u8, data)[0..img_len], 4);
+                var image = try zstbi.Image.initFromData(@ptrCast([*]u8, data)[0..img_len], 4);
 
                 pixi.state.gctx.queue.writeTexture(
                     .{ .texture = pixi.state.gctx.lookupResource(texture_handle).? },
