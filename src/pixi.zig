@@ -26,6 +26,7 @@ pub const storage = @import("storage/storage.zig");
 pub const fa = @import("tools/font_awesome.zig");
 
 test {
+    _ = zstbi; 
     _ = math;
     _ = gfx;
     _ = input;
