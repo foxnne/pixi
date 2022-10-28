@@ -116,29 +116,37 @@ pub fn draw() void {
                         zgui.endChild();
                         zgui.sameLine(.{});
                     }
+
                     if (zgui.beginChild("Canvas", .{
                         .h = 0.0,
                         .w = 0.0,
                         .border = false,
                         .flags = .{
-                            .no_scrollbar = true,
+                            .horizontal_scrollbar = true,
                         },
                     })) {
                         if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                            const window_size = zgui.getContentRegionAvail();
-                            const image_x = (window_size[0] - @intToFloat(f32, file.width)) / 2;
-                            const image_y = (window_size[1] - @intToFloat(f32, file.height)) / 2;
+                            // const window_size = zgui.getContentRegionAvail();
+                            // const image_x = (window_size[0] - @intToFloat(f32, file.width) * pixi.state.camera.zoom) / 2;
+                            // const image_y = (window_size[1] - @intToFloat(f32, file.height) * pixi.state.camera.zoom) / 2;
 
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
                                 i -= 1;
                                 const layer = file.layers.items[i];
                                 if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
-                                    zgui.setCursorPosX(image_x);
-                                    zgui.setCursorPosY(image_y);
+                                    zgui.setCursorPosX(0);
+                                    zgui.setCursorPosY(0);
+                                    zgui.dummy(.{
+                                        .w = @intToFloat(f32, file.width) * 2 * pixi.state.camera.zoom,
+                                        .h = @intToFloat(f32, file.height) * 2 * pixi.state.camera.zoom,
+                                    });
+
+                                    zgui.setCursorPosX((@intToFloat(f32, file.width) / 2) * pixi.state.camera.zoom);
+                                    zgui.setCursorPosY((@intToFloat(f32, file.height) / 2) * pixi.state.camera.zoom);
                                     zgui.image(texture_id, .{
-                                        .w = @intToFloat(f32, file.width),
-                                        .h = @intToFloat(f32, file.height),
+                                        .w = @intToFloat(f32, file.width) * pixi.state.camera.zoom,
+                                        .h = @intToFloat(f32, file.height) * pixi.state.camera.zoom,
                                         .border_col = .{ 1.0, 1.0, 1.0, 1.0 },
                                     });
                                 }

@@ -30,6 +30,7 @@ pub fn set(self: @This()) void {
     const hover_secondary = self.hover_secondary.toSlice();
 
     var style = zgui.getStyle();
+    style.scaleAllSizes(std.math.max(pixi.state.window.scale[0], pixi.state.window.scale[1]));
     style.window_border_size = 1.0;
     if (builtin.os.tag != .windows) {
         style.window_rounding = 8.0;
