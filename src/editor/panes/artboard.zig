@@ -156,8 +156,27 @@ pub fn draw() void {
                                 .child_windows = true,
                             })) {
                                 if (pixi.state.controls.mouse.scrolled and pixi.state.controls.control()) {
-                                    file.zoom = std.math.clamp(file.zoom + pixi.state.controls.mouse.scroll, settings.zoom_steps[0], settings.zoom_steps[settings.zoom_steps.len - 1]);
-                                    pixi.state.controls.mouse.scrolled = false;
+                                    const zoom_sign = std.math.sign(pixi.state.controls.mouse.scroll);
+
+                                    var nearest_zoom_index: usize = 0;
+                                    var nearest_zoom_step: f32 = settings.zoom_steps[nearest_zoom_index];
+                                    for (settings.zoom_steps) |step, i| {
+                                        const step_difference = @fabs(file.zoom - step);
+                                        const current_difference = @fabs(file.zoom - nearest_zoom_step);
+                                        if (step_difference < current_difference) {
+                                            nearest_zoom_step = step;
+                                            nearest_zoom_index = i;
+                                        }
+                                    }
+
+                                    const next_zoom_index = @floatToInt(usize, std.math.clamp(@intToFloat(f32, nearest_zoom_index) + zoom_sign, 0, @intToFloat(f32, settings.zoom_steps.len - 1)));
+                                    const next_zoom_step = settings.zoom_steps[next_zoom_index];
+
+                                    const zoom_step = @fabs(next_zoom_step - nearest_zoom_step) * zoom_sign;
+                                    const zoom_substep = zoom_step / settings.zoom_substeps;
+
+                                    const zoom_delta = std.math.min(pixi.state.controls.mouse.scroll, zoom_substep);
+                                    file.zoom = std.math.clamp(file.zoom + zoom_delta, settings.zoom_steps[0], settings.zoom_steps[settings.zoom_steps.len - 1]);
 
                                     zoom_timer = 0.0;
                                     zoom_tooltip_timer = 0.0;
@@ -187,6 +206,7 @@ pub fn draw() void {
                                     }
                                 }
                             }
+                            pixi.state.controls.mouse.scrolled = false;
 
                             const image_width = @intToFloat(f32, file.width) * file.zoom;
                             const image_height = @intToFloat(f32, file.height) * file.zoom;
