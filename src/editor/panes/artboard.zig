@@ -129,8 +129,8 @@ pub fn draw() void {
                             const image_width = @intToFloat(f32, file.width) * pixi.state.camera.zoom;
                             const image_height = @intToFloat(f32, file.height) * pixi.state.camera.zoom;
 
-                            const dummy_width = image_width * 1.5;
-                            const dummy_height = image_height * 1.5;
+                            const dummy_width = std.math.max(zgui.getWindowWidth(), image_width * 1.5);
+                            const dummy_height = std.math.max(zgui.getWindowHeight(), image_height * 1.5);
 
                             const dummy_x = 0;
                             const dummy_y = 0;
