@@ -9,7 +9,17 @@ pub var hover_label: [:0]const u8 = undefined;
 
 pub var zoom_timer: f32 = settings.zoom_time;
 pub var zoom_tooltip_timer: f32 = settings.zoom_tooltip_time;
-pub var prev_zoom: f32 = 1.0;
+var prev_zoom: f32 = 1.0;
+
+var canvas_scroll_x: f32 = 0.0;
+var canvas_max_scroll_x: f32 = 0.0;
+var canvas_scroll_y: f32 = 0.0;
+var canvas_max_scroll_y: f32 = 0.0;
+
+var ruler_start_x: f32 = 0.0;
+var ruler_end_x: f32 = 0.0;
+var ruler_start_y: f32 = 0.0;
+var ruler_end_y: f32 = 0.0;
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
@@ -106,7 +116,14 @@ pub fn draw() void {
                             .flags = .{
                                 .no_scrollbar = true,
                             },
-                        })) {}
+                        })) {
+                            const offset = (zgui.calcTextSize("|", .{})[0]) * 1.5;
+                            zgui.setCursorPosX((ruler_start_x - canvas_scroll_x) + offset);
+                            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "|", .{});
+                            zgui.sameLine(.{});
+                            zgui.setCursorPosX((ruler_end_x - canvas_scroll_x) + offset);
+                            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "|", .{});
+                        }
                         zgui.endChild();
 
                         if (zgui.beginChild("SideRuler", .{
@@ -116,7 +133,13 @@ pub fn draw() void {
                             .flags = .{
                                 .no_scrollbar = true,
                             },
-                        })) {}
+                        })) {
+                            const offset = zgui.getTextLineHeight() / 2;
+                            zgui.setCursorPosY(ruler_start_y - canvas_scroll_y - offset);
+                            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "--", .{});
+                            zgui.setCursorPosY(ruler_end_y - canvas_scroll_y - offset);
+                            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "--", .{});
+                        }
                         zgui.endChild();
                         zgui.sameLine(.{});
                     }
@@ -177,6 +200,11 @@ pub fn draw() void {
                             const image_x = dummy_x + (dummy_width / 2 - image_width / 2);
                             const image_y = dummy_y + (dummy_height / 2 - image_height / 2);
 
+                            ruler_start_x = image_x;
+                            ruler_end_x = image_x + image_width;
+                            ruler_start_y = image_y;
+                            ruler_end_y = image_y + image_height;
+
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
                                 i -= 1;
@@ -199,6 +227,10 @@ pub fn draw() void {
                                 }
                             }
                         }
+                        canvas_scroll_x = zgui.getScrollX();
+                        canvas_max_scroll_x = zgui.getScrollMaxX();
+                        canvas_scroll_y = zgui.getScrollY();
+                        canvas_max_scroll_y = zgui.getScrollMaxY();
                     }
                     zgui.endChild();
                 }
