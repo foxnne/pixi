@@ -18,7 +18,9 @@ pub const explorer_width = 200;
 pub const info_bar_height = 24;
 
 pub var show_rulers: bool = true;
+pub const zoom_min_sensitivity: f32 = 0.1;
+pub const zoom_max_sensitivity: f32 = 1.0;
 pub const zoom_substeps: f32 = 4.0;
 pub const zoom_time: f32 = 0.2;
-pub const zoom_tooltip_time: f32 = 0.2;
+pub const zoom_tooltip_time: f32 = 0.6;
 pub const zoom_steps = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 5, 6, 8, 12, 18, 28, 38, 50, 70, 90, 128 };
