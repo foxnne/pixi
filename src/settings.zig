@@ -30,3 +30,6 @@ pub const explorer_width = 200;
 pub const info_bar_height = 24;
 
 pub var show_rulers: bool = true;
+
+pub const max_zoom = 64.0;
+pub const min_zoom = 0.5;

@@ -8,6 +8,7 @@ pub const Camera = struct {
     design_size: zm.F32x4,
     window_size: zm.F32x4,
     zoom: f32 = 1.0,
+    zoom_dirty: bool = false,
     zoom_step: f32 = 1.0,
     zoom_step_next: f32 = 1.0,
     zoom_progress: f32 = -1.0,

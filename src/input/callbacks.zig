@@ -5,35 +5,19 @@ const input = @import("input.zig");
 const zgpu = @import("zgpu");
 const zgui = @import("zgui");
 
-pub fn cursor(_: zglfw.Window, _: f64, _: f64) callconv(.C) void {
-    // if (zgui.io.getWantCaptureMouse()) return;
-    // const scale_factor = scale_factor: {
-    //     const cs = window.getContentScale();
-    //     break :scale_factor std.math.max(cs[0], cs[1]);
-    // };
-    // pixi.state.controls.mouse.position.x = @floatCast(f32, x / scale_factor);
-    // pixi.state.controls.mouse.position.y = @floatCast(f32, y / scale_factor);
+pub fn cursor(window: zglfw.Window, x: f64, y: f64) callconv(.C) void {
+    if (zgui.io.getWantCaptureMouse()) return;
+    const scale_factor = scale_factor: {
+        const cs = window.getContentScale();
+        break :scale_factor std.math.max(cs[0], cs[1]);
+    };
+    pixi.state.controls.mouse.position.x = @floatCast(f32, x / scale_factor);
+    pixi.state.controls.mouse.position.y = @floatCast(f32, y / scale_factor);
 }
 
-pub fn scroll(_: zglfw.Window, _: f64, _: f64) callconv(.C) void {
-    // if (zgui.io.getWantCaptureMouse()) return;
-
-    // if (y > pixi.settings.zoom_scroll_tolerance and pixi.state.camera.zoom_progress < 0.0) {
-    //     const max_zoom = pixi.state.camera.maxZoom();
-    //     pixi.state.camera.zoom_step = @round(pixi.state.camera.zoom);
-    //     if (pixi.state.camera.zoom_step + 1.0 <= max_zoom) {
-    //         pixi.state.camera.zoom_progress = 0.0;
-    //         pixi.state.camera.zoom_step_next = pixi.state.camera.zoom_step + 1.0;
-    //     }
-    // }
-    // if (y < -pixi.settings.zoom_scroll_tolerance and pixi.state.camera.zoom_progress < 0.0) {
-    //     const min_zoom = pixi.state.camera.minZoom();
-    //     pixi.state.camera.zoom_step = @round(pixi.state.camera.zoom);
-    //     if (pixi.state.camera.zoom_step - 1.0 >= min_zoom) {
-    //         pixi.state.camera.zoom_progress = 0.0;
-    //         pixi.state.camera.zoom_step_next = pixi.state.camera.zoom_step - 1.0;
-    //     }
-    // }
+pub fn scroll(_: zglfw.Window, _: f64, y: f64) callconv(.C) void {
+    pixi.state.controls.mouse.scroll = @floatCast(f32, y);
+    pixi.state.controls.mouse.scrolled = true;
 }
 
 pub fn button(_: zglfw.Window, _: zglfw.MouseButton, _: zglfw.Action, _: zglfw.Mods) callconv(.C) void {
@@ -67,4 +51,14 @@ pub fn button(_: zglfw.Window, _: zglfw.MouseButton, _: zglfw.Action, _: zglfw.M
     // }
 }
 
-pub fn key(_: zglfw.Window, _: zglfw.Key, _: i32, _: zglfw.Action, _: zglfw.Mods) callconv(.C) void {}
+pub fn key(_: zglfw.Window, glfw_key: zglfw.Key, _: i32, action: zglfw.Action, _: zglfw.Mods) callconv(.C) void {
+    for (pixi.state.controls.keys) |*k| {
+        if (k.primary == glfw_key or k.secondary == glfw_key) {
+            k.previous_state = k.state;
+            k.state = switch (action) {
+                .release => false,
+                else => true,
+            };
+        }
+    }
+}

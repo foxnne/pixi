@@ -13,6 +13,8 @@ pub const Pixi = struct {
     layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
+    scroll: [2]f32 = .{ 0.0, 0.0 },
+    zoom: f32 = 1.0,
     dirty: bool = true,
 
     pub fn toExternal(self: Pixi) !storage.External.Pixi {

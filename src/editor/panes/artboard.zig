@@ -116,18 +116,26 @@ pub fn draw() void {
                         zgui.endChild();
                         zgui.sameLine(.{});
                     }
+                    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                        if (zgui.beginChild(file.path, .{
+                            .h = 0.0,
+                            .w = 0.0,
+                            .border = false,
+                            .flags = .{
+                                .horizontal_scrollbar = true,
+                            },
+                        })) {
+                            if (zgui.isWindowHovered(.{
+                                .child_windows = true,
+                            })) {
+                                if (pixi.state.controls.mouse.scrolled and pixi.state.controls.control()) {
+                                    file.zoom = std.math.clamp(file.zoom + pixi.state.controls.mouse.scroll, settings.min_zoom, settings.max_zoom);
+                                    pixi.state.controls.mouse.scrolled = false;
+                                }
+                            }
 
-                    if (zgui.beginChild("Canvas", .{
-                        .h = 0.0,
-                        .w = 0.0,
-                        .border = false,
-                        .flags = .{
-                            .horizontal_scrollbar = true,
-                        },
-                    })) {
-                        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                            const image_width = @intToFloat(f32, file.width) * pixi.state.camera.zoom;
-                            const image_height = @intToFloat(f32, file.height) * pixi.state.camera.zoom;
+                            const image_width = @intToFloat(f32, file.width) * file.zoom;
+                            const image_height = @intToFloat(f32, file.height) * file.zoom;
 
                             const dummy_width = std.math.max(zgui.getWindowWidth(), image_width * 1.5);
                             const dummy_height = std.math.max(zgui.getWindowHeight(), image_height * 1.5);
@@ -153,8 +161,8 @@ pub fn draw() void {
                                     zgui.setCursorPosX(image_x);
                                     zgui.setCursorPosY(image_y);
                                     zgui.image(texture_id, .{
-                                        .w = @intToFloat(f32, file.width) * pixi.state.camera.zoom,
-                                        .h = @intToFloat(f32, file.height) * pixi.state.camera.zoom,
+                                        .w = @intToFloat(f32, file.width) * file.zoom,
+                                        .h = @intToFloat(f32, file.height) * file.zoom,
                                         .border_col = .{ 1.0, 1.0, 1.0, 1.0 },
                                     });
                                 }
