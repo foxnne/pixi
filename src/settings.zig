@@ -10,18 +10,6 @@ pub const design_height: u32 = 720;
 /// The design texture size for render-textures as an f32x4.
 pub const design_size = zm.f32x4(@intToFloat(f32, design_width), @intToFloat(f32, design_height), 0, 0);
 
-/// The number of zoom steps to have above minimum, camera.maxZoom() returns camera.minZoom + this value.
-pub const max_zoom_offset: f32 = 3.0;
-
-/// How quickly the camera will zoom to the next step.
-pub const zoom_speed: f32 = 2.0;
-
-/// The scroll offset required to trigger a zoom step.
-pub const zoom_scroll_tolerance: f32 = 0.2;
-
-/// The number of sprites expected per batch to the batcher.
-pub const batcher_max_sprites = 1000;
-
 /// The font size used by zgui elements.
 pub const zgui_font_size = 13;
 
@@ -30,6 +18,6 @@ pub const explorer_width = 200;
 pub const info_bar_height = 24;
 
 pub var show_rulers: bool = true;
-
-pub const max_zoom = 64.0;
-pub const min_zoom = 0.5;
+pub const zoom_time: f32 = 0.2;
+pub const zoom_tooltip_time: f32 = 0.6;
+pub const zoom_steps = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 5, 6, 8, 12, 18, 28, 38, 50, 70, 90, 128 };

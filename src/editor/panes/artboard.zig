@@ -7,6 +7,10 @@ const editor = pixi.editor;
 pub var hover_timer: f32 = 0.0;
 pub var hover_label: [:0]const u8 = undefined;
 
+pub var zoom_timer: f32 = settings.zoom_time;
+pub var zoom_tooltip_timer: f32 = settings.zoom_tooltip_time;
+pub var prev_zoom: f32 = 1.0;
+
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     defer zgui.popStyleVar(.{ .count = 1 });
@@ -129,8 +133,35 @@ pub fn draw() void {
                                 .child_windows = true,
                             })) {
                                 if (pixi.state.controls.mouse.scrolled and pixi.state.controls.control()) {
-                                    file.zoom = std.math.clamp(file.zoom + pixi.state.controls.mouse.scroll, settings.min_zoom, settings.max_zoom);
+                                    file.zoom = std.math.clamp(file.zoom + pixi.state.controls.mouse.scroll, settings.zoom_steps[0], settings.zoom_steps[settings.zoom_steps.len - 1]);
                                     pixi.state.controls.mouse.scrolled = false;
+
+                                    zoom_timer = 0.0;
+                                    zoom_tooltip_timer = 0.0;
+                                    prev_zoom = file.zoom;
+
+                                    zoomTooltip(file.zoom);
+                                } else {
+                                    zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, settings.zoom_tooltip_time);
+
+                                    if (zoom_tooltip_timer < settings.zoom_tooltip_time) {
+                                        zoomTooltip(file.zoom);
+                                    } else {
+                                        zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
+                                        var nearest_zoom_step: f32 = settings.zoom_steps[0];
+                                        for (settings.zoom_steps) |step| {
+                                            const step_difference = @fabs(file.zoom - step);
+                                            const current_difference = @fabs(file.zoom - nearest_zoom_step);
+                                            if (step_difference < current_difference)
+                                                nearest_zoom_step = step;
+                                        }
+                                        if (zoom_timer < settings.zoom_time) {
+                                            file.zoom = pixi.math.lerp(prev_zoom, nearest_zoom_step, zoom_timer / settings.zoom_time);
+                                            zoomTooltip(file.zoom);
+                                        } else {
+                                            file.zoom = nearest_zoom_step;
+                                        }
+                                    }
                                 }
                             }
 
@@ -208,4 +239,14 @@ pub fn draw() void {
         }
     }
     zgui.end();
+}
+
+fn zoomTooltip(zoom: f32) void {
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+    defer zgui.popStyleVar(.{ .count = 1 });
+    zgui.beginTooltip();
+    defer zgui.endTooltip();
+    zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
+    zgui.sameLine(.{});
+    zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{d:0.1}", .{zoom});
 }

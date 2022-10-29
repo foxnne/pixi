@@ -31,10 +31,10 @@ pub const Camera = struct {
     pub fn setWindow(camera: *Camera, window: zglfw.Window) void {
         const window_size = window.getSize();
         camera.window_size = zm.f32x4(@intToFloat(f32, window_size[0]), @intToFloat(f32, window_size[1]), 0, 0);
-        const min_zoom = camera.minZoom();
-        const max_zoom = camera.maxZoom();
-        if (camera.zoom < min_zoom) camera.zoom = min_zoom;
-        if (camera.zoom > max_zoom) camera.zoom = max_zoom;
+        // const min_zoom = camera.minZoom();
+        // const max_zoom = camera.maxZoom();
+        // if (camera.zoom < min_zoom) camera.zoom = min_zoom;
+        // if (camera.zoom > max_zoom) camera.zoom = max_zoom;
     }
 
     /// Use this matrix when drawing to the framebuffer.
@@ -78,9 +78,8 @@ pub const Camera = struct {
         return std.math.max(zoom[0], zoom[1]);
     }
 
-    /// Returns the maximum zoom allowed for the current window size.
-    pub fn maxZoom(camera: Camera) f32 {
-        const min = camera.minZoom();
-        return min + pixi.settings.max_zoom_offset;
-    }
+    // pub fn maxZoom(camera: Camera) f32 {
+    //     const min = camera.minZoom();
+    //     return min + pixi.settings.max_zoom_offset;
+    // }
 };
