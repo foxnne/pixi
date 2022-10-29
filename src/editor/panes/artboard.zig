@@ -144,7 +144,7 @@ pub fn draw() void {
                                 } else {
                                     zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, settings.zoom_tooltip_time);
 
-                                    if (zoom_tooltip_timer < settings.zoom_tooltip_time) {
+                                    if (zoom_tooltip_timer < settings.zoom_tooltip_time or pixi.state.controls.control()) {
                                         zoomTooltip(file.zoom);
                                     } else {
                                         zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
