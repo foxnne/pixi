@@ -11,11 +11,6 @@ pub var zoom_timer: f32 = settings.zoom_time;
 pub var zoom_tooltip_timer: f32 = settings.zoom_tooltip_time;
 var prev_zoom: f32 = 1.0;
 
-var canvas_scroll_x: f32 = 0.0;
-var canvas_max_scroll_x: f32 = 0.0;
-var canvas_scroll_y: f32 = 0.0;
-var canvas_max_scroll_y: f32 = 0.0;
-
 var ruler_start_x: f32 = 0.0;
 var ruler_end_x: f32 = 0.0;
 var ruler_start_y: f32 = 0.0;
@@ -130,6 +125,7 @@ pub fn draw() void {
                         zgui.endChild();
                         zgui.sameLine(.{});
                     }
+
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                         if (zgui.beginChild(file.path, .{
                             .h = 0.0,
@@ -139,6 +135,8 @@ pub fn draw() void {
                                 .horizontal_scrollbar = true,
                             },
                         })) {
+                            const previous_zoom = file.zoom;
+
                             if (zgui.isWindowHovered(.{
                                 .child_windows = true,
                             })) {
@@ -158,7 +156,7 @@ pub fn draw() void {
 
                                     const sensitivity = pixi.math.lerp(settings.zoom_min_sensitivity, settings.zoom_max_sensitivity, t);
 
-                                    const zoom_delta = pixi.state.controls.mouse.scroll * sensitivity;
+                                    const zoom_delta = pixi.state.controls.mouse.scroll * sensitivity * settings.zoom_sensitivity_multiplier;
                                     file.zoom = std.math.clamp(file.zoom + zoom_delta, settings.zoom_steps[0], settings.zoom_steps[settings.zoom_steps.len - 1]);
 
                                     zoom_timer = 0.0;
@@ -191,7 +189,6 @@ pub fn draw() void {
                                     }
                                 }
                             }
-                            pixi.state.controls.mouse.scrolled = false;
 
                             const image_width = @intToFloat(f32, file.width) * file.zoom;
                             const image_height = @intToFloat(f32, file.height) * file.zoom;
@@ -225,19 +222,19 @@ pub fn draw() void {
                                     zgui.setCursorPosX(image_x);
                                     zgui.setCursorPosY(image_y);
                                     zgui.image(texture_id, .{
-                                        .w = @intToFloat(f32, file.width) * file.zoom,
-                                        .h = @intToFloat(f32, file.height) * file.zoom,
+                                        .w = image_width,
+                                        .h = image_height,
                                         .border_col = .{ 1.0, 1.0, 1.0, 1.0 },
                                     });
                                 }
                             }
+
+                            zgui.setScrollX(std.math.round(zgui.getScrollX() * file.zoom / previous_zoom));
+                            zgui.setScrollY(std.math.round(zgui.getScrollY() * file.zoom / previous_zoom));
                         }
-                        canvas_scroll_x = zgui.getScrollX();
-                        canvas_max_scroll_x = zgui.getScrollMaxX();
-                        canvas_scroll_y = zgui.getScrollY();
-                        canvas_max_scroll_y = zgui.getScrollMaxY();
+                        pixi.state.controls.mouse.scrolled = false;
+                        zgui.endChild();
                     }
-                    zgui.endChild();
                 }
             } else {
                 const w = @intToFloat(f32, (pixi.state.background_logo.width) / 4) * pixi.state.window.scale[0];

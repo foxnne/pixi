@@ -20,6 +20,7 @@ pub const info_bar_height = 24;
 pub var show_rulers: bool = true;
 pub const zoom_min_sensitivity: f32 = 0.1;
 pub const zoom_max_sensitivity: f32 = 1.0;
+pub const zoom_sensitivity_multiplier: f32 = 0.2;
 pub const zoom_substeps: f32 = 4.0;
 pub const zoom_time: f32 = 0.2;
 pub const zoom_tooltip_time: f32 = 0.6;
