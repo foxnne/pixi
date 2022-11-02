@@ -21,6 +21,9 @@ var ruler_end_x: f32 = 0.0;
 var ruler_start_y: f32 = 0.0;
 var ruler_end_y: f32 = 0.0;
 
+var new_zoom: f32 = 1.0;
+var zoom_changed: bool = false;
+
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     defer zgui.popStyleVar(.{ .count = 1 });
@@ -130,112 +133,93 @@ pub fn draw() void {
                         zgui.endChild();
                         zgui.sameLine(.{});
                     }
+
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                         if (zgui.beginChild(file.path, .{
                             .h = 0.0,
                             .w = 0.0,
                             .border = false,
                             .flags = .{
-                                .horizontal_scrollbar = true,
+                                .no_scroll_with_mouse = true,
+                                .always_horizontal_scrollbar = true,
+                                .always_vertical_scrollbar = true,
                             },
                         })) {
-                            if (zgui.isWindowHovered(.{
-                                .child_windows = true,
-                            })) {
-                                if (pixi.state.controls.mouse.scrolled and pixi.state.controls.control()) {
-                                    var nearest_zoom_index: usize = 0;
-                                    var nearest_zoom_step = settings.zoom_steps[nearest_zoom_index];
-                                    for (settings.zoom_steps) |step, i| {
-                                        const step_difference = @fabs(file.zoom - step);
-                                        const current_difference = @fabs(file.zoom - nearest_zoom_step);
-                                        if (step_difference < current_difference) {
-                                            nearest_zoom_index = i;
-                                            nearest_zoom_step = settings.zoom_steps[i];
-                                        }
-                                    }
+                            const image_width = @intToFloat(f32, file.width);
+                            const image_height = @intToFloat(f32, file.height);
 
-                                    const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, settings.zoom_steps.len - 1);
+                            if (zoom_changed) {
+                                file.zoom = new_zoom;
+                                zoom_changed = false;
+                            } else {
+                                if (zgui.isWindowHovered(.{})) {
+                                    const zoom_step: f32 = 2.0;
 
-                                    const sensitivity = pixi.math.lerp(settings.zoom_min_sensitivity, settings.zoom_max_sensitivity, t);
-
-                                    const zoom_delta = pixi.state.controls.mouse.scroll * sensitivity;
-                                    file.zoom = std.math.clamp(file.zoom + zoom_delta, settings.zoom_steps[0], settings.zoom_steps[settings.zoom_steps.len - 1]);
-
-                                    zoom_timer = 0.0;
-                                    zoom_tooltip_timer = 0.0;
-                                    prev_zoom = file.zoom;
-
-                                    zoomTooltip(file.zoom);
-                                } else {
-                                    zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, settings.zoom_tooltip_time);
-
-                                    if (pixi.state.controls.control()) {
-                                        zoomTooltip(file.zoom);
-                                    } else {
-                                        zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
-                                        var nearest_zoom_step: f32 = settings.zoom_steps[0];
-                                        for (settings.zoom_steps) |step| {
-                                            const step_difference = @fabs(file.zoom - step);
-                                            const current_difference = @fabs(file.zoom - nearest_zoom_step);
-                                            if (step_difference < current_difference)
-                                                nearest_zoom_step = step;
-                                        }
-                                        if (zoom_timer < settings.zoom_time) {
-                                            file.zoom = pixi.math.lerp(prev_zoom, nearest_zoom_step, zoom_timer / settings.zoom_time);
-                                            zoomTooltip(file.zoom);
+                                    if (pixi.state.controls.mouse.scrolled and pixi.state.controls.control()) {
+                                        const sign = std.math.sign(pixi.state.controls.mouse.scroll);
+                                        if (sign > 0.0) {
+                                            new_zoom = file.zoom * zoom_step * pixi.state.controls.mouse.scroll;
+                                            zoom_changed = true;
                                         } else {
-                                            if (zoom_tooltip_timer < settings.zoom_tooltip_time)
-                                                zoomTooltip(file.zoom);
-                                            file.zoom = nearest_zoom_step;
+                                            new_zoom = file.zoom / zoom_step * pixi.state.controls.mouse.scroll;
+                                            zoom_changed = true;
                                         }
                                     }
                                 }
+
+                                if (zoom_changed) {
+                                    const window_pos = zgui.getWindowPos();
+                                    const mouse_window: [2]f32 = .{ pixi.state.controls.mouse.position.x - window_pos[0], pixi.state.controls.mouse.position.y - window_pos[1] };
+                                    const scroll: [2]f32 = .{ zgui.getScrollX(), zgui.getScrollY() };
+                                    const mouse_image: [2]f32 = .{
+                                        (scroll[0] + mouse_window[0]) / file.zoom,
+                                        (scroll[1] + mouse_window[1]) / file.zoom,
+                                    };
+
+                                    {
+                                        const origin = zgui.getCursorScreenPos();
+                                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
+                                        defer zgui.popStyleVar(.{ .count = 1 });
+                                        zgui.dummy(.{
+                                            .w = @floor(image_width * new_zoom),
+                                            .h = @floor(image_height * new_zoom),
+                                        });
+                                        zgui.setCursorScreenPos(origin);
+                                    }
+
+                                    const new_mouse_image: [2]f32 = .{
+                                        mouse_image[0] * ((image_width / 10.0) * new_zoom),
+                                        mouse_image[1] * ((image_height / 10.0) * new_zoom),
+                                    };
+                                    const new_scroll: [2]f32 = .{
+                                        new_mouse_image[0] - mouse_window[0],
+                                        new_mouse_image[1] - mouse_window[1],
+                                    };
+
+                                    zgui.setScrollX(new_scroll[0]);
+                                    zgui.setScrollY(new_scroll[1]);
+                                }
                             }
+
                             pixi.state.controls.mouse.scrolled = false;
 
-                            const image_width = @intToFloat(f32, file.width) * file.zoom;
-                            const image_height = @intToFloat(f32, file.height) * file.zoom;
-
-                            const dummy_width = std.math.max(zgui.getWindowWidth(), image_width * 1.5);
-                            const dummy_height = std.math.max(zgui.getWindowHeight(), image_height * 1.5);
-
-                            const dummy_x = 0;
-                            const dummy_y = 0;
-
-                            const image_x = dummy_x + (dummy_width / 2 - image_width / 2);
-                            const image_y = dummy_y + (dummy_height / 2 - image_height / 2);
-
-                            ruler_start_x = image_x;
-                            ruler_end_x = image_x + image_width;
-                            ruler_start_y = image_y;
-                            ruler_end_y = image_y + image_height;
-
+                            const origin = zgui.getCursorScreenPos();
+                            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
+                            defer zgui.popStyleVar(.{ .count = 1 });
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
                                 i -= 1;
                                 const layer = file.layers.items[i];
                                 if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
-                                    zgui.setCursorPosX(dummy_x);
-                                    zgui.setCursorPosY(dummy_y);
-                                    zgui.dummy(.{
-                                        .w = dummy_width,
-                                        .h = dummy_height,
-                                    });
-
-                                    zgui.setCursorPosX(image_x);
-                                    zgui.setCursorPosY(image_y);
+                                    zgui.setCursorScreenPos(origin);
                                     zgui.image(texture_id, .{
-                                        .w = @intToFloat(f32, file.width) * file.zoom,
-                                        .h = @intToFloat(f32, file.height) * file.zoom,
+                                        .w = image_width * file.zoom,
+                                        .h = image_height * file.zoom,
                                         .border_col = .{ 1.0, 1.0, 1.0, 1.0 },
                                     });
                                 }
                             }
                         }
-                        canvas_scroll_x = zgui.getScrollX();
-                        canvas_max_scroll_x = zgui.getScrollMaxX();
-                        canvas_scroll_y = zgui.getScrollY();
-                        canvas_max_scroll_y = zgui.getScrollMaxY();
                     }
                     zgui.endChild();
                 }
