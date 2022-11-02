@@ -140,7 +140,7 @@ pub fn draw() void {
                             .w = 0.0,
                             .border = false,
                             .flags = .{
-                                .no_scroll_with_mouse = true,
+                                
                                 .always_horizontal_scrollbar = true,
                                 .always_vertical_scrollbar = true,
                             },
@@ -158,10 +158,10 @@ pub fn draw() void {
                                     if (pixi.state.controls.mouse.scrolled and pixi.state.controls.control()) {
                                         const sign = std.math.sign(pixi.state.controls.mouse.scroll);
                                         if (sign > 0.0) {
-                                            new_zoom = file.zoom * zoom_step * pixi.state.controls.mouse.scroll;
+                                            new_zoom = file.zoom * zoom_step;
                                             zoom_changed = true;
                                         } else {
-                                            new_zoom = file.zoom / zoom_step * pixi.state.controls.mouse.scroll;
+                                            new_zoom = file.zoom / zoom_step;
                                             zoom_changed = true;
                                         }
                                     }
@@ -172,24 +172,24 @@ pub fn draw() void {
                                     const mouse_window: [2]f32 = .{ pixi.state.controls.mouse.position.x - window_pos[0], pixi.state.controls.mouse.position.y - window_pos[1] };
                                     const scroll: [2]f32 = .{ zgui.getScrollX(), zgui.getScrollY() };
                                     const mouse_image: [2]f32 = .{
-                                        (scroll[0] + mouse_window[0]) / file.zoom,
-                                        (scroll[1] + mouse_window[1]) / file.zoom,
+                                        (scroll[0] + mouse_window[0]) / ((image_width / 100.0) * file.zoom),
+                                        (scroll[1] + mouse_window[1]) / ((image_height  / 100.0) * file.zoom),
                                     };
 
                                     {
-                                        const origin = zgui.getCursorScreenPos();
+                                        zgui.setCursorPos(.{ 0.0, 0.0});
                                         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
                                         defer zgui.popStyleVar(.{ .count = 1 });
                                         zgui.dummy(.{
                                             .w = @floor(image_width * new_zoom),
                                             .h = @floor(image_height * new_zoom),
                                         });
-                                        zgui.setCursorScreenPos(origin);
+                                        zgui.setCursorPos(.{ 0.0, 0.0});
                                     }
 
                                     const new_mouse_image: [2]f32 = .{
-                                        mouse_image[0] * ((image_width / 10.0) * new_zoom),
-                                        mouse_image[1] * ((image_height / 10.0) * new_zoom),
+                                        mouse_image[0] * ((image_width / 100.0) * new_zoom),
+                                        mouse_image[1] * ((image_height / 100.0) * new_zoom),
                                     };
                                     const new_scroll: [2]f32 = .{
                                         new_mouse_image[0] - mouse_window[0],
@@ -203,7 +203,6 @@ pub fn draw() void {
 
                             pixi.state.controls.mouse.scrolled = false;
 
-                            const origin = zgui.getCursorScreenPos();
                             zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
                             defer zgui.popStyleVar(.{ .count = 1 });
                             var i: usize = file.layers.items.len;
@@ -211,7 +210,7 @@ pub fn draw() void {
                                 i -= 1;
                                 const layer = file.layers.items[i];
                                 if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
-                                    zgui.setCursorScreenPos(origin);
+                                    zgui.setCursorPos(.{ 0.0, 0.0});
                                     zgui.image(texture_id, .{
                                         .w = image_width * file.zoom,
                                         .h = image_height * file.zoom,
