@@ -140,7 +140,6 @@ pub fn draw() void {
                             .w = 0.0,
                             .border = false,
                             .flags = .{
-                                
                                 .always_horizontal_scrollbar = true,
                                 .always_vertical_scrollbar = true,
                             },
@@ -167,13 +166,14 @@ pub fn draw() void {
                                     }
                                 }
 
+                                const window_pos = zgui.getWindowPos();
+                                const mouse_window: [2]f32 = .{ pixi.state.controls.mouse.position.x - window_pos[0], pixi.state.controls.mouse.position.y - window_pos[1] };
                                 if (zoom_changed) {
-                                    const window_pos = zgui.getWindowPos();
-                                    const mouse_window: [2]f32 = .{ pixi.state.controls.mouse.position.x - window_pos[0], pixi.state.controls.mouse.position.y - window_pos[1] };
+                                    
                                     const scroll: [2]f32 = .{ zgui.getScrollX(), zgui.getScrollY() };
                                     const mouse_image: [2]f32 = .{
-                                        (scroll[0] + mouse_window[0]) / ((image_width / 100.0) * file.zoom),
-                                        (scroll[1] + mouse_window[1]) / ((image_height  / 100.0) * file.zoom),
+                                        (scroll[0] + mouse_window[0]) / ((image_width / 1000.0) * file.zoom),
+                                        (scroll[1] + mouse_window[1]) / ((image_height  / 1000.0) * file.zoom),
                                     };
 
                                     {
@@ -188,8 +188,8 @@ pub fn draw() void {
                                     }
 
                                     const new_mouse_image: [2]f32 = .{
-                                        mouse_image[0] * ((image_width / 100.0) * new_zoom),
-                                        mouse_image[1] * ((image_height / 100.0) * new_zoom),
+                                        mouse_image[0] * ((image_width / 1000.0) * new_zoom),
+                                        mouse_image[1] * ((image_height / 1000.0) * new_zoom),
                                     };
                                     const new_scroll: [2]f32 = .{
                                         new_mouse_image[0] - mouse_window[0],
@@ -199,6 +199,13 @@ pub fn draw() void {
                                     zgui.setScrollX(new_scroll[0]);
                                     zgui.setScrollY(new_scroll[1]);
                                 }
+
+                                const draw_list = zgui.getWindowDrawList();
+                                draw_list.addCircle(.{
+                                    .p = .{ window_pos[0] + mouse_window[0], window_pos[1] + mouse_window[1]},
+                                    .r = 24.0,
+                                    .col = 0xffffffff,
+                                });
                             }
 
                             pixi.state.controls.mouse.scrolled = false;
