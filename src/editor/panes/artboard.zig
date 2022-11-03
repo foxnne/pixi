@@ -144,14 +144,14 @@ pub fn draw() void {
 
                             if (zgui.isWindowHovered(.{})) {
                                 if (pixi.state.controls.mouse.scroll_x) |x| {
-                                    file.camera.position[0] += x;
+                                    file.camera.position[0] -= x;
                                     pixi.state.controls.mouse.scroll_x = null;
                                 }
                                 if (pixi.state.controls.mouse.scroll_y) |y| {
                                     if (pixi.state.controls.control()) {
-                                        file.camera.zoom += y;
+                                        file.camera.zoom = findNewZoom(file);
                                     } else {
-                                        file.camera.position[1] += y;
+                                        file.camera.position[1] -= y;
                                         pixi.state.controls.mouse.scroll_y = null;
                                     }
                                 }
@@ -214,4 +214,31 @@ fn zoomTooltip(zoom: f32) void {
     zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
     zgui.sameLine(.{});
     zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{d:0.1}", .{zoom});
+}
+
+fn findNearestZoomIndex(file: *pixi.storage.Internal.Pixi) usize {
+    var nearest_zoom_index: usize = 0;
+    var nearest_zoom_step: f32 = settings.zoom_steps[nearest_zoom_index];
+    for (settings.zoom_steps) |step, i| {
+        const step_difference = @fabs(file.camera.zoom - step);
+        const current_difference = @fabs(file.camera.zoom - nearest_zoom_step);
+        if (step_difference < current_difference) {
+            nearest_zoom_step = step;
+            nearest_zoom_index = i;
+        }
+    }
+    return nearest_zoom_index;
+}
+
+fn findNewZoom(file: *pixi.storage.Internal.Pixi) f32 {
+    if (pixi.state.controls.mouse.scroll_y) |scroll| {
+        const nearest_zoom_index = findNearestZoomIndex(file);
+
+        const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, settings.zoom_steps.len - 1);
+        const sensitivity = pixi.math.lerp(settings.zoom_min_sensitivity, settings.zoom_max_sensitivity, t);
+        const zoom_delta = scroll * sensitivity;
+
+        return std.math.clamp(file.camera.zoom + zoom_delta, settings.zoom_steps[0], settings.zoom_steps[settings.zoom_steps.len - 1]);
+    }
+    return file.camera.zoom;
 }
