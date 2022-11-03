@@ -47,6 +47,11 @@ pub const Camera = struct {
             draw_list.addImage(texture_id, .{
                 .pmin = tl,
                 .pmax = br,
+                .col = 0xFFFFFFFF,
+            });
+            draw_list.addRect(.{
+                .pmin = tl,
+                .pmax = br,
                 .col = color,
             });
         }

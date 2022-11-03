@@ -165,7 +165,7 @@ pub fn draw() void {
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
                                 i -= 1;
-                                file.camera.drawLayer(file.layers.items[i], texture_position, 0xffffffff);
+                                file.camera.drawLayer(file.layers.items[i], texture_position, pixi.state.style.text_secondary.toU32());
                             }
                         }
                         zgui.endChild();
