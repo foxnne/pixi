@@ -8,6 +8,7 @@ pub var hover_timer: f32 = 0.0;
 pub var hover_label: [:0]const u8 = undefined;
 
 pub var zoom_timer: f32 = settings.zoom_time;
+//var zoom_mouse: [2]f32 = .{ 0.0, 0.0 };
 pub var zoom_tooltip_timer: f32 = settings.zoom_tooltip_time;
 
 var new_zoom: f32 = 1.0;
@@ -124,52 +125,52 @@ pub fn draw() void {
                         zgui.sameLine(.{});
                     }
 
+                    var flags: zgui.WindowFlags = .{
+                        .horizontal_scrollbar = true,
+                    };
+                    if (zoom_timer < settings.zoom_time or pixi.state.controls.control()) {
+                        flags.no_scroll_with_mouse = true;
+                    }
+
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                         if (zgui.beginChild(file.path, .{
                             .h = 0.0,
                             .w = 0.0,
                             .border = false,
-                            .flags = .{
-                                .always_horizontal_scrollbar = true,
-                                .always_vertical_scrollbar = true,
-                            },
+                            .flags = flags,
                         })) {
                             const image_width = @intToFloat(f32, file.width);
                             const image_height = @intToFloat(f32, file.height);
 
                             if (zoom_changed) {
-                                prev_zoom = file.zoom;
                                 file.zoom = new_zoom;
                                 zoom_changed = false;
                             } else {
                                 if (zgui.isWindowHovered(.{})) {
                                     if (pixi.state.controls.mouse.scrolled and pixi.state.controls.control()) {
                                         new_zoom = findNewZoom(file.zoom);
+                                        prev_zoom = file.zoom;
                                         zoom_changed = true;
                                         zoom_timer = 0.0;
                                         zoom_tooltip_timer = 0.0;
                                         zoomTooltip(new_zoom);
-                                    } else {
-                                        zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, settings.zoom_tooltip_time);
-                                        if (pixi.state.controls.control()) {
-                                            zoomTooltip(file.zoom);
-                                        } else {
-                                            zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
-                                            const nearest_zoom_step = settings.zoom_steps[findNearestZoomIndex(file.zoom)];
-                                            if (zoom_timer <= settings.zoom_time) {
-                                                new_zoom = pixi.math.lerp(prev_zoom, nearest_zoom_step, zoom_timer / settings.zoom_time);
-                                                zoom_changed = true;
-                                                zoomTooltip(file.zoom);
-                                            } else {
-                                                if (zoom_tooltip_timer < settings.zoom_tooltip_time)
-                                                    zoomTooltip(file.zoom);
+                                    }
+                                    zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, settings.zoom_tooltip_time);
 
-                                                if (file.zoom != nearest_zoom_step) {
-                                                    new_zoom = nearest_zoom_step;
-                                                    zoom_changed = true;
-                                                }
-                                            }
-                                        }
+                                    if (pixi.state.controls.control()) {
+                                        zoomTooltip(file.zoom);
+                                    } else {
+                                        if (zoom_tooltip_timer < settings.zoom_tooltip_time)
+                                            zoomTooltip(file.zoom);
+                                    }
+                                }
+
+                                if (!pixi.state.controls.control()) {
+                                    zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
+                                    const nearest_zoom_step = settings.zoom_steps[findNearestZoomIndex(file.zoom)];
+                                    if (zoom_timer < settings.zoom_time) {
+                                        new_zoom = pixi.math.lerp(prev_zoom, nearest_zoom_step, zoom_timer / settings.zoom_time);
+                                        zoom_changed = true;
                                     }
                                 }
 
