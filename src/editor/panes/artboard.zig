@@ -126,9 +126,6 @@ pub fn draw() void {
                     var flags: zgui.WindowFlags = .{
                         .horizontal_scrollbar = true,
                     };
-                    if (zoom_timer < settings.zoom_time or pixi.state.controls.control()) {
-                        flags.no_scroll_with_mouse = true;
-                    }
 
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                         if (zgui.beginChild(file.path, .{
