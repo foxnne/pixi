@@ -75,7 +75,7 @@ pub fn draw() void {
                                 .unsaved_document = file.dirty,
                             },
                         })) {
-                            defer zgui.endTabItem();
+                            zgui.endTabItem();
                         }
                         if (zgui.isItemClicked(.left)) {
                             pixi.editor.setActiveFile(i);

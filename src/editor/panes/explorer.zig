@@ -207,12 +207,6 @@ pub fn draw() void {
                 if (zgui.beginMenuBar()) {
                     zgui.text("Settings", .{});
                     zgui.endMenuBar();
-
-                    if (zgui.sliderFloat("zoom", .{
-                        .v = &pixi.state.camera.zoom,
-                        .min = 0.5,
-                        .max = 5.0,
-                    })) {}
                 }
             },
         }
