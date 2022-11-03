@@ -50,7 +50,6 @@ pub fn draw() void {
             .border = false,
             .flags = .{},
         })) {
-            defer zgui.endChild();
             if (pixi.state.open_files.items.len > 0) {
                 if (zgui.beginTabBar("Files", .{
                     .reorderable = true,
@@ -229,8 +228,8 @@ pub fn draw() void {
                                 }
                             }
                         }
+                        zgui.endChild();
                     }
-                    zgui.endChild();
                 }
             } else {
                 const w = @intToFloat(f32, (pixi.state.background_logo.width) / 4) * pixi.state.window.scale[0];
@@ -247,6 +246,7 @@ pub fn draw() void {
                 zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
                 zgui.textColored(pixi.state.style.text_background.toSlice(), "Open File    {s}  ", .{pixi.fa.file});
             }
+            zgui.endChild();
         }
         const flipbook_height = if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) zgui.getContentRegionAvail()[1] - pixi.settings.info_bar_height * pixi.state.window.scale[1] else 0.0;
 
