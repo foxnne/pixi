@@ -26,7 +26,7 @@ pub const storage = @import("storage/storage.zig");
 pub const fa = @import("tools/font_awesome.zig");
 
 test {
-    _ = zstbi; 
+    _ = zstbi;
     _ = math;
     _ = gfx;
     _ = input;
@@ -38,7 +38,6 @@ pub var state: *PixiState = undefined;
 pub const PixiState = struct {
     allocator: std.mem.Allocator,
     gctx: *zgpu.GraphicsContext,
-    camera: gfx.Camera,
     controls: input.Controls = .{},
     window: Window,
     sidebar: Sidebar = .files,
@@ -79,13 +78,12 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
         .scale = zm.f32x4(window_scale[0], window_scale[1], 0, 0),
     };
 
-    var camera = gfx.Camera.init(settings.design_size, .{ .w = window_size[0], .h = window_size[1] }, zm.f32x4(0, 0, 0, 0));
+    //var camera = gfx.Camera.init(settings.design_size, .{ .w = window_size[0], .h = window_size[1] }, zm.f32x4(0, 0, 0, 0));
 
     state = try allocator.create(PixiState);
     state.* = .{
         .allocator = allocator,
         .gctx = gctx,
-        .camera = camera,
         .window = state_window,
         .background_logo = background_logo,
         .open_files = open_files,
@@ -133,7 +131,7 @@ fn draw() void {
     state.gctx.submit(&.{zgui_commands});
 
     if (state.gctx.present() == .swap_chain_resized) {
-        state.camera.setWindow(state.gctx.window);
+        //state.camera.setWindow(state.gctx.window);
 
         const window_size = state.gctx.window.getSize();
         const window_scale = state.gctx.window.getContentScale();

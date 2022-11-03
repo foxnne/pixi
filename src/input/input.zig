@@ -112,7 +112,7 @@ pub const Mouse = struct {
     primary: MouseButton = .{ .name = "Primary", .button = zglfw.MouseButton.left },
     secondary: MouseButton = .{ .name = "Secondary", .button = zglfw.MouseButton.right },
     position: MousePosition = .{},
-    scrolled: bool = false,
-    scroll: f32 = 0.0,
+    scroll_x: ?f32 = null,
+    scroll_y: ?f32 = null,
     cursor: MouseCursor = .standard,
 };

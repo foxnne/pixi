@@ -10,9 +10,9 @@ pub fn cursor(_: zglfw.Window, x: f64, y: f64) callconv(.C) void {
     pixi.state.controls.mouse.position.y = @floatCast(f32, y);
 }
 
-pub fn scroll(_: zglfw.Window, _: f64, y: f64) callconv(.C) void {
-    pixi.state.controls.mouse.scroll = @floatCast(f32, y);
-    pixi.state.controls.mouse.scrolled = true;
+pub fn scroll(_: zglfw.Window, x: f64, y: f64) callconv(.C) void {
+    pixi.state.controls.mouse.scroll_x = @floatCast(f32, x);
+    pixi.state.controls.mouse.scroll_y = @floatCast(f32, y);
 }
 
 pub fn button(_: zglfw.Window, _: zglfw.MouseButton, _: zglfw.Action, _: zglfw.Mods) callconv(.C) void {
