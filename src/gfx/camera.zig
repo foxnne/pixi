@@ -31,19 +31,19 @@ pub const Camera = struct {
     }
 
     pub fn drawLayer(camera: pixi.gfx.Camera, layer: pixi.storage.Internal.Layer, position: [2]f32, color: u32) void {
-        if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
-            const window_position = zgui.getWindowPos();
-            var tl = camera.matrix().transformVec2(position);
-            tl[0] += window_position[0];
-            tl[1] += window_position[1];
-            var br = position;
-            br[0] += @intToFloat(f32, layer.image.width);
-            br[1] += @intToFloat(f32, layer.image.height);
-            br = camera.matrix().transformVec2(br);
-            br[0] += window_position[0];
-            br[1] += window_position[1];
+        const window_position = zgui.getWindowPos();
+        var tl = camera.matrix().transformVec2(position);
+        tl[0] += window_position[0];
+        tl[1] += window_position[1];
+        var br = position;
+        br[0] += @intToFloat(f32, layer.image.width);
+        br[1] += @intToFloat(f32, layer.image.height);
+        br = camera.matrix().transformVec2(br);
+        br[0] += window_position[0];
+        br[1] += window_position[1];
 
-            const draw_list = zgui.getWindowDrawList();
+        const draw_list = zgui.getWindowDrawList();
+        if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
             draw_list.addImage(texture_id, .{
                 .pmin = tl,
                 .pmax = br,

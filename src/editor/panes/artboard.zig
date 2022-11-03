@@ -144,18 +144,23 @@ pub fn draw() void {
 
                             if (zgui.isWindowHovered(.{})) {
                                 if (pixi.state.controls.mouse.scroll_x) |x| {
-                                    file.camera.position[0] -= x;
+                                    if (!pixi.state.controls.control()) {
+                                        file.camera.position[0] -= x * settings.pan_sensitivity;
+                                    }
                                     pixi.state.controls.mouse.scroll_x = null;
                                 }
                                 if (pixi.state.controls.mouse.scroll_y) |y| {
                                     if (pixi.state.controls.control()) {
                                         file.camera.zoom = findNewZoom(file);
                                     } else {
-                                        file.camera.position[1] -= y;
-                                        pixi.state.controls.mouse.scroll_y = null;
+                                        file.camera.position[1] -= y * settings.pan_sensitivity;
                                     }
+                                    pixi.state.controls.mouse.scroll_y = null;
                                 }
                             }
+
+                            file.camera.position[0] = std.math.clamp(file.camera.position[0], -(texture_position[0] + file_width), texture_position[0] + file_width);
+                            file.camera.position[1] = std.math.clamp(file.camera.position[1], -(texture_position[1] + file_height), texture_position[1] + file_height);
 
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
