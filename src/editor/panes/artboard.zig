@@ -11,6 +11,7 @@ pub var zoom_timer: f32 = settings.zoom_time;
 pub var zoom_tooltip_timer: f32 = settings.zoom_tooltip_time;
 
 var prev_zoom: f32 = 1.0;
+var zoom_changed: bool = false;
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
@@ -140,19 +141,21 @@ pub fn draw() void {
                                 -file_height / 2,
                             };
 
+                            // Handle controls while canvas is hovered
                             if (zgui.isWindowHovered(.{})) {
                                 if (pixi.state.controls.mouse.scroll_x) |x| {
-                                    if (!pixi.state.controls.control()) {
+                                    if (!pixi.state.controls.zoom()) {
                                         file.camera.position[0] -= x * settings.pan_sensitivity;
                                     }
                                     pixi.state.controls.mouse.scroll_x = null;
                                 }
                                 if (pixi.state.controls.mouse.scroll_y) |y| {
-                                    if (pixi.state.controls.control()) {
+                                    if (pixi.state.controls.zoom()) {
                                         zoom_timer = 0.0;
                                         zoom_tooltip_timer = 0.0;
                                         prev_zoom = file.camera.zoom;
                                         file.camera.zoom = findNewZoom(file);
+                                        zoom_changed = true;
                                     } else {
                                         file.camera.position[1] -= y * settings.pan_sensitivity;
                                     }
@@ -160,8 +163,22 @@ pub fn draw() void {
                                 }
                             }
 
+                            if (zoom_changed) {
+                                const window_pos = zgui.getWindowPos();
+                                const mouse_window: [2]f32 = .{ pixi.state.controls.mouse.position.x - window_pos[0], pixi.state.controls.mouse.position.y - window_pos[1] };
+
+                                const draw_list = zgui.getWindowDrawList();
+                                draw_list.addCircle(.{
+                                    .p = .{ window_pos[0] + mouse_window[0], window_pos[1] + mouse_window[1] },
+                                    .r = 24.0,
+                                    .col = 0xFFFFFFFF,
+                                });
+
+                                zoom_changed = false;
+                            }
+
                             // Round to nearest pixel perfect zoom step when zoom key is released
-                            if (!pixi.state.controls.control()) {
+                            if (!pixi.state.controls.zoom()) {
                                 zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
                                 const nearest_zoom_index = findNearestZoomIndex(file);
                                 if (zoom_timer < settings.zoom_time) {

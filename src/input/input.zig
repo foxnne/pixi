@@ -7,7 +7,7 @@ const pixi = @import("pixi");
 pub const callbacks = @import("callbacks.zig");
 
 pub const Keys = enum(usize) {
-    ctrl,
+    zoom,
 };
 
 pub const Controls = struct {
@@ -16,16 +16,16 @@ pub const Controls = struct {
     /// Holds all rebindable keys.
     keys: [1]Key = [_]Key{
         .{
-            .name = "Ctrl",
+            .name = "Zoom",
             .primary = zglfw.Key.left_control,
-            .secondary = zglfw.Key.left_control,
-            .default_primary = zglfw.Key.w,
-            .default_secondary = zglfw.Key.up,
+            .secondary = zglfw.Key.left_super,
+            .default_primary = zglfw.Key.left_control,
+            .default_secondary = zglfw.Key.left_super,
         },
     },
 
-    pub fn control(self: Controls) bool {
-        return self.keys[@enumToInt(Keys.ctrl)].state;
+    pub fn zoom(self: Controls) bool {
+        return self.keys[@enumToInt(Keys.zoom)].state;
     }
 };
 
