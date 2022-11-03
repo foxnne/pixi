@@ -9,19 +9,9 @@ pub var hover_label: [:0]const u8 = undefined;
 
 pub var zoom_timer: f32 = settings.zoom_time;
 pub var zoom_tooltip_timer: f32 = settings.zoom_tooltip_time;
-var prev_zoom: f32 = 1.0;
-
-var canvas_scroll_x: f32 = 0.0;
-var canvas_max_scroll_x: f32 = 0.0;
-var canvas_scroll_y: f32 = 0.0;
-var canvas_max_scroll_y: f32 = 0.0;
-
-var ruler_start_x: f32 = 0.0;
-var ruler_end_x: f32 = 0.0;
-var ruler_start_y: f32 = 0.0;
-var ruler_end_y: f32 = 0.0;
 
 var new_zoom: f32 = 1.0;
+var prev_zoom: f32 = 1.0;
 var zoom_changed: bool = false;
 
 pub fn draw() void {
@@ -148,20 +138,37 @@ pub fn draw() void {
                             const image_height = @intToFloat(f32, file.height);
 
                             if (zoom_changed) {
+                                prev_zoom = file.zoom;
                                 file.zoom = new_zoom;
                                 zoom_changed = false;
                             } else {
                                 if (zgui.isWindowHovered(.{})) {
-                                    const zoom_step: f32 = 2.0;
-
                                     if (pixi.state.controls.mouse.scrolled and pixi.state.controls.control()) {
-                                        const sign = std.math.sign(pixi.state.controls.mouse.scroll);
-                                        if (sign > 0.0) {
-                                            new_zoom = file.zoom * zoom_step;
-                                            zoom_changed = true;
+                                        new_zoom = findNewZoom(file.zoom);
+                                        zoom_changed = true;
+                                        zoom_timer = 0.0;
+                                        zoom_tooltip_timer = 0.0;
+                                        zoomTooltip(new_zoom);
+                                    } else {
+                                        zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, settings.zoom_tooltip_time);
+                                        if (pixi.state.controls.control()) {
+                                            zoomTooltip(file.zoom);
                                         } else {
-                                            new_zoom = file.zoom / zoom_step;
-                                            zoom_changed = true;
+                                            zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
+                                            const nearest_zoom_step = settings.zoom_steps[findNearestZoomIndex(file.zoom)];
+                                            if (zoom_timer <= settings.zoom_time) {
+                                                new_zoom = pixi.math.lerp(prev_zoom, nearest_zoom_step, zoom_timer / settings.zoom_time);
+                                                zoom_changed = true;
+                                                zoomTooltip(file.zoom);
+                                            } else {
+                                                if (zoom_tooltip_timer < settings.zoom_tooltip_time)
+                                                    zoomTooltip(file.zoom);
+
+                                                if (file.zoom != nearest_zoom_step) {
+                                                    new_zoom = nearest_zoom_step;
+                                                    zoom_changed = true;
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -169,43 +176,42 @@ pub fn draw() void {
                                 const window_pos = zgui.getWindowPos();
                                 const mouse_window: [2]f32 = .{ pixi.state.controls.mouse.position.x - window_pos[0], pixi.state.controls.mouse.position.y - window_pos[1] };
                                 if (zoom_changed) {
-                                    
                                     const scroll: [2]f32 = .{ zgui.getScrollX(), zgui.getScrollY() };
                                     const mouse_image: [2]f32 = .{
-                                        (scroll[0] + mouse_window[0]) / ((image_width / 1000.0) * file.zoom),
-                                        (scroll[1] + mouse_window[1]) / ((image_height  / 1000.0) * file.zoom),
+                                        (scroll[0] + mouse_window[0]) / ((image_width * 10000.0) * file.zoom),
+                                        (scroll[1] + mouse_window[1]) / ((image_height * 10000.0) * file.zoom),
                                     };
 
                                     {
-                                        zgui.setCursorPos(.{ 0.0, 0.0});
+                                        zgui.setCursorPos(.{ 0.0, 0.0 });
                                         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
                                         defer zgui.popStyleVar(.{ .count = 1 });
                                         zgui.dummy(.{
-                                            .w = @floor(image_width * new_zoom),
-                                            .h = @floor(image_height * new_zoom),
+                                            .w = image_width * new_zoom,
+                                            .h = image_height * new_zoom,
                                         });
-                                        zgui.setCursorPos(.{ 0.0, 0.0});
+                                        zgui.setCursorPos(.{ 0.0, 0.0 });
                                     }
 
                                     const new_mouse_image: [2]f32 = .{
-                                        mouse_image[0] * ((image_width / 1000.0) * new_zoom),
-                                        mouse_image[1] * ((image_height / 1000.0) * new_zoom),
+                                        mouse_image[0] * ((image_width * 10000.0) * new_zoom),
+                                        mouse_image[1] * ((image_height * 10000.0) * new_zoom),
                                     };
                                     const new_scroll: [2]f32 = .{
                                         new_mouse_image[0] - mouse_window[0],
                                         new_mouse_image[1] - mouse_window[1],
                                     };
 
-                                    zgui.setScrollX(new_scroll[0]);
-                                    zgui.setScrollY(new_scroll[1]);
+                                    zgui.setScrollX(@round(new_scroll[0]));
+                                    zgui.setScrollY(@round(new_scroll[1]));
                                 }
 
-                                const draw_list = zgui.getWindowDrawList();
-                                draw_list.addCircle(.{
-                                    .p = .{ window_pos[0] + mouse_window[0], window_pos[1] + mouse_window[1]},
-                                    .r = 24.0,
-                                    .col = 0xffffffff,
-                                });
+                                // const draw_list = zgui.getWindowDrawList();
+                                // draw_list.addCircle(.{
+                                //     .p = .{ window_pos[0] + mouse_window[0], window_pos[1] + mouse_window[1] },
+                                //     .r = 24.0,
+                                //     .col = 0xffffffff,
+                                // });
                             }
 
                             pixi.state.controls.mouse.scrolled = false;
@@ -217,7 +223,7 @@ pub fn draw() void {
                                 i -= 1;
                                 const layer = file.layers.items[i];
                                 if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
-                                    zgui.setCursorPos(.{ 0.0, 0.0});
+                                    zgui.setCursorPos(.{ 0.0, 0.0 });
                                     zgui.image(texture_id, .{
                                         .w = image_width * file.zoom,
                                         .h = image_height * file.zoom,
@@ -276,4 +282,28 @@ fn zoomTooltip(zoom: f32) void {
     zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
     zgui.sameLine(.{});
     zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{d:0.1}", .{zoom});
+}
+
+fn findNearestZoomIndex(current_zoom: f32) usize {
+    var nearest_zoom_index: usize = 0;
+    var nearest_zoom_step: f32 = settings.zoom_steps[nearest_zoom_index];
+    for (settings.zoom_steps) |step, i| {
+        const step_difference = @fabs(current_zoom - step);
+        const current_difference = @fabs(current_zoom - nearest_zoom_step);
+        if (step_difference < current_difference) {
+            nearest_zoom_step = step;
+            nearest_zoom_index = i;
+        }
+    }
+    return nearest_zoom_index;
+}
+
+fn findNewZoom(current_zoom: f32) f32 {
+    const nearest_zoom_index = findNearestZoomIndex(current_zoom);
+
+    const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, settings.zoom_steps.len - 1);
+    const sensitivity = pixi.math.lerp(settings.zoom_min_sensitivity, settings.zoom_max_sensitivity, t);
+    const zoom_delta = pixi.state.controls.mouse.scroll * sensitivity;
+
+    return std.math.clamp(current_zoom + zoom_delta, settings.zoom_steps[0], settings.zoom_steps[settings.zoom_steps.len - 1]);
 }
