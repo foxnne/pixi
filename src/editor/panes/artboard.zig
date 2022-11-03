@@ -10,9 +10,7 @@ pub var hover_label: [:0]const u8 = undefined;
 pub var zoom_timer: f32 = settings.zoom_time;
 pub var zoom_tooltip_timer: f32 = settings.zoom_tooltip_time;
 
-var new_zoom: f32 = 1.0;
 var prev_zoom: f32 = 1.0;
-var zoom_changed: bool = false;
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
@@ -151,6 +149,9 @@ pub fn draw() void {
                                 }
                                 if (pixi.state.controls.mouse.scroll_y) |y| {
                                     if (pixi.state.controls.control()) {
+                                        zoom_timer = 0.0;
+                                        zoom_tooltip_timer = 0.0;
+                                        prev_zoom = file.camera.zoom;
                                         file.camera.zoom = findNewZoom(file);
                                     } else {
                                         file.camera.position[1] -= y * settings.pan_sensitivity;
@@ -159,9 +160,28 @@ pub fn draw() void {
                                 }
                             }
 
+                            // Round to nearest pixel perfect zoom step when zoom key is released
+                            if (!pixi.state.controls.control()) {
+                                zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
+                                const nearest_zoom_index = findNearestZoomIndex(file);
+                                if (zoom_timer < settings.zoom_time) {
+                                    file.camera.zoom = pixi.math.lerp(prev_zoom, settings.zoom_steps[nearest_zoom_index], zoom_timer / settings.zoom_time);
+                                } else {
+                                    file.camera.zoom = settings.zoom_steps[nearest_zoom_index];
+                                }
+                            }
+
+                            // Draw current zoom tooltip
+                            if (zoom_tooltip_timer < settings.zoom_tooltip_time) {
+                                zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, settings.zoom_tooltip_time);
+                                zoomTooltip(file.camera.zoom);
+                            }
+
+                            // Lock camera from moving too far away from canvas
                             file.camera.position[0] = std.math.clamp(file.camera.position[0], -(texture_position[0] + file_width), texture_position[0] + file_width);
                             file.camera.position[1] = std.math.clamp(file.camera.position[1], -(texture_position[1] + file_height), texture_position[1] + file_height);
 
+                            // Draw all layers in reverse order
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
                                 i -= 1;
