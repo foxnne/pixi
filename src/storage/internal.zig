@@ -15,6 +15,7 @@ pub const Pixi = struct {
     animations: std.ArrayList(Animation),
     scroll: [2]f32 = .{ 0.0, 0.0 },
     zoom: f32 = 1.0,
+    zoom_min: f32 = pixi.settings.zoom_steps[0],
     dirty: bool = true,
 
     pub fn toExternal(self: Pixi) !storage.External.Pixi {
