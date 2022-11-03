@@ -183,7 +183,7 @@ pub fn main() !void {
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
     _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", settings.zgui_font_size * scale_factor * 1.1, config, ranges.ptr);
     _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor * 1.1, config, ranges.ptr);
-    zgui.backend.init(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format));
+    zgui.backend.initWithConfig(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
 
     // Base style
     state.style.set();

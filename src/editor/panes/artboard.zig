@@ -161,18 +161,24 @@ pub fn draw() void {
                                     }
                                     pixi.state.controls.mouse.scroll_y = null;
                                 }
+                                const mouse_drag_delta = zgui.getMouseDragDelta(.middle, .{ .lock_threshold = 0.0 });
+                                if (mouse_drag_delta[0] != 0.0 or mouse_drag_delta[1] != 0.0) {
+                                    file.camera.position[0] -= mouse_drag_delta[0] * (1 / file.camera.zoom);
+                                    file.camera.position[1] -= mouse_drag_delta[1] * (1 / file.camera.zoom);
+                                    zgui.resetMouseDragDelta(.middle);
+                                }
                             }
 
                             if (zoom_changed) {
-                                const window_pos = zgui.getWindowPos();
-                                const mouse_window: [2]f32 = .{ pixi.state.controls.mouse.position.x - window_pos[0], pixi.state.controls.mouse.position.y - window_pos[1] };
+                                //const window_pos = zgui.getWindowPos();
+                                //const mouse_window: [2]f32 = .{ pixi.state.controls.mouse.position.x - window_pos[0], pixi.state.controls.mouse.position.y - window_pos[1] };
 
-                                const draw_list = zgui.getWindowDrawList();
-                                draw_list.addCircle(.{
-                                    .p = .{ window_pos[0] + mouse_window[0], window_pos[1] + mouse_window[1] },
-                                    .r = 24.0,
-                                    .col = 0xFFFFFFFF,
-                                });
+                                // const draw_list = zgui.getWindowDrawList();
+                                // draw_list.addCircle(.{
+                                //     .p = .{ window_pos[0] + mouse_window[0], window_pos[1] + mouse_window[1] },
+                                //     .r = 24.0,
+                                //     .col = 0xFFFFFFFF,
+                                // });
 
                                 zoom_changed = false;
                             }

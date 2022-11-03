@@ -119,20 +119,20 @@ pub const Image = struct {
         };
     }
 
-    pub fn initFromData(buffer: []const u8, forced_num_channels: u32) !Image {
+    pub fn initFromData(data: []const u8, forced_num_channels: u32) !Image {
         var width: u32 = 0;
         var height: u32 = 0;
         var num_components: u32 = 0;
         var bytes_per_component: u32 = 0;
         var bytes_per_row: u32 = 0;
 
-        const data = data: {
+        const image_data = data: {
             var x: c_int = undefined;
             var y: c_int = undefined;
             var ch: c_int = undefined;
             const ptr = stbi_load_from_memory(
-                buffer.ptr,
-                @intCast(c_int, buffer.len),
+                data.ptr,
+                @intCast(c_int, data.len),
                 &x,
                 &y,
                 &ch,
@@ -150,7 +150,7 @@ pub const Image = struct {
         };
 
         return Image{
-            .data = data,
+            .data = image_data,
             .width = width,
             .height = height,
             .num_components = num_components,
@@ -300,3 +300,8 @@ extern fn stbi_is_16_bit(filename: [*:0]const u8) c_int;
 extern fn stbi_is_hdr(filename: [*:0]const u8) c_int;
 
 extern fn stbi_set_flip_vertically_on_load(flag_true_if_should_flip: c_int) void;
+
+test "zstbi.basic" {
+    init(std.testing.allocator);
+    defer deinit();
+}
