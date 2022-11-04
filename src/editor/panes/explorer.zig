@@ -32,10 +32,9 @@ pub fn draw() void {
         },
     })) {
         // Push explorer style changes.
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 8.0 * pixi.state.window.scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 3 });
+        defer zgui.popStyleVar(.{ .count = 2 });
 
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.background.toSlice() });
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
@@ -206,6 +205,16 @@ pub fn draw() void {
                 if (zgui.beginMenuBar()) {
                     zgui.text("Settings", .{});
                     zgui.endMenuBar();
+                }
+                zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 8.0 * pixi.state.window.scale[1], 8.0 * pixi.state.window.scale[1] } });
+                defer zgui.popStyleVar(.{ .count = 1 });
+
+                zgui.setNextItemWidth(pixi.state.settings.explorer_width);
+                if (zgui.beginCombo("Input Scheme", .{ .preview_value = @tagName(pixi.state.settings.input_scheme) })) {
+                    inline for (@typeInfo(pixi.Settings.InputScheme).Enum.fields) |f, i| {
+                        if (zgui.selectable(f.name[0.. :0], .{})) pixi.state.settings.input_scheme = @intToEnum(pixi.Settings.InputScheme, i);
+                    }
+                    zgui.endCombo();
                 }
             },
         }

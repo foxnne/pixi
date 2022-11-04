@@ -7,6 +7,7 @@ pub var hover_timer: f32 = 0.0;
 pub var hover_label: [:0]const u8 = undefined;
 
 pub var zoom_timer: f32 = 0.2;
+pub var zoom_wait_timer: f32 = 0.0;
 pub var zoom_tooltip_timer: f32 = 0.6;
 
 pub fn draw() void {
@@ -148,6 +149,7 @@ pub fn draw() void {
                                 if (pixi.state.controls.mouse.scroll_y) |y| {
                                     if (pixi.state.controls.zoom()) {
                                         zoom_timer = 0.0;
+                                        zoom_wait_timer = 0.0;
                                         zoom_tooltip_timer = 0.0;
                                         file.camera.zoom = findNewZoom(file);
                                     } else if (zoom_timer >= pixi.state.settings.zoom_time) {
@@ -163,15 +165,32 @@ pub fn draw() void {
                                 }
                             }
 
+                            zoom_wait_timer = std.math.min(zoom_wait_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_wait_time);
+
                             // Round to nearest pixel perfect zoom step when zoom key is released
-                            if (!pixi.state.controls.zoom()) {
-                                zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
-                                const nearest_zoom_index = findNearestZoomIndex(file);
-                                if (zoom_timer < pixi.state.settings.zoom_time) {
-                                    file.camera.zoom = pixi.math.lerp(file.camera.zoom, pixi.state.settings.zoom_steps[nearest_zoom_index], zoom_timer / pixi.state.settings.zoom_time);
-                                } else {
-                                    file.camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
-                                }
+                            switch (pixi.state.settings.input_scheme) {
+                                .trackpad => {
+                                    if (!pixi.state.controls.zoom()) {
+                                        zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
+                                        const nearest_zoom_index = findNearestZoomIndex(file);
+                                        if (zoom_timer < pixi.state.settings.zoom_time) {
+                                            file.camera.zoom = pixi.math.lerp(file.camera.zoom, pixi.state.settings.zoom_steps[nearest_zoom_index], zoom_timer / pixi.state.settings.zoom_time);
+                                        } else {
+                                            file.camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
+                                        }
+                                    }
+                                },
+                                .mouse => {
+                                    if (pixi.state.controls.mouse.scroll_x == null and pixi.state.controls.mouse.scroll_y == null and zoom_wait_timer >= pixi.state.settings.zoom_wait_time) {
+                                        zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
+                                        const nearest_zoom_index = findNearestZoomIndex(file);
+                                        if (zoom_timer < pixi.state.settings.zoom_time) {
+                                            file.camera.zoom = pixi.math.lerp(file.camera.zoom, pixi.state.settings.zoom_steps[nearest_zoom_index], zoom_timer / pixi.state.settings.zoom_time);
+                                        } else {
+                                            file.camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
+                                        }
+                                    }
+                                },
                             }
 
                             // Draw current zoom tooltip

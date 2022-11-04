@@ -103,6 +103,7 @@ fn deinit(allocator: std.mem.Allocator) void {
 fn update() void {
     zgui.backend.newFrame(state.gctx.swapchain_descriptor.width, state.gctx.swapchain_descriptor.height);
     editor.draw();
+    //zgui.showDemoWindow(null);
 }
 
 fn draw() void {

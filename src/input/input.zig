@@ -25,7 +25,7 @@ pub const Controls = struct {
     },
 
     pub fn zoom(self: Controls) bool {
-        return self.keys[@enumToInt(Keys.zoom)].state;
+        return if (pixi.state.settings.input_scheme == .trackpad) self.keys[@enumToInt(Keys.zoom)].state else !self.keys[@enumToInt(Keys.zoom)].state;
     }
 };
 

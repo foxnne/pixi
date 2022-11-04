@@ -1,5 +1,6 @@
 initial_window_width: u32 = 1280,
 initial_window_height: u32 = 720,
+input_scheme: InputScheme = .trackpad,
 font_size: f32 = 13,
 sidebar_width: f32 = 50,
 explorer_width: f32 = 200,
@@ -9,6 +10,8 @@ pan_sensitivity: f32 = 5.0,
 zoom_min_sensitivity: f32 = 0.1,
 zoom_max_sensitivity: f32 = 1.0,
 zoom_time: f32 = 0.2,
+zoom_wait_time: f32 = 0.2,
 zoom_tooltip_time: f32 = 0.6,
 zoom_steps: [21]f32 = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 5, 6, 8, 12, 18, 28, 38, 50, 70, 90, 128 },
 
+pub const InputScheme = enum { mouse, trackpad };
