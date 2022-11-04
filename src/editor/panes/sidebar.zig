@@ -1,6 +1,5 @@
 const zgui = @import("zgui");
 const pixi = @import("pixi");
-const settings = pixi.settings;
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
@@ -11,7 +10,7 @@ pub fn draw() void {
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = settings.sidebar_width * pixi.state.window.scale[0],
+        .w = pixi.state.settings.sidebar_width * pixi.state.window.scale[0],
         .h = pixi.state.window.size[1] * pixi.state.window.scale[1],
     });
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.5 } });
@@ -45,8 +44,8 @@ pub fn draw() void {
 }
 
 fn drawOption(option: pixi.Sidebar, icon: [:0]const u8) void {
-    const selectable_width = (settings.sidebar_width - 8) * pixi.state.window.scale[0];
-    const selectable_height = (settings.sidebar_width - 8) * pixi.state.window.scale[1];
+    const selectable_width = (pixi.state.settings.sidebar_width - 8) * pixi.state.window.scale[0];
+    const selectable_height = (pixi.state.settings.sidebar_width - 8) * pixi.state.window.scale[1];
     if (pixi.state.sidebar == option) {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.highlight_primary.toSlice() });
     } else {

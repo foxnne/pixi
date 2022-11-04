@@ -2,84 +2,166 @@ const std = @import("std");
 const zm = @import("zmath");
 const zgpu = @import("zgpu");
 const zglfw = @import("zglfw");
+const zgui = @import("zgui");
 const pixi = @import("pixi");
 
 pub const Camera = struct {
-    design_size: zm.F32x4,
-    window_size: zm.F32x4,
+    position: [2]f32 = .{ 0.0, 0.0 },
     zoom: f32 = 1.0,
-    zoom_dirty: bool = false,
-    zoom_step: f32 = 1.0,
-    zoom_step_next: f32 = 1.0,
-    zoom_progress: f32 = -1.0,
-    position: zm.F32x4 = zm.f32x4s(0),
 
-    pub fn init(design_size: zm.F32x4, window_size: struct { w: i32, h: i32 }, position: zm.F32x4) Camera {
-        const w_size = zm.f32x4(@intToFloat(f32, window_size.w), @intToFloat(f32, window_size.h), 0, 0);
-        const zooms = zm.ceil(w_size / design_size);
-        const zoom = std.math.max(zooms[0], zooms[1]) + 1.0; // Initially set the zoom to be 1 step greater than minimum.
+    pub fn matrix(self: Camera) Matrix3x2 {
+        var window_size = zgui.getWindowSize();
+        var window_half_size: [2]f32 = .{ @trunc(window_size[0] * 0.5), @trunc(window_size[1] * 0.5) };
 
+        var transform = Matrix3x2.identity;
+
+        var tmp = Matrix3x2.identity;
+        tmp.translate(-self.position[0], -self.position[1]);
+        transform = tmp.mul(transform);
+
+        tmp = Matrix3x2.identity;
+        tmp.scale(self.zoom, self.zoom);
+        transform = tmp.mul(transform);
+
+        tmp = Matrix3x2.identity;
+        tmp.translate(window_half_size[0], window_half_size[1]);
+        transform = tmp.mul(transform);
+
+        return transform;
+    }
+
+    pub fn drawLayer(camera: pixi.gfx.Camera, layer: pixi.storage.Internal.Layer, position: [2]f32, color: u32) void {
+        const window_position = zgui.getWindowPos();
+        var tl = camera.matrix().transformVec2(position);
+        tl[0] += window_position[0];
+        tl[1] += window_position[1];
+        var br = position;
+        br[0] += @intToFloat(f32, layer.image.width);
+        br[1] += @intToFloat(f32, layer.image.height);
+        br = camera.matrix().transformVec2(br);
+        br[0] += window_position[0];
+        br[1] += window_position[1];
+
+        const draw_list = zgui.getWindowDrawList();
+        if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
+            draw_list.addImage(texture_id, .{
+                .pmin = tl,
+                .pmax = br,
+                .col = 0xFFFFFFFF,
+            });
+            draw_list.addRect(.{
+                .pmin = tl,
+                .pmax = br,
+                .col = color,
+            });
+        }
+    }
+};
+
+pub const Matrix3x2 = struct {
+    data: [6]f32 = undefined,
+
+    pub const TransformParams = struct { x: f32 = 0, y: f32 = 0, angle: f32 = 0, sx: f32 = 1, sy: f32 = 1, ox: f32 = 0, oy: f32 = 0 };
+
+    pub const identity = Matrix3x2{ .data = .{ 1, 0, 0, 1, 0, 0 } };
+
+    pub fn format(self: Matrix3x2, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = options;
+        _ = fmt;
+        return writer.print("{d:0.6}, {d:0.6}, {d:0.6}, {d:0.6}, {d:0.6}, {d:0.6}", .{ self.data[0], self.data[1], self.data[2], self.data[3], self.data[4], self.data[5] });
+    }
+
+    pub fn init() Matrix3x2 {
+        return identity;
+    }
+
+    pub fn initTransform(vals: TransformParams) Matrix3x2 {
+        var mat = Matrix3x2{};
+        mat.setTransform(vals);
+        return mat;
+    }
+
+    pub fn initOrtho(width: f32, height: f32) Matrix3x2 {
+        var result = Matrix3x2{};
+        result.data[0] = 2 / width;
+        result.data[3] = -2 / height;
+        result.data[4] = -1;
+        result.data[5] = 1;
+        return result;
+    }
+
+    pub fn initOrthoOffCenter(width: f32, height: f32) Matrix3x2 {
+        const half_w = @ceil(width / 2);
+        const half_h = @ceil(height / 2);
+
+        var result = identity;
+        result.data[0] = 2.0 / (half_w + half_w);
+        result.data[3] = 2.0 / (-half_h - half_h);
+        result.data[4] = (-half_w + half_w) / (-half_w - half_w);
+        result.data[5] = (half_h - half_h) / (half_h + half_h);
+        return result;
+    }
+
+    pub fn setTransform(self: *Matrix3x2, vals: TransformParams) void {
+        const c = @cos(vals.angle);
+        const s = @sin(vals.angle);
+
+        // matrix multiplication carried out on paper:
+        // |1    x| |c -s  | |sx     | |1   -ox|
+        // |  1  y| |s  c  | |   sy  | |  1 -oy|
+        //   move    rotate    scale     origin
+        self.data[0] = c * vals.sx;
+        self.data[1] = s * vals.sx;
+        self.data[2] = -s * vals.sy;
+        self.data[3] = c * vals.sy;
+        self.data[4] = vals.x - vals.ox * self.data[0] - vals.oy * self.data[2];
+        self.data[5] = vals.y - vals.ox * self.data[1] - vals.oy * self.data[3];
+    }
+
+    pub fn mul(self: Matrix3x2, r: Matrix3x2) Matrix3x2 {
+        var result = Matrix3x2{};
+        result.data[0] = self.data[0] * r.data[0] + self.data[2] * r.data[1];
+        result.data[1] = self.data[1] * r.data[0] + self.data[3] * r.data[1];
+        result.data[2] = self.data[0] * r.data[2] + self.data[2] * r.data[3];
+        result.data[3] = self.data[1] * r.data[2] + self.data[3] * r.data[3];
+        result.data[4] = self.data[0] * r.data[4] + self.data[2] * r.data[5] + self.data[4];
+        result.data[5] = self.data[1] * r.data[4] + self.data[3] * r.data[5] + self.data[5];
+        return result;
+    }
+
+    pub fn translate(self: *Matrix3x2, x: f32, y: f32) void {
+        self.data[4] = self.data[0] * x + self.data[2] * y + self.data[4];
+        self.data[5] = self.data[1] * x + self.data[3] * y + self.data[5];
+    }
+
+    pub fn scale(self: *Matrix3x2, x: f32, y: f32) void {
+        self.data[0] *= x;
+        self.data[1] *= x;
+        self.data[2] *= y;
+        self.data[3] *= y;
+    }
+
+    pub fn determinant(self: Matrix3x2) f32 {
+        return self.data[0] * self.data[3] - self.data[2] * self.data[1];
+    }
+
+    pub fn inverse(self: Matrix3x2) Matrix3x2 {
+        var res = std.mem.zeroes(Matrix3x2);
+        const s = 1.0 / self.determinant();
+        res.data[0] = self.data[3] * s;
+        res.data[1] = -self.data[1] * s;
+        res.data[2] = -self.data[2] * s;
+        res.data[3] = self.data[0] * s;
+        res.data[4] = (self.data[5] * self.data[2] - self.data[4] * self.data[3]) * s;
+        res.data[5] = -(self.data[5] * self.data[0] - self.data[4] * self.data[1]) * s;
+
+        return res;
+    }
+
+    pub fn transformVec2(self: Matrix3x2, pos: [2]f32) [2]f32 {
         return .{
-            .design_size = design_size,
-            .window_size = w_size,
-            .zoom = zoom,
-            .position = position,
+            pos[0] * self.data[0] + pos[1] * self.data[2] + self.data[4],
+            pos[0] * self.data[1] + pos[1] * self.data[3] + self.data[5],
         };
     }
-
-    /// Sets window size from the window, call this everytime the window changes.
-    pub fn setWindow(camera: *Camera, window: zglfw.Window) void {
-        const window_size = window.getSize();
-        camera.window_size = zm.f32x4(@intToFloat(f32, window_size[0]), @intToFloat(f32, window_size[1]), 0, 0);
-        // const min_zoom = camera.minZoom();
-        // const max_zoom = camera.maxZoom();
-        // if (camera.zoom < min_zoom) camera.zoom = min_zoom;
-        // if (camera.zoom > max_zoom) camera.zoom = max_zoom;
-    }
-
-    /// Use this matrix when drawing to the framebuffer.
-    pub fn frameBufferMatrix(camera: Camera) zm.Mat {
-        const fb_ortho = zm.orthographicLh(camera.window_size[0], camera.window_size[1], -100, 100);
-        const fb_scaling = zm.scaling(camera.zoom, camera.zoom, 1);
-        const fb_translation = zm.translation(-camera.design_size[0] / 2 * camera.zoom, -camera.design_size[1] / 2 * camera.zoom, 1);
-
-        return zm.mul(fb_scaling, zm.mul(fb_translation, fb_ortho));
-    }
-
-    /// Use this matrix when drawing to an off-screen render texture.
-    pub fn renderTextureMatrix(camera: Camera) zm.Mat {
-        const rt_ortho = zm.orthographicLh(camera.design_size[0], camera.design_size[1], -100, 100);
-        const rt_translation = zm.translation(-camera.position[0], -camera.position[1], 0);
-
-        return zm.mul(rt_translation, rt_ortho);
-    }
-
-    /// Transforms a position from screen-space to world-space.
-    /// Remember that in screen-space positive Y is down, and positive Y is up in world-space.
-    pub fn screenToWorld(camera: Camera, position: zm.F32x4, fb_mat: zm.Mat) zm.F32x4 {
-        const ndc = zm.mul(fb_mat, zm.f32x4(position[0], -position[1], 1, 1)) / zm.f32x4(camera.zoom * 2, camera.zoom * 2, 1, 1) + zm.f32x4(-0.5, 0.5, 1, 1);
-        const world = ndc * zm.f32x4(camera.window_size[0] / camera.zoom, camera.window_size[1] / camera.zoom, 1, 1) - zm.f32x4(-camera.position[0], -camera.position[1], 1, 1);
-
-        return zm.f32x4(world[0], world[1], 0, 0);
-    }
-
-    /// Transforms a position from world-space to screen-space.
-    /// Remember that in screen-space positive Y is down, and positive Y is up in world-space.
-    pub fn worldToScreen(camera: Camera, position: zm.F32x4) zm.F32x4 {
-        const cs = pixi.state.gctx.window.getContentScale();
-        const screen = (camera.position - position) * zm.f32x4(camera.zoom * cs[0], camera.zoom * cs[1], 0, 0) - zm.f32x4((camera.window_size[0] / 2) * cs[0], (-camera.window_size[1] / 2) * cs[1], 0, 0);
-
-        return zm.f32x4(-screen[0], screen[1], 0, 0);
-    }
-
-    /// Returns the minimum zoom needed to render to the window without black bars.
-    pub fn minZoom(camera: Camera) f32 {
-        const zoom = zm.ceil(camera.window_size / camera.design_size);
-        return std.math.max(zoom[0], zoom[1]);
-    }
-
-    // pub fn maxZoom(camera: Camera) f32 {
-    //     const min = camera.minZoom();
-    //     return min + pixi.settings.max_zoom_offset;
-    // }
 };

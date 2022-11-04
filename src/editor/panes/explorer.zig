@@ -1,7 +1,6 @@
 const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("pixi");
-const settings = pixi.settings;
 const nfd = @import("nfd");
 
 pub var hover_timer: f32 = 0.0;
@@ -13,12 +12,12 @@ pub fn draw() void {
     defer zgui.popStyleVar(.{ .count = 1 });
     defer zgui.popStyleColor(.{ .count = 1 });
     zgui.setNextWindowPos(.{
-        .x = settings.sidebar_width * pixi.state.window.scale[0],
+        .x = pixi.state.settings.sidebar_width * pixi.state.window.scale[0],
         .y = 0,
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = settings.explorer_width * pixi.state.window.scale[0],
+        .w = pixi.state.settings.explorer_width * pixi.state.window.scale[0],
         .h = pixi.state.window.size[1] * pixi.state.window.scale[1],
     });
 
@@ -207,12 +206,6 @@ pub fn draw() void {
                 if (zgui.beginMenuBar()) {
                     zgui.text("Settings", .{});
                     zgui.endMenuBar();
-
-                    if (zgui.sliderFloat("zoom", .{
-                        .v = &pixi.state.camera.zoom,
-                        .min = 0.5,
-                        .max = 5.0,
-                    })) {}
                 }
             },
         }

@@ -1,31 +1,25 @@
 const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("pixi");
-const settings = pixi.settings;
 const editor = pixi.editor;
 
 pub var hover_timer: f32 = 0.0;
 pub var hover_label: [:0]const u8 = undefined;
 
-pub var zoom_timer: f32 = settings.zoom_time;
-pub var zoom_tooltip_timer: f32 = settings.zoom_tooltip_time;
-var prev_zoom: f32 = 1.0;
 
-var ruler_start_x: f32 = 0.0;
-var ruler_end_x: f32 = 0.0;
-var ruler_start_y: f32 = 0.0;
-var ruler_end_y: f32 = 0.0;
+pub var zoom_timer: f32 = 0.2;
+pub var zoom_tooltip_timer: f32 = 0.6;
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     defer zgui.popStyleVar(.{ .count = 1 });
     zgui.setNextWindowPos(.{
-        .x = (settings.sidebar_width + settings.explorer_width) * pixi.state.window.scale[0],
+        .x = (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width) * pixi.state.window.scale[0],
         .y = 0,
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = (pixi.state.window.size[0] - settings.explorer_width - settings.sidebar_width) * pixi.state.window.scale[0],
+        .w = (pixi.state.window.size[0] - pixi.state.settings.explorer_width - pixi.state.settings.sidebar_width) * pixi.state.window.scale[0],
         .h = pixi.state.window.size[1] * pixi.state.window.scale[1] + 5.0,
     });
 
@@ -52,7 +46,6 @@ pub fn draw() void {
             .border = false,
             .flags = .{},
         })) {
-            defer zgui.endChild();
             if (pixi.state.open_files.items.len > 0) {
                 if (zgui.beginTabBar("Files", .{
                     .reorderable = true,
@@ -77,7 +70,7 @@ pub fn draw() void {
                                 .unsaved_document = file.dirty,
                             },
                         })) {
-                            defer zgui.endTabItem();
+                            zgui.endTabItem();
                         }
                         if (zgui.isItemClicked(.left)) {
                             pixi.editor.setActiveFile(i);
@@ -104,7 +97,7 @@ pub fn draw() void {
                         }
                     }
 
-                    if (pixi.settings.show_rulers) {
+                    if (pixi.state.settings.show_rulers) {
                         if (zgui.beginChild("TopRuler", .{
                             .h = zgui.getTextLineHeightWithSpacing(),
                             .border = false,
@@ -126,113 +119,85 @@ pub fn draw() void {
                         zgui.sameLine(.{});
                     }
 
+                    var flags: zgui.WindowFlags = .{
+                        .horizontal_scrollbar = true,
+                    };
+
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                         if (zgui.beginChild(file.path, .{
                             .h = 0.0,
                             .w = 0.0,
                             .border = false,
-                            .flags = .{
-                                .horizontal_scrollbar = true,
-                            },
+                            .flags = flags,
                         })) {
-                            const previous_zoom = file.zoom;
+                            const file_width = @intToFloat(f32, file.width);
+                            const file_height = @intToFloat(f32, file.height);
 
-                            if (zgui.isWindowHovered(.{
-                                .child_windows = true,
-                            })) {
-                                if (pixi.state.controls.mouse.scrolled and pixi.state.controls.control()) {
-                                    var nearest_zoom_index: usize = 0;
-                                    var nearest_zoom_step = settings.zoom_steps[nearest_zoom_index];
-                                    for (settings.zoom_steps) |step, i| {
-                                        const step_difference = @fabs(file.zoom - step);
-                                        const current_difference = @fabs(file.zoom - nearest_zoom_step);
-                                        if (step_difference < current_difference) {
-                                            nearest_zoom_index = i;
-                                            nearest_zoom_step = settings.zoom_steps[i];
-                                        }
+                            const texture_position: [2]f32 = .{
+                                -file_width / 2,
+                                -file_height / 2,
+                            };
+
+                            // Handle controls while canvas is hovered
+                            if (zgui.isWindowHovered(.{})) {
+                                if (pixi.state.controls.mouse.scroll_x) |x| {
+                                    if (!pixi.state.controls.zoom() and zoom_timer >= pixi.state.settings.zoom_time) {
+                                        file.camera.position[0] -= x * pixi.state.settings.pan_sensitivity;
                                     }
+                                    pixi.state.controls.mouse.scroll_x = null;
+                                }
+                                if (pixi.state.controls.mouse.scroll_y) |y| {
+                                    if (pixi.state.controls.zoom()) {
+                                        zoom_timer = 0.0;
+                                        zoom_tooltip_timer = 0.0;
+                                        file.camera.zoom = findNewZoom(file);
+                                    } else if (zoom_timer >= pixi.state.settings.zoom_time) {
+                                        file.camera.position[1] -= y * pixi.state.settings.pan_sensitivity;
 
-                                    const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, settings.zoom_steps.len - 1);
-
-                                    const sensitivity = pixi.math.lerp(settings.zoom_min_sensitivity, settings.zoom_max_sensitivity, t);
-
-                                    const zoom_delta = pixi.state.controls.mouse.scroll * sensitivity * settings.zoom_sensitivity_multiplier;
-                                    file.zoom = std.math.clamp(file.zoom + zoom_delta, settings.zoom_steps[0], settings.zoom_steps[settings.zoom_steps.len - 1]);
-
-                                    zoom_timer = 0.0;
-                                    zoom_tooltip_timer = 0.0;
-                                    prev_zoom = file.zoom;
-
-                                    zoomTooltip(file.zoom);
-                                } else {
-                                    zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, settings.zoom_tooltip_time);
-
-                                    if (pixi.state.controls.control()) {
-                                        zoomTooltip(file.zoom);
-                                    } else {
-                                        zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
-                                        var nearest_zoom_step: f32 = settings.zoom_steps[0];
-                                        for (settings.zoom_steps) |step| {
-                                            const step_difference = @fabs(file.zoom - step);
-                                            const current_difference = @fabs(file.zoom - nearest_zoom_step);
-                                            if (step_difference < current_difference)
-                                                nearest_zoom_step = step;
-                                        }
-                                        if (zoom_timer < settings.zoom_time) {
-                                            file.zoom = pixi.math.lerp(prev_zoom, nearest_zoom_step, zoom_timer / settings.zoom_time);
-                                            zoomTooltip(file.zoom);
-                                        } else {
-                                            if (zoom_tooltip_timer < settings.zoom_tooltip_time)
-                                                zoomTooltip(file.zoom);
-                                            file.zoom = nearest_zoom_step;
-                                        }
                                     }
+                                    pixi.state.controls.mouse.scroll_y = null;
+                                }
+                                const mouse_drag_delta = zgui.getMouseDragDelta(.middle, .{ .lock_threshold = 0.0 });
+                                if (mouse_drag_delta[0] != 0.0 or mouse_drag_delta[1] != 0.0) {
+                                    file.camera.position[0] -= mouse_drag_delta[0] * (1 / file.camera.zoom);
+                                    file.camera.position[1] -= mouse_drag_delta[1] * (1 / file.camera.zoom);
+                                    zgui.resetMouseDragDelta(.middle);
                                 }
                             }
 
-                            const image_width = @intToFloat(f32, file.width) * file.zoom;
-                            const image_height = @intToFloat(f32, file.height) * file.zoom;
+                            // Round to nearest pixel perfect zoom step when zoom key is released
+                            if (!pixi.state.controls.zoom()) {
+                                zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
+                                const nearest_zoom_index = findNearestZoomIndex(file);
+                                if (zoom_timer < pixi.state.settings.zoom_time) {
+                                    file.camera.zoom = pixi.math.lerp(file.camera.zoom, pixi.state.settings.zoom_steps[nearest_zoom_index], zoom_timer / pixi.state.settings.zoom_time);
+                                } else {
+                                    file.camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
+                                }
+                            }
 
-                            const dummy_width = std.math.max(zgui.getWindowWidth(), image_width * 1.5);
-                            const dummy_height = std.math.max(zgui.getWindowHeight(), image_height * 1.5);
+                            // Draw current zoom tooltip
+                            if (zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
+                                zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
+                                zoomTooltip(file.camera.zoom);
+                            }
 
-                            const dummy_x = 0;
-                            const dummy_y = 0;
+                            // Lock camera from moving too far away from canvas
+                            file.camera.position[0] = std.math.clamp(file.camera.position[0], -(texture_position[0] + file_width), texture_position[0] + file_width);
+                            file.camera.position[1] = std.math.clamp(file.camera.position[1], -(texture_position[1] + file_height), texture_position[1] + file_height);
 
-                            const image_x = dummy_x + (dummy_width / 2 - image_width / 2);
-                            const image_y = dummy_y + (dummy_height / 2 - image_height / 2);
-
-                            ruler_start_x = image_x;
-                            ruler_end_x = image_x + image_width;
-                            ruler_start_y = image_y;
-                            ruler_end_y = image_y + image_height;
-
+                            // Draw all layers in reverse order
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
                                 i -= 1;
-                                const layer = file.layers.items[i];
-                                if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
-                                    zgui.setCursorPosX(dummy_x);
-                                    zgui.setCursorPosY(dummy_y);
-                                    zgui.dummy(.{
-                                        .w = dummy_width,
-                                        .h = dummy_height,
-                                    });
-
-                                    zgui.setCursorPosX(image_x);
-                                    zgui.setCursorPosY(image_y);
-                                    zgui.image(texture_id, .{
-                                        .w = image_width,
-                                        .h = image_height,
-                                        .border_col = .{ 1.0, 1.0, 1.0, 1.0 },
-                                    });
-                                }
                             }
 
                             zgui.setScrollX(std.math.round(zgui.getScrollX() * file.zoom / previous_zoom));
                             zgui.setScrollY(std.math.round(zgui.getScrollY() * file.zoom / previous_zoom));
                         }
+
                         pixi.state.controls.mouse.scrolled = false;
+
                         zgui.endChild();
                     }
                 }
@@ -251,8 +216,9 @@ pub fn draw() void {
                 zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
                 zgui.textColored(pixi.state.style.text_background.toSlice(), "Open File    {s}  ", .{pixi.fa.file});
             }
+            zgui.endChild();
         }
-        const flipbook_height = if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) zgui.getContentRegionAvail()[1] - pixi.settings.info_bar_height * pixi.state.window.scale[1] else 0.0;
+        const flipbook_height = if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) zgui.getContentRegionAvail()[1] - pixi.state.settings.info_bar_height * pixi.state.window.scale[1] else 0.0;
 
         zgui.separator();
         if (zgui.beginChild("Flipbook", .{
@@ -283,4 +249,31 @@ fn zoomTooltip(zoom: f32) void {
     zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
     zgui.sameLine(.{});
     zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{d:0.1}", .{zoom});
+}
+
+fn findNearestZoomIndex(file: *pixi.storage.Internal.Pixi) usize {
+    var nearest_zoom_index: usize = 0;
+    var nearest_zoom_step: f32 = pixi.state.settings.zoom_steps[nearest_zoom_index];
+    for (pixi.state.settings.zoom_steps) |step, i| {
+        const step_difference = @fabs(file.camera.zoom - step);
+        const current_difference = @fabs(file.camera.zoom - nearest_zoom_step);
+        if (step_difference < current_difference) {
+            nearest_zoom_step = step;
+            nearest_zoom_index = i;
+        }
+    }
+    return nearest_zoom_index;
+}
+
+fn findNewZoom(file: *pixi.storage.Internal.Pixi) f32 {
+    if (pixi.state.controls.mouse.scroll_y) |scroll| {
+        const nearest_zoom_index = findNearestZoomIndex(file);
+
+        const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, pixi.state.settings.zoom_steps.len - 1);
+        const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t);
+        const zoom_delta = scroll * sensitivity;
+
+        return std.math.clamp(file.camera.zoom + zoom_delta, pixi.state.settings.zoom_steps[0], pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
+    }
+    return file.camera.zoom;
 }
