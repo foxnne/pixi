@@ -6,7 +6,6 @@ const editor = pixi.editor;
 pub var hover_timer: f32 = 0.0;
 pub var hover_label: [:0]const u8 = undefined;
 
-
 pub var zoom_timer: f32 = 0.2;
 pub var zoom_tooltip_timer: f32 = 0.6;
 
@@ -153,7 +152,6 @@ pub fn draw() void {
                                         file.camera.zoom = findNewZoom(file);
                                     } else if (zoom_timer >= pixi.state.settings.zoom_time) {
                                         file.camera.position[1] -= y * pixi.state.settings.pan_sensitivity;
-
                                     }
                                     pixi.state.controls.mouse.scroll_y = null;
                                 }
@@ -190,14 +188,9 @@ pub fn draw() void {
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
                                 i -= 1;
+                                file.camera.drawLayer(file.layers.items[i], texture_position, pixi.state.style.text_secondary.toU32());
                             }
-
-                            zgui.setScrollX(std.math.round(zgui.getScrollX() * file.zoom / previous_zoom));
-                            zgui.setScrollY(std.math.round(zgui.getScrollY() * file.zoom / previous_zoom));
                         }
-
-                        pixi.state.controls.mouse.scrolled = false;
-
                         zgui.endChild();
                     }
                 }
