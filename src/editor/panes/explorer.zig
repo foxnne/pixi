@@ -209,7 +209,7 @@ pub fn draw() void {
                 zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 8.0 * pixi.state.window.scale[1], 8.0 * pixi.state.window.scale[1] } });
                 defer zgui.popStyleVar(.{ .count = 1 });
 
-                zgui.setNextItemWidth(pixi.state.settings.explorer_width);
+                zgui.setNextItemWidth(pixi.state.settings.explorer_width * pixi.state.window.scale[0] * 0.5);
                 if (zgui.beginCombo("Input Scheme", .{ .preview_value = @tagName(pixi.state.settings.input_scheme) })) {
                     inline for (@typeInfo(pixi.Settings.InputScheme).Enum.fields) |f, i| {
                         if (zgui.selectable(f.name[0.. :0], .{})) pixi.state.settings.input_scheme = @intToEnum(pixi.Settings.InputScheme, i);
