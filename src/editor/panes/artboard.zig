@@ -1,14 +1,13 @@
 const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("pixi");
-const settings = pixi.settings;
 const editor = pixi.editor;
 
 pub var hover_timer: f32 = 0.0;
 pub var hover_label: [:0]const u8 = undefined;
 
-pub var zoom_timer: f32 = settings.zoom_time;
-pub var zoom_tooltip_timer: f32 = settings.zoom_tooltip_time;
+pub var zoom_timer: f32 = 0.2;
+pub var zoom_tooltip_timer: f32 = 0.6;
 
 var prev_zoom: f32 = 1.0;
 var zoom_changed: bool = false;
@@ -17,12 +16,12 @@ pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     defer zgui.popStyleVar(.{ .count = 1 });
     zgui.setNextWindowPos(.{
-        .x = (settings.sidebar_width + settings.explorer_width) * pixi.state.window.scale[0],
+        .x = (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width) * pixi.state.window.scale[0],
         .y = 0,
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = (pixi.state.window.size[0] - settings.explorer_width - settings.sidebar_width) * pixi.state.window.scale[0],
+        .w = (pixi.state.window.size[0] - pixi.state.settings.explorer_width - pixi.state.settings.sidebar_width) * pixi.state.window.scale[0],
         .h = pixi.state.window.size[1] * pixi.state.window.scale[1] + 5.0,
     });
 
@@ -100,7 +99,7 @@ pub fn draw() void {
                         }
                     }
 
-                    if (pixi.settings.show_rulers) {
+                    if (pixi.state.settings.show_rulers) {
                         if (zgui.beginChild("TopRuler", .{
                             .h = zgui.getTextLineHeightWithSpacing(),
                             .border = false,
@@ -145,7 +144,7 @@ pub fn draw() void {
                             if (zgui.isWindowHovered(.{})) {
                                 if (pixi.state.controls.mouse.scroll_x) |x| {
                                     if (!pixi.state.controls.zoom()) {
-                                        file.camera.position[0] -= x * settings.pan_sensitivity;
+                                        file.camera.position[0] -= x * pixi.state.settings.pan_sensitivity;
                                     }
                                     pixi.state.controls.mouse.scroll_x = null;
                                 }
@@ -157,7 +156,7 @@ pub fn draw() void {
                                         file.camera.zoom = findNewZoom(file);
                                         zoom_changed = true;
                                     } else {
-                                        file.camera.position[1] -= y * settings.pan_sensitivity;
+                                        file.camera.position[1] -= y * pixi.state.settings.pan_sensitivity;
                                     }
                                     pixi.state.controls.mouse.scroll_y = null;
                                 }
@@ -185,18 +184,18 @@ pub fn draw() void {
 
                             // Round to nearest pixel perfect zoom step when zoom key is released
                             if (!pixi.state.controls.zoom()) {
-                                zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, settings.zoom_time);
+                                zoom_timer = std.math.min(zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
                                 const nearest_zoom_index = findNearestZoomIndex(file);
-                                if (zoom_timer < settings.zoom_time) {
-                                    file.camera.zoom = pixi.math.lerp(prev_zoom, settings.zoom_steps[nearest_zoom_index], zoom_timer / settings.zoom_time);
+                                if (zoom_timer < pixi.state.settings.zoom_time) {
+                                    file.camera.zoom = pixi.math.lerp(prev_zoom, pixi.state.settings.zoom_steps[nearest_zoom_index], zoom_timer / pixi.state.settings.zoom_time);
                                 } else {
-                                    file.camera.zoom = settings.zoom_steps[nearest_zoom_index];
+                                    file.camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
                                 }
                             }
 
                             // Draw current zoom tooltip
-                            if (zoom_tooltip_timer < settings.zoom_tooltip_time) {
-                                zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, settings.zoom_tooltip_time);
+                            if (zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
+                                zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
                                 zoomTooltip(file.camera.zoom);
                             }
 
@@ -231,7 +230,7 @@ pub fn draw() void {
             }
             zgui.endChild();
         }
-        const flipbook_height = if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) zgui.getContentRegionAvail()[1] - pixi.settings.info_bar_height * pixi.state.window.scale[1] else 0.0;
+        const flipbook_height = if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) zgui.getContentRegionAvail()[1] - pixi.state.settings.info_bar_height * pixi.state.window.scale[1] else 0.0;
 
         zgui.separator();
         if (zgui.beginChild("Flipbook", .{
@@ -266,8 +265,8 @@ fn zoomTooltip(zoom: f32) void {
 
 fn findNearestZoomIndex(file: *pixi.storage.Internal.Pixi) usize {
     var nearest_zoom_index: usize = 0;
-    var nearest_zoom_step: f32 = settings.zoom_steps[nearest_zoom_index];
-    for (settings.zoom_steps) |step, i| {
+    var nearest_zoom_step: f32 = pixi.state.settings.zoom_steps[nearest_zoom_index];
+    for (pixi.state.settings.zoom_steps) |step, i| {
         const step_difference = @fabs(file.camera.zoom - step);
         const current_difference = @fabs(file.camera.zoom - nearest_zoom_step);
         if (step_difference < current_difference) {
@@ -282,11 +281,11 @@ fn findNewZoom(file: *pixi.storage.Internal.Pixi) f32 {
     if (pixi.state.controls.mouse.scroll_y) |scroll| {
         const nearest_zoom_index = findNearestZoomIndex(file);
 
-        const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, settings.zoom_steps.len - 1);
-        const sensitivity = pixi.math.lerp(settings.zoom_min_sensitivity, settings.zoom_max_sensitivity, t);
+        const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, pixi.state.settings.zoom_steps.len - 1);
+        const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t);
         const zoom_delta = scroll * sensitivity;
 
-        return std.math.clamp(file.camera.zoom + zoom_delta, settings.zoom_steps[0], settings.zoom_steps[settings.zoom_steps.len - 1]);
+        return std.math.clamp(file.camera.zoom + zoom_delta, pixi.state.settings.zoom_steps[0], pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
     }
     return file.camera.zoom;
 }

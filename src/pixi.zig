@@ -10,7 +10,7 @@ const zm = @import("zmath");
 // TODO: Nativefiledialogs requires xcode appkit frameworks.
 
 pub const name: [:0]const u8 = "Pixi";
-pub const settings = @import("settings.zig");
+pub const Settings = @import("settings.zig");
 
 pub const editor = @import("editor/editor.zig");
 
@@ -38,6 +38,7 @@ pub var state: *PixiState = undefined;
 pub const PixiState = struct {
     allocator: std.mem.Allocator,
     gctx: *zgpu.GraphicsContext,
+    settings: Settings = .{},
     controls: input.Controls = .{},
     window: Window,
     sidebar: Sidebar = .files,
@@ -78,8 +79,6 @@ fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
         .scale = zm.f32x4(window_scale[0], window_scale[1], 0, 0),
     };
 
-    //var camera = gfx.Camera.init(settings.design_size, .{ .w = window_size[0], .h = window_size[1] }, zm.f32x4(0, 0, 0, 0));
-
     state = try allocator.create(PixiState);
     state.* = .{
         .allocator = allocator,
@@ -103,10 +102,7 @@ fn deinit(allocator: std.mem.Allocator) void {
 
 fn update() void {
     zgui.backend.newFrame(state.gctx.swapchain_descriptor.width, state.gctx.swapchain_descriptor.height);
-
     editor.draw();
-
-    zgui.showDemoWindow(null);
 }
 
 fn draw() void {
@@ -131,14 +127,14 @@ fn draw() void {
     state.gctx.submit(&.{zgui_commands});
 
     if (state.gctx.present() == .swap_chain_resized) {
-        //state.camera.setWindow(state.gctx.window);
-
         const window_size = state.gctx.window.getSize();
         const window_scale = state.gctx.window.getContentScale();
         state.window = .{
             .size = zm.f32x4(@intToFloat(f32, window_size[0]), @intToFloat(f32, window_size[1]), 0, 0),
             .scale = zm.f32x4(window_scale[0], window_scale[1], 0, 0),
         };
+        state.settings.initial_window_width = @intCast(u32, window_size[0]);
+        state.settings.initial_window_height = @intCast(u32, window_size[1]);
     }
 }
 
@@ -146,11 +142,14 @@ pub fn main() !void {
     try zglfw.init();
     defer zglfw.terminate();
 
+    // TODO: Load settings.json if available
+    const settings: Settings = .{};
+
     // Create window
     zglfw.defaultWindowHints();
     zglfw.windowHint(.cocoa_retina_framebuffer, 1);
     zglfw.windowHint(.client_api, 0);
-    const window = try zglfw.createWindow(settings.design_width, settings.design_height, name, null, null);
+    const window = try zglfw.createWindow(settings.initial_window_width, settings.initial_window_height, name, null, null);
     defer window.destroy();
     window.setSizeLimits(400, 400, -1, -1);
 
@@ -168,6 +167,8 @@ pub fn main() !void {
     state = try init(allocator, window);
     defer deinit(allocator);
 
+    state.settings = settings;
+
     zstbi.init(std.heap.c_allocator);
 
     const scale_factor = scale_factor: {
@@ -177,12 +178,12 @@ pub fn main() !void {
 
     zgui.init(allocator);
     zgui.io.setIniFilename(assets.root ++ "imgui.ini");
-    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", settings.zgui_font_size * scale_factor);
+    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
     var config = zgui.FontConfig.init();
     config.merge_mode = true;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
-    _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", settings.zgui_font_size * scale_factor * 1.1, config, ranges.ptr);
-    _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", settings.zgui_font_size * scale_factor * 1.1, config, ranges.ptr);
+    _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor * 1.1, config, ranges.ptr);
+    _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor * 1.1, config, ranges.ptr);
     zgui.backend.initWithConfig(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
 
     // Base style
