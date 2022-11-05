@@ -1,17 +1,46 @@
-initial_window_width: u32 = 1280,
-initial_window_height: u32 = 720,
-input_scheme: InputScheme = .trackpad,
-font_size: f32 = 13,
-sidebar_width: f32 = 50,
+/// Width of the explorer bar.
 explorer_width: f32 = 200,
+
+/// Font size set when loading the editor.
+font_size: f32 = 13,
+
+/// Height of the infobar.
 info_bar_height: f32 = 24,
-show_rulers: bool = true,
+
+/// When a new window is opened, describes the height of the window.
+initial_window_height: u32 = 720,
+
+/// When a new window is opened, describes the width of the window.
+initial_window_width: u32 = 1280,
+
+/// Which control scheme to use for zooming and panning.
+input_scheme: InputScheme = .trackpad,
+
+/// Sensitivity when panning via scrolling with trackpad.
 pan_sensitivity: f32 = 5.0,
-zoom_min_sensitivity: f32 = 0.1,
+
+/// Whether or not to show rulers on the canvas.
+show_rulers: bool = true,
+
+/// Width of the sidebar.
+sidebar_width: f32 = 50,
+
+/// Maximum zoom sensitivity applied at last zoom steps.
 zoom_max_sensitivity: f32 = 1.0,
-zoom_time: f32 = 0.2,
-zoom_wait_time: f32 = 0.2,
-zoom_tooltip_time: f32 = 0.6,
+
+/// Minimum zoom sensitivity applied at first zoom steps.
+zoom_min_sensitivity: f32 = 0.1,
+
+/// Predetermined zoom steps, each is pixel perfect.
 zoom_steps: [21]f32 = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 5, 6, 8, 12, 18, 28, 38, 50, 70, 90, 128 },
+
+/// Amount of time it takes for the zoom correction.
+zoom_time: f32 = 0.2,
+
+/// Amount of time after zooming that the tooltip hangs around.
+zoom_tooltip_time: f32 = 0.6,
+
+/// Amount of time before zoom is corrected, increase if fighting while zooming slowly.
+zoom_wait_time: f32 = 0.2,
 
 pub const InputScheme = enum { mouse, trackpad };
