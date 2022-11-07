@@ -42,6 +42,11 @@ pub const Camera = struct {
         br[0] += window_position[0];
         br[1] += window_position[1];
 
+        tl[0] = std.math.round(tl[0]);
+        tl[1] = std.math.round(tl[1]);
+        br[0] = std.math.round(br[0]);
+        br[1] = std.math.round(br[1]);
+
         const draw_list = zgui.getWindowDrawList();
         if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
             draw_list.addImage(texture_id, .{
@@ -55,6 +60,71 @@ pub const Camera = struct {
                 .col = color,
             });
         }
+    }
+
+    pub fn drawSprite(camera: pixi.gfx.Camera, layer: pixi.storage.Internal.Layer, sprite_rect: [4]f32, position: [2]f32, color: u32) void {
+        const window_position = zgui.getWindowPos();
+        var tl = camera.matrix().transformVec2(position);
+        tl[0] += window_position[0];
+        tl[1] += window_position[1];
+        var br = position;
+        br[0] += sprite_rect[2];
+        br[1] += sprite_rect[3];
+        br = camera.matrix().transformVec2(br);
+        br[0] += window_position[0];
+        br[1] += window_position[1];
+
+        tl[0] = std.math.round(tl[0]);
+        tl[1] = std.math.round(tl[1]);
+        br[0] = std.math.round(br[0]);
+        br[1] = std.math.round(br[1]);
+
+        const inv_w = 1.0 / @intToFloat(f32, layer.image.width);
+        const inv_h = 1.0 / @intToFloat(f32, layer.image.height);
+
+        const uvmin: [2]f32 = .{ sprite_rect[0] * inv_w, sprite_rect[1] * inv_h };
+        const uvmax: [2]f32 = .{ (sprite_rect[0] + sprite_rect[2]) * inv_w, (sprite_rect[1] + sprite_rect[3]) * inv_h };
+
+        const draw_list = zgui.getWindowDrawList();
+        if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
+            draw_list.addImage(texture_id, .{
+                .pmin = tl,
+                .pmax = br,
+                .uvmin = uvmin,
+                .uvmax = uvmax,
+                .col = 0xFFFFFFFF,
+            });
+            draw_list.addRect(.{
+                .pmin = tl,
+                .pmax = br,
+                .col = color,
+            });
+        }
+    }
+
+    pub fn findNearestZoomIndex(camera: pixi.gfx.Camera) usize {
+        var nearest_zoom_index: usize = 0;
+        var nearest_zoom_step: f32 = pixi.state.settings.zoom_steps[nearest_zoom_index];
+        for (pixi.state.settings.zoom_steps) |step, i| {
+            const step_difference = @fabs(camera.zoom - step);
+            const current_difference = @fabs(camera.zoom - nearest_zoom_step);
+            if (step_difference < current_difference) {
+                nearest_zoom_step = step;
+                nearest_zoom_index = i;
+            }
+        }
+        return nearest_zoom_index;
+    }
+
+    pub fn setNearestZoom(camera: *pixi.gfx.Camera) void {
+        camera.zoom = pixi.state.settings.zoom_steps[camera.findNearestZoomIndex()];
+    }
+
+    pub fn setNearestZoomFloor(camera: *pixi.gfx.Camera) void {
+        var nearest_zoom_index = camera.findNearestZoomIndex();
+        if (nearest_zoom_index > 0)
+            nearest_zoom_index -= 1;
+        camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
     }
 };
 

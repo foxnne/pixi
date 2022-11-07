@@ -7,6 +7,7 @@ const zgpu = @import("zgpu");
 pub const Style = @import("style.zig");
 
 pub const menu = @import("panes/menu.zig");
+pub const flipbook_menu = @import("panes/flipbook_menu.zig");
 pub const sidebar = @import("panes/sidebar.zig");
 pub const explorer = @import("panes/explorer.zig");
 pub const artboard = @import("panes/artboard.zig");

@@ -29,8 +29,8 @@ pub fn draw() void {
             .no_scroll_with_mouse = true,
         },
     })) {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.style.background.toSlice() });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.style.background.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.style.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.style.foreground.toSlice() });
         defer zgui.popStyleColor(.{ .count = 2 });
 
         drawOption(.files, pixi.fa.folder_open);

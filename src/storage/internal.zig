@@ -15,6 +15,7 @@ pub const Pixi = struct {
     animations: std.ArrayList(Animation),
     scroll: [2]f32 = .{ 0.0, 0.0 },
     camera: pixi.gfx.Camera = .{},
+    flipbook_camera: pixi.gfx.Camera = .{},
     dirty: bool = true,
 
     pub fn toExternal(self: Pixi) !storage.External.Pixi {

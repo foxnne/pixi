@@ -17,7 +17,7 @@ initial_window_width: u32 = 1280,
 input_scheme: InputScheme = .trackpad,
 
 /// Sensitivity when panning via scrolling with trackpad.
-pan_sensitivity: f32 = 5.0,
+pan_sensitivity: f32 = 15.0,
 
 /// Whether or not to show rulers on the canvas.
 show_rulers: bool = true,
