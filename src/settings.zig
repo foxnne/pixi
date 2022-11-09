@@ -41,6 +41,6 @@ zoom_time: f32 = 0.2,
 zoom_tooltip_time: f32 = 0.6,
 
 /// Amount of time before zoom is corrected, increase if fighting while zooming slowly.
-zoom_wait_time: f32 = 0.2,
+zoom_wait_time: f32 = 0.4,
 
 pub const InputScheme = enum { mouse, trackpad };

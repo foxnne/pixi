@@ -153,6 +153,9 @@ pub fn draw() void {
 
                             processPanZoom(&file.camera);
 
+                            // Lock camera from zooming in or out too far for the flipbook
+                            file.camera.zoom = std.math.clamp(file.camera.zoom, pixi.state.settings.zoom_steps[0], pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
+
                             // Lock camera from moving too far away from canvas
                             file.camera.position[0] = std.math.clamp(file.camera.position[0], -(layer_position[0] + file_width), layer_position[0] + file_width);
                             file.camera.position[1] = std.math.clamp(file.camera.position[1], -(layer_position[1] + file_height), layer_position[1] + file_height);
@@ -162,9 +165,14 @@ pub fn draw() void {
                                 if (zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
                                     zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
                                     zoomTooltip(file.camera.zoom);
-                                } else if (pixi.state.controls.zoom()) {
+                                } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .trackpad) {
                                     zoom_tooltip_timer = 0.0;
                                     zoomTooltip(file.camera.zoom);
+                                } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .mouse) {
+                                    if (zoom_wait_timer < pixi.state.settings.zoom_wait_time) {
+                                        zoom_tooltip_timer = 0.0;
+                                        zoomTooltip(file.camera.zoom);
+                                    }
                                 }
                             }
 
@@ -254,9 +262,14 @@ pub fn draw() void {
                         if (zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
                             zoom_tooltip_timer = std.math.min(zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
                             zoomTooltip(file.flipbook_camera.zoom);
-                        } else if (pixi.state.controls.zoom()) {
+                        } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .trackpad) {
                             zoom_tooltip_timer = 0.0;
                             zoomTooltip(file.flipbook_camera.zoom);
+                        } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .mouse) {
+                            if (zoom_wait_timer < pixi.state.settings.zoom_wait_time) {
+                                zoom_tooltip_timer = 0.0;
+                                zoomTooltip(file.camera.zoom);
+                            }
                         }
                     }
 
@@ -327,9 +340,8 @@ fn processPanZoom(camera: *pixi.gfx.Camera) void {
 
             zgui.resetMouseDragDelta(.middle);
         }
+        zoom_wait_timer = std.math.min(zoom_wait_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_wait_time);
     }
-
-    zoom_wait_timer = std.math.min(zoom_wait_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_wait_time);
 
     // Round to nearest pixel perfect zoom step when zoom key is released
     switch (pixi.state.settings.input_scheme) {
