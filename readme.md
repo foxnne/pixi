@@ -39,6 +39,7 @@
 - Possibly much more
 
 ## Compilation
+- [Linux] Ensure `gtk+3-devel` or similar is installed (for native file dialogs).
 - Download the latest Zig master from [here](https://ziglang.org/download/) and add to PATH.
 - Clone pixi.
 - Build.
