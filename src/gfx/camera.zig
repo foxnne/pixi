@@ -8,6 +8,7 @@ const pixi = @import("pixi");
 pub const Camera = struct {
     position: [2]f32 = .{ 0.0, 0.0 },
     zoom: f32 = 1.0,
+    zoom_initialized: bool = false,
 
     pub fn matrix(self: Camera) Matrix3x2 {
         var window_size = zgui.getWindowSize();

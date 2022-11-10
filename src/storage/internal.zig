@@ -13,7 +13,6 @@ pub const Pixi = struct {
     layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
-    scroll: [2]f32 = .{ 0.0, 0.0 },
     camera: pixi.gfx.Camera = .{},
     flipbook_camera: pixi.gfx.Camera = .{},
     dirty: bool = true,

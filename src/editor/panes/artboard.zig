@@ -143,6 +143,8 @@ pub fn draw() void {
                             .border = false,
                             .flags = flags,
                         })) {
+                            const window_width = zgui.getWindowWidth();
+                            const window_height = zgui.getWindowHeight();
                             const file_width = @intToFloat(f32, file.width);
                             const file_height = @intToFloat(f32, file.height);
 
@@ -153,10 +155,21 @@ pub fn draw() void {
 
                             // Handle zooming, panning and extents
                             {
+                                var sprite_camera: pixi.gfx.Camera = .{
+                                    .zoom = std.math.min(window_width / file_width, window_height / file_height),
+                                };
+                                sprite_camera.setNearestZoomFloor();
+                                if (!file.camera.zoom_initialized) {
+                                    file.camera.zoom_initialized = true;
+                                    file.camera.zoom = sprite_camera.zoom;
+                                }
+                                sprite_camera.setNearestZoomFloor();
+                                const min_zoom = std.math.min(sprite_camera.zoom, 1.0);
+
                                 processPanZoom(&file.camera);
 
                                 // Lock camera from zooming in or out too far for the flipbook
-                                file.camera.zoom = std.math.clamp(file.camera.zoom, pixi.state.settings.zoom_steps[0], pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
+                                file.camera.zoom = std.math.clamp(file.camera.zoom, min_zoom, pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
 
                                 // Lock camera from moving too far away from canvas
                                 file.camera.position[0] = std.math.clamp(file.camera.position[0], -(layer_position[0] + file_width), layer_position[0] + file_width);

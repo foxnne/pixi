@@ -44,10 +44,19 @@ pub fn draw() void {
 }
 
 fn drawOption(option: pixi.Sidebar, icon: [:0]const u8) void {
+    const position = zgui.getCursorPos();
     const selectable_width = (pixi.state.settings.sidebar_width - 8) * pixi.state.window.scale[0];
     const selectable_height = (pixi.state.settings.sidebar_width - 8) * pixi.state.window.scale[1];
+    zgui.dummy(.{
+        .w = selectable_width,
+        .h = selectable_height,
+    });
+
+    zgui.setCursorPos(position);
     if (pixi.state.sidebar == option) {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.highlight_primary.toSlice() });
+    } else if (zgui.isItemHovered(.{})) {
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
     } else {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
     }
