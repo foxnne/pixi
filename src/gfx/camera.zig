@@ -102,7 +102,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn findNearestZoomIndex(camera: pixi.gfx.Camera) usize {
+    pub fn nearestZoomIndex(camera: pixi.gfx.Camera) usize {
         var nearest_zoom_index: usize = 0;
         var nearest_zoom_step: f32 = pixi.state.settings.zoom_steps[nearest_zoom_index];
         for (pixi.state.settings.zoom_steps) |step, i| {
@@ -117,11 +117,11 @@ pub const Camera = struct {
     }
 
     pub fn setNearestZoom(camera: *pixi.gfx.Camera) void {
-        camera.zoom = pixi.state.settings.zoom_steps[camera.findNearestZoomIndex()];
+        camera.zoom = pixi.state.settings.zoom_steps[camera.nearestZoomIndex()];
     }
 
     pub fn setNearestZoomFloor(camera: *pixi.gfx.Camera) void {
-        var nearest_zoom_index = camera.findNearestZoomIndex();
+        var nearest_zoom_index = camera.nearestZoomIndex();
         if (nearest_zoom_index > 0)
             nearest_zoom_index -= 1;
         camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
