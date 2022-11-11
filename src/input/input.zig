@@ -101,6 +101,10 @@ pub const MousePosition = struct {
         const position = self.screen();
         return pixi.state.camera.screenToWorld(position, fb);
     }
+
+    pub fn toSlice(self: MousePosition) [2]f32 {
+        return .{ self.x, self.y };
+    }
 };
 
 pub const MouseCursor = enum {

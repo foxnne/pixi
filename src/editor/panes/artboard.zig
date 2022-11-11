@@ -5,7 +5,7 @@ const editor = pixi.editor;
 
 pub var hover_timer: f32 = 0.0;
 pub var zoom_timer: f32 = 0.2;
-pub var zoom_wait_timer: f32 = 0.0;
+pub var zoom_wait_timer: f32 = 0.4;
 pub var zoom_tooltip_timer: f32 = 0.6;
 
 pub fn draw() void {
@@ -341,7 +341,7 @@ fn processPanZoom(camera: *pixi.gfx.Camera) void {
 
                         camera.zoom += zoom_delta;
                     },
-                    else => {
+                    .mouse => {
                         const nearest_zoom_index = camera.nearestZoomIndex();
                         const sign = std.math.sign(y);
                         if (sign > 0.0 and nearest_zoom_index + 1 < pixi.state.settings.zoom_steps.len - 1) {

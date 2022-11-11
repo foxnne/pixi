@@ -1,3 +1,5 @@
+const builtin = @import("builtin");
+
 /// Width of the explorer bar.
 explorer_width: f32 = 200,
 
@@ -14,7 +16,8 @@ initial_window_height: u32 = 720,
 initial_window_width: u32 = 1280,
 
 /// Which control scheme to use for zooming and panning.
-input_scheme: InputScheme = .trackpad,
+/// TODO: Remove builtin check and offer a setup menu if settings.json doesn't exist.
+input_scheme: InputScheme = if (builtin.os.tag == .macos) .trackpad else .mouse,
 
 /// Sensitivity when panning via scrolling with trackpad.
 pan_sensitivity: f32 = 15.0,
