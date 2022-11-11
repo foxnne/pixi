@@ -332,12 +332,25 @@ fn processPanZoom(camera: *pixi.gfx.Camera) void {
                 zoom_timer = 0.0;
                 zoom_wait_timer = 0.0;
 
-                const nearest_zoom_index = camera.nearestZoomIndex();
-                const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, pixi.state.settings.zoom_steps.len - 1);
-                const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t);
-                const zoom_delta = y * sensitivity;
+                switch (pixi.state.settings.input_scheme) {
+                    .trackpad => {
+                        const nearest_zoom_index = camera.nearestZoomIndex();
+                        const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, pixi.state.settings.zoom_steps.len - 1);
+                        const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t);
+                        const zoom_delta = y * sensitivity;
 
-                camera.zoom += zoom_delta;
+                        camera.zoom += zoom_delta;
+                    },
+                    else => {
+                        const nearest_zoom_index = camera.nearestZoomIndex();
+                        const sign = std.math.sign(y);
+                        if (sign > 0.0 and nearest_zoom_index + 1 < pixi.state.settings.zoom_steps.len - 1) {
+                            camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index + 1];
+                        } else if (sign < 0.0 and nearest_zoom_index >= 1) {
+                            camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index - 1];
+                        }  
+                    },
+                }
             } else if (zoom_timer >= pixi.state.settings.zoom_time) {
                 camera.position[1] -= y * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
             }
