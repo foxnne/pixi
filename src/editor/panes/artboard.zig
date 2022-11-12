@@ -232,7 +232,7 @@ pub fn draw() void {
                                 }
                                 draw_list.addLine(.{
                                     .p1 = .{ tl[0], tl[1] + file_height * file.camera.zoom },
-                                    .p2 = .{ tl[0] + zgui.getWindowWidth() / 2.0, tl[1] + file_width * file.camera.zoom },
+                                    .p2 = .{ tl[0] + zgui.getWindowWidth() / 2.0, tl[1] + file_height * file.camera.zoom },
                                     .col = pixi.state.style.text_secondary.toU32(),
                                     .thickness = 1.0,
                                 });
