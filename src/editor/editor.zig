@@ -82,7 +82,15 @@ pub fn openFile(path: [:0]const u8) !bool {
             defer _ = zip.zip_entry_close(pixi_file);
 
             if (img_buf) |data| {
-                const texture_handle = pixi.state.gctx.createTexture(.{
+                var new_layer: pixi.storage.Internal.Layer = .{
+                    .name = try pixi.state.allocator.dupeZ(u8, layer.name),
+                    .texture_handle = undefined,
+                    .texture_view_handle = undefined,
+                    .image = undefined,
+                    .data = undefined,
+                };
+
+                new_layer.texture_handle = pixi.state.gctx.createTexture(.{
                     .usage = .{ .texture_binding = true, .copy_dst = true },
                     .size = .{
                         .width = external.width,
@@ -92,27 +100,22 @@ pub fn openFile(path: [:0]const u8) !bool {
                     .format = zgpu.imageInfoToTextureFormat(4, 1, false),
                 });
 
-                const texture_view_handle = pixi.state.gctx.createTextureView(texture_handle, .{});
-
-                var image = try zstbi.Image.initFromData(@ptrCast([*]u8, data)[0..img_len], 4);
+                new_layer.texture_view_handle = pixi.state.gctx.createTextureView(new_layer.texture_handle, .{});
+                new_layer.data = try pixi.state.allocator.dupe(u8, @ptrCast([*]u8, data)[0..img_len]);
+                new_layer.image = try zstbi.Image.initFromData(@ptrCast([*]u8, new_layer.data)[0..img_len], 4);
 
                 pixi.state.gctx.queue.writeTexture(
-                    .{ .texture = pixi.state.gctx.lookupResource(texture_handle).? },
+                    .{ .texture = pixi.state.gctx.lookupResource(new_layer.texture_handle).? },
                     .{
-                        .bytes_per_row = image.bytes_per_row,
-                        .rows_per_image = image.height,
+                        .bytes_per_row = new_layer.image.bytes_per_row,
+                        .rows_per_image = new_layer.image.height,
                     },
-                    .{ .width = image.width, .height = image.height },
+                    .{ .width = new_layer.image.width, .height = new_layer.image.height },
                     u8,
-                    image.data,
+                    new_layer.image.data,
                 );
 
-                try internal.layers.append(.{
-                    .name = try pixi.state.allocator.dupeZ(u8, layer.name),
-                    .texture_handle = texture_handle,
-                    .texture_view_handle = texture_view_handle,
-                    .image = image,
-                });
+                try internal.layers.append(new_layer);
             }
         }
 
@@ -170,6 +173,7 @@ pub fn closeFile(index: usize) !void {
         pixi.state.gctx.releaseResource(layer.texture_view_handle);
         pixi.state.allocator.free(layer.name);
         layer.image.deinit();
+        pixi.state.allocator.free(layer.data);
     }
     for (file.sprites.items) |*sprite| {
         pixi.state.allocator.free(sprite.name);
