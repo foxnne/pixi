@@ -195,6 +195,28 @@ pub const Camera = struct {
             nearest_zoom_index -= 1;
         camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
     }
+
+    pub fn pixelCoordinates(camera: pixi.gfx.Camera, texture_position: [2]f32, width: u32, height: u32, position: [2]f32) ?[2]f32 {
+        const screen_position = zgui.getCursorScreenPos();
+        var tl = camera.matrix().transformVec2(texture_position);
+        tl[0] += screen_position[0];
+        tl[1] += screen_position[1];
+        var br = texture_position;
+        br[0] += @intToFloat(f32, width);
+        br[1] += @intToFloat(f32, height);
+        br = camera.matrix().transformVec2(br);
+        br[0] += screen_position[0];
+        br[1] += screen_position[1];
+
+        if (position[0] > tl[0] and position[0] < br[0] and position[1] < br[1] and position[1] > tl[1]) {
+            var pixel_pos: [2]f32 = .{ 0.0, 0.0 };
+
+            pixel_pos[0] = @divTrunc(position[0] - tl[0], camera.zoom);
+            pixel_pos[1] = @divTrunc(position[1] - tl[1], camera.zoom);
+
+            return pixel_pos;
+        } else return null;
+    }
 };
 
 pub const Matrix3x2 = struct {

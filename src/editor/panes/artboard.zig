@@ -3,7 +3,7 @@ const zgui = @import("zgui");
 const pixi = @import("pixi");
 const editor = pixi.editor;
 
-pub var hover_timer: f32 = 0.0;
+pub var path_hover_timer: f32 = 0.0;
 pub var zoom_timer: f32 = 0.2;
 pub var zoom_wait_timer: f32 = 0.4;
 pub var zoom_tooltip_timer: f32 = 0.6;
@@ -74,9 +74,9 @@ pub fn draw() void {
                             pixi.editor.setActiveFile(i);
                         }
                         if (zgui.isItemHovered(.{})) {
-                            hover_timer += pixi.state.gctx.stats.delta_time;
+                            path_hover_timer += pixi.state.gctx.stats.delta_time;
 
-                            if (hover_timer >= 1.0) {
+                            if (path_hover_timer >= 1.0) {
                                 zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
                                 defer zgui.popStyleVar(.{ .count = 1 });
                                 zgui.beginTooltip();
@@ -84,7 +84,7 @@ pub fn draw() void {
                                 zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
                             }
                         } else {
-                            hover_timer = 0.0;
+                            path_hover_timer = 0.0;
                         }
 
                         if (!open) {
@@ -163,9 +163,19 @@ pub fn draw() void {
                                 processTooltip(file.camera.zoom);
                             }
 
-                            // TODO: Make background texture opacity available through settings.
-                            // Draw background
-                            file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, layer_position, 0x88FFFFFF);
+                            if (zgui.isWindowHovered(.{})) {
+                                var mouse_position = pixi.state.controls.mouse.position.toSlice();
+
+                                if (file.camera.pixelCoordinates(layer_position, file.width, file.height, mouse_position)) |pixel_coord| {
+                                    var tile_column = @divTrunc(@floatToInt(usize, pixel_coord[0]), @intCast(usize, file.tile_width));
+                                    var tile_row = @divTrunc(@floatToInt(usize, pixel_coord[1]), @intCast(usize, file.tile_height));
+
+                                    const x = @intToFloat(f32, tile_column) * tile_width + layer_position[0];
+                                    const y = @intToFloat(f32, tile_row) * tile_height + layer_position[1];
+
+                                    file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
+                                }
+                            }
 
                             // Draw all layers in reverse order
                             var i: usize = file.layers.items.len;
