@@ -16,6 +16,7 @@ pub const Pixi = struct {
     camera: pixi.gfx.Camera = .{},
     flipbook_camera: pixi.gfx.Camera = .{},
     background_image: zstbi.Image,
+    background_image_data: []u8,
     background_texture_handle: zgpu.TextureHandle,
     background_texture_view_handle: zgpu.TextureViewHandle,
     dirty: bool = true,

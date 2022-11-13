@@ -24,14 +24,14 @@ pub const Uniforms = struct {
     mvp: zm.Mat,
 };
 
-pub fn createImage(allocator: std.mem.Allocator, width: u32, height: u32) !zstbi.Image {
+pub fn createImage(data: []u8, width: u32, height: u32) zstbi.Image {
     return .{
-        .data = try allocator.alloc(u8, width * height * 4),
+        .data = data,
         .width = width,
         .height = height,
         .num_components = 4,
         .bytes_per_component = 1,
-        .bytes_per_row = 4 * height,
+        .bytes_per_row = 4 * width,
         .is_hdr = false,
     };
 }

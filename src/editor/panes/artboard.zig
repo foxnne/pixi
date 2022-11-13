@@ -163,6 +163,7 @@ pub fn draw() void {
                                 processTooltip(file.camera.zoom);
                             }
 
+                            // TODO: Make background texture opacity available through settings.
                             // Draw background
                             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, layer_position, 0x88FFFFFF);
 
@@ -324,6 +325,7 @@ pub fn draw() void {
                         processTooltip(file.flipbook_camera.zoom);
                     }
 
+                    // TODO: Make background texture opacity available through settings.
                     // Draw background
                     file.flipbook_camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, sprite_position, 0x88FFFFFF);
 
