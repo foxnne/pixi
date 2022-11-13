@@ -130,6 +130,8 @@ pub fn draw() void {
                             const window_height = zgui.getWindowHeight();
                             const file_width = @intToFloat(f32, file.width);
                             const file_height = @intToFloat(f32, file.height);
+                            const tile_width = @intToFloat(f32, file.tile_width);
+                            const tile_height = @intToFloat(f32, file.tile_height);
 
                             const layer_position: [2]f32 = .{
                                 -file_width / 2,
@@ -165,8 +167,9 @@ pub fn draw() void {
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
                                 i -= 1;
-                                file.camera.drawLayer(file.layers.items[i], layer_position, pixi.state.style.text_secondary.toU32());
+                                file.camera.drawLayer(file.layers.items[i], layer_position);
                             }
+                            file.camera.drawGrid(layer_position, file_width, file_height, @floatToInt(usize, file_width / tile_width), @floatToInt(usize, file_height / tile_height), pixi.state.style.text_secondary.toU32());
                         }
                         zgui.endChild();
 

@@ -31,7 +31,53 @@ pub const Camera = struct {
         return transform;
     }
 
-    pub fn drawLayer(camera: pixi.gfx.Camera, layer: pixi.storage.Internal.Layer, position: [2]f32, color: u32) void {
+    pub fn drawGrid(camera: pixi.gfx.Camera, position: [2]f32, width: f32, height: f32, columns: usize, rows: usize, color: u32) void {
+        const window_position = zgui.getWindowPos();
+        var tl = camera.matrix().transformVec2(position);
+        tl[0] += window_position[0];
+        tl[1] += window_position[1];
+        var br = position;
+        br[0] += width;
+        br[1] += height;
+        br = camera.matrix().transformVec2(br);
+        br[0] += window_position[0];
+        br[1] += window_position[1];
+
+        tl[0] = std.math.round(tl[0]);
+        tl[1] = std.math.round(tl[1]);
+        br[0] = std.math.round(br[0]);
+        br[1] = std.math.round(br[1]);
+
+        const draw_list = zgui.getWindowDrawList();
+        const tile_width = width / @intToFloat(f32, columns);
+        const tile_height = height / @intToFloat(f32, rows);
+
+        var i: usize = 0;
+        while (i < columns + 1) : (i += 1) {
+            const p1: [2]f32 = .{ tl[0] + @intToFloat(f32, i) * tile_width * camera.zoom, tl[1] };
+            const p2: [2]f32 = .{ tl[0] + @intToFloat(f32, i) * tile_width * camera.zoom, tl[1] + height * camera.zoom };
+            draw_list.addLine(.{
+                .p1 = p1,
+                .p2 = p2,
+                .col = color,
+                .thickness = 1.0,
+            });
+        }
+
+        i = 0;
+        while (i < rows + 1) : (i += 1) {
+            const p1: [2]f32 = .{ tl[0], tl[1] + @intToFloat(f32, i) * tile_height * camera.zoom };
+            const p2: [2]f32 = .{ tl[0] + width * camera.zoom, tl[1] + @intToFloat(f32, i) * tile_height * camera.zoom };
+            draw_list.addLine(.{
+                .p1 = p1,
+                .p2 = p2,
+                .col = color,
+                .thickness = 1.0,
+            });
+        }
+    }
+
+    pub fn drawLayer(camera: pixi.gfx.Camera, layer: pixi.storage.Internal.Layer, position: [2]f32) void {
         const window_position = zgui.getWindowPos();
         var tl = camera.matrix().transformVec2(position);
         tl[0] += window_position[0];
@@ -54,11 +100,6 @@ pub const Camera = struct {
                 .pmin = tl,
                 .pmax = br,
                 .col = 0xFFFFFFFF,
-            });
-            draw_list.addRect(.{
-                .pmin = tl,
-                .pmax = br,
-                .col = color,
             });
         }
     }
