@@ -163,6 +163,9 @@ pub fn draw() void {
                                 processTooltip(file.camera.zoom);
                             }
 
+                            // Draw background
+                            file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, layer_position, 0x88FFFFFF);
+
                             // Draw all layers in reverse order
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
@@ -320,6 +323,9 @@ pub fn draw() void {
 
                         processTooltip(file.flipbook_camera.zoom);
                     }
+
+                    // Draw background
+                    file.flipbook_camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, sprite_position, 0x88FFFFFF);
 
                     // Draw all layers in reverse order
                     var i: usize = file.layers.items.len;

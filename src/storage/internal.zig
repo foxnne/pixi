@@ -15,6 +15,9 @@ pub const Pixi = struct {
     animations: std.ArrayList(Animation),
     camera: pixi.gfx.Camera = .{},
     flipbook_camera: pixi.gfx.Camera = .{},
+    background_image: zstbi.Image,
+    background_texture_handle: zgpu.TextureHandle,
+    background_texture_view_handle: zgpu.TextureViewHandle,
     dirty: bool = true,
 
     pub fn toExternal(self: Pixi) !storage.External.Pixi {

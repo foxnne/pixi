@@ -58,6 +58,51 @@ pub fn openFile(path: [:0]const u8) !bool {
         const external = std.json.parse(pixi.storage.External.Pixi, &stream, options) catch unreachable;
         defer std.json.parseFree(pixi.storage.External.Pixi, external, options);
 
+        var background_image = try pixi.gfx.createImage(pixi.state.allocator, external.tileWidth, external.tileHeight);
+        // Set background image data to checkerboard
+        {
+            var i: usize = 0;
+            while (i < @intCast(usize, external.tileWidth * external.tileHeight * 4)) : (i += 4) {
+                const r = i;
+                const g = i + 1;
+                const b = i + 2;
+                const a = i + 3;
+                const primary = pixi.state.style.checkerboard_primary.bytes();
+                const secondary = pixi.state.style.checkerboard_secondary.bytes();
+                if (i % 3 == 0) {
+                    background_image.data[r] = primary[0];
+                    background_image.data[g] = primary[1];
+                    background_image.data[b] = primary[2];
+                    background_image.data[a] = primary[3];
+                } else {
+                    background_image.data[r] = secondary[0];
+                    background_image.data[g] = secondary[1];
+                    background_image.data[b] = secondary[2];
+                    background_image.data[a] = secondary[3];
+                }
+            }
+        }
+        const background_texture_handle = pixi.state.gctx.createTexture(.{
+            .usage = .{ .texture_binding = true, .copy_dst = true },
+            .size = .{
+                .width = external.tileWidth,
+                .height = external.tileHeight,
+                .depth_or_array_layers = 1,
+            },
+            .format = zgpu.imageInfoToTextureFormat(4, 1, false),
+        });
+        const background_texture_view_handle = pixi.state.gctx.createTextureView(background_texture_handle, .{});
+        pixi.state.gctx.queue.writeTexture(
+            .{ .texture = pixi.state.gctx.lookupResource(background_texture_handle).? },
+            .{
+                .bytes_per_row = background_image.bytes_per_row,
+                .rows_per_image = background_image.height,
+            },
+            .{ .width = background_image.width, .height = background_image.height },
+            u8,
+            background_image.data,
+        );
+
         var internal: pixi.storage.Internal.Pixi = .{
             .path = path,
             .width = external.width,
@@ -67,6 +112,9 @@ pub fn openFile(path: [:0]const u8) !bool {
             .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
             .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
+            .background_image = background_image,
+            .background_texture_handle = background_texture_handle,
+            .background_texture_view_handle = background_texture_view_handle,
             .dirty = false,
         };
 

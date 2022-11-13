@@ -1,4 +1,5 @@
 const builtin = @import("builtin");
+const pixi = @import("pixi");
 
 /// Width of the explorer bar.
 explorer_width: f32 = 200,

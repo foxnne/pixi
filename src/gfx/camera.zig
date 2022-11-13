@@ -77,6 +77,33 @@ pub const Camera = struct {
         }
     }
 
+    pub fn drawTexture(camera: pixi.gfx.Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, position: [2]f32, color: u32) void {
+        const window_position = zgui.getWindowPos();
+        var tl = camera.matrix().transformVec2(position);
+        tl[0] += window_position[0];
+        tl[1] += window_position[1];
+        var br = position;
+        br[0] += @intToFloat(f32, width);
+        br[1] += @intToFloat(f32, height);
+        br = camera.matrix().transformVec2(br);
+        br[0] += window_position[0];
+        br[1] += window_position[1];
+
+        tl[0] = std.math.floor(tl[0]);
+        tl[1] = std.math.floor(tl[1]);
+        br[0] = std.math.floor(br[0]);
+        br[1] = std.math.floor(br[1]);
+
+        const draw_list = zgui.getWindowDrawList();
+        if (pixi.state.gctx.lookupResource(texture)) |texture_id| {
+            draw_list.addImage(texture_id, .{
+                .pmin = tl,
+                .pmax = br,
+                .col = color,
+            });
+        }
+    }
+
     pub fn drawLayer(camera: pixi.gfx.Camera, layer: pixi.storage.Internal.Layer, position: [2]f32) void {
         const window_position = zgui.getWindowPos();
         var tl = camera.matrix().transformVec2(position);
@@ -89,10 +116,10 @@ pub const Camera = struct {
         br[0] += window_position[0];
         br[1] += window_position[1];
 
-        tl[0] = std.math.round(tl[0]);
-        tl[1] = std.math.round(tl[1]);
-        br[0] = std.math.round(br[0]);
-        br[1] = std.math.round(br[1]);
+        tl[0] = std.math.floor(tl[0]);
+        tl[1] = std.math.floor(tl[1]);
+        br[0] = std.math.floor(br[0]);
+        br[1] = std.math.floor(br[1]);
 
         const draw_list = zgui.getWindowDrawList();
         if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
@@ -116,10 +143,10 @@ pub const Camera = struct {
         br[0] += window_position[0];
         br[1] += window_position[1];
 
-        tl[0] = std.math.round(tl[0]);
-        tl[1] = std.math.round(tl[1]);
-        br[0] = std.math.round(br[0]);
-        br[1] = std.math.round(br[1]);
+        tl[0] = std.math.floor(tl[0]);
+        tl[1] = std.math.floor(tl[1]);
+        br[0] = std.math.floor(br[0]);
+        br[1] = std.math.floor(br[1]);
 
         const inv_w = 1.0 / @intToFloat(f32, layer.image.width);
         const inv_h = 1.0 / @intToFloat(f32, layer.image.height);

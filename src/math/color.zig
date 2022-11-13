@@ -15,6 +15,15 @@ pub const Color = struct {
         };
     }
 
+    pub fn bytes(self: Color) [4]u8 {
+        return .{
+            @floatToInt(u8, self.value[0] * 255.0),
+            @floatToInt(u8, self.value[1] * 255.0),
+            @floatToInt(u8, self.value[2] * 255.0),
+            @floatToInt(u8, self.value[3] * 255.0),
+        };
+    }
+
     pub fn lerp(self: Color, other: Color, t: f32) Color {
         return .{ .value = zm.lerp(self.value, other.value, t) };
     }

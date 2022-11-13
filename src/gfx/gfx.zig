@@ -1,6 +1,7 @@
 const std = @import("std");
 const zm = @import("zmath");
 const game = @import("game");
+const zstbi = @import("zstbi");
 
 pub const utils = @import("utils.zig");
 
@@ -22,3 +23,15 @@ pub const Vertex = struct {
 pub const Uniforms = struct {
     mvp: zm.Mat,
 };
+
+pub fn createImage(allocator: std.mem.Allocator, width: u32, height: u32) !zstbi.Image {
+    return .{
+        .data = try allocator.alloc(u8, width * height * 4),
+        .width = width,
+        .height = height,
+        .num_components = 4,
+        .bytes_per_component = 1,
+        .bytes_per_row = 4 * height,
+        .is_hdr = false,
+    };
+}
