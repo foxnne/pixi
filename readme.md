@@ -13,7 +13,8 @@
 
 # 
 
-<img width="1392" alt="Screen Shot 2022-10-18 at 12 57 10 AM" src="https://user-images.githubusercontent.com/49629865/196347461-04a66eb8-c109-430d-b565-e51b5013e8ba.png">
+<img width="1392" alt="Screenshot 2022-11-12 at 11 56 09 PM" src="https://user-images.githubusercontent.com/49629865/201539574-7e9ac010-e440-4ae6-95d6-cfd66bfefb0f.png">
+
 
 ## Features planned for 0.1
 - [ ] Typical pixel art operations. (draw, erase, color select)
