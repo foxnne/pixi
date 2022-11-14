@@ -166,21 +166,20 @@ pub fn draw() void {
                 editor.flipbook_menu.draw();
 
                 if (zgui.beginChild("FlipbookCanvas", .{})) {
-                    pixi.editor.flipbook_canvas.draw(file);
+                    editor.flipbook_canvas.draw(file);
+                    zgui.endChild();
                 }
-
-                zgui.endChild();
             }
+            zgui.endChild();
         }
-        zgui.endChild();
 
         if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
             defer zgui.popStyleColor(.{ .count = 1 });
             if (zgui.beginChild("InfoBar", .{})) {
                 pixi.editor.infobar.draw();
+                zgui.endChild();
             }
-            zgui.endChild();
         }
     }
     zgui.end();
