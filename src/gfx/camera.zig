@@ -9,6 +9,9 @@ pub const Camera = struct {
     position: [2]f32 = .{ 0.0, 0.0 },
     zoom: f32 = 1.0,
     zoom_initialized: bool = false,
+    zoom_timer: f32 = 0.2,
+    zoom_wait_timer: f32 = 0.4,
+    zoom_tooltip_timer: f32 = 0.6,
 
     pub fn matrix(self: Camera) Matrix3x2 {
         var window_size = zgui.getWindowSize();
@@ -31,7 +34,7 @@ pub const Camera = struct {
         return transform;
     }
 
-    pub fn drawGrid(camera: pixi.gfx.Camera, position: [2]f32, width: f32, height: f32, columns: usize, rows: usize, color: u32) void {
+    pub fn drawGrid(camera: Camera, position: [2]f32, width: f32, height: f32, columns: usize, rows: usize, color: u32) void {
         const window_position = zgui.getWindowPos();
         var tl = camera.matrix().transformVec2(position);
         tl[0] += window_position[0];
@@ -77,7 +80,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawTexture(camera: pixi.gfx.Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, position: [2]f32, color: u32) void {
+    pub fn drawTexture(camera: Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, position: [2]f32, color: u32) void {
         const window_position = zgui.getWindowPos();
         var tl = camera.matrix().transformVec2(position);
         tl[0] += window_position[0];
@@ -104,7 +107,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawLayer(camera: pixi.gfx.Camera, layer: pixi.storage.Internal.Layer, position: [2]f32) void {
+    pub fn drawLayer(camera: Camera, layer: pixi.storage.Internal.Layer, position: [2]f32) void {
         const window_position = zgui.getWindowPos();
         var tl = camera.matrix().transformVec2(position);
         tl[0] += window_position[0];
@@ -131,7 +134,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawSprite(camera: pixi.gfx.Camera, layer: pixi.storage.Internal.Layer, sprite_rect: [4]f32, position: [2]f32, color: u32) void {
+    pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, sprite_rect: [4]f32, position: [2]f32, color: u32) void {
         const window_position = zgui.getWindowPos();
         var tl = camera.matrix().transformVec2(position);
         tl[0] += window_position[0];
@@ -171,7 +174,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn nearestZoomIndex(camera: pixi.gfx.Camera) usize {
+    pub fn nearestZoomIndex(camera: Camera) usize {
         var nearest_zoom_index: usize = 0;
         var nearest_zoom_step: f32 = pixi.state.settings.zoom_steps[nearest_zoom_index];
         for (pixi.state.settings.zoom_steps) |step, i| {
@@ -185,18 +188,18 @@ pub const Camera = struct {
         return nearest_zoom_index;
     }
 
-    pub fn setNearestZoom(camera: *pixi.gfx.Camera) void {
+    pub fn setNearestZoom(camera: *Camera) void {
         camera.zoom = pixi.state.settings.zoom_steps[camera.nearestZoomIndex()];
     }
 
-    pub fn setNearestZoomFloor(camera: *pixi.gfx.Camera) void {
+    pub fn setNearestZoomFloor(camera: *Camera) void {
         var nearest_zoom_index = camera.nearestZoomIndex();
         if (nearest_zoom_index > 0)
             nearest_zoom_index -= 1;
         camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
     }
 
-    pub fn pixelCoordinates(camera: pixi.gfx.Camera, texture_position: [2]f32, width: u32, height: u32, position: [2]f32) ?[2]f32 {
+    pub fn pixelCoordinates(camera: Camera, texture_position: [2]f32, width: u32, height: u32, position: [2]f32) ?[2]f32 {
         const screen_position = zgui.getCursorScreenPos();
         var tl = camera.matrix().transformVec2(texture_position);
         tl[0] += screen_position[0];
@@ -216,6 +219,104 @@ pub const Camera = struct {
 
             return pixel_pos;
         } else return null;
+    }
+
+    pub fn processPanZoom(camera: *Camera) void {
+        // Handle controls while canvas is hovered
+        if (zgui.isWindowHovered(.{})) {
+            if (pixi.state.controls.mouse.scroll_x) |x| {
+                if (!pixi.state.controls.zoom() and camera.zoom_timer >= pixi.state.settings.zoom_time) {
+                    camera.position[0] -= x * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
+                }
+                pixi.state.controls.mouse.scroll_x = null;
+            }
+            if (pixi.state.controls.mouse.scroll_y) |y| {
+                if (pixi.state.controls.zoom()) {
+                    camera.zoom_timer = 0.0;
+                    camera.zoom_wait_timer = 0.0;
+
+                    switch (pixi.state.settings.input_scheme) {
+                        .trackpad => {
+                            const nearest_zoom_index = camera.nearestZoomIndex();
+                            const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, pixi.state.settings.zoom_steps.len - 1);
+                            const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t);
+                            const zoom_delta = y * sensitivity;
+
+                            camera.zoom += zoom_delta;
+                        },
+                        .mouse => {
+                            const nearest_zoom_index = camera.nearestZoomIndex();
+                            const sign = std.math.sign(y);
+                            if (sign > 0.0 and nearest_zoom_index + 1 < pixi.state.settings.zoom_steps.len - 1) {
+                                camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index + 1];
+                            } else if (sign < 0.0 and nearest_zoom_index >= 1) {
+                                camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index - 1];
+                            }
+                        },
+                    }
+                } else if (camera.zoom_timer >= pixi.state.settings.zoom_time) {
+                    camera.position[1] -= y * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
+                }
+                pixi.state.controls.mouse.scroll_y = null;
+            }
+            const mouse_drag_delta = zgui.getMouseDragDelta(.middle, .{ .lock_threshold = 0.0 });
+            if (mouse_drag_delta[0] != 0.0 or mouse_drag_delta[1] != 0.0) {
+                camera.position[0] -= mouse_drag_delta[0] * (1.0 / camera.zoom);
+                camera.position[1] -= mouse_drag_delta[1] * (1.0 / camera.zoom);
+
+                zgui.resetMouseDragDelta(.middle);
+            }
+            camera.zoom_wait_timer = std.math.min(camera.zoom_wait_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_wait_time);
+        }
+
+        // Round to nearest pixel perfect zoom step when zoom key is released
+        switch (pixi.state.settings.input_scheme) {
+            .trackpad => {
+                if (!pixi.state.controls.zoom()) {
+                    camera.zoom_timer = std.math.min(camera.zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
+                }
+            },
+            .mouse => {
+                if (pixi.state.controls.mouse.scroll_x == null and pixi.state.controls.mouse.scroll_y == null and camera.zoom_wait_timer >= pixi.state.settings.zoom_wait_time) {
+                    camera.zoom_timer = std.math.min(camera.zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
+                }
+            },
+        }
+
+        const nearest_zoom_index = camera.nearestZoomIndex();
+        if (camera.zoom_timer < pixi.state.settings.zoom_time) {
+            camera.zoom = pixi.math.lerp(camera.zoom, pixi.state.settings.zoom_steps[nearest_zoom_index], camera.zoom_timer / pixi.state.settings.zoom_time);
+        } else {
+            camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
+        }
+    }
+
+    fn drawZoomTooltip(zoom: f32) void {
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+        defer zgui.popStyleVar(.{ .count = 1 });
+        zgui.beginTooltip();
+        defer zgui.endTooltip();
+        zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
+        zgui.sameLine(.{});
+        zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{d:0.1}", .{zoom});
+    }
+
+    pub fn processTooltip(camera: *Camera, zoom: f32) void {
+        if (zgui.isWindowHovered(.{})) {
+            // Draw current zoom tooltip
+            if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
+                camera.zoom_tooltip_timer = std.math.min(camera.zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
+                drawZoomTooltip(zoom);
+            } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .trackpad) {
+                camera.zoom_tooltip_timer = 0.0;
+                drawZoomTooltip(zoom);
+            } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .mouse) {
+                if (camera.zoom_wait_timer < pixi.state.settings.zoom_wait_time) {
+                    camera.zoom_tooltip_timer = 0.0;
+                    drawZoomTooltip(zoom);
+                }
+            }
+        }
     }
 };
 

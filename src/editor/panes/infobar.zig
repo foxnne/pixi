@@ -1,7 +1,6 @@
 const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("pixi");
-const settings = pixi.settings;
 
 const spacer: [:0]const u8 = "    ";
 
