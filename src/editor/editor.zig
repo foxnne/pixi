@@ -79,12 +79,12 @@ pub fn openFile(path: [:0]const u8) !bool {
 
         // Handle background image/texture
         {
-            internal.background_image_data = try pixi.state.allocator.alloc(u8, @intCast(usize, external.tileWidth * external.tileHeight * 4));
-            internal.background_image = pixi.gfx.createImage(internal.background_image_data, external.tileWidth, external.tileHeight);
+            internal.background_image_data = try pixi.state.allocator.alloc(u8, @intCast(usize, external.tileWidth * 2 * external.tileHeight * 2 * 4));
+            internal.background_image = pixi.gfx.createImage(internal.background_image_data, external.tileWidth * 2, external.tileHeight * 2);
             // Set background image data to checkerboard
             {
                 var i: usize = 0;
-                while (i < @intCast(usize, external.tileWidth * external.tileHeight * 4)) : (i += 4) {
+                while (i < @intCast(usize, external.tileWidth * 2 * external.tileHeight * 2 * 4)) : (i += 4) {
                     const r = i;
                     const g = i + 1;
                     const b = i + 2;
@@ -107,8 +107,8 @@ pub fn openFile(path: [:0]const u8) !bool {
             internal.background_texture_handle = pixi.state.gctx.createTexture(.{
                 .usage = .{ .texture_binding = true, .copy_dst = true },
                 .size = .{
-                    .width = external.tileWidth,
-                    .height = external.tileHeight,
+                    .width = external.tileWidth * 2,
+                    .height = external.tileHeight * 2,
                     .depth_or_array_layers = 1,
                 },
                 .format = zgpu.imageInfoToTextureFormat(4, 1, false),
