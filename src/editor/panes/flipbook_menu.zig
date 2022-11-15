@@ -13,5 +13,9 @@ pub fn draw() void {
     defer zgui.popStyleColor(.{ .count = 2 });
     if (zgui.beginMenuBar()) {
         defer zgui.endMenuBar();
+
+        if (zgui.button(if (pixi.editor.flipbook_canvas.is_playing) "Pause" else "Play", .{})) {
+            pixi.editor.flipbook_canvas.is_playing = !pixi.editor.flipbook_canvas.is_playing;
+        }
     }
 }

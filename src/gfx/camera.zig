@@ -134,14 +134,14 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, sprite_rect: [4]f32, position: [2]f32, color: u32) void {
+    pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32, color: u32) void {
         const window_position = zgui.getWindowPos();
-        var tl = camera.matrix().transformVec2(position);
+        var tl = camera.matrix().transformVec2(.{ dst_rect[0], dst_rect[1] });
         tl[0] += window_position[0];
         tl[1] += window_position[1];
-        var br = position;
-        br[0] += sprite_rect[2];
-        br[1] += sprite_rect[3];
+        var br: [2]f32 = .{ dst_rect[0], dst_rect[1] };
+        br[0] += dst_rect[2];
+        br[1] += dst_rect[3];
         br = camera.matrix().transformVec2(br);
         br[0] += window_position[0];
         br[1] += window_position[1];
@@ -154,8 +154,8 @@ pub const Camera = struct {
         const inv_w = 1.0 / @intToFloat(f32, layer.image.width);
         const inv_h = 1.0 / @intToFloat(f32, layer.image.height);
 
-        const uvmin: [2]f32 = .{ sprite_rect[0] * inv_w, sprite_rect[1] * inv_h };
-        const uvmax: [2]f32 = .{ (sprite_rect[0] + sprite_rect[2]) * inv_w, (sprite_rect[1] + sprite_rect[3]) * inv_h };
+        const uvmin: [2]f32 = .{ src_rect[0] * inv_w, src_rect[1] * inv_h };
+        const uvmax: [2]f32 = .{ (src_rect[0] + src_rect[2]) * inv_w, (src_rect[1] + src_rect[3]) * inv_h };
 
         const draw_list = zgui.getWindowDrawList();
         if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
