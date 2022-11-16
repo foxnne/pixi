@@ -16,6 +16,8 @@ pub const Pixi = struct {
     camera: pixi.gfx.Camera = .{},
     flipbook_camera: pixi.gfx.Camera = .{},
     flipbook_scroll: f32 = 0.0,
+    selected_sprite_index: usize = 0,
+    selected_animation_index: usize = 0,
     background_image: zstbi.Image,
     background_image_data: []u8,
     background_texture_handle: zgpu.TextureHandle,

@@ -83,13 +83,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             // TODO: Make background texture opacity available through settings.
             // Draw background
             file.flipbook_camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
+            file.selected_sprite_index = i;
         }
 
-        // Draw all layers in reverse order
-        var j: usize = file.layers.items.len;
-        while (j > 0) {
-            j -= 1;
-            file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect, pixi.state.style.text_secondary.toU32());
+        if (dst_rect[0] > -zgui.getWindowWidth() / 2 and dst_rect[0] + dst_rect[2] < zgui.getWindowWidth()) {
+            // Draw all layers in reverse order
+            var j: usize = file.layers.items.len;
+            while (j > 0) {
+                j -= 1;
+                file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect, pixi.state.style.text_secondary.toU32());
+            }
         }
     }
 }
