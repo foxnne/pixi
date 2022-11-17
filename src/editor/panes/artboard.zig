@@ -143,7 +143,7 @@ pub fn draw() void {
                     .h = h,
                     .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
                 });
-                const text = zgui.formatZ("Open Folder    {s}  ", .{pixi.fa.file});
+                const text = zgui.formatZ("Open File    {s}  ", .{pixi.fa.file});
                 const size = zgui.calcTextSize(text, .{});
                 zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
                 zgui.textColored(pixi.state.style.text_background.toSlice(), "Open File    {s}  ", .{pixi.fa.file});

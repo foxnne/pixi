@@ -19,6 +19,8 @@ pub const Pixi = struct {
     flipbook_scroll_request: ?ScrollRequest = null,
     selected_sprite_index: usize = 0,
     selected_animation_index: usize = 0,
+    selected_animation_state: AnimationState = .pause,
+    selected_animation_elapsed: f32 = 0.0,
     background_image: zstbi.Image,
     background_image_data: []u8,
     background_texture_handle: zgpu.TextureHandle,
@@ -29,6 +31,11 @@ pub const Pixi = struct {
         from: f32,
         to: f32,
         elapsed: f32 = 0.0,
+    };
+
+    pub const AnimationState = enum {
+        pause,
+        play
     };
 
     pub fn toExternal(self: Pixi) !storage.External.Pixi {

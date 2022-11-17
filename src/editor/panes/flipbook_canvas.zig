@@ -2,10 +2,7 @@ const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("pixi");
 
-pub var selected_animation: usize = 0;
-pub var is_playing: bool = true;
-pub var current_index: usize = 0;
-pub var elapsed_time: f32 = 0.0;
+pub var is_playing: bool = false;
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_height = zgui.getWindowHeight();
@@ -50,16 +47,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         file.flipbook_camera.processTooltip(file.flipbook_camera.zoom);
     }
 
-    if (is_playing) {
-        const animation = file.animations.items[0];
-        elapsed_time += pixi.state.gctx.stats.delta_time;
-        if (elapsed_time > 1.0 / @intToFloat(f32, animation.fps)) {
-            elapsed_time = 0.0;
+    if (file.selected_animation_state == .play) {
+        const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
+        file.selected_animation_elapsed += pixi.state.gctx.stats.delta_time;
+        if (file.selected_animation_elapsed > 1.0 / @intToFloat(f32, animation.fps)) {
+            file.selected_animation_elapsed = 0.0;
 
-            if (current_index + 1 >= animation.start + animation.length or current_index < animation.start) {
-                current_index = animation.start;
+            if (file.selected_sprite_index + 1 >= animation.start + animation.length or file.selected_sprite_index < animation.start) {
+                file.selected_sprite_index = animation.start;
             } else {
-                current_index += 1;
+                file.selected_sprite_index += 1;
             }
         }
 
