@@ -5,7 +5,7 @@ const settings = pixi.settings;
 const filebrowser = @import("filebrowser");
 const nfd = @import("nfd");
 
-pub fn draw() void {
+pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
     defer zgui.popStyleVar(.{ .count = 1 });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
@@ -14,8 +14,11 @@ pub fn draw() void {
     if (zgui.beginMenuBar()) {
         defer zgui.endMenuBar();
 
-        if (zgui.button(if (pixi.editor.flipbook_canvas.is_playing) "Pause" else "Play", .{})) {
-            pixi.editor.flipbook_canvas.is_playing = !pixi.editor.flipbook_canvas.is_playing;
+        if (zgui.button(if (file.selected_animation_state == .play) "Pause" else "Play", .{})) {
+            file.selected_animation_state = switch (file.selected_animation_state) {
+                .play => .pause,
+                .pause => .play,
+            };
         }
     }
 }

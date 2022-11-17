@@ -2,8 +2,6 @@ const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("pixi");
 
-pub var is_playing: bool = false;
-
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_height = zgui.getWindowHeight();
     const tile_width = @intToFloat(f32, file.tile_width);
@@ -35,7 +33,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         const max_position: [2]f32 = .{ center[0] + tile_width - tile_width / 2.0, center[1] + tile_height };
 
         var scroll_delta: f32 = 0.0;
-        if (!is_playing) {
+        if (file.selected_animation_state != .play) {
             if (file.flipbook_camera.position[0] < min_position[0]) scroll_delta = file.flipbook_camera.position[0] - min_position[0];
             if (file.flipbook_camera.position[0] > max_position[0]) scroll_delta = file.flipbook_camera.position[0] - max_position[0];
         }
@@ -60,7 +58,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             }
         }
 
-        file.flipbook_scroll = -@intToFloat(f32, current_index) * tile_width * 1.1;
+        file.flipbook_scroll = -@intToFloat(f32, file.selected_sprite_index) * tile_width * 1.1;
     }
 
     const tiles_wide = @divExact(file.width, file.tile_width);

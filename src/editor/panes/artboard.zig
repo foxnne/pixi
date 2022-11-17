@@ -163,7 +163,7 @@ pub fn draw() void {
             },
         })) {
             if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                editor.flipbook_menu.draw();
+                editor.flipbook_menu.draw(file);
 
                 if (zgui.beginChild("FlipbookCanvas", .{})) {
                     editor.flipbook_canvas.draw(file);
