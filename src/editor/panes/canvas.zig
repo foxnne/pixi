@@ -51,6 +51,22 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const y = @intToFloat(f32, tile_row) * tile_height + layer_position[1];
 
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
+
+            if (pixi.state.controls.mouse.primary.down()) {
+                var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
+                var tile_index = tile_column + tile_row * tiles_wide;
+                file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = -@intToFloat(f32, tile_index) * tile_width * 1.1 };
+            }
+        }
+    }
+
+    if (file.flipbook_scroll_request) |*request| {
+        if (request.elapsed < 1.0) {
+            request.elapsed += pixi.state.gctx.stats.delta_time * 3.0;
+            file.flipbook_scroll = pixi.math.lerp(request.from, request.to, request.elapsed);
+        } else {
+            file.flipbook_scroll = request.to;
+            file.flipbook_scroll_request = null;
         }
     }
 

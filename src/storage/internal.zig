@@ -16,6 +16,7 @@ pub const Pixi = struct {
     camera: pixi.gfx.Camera = .{},
     flipbook_camera: pixi.gfx.Camera = .{},
     flipbook_scroll: f32 = 0.0,
+    flipbook_scroll_request: ?ScrollRequest = null,
     selected_sprite_index: usize = 0,
     selected_animation_index: usize = 0,
     background_image: zstbi.Image,
@@ -23,6 +24,12 @@ pub const Pixi = struct {
     background_texture_handle: zgpu.TextureHandle,
     background_texture_view_handle: zgpu.TextureViewHandle,
     dirty: bool = true,
+
+    pub const ScrollRequest = struct {
+        from: f32,
+        to: f32,
+        elapsed: f32 = 0.0,
+    };
 
     pub fn toExternal(self: Pixi) !storage.External.Pixi {
         const allocator = pixi.state.allocator;
