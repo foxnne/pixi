@@ -62,13 +62,14 @@ pub const Pixi = struct {
         };
     }
 
-    pub fn setAnimationFromSpriteIndex(self: *Pixi) void {
+    pub fn setAnimationFromSpriteIndex(self: *Pixi) bool {
         for (self.animations.items) |animation, i| {
             if (self.selected_sprite_index >= animation.start and self.selected_sprite_index <= animation.start + animation.length - 1) {
                 self.selected_animation_index = i;
-                break;
+                return true;
             }
         }
+        return false;
     }
 };
 
