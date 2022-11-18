@@ -73,6 +73,13 @@ pub const Pixi = struct {
         }
         return false;
     }
+
+    pub fn pixelCoordinatesFromIndex(self: Pixi, index: usize) ?[2]f32 {
+        if (index > self.sprites.items.len - 1) return null;
+        const x = @intToFloat(f32, @mod(@intCast(u32, index), self.width));
+        const y = @intToFloat(f32, @divTrunc(@intCast(u32, index), self.width));
+        return .{ x, y };
+    }
 };
 
 pub const Layer = struct {

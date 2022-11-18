@@ -80,6 +80,31 @@ pub const Camera = struct {
         }
     }
 
+    pub fn drawRect (camera: Camera, position: [2]f32, width: f32, height: f32, color: u32) void {
+        const window_position = zgui.getWindowPos();
+        var tl = camera.matrix().transformVec2(position);
+        tl[0] += window_position[0];
+        tl[1] += window_position[1];
+        var br = position;
+        br[0] += width;
+        br[1] += height;
+        br = camera.matrix().transformVec2(br);
+        br[0] += window_position[0];
+        br[1] += window_position[1];
+
+        tl[0] = std.math.round(tl[0]);
+        tl[1] = std.math.round(tl[1]);
+        br[0] = std.math.round(br[0]);
+        br[1] = std.math.round(br[1]);
+
+        const draw_list = zgui.getWindowDrawList();
+        draw_list.addRect(.{
+            .pmin = tl,
+            .pmax = br,
+            .col = color,
+        });
+    }
+
     pub fn drawTexture(camera: Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, position: [2]f32, color: u32) void {
         const window_position = zgui.getWindowPos();
         var tl = camera.matrix().transformVec2(position);
