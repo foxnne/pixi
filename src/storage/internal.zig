@@ -62,6 +62,8 @@ pub const Pixi = struct {
         };
     }
 
+    /// Searches for an animation containing the current selected sprite index
+    /// Returns true if one is found and set, false if not
     pub fn setAnimationFromSpriteIndex(self: *Pixi) bool {
         for (self.animations.items) |animation, i| {
             if (self.selected_sprite_index >= animation.start and self.selected_sprite_index <= animation.start + animation.length - 1) {
