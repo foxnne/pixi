@@ -31,6 +31,7 @@ pub const Pixi = struct {
         from: f32,
         to: f32,
         elapsed: f32 = 0.0,
+        state: AnimationState,
     };
 
     pub const AnimationState = enum { pause, play };

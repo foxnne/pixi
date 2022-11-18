@@ -8,8 +8,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const tile_height = @intToFloat(f32, file.tile_height);
 
     const center: [2]f32 = .{
-        -tile_width / 2,
-        -tile_height / 2,
+        -tile_width / 2.0,
+        -tile_height / 2.0,
     };
 
     // Handle zooming, panning and extents
@@ -72,7 +72,18 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         const sprite_scale = std.math.clamp(0.5 / @fabs(@intToFloat(f32, i) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
         const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
-        const dst_rect: [4]f32 = .{ center[0] + file.flipbook_scroll + @intToFloat(f32, i) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0), center[1] + ((1.0 - sprite_scale) * tile_height / 2.0), tile_width * sprite_scale, tile_height * sprite_scale };
+        var dst_x: f32 = center[0] + file.flipbook_scroll + @intToFloat(f32, i) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
+        var dst_y: f32 = center[1] + ((1.0 - sprite_scale) * tile_height / 2.0);
+        var dst_width: f32 = tile_width * sprite_scale;
+        var dst_height: f32 = tile_height * sprite_scale;
+
+        if (file.selected_animation_state == .play) {
+            dst_x = @round(dst_x);
+            dst_y = @round(dst_y);
+            dst_width = @round(dst_width);
+            dst_height = @round(dst_height);
+        }
+        const dst_rect: [4]f32 = .{ dst_x, dst_y, dst_width, dst_height };
 
         if (sprite_scale >= 1.0) {
             // TODO: Make background texture opacity available through settings.

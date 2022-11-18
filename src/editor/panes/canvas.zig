@@ -55,17 +55,26 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (pixi.state.controls.mouse.primary.down()) {
                 var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
                 var tile_index = tile_column + tile_row * tiles_wide;
-                file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = -@intToFloat(f32, tile_index) * tile_width * 1.1 };
+                // Ensure we only set the request state on the first set.
+                if (file.flipbook_scroll_request) |*request| {
+                    request.elapsed = 0.0;
+                    request.from = file.flipbook_scroll;
+                    request.to = -@intToFloat(f32, tile_index) * tile_width * 1.1;
+                } else {
+                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = -@intToFloat(f32, tile_index) * tile_width * 1.1, .state = file.selected_animation_state };
+                }
             }
         }
     }
 
     if (file.flipbook_scroll_request) |*request| {
         if (request.elapsed < 1.0) {
-            request.elapsed += pixi.state.gctx.stats.delta_time * 3.0;
+            file.selected_animation_state = .pause;
+            request.elapsed += pixi.state.gctx.stats.delta_time * 2.0;
             file.flipbook_scroll = pixi.math.lerp(request.from, request.to, request.elapsed);
         } else {
             file.flipbook_scroll = request.to;
+            file.selected_animation_state = request.state;
             file.flipbook_scroll_request = null;
         }
     }
