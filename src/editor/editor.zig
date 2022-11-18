@@ -70,6 +70,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
             .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
+            .flipbook_camera = .{ .position = .{ -@intToFloat(f32, external.tileWidth) / 2.0, 0.0 } },
             .background_image = undefined,
             .background_image_data = undefined,
             .background_texture_handle = undefined,
