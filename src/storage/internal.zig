@@ -33,10 +33,7 @@ pub const Pixi = struct {
         elapsed: f32 = 0.0,
     };
 
-    pub const AnimationState = enum {
-        pause,
-        play
-    };
+    pub const AnimationState = enum { pause, play };
 
     pub fn toExternal(self: Pixi) !storage.External.Pixi {
         const allocator = pixi.state.allocator;
@@ -62,6 +59,15 @@ pub const Pixi = struct {
             .sprites = sprites,
             .animations = self.animations.toOwnedSlice(),
         };
+    }
+
+    pub fn setAnimationFromSpriteIndex(self: *Pixi) void {
+        for (self.animations.items) |animation, i| {
+            if (self.selected_sprite_index >= animation.start and self.selected_sprite_index <= animation.start + animation.length - 1) {
+                self.selected_animation_index = i;
+                break;
+            }
+        }
     }
 };
 
