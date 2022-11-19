@@ -47,8 +47,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             var tile_column = @divTrunc(@floatToInt(usize, pixel_coord[0]), @intCast(usize, file.tile_width));
             var tile_row = @divTrunc(@floatToInt(usize, pixel_coord[1]), @intCast(usize, file.tile_height));
 
-            const x = @intToFloat(f32, tile_column) * tile_width + layer_position[0];
-            const y = @intToFloat(f32, tile_row) * tile_height + layer_position[1];
+            const x = std.math.round(@intToFloat(f32, tile_column) * tile_width + layer_position[0]);
+            const y = std.math.round(@intToFloat(f32, tile_row) * tile_height + layer_position[1]);
 
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
@@ -86,16 +86,17 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         file.camera.drawLayer(file.layers.items[i], layer_position);
     }
 
-    // Draw grid and selection
+    // Draw grid
     file.camera.drawGrid(layer_position, file_width, file_height, @floatToInt(usize, file_width / tile_width), @floatToInt(usize, file_height / tile_height), pixi.state.style.text_secondary.toU32());
 
-    if (file.pixelCoordinatesFromIndex(file.selected_sprite_index)) |pixel_coord| {
-        var tile_column = @divTrunc(@floatToInt(usize, pixel_coord[0]), @intCast(usize, file.tile_width));
-        var tile_row = @divTrunc(@floatToInt(usize, pixel_coord[1]), @intCast(usize, file.tile_height));
+    // Draw selection
+    {
+        const tiles_wide = @divExact(file.width, file.tile_width);
+        const column = @mod(@intCast(u32, file.selected_sprite_index), tiles_wide);
+        const row = @divTrunc(@intCast(u32, file.selected_sprite_index), tiles_wide);
+        const x = std.math.round(@intToFloat(f32, column) * tile_width + layer_position[0]);
+        const y = std.math.round(@intToFloat(f32, row) * tile_height + layer_position[1]);
 
-        const x = @intToFloat(f32, tile_column) * tile_width + layer_position[0];
-        const y = @intToFloat(f32, tile_row) * tile_height + layer_position[1];
-
-        file.camera.drawRect(.{ x, y }, tile_width, tile_height, pixi.state.style.text.toU32());
+        file.camera.drawRect(.{ x, y }, tile_width, tile_height, 2.0, pixi.state.style.text.toU32());
     }
 }

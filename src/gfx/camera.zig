@@ -80,7 +80,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawRect (camera: Camera, position: [2]f32, width: f32, height: f32, color: u32) void {
+    pub fn drawRect(camera: Camera, position: [2]f32, width: f32, height: f32, thickness: f32, color: u32) void {
         const window_position = zgui.getWindowPos();
         var tl = camera.matrix().transformVec2(position);
         tl[0] += window_position[0];
@@ -102,6 +102,7 @@ pub const Camera = struct {
             .pmin = tl,
             .pmax = br,
             .col = color,
+            .thickness = thickness,
         });
     }
 
