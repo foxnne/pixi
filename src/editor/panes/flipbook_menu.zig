@@ -20,5 +20,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 .pause => .play,
             };
         }
+
+        _ = zgui.invisibleButton("FlipbookGrip", .{
+            .w = -1.0,
+            .h = -1.0,
+        });
+
+        if (zgui.isItemActive()) {
+            const ratio = std.math.clamp(1.0 / (pixi.state.controls.mouse.position.y / pixi.state.window.size[1] * pixi.state.window.scale[1]), 0.1, 0.9);
+            pixi.state.settings.flipbook_height = ratio;
+        }
     }
 }

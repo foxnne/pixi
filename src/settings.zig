@@ -4,6 +4,9 @@ const pixi = @import("pixi");
 /// Width of the explorer bar.
 explorer_width: f32 = 200,
 
+/// Height of the flipbook window.
+flipbook_height: f32 = 0.3,
+
 /// Font size set when loading the editor.
 font_size: f32 = 13,
 

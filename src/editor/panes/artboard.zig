@@ -33,11 +33,13 @@ pub fn draw() void {
     })) {
         editor.menu.draw();
 
+        const artboard_ratio_height = (pixi.state.window.size[1] - pixi.state.window.size[1] * pixi.state.settings.flipbook_height) * pixi.state.window.scale[1];
+
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
         defer zgui.popStyleVar(.{ .count = 1 });
         if (zgui.beginChild("Artboard", .{
             .w = 0.0,
-            .h = pixi.state.window.size[1] / 1.5 * pixi.state.window.scale[1],
+            .h = artboard_ratio_height,
             .border = false,
             .flags = .{},
         })) {
