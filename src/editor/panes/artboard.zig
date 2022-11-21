@@ -33,6 +33,9 @@ pub fn draw() void {
     })) {
         editor.menu.draw();
 
+        const art_height = zgui.getWindowHeight();
+        const art_mouse_ratio = (pixi.state.controls.mouse.position.y - zgui.getCursorScreenPos()[1]) / art_height;
+
         const artboard_ratio_height = (pixi.state.window.size[1] - pixi.state.window.size[1] * pixi.state.settings.flipbook_height) * pixi.state.window.scale[1];
 
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
@@ -165,7 +168,7 @@ pub fn draw() void {
             },
         })) {
             if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                editor.flipbook_menu.draw(file);
+                editor.flipbook_menu.draw(file, art_mouse_ratio);
 
                 if (zgui.beginChild("FlipbookCanvas", .{})) {
                     editor.flipbook_canvas.draw(file);
