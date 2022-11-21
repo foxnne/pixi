@@ -93,6 +93,24 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (!file.setAnimationFromSpriteIndex()) {
                 file.selected_animation_state = .pause;
             }
+        } else {
+            const tl = file.flipbook_camera.matrix().transformVec2(.{ dst_rect[0], dst_rect[1]});
+            const br = file.flipbook_camera.matrix().transformVec2(.{ dst_rect[0] + dst_rect[2], dst_rect[1] + dst_rect[3]});
+
+            // Handle mouse selection of uncentered sprites
+            zgui.setCursorPos(tl);
+            if (zgui.invisibleButton(file.sprites.items[i].name, .{
+                .w = br[0] - tl[0],
+                .h = br[1] - tl[1],
+            })) {
+                if (file.flipbook_scroll_request) |*request| {
+                    request.elapsed = 0.0;
+                    request.from = file.flipbook_scroll;
+                    request.to = -@intToFloat(f32, i) * tile_width * 1.1;
+                } else {
+                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = -@intToFloat(f32, i) * tile_width * 1.1, .state = file.selected_animation_state };
+                }
+            }
         }
 
         if (dst_rect[0] > -zgui.getWindowWidth() / 2 and dst_rect[0] + dst_rect[2] < zgui.getWindowWidth()) {
