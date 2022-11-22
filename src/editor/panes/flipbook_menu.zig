@@ -5,7 +5,7 @@ const settings = pixi.settings;
 const filebrowser = @import("filebrowser");
 const nfd = @import("nfd");
 
-pub fn draw(file: *pixi.storage.Internal.Pixi) void {
+pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
     defer zgui.popStyleVar(.{ .count = 1 });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
@@ -27,11 +27,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         });
 
         if (zgui.isItemActive()) {
-            const delta = zgui.getMouseDragDelta(.left, .{});
-            const delta_ratio = delta[1] / pixi.state.window.size[1] * pixi.state.window.scale[1];
-            const ratio = std.math.clamp(pixi.state.settings.flipbook_height - delta_ratio / 4.0, 0.3, 0.8);
-            pixi.state.settings.flipbook_height = ratio;
-            zgui.resetMouseDragDelta(.left);
+            
+            pixi.state.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.2, 0.85);
+            
         }
     }
 }
