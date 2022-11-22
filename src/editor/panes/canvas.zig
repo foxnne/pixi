@@ -71,7 +71,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (request.elapsed < 1.0) {
             file.selected_animation_state = .pause;
             request.elapsed += pixi.state.gctx.stats.delta_time * 2.0;
-            file.flipbook_scroll = pixi.math.lerp(request.from, request.to, request.elapsed);
+            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed, .ease_out);
         } else {
             file.flipbook_scroll = request.to;
             file.selected_animation_state = request.state;

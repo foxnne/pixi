@@ -17,12 +17,24 @@ pub fn lerp(a: f32, b: f32, t: f32) f32 {
     return a + (b - a) * t;
 }
 
-/// Converts a tile coordinate to a pixel coordinate.
-pub fn pixel (t: i32) f32 {
-    return @intToFloat(f32, t) * game.settings.pixels_per_unit;
+pub fn ease(a: f32, b: f32, t: f32, ease_type: EaseType) f32 {
+    return switch(ease_type) {
+        .linear => lerp(a, b, t),
+        .ease_in => lerp(a, b, square(t)),
+        .ease_out => lerp(a, b, flip(square(flip(t)))),
+    };
 }
 
-/// Converts a pixel coordinate to a tile coordinate.
-pub fn tile (p: f32) i32 {
-    return @floatToInt(i32, @round(p / game.settings.pixels_per_unit));
+fn square(t: f32) f32 {
+    return t * t;
 }
+
+fn flip(t: f32) f32 {
+    return 1.0 - t;
+}
+
+pub const EaseType = enum {
+    linear,
+    ease_in,
+    ease_out,
+};
