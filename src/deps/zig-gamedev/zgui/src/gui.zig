@@ -5,6 +5,13 @@ const assert = std.debug.assert;
 pub const f32_min: f32 = 1.17549435082228750796873653722225e-38;
 pub const f32_max: f32 = 3.40282346638528859811704183484517e+38;
 //--------------------------------------------------------------------------------------------------
+pub const DrawIdx = u16;
+pub const DrawVert = extern struct {
+    pos: [2]f32,
+    uv: [2]f32,
+    color: u32,
+};
+//--------------------------------------------------------------------------------------------------
 pub fn init(allocator: std.mem.Allocator) void {
     if (zguiGetCurrentContext() == null) {
         mem_allocator = allocator;
@@ -142,6 +149,17 @@ pub const io = struct {
     pub const setDefaultFont = zguiIoSetDefaultFont;
     extern fn zguiIoSetDefaultFont(font: Font) void;
 
+    /// `pub fn getFontsTextDataAsRgba32() return fonts pixel data and size
+    pub const getFontsTextDataAsRgba32 = zguiIoGetFontsTexDataAsRgba32;
+    extern fn zguiIoGetFontsTexDataAsRgba32(width: *i32, height: *i32) [*c]const u32;
+
+    /// `pub fn setFontsTexId(id:TextureIdent) set the backend Id for the fonts atlas
+    pub const setFontsTexId = zguiIoSetFontsTexId;
+    extern fn zguiIoSetFontsTexId(id: TextureIdent) void;
+
+    pub const getFontsTexId = zguiIoGetFontsTexId;
+    extern fn zguiIoGetFontsTexId() TextureIdent;
+
     /// `pub fn zguiIoGetWantCaptureMouse() bool`
     pub const getWantCaptureMouse = zguiIoGetWantCaptureMouse;
     extern fn zguiIoGetWantCaptureMouse() bool;
@@ -159,6 +177,13 @@ pub const io = struct {
     pub const setDisplaySize = zguiIoSetDisplaySize;
     extern fn zguiIoSetDisplaySize(width: f32, height: f32) void;
 
+    pub fn getDisplaySize() [2]f32 {
+        var size: [2]f32 = undefined;
+        zguiIoGetDisplaySize(&size);
+        return size;
+    }
+    extern fn zguiIoGetDisplaySize(size: *[2]f32) void;
+
     /// `pub fn setDisplayFramebufferScale(sx: f32, sy: f32) void`
     pub const setDisplayFramebufferScale = zguiIoSetDisplayFramebufferScale;
     extern fn zguiIoSetDisplayFramebufferScale(sx: f32, sy: f32) void;
@@ -166,15 +191,225 @@ pub const io = struct {
     /// `pub fn setConfigFlags(flags: ConfigFlags) void`
     pub const setConfigFlags = zguiIoSetConfigFlags;
     extern fn zguiIoSetConfigFlags(flags: ConfigFlags) void;
+
+    /// set the frame for this frame
+    /// `pub fnsetDeltaTime(delta_time: f32) void`
+    pub const setDeltaTime = zguiIoSetDeltaTime;
+    extern fn zguiIoSetDeltaTime(delta_time: f32) void;
+
+    pub const addFocusEvent = zguiIoAddFocusEvent;
+    extern fn zguiIoAddFocusEvent(focused: bool) void;
+
+    pub const addMousePositionEvent = zguiIoAddMousePositionEvent;
+    extern fn zguiIoAddMousePositionEvent(x: f32, y: f32) void;
+
+    pub const addMouseButtonEvent = zguiIoAddMouseButtonEvent;
+    extern fn zguiIoAddMouseButtonEvent(button: MouseButton, down: bool) void;
+
+    pub const addMouseWheelEvent = zguiIoAddMouseWheelEvent;
+    extern fn zguiIoAddMouseWheelEvent(x: f32, y: f32) void;
+
+    pub const addKeyEvent = zguiIoAddKeyEvent;
+    extern fn zguiIoAddKeyEvent(key: Key, down: bool) void;
+
+    pub const setKeyEventNativeData = zguiIoSetKeyEventNativeData;
+    extern fn zguiIoSetKeyEventNativeData(key: Key, keycode: i32, scancode: i32) void;
+
+    pub const addCharacterEvent = zguiIoAddCharacterEvent;
+    extern fn zguiIoAddCharacterEvent(char: i32) void;
 };
 //--------------------------------------------------------------------------------------------------
 const Context = *opaque {};
-pub const DrawData = *opaque {};
+pub const DrawData = *extern struct {
+    valid: bool,
+    cmd_lists_count: i32,
+    total_idx_count: i32,
+    total_vtx_count: i32,
+    cmd_lists: [*]DrawList,
+    display_pos: [2]f32,
+    display_size: [2]f32,
+    framebuffer_scale: [2]f32,
+};
 pub const Font = *opaque {};
 pub const Ident = u32;
 pub const TextureIdent = *anyopaque;
 pub const Wchar = u16;
-pub const Key = i32;
+pub const Key = enum(u32) {
+    // keyboard
+    none = 0,
+    tab = 512, // == imguikey_namedkey_begin
+    left_arrow,
+    right_arrow,
+    up_arrow,
+    down_arrow,
+    page_up,
+    page_down,
+    home,
+    end,
+    insert,
+    delete,
+    back_space,
+    space,
+    enter,
+    escape,
+    left_ctrl,
+    left_shift,
+    left_alt,
+    left_super,
+    right_ctrl,
+    right_shift,
+    right_alt,
+    right_super,
+    menu,
+    zero,
+    one,
+    two,
+    three,
+    four,
+    five,
+    six,
+    severn,
+    eight,
+    nine,
+    a,
+    b,
+    c,
+    d,
+    e,
+    f,
+    g,
+    h,
+    i,
+    j,
+    k,
+    l,
+    m,
+    n,
+    o,
+    p,
+    q,
+    r,
+    s,
+    t,
+    u,
+    v,
+    w,
+    x,
+    y,
+    z,
+    f1,
+    f2,
+    f3,
+    f4,
+    f5,
+    f6,
+    f7,
+    f8,
+    f9,
+    f10,
+    f11,
+    f12,
+    apostrophe,
+    comma,
+    minus,
+    period,
+    slash,
+    semicolon,
+    equal,
+    left_bracket,
+    back_slash,
+    right_bracket,
+    grave_accent,
+    caps_lock,
+    scroll_lock,
+    num_lock,
+    print_screen,
+    pause,
+    keypad_0,
+    keypad_1,
+    keypad_2,
+    keypad_3,
+    keypad_4,
+    keypad_5,
+    keypad_6,
+    keypad_7,
+    keypad_8,
+    keypad_9,
+    keypad_decimal,
+    keypad_divide,
+    keypad_multiply,
+    keypad_subtract,
+    keypad_add,
+    keypad_enter,
+    keypad_equal,
+
+    gamepad_start,
+    gamepad_back,
+    gamepad_faceup,
+    gamepad_facedown,
+    gamepad_faceleft,
+    gamepad_faceright,
+    gamepad_dpadup,
+    gamepad_dpaddown,
+    gamepad_dpadleft,
+    gamepad_dpadright,
+    gamepad_l1,
+    gamepad_r1,
+    gamepad_l2,
+    gamepad_r2,
+    gamepad_l3,
+    gamepad_r3,
+    gamepad_lstickup,
+    gamepad_lstickdown,
+    gamepad_lstickleft,
+    gamepad_lstickright,
+    gamepad_rstickup,
+    gamepad_rstickdown,
+    gamepad_rstickleft,
+    gamepad_rstickright,
+
+    mod_ctrl,
+    mod_shift,
+    mod_alt,
+    mod_super,
+
+    pub const named_key_begin = 512;
+    pub const named_key_end = std.enums.directEnumArrayLen(@This(), named_key_begin);
+    pub const named_key_count = named_key_end - named_key_begin;
+    pub const keys_data_size = named_key_count;
+    pub const keys_data_offset = named_key_begin;
+};
+
+const KeyModifiers = packed struct {
+    ctrl: bool = false,
+    shift: bool = false,
+    alt: bool = false,
+    super: bool = false,
+};
+
+const NavInput = enum {
+    activate,
+    cancel,
+    input,
+    menu,
+    dpad_left,
+    dpad_right,
+    dpad_up,
+    dpad_down,
+    lstick_left,
+    lstick_right,
+    lsick_up,
+    lstick_down,
+    focus_prev,
+    focus_next,
+    tweak_slow,
+    tweak_fast,
+
+    key_left,
+    key_right,
+    key_up,
+    key_down,
+};
 //--------------------------------------------------------------------------------------------------
 pub const WindowFlags = packed struct(u32) {
     no_title_bar: bool = false,
@@ -464,6 +699,24 @@ pub fn getContentRegionAvail() [2]f32 {
     return size;
 }
 
+pub fn getContentRegionMax() [2]f32 {
+    var size: [2]f32 = undefined;
+    zguiGetContentRegionMax(&size);
+    return size;
+}
+
+pub fn getWindowContentRegionMin() [2]f32 {
+    var size: [2]f32 = undefined;
+    zguiGetWindowContentRegionMin(&size);
+    return size;
+}
+
+pub fn getWindowContentRegionMax() [2]f32 {
+    var size: [2]f32 = undefined;
+    zguiGetWindowContentRegionMax(&size);
+    return size;
+}
+
 /// `pub fn getWindowWidth() f32`
 pub const getWindowWidth = zguiGetWindowWidth;
 /// `pub fn getWindowHeight() f32`
@@ -473,6 +726,9 @@ extern fn zguiGetWindowSize(size: *[2]f32) void;
 extern fn zguiGetWindowWidth() f32;
 extern fn zguiGetWindowHeight() f32;
 extern fn zguiGetContentRegionAvail(size: *[2]f32) void;
+extern fn zguiGetContentRegionMax(size: *[2]f32) void;
+extern fn zguiGetWindowContentRegionMin(size: *[2]f32) void;
+extern fn zguiGetWindowContentRegionMax(size: *[2]f32) void;
 //--------------------------------------------------------------------------------------------------
 //
 // Style
@@ -2588,7 +2844,7 @@ extern fn zguiGetMouseDragDelta(button: MouseButton, lock_threshold: f32, delta:
 extern fn zguiResetMouseDragDelta(button: MouseButton) void;
 //--------------------------------------------------------------------------------------------------
 //
-// DrawList
+// DrawFlags
 //
 //--------------------------------------------------------------------------------------------------
 pub const DrawFlags = packed struct(u32) {
@@ -2629,6 +2885,16 @@ pub const DrawFlags = packed struct(u32) {
     };
 };
 
+pub const DrawCmd = extern struct {
+    clip_rect: [4]f32,
+    texture_id: TextureIdent,
+    vtx_offset: u32,
+    idx_offset: u32,
+    elem_count: u32,
+    user_callback: ?*anyopaque,
+    user_callback_data: ?*anyopaque,
+};
+
 pub const getWindowDrawList = zguiGetWindowDrawList;
 pub const getBackgroundDrawList = zguiGetBackgroundDrawList;
 pub const getForegroundDrawList = zguiGetForegroundDrawList;
@@ -2638,6 +2904,33 @@ extern fn zguiGetBackgroundDrawList() DrawList;
 extern fn zguiGetForegroundDrawList() DrawList;
 
 pub const DrawList = *opaque {
+    pub const getVertexBufferLength = zguiDrawList_GetVertexBufferLength;
+    extern fn zguiDrawList_GetVertexBufferLength(draw_list: DrawList) i32;
+    pub const getVertexBufferData = zguiDrawList_GetVertexBufferData;
+    extern fn zguiDrawList_GetVertexBufferData(draw_list: DrawList) [*]const DrawVert;
+
+    pub const getIndexBufferLength = zguiDrawList_GetIndexBufferLength;
+    extern fn zguiDrawList_GetIndexBufferLength(draw_list: DrawList) i32;
+    pub const getIndexBufferData = zguiDrawList_GetIndexBufferData;
+    extern fn zguiDrawList_GetIndexBufferData(draw_list: DrawList) [*]const DrawIdx;
+
+    pub const getCmdBufferLength = zguiDrawList_GetCmdBufferLength;
+    extern fn zguiDrawList_GetCmdBufferLength(draw_list: DrawList) i32;
+    pub const getCmdBufferData = zguiDrawList_GetCmdBufferData;
+    extern fn zguiDrawList_GetCmdBufferData(draw_list: DrawList) [*]const DrawCmd;
+
+    pub const DrawListFlags = packed struct(u32) {
+        anti_aliased_lines: bool = false,
+        anti_aliased_lines_use_tex: bool = false,
+        anti_aliased_fill: bool = false,
+        allow_vtx_offset: bool = false,
+
+        _padding: u28,
+    };
+
+    pub const getDrawListFlags = zguiDrawList_GetFlags;
+    extern fn zguiDrawList_GetFlags(draw_list: DrawList) DrawListFlags;
+
     //----------------------------------------------------------------------------------------------
     const ClipRect = struct {
         pmin: [2]f32,

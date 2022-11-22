@@ -1157,6 +1157,23 @@ ZGUI_API void zguiIoSetDefaultFont(ImFont* font) {
     ImGui::GetIO().FontDefault = font;
 }
 
+ZGUI_API unsigned char *zguiIoGetFontsTexDataAsRgba32(int *width, int *height) {
+    unsigned char *font_pixels;
+    int font_width, font_height;
+    ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&font_pixels, &font_width, &font_height);
+    *width = font_width;
+    *height = font_height;
+    return font_pixels;
+}
+
+ZGUI_API void zguiIoSetFontsTexId(ImTextureID id) {
+    ImGui::GetIO().Fonts->TexID = id;
+}
+
+ZGUI_API ImTextureID zguiIoGetFontsTexId() {
+    return ImGui::GetIO().Fonts->TexID;
+}
+
 ZGUI_API bool zguiIoGetWantCaptureMouse(void) {
     return ImGui::GetIO().WantCaptureMouse;
 }
@@ -1177,9 +1194,48 @@ ZGUI_API void zguiIoSetDisplaySize(float width, float height) {
     ImGui::GetIO().DisplaySize = { width, height };
 }
 
+ZGUI_API void zguiIoGetDisplaySize(float size[2]) {
+    const ImVec2 ds = ImGui::GetIO().DisplaySize;
+    size[0] = ds[0];
+    size[1] = ds[1];
+}
+
 ZGUI_API void zguiIoSetDisplayFramebufferScale(float sx, float sy) {
     ImGui::GetIO().DisplayFramebufferScale = { sx, sy };
 }
+
+ZGUI_API void zguiIoSetDeltaTime(float delta_time) {
+    ImGui::GetIO().DeltaTime = delta_time;
+}
+
+ZGUI_API void zguiIoAddFocusEvent(bool focused) {
+    ImGui::GetIO().AddFocusEvent(focused);
+}
+
+ZGUI_API void zguiIoAddMousePositionEvent(float x, float y) {
+    ImGui::GetIO().AddMousePosEvent(x, y);
+}
+
+ZGUI_API void zguiIoAddMouseButtonEvent(ImGuiMouseButton button, bool down) {
+    ImGui::GetIO().AddMouseButtonEvent(button, down);
+}
+
+ZGUI_API void zguiIoAddMouseWheelEvent(float x, float y) {
+    ImGui::GetIO().AddMouseWheelEvent(x, y);
+}
+
+ZGUI_API void zguiIoAddKeyEvent(ImGuiKey key, bool down) {
+    ImGui::GetIO().AddKeyEvent(key, down);
+}
+
+ZGUI_API void zguiIoSetKeyEventNativeData(ImGuiKey key, int keycode, int scancode) {
+    ImGui::GetIO().SetKeyEventNativeData(key, keycode, scancode);
+}
+
+ZGUI_API void zguiIoAddCharacterEvent(int c) {
+    ImGui::GetIO().AddInputCharacter(c);
+}
+
 
 ZGUI_API bool zguiIsItemHovered(ImGuiHoveredFlags flags) {
     return ImGui::IsItemHovered(flags);
@@ -1239,6 +1295,24 @@ ZGUI_API void zguiGetContentRegionAvail(float pos[2]) {
     pos[1] = p.y;
 }
 
+ZGUI_API void zguiGetContentRegionMax(float pos[2]) {
+    const ImVec2 p = ImGui::GetContentRegionMax();
+    pos[0] = p.x;
+    pos[1] = p.y;
+}
+
+ZGUI_API void zguiGetWindowContentRegionMin(float pos[2]) {
+    const ImVec2 p = ImGui::GetWindowContentRegionMin();
+    pos[0] = p.x;
+    pos[1] = p.y;
+}
+
+ZGUI_API void zguiGetWindowContentRegionMax(float pos[2]) {
+    const ImVec2 p = ImGui::GetWindowContentRegionMax();
+    pos[0] = p.x;
+    pos[1] = p.y;
+}
+
 ZGUI_API void zguiPushTextWrapPos(float wrap_pos_x) {
     ImGui::PushTextWrapPos(wrap_pos_x);
 }
@@ -1285,7 +1359,7 @@ ZGUI_API bool zguiBeginMenu(const char* label, bool enabled) {
 
 ZGUI_API void zguiEndMenu(void) {
     ImGui::EndMenu();
-} 
+}
 
 ZGUI_API bool zguiMenuItem(const char* label, const char* shortcut, bool selected, bool enabled) {
     return ImGui::MenuItem(label, shortcut, selected, enabled);
@@ -1303,16 +1377,41 @@ ZGUI_API void zguiEndTooltip(void) {
 // DrawList
 //
 //--------------------------------------------------------------------------------------------------
-ZGUI_API ImDrawList* zguiGetWindowDrawList(void) {
+
+ZGUI_API ImDrawList *zguiGetWindowDrawList(void) {
     return ImGui::GetWindowDrawList();
 }
 
-ZGUI_API ImDrawList* zguiGetBackgroundDrawList(void) {
+ZGUI_API ImDrawList *zguiGetBackgroundDrawList(void) {
     return ImGui::GetBackgroundDrawList();
 }
 
-ZGUI_API ImDrawList* zguiGetForegroundDrawList(void) {
+ZGUI_API ImDrawList *zguiGetForegroundDrawList(void) {
     return ImGui::GetForegroundDrawList();
+}
+
+ZGUI_API int zguiDrawList_GetVertexBufferLength(ImDrawList *draw_list) {
+    return draw_list->VtxBuffer.size();
+}
+ZGUI_API ImDrawVert *zguiDrawList_GetVertexBufferData(ImDrawList *draw_list) {
+    return draw_list->VtxBuffer.begin();
+}
+
+ZGUI_API int zguiDrawList_GetIndexBufferLength(ImDrawList *draw_list) {
+    return draw_list->IdxBuffer.size();
+}
+ZGUI_API ImDrawIdx *zguiDrawList_GetIndexBufferData(ImDrawList *draw_list) {
+    return draw_list->IdxBuffer.begin();
+}
+
+ZGUI_API int zguiDrawList_GetCmdBufferLength(ImDrawList *draw_list) {
+    return draw_list->CmdBuffer.size();
+}
+ZGUI_API ImDrawCmd *zguiDrawList_GetCmdBufferData(ImDrawList *draw_list) {
+    return draw_list->CmdBuffer.begin();
+}
+ZGUI_API ImDrawListFlags zguiDrawList_GetFlags(ImDrawList *draw_list) {
+    return draw_list->Flags;
 }
 
 ZGUI_API void zguiDrawList_PushClipRect(

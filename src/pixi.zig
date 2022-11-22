@@ -59,7 +59,7 @@ pub const Sidebar = enum {
 
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
 
-fn init(allocator: std.mem.Allocator, window: zglfw.Window) !*PixiState {
+fn init(allocator: std.mem.Allocator, window: *zglfw.Window) !*PixiState {
     const gctx = try zgpu.GraphicsContext.create(allocator, window);
 
     var arena_state = std.heap.ArenaAllocator.init(allocator);
@@ -147,10 +147,10 @@ pub fn main() !void {
     const settings: Settings = .{};
 
     // Create window
-    zglfw.defaultWindowHints();
-    zglfw.windowHint(.cocoa_retina_framebuffer, 1);
-    zglfw.windowHint(.client_api, 0);
-    const window = try zglfw.createWindow(settings.initial_window_width, settings.initial_window_height, name, null, null);
+    zglfw.Window.Hint.reset();
+    zglfw.Window.Hint.set(.cocoa_retina_framebuffer, 1);
+    zglfw.Window.Hint.set(.client_api, 0);
+    const window = try zglfw.Window.create(settings.initial_window_width, settings.initial_window_height, name, null, null);
     defer window.destroy();
     window.setSizeLimits(400, 400, -1, -1);
 
