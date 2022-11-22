@@ -73,7 +73,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         const sprite_scale = std.math.clamp(0.5 / @fabs(@intToFloat(f32, i) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
         const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
         var dst_x: f32 = center[0] + file.flipbook_scroll + @intToFloat(f32, i) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
-        var dst_y: f32 = center[1] + ((1.0 - sprite_scale) * tile_height / 2.0);
+        var dst_y: f32 = center[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
         var dst_width: f32 = tile_width * sprite_scale;
         var dst_height: f32 = tile_height * sprite_scale;
 
@@ -93,25 +93,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (!file.setAnimationFromSpriteIndex()) {
                 file.selected_animation_state = .pause;
             }
-        } else if (dst_rect[0] > -zgui.getWindowWidth() / 2 and dst_rect[0] + dst_rect[2] < zgui.getWindowWidth()) {
-            const tl = file.flipbook_camera.matrix().transformVec2(.{ dst_rect[0], dst_rect[1] });
-            const br = file.flipbook_camera.matrix().transformVec2(.{ dst_rect[0] + dst_rect[2], dst_rect[1] + dst_rect[3] });
-
-            // Handle mouse selection of uncentered sprites
-            zgui.setCursorPos(tl);
-            if (zgui.invisibleButton(file.sprites.items[i].name, .{
-                .w = br[0] - tl[0],
-                .h = br[1] - tl[1],
-            })) {
-                if (file.flipbook_scroll_request) |*request| {
-                    request.elapsed = 0.0;
-                    request.from = file.flipbook_scroll;
-                    request.to = -@intToFloat(f32, i) * tile_width * 1.1;
-                } else {
-                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = -@intToFloat(f32, i) * tile_width * 1.1, .state = file.selected_animation_state };
-                }
-            }
-        }
+        } 
 
         if (dst_rect[0] > -zgui.getWindowWidth() / 2 and dst_rect[0] + dst_rect[2] < zgui.getWindowWidth()) {
             // Draw all layers in reverse order
