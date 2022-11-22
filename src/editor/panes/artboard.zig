@@ -35,7 +35,7 @@ pub fn draw() void {
 
         const art_height = zgui.getWindowHeight();
         const art_mouse_ratio = (pixi.state.controls.mouse.position.y - zgui.getCursorScreenPos()[1]) / art_height;
-        const artboard_ratio_height = (art_height - art_height * pixi.state.settings.flipbook_height) * pixi.state.window.scale[1];
+        const artboard_ratio_height = (art_height - art_height * pixi.state.settings.flipbook_height);
 
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
         defer zgui.popStyleVar(.{ .count = 1 });

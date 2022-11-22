@@ -27,9 +27,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
         });
 
         if (zgui.isItemActive()) {
-            
-            pixi.state.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.2, 0.85);
-            
+            pixi.state.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
         }
     }
 }
