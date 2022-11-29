@@ -3,6 +3,13 @@ const zgui = @import("zgui");
 const pixi = @import("pixi");
 const editor = pixi.editor;
 
+pub const menu = @import("menu.zig");
+pub const rulers = @import("rulers.zig");
+pub const canvas = @import("canvas.zig");
+
+pub const flipbook = @import("flipbook/flipbook.zig");
+pub const infobar = @import("infobar/infobar.zig");
+
 pub var path_hover_timer: f32 = 0.0;
 
 pub fn draw() void {
@@ -31,7 +38,7 @@ pub fn draw() void {
             .menu_bar = true,
         },
     })) {
-        editor.menu.draw();
+        menu.draw();
 
         const art_height = zgui.getWindowHeight();
         const art_mouse_ratio = (pixi.state.controls.mouse.position.y - zgui.getCursorScreenPos()[1]) / art_height;
@@ -127,13 +134,13 @@ pub fn draw() void {
                             .border = false,
                             .flags = flags,
                         })) {
-                            pixi.editor.canvas.draw(file);
+                            canvas.draw(file);
                         }
                         zgui.endChild();
 
                         // Now add to ruler children windows, since we have updated the camera.
                         if (pixi.state.settings.show_rulers) {
-                            pixi.editor.rulers.draw(file);
+                            rulers.draw(file);
                         }
                     }
                 }
@@ -167,10 +174,10 @@ pub fn draw() void {
             },
         })) {
             if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                editor.flipbook_menu.draw(file, art_mouse_ratio);
+                flipbook.menu.draw(file, art_mouse_ratio);
 
                 if (zgui.beginChild("FlipbookCanvas", .{})) {
-                    editor.flipbook_canvas.draw(file);
+                    flipbook.canvas.draw(file);
                     zgui.endChild();
                 }
             }
@@ -181,7 +188,7 @@ pub fn draw() void {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
             defer zgui.popStyleColor(.{ .count = 1 });
             if (zgui.beginChild("InfoBar", .{})) {
-                pixi.editor.infobar.draw();
+                infobar.draw();
                 zgui.endChild();
             }
         }
