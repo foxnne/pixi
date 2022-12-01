@@ -148,6 +148,6 @@ pub const ProcessAssetsStep = struct {
 
         recursor(allocator, root_directory, recurse, &list);
 
-        return list.toOwnedSlice();
+        return list.toOwnedSlice() catch unreachable;
     }
 };
