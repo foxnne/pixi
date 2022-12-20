@@ -29,7 +29,20 @@ pub fn deinit() void {
     if (zguiGetCurrentContext() != null) {
         temp_buffer.?.deinit();
         zguiDestroyContext(null);
-        zguiSetAllocatorFunctions(null, null);
+
+        if (mem_allocations.?.count() > 0) {
+            var it = mem_allocations.?.iterator();
+            while (it.next()) |kv| {
+                const address = kv.key_ptr.*;
+                const size = kv.value_ptr.*;
+                mem_allocator.?.free(@intToPtr([*]align(mem_alignment) u8, address)[0..size]);
+                std.log.info(
+                    "[zgui] Possible memory leak or static memory usage detected: (address: 0x{x}, size: {d})",
+                    .{ address, size },
+                );
+            }
+            mem_allocations.?.clearAndFree();
+        }
 
         assert(mem_allocations.?.count() == 0);
         mem_allocations.?.deinit();
@@ -66,9 +79,11 @@ export fn zguiMemFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.C) void 
         mem_mutex.lock();
         defer mem_mutex.unlock();
 
-        const size = mem_allocations.?.fetchRemove(@ptrToInt(ptr)).?.value;
-        const mem = @ptrCast([*]align(mem_alignment) u8, @alignCast(mem_alignment, ptr))[0..size];
-        mem_allocator.?.free(mem);
+        if (mem_allocations != null) {
+            const size = mem_allocations.?.fetchRemove(@ptrToInt(ptr)).?.value;
+            const mem = @ptrCast([*]align(mem_alignment) u8, @alignCast(mem_alignment, ptr))[0..size];
+            mem_allocator.?.free(mem);
+        }
     }
 }
 
@@ -137,6 +152,27 @@ pub const io = struct {
         ranges: ?[*]const Wchar,
     ) Font;
 
+    pub fn addFontFromMemory(fontdata: []const u8, size_pixels: f32) Font {
+        return zguiIoAddFontFromMemory(fontdata.ptr, @intCast(i32, fontdata.len), size_pixels);
+    }
+    extern fn zguiIoAddFontFromMemory(font_data: *const anyopaque, font_size: i32, size_pixels: f32) Font;
+
+    pub fn addFontFromMemoryWithConfig(
+        fontdata: []const u8,
+        size_pixels: f32,
+        config: ?FontConfig,
+        ranges: ?[*]const Wchar,
+    ) Font {
+        return zguiIoAddFontFromMemoryWithConfig(fontdata.ptr, @intCast(i32, fontdata.len), size_pixels, if (config) |c| &c else null, ranges);
+    }
+    extern fn zguiIoAddFontFromMemoryWithConfig(
+        font_data: *const anyopaque,
+        font_size: i32,
+        size_pixels: f32,
+        config: ?*const FontConfig,
+        ranges: ?[*]const Wchar,
+    ) Font;
+
     /// `pub fn getFont(index: u32) Font`
     pub const getFont = zguiIoGetFont;
     extern fn zguiIoGetFont(index: u32) Font;
@@ -164,10 +200,10 @@ pub const io = struct {
     pub const getWantCaptureKeyboard = zguiIoGetWantCaptureKeyboard;
     extern fn zguiIoGetWantCaptureKeyboard() bool;
 
-    pub fn setIniFilename(filename: [:0]const u8) void {
+    pub fn setIniFilename(filename: ?[*:0]const u8) void {
         zguiIoSetIniFilename(filename);
     }
-    extern fn zguiIoSetIniFilename(filename: [*:0]const u8) void;
+    extern fn zguiIoSetIniFilename(filename: ?[*:0]const u8) void;
 
     /// `pub fn setDisplaySize(width: f32, height: f32) void`
     pub const setDisplaySize = zguiIoSetDisplaySize;
@@ -188,8 +224,7 @@ pub const io = struct {
     pub const setConfigFlags = zguiIoSetConfigFlags;
     extern fn zguiIoSetConfigFlags(flags: ConfigFlags) void;
 
-    /// set the frame for this frame
-    /// `pub fnsetDeltaTime(delta_time: f32) void`
+    /// `pub fn setDeltaTime(delta_time: f32) void`
     pub const setDeltaTime = zguiIoSetDeltaTime;
     extern fn zguiIoSetDeltaTime(delta_time: f32) void;
 
@@ -231,9 +266,8 @@ pub const Ident = u32;
 pub const TextureIdent = *anyopaque;
 pub const Wchar = u16;
 pub const Key = enum(u32) {
-    // keyboard
     none = 0,
-    tab = 512, // == imguikey_namedkey_begin
+    tab = 512,
     left_arrow,
     right_arrow,
     up_arrow,
@@ -341,70 +375,43 @@ pub const Key = enum(u32) {
 
     gamepad_start,
     gamepad_back,
-    gamepad_faceup,
-    gamepad_facedown,
     gamepad_faceleft,
     gamepad_faceright,
-    gamepad_dpadup,
-    gamepad_dpaddown,
+    gamepad_faceup,
+    gamepad_facedown,
     gamepad_dpadleft,
     gamepad_dpadright,
+    gamepad_dpadup,
+    gamepad_dpaddown,
     gamepad_l1,
     gamepad_r1,
     gamepad_l2,
     gamepad_r2,
     gamepad_l3,
     gamepad_r3,
-    gamepad_lstickup,
-    gamepad_lstickdown,
     gamepad_lstickleft,
     gamepad_lstickright,
-    gamepad_rstickup,
-    gamepad_rstickdown,
+    gamepad_lstickup,
+    gamepad_lstickdown,
     gamepad_rstickleft,
     gamepad_rstickright,
+    gamepad_rstickup,
+    gamepad_rstickdown,
 
-    mod_ctrl,
-    mod_shift,
-    mod_alt,
-    mod_super,
+    mouse_left,
+    mouse_right,
+    mouse_middle,
+    mouse_x1,
+    mouse_x2,
 
-    pub const named_key_begin = 512;
-    pub const named_key_end = std.enums.directEnumArrayLen(@This(), named_key_begin);
-    pub const named_key_count = named_key_end - named_key_begin;
-    pub const keys_data_size = named_key_count;
-    pub const keys_data_offset = named_key_begin;
-};
+    mouse_wheel_x,
+    mouse_wheel_y,
 
-const KeyModifiers = packed struct {
-    ctrl: bool = false,
-    shift: bool = false,
-    alt: bool = false,
-    super: bool = false,
-};
-
-const NavInput = enum {
-    activate,
-    cancel,
-    input,
-    menu,
-    dpad_left,
-    dpad_right,
-    dpad_up,
-    dpad_down,
-    lstick_left,
-    lstick_right,
-    lsick_up,
-    lstick_down,
-    focus_prev,
-    focus_next,
-    tweak_slow,
-    tweak_fast,
-
-    key_left,
-    key_right,
-    key_up,
-    key_down,
+    pub const mod_ctrl: u32 = 1 << 12;
+    pub const mod_shift: u32 = 1 << 13;
+    pub const mod_alt: u32 = 1 << 14;
+    pub const mod_super: u32 = 1 << 15;
+    pub const mod_mask_: u32 = 0xf000;
 };
 //--------------------------------------------------------------------------------------------------
 pub const WindowFlags = packed struct(u32) {
@@ -1261,29 +1268,28 @@ const ImageButton = struct {
     h: f32,
     uv0: [2]f32 = .{ 0.0, 0.0 },
     uv1: [2]f32 = .{ 1.0, 1.0 },
-    frame_padding: i32 = -1,
     bg_col: [4]f32 = .{ 0.0, 0.0, 0.0, 0.0 },
     tint_col: [4]f32 = .{ 1.0, 1.0, 1.0, 1.0 },
 };
-pub fn imageButton(user_texture_id: TextureIdent, args: ImageButton) bool {
+pub fn imageButton(str_id: [:0]const u8, user_texture_id: TextureIdent, args: ImageButton) bool {
     return zguiImageButton(
+        str_id,
         user_texture_id,
         args.w,
         args.h,
         &args.uv0,
         &args.uv1,
-        args.frame_padding,
         &args.bg_col,
         &args.tint_col,
     );
 }
 extern fn zguiImageButton(
+    str_id: [*:0]const u8,
     user_texture_id: TextureIdent,
     w: f32,
     h: f32,
     uv0: *const [2]f32,
     uv1: *const [2]f32,
-    frame_padding: i32,
     bg_col: *const [4]f32,
     tint_col: *const [4]f32,
 ) bool;
@@ -2616,6 +2622,239 @@ extern fn zguiBeginListBox(label: [*:0]const u8, w: f32, h: f32) bool;
 extern fn zguiEndListBox() void;
 //--------------------------------------------------------------------------------------------------
 //
+// Widgets: Tables
+//
+//--------------------------------------------------------------------------------------------------
+pub const TableBorderFlags = packed struct(u4) {
+    inner_h: bool = false,
+    outer_h: bool = false,
+    inner_v: bool = false,
+    outer_v: bool = false,
+
+    pub const h = TableBorderFlags{
+        .inner_h = true,
+        .outer_h = true,
+    }; // Draw horizontal borders.
+    pub const v = TableBorderFlags{
+        .inner_v = true,
+        .outer_v = true,
+    }; // Draw vertical borders.
+    pub const inner = TableBorderFlags{
+        .inner_v = true,
+        .inner_h = true,
+    }; // Draw inner borders.
+    pub const outer = TableBorderFlags{
+        .outer_v = true,
+        .outer_h = true,
+    }; // Draw outer borders.
+    pub const all = TableBorderFlags{
+        .inner_v = true,
+        .inner_h = true,
+        .outer_v = true,
+        .outer_h = true,
+    }; // Draw all borders.
+};
+pub const TableFlags = packed struct(u32) {
+    resizable: bool = false,
+    reorderable: bool = false,
+    hideable: bool = false,
+    sortable: bool = false,
+    no_saved_settings: bool = false,
+    context_menu_in_body: bool = false,
+    row_bg: bool = false,
+    borders: TableBorderFlags = .{},
+    no_borders_in_body: bool = false,
+    no_borders_in_body_until_resize: bool = false,
+
+    // Sizing Policy
+    sizing: enum(u3) {
+        none = 0,
+        fixed_fit = 1,
+        fixed_same = 2,
+        stretch_prop = 3,
+        stretch_same = 4,
+    } = .none,
+
+    // Sizing Extra Options
+    no_host_extend_x: bool = false,
+    no_host_extend_y: bool = false,
+    no_keep_columns_visible: bool = false,
+    precise_widths: bool = false,
+
+    // Clipping
+    no_clip: bool = false,
+
+    // Padding
+    pad_outer_x: bool = false,
+    no_pad_outer_x: bool = false,
+    no_pad_inner_x: bool = false,
+
+    // Scrolling
+    scroll_x: bool = false,
+    scroll_y: bool = false,
+
+    // Sorting
+    sort_multi: bool = false,
+    sort_tristate: bool = false,
+
+    _padding: u4 = 0,
+};
+
+pub const TableRowFlags = packed struct(u32) {
+    headers: bool = false,
+
+    _padding: u31 = 0,
+};
+
+pub const TableColumnFlags = packed struct(u32) {
+    // Input configuration flags
+    disabled: bool = false,
+    default_hide: bool = false,
+    default_sort: bool = false,
+    width_stretch: bool = false,
+    width_fixed: bool = false,
+    no_resize: bool = false,
+    no_reorder: bool = false,
+    no_hide: bool = false,
+    no_clip: bool = false,
+    no_sort: bool = false,
+    no_sort_ascending: bool = false,
+    no_sort_descending: bool = false,
+    no_header_label: bool = false,
+    no_header_width: bool = false,
+    prefer_sort_ascending: bool = false,
+    prefer_sort_descending: bool = false,
+    indent_enable: bool = false,
+    indent_disable: bool = false,
+
+    _padding0: u6 = 0,
+
+    // Output status flags, read-only via TableGetColumnFlags()
+    is_enabled: bool = false,
+    is_visible: bool = false,
+    is_sorted: bool = false,
+    is_hovered: bool = false,
+
+    _padding1: u4 = 0,
+};
+
+pub const TableColumnSortSpecs = extern struct {
+    user_id: Ident,
+    index: i16,
+    sort_order: i16,
+    sort_direction: enum(u8) {
+        none = 0,
+        ascending = 1, // Ascending = 0->9, A->Z etc.
+        descending = 2, // Descending = 9->0, Z->A etc.
+    },
+};
+
+pub const TableSortSpecs = *extern struct {
+    specs: [*]TableColumnSortSpecs,
+    count: i32,
+    dirty: bool,
+};
+
+pub const TableBgTarget = enum(u32) {
+    none = 0,
+    row_bg0 = 1,
+    row_bg1 = 2,
+    cell_bg = 3,
+};
+
+pub const BeginTable = struct {
+    flags: TableFlags = .{},
+    outer_size: [2]f32 = .{ 0, 0 },
+    inner_width: f32 = 0,
+};
+pub fn beginTable(name: [:0]const u8, args: BeginTable) void {
+    zguiBeginTable(name, args.flags, args.outer_size, args.inner_width);
+}
+extern fn zguiBeginTable(str_id: [*:0]const u8, column: i32, flags: TableFlags, outer_size: [2]f32, inner_width: f32) void;
+
+pub fn endTable() void {
+    zguiEndTable();
+}
+extern fn zguiEndTable() void;
+
+pub const TableNextRow = struct {
+    row_flags: TableRowFlags = .{},
+    min_row_height: f32 = 0,
+};
+pub fn tableNextRow(args: TableNextRow) void {
+    zguiTableNextRow(args.row_flags, args.min_row_height);
+}
+extern fn zguiTableNextRow(row_flags: TableRowFlags, min_row_height: f32) void;
+
+pub const tableNextColumn = zguiTableNextColumn;
+extern fn zguiTableNextColumn() bool;
+
+pub const tableSetColumnIndex = zguiTableSetColumnIndex;
+extern fn zguiTableSetColumnIndex(column_n: i32) bool;
+
+pub const TableSetupColumn = struct {
+    flags: TableColumnFlags = .{},
+    init_width_or_height: f32 = 0,
+    user_id: Ident = 0,
+};
+pub fn tableSetupColumn(label: [:0]const u8, args: TableSetupColumn) void {
+    zguiTableSetupColumn(label, args.flags, args.init_width_or_height, args.user_id);
+}
+extern fn zguiTableSetupColumn(label: [*:0]const u8, flags: TableColumnFlags, init_width_or_height: f32, user_id: Ident) void;
+
+pub const tableSetupScrollFreeze = zguiTableSetupScrollFreeze;
+extern fn zguiTableSetupScrollFreeze(cols: i32, rows: i32) void;
+
+pub const tableHeadersRow = zguiTableHeadersRow;
+extern fn zguiTableHeadersRow() void;
+
+pub fn tableHeader(label: [:0]const u8) void {
+    zguiTableHeader(label);
+}
+extern fn zguiTableHeader(label: [*:0]const u8) void;
+
+pub const tableGetSortSpecs = zguiTableGetSortSpecs;
+extern fn zguiTableGetSortSpecs() ?TableSortSpecs;
+
+pub const tableGetColumnCount = zguiTableGetColumnCount;
+extern fn zguiTableGetColumnCount() i32;
+
+pub const tableGetColumnIndex = zguiTableGetColumnIndex;
+extern fn zguiTableGetColumnIndex() i32;
+
+pub const tableGetRowIndex = zguiTableGetRowIndex;
+extern fn zguiTableGetRowIndex() i32;
+
+pub const TableGetColumnName = struct {
+    column_n: i32 = -1,
+};
+pub fn tableGetColumnName(args: TableGetColumnName) [*:0]const u8 {
+    return zguiTableGetColumnName(args.column_n);
+}
+extern fn zguiTableGetColumnName(column_n: i32) [*:0]const u8;
+
+pub const TableGetColumnFlags = struct {
+    column_n: i32 = -1,
+};
+pub fn tableGetColumnFlags(args: TableGetColumnFlags) TableColumnFlags {
+    return zguiTableGetColumnFlags(args.column_n);
+}
+extern fn zguiTableGetColumnFlags(column_n: i32) TableColumnFlags;
+
+pub const tableSetColumnEnabled = zguiTableSetColumnEnabled;
+extern fn zguiTableSetColumnEnabled(column_n: i32, v: bool) void;
+
+pub const TableSetBgColor = struct {
+    target: TableBgTarget,
+    color: u32,
+    column_n: i32 = -1,
+};
+pub fn tableSetBgColor(args: TableSetBgColor) void {
+    zguiTableSetBgColor(args.target, args.color, args.column_n);
+}
+extern fn zguiTableSetBgColor(target: TableBgTarget, color: u32, column_n: i32) void;
+//--------------------------------------------------------------------------------------------------
+//
 // Item/Widgets Utilities and Query Functions
 //
 //--------------------------------------------------------------------------------------------------
@@ -2664,6 +2903,45 @@ extern fn zguiIsItemToggledOpen() bool;
 extern fn zguiIsAnyItemHovered() bool;
 extern fn zguiIsAnyItemActive() bool;
 extern fn zguiIsAnyItemFocused() bool;
+//--------------------------------------------------------------------------------------------------
+//
+// Color Utilities
+//
+//--------------------------------------------------------------------------------------------------
+pub fn colorConvertU32ToFloat4(in: u32) [4]f32 {
+    var rgba: [4]f32 = undefined;
+    zguiColorConvertU32ToFloat4(in, &rgba);
+    return rgba;
+}
+
+pub fn colorConvertU32ToFloat3(in: u32) [3]f32 {
+    var rgba: [4]f32 = undefined;
+    zguiColorConvertU32ToFloat4(in, &rgba);
+    return .{ rgba[0], rgba[1], rgba[2] };
+}
+
+pub fn colorConvertFloat4ToU32(in: [4]f32) u32 {
+    return zguiColorConvertFloat4ToU32(&in);
+}
+
+pub fn colorConvertFloat3ToU32(in: [3]f32) u32 {
+    return colorConvertFloat4ToU32(.{ in[0], in[1], in[2], 1 });
+}
+
+pub fn colorConvertRgbToHsv(r: f32, g: f32, b: f32) [3]f32 {
+    var hsv: [3]f32 = undefined;
+    return zguiColorConvertRGBtoHSV(r, g, b, &hsv[0], &hsv[1], &hsv[2]);
+}
+
+pub fn colorConvertHsvToRgb(h: f32, s: f32, v: f32) [3]f32 {
+    var rgb: [3]f32 = undefined;
+    return zguiColorConvertHSVtoRGB(h, s, v, &rgb[0], &rgb[1], &rgb[2]);
+}
+
+extern fn zguiColorConvertU32ToFloat4(in: u32, rgba: *[4]f32) void;
+extern fn zguiColorConvertFloat4ToU32(in: *const [4]f32) u32;
+extern fn zguiColorConvertRGBtoHSV(r: f32, g: f32, b: f32, out_h: *f32, out_s: *f32, out_v: *f32) void;
+extern fn zguiColorConvertHSVtoRGB(h: f32, s: f32, v: f32, out_r: *f32, out_g: *f32, out_b: *f32) void;
 //--------------------------------------------------------------------------------------------------
 //
 // Helpers

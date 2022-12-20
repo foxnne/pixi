@@ -147,10 +147,7 @@ pub fn main() !void {
     const settings: Settings = .{};
 
     // Create window
-    zglfw.Window.Hint.reset();
-    zglfw.Window.Hint.set(.cocoa_retina_framebuffer, 1);
-    zglfw.Window.Hint.set(.client_api, 0);
-    const window = try zglfw.Window.create(settings.initial_window_width, settings.initial_window_height, name, null, null);
+    const window = try zglfw.Window.create(settings.initial_window_width, settings.initial_window_height, name, null);
     defer window.destroy();
     window.setSizeLimits(400, 400, -1, -1);
 
