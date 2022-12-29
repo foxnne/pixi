@@ -52,19 +52,22 @@ pub fn build(b: *Builder) !void {
     const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
     const zgpu_pkg = zgpu.getPkg(&.{ zpool.pkg, zglfw.pkg });
 
+    const zgui_options = zgui.BuildOptionsStep.init(b, .{ .backend = .glfw_wgpu });
+    const zgui_pkg = zgui.getPkg(&.{zgui_options.getPkg()});
+
     const tests = b.step("test", "Run all tests");
     const pixi_tests = b.addTest(pixi_pkg.source.path);
     pixi_tests.addPackage(pixi_pkg);
     pixi_tests.addPackage(zgpu_pkg);
     pixi_tests.addPackage(zglfw.pkg);
-    pixi_tests.addPackage(zgui.pkg);
+    pixi_tests.addPackage(zgui_pkg);
     pixi_tests.addPackage(zstbi.pkg);
     pixi_tests.addPackage(zmath.pkg);
 
     zgpu.link(pixi_tests, zgpu_options);
     zglfw.link(pixi_tests);
     zstbi.link(pixi_tests);
-    zgui.link(pixi_tests);
+    zgui.link(pixi_tests, zgui_options);
     tests.dependOn(&pixi_tests.step);
 
     const assets = ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");
@@ -95,6 +98,9 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
     const zgpu_pkg = zgpu.getPkg(&.{ zgpu_options.getPkg(), zpool.pkg, zglfw.pkg });
 
+    const zgui_options = zgui.BuildOptionsStep.init(b, .{ .backend = .glfw_wgpu });
+    const zgui_pkg = zgui.getPkg(&.{zgui_options.getPkg()});
+
     exe.install();
 
     const run_cmd = exe.run();
@@ -104,7 +110,7 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     exe.addPackage(pixi_pkg);
     exe.addPackage(zgpu_pkg);
     exe.addPackage(zglfw.pkg);
-    exe.addPackage(zgui.pkg);
+    exe.addPackage(zgui_pkg);
     exe.addPackage(zstbi.pkg);
     exe.addPackage(zmath.pkg);
     exe.addPackage(nfd.getPackage("nfd"));
@@ -115,7 +121,7 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     zgpu.link(exe, zgpu_options);
     zglfw.link(exe);
     zstbi.link(exe);
-    zgui.link(exe);
+    zgui.link(exe, zgui_options);
     exe.linkLibrary(nfd_lib);
     zip.link(exe);
 

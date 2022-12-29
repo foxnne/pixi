@@ -35,13 +35,11 @@ pub fn set(self: @This()) void {
     var style = zgui.getStyle();
     style.scaleAllSizes(std.math.max(pixi.state.window.scale[0], pixi.state.window.scale[1]));
     style.window_border_size = 1.0;
-    if (builtin.os.tag != .windows) {
-        style.window_rounding = 8.0;
-        style.popup_rounding = 8.0;
-        style.tab_rounding = 8.0;
-        style.frame_rounding = 8.0;
-        style.grab_rounding = 4.0;
-    }
+    style.window_rounding = 8.0;
+    style.popup_rounding = 8.0;
+    style.tab_rounding = 8.0;
+    style.frame_rounding = 8.0;
+    style.grab_rounding = 4.0;
     style.frame_padding = .{ 12.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] };
     style.window_padding = .{ 5.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] };
     style.item_spacing = .{ 7.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] };
