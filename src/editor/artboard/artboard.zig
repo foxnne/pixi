@@ -59,6 +59,8 @@ pub fn draw() void {
                 })) {
                     defer zgui.endTabBar();
 
+                    var hovered: bool = false;
+
                     for (pixi.state.open_files.items) |file, i| {
                         var open: bool = true;
 
@@ -82,6 +84,7 @@ pub fn draw() void {
                             pixi.editor.setActiveFile(i);
                         }
                         if (zgui.isItemHovered(.{})) {
+                            hovered = true;
                             path_hover_timer += pixi.state.gctx.stats.delta_time;
 
                             if (path_hover_timer >= 1.0) {
@@ -91,14 +94,14 @@ pub fn draw() void {
                                 defer zgui.endTooltip();
                                 zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
                             }
-                        } else {
-                            path_hover_timer = 0.0;
                         }
 
                         if (!open) {
                             pixi.editor.closeFile(i) catch unreachable;
                         }
                     }
+
+                    if (!hovered) path_hover_timer = 0.0;
 
                     // Add ruler child windows to build layout, but wait to draw to them until camera has been updated.
                     if (pixi.state.settings.show_rulers) {

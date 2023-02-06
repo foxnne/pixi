@@ -20,6 +20,9 @@ pub fn draw() void {
 
                 if (zgui.beginChild("OpenFiles", .{ .h = @intToFloat(f32, std.math.min(file_count + 1, 6)) * (zgui.getTextLineHeight() + 6.0 * pixi.state.window.scale[0]) })) {
                     zgui.spacing();
+
+                    var hovered: bool = false;
+
                     for (pixi.state.open_files.items) |file, i| {
                         zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
                         zgui.sameLine(.{});
@@ -29,6 +32,7 @@ pub fn draw() void {
                             pixi.editor.setActiveFile(i);
                         }
                         if (zgui.isItemHovered(.{})) {
+                            hovered = true;
                             hover_timer += pixi.state.gctx.stats.delta_time;
 
                             if (hover_timer >= 1.0) {
@@ -36,10 +40,10 @@ pub fn draw() void {
                                 defer zgui.endTooltip();
                                 zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
                             }
-                        } else {
-                            hover_timer = 0.0;
                         }
                     }
+
+                    if (!hovered) hover_timer = 0.0;
                 }
                 defer zgui.endChild();
             }
