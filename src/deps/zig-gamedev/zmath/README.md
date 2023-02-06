@@ -1,4 +1,4 @@
-# zmath v0.9.4 - SIMD math library for game developers
+# zmath v0.9.5 - SIMD math library for game developers
 
 Tested on x86_64 and AArch64.
 
@@ -22,7 +22,7 @@ Then in your `build.zig` add:
 const std = @import("std");
 const zmath = @import("libs/zmath/build.zig");
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.Build) void {
     ...
     exe.addPackage(zmath.pkg);
 }

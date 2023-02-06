@@ -1,4 +1,4 @@
-pub const version = @import("std").SemanticVersion{ .major = 0, .minor = 9, .patch = 1 };
+pub const version = @import("std").SemanticVersion{ .major = 0, .minor = 9, .patch = 2 };
 const std = @import("std");
 const assert = std.debug.assert;
 
@@ -7,9 +7,17 @@ pub fn init(allocator: std.mem.Allocator) void {
     mem_allocator = allocator;
     mem_allocations = std.AutoHashMap(usize, usize).init(allocator);
 
+    // stb image
     zstbiMallocPtr = zstbiMalloc;
     zstbiReallocPtr = zstbiRealloc;
     zstbiFreePtr = zstbiFree;
+    // stb image resize
+    zstbirMallocPtr = zstbirMalloc;
+    zstbirFreePtr = zstbirFree;
+    // stb image write
+    zstbiwMallocPtr = zstbiMalloc;
+    zstbiwReallocPtr = zstbiRealloc;
+    zstbiwFreePtr = zstbiFree;
 }
 
 pub fn deinit() void {
@@ -20,6 +28,19 @@ pub fn deinit() void {
     mem_allocator = null;
 }
 
+pub const JpgWriteSettings = struct {
+    quality: u32,
+};
+
+pub const ImageWriteFormat = union(enum) {
+    png,
+    jpg: JpgWriteSettings,
+};
+
+pub const ImageWriteError = error{
+    CouldNotWriteImage,
+};
+
 pub const Image = struct {
     data: []u8,
     width: u32,
@@ -29,7 +50,7 @@ pub const Image = struct {
     bytes_per_row: u32,
     is_hdr: bool,
 
-    pub fn info(filename: [:0]const u8) struct {
+    pub fn info(pathname: [:0]const u8) struct {
         is_supported: bool,
         width: u32,
         height: u32,
@@ -38,7 +59,7 @@ pub const Image = struct {
         var w: c_int = 0;
         var h: c_int = 0;
         var c: c_int = 0;
-        const is_supported = stbi_info(filename, &w, &h, &c);
+        const is_supported = stbi_info(pathname, &w, &h, &c);
         return .{
             .is_supported = is_supported,
             .width = @intCast(u32, w),
@@ -47,7 +68,7 @@ pub const Image = struct {
         };
     }
 
-    pub fn init(filename: [:0]const u8, forced_num_channels: u32) !Image {
+    pub fn init(pathname: [:0]const u8, forced_num_channels: u32) !Image {
         var width: u32 = 0;
         var height: u32 = 0;
         var num_components: u32 = 0;
@@ -55,12 +76,12 @@ pub const Image = struct {
         var bytes_per_row: u32 = 0;
         var is_hdr = false;
 
-        const data = if (isHdr(filename)) data: {
+        const data = if (isHdr(pathname)) data: {
             var x: c_int = undefined;
             var y: c_int = undefined;
             var ch: c_int = undefined;
             const ptr = stbi_loadf(
-                filename,
+                pathname,
                 &x,
                 &y,
                 &ch,
@@ -87,15 +108,15 @@ pub const Image = struct {
             var x: c_int = undefined;
             var y: c_int = undefined;
             var ch: c_int = undefined;
-            const is_16bit = is16bit(filename);
+            const is_16bit = is16bit(pathname);
             const ptr = if (is_16bit) @ptrCast(?[*]u8, stbi_load_16(
-                filename,
+                pathname,
                 &x,
                 &y,
                 &ch,
                 @intCast(c_int, forced_num_channels),
             )) else stbi_load(
-                filename,
+                pathname,
                 &x,
                 &y,
                 &ch,
@@ -166,6 +187,58 @@ pub const Image = struct {
         };
     }
 
+    pub fn resize(image: *const Image, new_width: u32, new_height: u32) Image {
+        // TODO: Add support for HDR images
+        const new_bytes_per_row = new_width * image.num_components * image.bytes_per_component;
+        const new_size = new_height * new_bytes_per_row;
+        const new_data = @ptrCast([*]u8, zstbiMalloc(new_size));
+        stbir_resize_uint8(
+            image.data.ptr,
+            @intCast(c_int, image.width),
+            @intCast(c_int, image.height),
+            0,
+            new_data,
+            @intCast(c_int, new_width),
+            @intCast(c_int, new_height),
+            0,
+            @intCast(c_int, image.num_components),
+        );
+        return .{
+            .data = new_data[0..new_size],
+            .width = new_width,
+            .height = new_height,
+            .num_components = image.num_components,
+            .bytes_per_component = image.bytes_per_component,
+            .bytes_per_row = new_bytes_per_row,
+            .is_hdr = image.is_hdr,
+        };
+    }
+
+    pub fn writeToFile(
+        self: *const Image,
+        filename: [:0]const u8,
+        image_format: ImageWriteFormat,
+    ) ImageWriteError!void {
+        const w = @intCast(c_int, self.width);
+        const h = @intCast(c_int, self.height);
+        const comp = @intCast(c_int, self.num_components);
+        const result = switch (image_format) {
+            .png => stbi_write_png(filename.ptr, w, h, comp, self.data.ptr, 0),
+            .jpg => |settings| stbi_write_jpg(
+                filename.ptr,
+                w,
+                h,
+                comp,
+                self.data.ptr,
+                @intCast(c_int, settings.quality),
+            ),
+        };
+        // if the result is 0 then it means an error occured (per stb image write docs)
+        if (result == 0) {
+            return ImageWriteError.CouldNotWriteImage;
+        }
+    }
+
     pub fn deinit(image: *Image) void {
         stbi_image_free(image.data.ptr);
         image.* = undefined;
@@ -185,11 +258,11 @@ pub const setLdrToHdrScale = stbi_ldr_to_hdr_scale;
 pub const setLdrToHdrGamma = stbi_ldr_to_hdr_gamma;
 
 pub fn isHdr(filename: [:0]const u8) bool {
-    return stbi_is_hdr(filename) == 1;
+    return stbi_is_hdr(filename) != 0;
 }
 
 pub fn is16bit(filename: [:0]const u8) bool {
-    return stbi_is_16_bit(filename) == 1;
+    return stbi_is_16_bit(filename) != 0;
 }
 
 pub fn setFlipVerticallyOnLoad(should_flip: bool) void {
@@ -202,6 +275,7 @@ var mem_mutex: std.Thread.Mutex = .{};
 const mem_alignment = 16;
 
 extern var zstbiMallocPtr: ?*const fn (size: usize) callconv(.C) ?*anyopaque;
+extern var zstbiwMallocPtr: ?*const fn (size: usize) callconv(.C) ?*anyopaque;
 
 fn zstbiMalloc(size: usize) callconv(.C) ?*anyopaque {
     mem_mutex.lock();
@@ -219,6 +293,7 @@ fn zstbiMalloc(size: usize) callconv(.C) ?*anyopaque {
 }
 
 extern var zstbiReallocPtr: ?*const fn (ptr: ?*anyopaque, size: usize) callconv(.C) ?*anyopaque;
+extern var zstbiwReallocPtr: ?*const fn (ptr: ?*anyopaque, size: usize) callconv(.C) ?*anyopaque;
 
 fn zstbiRealloc(ptr: ?*anyopaque, size: usize) callconv(.C) ?*anyopaque {
     mem_mutex.lock();
@@ -243,6 +318,7 @@ fn zstbiRealloc(ptr: ?*anyopaque, size: usize) callconv(.C) ?*anyopaque {
 }
 
 extern var zstbiFreePtr: ?*const fn (maybe_ptr: ?*anyopaque) callconv(.C) void;
+extern var zstbiwFreePtr: ?*const fn (maybe_ptr: ?*anyopaque) callconv(.C) void;
 
 fn zstbiFree(maybe_ptr: ?*anyopaque) callconv(.C) void {
     if (maybe_ptr) |ptr| {
@@ -253,6 +329,18 @@ fn zstbiFree(maybe_ptr: ?*anyopaque) callconv(.C) void {
         const mem = @ptrCast([*]align(mem_alignment) u8, @alignCast(mem_alignment, ptr))[0..size];
         mem_allocator.?.free(mem);
     }
+}
+
+extern var zstbirMallocPtr: ?*const fn (size: usize, maybe_context: ?*anyopaque) callconv(.C) ?*anyopaque;
+
+fn zstbirMalloc(size: usize, _: ?*anyopaque) callconv(.C) ?*anyopaque {
+    return zstbiMalloc(size);
+}
+
+extern var zstbirFreePtr: ?*const fn (maybe_ptr: ?*anyopaque, maybe_context: ?*anyopaque) callconv(.C) void;
+
+fn zstbirFree(maybe_ptr: ?*anyopaque, _: ?*anyopaque) callconv(.C) void {
+    zstbiFree(maybe_ptr);
 }
 
 extern fn stbi_info(filename: [*:0]const u8, x: *c_int, y: *c_int, comp: *c_int) c_int;
@@ -301,6 +389,35 @@ extern fn stbi_is_16_bit(filename: [*:0]const u8) c_int;
 extern fn stbi_is_hdr(filename: [*:0]const u8) c_int;
 
 extern fn stbi_set_flip_vertically_on_load(flag_true_if_should_flip: c_int) void;
+
+extern fn stbir_resize_uint8(
+    input_pixels: [*]const u8,
+    input_w: c_int,
+    input_h: c_int,
+    input_stride_in_bytes: c_int,
+    output_pixels: [*]u8,
+    output_w: c_int,
+    output_h: c_int,
+    output_stride_in_bytes: c_int,
+    num_channels: c_int,
+) void;
+
+extern fn stbi_write_jpg(
+    filename: [*:0]const u8,
+    w: c_int,
+    h: c_int,
+    comp: c_int,
+    data: [*]const u8,
+    quality: c_int,
+) c_int;
+extern fn stbi_write_png(
+    filename: [*:0]const u8,
+    w: c_int,
+    h: c_int,
+    comp: c_int,
+    data: [*]const u8,
+    stride_in_bytes: c_int,
+) c_int;
 
 test "zstbi.basic" {
     init(std.testing.allocator);

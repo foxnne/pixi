@@ -1,4 +1,4 @@
-# zglfw v0.5.0 - GLFW bindings
+# zglfw v0.5.2 - GLFW bindings
 
 ## Getting started
 
@@ -8,7 +8,7 @@ Then in your `build.zig` add:
 ```zig
 const zglfw = @import("libs/zglfw/build.zig");
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.Build) void {
     ...
     exe.addPackage(zglfw.pkg);
 

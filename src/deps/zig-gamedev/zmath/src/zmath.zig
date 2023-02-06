@@ -1,4 +1,3 @@
-pub const version = @import("std").SemanticVersion{ .major = 0, .minor = 9, .patch = 4 };
 // ==============================================================================
 //
 // SIMD math library for game developers
@@ -178,11 +177,16 @@ pub const version = @import("std").SemanticVersion{ .major = 0, .minor = 9, .pat
 // lookAtRh(eyepos: Vec, focuspos: Vec, updir: Vec) Mat
 // perspectiveFovLh(fovy: f32, aspect: f32, near: f32, far: f32) Mat
 // perspectiveFovRh(fovy: f32, aspect: f32, near: f32, far: f32) Mat
+// perspectiveFovLhGl(fovy: f32, aspect: f32, near: f32, far: f32) Mat
 // perspectiveFovRhGl(fovy: f32, aspect: f32, near: f32, far: f32) Mat
 // orthographicLh(w: f32, h: f32, near: f32, far: f32) Mat
 // orthographicRh(w: f32, h: f32, near: f32, far: f32) Mat
+// orthographicLhGl(w: f32, h: f32, near: f32, far: f32) Mat
+// orthographicRhGl(w: f32, h: f32, near: f32, far: f32) Mat
 // orthographicOffCenterLh(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) Mat
 // orthographicOffCenterRh(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) Mat
+// orthographicOffCenterLhGl(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) Mat
+// orthographicOffCenterRhGl(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) Mat
 // determinant(m: Mat) F32x4
 // inverse(m: Mat) Mat
 // inverseDet(m: Mat, det: ?*F32x4) Mat
@@ -2243,6 +2247,26 @@ pub fn perspectiveFovRh(fovy: f32, aspect: f32, near: f32, far: f32) Mat {
 }
 
 // Produces Z values in [-1.0, 1.0] range (OpenGL defaults)
+pub fn perspectiveFovLhGl(fovy: f32, aspect: f32, near: f32, far: f32) Mat {
+    const scfov = sincos(0.5 * fovy);
+
+    assert(near > 0.0 and far > 0.0 and far > near);
+    assert(!math.approxEqAbs(f32, scfov[0], 0.0, 0.001));
+    assert(!math.approxEqAbs(f32, far, near, 0.001));
+    assert(!math.approxEqAbs(f32, aspect, 0.0, 0.01));
+
+    const h = scfov[1] / scfov[0];
+    const w = h / aspect;
+    const r = far - near;
+    return .{
+        f32x4(w, 0.0, 0.0, 0.0),
+        f32x4(0.0, h, 0.0, 0.0),
+        f32x4(0.0, 0.0, (near + far) / r, 1.0),
+        f32x4(0.0, 0.0, 2.0 * near * far / -r, 0.0),
+    };
+}
+
+// Produces Z values in [-1.0, 1.0] range (OpenGL defaults)
 pub fn perspectiveFovRhGl(fovy: f32, aspect: f32, near: f32, far: f32) Mat {
     const scfov = sincos(0.5 * fovy);
 
@@ -2290,29 +2314,83 @@ pub fn orthographicRh(w: f32, h: f32, near: f32, far: f32) Mat {
     };
 }
 
+// Produces Z values in [-1.0, 1.0] range (OpenGL defaults)
+pub fn orthographicLhGl(w: f32, h: f32, near: f32, far: f32) Mat {
+    assert(!math.approxEqAbs(f32, w, 0.0, 0.001));
+    assert(!math.approxEqAbs(f32, h, 0.0, 0.001));
+    assert(!math.approxEqAbs(f32, far, near, 0.001));
+
+    const r = far - near;
+    return .{
+        f32x4(2 / w, 0.0, 0.0, 0.0),
+        f32x4(0.0, 2 / h, 0.0, 0.0),
+        f32x4(0.0, 0.0, 2 / r, 0.0),
+        f32x4(0.0, 0.0, (near + far) / -r, 1.0),
+    };
+}
+
+// Produces Z values in [-1.0, 1.0] range (OpenGL defaults)
+pub fn orthographicRhGl(w: f32, h: f32, near: f32, far: f32) Mat {
+    assert(!math.approxEqAbs(f32, w, 0.0, 0.001));
+    assert(!math.approxEqAbs(f32, h, 0.0, 0.001));
+    assert(!math.approxEqAbs(f32, far, near, 0.001));
+
+    const r = near - far;
+    return .{
+        f32x4(2 / w, 0.0, 0.0, 0.0),
+        f32x4(0.0, 2 / h, 0.0, 0.0),
+        f32x4(0.0, 0.0, 2 / r, 0.0),
+        f32x4(0.0, 0.0, (near + far) / r, 1.0),
+    };
+}
+
 pub fn orthographicOffCenterLh(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) Mat {
     assert(!math.approxEqAbs(f32, far, near, 0.001));
 
-    const r = 1.0 / (far - near);
-
+    const r = 1 / (far - near);
     return .{
-        f32x4(2 / (right - left), 0.0, 0.0, -(right + left) / (right - left)),
-        f32x4(0.0, 2 / (top - bottom), 0.0, -(top + bottom) / (top - bottom)),
-        f32x4(0.0, 0.0, r, -r * near),
-        f32x4(0.0, 0.0, 0.0, 1.0),
+        f32x4(2 / (right - left), 0.0, 0.0, 0.0),
+        f32x4(0.0, 2 / (top - bottom), 0.0, 0.0),
+        f32x4(0.0, 0.0, r, 0.0),
+        f32x4(-(right + left) / (right - left), -(top + bottom) / (top - bottom), -r * near, 1.0),
     };
 }
 
 pub fn orthographicOffCenterRh(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) Mat {
     assert(!math.approxEqAbs(f32, far, near, 0.001));
 
-    const r = 1.0 / (near - far);
-
+    const r = 1 / (near - far);
     return .{
-        f32x4(2 / (right - left), 0.0, 0.0, -(right + left) / (right - left)),
-        f32x4(0.0, 2 / (top - bottom), 0.0, -(top + bottom) / (top - bottom)),
-        f32x4(0.0, 0.0, r, r * near),
-        f32x4(0.0, 0.0, 0.0, 1.0),
+        f32x4(2 / (right - left), 0.0, 0.0, 0.0),
+        f32x4(0.0, 2 / (top - bottom), 0.0, 0.0),
+        f32x4(0.0, 0.0, r, 0.0),
+        f32x4(-(right + left) / (right - left), -(top + bottom) / (top - bottom), r * near, 1.0),
+    };
+}
+
+// Produces Z values in [-1.0, 1.0] range (OpenGL defaults)
+pub fn orthographicOffCenterLhGl(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) Mat {
+    assert(!math.approxEqAbs(f32, far, near, 0.001));
+
+    const r = far - near;
+    return .{
+        f32x4(2 / (right - left), 0.0, 0.0, 0.0),
+        f32x4(0.0, 2 / (top - bottom), 0.0, 0.0),
+        f32x4(0.0, 0.0, 2 / r, 0.0),
+        f32x4(-(right + left) / (right - left), -(top + bottom) / (top - bottom), (near + far) / -r, 1.0),
+    };
+}
+
+// Produces Z values in [-1.0, 1.0] range (OpenGL defaults)
+pub fn orthographicOffCenterRhGl(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) Mat {
+    assert(!math.approxEqAbs(f32, far, near, 0.001));
+
+    const r = near - far;
+    return .{
+        f32x4(2 / (right - left), 0.0, 0.0, 0.0),
+        f32x4(0.0, 2 / (top - bottom), 0.0, 0.0),
+        f32x4(0.0, 0.0, 2 / r, 0.0),
+        f32x4(-(right + left) / (right - left), -(top + bottom) / (top - bottom), (near + far) / r, 1.0),
     };
 }
 
@@ -4277,7 +4355,7 @@ pub fn approxEqAbs(v0: anytype, v1: anytype, eps: f32) bool {
 // This software is available under 2 licenses -- choose whichever you prefer.
 // ------------------------------------------------------------------------------
 // ALTERNATIVE A - MIT License
-// Copyright (c) 2022 Michal Ziulek
+// Copyright (c) 2022 Michal Ziulek and Contributors
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
 // the Software without restriction, including without limitation the rights to

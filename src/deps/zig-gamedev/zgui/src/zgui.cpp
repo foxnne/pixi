@@ -44,6 +44,10 @@ ZGUI_API void zguiSetNextWindowBgAlpha(float alpha) {
     ImGui::SetNextWindowBgAlpha(alpha);
 }
 
+ZGUI_API void zguiSetKeyboardFocusHere(int offset) {
+    ImGui::SetKeyboardFocusHere(offset);
+}
+
 ZGUI_API bool zguiBegin(const char* name, bool* p_open, ImGuiWindowFlags flags) {
     return ImGui::Begin(name, p_open, flags);
 }
@@ -184,6 +188,18 @@ ZGUI_API void zguiBeginGroup(void) {
 
 ZGUI_API void zguiEndGroup(void) {
     ImGui::EndGroup();
+}
+
+ZGUI_API void zguiGetItemRectMax(float rect[2]) {
+    const ImVec2 r = ImGui::GetItemRectMax();
+    rect[0] = r.x;
+    rect[1] = r.y;
+}
+
+ZGUI_API void zguiGetItemRectMin(float rect[2]) {
+    const ImVec2 r = ImGui::GetItemRectMin();
+    rect[0] = r.x;
+    rect[1] = r.y;
 }
 
 ZGUI_API void zguiGetCursorPos(float pos[2]) {
@@ -1024,6 +1040,10 @@ ZGUI_API void zguiSetNextItemWidth(float item_width) {
     ImGui::SetNextItemWidth(item_width);
 }
 
+ZGUI_API void zguiSetItemDefaultFocus(void) {
+    ImGui::SetItemDefaultFocus();
+}
+
 ZGUI_API ImFont* zguiGetFont(void) {
     return ImGui::GetFont();
 }
@@ -1130,6 +1150,14 @@ ZGUI_API ImGuiID zguiGetStrIdZ(const char* str_id) {
 
 ZGUI_API ImGuiID zguiGetPtrId(const void* ptr_id) {
     return ImGui::GetID(ptr_id);
+}
+
+ZGUI_API void zguiSetClipboardText(const char* text) {
+    ImGui::SetClipboardText(text);
+}
+
+ZGUI_API const char* zguiGetClipboardText(void) {
+    return ImGui::GetClipboardText();
 }
 
 ZGUI_API ImFont* zguiIoAddFontFromFileWithConfig(
@@ -1244,6 +1272,10 @@ ZGUI_API void zguiIoAddKeyEvent(ImGuiKey key, bool down) {
     ImGui::GetIO().AddKeyEvent(key, down);
 }
 
+ZGUI_API void zguiIoAddInputCharactersUTF8(const char* utf8_chars) {
+    ImGui::GetIO().AddInputCharactersUTF8(utf8_chars);
+}
+
 ZGUI_API void zguiIoSetKeyEventNativeData(ImGuiKey key, int keycode, int scancode) {
     ImGui::GetIO().SetKeyEventNativeData(key, keycode, scancode);
 }
@@ -1267,6 +1299,10 @@ ZGUI_API bool zguiIsItemFocused(void) {
 
 ZGUI_API bool zguiIsItemClicked(ImGuiMouseButton mouse_button) {
     return ImGui::IsItemClicked(mouse_button);
+}
+
+ZGUI_API bool zguiIsMouseDoubleClicked(ImGuiMouseButton button) {
+    return ImGui::IsMouseDoubleClicked(button);
 }
 
 ZGUI_API bool zguiIsItemVisible(void) {
@@ -1389,6 +1425,10 @@ ZGUI_API void zguiEndTooltip(void) {
     ImGui::EndTooltip();
 }
 
+ZGUI_API bool zguiBeginPopupContextWindow(void) {
+    return ImGui::BeginPopupContextWindow();
+}
+
 ZGUI_API bool zguiBeginPopupModal(const char* name, bool* p_open, ImGuiWindowFlags flags) {
     return ImGui::BeginPopupModal(name, p_open, flags);
 }
@@ -1413,7 +1453,7 @@ ZGUI_API void zguiBeginTable(
     const char* str_id,
     int column,
     ImGuiTableFlags flags,
-    float outer_size[2],
+    const float outer_size[2],
     float inner_width
 ) {
     ImGui::BeginTable(str_id, column, flags, { outer_size[0], outer_size[1] }, inner_width);
@@ -1528,6 +1568,22 @@ ZGUI_API ImDrawList *zguiGetForegroundDrawList(void) {
     return ImGui::GetForegroundDrawList();
 }
 
+ZGUI_API ImDrawList *zguiCreateDrawList(void) {
+    return IM_NEW(ImDrawList)(ImGui::GetDrawListSharedData());
+}
+
+ZGUI_API void zguiDestroyDrawList(ImDrawList *draw_list) {
+  IM_DELETE(draw_list);
+}
+
+ZGUI_API const char *zguiDrawList_GetOwnerName(ImDrawList *draw_list) {
+    return draw_list->_OwnerName;
+}
+
+ZGUI_API void zguiDrawList_ResetForNewFrame(ImDrawList *draw_list) {
+    draw_list->_ResetForNewFrame();
+}
+
 ZGUI_API int zguiDrawList_GetVertexBufferLength(ImDrawList *draw_list) {
     return draw_list->VtxBuffer.size();
 }
@@ -1547,6 +1603,10 @@ ZGUI_API int zguiDrawList_GetCmdBufferLength(ImDrawList *draw_list) {
 }
 ZGUI_API ImDrawCmd *zguiDrawList_GetCmdBufferData(ImDrawList *draw_list) {
     return draw_list->CmdBuffer.begin();
+}
+
+ZGUI_API void zguiDrawList_SetFlags(ImDrawList *draw_list, ImDrawListFlags flags) {
+    draw_list->Flags = flags;
 }
 ZGUI_API ImDrawListFlags zguiDrawList_GetFlags(ImDrawList *draw_list) {
     return draw_list->Flags;

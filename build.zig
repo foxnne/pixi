@@ -1,9 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const LibExeObjStep = std.build.LibExeObjStep;
-const Builder = std.build.Builder;
-const Target = std.build.Target;
+const CompileStep = std.Build.CompileStep;
+const Target = std.Build.Target;
 const Pkg = std.build.Pkg;
 
 const pixi_pkg = std.build.Pkg{
@@ -25,8 +24,9 @@ const content_dir = "assets/";
 
 const ProcessAssetsStep = @import("src/tools/process_assets.zig").ProcessAssetsStep;
 
-pub fn build(b: *Builder) !void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
 
     ensureTarget(target) catch return;
     ensureGit(b.allocator) catch return;
@@ -46,7 +46,7 @@ pub fn build(b: *Builder) !void {
     }
     ensureGitLfsContent("/src/deps/zig-gamedev/zgpu/libs/dawn/x86_64-windows-gnu/dawn.lib") catch return;
 
-    var exe = createExe(b, target, "run", "src/pixi.zig");
+    var exe = createExe(b, target, optimize, "run", "src/pixi.zig");
     b.default_step.dependOn(&exe.step);
 
     const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
@@ -56,7 +56,11 @@ pub fn build(b: *Builder) !void {
     const zgui_pkg = zgui.getPkg(&.{zgui_options.getPkg()});
 
     const tests = b.step("test", "Run all tests");
-    const pixi_tests = b.addTest(pixi_pkg.source.path);
+    const pixi_tests = b.addTest(.{
+        .root_source_file = .{ .path = pixi_pkg.source.path },
+        .target = target,
+        .optimize = optimize,
+    });
     pixi_tests.addPackage(pixi_pkg);
     pixi_tests.addPackage(zgpu_pkg);
     pixi_tests.addPackage(zglfw.pkg);
@@ -82,18 +86,22 @@ pub fn build(b: *Builder) !void {
     exe.step.dependOn(&install_content_step.step);
 }
 
-fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source: []const u8) *std.build.LibExeObjStep {
-    var exe = b.addExecutable(name, source);
-    exe.setBuildMode(b.standardReleaseOptions());
+fn createExe(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.Mode, name: []const u8, source: []const u8) *std.Build.CompileStep {
+    var exe = b.addExecutable(.{
+        .name = name,
+        .root_source_file = .{ .path = source },
+        .optimize = optimize,
+        .target = target,
+    });
 
     exe.want_lto = false;
-    if (b.is_release) {
-        if (target.isWindows()) {
-            exe.subsystem = .Windows;
-        } else {
-            exe.subsystem = .Posix;
-        }
-    }
+    // if (b.is_release) {
+    //     if (target.isWindows()) {
+    //         exe.subsystem = .Windows;
+    //     } else {
+    //         exe.subsystem = .Posix;
+    //     }
+    // }
 
     const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
     const zgpu_pkg = zgpu.getPkg(&.{ zgpu_options.getPkg(), zpool.pkg, zglfw.pkg });
@@ -116,7 +124,7 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
     exe.addPackage(nfd.getPackage("nfd"));
     exe.addPackage(zip.pkg);
 
-    const nfd_lib = nfd.makeLib(b, b.standardReleaseOptions(), target);
+    const nfd_lib = nfd.makeLib(b, target, optimize);
 
     zgpu.link(exe, zgpu_options);
     zglfw.link(exe);
