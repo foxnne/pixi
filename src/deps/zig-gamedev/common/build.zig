@@ -1,16 +1,30 @@
 const std = @import("std");
 
-pub fn getPkg(dependencies: []const std.Build.Pkg) std.Build.Pkg {
+pub const Package = struct {
+    module: *std.Build.Module,
+};
+
+pub fn package(
+    b: *std.Build,
+    args: struct {
+        deps: struct {
+            zwin32: *std.Build.Module,
+            zd3d12: *std.Build.Module,
+        },
+    },
+) Package {
     return .{
-        .name = "common",
-        .source = .{ .path = thisDir() ++ "/src/common.zig" },
-        .dependencies = dependencies,
+        .module = b.createModule(.{
+            .source_file = .{ .path = thisDir() ++ "/src/common.zig" },
+            .dependencies = &.{
+                .{ .name = "zwin32", .module = args.deps.zwin32 },
+                .{ .name = "zd3d12", .module = args.deps.zd3d12 },
+            },
+        }),
     };
 }
 
-pub fn build(b: *std.Build) void {
-    _ = b;
-}
+pub fn build(_: *std.Build) void {}
 
 pub fn link(exe: *std.Build.CompileStep) void {
     const lib = buildLibrary(exe);

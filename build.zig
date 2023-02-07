@@ -1,14 +1,16 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const CompileStep = std.Build.CompileStep;
-const Target = std.Build.Target;
-const Pkg = std.build.Pkg;
-
-const pixi_pkg = std.build.Pkg{
-    .name = "pixi",
-    .source = .{ .path = "src/pixi.zig" },
+pub const Package = struct {
+    module: *std.Build.Module,
 };
+
+pub fn package(b: *std.Build, _: struct {}) Package {
+    const module = b.createModule(.{
+        .source_file = .{ .path = thisDir() ++ "/src/pixi.zig" },
+    });
+    return .{ .module = module };
+}
 
 const zgpu = @import("src/deps/zig-gamedev/zgpu/build.zig");
 const zmath = @import("src/deps/zig-gamedev/zmath/build.zig");
@@ -49,29 +51,36 @@ pub fn build(b: *std.Build) !void {
     var exe = createExe(b, target, optimize, "run", "src/pixi.zig");
     b.default_step.dependOn(&exe.step);
 
-    const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
-    const zgpu_pkg = zgpu.getPkg(&.{ zpool.pkg, zglfw.pkg });
-
-    const zgui_options = zgui.BuildOptionsStep.init(b, .{ .backend = .glfw_wgpu });
-    const zgui_pkg = zgui.getPkg(&.{zgui_options.getPkg()});
+    const pixi_pkg = package(b, .{});
+    const zstbi_pkg = zstbi.package(b, .{});
+    const zmath_pkg = zmath.package(b, .{});
+    const zpool_pkg = zpool.package(b, .{});
+    const zglfw_pkg = zglfw.package(b, .{});
+    const zgui_pkg = zgui.package(b, .{
+        .options = .{ .backend = .glfw_wgpu },
+    });
+    const zgpu_pkg = zgpu.package(b, .{
+        .deps = .{ .zpool = zpool_pkg.module, .zglfw = zglfw_pkg.module },
+    });
 
     const tests = b.step("test", "Run all tests");
     const pixi_tests = b.addTest(.{
-        .root_source_file = .{ .path = pixi_pkg.source.path },
+        .root_source_file = .{ .path = pixi_pkg.module.source_file.path },
         .target = target,
         .optimize = optimize,
     });
-    pixi_tests.addPackage(pixi_pkg);
-    pixi_tests.addPackage(zgpu_pkg);
-    pixi_tests.addPackage(zglfw.pkg);
-    pixi_tests.addPackage(zgui_pkg);
-    pixi_tests.addPackage(zstbi.pkg);
-    pixi_tests.addPackage(zmath.pkg);
+    pixi_tests.addModule("pixi", pixi_pkg.module);
+    pixi_tests.addModule("zstbi", zstbi_pkg.module);
+    pixi_tests.addModule("zmath", zmath_pkg.module);
+    pixi_tests.addModule("zpool", zpool_pkg.module);
+    pixi_tests.addModule("zglfw", zglfw_pkg.module);
+    pixi_tests.addModule("zgui", zgui_pkg.module);
+    pixi_tests.addModule("zgpu", zgpu_pkg.module);
 
-    zgpu.link(pixi_tests, zgpu_options);
+    zgpu.link(pixi_tests);
     zglfw.link(pixi_tests);
     zstbi.link(pixi_tests);
-    zgui.link(pixi_tests, zgui_options);
+    zgui.link(pixi_tests, zgui_pkg.options);
     tests.dependOn(&pixi_tests.step);
 
     const assets = ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");
@@ -103,11 +112,18 @@ fn createExe(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.M
     //     }
     // }
 
-    const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
-    const zgpu_pkg = zgpu.getPkg(&.{ zgpu_options.getPkg(), zpool.pkg, zglfw.pkg });
-
-    const zgui_options = zgui.BuildOptionsStep.init(b, .{ .backend = .glfw_wgpu });
-    const zgui_pkg = zgui.getPkg(&.{zgui_options.getPkg()});
+    const pixi_pkg = package(b, .{});
+    const zstbi_pkg = zstbi.package(b, .{});
+    const zmath_pkg = zmath.package(b, .{});
+    const zglfw_pkg = zglfw.package(b, .{});
+    const zpool_pkg = zpool.package(b, .{});
+    const zgui_pkg = zgui.package(b, .{
+        .options = .{ .backend = .glfw_wgpu },
+    });
+    const zgpu_pkg = zgpu.package(b, .{
+        .deps = .{ .zpool = zpool_pkg.module, .zglfw = zglfw_pkg.module },
+    });
+    const zip_pkg = zip.package(b, .{});
 
     exe.install();
 
@@ -115,21 +131,22 @@ fn createExe(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.M
     const exe_step = b.step("run", b.fmt("run {s}.zig", .{name}));
     run_cmd.step.dependOn(b.getInstallStep());
     exe_step.dependOn(&run_cmd.step);
-    exe.addPackage(pixi_pkg);
-    exe.addPackage(zgpu_pkg);
-    exe.addPackage(zglfw.pkg);
-    exe.addPackage(zgui_pkg);
-    exe.addPackage(zstbi.pkg);
-    exe.addPackage(zmath.pkg);
-    exe.addPackage(nfd.getPackage("nfd"));
-    exe.addPackage(zip.pkg);
+    exe.addModule("pixi", pixi_pkg.module);
+    exe.addModule("zstbi", zstbi_pkg.module);
+    exe.addModule("zmath", zmath_pkg.module);
+    exe.addModule("zpool", zpool_pkg.module);
+    exe.addModule("zglfw", zglfw_pkg.module);
+    exe.addModule("zgui", zgui_pkg.module);
+    exe.addModule("zgpu", zgpu_pkg.module);
+    exe.addModule("nfd", nfd.getModule(b));
+    exe.addModule("zip", zip_pkg.module);
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
 
-    zgpu.link(exe, zgpu_options);
+    zgpu.link(exe);
     zglfw.link(exe);
     zstbi.link(exe);
-    zgui.link(exe, zgui_options);
+    zgui.link(exe, zgui_pkg.options);
     exe.linkLibrary(nfd_lib);
     zip.link(exe);
 
