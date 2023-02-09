@@ -93,7 +93,8 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.state.window.scale[0] });
-    defer zgui.popStyleVar(.{ .count = 3 });
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
+    defer zgui.popStyleVar(.{ .count = 4 });
 
     const recursor = struct {
         fn search(alloc: std.mem.Allocator, directory: [:0]const u8) void {
@@ -123,9 +124,25 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     const folder = zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder, entry.name });
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 1 });
+
                     if (zgui.treeNode(folder)) {
+                        zgui.pushStrId(abs_path);
+                        if (zgui.beginPopupContextItem()) {
+                            contextMenuFolder(abs_path);
+                            zgui.endPopup();
+                        }
+                        zgui.popId();
+
                         search(alloc, abs_path);
+
                         zgui.treePop();
+                    } else {
+                        zgui.pushStrId(abs_path);
+                        if (zgui.beginPopupContextItem()) {
+                            contextMenuFolder(abs_path);
+                            zgui.endPopup();
+                        }
+                        zgui.popId();
                     }
                 }
             }
@@ -135,4 +152,13 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
     recursor(allocator, root_directory);
 
     return;
+}
+
+fn contextMenuFolder(path: [:0]const u8) void {
+    if (zgui.menuItem("New File...", .{})) {
+        std.log.debug("{s}", .{path});
+    }
+    if (zgui.menuItem("New Folder...", .{})) {
+        std.log.debug("{s}", .{path});
+    }
 }
