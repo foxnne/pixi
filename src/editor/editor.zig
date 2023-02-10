@@ -20,6 +20,40 @@ pub fn setProjectFolder(path: [*:0]const u8) void {
     pixi.state.project_folder = path[0..std.mem.len(path) :0];
 }
 
+/// Returns true if a new file was created.
+pub fn newFile(path: [:0]const u8) !bool {
+    for (pixi.state.open_files.items) |file, i| {
+        if (std.mem.eql(u8, file.path, path)) {
+            // Free path since we aren't adding it to open files again.
+            pixi.state.allocator.free(path);
+            setActiveFile(i);
+            return false;
+        }
+    }
+}
+
+/// Returns true if png was imported and new file created.
+pub fn importPng(path: [:0]const u8) !bool {
+    if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
+        return false;
+
+    var new_file_path = pixi.state.allocator.alloc(u8, path.len + 1) catch unreachable;
+    _ = std.mem.replace(u8, path, ".png", ".pixi", new_file_path);
+
+    std.log.debug("{s}", .{new_file_path});
+
+    for (pixi.state.open_files.items) |file, i| {
+        if (std.mem.eql(u8, file.path, new_file_path)) {
+            // Free path since we aren't adding it to open files again.
+            pixi.state.allocator.free(new_file_path);
+            setActiveFile(i);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 /// Returns true if a new file was opened.
 pub fn openFile(path: [:0]const u8) !bool {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))

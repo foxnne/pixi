@@ -57,6 +57,13 @@ pub fn draw() void {
                 .default_open = true,
             },
         })) {
+            zgui.pushStrId(path);
+            if (zgui.beginPopupContextWindow()) {
+                contextMenuFolder(path);
+                zgui.endPopup();
+            }
+            zgui.popId();
+
             zgui.separator();
             zgui.spacing();
 
@@ -69,6 +76,7 @@ pub fn draw() void {
             }
             defer zgui.endChild();
         }
+
         zgui.popStyleVar(.{ .count = 1 });
 
         if (!open) {
@@ -117,6 +125,12 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         })) {
                             _ = pixi.editor.openFile(alloc.dupeZ(u8, abs_path) catch unreachable) catch unreachable;
                         }
+                        zgui.pushStrId(abs_path);
+                        if (zgui.beginPopupContextItem()) {
+                            contextMenuFile(abs_path);
+                            zgui.endPopup();
+                        }
+                        zgui.popId();
                     }
                 } else if (entry.kind == .Directory) {
                     const abs_path = std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
@@ -154,11 +168,27 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
     return;
 }
 
-fn contextMenuFolder(path: [:0]const u8) void {
+fn contextMenuFolder(folder: [:0]const u8) void {
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
     if (zgui.menuItem("New File...", .{})) {
-        std.log.debug("{s}", .{path});
+        std.log.debug("{s}", .{folder});
+    }
+    if (zgui.menuItem("New File from PNG...", .{})) {
+        _ = pixi.editor.importPng("Users/foxnne/dev/proj/test_file.png") catch unreachable;
     }
     if (zgui.menuItem("New Folder...", .{})) {
-        std.log.debug("{s}", .{path});
+        std.log.debug("{s}", .{folder});
     }
+    zgui.popStyleColor(.{ .count = 1 });
+}
+
+fn contextMenuFile(file: [:0]const u8) void {
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+    if (zgui.menuItem("Rename...", .{})) {
+        std.log.debug("{s}", .{file});
+    }
+    if (zgui.menuItem("Duplicate...", .{})) {
+        std.log.debug("{s}", .{file});
+    }
+    zgui.popStyleColor(.{ .count = 1 });
 }
