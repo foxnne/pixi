@@ -185,8 +185,9 @@ fn contextMenuFolder(folder: [:0]const u8) void {
 fn contextMenuFile(file: [:0]const u8) void {
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
     if (zgui.menuItem("Rename...", .{})) {
-        std.log.debug("{s}", .{file});
+        pixi.state.popups.rename = true;
     }
+
     if (zgui.menuItem("Duplicate...", .{})) {
         std.log.debug("{s}", .{file});
     }

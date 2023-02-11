@@ -10,10 +10,14 @@ pub const sidebar = @import("sidebar/sidebar.zig");
 pub const explorer = @import("explorer/explorer.zig");
 pub const artboard = @import("artboard/artboard.zig");
 
+pub const popup_rename = @import("popups/rename.zig");
+
 pub fn draw() void {
     sidebar.draw();
     explorer.draw();
     artboard.draw();
+
+    popup_rename.draw();
 }
 
 pub fn setProjectFolder(path: [*:0]const u8) void {

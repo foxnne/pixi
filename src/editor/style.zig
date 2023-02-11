@@ -23,6 +23,8 @@ hover_secondary: Color = Color.initBytes(105, 50, 68, 255),
 checkerboard_primary: Color = Color.initBytes(150, 150, 150, 255),
 checkerboard_secondary: Color = Color.initBytes(55, 55, 55, 255),
 
+modal_dim: Color = Color.initBytes(0, 0, 0, 48),
+
 pub fn set(self: @This()) void {
     const bg = self.background.toSlice();
     const fg = self.foreground.toSlice();
@@ -31,6 +33,7 @@ pub fn set(self: @This()) void {
     const hover_primary = self.hover_primary.toSlice();
     const highlight_secondary = self.highlight_secondary.toSlice();
     const hover_secondary = self.hover_secondary.toSlice();
+    const modal_dim = self.modal_dim.toSlice();
 
     var style = zgui.getStyle();
     style.scaleAllSizes(std.math.max(pixi.state.window.scale[0], pixi.state.window.scale[1]));
@@ -74,4 +77,5 @@ pub fn set(self: @This()) void {
     style.setColor(zgui.StyleCol.button, fg);
     style.setColor(zgui.StyleCol.button_hovered, hover_secondary);
     style.setColor(zgui.StyleCol.button_active, highlight_secondary);
+    style.setColor(zgui.StyleCol.modal_window_dim_bg, modal_dim);
 }

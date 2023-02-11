@@ -47,6 +47,7 @@ pub const PixiState = struct {
     background_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
     open_file_index: usize = 0,
+    popups: Popups = .{},
 };
 
 pub const Sidebar = enum {
@@ -55,6 +56,11 @@ pub const Sidebar = enum {
     layers,
     sprites,
     settings,
+};
+
+pub const Popups = struct {
+    rename: bool = false,
+    rename_file: ?*storage.Internal.Pixi = null,
 };
 
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
