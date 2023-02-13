@@ -185,6 +185,9 @@ fn contextMenuFolder(folder: [:0]const u8) void {
 fn contextMenuFile(file: [:0]const u8) void {
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
     if (zgui.menuItem("Rename...", .{})) {
+        // TODO: Ensure that all bytes in the buffer are zero otherwise.
+        std.mem.copy(u8, pixi.state.popups.rename_path[0..], file);
+        std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], file);
         pixi.state.popups.rename = true;
     }
 

@@ -60,7 +60,10 @@ pub const Sidebar = enum {
 
 pub const Popups = struct {
     rename: bool = false,
-    rename_file: ?*storage.Internal.Pixi = null,
+    rename_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
+    rename_old_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
+    new: bool = false,
+    new_buf: [256]u8 = undefined,
 };
 
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
