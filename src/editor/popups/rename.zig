@@ -48,7 +48,13 @@ pub fn draw() void {
             const old_path = std.mem.trimRight(u8, pixi.state.popups.rename_old_path[0..], "\u{0}");
             const new_path = std.mem.trimRight(u8, pixi.state.popups.rename_path[0..], "\u{0}");
             std.fs.renameAbsolute(old_path[0..], new_path[0..]) catch unreachable;
-            // TODO: Ensure open file paths get renamed as well.
+
+            const old_path_z = pixi.state.popups.rename_old_path[0..old_path.len :0];
+            for (pixi.state.open_files.items) |*open_file| {
+                if (std.mem.eql(u8, open_file.path, old_path_z)) {
+                    open_file.path = pixi.state.allocator.dupeZ(u8, new_path) catch unreachable;
+                }
+            }
             pixi.state.popups.rename = false;
         }
         zgui.sameLine(.{});
