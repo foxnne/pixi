@@ -11,6 +11,7 @@ pub const explorer = @import("explorer/explorer.zig");
 pub const artboard = @import("artboard/artboard.zig");
 
 pub const popup_rename = @import("popups/rename.zig");
+pub const popup_new_file = @import("popups/new_file.zig");
 
 pub fn draw() void {
     sidebar.draw();
@@ -18,6 +19,7 @@ pub fn draw() void {
     artboard.draw();
 
     popup_rename.draw();
+    popup_new_file.draw();
 }
 
 pub fn setProjectFolder(path: [*:0]const u8) void {

@@ -50,4 +50,7 @@ zoom_tooltip_time: f32 = 0.6,
 /// Amount of time before zoom is corrected, increase if fighting while zooming slowly.
 zoom_wait_time: f32 = 0.1,
 
+/// Maximum file size
+max_file_size: [2]i32 = .{ 4096, 4096 },
+
 pub const InputScheme = enum { mouse, trackpad };

@@ -18,12 +18,11 @@ pub const assets = @import("assets.zig");
 pub const shaders = @import("shaders.zig");
 
 pub const fs = @import("tools/fs.zig");
+pub const fa = @import("tools/font_awesome.zig");
 pub const math = @import("math/math.zig");
 pub const gfx = @import("gfx/gfx.zig");
 pub const input = @import("input/input.zig");
 pub const storage = @import("storage/storage.zig");
-
-pub const fa = @import("tools/font_awesome.zig");
 
 test {
     _ = zstbi;
@@ -59,11 +58,15 @@ pub const Sidebar = enum {
 };
 
 pub const Popups = struct {
+    // Renaming
     rename: bool = false,
     rename_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
     rename_old_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
-    new: bool = false,
-    new_buf: [256]u8 = undefined,
+    // New Files
+    new_file: bool = false,
+    new_file_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
+    new_file_tile_size: [2]i32 = .{ 32, 32 },
+    new_file_tiles: [2]i32 = .{ 32, 32 },
 };
 
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };

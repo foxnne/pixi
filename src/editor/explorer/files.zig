@@ -171,7 +171,11 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 fn contextMenuFolder(folder: [:0]const u8) void {
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
     if (zgui.menuItem("New File...", .{})) {
-        std.log.debug("{s}", .{folder});
+        pixi.state.popups.new_file = true;
+        const new_file_path = std.fs.path.joinZ(pixi.state.allocator, &[_][]const u8{ folder, "New_file.pixi" }) catch unreachable;
+        defer pixi.state.allocator.free(new_file_path);
+        pixi.state.popups.new_file_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+        std.mem.copy(u8, pixi.state.popups.new_file_path[0..], new_file_path);
     }
     if (zgui.menuItem("New File from PNG...", .{})) {
         _ = pixi.editor.importPng("Users/foxnne/dev/proj/test_file.png") catch unreachable;
