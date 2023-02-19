@@ -199,5 +199,9 @@ fn contextMenuFile(file: [:0]const u8) void {
     if (zgui.menuItem("Duplicate...", .{})) {
         std.log.debug("{s}", .{file});
     }
+
+    if (zgui.menuItem("Delete", .{})) {
+        std.fs.deleteFileAbsolute(file) catch unreachable;
+    }
     zgui.popStyleColor(.{ .count = 1 });
 }

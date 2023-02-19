@@ -28,9 +28,4 @@ pub const Sprite = struct {
     origin_y: f32 = 0.0,
 };
 
-pub const Animation = struct {
-    name: []const u8,
-    start: usize,
-    length: usize,
-    fps: usize,
-};
+pub const Animation = storage.Internal.Animation;

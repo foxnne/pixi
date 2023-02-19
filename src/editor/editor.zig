@@ -3,6 +3,7 @@ const pixi = @import("pixi");
 const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
+const zgui = @import("zgui");
 
 pub const Style = @import("style.zig");
 
@@ -36,6 +37,53 @@ pub fn newFile(path: [:0]const u8) !bool {
             return false;
         }
     }
+
+    var internal: pixi.storage.Internal.Pixi = .{
+        .path = path,
+        .width = @intCast(u32, pixi.state.popups.new_file_tiles[0] * pixi.state.popups.new_file_tile_size[0]),
+        .height = @intCast(u32, pixi.state.popups.new_file_tiles[1] * pixi.state.popups.new_file_tile_size[1]),
+        .tile_width = @intCast(u32, pixi.state.popups.new_file_tile_size[0]),
+        .tile_height = @intCast(u32, pixi.state.popups.new_file_tile_size[1]),
+        .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
+        .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
+        .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
+        .flipbook_camera = .{ .position = .{ -@intToFloat(f32, pixi.state.popups.new_file_tile_size[0]) / 2.0, 0.0 } },
+        .background_image = undefined,
+        .background_image_data = undefined,
+        .background_texture_handle = undefined,
+        .background_texture_view_handle = undefined,
+        .dirty = true,
+    };
+
+    try internal.createBackground(pixi.state.allocator);
+    var layer = try internal.layers.addOne();
+
+    const layer_texture = pixi.gfx.Texture.init(pixi.state.gctx, internal.width, internal.height, .{});
+
+    layer.name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"});
+    layer.texture_handle = layer_texture.handle;
+    layer.texture_view_handle = layer_texture.view_handle;
+    // TODO: Understand why this doesn't really work and `layer.image.data.ptr` is invalid
+    layer.data = try std.heap.c_allocator.alloc(u8, internal.width * internal.height * 4);
+    layer.image = pixi.gfx.createImage(layer.data, internal.width, internal.height);
+
+    // Create sprites for all tiles.
+    {
+        const tiles = @intCast(usize, pixi.state.popups.new_file_tiles[0] * pixi.state.popups.new_file_tiles[1]);
+        var i: usize = 0;
+        while (i < tiles) : (i += 1) {
+            var sprite: pixi.storage.Internal.Sprite = .{
+                .name = zgui.formatZ("Sprite_{d}", .{i}),
+                .index = i,
+            };
+            try internal.sprites.append(sprite);
+        }
+    }
+
+    try pixi.state.open_files.insert(0, internal);
+    pixi.editor.setActiveFile(0);
+
+    return true;
 }
 
 /// Returns true if png was imported and new file created.
@@ -112,54 +160,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             .dirty = false,
         };
 
-        // Handle background image/texture
-        {
-            internal.background_image_data = try pixi.state.allocator.alloc(u8, @intCast(usize, external.tileWidth * 2 * external.tileHeight * 2 * 4));
-            internal.background_image = pixi.gfx.createImage(internal.background_image_data, external.tileWidth * 2, external.tileHeight * 2);
-            // Set background image data to checkerboard
-            {
-                var i: usize = 0;
-                while (i < @intCast(usize, external.tileWidth * 2 * external.tileHeight * 2 * 4)) : (i += 4) {
-                    const r = i;
-                    const g = i + 1;
-                    const b = i + 2;
-                    const a = i + 3;
-                    const primary = pixi.state.style.checkerboard_primary.bytes();
-                    const secondary = pixi.state.style.checkerboard_secondary.bytes();
-                    if (i % 3 == 0) {
-                        internal.background_image.data[r] = primary[0];
-                        internal.background_image.data[g] = primary[1];
-                        internal.background_image.data[b] = primary[2];
-                        internal.background_image.data[a] = primary[3];
-                    } else {
-                        internal.background_image.data[r] = secondary[0];
-                        internal.background_image.data[g] = secondary[1];
-                        internal.background_image.data[b] = secondary[2];
-                        internal.background_image.data[a] = secondary[3];
-                    }
-                }
-            }
-            internal.background_texture_handle = pixi.state.gctx.createTexture(.{
-                .usage = .{ .texture_binding = true, .copy_dst = true },
-                .size = .{
-                    .width = external.tileWidth * 2,
-                    .height = external.tileHeight * 2,
-                    .depth_or_array_layers = 1,
-                },
-                .format = zgpu.imageInfoToTextureFormat(4, 1, false),
-            });
-            internal.background_texture_view_handle = pixi.state.gctx.createTextureView(internal.background_texture_handle, .{});
-            pixi.state.gctx.queue.writeTexture(
-                .{ .texture = pixi.state.gctx.lookupResource(internal.background_texture_handle).? },
-                .{
-                    .bytes_per_row = internal.background_image.bytes_per_row,
-                    .rows_per_image = internal.background_image.height,
-                },
-                .{ .width = internal.background_image.width, .height = internal.background_image.height },
-                u8,
-                internal.background_image.data,
-            );
-        }
+        try internal.createBackground(pixi.state.allocator);
 
         for (external.layers) |layer| {
             const layer_image_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});

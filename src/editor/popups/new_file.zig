@@ -33,49 +33,55 @@ pub fn draw() void {
 
         const style = zgui.getStyle();
 
-        {
-            const full_width = popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - zgui.calcTextSize("Tile Height", .{})[0];
-            const base_name_index = if (std.mem.indexOf(u8, pixi.state.popups.new_file_path[0..], "New_file.pixi")) |index| index else 0;
+        const full_width = popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - zgui.calcTextSize("Tile Height", .{})[0];
+        const base_name_index = if (std.mem.indexOf(u8, pixi.state.popups.new_file_path[0..], "New_file.pixi")) |index| index else 0;
 
-            zgui.pushItemWidth(full_width);
-            _ = zgui.inputText("Name", .{
-                .buf = pixi.state.popups.new_file_path[base_name_index..],
-                .flags = .{
-                    .chars_no_blank = true,
-                    .auto_select_all = true,
-                    .enter_returns_true = true,
-                },
-            });
+        zgui.pushItemWidth(full_width);
+        _ = zgui.inputText("Name", .{
+            .buf = pixi.state.popups.new_file_path[base_name_index..],
+            .flags = .{
+                .chars_no_blank = true,
+                .auto_select_all = true,
+                .enter_returns_true = true,
+            },
+        });
 
-            zgui.spacing();
-            _ = zgui.sliderInt("Tile Width", .{
-                .v = &pixi.state.popups.new_file_tile_size[0],
-                .min = 1,
-                .max = 4096,
-            });
-            _ = zgui.sliderInt("Tile Height", .{
-                .v = &pixi.state.popups.new_file_tile_size[1],
-                .min = 1,
-                .max = 4096,
-            });
-            zgui.spacing();
-            zgui.separator();
-            zgui.spacing();
-            _ = zgui.sliderInt("Tiles Wide", .{ .v = &pixi.state.popups.new_file_tiles[0], .min = 1, .max = @divTrunc(pixi.state.settings.max_file_size[0], pixi.state.popups.new_file_tile_size[0]) });
+        zgui.spacing();
+        _ = zgui.sliderInt("Tile Width", .{
+            .v = &pixi.state.popups.new_file_tile_size[0],
+            .min = 1,
+            .max = pixi.state.settings.max_file_size[0],
+        });
+        _ = zgui.sliderInt("Tile Height", .{
+            .v = &pixi.state.popups.new_file_tile_size[1],
+            .min = 1,
+            .max = pixi.state.settings.max_file_size[1],
+        });
+        zgui.spacing();
+        zgui.separator();
+        zgui.spacing();
+        _ = zgui.sliderInt("Tiles Wide", .{ .v = &pixi.state.popups.new_file_tiles[0], .min = 1, .max = @divTrunc(pixi.state.settings.max_file_size[0], pixi.state.popups.new_file_tile_size[0]) });
 
-            _ = zgui.sliderInt("Tiles High", .{ .v = &pixi.state.popups.new_file_tiles[1], .min = 1, .max = @divTrunc(pixi.state.settings.max_file_size[1], pixi.state.popups.new_file_tile_size[1]) });
-            zgui.popItemWidth();
-            zgui.spacing();
-            zgui.spacing();
+        _ = zgui.sliderInt("Tiles High", .{ .v = &pixi.state.popups.new_file_tiles[1], .min = 1, .max = @divTrunc(pixi.state.settings.max_file_size[1], pixi.state.popups.new_file_tile_size[1]) });
+        zgui.popItemWidth();
+        zgui.spacing();
+        zgui.spacing();
+
+        const spacing = 5.0 * pixi.state.window.scale[0];
+        const half_width = (popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - spacing) / 2.0;
+        if (zgui.button("Cancel", .{ .w = half_width })) {
+            pixi.state.popups.new_file = false;
         }
-        {
-            const spacing = 5.0 * pixi.state.window.scale[0];
-            const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing) / 2.0;
-            if (zgui.button("Cancel", .{ .w = half_width })) {
-                pixi.state.popups.new_file = false;
-            }
-            zgui.sameLine(.{ .spacing = spacing });
-            if (zgui.button("Ok", .{ .w = half_width })) {
+        zgui.sameLine(.{ .spacing = spacing });
+        if (zgui.button("Ok", .{ .w = half_width })) {
+            const new_file_path = std.mem.trimRight(u8, pixi.state.popups.new_file_path[0..], "\u{0}");
+            const ext = std.fs.path.extension(new_file_path);
+            if (std.mem.eql(u8, ".pixi", ext)) {
+                if (pixi.editor.newFile(pixi.state.allocator.dupeZ(u8, new_file_path) catch unreachable) catch unreachable) {
+                    if (pixi.editor.getFile(0)) |file| {
+                        _ = file.save() catch unreachable;
+                    }
+                }
                 pixi.state.popups.new_file = false;
             }
         }

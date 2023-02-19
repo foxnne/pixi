@@ -8,7 +8,7 @@ pub fn draw() void {
     } else return;
 
     const popup_width = 350 * pixi.state.window.scale[0];
-    const popup_height = 120 * pixi.state.window.scale[1];
+    const popup_height = 110 * pixi.state.window.scale[1];
 
     const window_size = pixi.state.window.size * pixi.state.window.scale;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
@@ -30,21 +30,32 @@ pub fn draw() void {
         },
     })) {
         defer zgui.endPopup();
+        zgui.spacing();
+
+        const style = zgui.getStyle();
+        const spacing = 5.0 * pixi.state.window.scale[0];
+        const full_width = popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - zgui.calcTextSize("Name", .{})[0];
+        const half_width = (popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - spacing) / 2.0;
 
         const base_name = std.fs.path.basename(pixi.state.popups.rename_path[0..]);
         var base_index: usize = 0;
         if (std.mem.indexOf(u8, pixi.state.popups.rename_path[0..], base_name)) |index| {
             base_index = index;
         }
-
-        if (zgui.inputText("Name", .{
+        zgui.pushItemWidth(full_width);
+        var enter = zgui.inputText("Name", .{
             .buf = pixi.state.popups.rename_path[base_index..],
             .flags = .{
                 .chars_no_blank = true,
                 .auto_select_all = true,
                 .enter_returns_true = true,
             },
-        }) or zgui.button("Ok", .{})) {
+        });
+        if (zgui.button("Cancel", .{ .w = half_width })) {
+            pixi.state.popups.rename = false;
+        }
+        zgui.sameLine(.{});
+        if (zgui.button("Ok", .{ .w = half_width }) or enter) {
             const old_path = std.mem.trimRight(u8, pixi.state.popups.rename_old_path[0..], "\u{0}");
             const new_path = std.mem.trimRight(u8, pixi.state.popups.rename_path[0..], "\u{0}");
             std.fs.renameAbsolute(old_path[0..], new_path[0..]) catch unreachable;
@@ -57,9 +68,7 @@ pub fn draw() void {
             }
             pixi.state.popups.rename = false;
         }
-        zgui.sameLine(.{});
-        if (zgui.button("Cancel", .{})) {
-            pixi.state.popups.rename = false;
-        }
+
+        zgui.popItemWidth();
     }
 }
