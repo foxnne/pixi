@@ -182,7 +182,6 @@ pub const Layer = struct {
     name: [:0]const u8,
     texture_handle: zgpu.TextureHandle,
     texture_view_handle: zgpu.TextureViewHandle,
-    data: []u8,
     image: zstbi.Image,
 };
 

@@ -179,7 +179,7 @@ pub fn main() !void {
 
     state.settings = settings;
 
-    zstbi.init(std.heap.c_allocator);
+    zstbi.init(allocator);
 
     const scale_factor = scale_factor: {
         const scale = window.getContentScale();

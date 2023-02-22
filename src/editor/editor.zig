@@ -63,9 +63,11 @@ pub fn newFile(path: [:0]const u8) !bool {
     layer.name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"});
     layer.texture_handle = layer_texture.handle;
     layer.texture_view_handle = layer_texture.view_handle;
-    // TODO: Understand why this doesn't really work and `layer.image.data.ptr` is invalid
-    layer.data = try std.heap.c_allocator.alloc(u8, internal.width * internal.height * 4);
-    layer.image = pixi.gfx.createImage(layer.data, internal.width, internal.height);
+    var temp_image = try zstbi.Image.init(pixi.assets.blank_png.path, 4);
+    layer.image = temp_image.resize(internal.width, internal.height);
+    temp_image.deinit();
+
+   
 
     // Create sprites for all tiles.
     {
@@ -73,7 +75,7 @@ pub fn newFile(path: [:0]const u8) !bool {
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
             var sprite: pixi.storage.Internal.Sprite = .{
-                .name = zgui.formatZ("Sprite_{d}", .{i}),
+                .name = try std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{ i}),
                 .index = i,
             };
             try internal.sprites.append(sprite);
@@ -179,7 +181,6 @@ pub fn openFile(path: [:0]const u8) !bool {
                     .texture_handle = undefined,
                     .texture_view_handle = undefined,
                     .image = undefined,
-                    .data = undefined,
                 };
 
                 new_layer.texture_handle = pixi.state.gctx.createTexture(.{
@@ -193,8 +194,7 @@ pub fn openFile(path: [:0]const u8) !bool {
                 });
 
                 new_layer.texture_view_handle = pixi.state.gctx.createTextureView(new_layer.texture_handle, .{});
-                new_layer.data = try pixi.state.allocator.dupe(u8, @ptrCast([*]u8, data)[0..img_len]);
-                new_layer.image = try zstbi.Image.initFromData(@ptrCast([*]u8, new_layer.data)[0..img_len], 4);
+                new_layer.image = try zstbi.Image.initFromData(@ptrCast([*]u8, data)[0..img_len], 4);
 
                 pixi.state.gctx.queue.writeTexture(
                     .{ .texture = pixi.state.gctx.lookupResource(new_layer.texture_handle).? },
@@ -268,7 +268,6 @@ pub fn closeFile(index: usize) !void {
         pixi.state.gctx.releaseResource(file.background_texture_view_handle);
         pixi.state.allocator.free(layer.name);
         layer.image.deinit();
-        pixi.state.allocator.free(layer.data);
     }
     for (file.sprites.items) |*sprite| {
         pixi.state.allocator.free(sprite.name);

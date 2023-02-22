@@ -40,7 +40,7 @@
         {
             "label": "Build and Run Project (release-fast)",
             "type": "shell",
-            "command": "zig build run -Drelease-fast",
+            "command": "zig build run -Doptimize=ReleaseFast",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -52,7 +52,7 @@
         {
             "label": "Build and Run Project (release-small)",
             "type": "shell",
-            "command": "zig build run -Drelease-small",
+            "command": "zig build run -Doptimize=ReleaseSmall",
             "group": {
                 "kind": "build",
                 "isDefault": true
