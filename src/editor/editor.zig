@@ -83,6 +83,8 @@ pub fn newFile(path: [:0]const u8) !bool {
     try pixi.state.open_files.insert(0, internal);
     pixi.editor.setActiveFile(0);
 
+    pixi.state.allocator.free(path);
+
     return true;
 }
 
