@@ -31,12 +31,19 @@ pub fn draw() void {
                         if (zgui.selectable(label, .{})) {
                             pixi.editor.setActiveFile(i);
                         }
+
+                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
+                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
+                        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.state.window.scale[0] });
+                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
                         zgui.pushStrId(file.path);
                         if (zgui.beginPopupContextItem()) {
                             contextMenuFile(file.path);
                             zgui.endPopup();
                         }
                         zgui.popId();
+                        zgui.popStyleVar(.{ .count = 4 });
+
                         if (zgui.isItemHovered(.{})) {
                             hovered = true;
                             hover_timer += pixi.state.gctx.stats.delta_time;
@@ -63,12 +70,17 @@ pub fn draw() void {
                 .default_open = true,
             },
         })) {
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
+            zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.state.window.scale[0] });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
             zgui.pushStrId(path);
             if (zgui.beginPopupContextItem()) {
                 contextMenuFolder(path);
                 zgui.endPopup();
             }
             zgui.popId();
+            zgui.popStyleVar(.{ .count = 4 });
 
             zgui.separator();
             zgui.spacing();
@@ -202,15 +214,13 @@ fn contextMenuFile(file: [:0]const u8) void {
         pixi.state.popups.rename = true;
     }
 
-    if (zgui.menuItem("Duplicate...", .{})) {
-        std.log.debug("{s}", .{file});
-    }
-
-    if (zgui.menuItem("Delete", .{})) {
+    if (zgui.menuItem("Duplicate...", .{})) {}
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
+    if (zgui.menuItem(pixi.fa.trash_alt ++ "  Delete", .{})) {
         std.fs.deleteFileAbsolute(file) catch unreachable;
         if (pixi.editor.getFileIndex(file)) |index| {
             pixi.editor.closeFile(index) catch unreachable;
         }
     }
-    zgui.popStyleColor(.{ .count = 1 });
+    zgui.popStyleColor(.{ .count = 2 });
 }
