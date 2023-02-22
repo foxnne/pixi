@@ -31,6 +31,12 @@ pub fn draw() void {
                         if (zgui.selectable(label, .{})) {
                             pixi.editor.setActiveFile(i);
                         }
+                        zgui.pushStrId(file.path);
+                        if (zgui.beginPopupContextItem()) {
+                            contextMenuFile(file.path);
+                            zgui.endPopup();
+                        }
+                        zgui.popId();
                         if (zgui.isItemHovered(.{})) {
                             hovered = true;
                             hover_timer += pixi.state.gctx.stats.delta_time;
@@ -202,6 +208,9 @@ fn contextMenuFile(file: [:0]const u8) void {
 
     if (zgui.menuItem("Delete", .{})) {
         std.fs.deleteFileAbsolute(file) catch unreachable;
+        if (pixi.editor.getFileIndex(file)) |index| {
+            pixi.editor.closeFile(index) catch unreachable;
+        }
     }
     zgui.popStyleColor(.{ .count = 1 });
 }

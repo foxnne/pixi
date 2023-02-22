@@ -39,7 +39,7 @@ pub fn newFile(path: [:0]const u8) !bool {
     }
 
     var internal: pixi.storage.Internal.Pixi = .{
-        .path = path,
+        .path = try pixi.state.allocator.dupeZ(u8, path),
         .width = @intCast(u32, pixi.state.popups.new_file_tiles[0] * pixi.state.popups.new_file_tile_size[0]),
         .height = @intCast(u32, pixi.state.popups.new_file_tiles[1] * pixi.state.popups.new_file_tile_size[1]),
         .tile_width = @intCast(u32, pixi.state.popups.new_file_tile_size[0]),
@@ -67,15 +67,13 @@ pub fn newFile(path: [:0]const u8) !bool {
     layer.image = temp_image.resize(internal.width, internal.height);
     temp_image.deinit();
 
-   
-
     // Create sprites for all tiles.
     {
         const tiles = @intCast(usize, pixi.state.popups.new_file_tiles[0] * pixi.state.popups.new_file_tiles[1]);
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
             var sprite: pixi.storage.Internal.Sprite = .{
-                .name = try std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{ i}),
+                .name = try std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{i}),
                 .index = i,
             };
             try internal.sprites.append(sprite);
