@@ -3,6 +3,8 @@ const zgui = @import("zgui");
 const pixi = @import("pixi");
 const nfd = @import("nfd");
 
+pub const Extension = enum { unsupported, pixi, png, jpg };
+
 pub var hover_timer: f32 = 0.0;
 
 pub fn draw() void {
@@ -13,7 +15,7 @@ pub fn draw() void {
         // Open files
         const file_count = pixi.state.open_files.items.len;
         if (file_count > 0) {
-            if (zgui.collapsingHeader(zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder_open, "Open Files" }), .{
+            if (zgui.collapsingHeader(zgui.formatZ("{s}  {s}", .{ pixi.fa.folder_open, "Open Files" }), .{
                 .default_open = true,
             })) {
                 zgui.separator();
@@ -64,7 +66,7 @@ pub fn draw() void {
 
         // File tree
         var open: bool = true;
-        if (zgui.collapsingHeaderStatePtr(zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder_open, folder }), .{
+        if (zgui.collapsingHeaderStatePtr(zgui.formatZ("{s}  {s}", .{ pixi.fa.folder_open, folder }), .{
             .pvisible = &open,
             .flags = .{
                 .default_open = true,
@@ -130,30 +132,50 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
             var iter = dir.iterate();
             while (iter.next() catch unreachable) |entry| {
                 if (entry.kind == .File) {
-                    const ext = std.fs.path.extension(entry.name);
+                    const ext = extension(entry.name);
+                    const icon = switch (ext) {
+                        .pixi => pixi.fa.file_powerpoint,
+                        .jpg, .png => pixi.fa.file_image,
+                        else => pixi.fa.file,
+                    };
 
-                    if (std.mem.eql(u8, ext, ".pixi")) {
-                        zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
-                        zgui.sameLine(.{});
-                        const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
-                        defer alloc.free(abs_path);
+                    const icon_color = switch (ext) {
+                        .pixi => pixi.state.style.text_orange.toSlice(),
+                        .jpg, .png => pixi.state.style.text_blue.toSlice(),
+                        else => pixi.state.style.text_background.toSlice(),
+                    };
 
-                        if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{
-                            .selected = if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
-                        })) {
+                    const text_color = switch (ext) {
+                        .pixi => pixi.state.style.text.toSlice(),
+                        .jpg, .png => pixi.state.style.text_secondary.toSlice(),
+                        else => pixi.state.style.text_background.toSlice(),
+                    };
+
+                    zgui.textColored(icon_color, " {s} ", .{icon});
+                    zgui.sameLine(.{});
+
+                    const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
+                    defer alloc.free(abs_path);
+
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = text_color });
+                    if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{
+                        .selected = if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
+                    })) {
+                        if (ext == .pixi)
                             _ = pixi.editor.openFile(alloc.dupeZ(u8, abs_path) catch unreachable) catch unreachable;
-                        }
-                        zgui.pushStrId(abs_path);
-                        if (zgui.beginPopupContextItem()) {
-                            contextMenuFile(abs_path);
-                            zgui.endPopup();
-                        }
-                        zgui.popId();
                     }
+                    zgui.popStyleColor(.{ .count = 1 });
+
+                    zgui.pushStrId(abs_path);
+                    if (zgui.beginPopupContextItem()) {
+                        contextMenuFile(abs_path);
+                        zgui.endPopup();
+                    }
+                    zgui.popId();
                 } else if (entry.kind == .Directory) {
                     const abs_path = std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
                     defer alloc.free(abs_path);
-                    const folder = zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder, entry.name });
+                    const folder = zgui.formatZ("{s}  {s}", .{ pixi.fa.folder, entry.name });
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 1 });
 
@@ -216,11 +238,21 @@ fn contextMenuFile(file: [:0]const u8) void {
 
     if (zgui.menuItem("Duplicate...", .{})) {}
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
-    if (zgui.menuItem(pixi.fa.trash_alt ++ "  Delete", .{})) {
+    if (zgui.menuItem("Delete", .{})) {
         std.fs.deleteFileAbsolute(file) catch unreachable;
         if (pixi.editor.getFileIndex(file)) |index| {
             pixi.editor.closeFile(index) catch unreachable;
         }
     }
     zgui.popStyleColor(.{ .count = 2 });
+}
+
+pub fn extension(file: []const u8) Extension {
+    const ext = std.fs.path.extension(file);
+
+    if (std.mem.eql(u8, ext, ".pixi")) return .pixi;
+    if (std.mem.eql(u8, ext, ".png")) return .png;
+    if (std.mem.eql(u8, ext, ".jpg")) return .jpg;
+
+    return .unsupported;
 }
