@@ -7,7 +7,6 @@ pub const files = @import("files.zig");
 pub const sprites = @import("sprites.zig");
 pub const settings = @import("settings.zig");
 
-
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = pixi.state.style.foreground.toSlice() });

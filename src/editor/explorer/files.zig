@@ -3,7 +3,7 @@ const zgui = @import("zgui");
 const pixi = @import("pixi");
 const nfd = @import("nfd");
 
-pub const Extension = enum { unsupported, pixi, png, jpg };
+pub const Extension = enum { unsupported, pixi, atlas, png, jpg, pdf, psd, aseprite, pyxel, json, zig, txt, zip, _7z, tar };
 
 pub var hover_timer: f32 = 0.0;
 
@@ -134,20 +134,27 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                 if (entry.kind == .File) {
                     const ext = extension(entry.name);
                     const icon = switch (ext) {
-                        .pixi => pixi.fa.file_powerpoint,
-                        .jpg, .png => pixi.fa.file_image,
+                        .pixi, .psd => pixi.fa.file_powerpoint,
+                        .jpg, .png, .aseprite, .pyxel => pixi.fa.file_image,
+                        .pdf => pixi.fa.file_pdf,
+                        .json, .zig, .txt, .atlas => pixi.fa.file_code,
+                        .tar, ._7z, .zip => pixi.fa.file_archive,
                         else => pixi.fa.file,
                     };
 
                     const icon_color = switch (ext) {
-                        .pixi => pixi.state.style.text_orange.toSlice(),
-                        .jpg, .png => pixi.state.style.text_blue.toSlice(),
+                        .pixi, .zig => pixi.state.style.text_orange.toSlice(),
+                        .png, .psd => pixi.state.style.text_blue.toSlice(),
+                        .jpg => pixi.state.style.highlight_primary.toSlice(),
+                        .pdf => pixi.state.style.text_red.toSlice(),
+                        .json, .atlas => pixi.state.style.text_yellow.toSlice(),
+                        .txt, .zip, ._7z, .tar => pixi.state.style.text_background.toSlice(),
                         else => pixi.state.style.text_background.toSlice(),
                     };
 
                     const text_color = switch (ext) {
                         .pixi => pixi.state.style.text.toSlice(),
-                        .jpg, .png => pixi.state.style.text_secondary.toSlice(),
+                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => pixi.state.style.text_secondary.toSlice(),
                         else => pixi.state.style.text_background.toSlice(),
                     };
 
@@ -249,10 +256,19 @@ fn contextMenuFile(file: [:0]const u8) void {
 
 pub fn extension(file: []const u8) Extension {
     const ext = std.fs.path.extension(file);
-
     if (std.mem.eql(u8, ext, ".pixi")) return .pixi;
+    if (std.mem.eql(u8, ext, ".atlas")) return .atlas;
     if (std.mem.eql(u8, ext, ".png")) return .png;
     if (std.mem.eql(u8, ext, ".jpg")) return .jpg;
-
+    if (std.mem.eql(u8, ext, ".pdf")) return .pdf;
+    if (std.mem.eql(u8, ext, ".psd")) return .psd;
+    if (std.mem.eql(u8, ext, ".aseprite")) return .aseprite;
+    if (std.mem.eql(u8, ext, ".pyxel")) return .pyxel;
+    if (std.mem.eql(u8, ext, ".json")) return .json;
+    if (std.mem.eql(u8, ext, ".zig")) return .zig;
+    if (std.mem.eql(u8, ext, ".zip")) return .zip;
+    if (std.mem.eql(u8, ext, ".7z")) return ._7z;
+    if (std.mem.eql(u8, ext, ".tar")) return .tar;
+    if (std.mem.eql(u8, ext, ".txt")) return .txt;
     return .unsupported;
 }
