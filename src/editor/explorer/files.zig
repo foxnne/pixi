@@ -3,6 +3,24 @@ const zgui = @import("zgui");
 const pixi = @import("root");
 const nfd = @import("nfd");
 
+pub const Extension = enum {
+    unsupported,
+    pixi,
+    atlas,
+    png,
+    jpg,
+    pdf,
+    psd,
+    aseprite,
+    pyxel,
+    json,
+    zig,
+    txt,
+    zip,
+    _7z,
+    tar,
+};
+
 pub var hover_timer: f32 = 0.0;
 
 pub fn draw() void {
@@ -13,7 +31,7 @@ pub fn draw() void {
         // Open files
         const file_count = pixi.state.open_files.items.len;
         if (file_count > 0) {
-            if (zgui.collapsingHeader(zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder_open, "Open Files" }), .{
+            if (zgui.collapsingHeader(zgui.formatZ("{s}  {s}", .{ pixi.fa.folder_open, "Open Files" }), .{
                 .default_open = true,
             })) {
                 zgui.separator();
@@ -64,7 +82,7 @@ pub fn draw() void {
 
         // File tree
         var open: bool = true;
-        if (zgui.collapsingHeaderStatePtr(zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder_open, folder }), .{
+        if (zgui.collapsingHeaderStatePtr(zgui.formatZ("{s}  {s}", .{ pixi.fa.folder_open, folder }), .{
             .pvisible = &open,
             .flags = .{
                 .default_open = true,
@@ -94,10 +112,13 @@ pub fn draw() void {
             }
             defer zgui.endChild();
         }
-
         zgui.popStyleVar(.{ .count = 1 });
 
         if (!open) {
+            if (pixi.state.project_folder) |f| {
+                pixi.state.allocator.free(f);
+            }
+
             pixi.state.project_folder = null;
         }
     } else {
@@ -109,6 +130,7 @@ pub fn draw() void {
         })) {
             const folder = nfd.openFolderDialog(null) catch unreachable;
             if (folder) |path| {
+                defer nfd.freePath(path);
                 pixi.editor.setProjectFolder(path);
             }
         }
@@ -130,30 +152,57 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
             var iter = dir.iterate();
             while (iter.next() catch unreachable) |entry| {
                 if (entry.kind == .File) {
-                    const ext = std.fs.path.extension(entry.name);
+                    const ext = extension(entry.name);
+                    const icon = switch (ext) {
+                        .pixi, .psd => pixi.fa.file_powerpoint,
+                        .jpg, .png, .aseprite, .pyxel => pixi.fa.file_image,
+                        .pdf => pixi.fa.file_pdf,
+                        .json, .zig, .txt, .atlas => pixi.fa.file_code,
+                        .tar, ._7z, .zip => pixi.fa.file_archive,
+                        else => pixi.fa.file,
+                    };
 
-                    if (std.mem.eql(u8, ext, ".pixi")) {
-                        zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
-                        zgui.sameLine(.{});
-                        const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
-                        defer alloc.free(abs_path);
+                    const icon_color = switch (ext) {
+                        .pixi, .zig => pixi.state.style.text_orange.toSlice(),
+                        .png, .psd => pixi.state.style.text_blue.toSlice(),
+                        .jpg => pixi.state.style.highlight_primary.toSlice(),
+                        .pdf => pixi.state.style.text_red.toSlice(),
+                        .json, .atlas => pixi.state.style.text_yellow.toSlice(),
+                        .txt, .zip, ._7z, .tar => pixi.state.style.text_background.toSlice(),
+                        else => pixi.state.style.text_background.toSlice(),
+                    };
 
-                        if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{
-                            .selected = if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
-                        })) {
+                    const text_color = switch (ext) {
+                        .pixi => pixi.state.style.text.toSlice(),
+                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => pixi.state.style.text_secondary.toSlice(),
+                        else => pixi.state.style.text_background.toSlice(),
+                    };
+
+                    zgui.textColored(icon_color, " {s} ", .{icon});
+                    zgui.sameLine(.{});
+
+                    const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
+                    defer alloc.free(abs_path);
+
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = text_color });
+                    if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{
+                        .selected = if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
+                    })) {
+                        if (ext == .pixi)
                             _ = pixi.editor.openFile(alloc.dupeZ(u8, abs_path) catch unreachable) catch unreachable;
-                        }
-                        zgui.pushStrId(abs_path);
-                        if (zgui.beginPopupContextItem()) {
-                            contextMenuFile(abs_path);
-                            zgui.endPopup();
-                        }
-                        zgui.popId();
                     }
+                    zgui.popStyleColor(.{ .count = 1 });
+
+                    zgui.pushStrId(abs_path);
+                    if (zgui.beginPopupContextItem()) {
+                        contextMenuFile(abs_path);
+                        zgui.endPopup();
+                    }
+                    zgui.popId();
                 } else if (entry.kind == .Directory) {
                     const abs_path = std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
                     defer alloc.free(abs_path);
-                    const folder = zgui.formatZ(" {s}  {s}", .{ pixi.fa.folder, entry.name });
+                    const folder = zgui.formatZ("{s}  {s}", .{ pixi.fa.folder, entry.name });
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 1 });
 
@@ -196,7 +245,17 @@ fn contextMenuFolder(folder: [:0]const u8) void {
         pixi.state.popups.new_file = true;
     }
     if (zgui.menuItem("New File from PNG...", .{})) {
-        _ = pixi.editor.importPng("Users/foxnne/dev/proj/test_file.png") catch unreachable;
+        const png_path = nfd.openFileDialog("png", null) catch unreachable;
+
+        if (png_path) |path| {
+            defer nfd.freePath(path);
+            var new_file_path = pixi.state.allocator.alloc(u8, path.len + 1) catch unreachable;
+            defer pixi.state.allocator.free(new_file_path);
+            _ = std.mem.replace(u8, path, ".png", ".pixi", new_file_path);
+
+            pixi.state.popups.new_file_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+            std.mem.copy(u8, pixi.state.popups.new_file_path[0..], new_file_path);
+        }
     }
     if (zgui.menuItem("New Folder...", .{})) {
         std.log.debug("{s}", .{folder});
@@ -205,7 +264,16 @@ fn contextMenuFolder(folder: [:0]const u8) void {
 }
 
 fn contextMenuFile(file: [:0]const u8) void {
+    const ext = extension(file);
+
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+    switch (ext) {
+        .png => {
+            if (zgui.menuItem("Import...", .{})) {}
+        },
+        else => {},
+    }
+
     if (zgui.menuItem("Rename...", .{})) {
         pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
         pixi.state.popups.rename_old_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
@@ -216,11 +284,30 @@ fn contextMenuFile(file: [:0]const u8) void {
 
     if (zgui.menuItem("Duplicate...", .{})) {}
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
-    if (zgui.menuItem(pixi.fa.trash_alt ++ "  Delete", .{})) {
+    if (zgui.menuItem("Delete", .{})) {
         std.fs.deleteFileAbsolute(file) catch unreachable;
         if (pixi.editor.getFileIndex(file)) |index| {
             pixi.editor.closeFile(index) catch unreachable;
         }
     }
     zgui.popStyleColor(.{ .count = 2 });
+}
+
+pub fn extension(file: []const u8) Extension {
+    const ext = std.fs.path.extension(file);
+    if (std.mem.eql(u8, ext, ".pixi")) return .pixi;
+    if (std.mem.eql(u8, ext, ".atlas")) return .atlas;
+    if (std.mem.eql(u8, ext, ".png")) return .png;
+    if (std.mem.eql(u8, ext, ".jpg")) return .jpg;
+    if (std.mem.eql(u8, ext, ".pdf")) return .pdf;
+    if (std.mem.eql(u8, ext, ".psd")) return .psd;
+    if (std.mem.eql(u8, ext, ".aseprite")) return .aseprite;
+    if (std.mem.eql(u8, ext, ".pyxel")) return .pyxel;
+    if (std.mem.eql(u8, ext, ".json")) return .json;
+    if (std.mem.eql(u8, ext, ".zig")) return .zig;
+    if (std.mem.eql(u8, ext, ".zip")) return .zip;
+    if (std.mem.eql(u8, ext, ".7z")) return ._7z;
+    if (std.mem.eql(u8, ext, ".tar")) return .tar;
+    if (std.mem.eql(u8, ext, ".txt")) return .txt;
+    return .unsupported;
 }

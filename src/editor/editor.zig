@@ -4,6 +4,7 @@ const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
 const zgui = @import("zgui");
+const nfd = @import("nfd");
 
 pub const Style = @import("style.zig");
 
@@ -23,8 +24,8 @@ pub fn draw() void {
     popup_new_file.draw();
 }
 
-pub fn setProjectFolder(path: [*:0]const u8) void {
-    pixi.state.project_folder = path[0..std.mem.len(path) :0];
+pub fn setProjectFolder(path: [:0]const u8) void {
+    pixi.state.project_folder = pixi.state.allocator.dupeZ(u8, path) catch unreachable;
 }
 
 /// Returns true if a new file was created.
@@ -89,7 +90,7 @@ pub fn newFile(path: [:0]const u8) !bool {
 }
 
 /// Returns true if png was imported and new file created.
-pub fn importPng(path: [:0]const u8) !bool {
+pub fn importPng(path: [:0]const u8) !?zstbi.Image {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
         return false;
 
@@ -282,6 +283,9 @@ pub fn closeFile(index: usize) !void {
 }
 
 pub fn deinit() void {
+    if (pixi.state.project_folder) |folder| {
+        pixi.state.allocator.free(folder);
+    }
     for (pixi.state.open_files.items) |_| {
         try closeFile(0);
     }
