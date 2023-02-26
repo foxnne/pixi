@@ -24,7 +24,6 @@ pub const Pixi = struct {
     selected_animation_state: AnimationState = .pause,
     selected_animation_elapsed: f32 = 0.0,
     background_image: zstbi.Image,
-    background_image_data: []u8,
     background_texture_handle: zgpu.TextureHandle,
     background_texture_view_handle: zgpu.TextureViewHandle,
     dirty: bool = true,
@@ -110,9 +109,8 @@ pub const Pixi = struct {
         }
     }
 
-    pub fn createBackground(self: *Pixi, allocator: std.mem.Allocator) !void {
-        self.background_image_data = try allocator.alloc(u8, @intCast(usize, self.tile_width * 2 * self.tile_height * 2 * 4));
-        self.background_image = pixi.gfx.createImage(self.background_image_data, self.tile_width * 2, self.tile_height * 2);
+    pub fn createBackground(self: *Pixi) !void {
+        self.background_image = try zstbi.Image.createEmpty(self.tile_width * 2, self.tile_height * 2, 4, .{});
         // Set background image data to checkerboard
         {
             var i: usize = 0;

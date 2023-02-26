@@ -50,13 +50,12 @@ pub fn newFile(path: [:0]const u8) !bool {
         .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
         .flipbook_camera = .{ .position = .{ -@intToFloat(f32, pixi.state.popups.new_file_tile_size[0]) / 2.0, 0.0 } },
         .background_image = undefined,
-        .background_image_data = undefined,
         .background_texture_handle = undefined,
         .background_texture_view_handle = undefined,
         .dirty = true,
     };
 
-    try internal.createBackground(pixi.state.allocator);
+    try internal.createBackground();
     var layer = try internal.layers.addOne();
 
     const layer_texture = pixi.gfx.Texture.init(pixi.state.gctx, internal.width, internal.height, .{});
@@ -64,9 +63,7 @@ pub fn newFile(path: [:0]const u8) !bool {
     layer.name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"});
     layer.texture_handle = layer_texture.handle;
     layer.texture_view_handle = layer_texture.view_handle;
-    var temp_image = try zstbi.Image.loadFromFile(pixi.assets.blank_png.path, 4);
-    layer.image = temp_image.resize(internal.width, internal.height);
-    temp_image.deinit();
+    layer.image = try zstbi.Image.createEmpty(internal.width, internal.height, 4, .{});
 
     // Create sprites for all tiles.
     {
@@ -157,13 +154,12 @@ pub fn openFile(path: [:0]const u8) !bool {
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
             .flipbook_camera = .{ .position = .{ -@intToFloat(f32, external.tileWidth) / 2.0, 0.0 } },
             .background_image = undefined,
-            .background_image_data = undefined,
             .background_texture_handle = undefined,
             .background_texture_view_handle = undefined,
             .dirty = false,
         };
 
-        try internal.createBackground(pixi.state.allocator);
+        try internal.createBackground();
 
         for (external.layers) |layer| {
             const layer_image_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});
@@ -261,7 +257,7 @@ pub fn getFile(index: usize) ?*pixi.storage.Internal.Pixi {
 pub fn closeFile(index: usize) !void {
     pixi.state.open_file_index = 0;
     var file = pixi.state.open_files.swapRemove(index);
-    pixi.state.allocator.free(file.background_image_data);
+    file.background_image.deinit();
     for (file.layers.items) |*layer| {
         pixi.state.gctx.releaseResource(layer.texture_handle);
         pixi.state.gctx.releaseResource(layer.texture_view_handle);
