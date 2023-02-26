@@ -77,7 +77,7 @@ pub fn draw() void {
             const new_file_path = std.mem.trimRight(u8, pixi.state.popups.new_file_path[0..], "\u{0}");
             const ext = std.fs.path.extension(new_file_path);
             if (std.mem.eql(u8, ".pixi", ext)) {
-                if (pixi.editor.newFile(pixi.state.allocator.dupeZ(u8, new_file_path) catch unreachable, null) catch unreachable) {
+                if (pixi.editor.newFile(pixi.state.allocator.dupeZ(u8, new_file_path) catch unreachable) catch unreachable) {
                     if (pixi.editor.getFile(0)) |file| {
                         _ = file.save() catch unreachable;
                     }
