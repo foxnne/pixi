@@ -4,6 +4,7 @@ const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
 const zgui = @import("zgui");
+const nfd = @import("nfd");
 
 pub const Style = @import("style.zig");
 
@@ -23,12 +24,12 @@ pub fn draw() void {
     popup_new_file.draw();
 }
 
-pub fn setProjectFolder(path: [*:0]const u8) void {
-    pixi.state.project_folder = path[0..std.mem.len(path) :0];
+pub fn setProjectFolder(path: [:0]const u8) void {
+    pixi.state.project_folder = pixi.state.allocator.dupeZ(u8, path) catch unreachable;
 }
 
 /// Returns true if a new file was created.
-pub fn newFile(path: [:0]const u8) !bool {
+pub fn newFile(path: [:0]const u8, image: ?zstbi.Image) !bool {
     for (pixi.state.open_files.items) |file, i| {
         if (std.mem.eql(u8, file.path, path)) {
             // Free path since we aren't adding it to open files again.
@@ -63,9 +64,13 @@ pub fn newFile(path: [:0]const u8) !bool {
     layer.name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"});
     layer.texture_handle = layer_texture.handle;
     layer.texture_view_handle = layer_texture.view_handle;
-    var temp_image = try zstbi.Image.init(pixi.assets.blank_png.path, 4);
-    layer.image = temp_image.resize(internal.width, internal.height);
-    temp_image.deinit();
+    if (image) |img| {
+        layer.image = img;
+    } else {
+        var temp_image = try zstbi.Image.init(pixi.assets.blank_png.path, 4);
+        layer.image = temp_image.resize(internal.width, internal.height);
+        temp_image.deinit();
+    }
 
     // Create sprites for all tiles.
     {
@@ -89,23 +94,12 @@ pub fn newFile(path: [:0]const u8) !bool {
 }
 
 /// Returns true if png was imported and new file created.
-pub fn importPng(path: [:0]const u8) !bool {
+pub fn importPng(path: [:0]const u8) !?zstbi.Image {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
         return false;
 
     var new_file_path = pixi.state.allocator.alloc(u8, path.len + 1) catch unreachable;
     _ = std.mem.replace(u8, path, ".png", ".pixi", new_file_path);
-
-    std.log.debug("{s}", .{new_file_path});
-
-    for (pixi.state.open_files.items) |file, i| {
-        if (std.mem.eql(u8, file.path, new_file_path)) {
-            // Free path since we aren't adding it to open files again.
-            pixi.state.allocator.free(new_file_path);
-            setActiveFile(i);
-            return false;
-        }
-    }
 
     return true;
 }
@@ -282,6 +276,9 @@ pub fn closeFile(index: usize) !void {
 }
 
 pub fn deinit() void {
+    if (pixi.state.project_folder) |folder| {
+        pixi.state.allocator.free(folder);
+    }
     for (pixi.state.open_files.items) |_| {
         try closeFile(0);
     }

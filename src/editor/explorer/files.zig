@@ -3,7 +3,23 @@ const zgui = @import("zgui");
 const pixi = @import("pixi");
 const nfd = @import("nfd");
 
-pub const Extension = enum { unsupported, pixi, atlas, png, jpg, pdf, psd, aseprite, pyxel, json, zig, txt, zip, _7z, tar };
+pub const Extension = enum {
+    unsupported,
+    pixi,
+    atlas,
+    png,
+    jpg,
+    pdf,
+    psd,
+    aseprite,
+    pyxel,
+    json,
+    zig,
+    txt,
+    zip,
+    _7z,
+    tar,
+};
 
 pub var hover_timer: f32 = 0.0;
 
@@ -96,10 +112,13 @@ pub fn draw() void {
             }
             defer zgui.endChild();
         }
-
         zgui.popStyleVar(.{ .count = 1 });
 
         if (!open) {
+            if (pixi.state.project_folder) |f| {
+                pixi.state.allocator.free(f);
+            }
+
             pixi.state.project_folder = null;
         }
     } else {
@@ -111,6 +130,7 @@ pub fn draw() void {
         })) {
             const folder = nfd.openFolderDialog(null) catch unreachable;
             if (folder) |path| {
+                defer nfd.freePath(path);
                 pixi.editor.setProjectFolder(path);
             }
         }
@@ -225,7 +245,17 @@ fn contextMenuFolder(folder: [:0]const u8) void {
         pixi.state.popups.new_file = true;
     }
     if (zgui.menuItem("New File from PNG...", .{})) {
-        _ = pixi.editor.importPng("Users/foxnne/dev/proj/test_file.png") catch unreachable;
+        const png_path = nfd.openFileDialog("png", null) catch unreachable;
+
+        if (png_path) |path| {
+            defer nfd.freePath(path);
+            var new_file_path = pixi.state.allocator.alloc(u8, path.len + 1) catch unreachable;
+            defer pixi.state.allocator.free(new_file_path);
+            _ = std.mem.replace(u8, path, ".png", ".pixi", new_file_path);
+
+            pixi.state.popups.new_file_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+            std.mem.copy(u8, pixi.state.popups.new_file_path[0..], new_file_path);
+        }
     }
     if (zgui.menuItem("New Folder...", .{})) {
         std.log.debug("{s}", .{folder});
@@ -234,7 +264,16 @@ fn contextMenuFolder(folder: [:0]const u8) void {
 }
 
 fn contextMenuFile(file: [:0]const u8) void {
+    const ext = extension(file);
+
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+    switch (ext) {
+        .png => {
+            if (zgui.menuItem("Import...", .{})) {}
+        },
+        else => {},
+    }
+
     if (zgui.menuItem("Rename...", .{})) {
         pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
         pixi.state.popups.rename_old_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;

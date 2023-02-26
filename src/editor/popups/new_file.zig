@@ -34,7 +34,7 @@ pub fn draw() void {
         const style = zgui.getStyle();
 
         const full_width = popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - zgui.calcTextSize("Tile Height", .{})[0];
-        const base_name_index = if (std.mem.lastIndexOf(u8, pixi.state.popups.new_file_path[0..], &[_]u8 { std.fs.path.sep })) |index| index + 1 else 0;
+        const base_name_index = if (std.mem.lastIndexOf(u8, pixi.state.popups.new_file_path[0..], &[_]u8{std.fs.path.sep})) |index| index + 1 else 0;
 
         zgui.pushItemWidth(full_width);
         _ = zgui.inputText("Name", .{
@@ -77,7 +77,7 @@ pub fn draw() void {
             const new_file_path = std.mem.trimRight(u8, pixi.state.popups.new_file_path[0..], "\u{0}");
             const ext = std.fs.path.extension(new_file_path);
             if (std.mem.eql(u8, ".pixi", ext)) {
-                if (pixi.editor.newFile(pixi.state.allocator.dupeZ(u8, new_file_path) catch unreachable) catch unreachable) {
+                if (pixi.editor.newFile(pixi.state.allocator.dupeZ(u8, new_file_path) catch unreachable, null) catch unreachable) {
                     if (pixi.editor.getFile(0)) |file| {
                         _ = file.save() catch unreachable;
                     }
