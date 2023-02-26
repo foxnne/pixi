@@ -19,9 +19,11 @@ const zstbi = @import("libs/zstbi/build.zig");
 
 pub fn build(b: *std.Build) void {
     ...
-    exe.addPackage(zstbi.pkg);
+    const zstbi_pkg = zstbi.Package.build(b, target, optimize, .{});
 
-    zstbi.link(exe);
+    exe.addModule("zstbi", zstbi_pkg.zstbi);
+
+    zstbi_pkg.link(exe);
 }
 ```
 Now in your code you may import and use `zstbi`.
@@ -36,7 +38,7 @@ defer zstbi.deinit();
 
 Load image:
 ```zig
-var image = try zstbi.Image.init("data/image.png", num_desired_channels);
+var image = try zstbi.Image.loadFromFile("data/image.png", num_desired_channels);
 defer image.deinit();
 _ = image.data; // stored as []u8
 _ = image.width;

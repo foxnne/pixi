@@ -68,7 +68,7 @@ pub const Image = struct {
         };
     }
 
-    pub fn init(pathname: [:0]const u8, forced_num_channels: u32) !Image {
+    pub fn loadFromFile(pathname: [:0]const u8, forced_num_channels: u32) !Image {
         var width: u32 = 0;
         var height: u32 = 0;
         var num_components: u32 = 0;
@@ -145,7 +145,7 @@ pub const Image = struct {
         };
     }
 
-    pub fn initFromData(data: []const u8, forced_num_channels: u32) !Image {
+    pub fn loadFromMemory(data: []const u8, forced_num_channels: u32) !Image {
         // TODO: Add support for HDR images (https://github.com/michal-z/zig-gamedev/issues/155).
         var width: u32 = 0;
         var height: u32 = 0;
@@ -178,6 +178,32 @@ pub const Image = struct {
 
         return Image{
             .data = image_data,
+            .width = width,
+            .height = height,
+            .num_components = num_components,
+            .bytes_per_component = bytes_per_component,
+            .bytes_per_row = bytes_per_row,
+            .is_hdr = false,
+        };
+    }
+
+    pub fn createEmpty(width: u32, height: u32, num_components: u32, args: struct {
+        bytes_per_component: u32 = 0,
+        bytes_per_row: u32 = 0,
+    }) !Image {
+        const bytes_per_component = if (args.bytes_per_component == 0) 1 else args.bytes_per_component;
+        const bytes_per_row = if (args.bytes_per_row == 0)
+            width * num_components * bytes_per_component
+        else
+            args.bytes_per_row;
+
+        const size = height * bytes_per_row;
+
+        const data = @ptrCast([*]u8, zstbiMalloc(size));
+        @memset(data, 0, size);
+
+        return Image{
+            .data = data[0..size],
             .width = width,
             .height = height,
             .num_components = num_components,
@@ -445,6 +471,7 @@ extern fn stbi_write_png(
     data: [*]const u8,
     stride_in_bytes: c_int,
 ) c_int;
+
 extern fn stbi_write_png_to_func(
     func: *const fn (?*anyopaque, ?*anyopaque, c_int) callconv(.C) void,
     context: ?*anyopaque,
@@ -468,4 +495,7 @@ extern fn stbi_write_jpg_to_func(
 test "zstbi.basic" {
     init(std.testing.allocator);
     defer deinit();
+
+    var image = try Image.createEmpty(64, 64, 4, .{});
+    defer image.deinit();
 }

@@ -1,6 +1,6 @@
 const std = @import("std");
 const zgui = @import("zgui");
-const pixi = @import("pixi");
+const pixi = @import("root");
 
 pub fn draw() void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 8.0 * pixi.state.window.scale[1], 8.0 * pixi.state.window.scale[1] } });
@@ -15,7 +15,7 @@ pub fn draw() void {
 
         zgui.setNextItemWidth(pixi.state.settings.explorer_width * pixi.state.window.scale[0] * 0.5);
         if (zgui.beginCombo("Scheme", .{ .preview_value = @tagName(pixi.state.settings.input_scheme) })) {
-            inline for (@typeInfo(pixi.Settings.InputScheme).Enum.fields) |f, i| {
+            inline for (@typeInfo(pixi.Settings.InputScheme).Enum.fields, 0..) |f, i| {
                 if (zgui.selectable(f.name[0.. :0], .{})) {
                     pixi.state.settings.input_scheme = @intToEnum(pixi.Settings.InputScheme, i);
                     // TODO: Mark settings as dirty to save on close

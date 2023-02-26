@@ -1,6 +1,6 @@
 const std = @import("std");
 const zgui = @import("zgui");
-const pixi = @import("pixi");
+const pixi = @import("root");
 const nfd = @import("nfd");
 
 pub var hover_timer: f32 = 0.0;
@@ -23,7 +23,7 @@ pub fn draw() void {
 
                     var hovered: bool = false;
 
-                    for (pixi.state.open_files.items) |file, i| {
+                    for (pixi.state.open_files.items, 0..) |file, i| {
                         zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
                         zgui.sameLine(.{});
                         const name = std.fs.path.basename(file.path);

@@ -49,7 +49,7 @@ pub const Texture = struct {
     }
 
     pub fn initFromFile(gctx: *zgpu.GraphicsContext, file: [:0]const u8, options: Texture.SamplerOptions) !Texture {
-        var image = try zstbi.Image.init(file, 4);
+        var image = try zstbi.Image.loadFromFile(file, 4);
         defer image.deinit();
 
         const handle = gctx.createTexture(.{

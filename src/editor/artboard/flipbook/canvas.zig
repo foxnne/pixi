@@ -1,6 +1,6 @@
 const std = @import("std");
 const zgui = @import("zgui");
-const pixi = @import("pixi");
+const pixi = @import("root");
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_height = zgui.getWindowHeight();
@@ -63,7 +63,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
     const tiles_wide = @divExact(file.width, file.tile_width);
 
-    for (file.sprites.items) |_, i| {
+    for (file.sprites.items, 0..) |_, i| {
         const column = @intToFloat(f32, @mod(@intCast(u32, i), tiles_wide));
         const row = @intToFloat(f32, @divTrunc(@intCast(u32, i), tiles_wide));
 
@@ -93,7 +93,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (!file.setAnimationFromSpriteIndex()) {
                 file.selected_animation_state = .pause;
             }
-        } 
+        }
 
         if (dst_rect[0] > -zgui.getWindowWidth() / 2 and dst_rect[0] + dst_rect[2] < zgui.getWindowWidth()) {
             // Draw all layers in reverse order

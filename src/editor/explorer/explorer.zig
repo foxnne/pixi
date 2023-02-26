@@ -1,12 +1,11 @@
 const std = @import("std");
 const zgui = @import("zgui");
-const pixi = @import("pixi");
+const pixi = @import("root");
 const nfd = @import("nfd");
 
 pub const files = @import("files.zig");
 pub const sprites = @import("sprites.zig");
 pub const settings = @import("settings.zig");
-
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });

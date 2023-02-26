@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("pixi");
+const pixi = @import("root");
 const zgui = @import("zgui");
 
 pub fn draw() void {
@@ -34,7 +34,7 @@ pub fn draw() void {
         const style = zgui.getStyle();
 
         const full_width = popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - zgui.calcTextSize("Tile Height", .{})[0];
-        const base_name_index = if (std.mem.lastIndexOf(u8, pixi.state.popups.new_file_path[0..], &[_]u8 { std.fs.path.sep })) |index| index + 1 else 0;
+        const base_name_index = if (std.mem.lastIndexOf(u8, pixi.state.popups.new_file_path[0..], &[_]u8{std.fs.path.sep})) |index| index + 1 else 0;
 
         zgui.pushItemWidth(full_width);
         _ = zgui.inputText("Name", .{

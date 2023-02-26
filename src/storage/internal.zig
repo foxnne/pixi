@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("pixi");
+const pixi = @import("root");
 const zgpu = @import("zgpu");
 const zstbi = @import("zstbi");
 const storage = @import("storage.zig");
@@ -42,11 +42,11 @@ pub const Pixi = struct {
         var layers = try allocator.alloc(storage.External.Layer, self.layers.items.len);
         var sprites = try allocator.alloc(storage.External.Sprite, self.sprites.items.len);
 
-        for (layers) |*layer, i| {
+        for (layers, 0..) |*layer, i| {
             layer.name = self.layers.items[i].name;
         }
 
-        for (sprites) |*sprite, i| {
+        for (sprites, 0..) |*sprite, i| {
             sprite.name = self.sprites.items[i].name;
             sprite.origin_x = self.sprites.items[i].origin_x;
             sprite.origin_y = self.sprites.items[i].origin_y;
@@ -161,7 +161,7 @@ pub const Pixi = struct {
     /// Searches for an animation containing the current selected sprite index
     /// Returns true if one is found and set, false if not
     pub fn setAnimationFromSpriteIndex(self: *Pixi) bool {
-        for (self.animations.items) |animation, i| {
+        for (self.animations.items, 0..) |animation, i| {
             if (self.selected_sprite_index >= animation.start and self.selected_sprite_index <= animation.start + animation.length - 1) {
                 self.selected_animation_index = i;
                 return true;

@@ -1,6 +1,6 @@
 const std = @import("std");
 const zgui = @import("zgui");
-const pixi = @import("pixi");
+const pixi = @import("root");
 
 pub fn draw() void {
     zgui.spacing();

@@ -19,7 +19,6 @@ pub const Atlas = struct {
         var sprite_width = @divExact(@floatToInt(i32, width), columns);
         var sprite_height = @divExact(@floatToInt(i32, height), rows);
 
-
         var r: i32 = 0;
         while (r < rows) : (r += 1) {
             var c: i32 = 0;
@@ -52,7 +51,7 @@ pub const Atlas = struct {
         const r = try fs.read(allocator, file);
         errdefer allocator.free(r);
 
-        const options = std.json.ParseOptions{ .allocator = allocator, .duplicate_field_behavior = .UseFirst,  .ignore_unknown_fields = true, .allow_trailing_data = true};
+        const options = std.json.ParseOptions{ .allocator = allocator, .duplicate_field_behavior = .UseFirst, .ignore_unknown_fields = true, .allow_trailing_data = true };
         var ts = std.json.TokenStream.init(r);
         const atlas = try std.json.parse(Atlas, &ts, options);
 
@@ -70,7 +69,7 @@ pub const Atlas = struct {
 
     /// returns index of sprite by name
     pub fn indexOf(this: Atlas, name: []const u8) !usize {
-        for (this.sprites) |s, i| {
+        for (this.sprites, 0..) |s, i| {
             if (std.mem.eql(u8, s.name, name))
                 return i;
         }

@@ -3,7 +3,7 @@ const zm = @import("zmath");
 const zgpu = @import("zgpu");
 const zglfw = @import("zglfw");
 const zgui = @import("zgui");
-const pixi = @import("pixi");
+const pixi = @import("root");
 
 pub const Camera = struct {
     position: [2]f32 = .{ 0.0, 0.0 },
@@ -203,7 +203,7 @@ pub const Camera = struct {
     pub fn nearestZoomIndex(camera: Camera) usize {
         var nearest_zoom_index: usize = 0;
         var nearest_zoom_step: f32 = pixi.state.settings.zoom_steps[nearest_zoom_index];
-        for (pixi.state.settings.zoom_steps) |step, i| {
+        for (pixi.state.settings.zoom_steps, 0..) |step, i| {
             const step_difference = @fabs(camera.zoom - step);
             const current_difference = @fabs(camera.zoom - nearest_zoom_step);
             if (step_difference < current_difference) {

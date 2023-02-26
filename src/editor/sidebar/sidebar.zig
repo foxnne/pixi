@@ -1,5 +1,5 @@
 const zgui = @import("zgui");
-const pixi = @import("pixi");
+const pixi = @import("root");
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });

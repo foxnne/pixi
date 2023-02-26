@@ -1,6 +1,6 @@
 const std = @import("std");
 const zgui = @import("zgui");
-const pixi = @import("pixi");
+const pixi = @import("root");
 const settings = pixi.settings;
 const filebrowser = @import("filebrowser");
 const nfd = @import("nfd");

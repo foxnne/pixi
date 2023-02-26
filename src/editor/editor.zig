@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("pixi");
+const pixi = @import("root");
 const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
@@ -29,7 +29,7 @@ pub fn setProjectFolder(path: [*:0]const u8) void {
 
 /// Returns true if a new file was created.
 pub fn newFile(path: [:0]const u8) !bool {
-    for (pixi.state.open_files.items) |file, i| {
+    for (pixi.state.open_files.items, 0..) |file, i| {
         if (std.mem.eql(u8, file.path, path)) {
             // Free path since we aren't adding it to open files again.
             pixi.state.allocator.free(path);
@@ -63,7 +63,7 @@ pub fn newFile(path: [:0]const u8) !bool {
     layer.name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"});
     layer.texture_handle = layer_texture.handle;
     layer.texture_view_handle = layer_texture.view_handle;
-    var temp_image = try zstbi.Image.init(pixi.assets.blank_png.path, 4);
+    var temp_image = try zstbi.Image.loadFromFile(pixi.assets.blank_png.path, 4);
     layer.image = temp_image.resize(internal.width, internal.height);
     temp_image.deinit();
 
@@ -98,7 +98,7 @@ pub fn importPng(path: [:0]const u8) !bool {
 
     std.log.debug("{s}", .{new_file_path});
 
-    for (pixi.state.open_files.items) |file, i| {
+    for (pixi.state.open_files.items, 0..) |file, i| {
         if (std.mem.eql(u8, file.path, new_file_path)) {
             // Free path since we aren't adding it to open files again.
             pixi.state.allocator.free(new_file_path);
@@ -115,7 +115,7 @@ pub fn openFile(path: [:0]const u8) !bool {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return false;
 
-    for (pixi.state.open_files.items) |file, i| {
+    for (pixi.state.open_files.items, 0..) |file, i| {
         if (std.mem.eql(u8, file.path, path)) {
             // Free path since we aren't adding it to open files again.
             pixi.state.allocator.free(path);
@@ -194,7 +194,7 @@ pub fn openFile(path: [:0]const u8) !bool {
                 });
 
                 new_layer.texture_view_handle = pixi.state.gctx.createTextureView(new_layer.texture_handle, .{});
-                new_layer.image = try zstbi.Image.initFromData(@ptrCast([*]u8, data)[0..img_len], 4);
+                new_layer.image = try zstbi.Image.loadFromMemory(@ptrCast([*]u8, data)[0..img_len], 4);
 
                 pixi.state.gctx.queue.writeTexture(
                     .{ .texture = pixi.state.gctx.lookupResource(new_layer.texture_handle).? },
@@ -211,7 +211,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             }
         }
 
-        for (external.sprites) |sprite, i| {
+        for (external.sprites, 0..) |sprite, i| {
             try internal.sprites.append(.{
                 .name = try pixi.state.allocator.dupeZ(u8, sprite.name),
                 .index = i,
@@ -244,7 +244,7 @@ pub fn setActiveFile(index: usize) void {
 }
 
 pub fn getFileIndex(path: [:0]const u8) ?usize {
-    for (pixi.state.open_files.items) |file, i| {
+    for (pixi.state.open_files.items, 0..) |file, i| {
         if (std.mem.eql(u8, file.path, path))
             return i;
     }

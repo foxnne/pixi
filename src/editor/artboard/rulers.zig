@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("pixi");
+const pixi = @import("root");
 const zgui = @import("zgui");
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {

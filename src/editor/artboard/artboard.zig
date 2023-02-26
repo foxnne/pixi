@@ -1,6 +1,6 @@
 const std = @import("std");
 const zgui = @import("zgui");
-const pixi = @import("pixi");
+const pixi = @import("root");
 const editor = pixi.editor;
 
 pub const menu = @import("menu.zig");
@@ -61,7 +61,7 @@ pub fn draw() void {
 
                     var hovered: bool = false;
 
-                    for (pixi.state.open_files.items) |file, i| {
+                    for (pixi.state.open_files.items, 0..) |file, i| {
                         var open: bool = true;
 
                         const file_name = std.fs.path.basename(file.path);

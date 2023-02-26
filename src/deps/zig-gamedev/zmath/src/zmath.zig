@@ -786,7 +786,7 @@ pub inline fn min(v0: anytype, v1: anytype) @TypeOf(v0, v1) {
     return @min(v0, v1); // minps, cmpunordps, andps, andnps, orps
 }
 test "zmath.min" {
-  if (builtin.target.os.tag == .macos) return error.SkipZigTest;
+    if (builtin.target.os.tag == .macos) return error.SkipZigTest;
     {
         const v0 = f32x4(1.0, 3.0, 2.0, 7.0);
         const v1 = f32x4(2.0, 1.0, 4.0, math.inf_f32);
@@ -828,7 +828,7 @@ pub inline fn max(v0: anytype, v1: anytype) @TypeOf(v0, v1) {
     return @max(v0, v1); // maxps, cmpunordps, andps, andnps, orps
 }
 test "zmath.max" {
-  if (builtin.target.os.tag == .macos) return error.SkipZigTest;
+    if (builtin.target.os.tag == .macos) return error.SkipZigTest;
     {
         const v0 = f32x4(1.0, 3.0, 2.0, 7.0);
         const v1 = f32x4(2.0, 1.0, 4.0, math.inf_f32);
@@ -1241,7 +1241,7 @@ pub inline fn clamp(v: anytype, vmin: anytype, vmax: anytype) @TypeOf(v, vmin, v
     return result;
 }
 test "zmath.clamp" {
-  if (builtin.target.os.tag == .macos) return error.SkipZigTest;
+    if (builtin.target.os.tag == .macos) return error.SkipZigTest;
     {
         const v0 = f32x4(-1.0, 0.2, 1.1, -0.3);
         const v = clamp(v0, splat(F32x4, -0.5), splat(F32x4, 0.5));
@@ -1284,7 +1284,7 @@ pub inline fn saturate(v: anytype) @TypeOf(v) {
     return result;
 }
 test "zmath.saturate" {
-  if (builtin.target.os.tag == .macos) return error.SkipZigTest;
+    if (builtin.target.os.tag == .macos) return error.SkipZigTest;
     {
         const v0 = f32x4(-1.0, 0.2, 1.1, -0.3);
         const v = saturate(v0);
@@ -1415,11 +1415,15 @@ test "zmath.modAngle" {
 
 pub inline fn mulAdd(v0: anytype, v1: anytype, v2: anytype) @TypeOf(v0, v1, v2) {
     const T = @TypeOf(v0, v1, v2);
-    if (cpu_arch == .x86_64 and has_avx and has_fma) {
-        return @mulAdd(T, v0, v1, v2);
+    if (@import("zmath_options").prefer_determinism) {
+        return v0 * v1 + v2; // Compiler will generate mul, add sequence (no fma even if the target supports it).
     } else {
-        // NOTE(mziulek): On .x86_64 without HW fma instructions @mulAdd maps to really slow code!
-        return v0 * v1 + v2;
+        if (cpu_arch == .x86_64 and has_avx and has_fma) {
+            return @mulAdd(T, v0, v1, v2);
+        } else {
+            // NOTE(mziulek): On .x86_64 without HW fma instructions @mulAdd maps to really slow code!
+            return v0 * v1 + v2;
+        }
     }
 }
 
@@ -2540,7 +2544,7 @@ pub fn inverseDet(m: Mat, out_det: ?*F32x4) Mat {
         out_det.?.* = det;
     }
 
-    if (math.approxEqAbs(f32, det[0], 0.0, 0.0001)) {
+    if (math.approxEqAbs(f32, det[0], 0.0, math.f32_epsilon)) {
         return .{
             f32x4(0.0, 0.0, 0.0, 0.0),
             f32x4(0.0, 0.0, 0.0, 0.0),
@@ -3960,7 +3964,7 @@ test "zmath.fftN" {
             -32.000000, 0.000000, -38.992113,  0.000000, -47.891384,  0.000000, -59.867789,  0.000000,
             -77.254834, 0.000000, -105.489863, 0.000000, -160.874864, 0.000000, -324.901452, 0.000000,
         };
-        for (expected) |e, ie| {
+        for (expected, 0..) |e, ie| {
             try expect(std.math.approxEqAbs(f32, e, im[(ie / 4)][ie % 4], epsilon));
         }
     }
@@ -4023,7 +4027,7 @@ test "zmath.fftN" {
             -154.509668, 0.000000, 0.000000, 0.000000, -210.979725, 0.000000, 0.000000, 0.000000,
             -321.749727, 0.000000, 0.000000, 0.000000, -649.802905, 0.000000, 0.000000, 0.000000,
         };
-        for (expected) |e, ie| {
+        for (expected, 0..) |e, ie| {
             try expect(std.math.approxEqAbs(f32, e, im[(ie / 4)][ie % 4], epsilon));
         }
     }
@@ -4189,7 +4193,7 @@ pub fn ifft(re: []F32x4, im: []const F32x4, unity_table: []const F32x4) void {
     const rnp = f32x4s(1.0 / @intToFloat(f32, length));
     const rnm = f32x4s(-1.0 / @intToFloat(f32, length));
 
-    for (re) |_, i| {
+    for (re, 0..) |_, i| {
         re_temp[i] = re[i] * rnp;
         im_temp[i] = im[i] * rnm;
     }
@@ -4256,7 +4260,7 @@ test "zmath.ifft" {
         var re: [128]F32x4 = undefined;
         var im = [_]F32x4{f32x4s(0.0)} ** 128;
 
-        for (re) |*v, i| {
+        for (&re, 0..) |*v, i| {
             const f = @intToFloat(f32, i * 4);
             v.* = f32x4(f + 1.0, f + 2.0, f + 3.0, f + 4.0);
         }
@@ -4264,14 +4268,14 @@ test "zmath.ifft" {
         fftInitUnityTable(unity_table[0..512]);
         fft(re[0..], im[0..], unity_table[0..512]);
 
-        for (re) |v, i| {
+        for (re, 0..) |v, i| {
             const f = @intToFloat(f32, i * 4);
             try expect(!approxEqAbs(v, f32x4(f + 1.0, f + 2.0, f + 3.0, f + 4.0), epsilon));
         }
 
         ifft(re[0..], im[0..], unity_table[0..512]);
 
-        for (re) |v, i| {
+        for (re, 0..) |v, i| {
             const f = @intToFloat(f32, i * 4);
             try expect(approxEqAbs(v, f32x4(f + 1.0, f + 2.0, f + 3.0, f + 4.0), epsilon));
         }

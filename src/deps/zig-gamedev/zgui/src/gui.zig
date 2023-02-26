@@ -892,9 +892,16 @@ const PopStyleColor = struct {
 pub fn popStyleColor(args: PopStyleColor) void {
     zguiPopStyleColor(args.count);
 }
+/// `fn pushTextWrapPos(wrap_pos_x: f32) void`
+pub const pushTextWrapPos = zguiPushTextWrapPos;
+/// `fn popTextWrapPos() void`
+pub const popTextWrapPos = zguiPopTextWrapPos;
 extern fn zguiPushStyleColor4f(idx: StyleCol, col: *const [4]f32) void;
 extern fn zguiPushStyleColor1u(idx: StyleCol, col: u32) void;
 extern fn zguiPopStyleColor(count: i32) void;
+extern fn zguiPushTextWrapPos(wrap_pos_x: f32) void;
+extern fn zguiPopTextWrapPos() void;
+//--------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------
 pub const StyleVar = enum(u32) {
     alpha, // 1f
@@ -972,6 +979,13 @@ extern fn zguiPushFont(font: Font) void;
 /// `void popFont() void`
 pub const popFont = zguiPopFont;
 extern fn zguiPopFont() void;
+
+pub fn getFontTexUvWhitePixel() [2]f32 {
+    var uv: [2]f32 = undefined;
+    zguiGetFontTexUvWhitePixel(&uv);
+    return uv;
+}
+extern fn zguiGetFontTexUvWhitePixel(uv: *[2]f32) void;
 //--------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------
 const BeginDisabled = struct {
@@ -3326,6 +3340,8 @@ pub const DrawList = *opaque {
     extern fn zguiDrawList_GetIndexBufferLength(draw_list: DrawList) i32;
     pub const getIndexBufferData = zguiDrawList_GetIndexBufferData;
     extern fn zguiDrawList_GetIndexBufferData(draw_list: DrawList) [*]const DrawIdx;
+    pub const getCurrentIndex = zguiDrawList_GetCurrentIndex;
+    extern fn zguiDrawList_GetCurrentIndex(draw_list: DrawList) u32;
 
     pub const getCmdBufferLength = zguiDrawList_GetCmdBufferLength;
     extern fn zguiDrawList_GetCmdBufferLength(draw_list: DrawList) i32;
