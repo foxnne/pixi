@@ -47,22 +47,22 @@ pub fn draw() void {
         });
 
         zgui.spacing();
-        _ = zgui.sliderInt("Tile Width", .{
-            .v = &pixi.state.popups.new_file_tile_size[0],
-            .min = 1,
-            .max = pixi.state.settings.max_file_size[0],
-        });
-        _ = zgui.sliderInt("Tile Height", .{
+        if (inputIntClamp("Tile Width", pixi.state.popups.new_file_tile_size[0], 1, pixi.state.settings.max_file_size[0])) {
+            const max_width_tiles = @divTrunc(pixi.state.settings.max_file_size[0], pixi.state.popups.new_file_tile_size[0]);
+            if (pixi.state.popups.new_file_tiles[0] > max_width_tiles) pixi.state.popups.new_file_tiles[0] = max_width_tiles;
+        }
+        _ = zgui.inputInt("Tile Height", .{
             .v = &pixi.state.popups.new_file_tile_size[1],
-            .min = 1,
-            .max = pixi.state.settings.max_file_size[1],
         });
         zgui.spacing();
         zgui.separator();
         zgui.spacing();
-        _ = zgui.sliderInt("Tiles Wide", .{ .v = &pixi.state.popups.new_file_tiles[0], .min = 1, .max = @divTrunc(pixi.state.settings.max_file_size[0], pixi.state.popups.new_file_tile_size[0]) });
+        if (zgui.inputInt("Tiles Wide", .{ .v = &pixi.state.popups.new_file_tiles[0] })) {
+            const max_width_tiles = @divTrunc(pixi.state.settings.max_file_size[0], pixi.state.popups.new_file_tile_size[0]);
+            pixi.state.popups.new_file_tiles[0] = std.math.clamp(pixi.state.popups.new_file_tiles[0], 1, max_width_tiles);
+        }
 
-        _ = zgui.sliderInt("Tiles High", .{ .v = &pixi.state.popups.new_file_tiles[1], .min = 1, .max = @divTrunc(pixi.state.settings.max_file_size[1], pixi.state.popups.new_file_tile_size[1]) });
+        _ = zgui.inputInt("Tiles High", .{ .v = &pixi.state.popups.new_file_tiles[1] });
         zgui.popItemWidth();
         zgui.spacing();
         zgui.spacing();
@@ -86,4 +86,12 @@ pub fn draw() void {
             }
         }
     }
+}
+
+fn inputIntClamp(label: [:0]const u8, v: *i32, min: i32, max: i32) bool {
+    var b = zgui.inputInt(label, .{ .v = v });
+    if (b) {
+        v = std.math.clamp(v, min, max);
+    }
+    return b;
 }
