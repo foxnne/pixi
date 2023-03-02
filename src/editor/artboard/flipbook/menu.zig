@@ -14,13 +14,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
     if (zgui.beginMenuBar()) {
         defer zgui.endMenuBar();
 
-        if (zgui.button(if (file.selected_animation_state == .play) "Pause" else "Play", .{})) {
+        if (zgui.button(if (file.selected_animation_state == .play) pixi.fa.pause else pixi.fa.play, .{})) {
             file.selected_animation_state = switch (file.selected_animation_state) {
                 .play => .pause,
                 .pause => .play,
             };
         }
-
         _ = zgui.invisibleButton("FlipbookGrip", .{
             .w = -1.0,
             .h = -1.0,
