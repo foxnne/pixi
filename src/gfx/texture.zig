@@ -95,4 +95,10 @@ pub const Texture = struct {
             .height = image.height,
         };
     }
+
+    pub fn deinit(texture: *Texture, gctx: *zgpu.GraphicsContext) void {
+        gctx.releaseResource(texture.handle);
+        gctx.releaseResource(texture.sampler_handle);
+        gctx.releaseResource(texture.view_handle);
+    }
 };

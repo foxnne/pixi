@@ -40,10 +40,8 @@ pub fn draw() void {
             zgui.popStyleColor(.{ .count = 1 });
             zgui.endMenu();
         }
-        if (zgui.beginMenu("About", true)) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
-            zgui.popStyleColor(.{ .count = 1 });
-            zgui.endMenu();
+        if (zgui.menuItem("About", .{})) {
+            pixi.state.popups.about = true;
         }
     }
 }

@@ -10,6 +10,7 @@ const zm = @import("zmath");
 // TODO: Nativefiledialogs requires xcode appkit frameworks.
 
 pub const name: [:0]const u8 = "Pixi";
+pub const version: []const u8 = "0.0.1";
 pub const Settings = @import("settings.zig");
 
 pub const editor = @import("editor/editor.zig");
@@ -44,6 +45,7 @@ pub const PixiState = struct {
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
     background_logo: gfx.Texture,
+    fox_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
     open_file_index: usize = 0,
     popups: Popups = .{},
@@ -67,6 +69,8 @@ pub const Popups = struct {
     new_file_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
     new_file_tile_size: [2]i32 = .{ 32, 32 },
     new_file_tiles: [2]i32 = .{ 32, 32 },
+    // About
+    about: bool = false,
 };
 
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
@@ -83,6 +87,7 @@ fn init(allocator: std.mem.Allocator, window: *zglfw.Window) !*PixiState {
 
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
     const background_logo = try gfx.Texture.initFromFile(gctx, assets.Icon1024_png.path, .{});
+    const fox_logo = try gfx.Texture.initFromFile(gctx, assets.Fox1024_png.path, .{});
 
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
@@ -97,6 +102,7 @@ fn init(allocator: std.mem.Allocator, window: *zglfw.Window) !*PixiState {
         .gctx = gctx,
         .window = state_window,
         .background_logo = background_logo,
+        .fox_logo = fox_logo,
         .open_files = open_files,
     };
 
@@ -104,6 +110,8 @@ fn init(allocator: std.mem.Allocator, window: *zglfw.Window) !*PixiState {
 }
 
 fn deinit(allocator: std.mem.Allocator) void {
+    state.background_logo.deinit(state.gctx);
+    state.fox_logo.deinit(state.gctx);
     editor.deinit();
     zgui.backend.deinit();
     zgui.deinit();

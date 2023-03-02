@@ -7,7 +7,7 @@ pub const Icon1024_png = struct {
   pub const path = "assets/Icon1024.png";
 };
 
-pub const blank_png = struct {
-  pub const path = "assets/blank.png";
+pub const Fox1024_png = struct {
+  pub const path = "assets/Fox1024.png";
 };
 
