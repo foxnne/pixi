@@ -265,7 +265,11 @@ fn contextMenuFile(file: [:0]const u8) void {
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
     switch (ext) {
         .png => {
-            if (zgui.menuItem("Import...", .{})) {}
+            if (zgui.menuItem("Import...", .{})) {
+                var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{file[0 .. file.len - 4]}) catch unreachable;
+                defer pixi.state.allocator.free(new_file_path);
+                pixi.state.popups.setupFileImportPng(new_file_path, file);
+            }
         },
         else => {},
     }
@@ -288,6 +292,8 @@ fn contextMenuFile(file: [:0]const u8) void {
     }
     zgui.popStyleColor(.{ .count = 2 });
 }
+
+fn newFileFromPng() void {}
 
 pub fn extension(file: []const u8) Extension {
     const ext = std.fs.path.extension(file);

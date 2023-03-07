@@ -67,10 +67,21 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     layer.texture_view_handle = layer_texture.view_handle;
 
     if (import_path) |import| {
-        layer.image = try zstbi.Image.loadFromFile(import, 4);
+        layer.image = try zstbi.Image.loadFromFile(import[0..], 4);
     } else {
         layer.image = try zstbi.Image.createEmpty(internal.width, internal.height, 4, .{});
     }
+
+    pixi.state.gctx.queue.writeTexture(
+        .{ .texture = pixi.state.gctx.lookupResource(layer_texture.handle).? },
+        .{
+            .bytes_per_row = layer.image.bytes_per_row,
+            .rows_per_image = layer.image.height,
+        },
+        .{ .width = layer.image.width, .height = layer.image.height },
+        u8,
+        layer.image.data,
+    );
 
     // Create sprites for all tiles.
     {
@@ -95,6 +106,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 
 /// Returns true if png was imported and new file created.
 pub fn importPng(path: [:0]const u8) !bool {
+    defer pixi.state.allocator.free(path);
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
         return false;
 

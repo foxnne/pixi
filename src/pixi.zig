@@ -112,6 +112,8 @@ pub const Popups = struct {
             const png_info = zstbi.Image.info(png_path);
             popups.file_setup_width = @intCast(i32, png_info.width);
             popups.file_setup_height = @intCast(i32, png_info.height);
+            popups.file_setup_tile_size = .{ popups.file_setup_width, popups.file_setup_height };
+            popups.file_setup_tiles = .{ 1, 1 };
         }
     }
 };

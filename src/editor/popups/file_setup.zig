@@ -58,11 +58,18 @@ pub fn draw() void {
 
         zgui.spacing();
         if (inputIntClamp("Tile Width", &pixi.state.popups.file_setup_tile_size[0], 1, max_file_width)) {
-            pixi.state.popups.file_setup_tiles[0] = std.math.clamp(pixi.state.popups.file_setup_tiles[0], 1, @divTrunc(max_file_width, pixi.state.popups.file_setup_tile_size[0]));
+            pixi.state.popups.file_setup_tiles[0] = std.math.clamp(switch (pixi.state.popups.file_setup_state) {
+                .slice, .import_png => @divTrunc(max_file_width, pixi.state.popups.file_setup_tile_size[0]),
+                else => pixi.state.popups.file_setup_tiles[0],
+            }, 1, @divTrunc(max_file_width, pixi.state.popups.file_setup_tile_size[0]));
         }
         if (inputIntClamp("Tile Height", &pixi.state.popups.file_setup_tile_size[1], 1, max_file_height)) {
-            pixi.state.popups.file_setup_tiles[1] = std.math.clamp(pixi.state.popups.file_setup_tiles[1], 1, @divTrunc(max_file_height, pixi.state.popups.file_setup_tile_size[1]));
+            pixi.state.popups.file_setup_tiles[1] = std.math.clamp(switch (pixi.state.popups.file_setup_state) {
+                .slice, .import_png => @divTrunc(max_file_height, pixi.state.popups.file_setup_tile_size[1]),
+                else => pixi.state.popups.file_setup_tiles[1],
+            }, 1, @divTrunc(max_file_height, pixi.state.popups.file_setup_tile_size[1]));
         }
+
         zgui.spacing();
         zgui.separator();
         zgui.spacing();
