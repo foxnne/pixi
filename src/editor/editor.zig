@@ -13,7 +13,7 @@ pub const explorer = @import("explorer/explorer.zig");
 pub const artboard = @import("artboard/artboard.zig");
 
 pub const popup_rename = @import("popups/rename.zig");
-pub const popup_new_file = @import("popups/new_file.zig");
+pub const popup_file_setup = @import("popups/file_setup.zig");
 pub const popup_about = @import("popups/about.zig");
 
 pub fn draw() void {
@@ -22,7 +22,7 @@ pub fn draw() void {
     artboard.draw();
 
     popup_rename.draw();
-    popup_new_file.draw();
+    popup_file_setup.draw();
     popup_about.draw();
 }
 
@@ -31,7 +31,7 @@ pub fn setProjectFolder(path: [:0]const u8) void {
 }
 
 /// Returns true if a new file was created.
-pub fn newFile(path: [:0]const u8) !bool {
+pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     for (pixi.state.open_files.items, 0..) |file, i| {
         if (std.mem.eql(u8, file.path, path)) {
             // Free path since we aren't adding it to open files again.
@@ -43,14 +43,14 @@ pub fn newFile(path: [:0]const u8) !bool {
 
     var internal: pixi.storage.Internal.Pixi = .{
         .path = try pixi.state.allocator.dupeZ(u8, path),
-        .width = @intCast(u32, pixi.state.popups.new_file_tiles[0] * pixi.state.popups.new_file_tile_size[0]),
-        .height = @intCast(u32, pixi.state.popups.new_file_tiles[1] * pixi.state.popups.new_file_tile_size[1]),
-        .tile_width = @intCast(u32, pixi.state.popups.new_file_tile_size[0]),
-        .tile_height = @intCast(u32, pixi.state.popups.new_file_tile_size[1]),
+        .width = @intCast(u32, pixi.state.popups.file_setup_tiles[0] * pixi.state.popups.file_setup_tile_size[0]),
+        .height = @intCast(u32, pixi.state.popups.file_setup_tiles[1] * pixi.state.popups.file_setup_tile_size[1]),
+        .tile_width = @intCast(u32, pixi.state.popups.file_setup_tile_size[0]),
+        .tile_height = @intCast(u32, pixi.state.popups.file_setup_tile_size[1]),
         .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
         .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
         .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
-        .flipbook_camera = .{ .position = .{ -@intToFloat(f32, pixi.state.popups.new_file_tile_size[0]) / 2.0, 0.0 } },
+        .flipbook_camera = .{ .position = .{ -@intToFloat(f32, pixi.state.popups.file_setup_tile_size[0]) / 2.0, 0.0 } },
         .background_image = undefined,
         .background_texture_handle = undefined,
         .background_texture_view_handle = undefined,
@@ -65,11 +65,16 @@ pub fn newFile(path: [:0]const u8) !bool {
     layer.name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"});
     layer.texture_handle = layer_texture.handle;
     layer.texture_view_handle = layer_texture.view_handle;
-    layer.image = try zstbi.Image.createEmpty(internal.width, internal.height, 4, .{});
+
+    if (import_path) |import| {
+        layer.image = try zstbi.Image.loadFromFile(import, 4);
+    } else {
+        layer.image = try zstbi.Image.createEmpty(internal.width, internal.height, 4, .{});
+    }
 
     // Create sprites for all tiles.
     {
-        const tiles = @intCast(usize, pixi.state.popups.new_file_tiles[0] * pixi.state.popups.new_file_tiles[1]);
+        const tiles = @intCast(usize, pixi.state.popups.file_setup_tiles[0] * pixi.state.popups.file_setup_tiles[1]);
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
             var sprite: pixi.storage.Internal.Sprite = .{
@@ -89,25 +94,14 @@ pub fn newFile(path: [:0]const u8) !bool {
 }
 
 /// Returns true if png was imported and new file created.
-pub fn importPng(path: [:0]const u8) !?zstbi.Image {
+pub fn importPng(path: [:0]const u8) !bool {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
         return false;
 
-    var new_file_path = pixi.state.allocator.alloc(u8, path.len + 1) catch unreachable;
+    const new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{path[0 .. path.len - 4]}) catch unreachable;
     _ = std.mem.replace(u8, path, ".png", ".pixi", new_file_path);
 
-    std.log.debug("{s}", .{new_file_path});
-
-    for (pixi.state.open_files.items, 0..) |file, i| {
-        if (std.mem.eql(u8, file.path, new_file_path)) {
-            // Free path since we aren't adding it to open files again.
-            pixi.state.allocator.free(new_file_path);
-            setActiveFile(i);
-            return false;
-        }
-    }
-
-    return true;
+    return try newFile(new_file_path, path);
 }
 
 /// Returns true if a new file was opened.

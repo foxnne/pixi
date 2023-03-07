@@ -2,6 +2,7 @@ const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("root");
 const nfd = @import("nfd");
+const zstbi = @import("zstbi");
 
 pub const Extension = enum {
     unsupported,
@@ -240,21 +241,16 @@ fn contextMenuFolder(folder: [:0]const u8) void {
     if (zgui.menuItem("New File...", .{})) {
         const new_file_path = std.fs.path.joinZ(pixi.state.allocator, &[_][]const u8{ folder, "New_file.pixi" }) catch unreachable;
         defer pixi.state.allocator.free(new_file_path);
-        pixi.state.popups.new_file_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-        std.mem.copy(u8, pixi.state.popups.new_file_path[0..], new_file_path);
-        pixi.state.popups.new_file = true;
+        pixi.state.popups.setupFileNew(new_file_path);
     }
     if (zgui.menuItem("New File from PNG...", .{})) {
         const png_path = nfd.openFileDialog("png", null) catch unreachable;
 
         if (png_path) |path| {
             defer nfd.freePath(path);
-            var new_file_path = pixi.state.allocator.alloc(u8, path.len + 1) catch unreachable;
+            var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{path[0 .. path.len - 4]}) catch unreachable;
             defer pixi.state.allocator.free(new_file_path);
-            _ = std.mem.replace(u8, path, ".png", ".pixi", new_file_path);
-
-            pixi.state.popups.new_file_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-            std.mem.copy(u8, pixi.state.popups.new_file_path[0..], new_file_path);
+            pixi.state.popups.setupFileImportPng(new_file_path, path);
         }
     }
     if (zgui.menuItem("New Folder...", .{})) {

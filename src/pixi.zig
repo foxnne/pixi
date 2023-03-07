@@ -64,13 +64,56 @@ pub const Popups = struct {
     rename: bool = false,
     rename_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
     rename_old_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
-    // New Files
-    new_file: bool = false,
-    new_file_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
-    new_file_tile_size: [2]i32 = .{ 32, 32 },
-    new_file_tiles: [2]i32 = .{ 32, 32 },
+    // File setup
+    file_setup: bool = false,
+    file_setup_state: SetupState = .none,
+    file_setup_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
+    file_setup_png_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
+    file_setup_tile_size: [2]i32 = .{ 32, 32 },
+    file_setup_tiles: [2]i32 = .{ 32, 32 },
+    file_setup_width: i32 = 0,
+    file_setup_height: i32 = 0,
     // About
     about: bool = false,
+
+    pub const SetupState = enum {
+        none,
+        new,
+        slice,
+        import_png,
+    };
+
+    pub fn setupFileNew(popups: *Popups, new_file_path: [:0]const u8) void {
+        popups.file_setup = true;
+        popups.file_setup_state = .new;
+        popups.file_setup_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+        std.mem.copy(u8, popups.file_setup_path[0..], new_file_path);
+    }
+
+    pub fn setupFileSlice(popups: *Popups) void {
+        popups.file_setup = true;
+        popups.file_setup_state = .slice;
+    }
+
+    pub fn setupFileClose(popups: *Popups) void {
+        popups.file_setup = false;
+        popups.file_setup_state = .none;
+    }
+
+    pub fn setupFileImportPng(popups: *Popups, new_file_path: [:0]const u8, png_path: [:0]const u8) void {
+        popups.file_setup = true;
+        popups.file_setup_state = .import_png;
+        popups.file_setup_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+        popups.file_setup_png_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+        std.mem.copy(u8, popups.file_setup_path[0..], new_file_path);
+        std.mem.copy(u8, popups.file_setup_png_path[0..], png_path);
+
+        if (std.mem.eql(u8, std.fs.path.extension(png_path[0..]), ".png")) {
+            const png_info = zstbi.Image.info(png_path);
+            popups.file_setup_width = @intCast(i32, png_info.width);
+            popups.file_setup_height = @intCast(i32, png_info.height);
+        }
+    }
 };
 
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
