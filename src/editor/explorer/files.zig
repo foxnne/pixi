@@ -6,6 +6,7 @@ const zstbi = @import("zstbi");
 
 pub const Extension = enum {
     unsupported,
+    hidden,
     pixi,
     atlas,
     png,
@@ -154,6 +155,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
             while (iter.next() catch unreachable) |entry| {
                 if (entry.kind == .File) {
                     const ext = extension(entry.name);
+                    if (ext == .hidden) continue;
                     const icon = switch (ext) {
                         .pixi, .psd => pixi.fa.file_powerpoint,
                         .jpg, .png, .aseprite, .pyxel => pixi.fa.file_image,
@@ -297,6 +299,7 @@ fn newFileFromPng() void {}
 
 pub fn extension(file: []const u8) Extension {
     const ext = std.fs.path.extension(file);
+    if (std.mem.eql(u8, ext, "")) return .hidden;
     if (std.mem.eql(u8, ext, ".pixi")) return .pixi;
     if (std.mem.eql(u8, ext, ".atlas")) return .atlas;
     if (std.mem.eql(u8, ext, ".png")) return .png;
