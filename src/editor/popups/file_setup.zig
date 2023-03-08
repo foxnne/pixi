@@ -7,7 +7,7 @@ pub fn draw() void {
         zgui.openPopup("File Setup...", .{});
     } else return;
 
-    const popup_width = 450 * pixi.state.window.scale[0];
+    const popup_width = 350 * pixi.state.window.scale[0];
     const popup_height = 300 * pixi.state.window.scale[1];
 
     const window_size = pixi.state.window.size * pixi.state.window.scale;
@@ -33,9 +33,10 @@ pub fn draw() void {
 
         const style = zgui.getStyle();
 
-        const full_width = popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - zgui.calcTextSize("Tile Height", .{})[0];
+        const full_width = popup_width - (style.frame_padding[0] * 3 * pixi.state.window.scale[0]) - zgui.calcTextSize("Tile Height", .{})[0];
         const base_name_index = if (std.mem.lastIndexOf(u8, pixi.state.popups.file_setup_path[0..], &[_]u8{std.fs.path.sep})) |index| index + 1 else 0;
 
+        zgui.spacing();
         zgui.pushItemWidth(full_width);
         _ = zgui.inputText("Name", .{
             .buf = pixi.state.popups.file_setup_path[base_name_index..],
@@ -105,15 +106,16 @@ pub fn draw() void {
         };
 
         zgui.text("Image size: {d}x{d}", .{
-            if (sizes_match) pixi.state.popups.file_setup_width else combined_size[0],
-            if (sizes_match) pixi.state.popups.file_setup_height else combined_size[1],
+            if (!sizes_match) pixi.state.popups.file_setup_width else combined_size[0],
+            if (!sizes_match) pixi.state.popups.file_setup_height else combined_size[1],
         });
+        zgui.spacing();
 
         if (!sizes_match) {
-            zgui.textColored(pixi.state.style.text_red.toSlice(), "Tile sizes and count do not match image size!", .{});
+            zgui.textColored(pixi.state.style.text_red.toSlice(), "Tile sizes and count do not match image size! {d}x{d}", .{ combined_size[0], combined_size[1] });
+        } else {
+            zgui.textColored(pixi.state.style.highlight_primary.toSlice(), " " ++ pixi.fa.check, .{});
         }
-
-        zgui.spacing();
 
         const spacing = 5.0 * pixi.state.window.scale[0];
         const half_width = (popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - spacing) / 2.0;
