@@ -8,7 +8,7 @@ pub fn draw() void {
     } else return;
 
     const popup_width = 450 * pixi.state.window.scale[0];
-    const popup_height = 260 * pixi.state.window.scale[1];
+    const popup_height = 300 * pixi.state.window.scale[1];
 
     const window_size = pixi.state.window.size * pixi.state.window.scale;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
@@ -48,11 +48,11 @@ pub fn draw() void {
 
         const max_file_size = pixi.state.settings.max_file_size;
         const max_file_width = switch (pixi.state.popups.file_setup_state) {
-            .import_png => pixi.state.popups.file_setup_width,
+            .slice, .import_png => pixi.state.popups.file_setup_width,
             else => max_file_size[0],
         };
         const max_file_height = switch (pixi.state.popups.file_setup_state) {
-            .import_png => pixi.state.popups.file_setup_height,
+            .slice, .import_png => pixi.state.popups.file_setup_height,
             else => max_file_size[1],
         };
 
@@ -93,6 +93,26 @@ pub fn draw() void {
         }
         zgui.popItemWidth();
         zgui.spacing();
+
+        const combined_size: [2]i32 = .{
+            pixi.state.popups.file_setup_tile_size[0] * pixi.state.popups.file_setup_tiles[0],
+            pixi.state.popups.file_setup_tile_size[1] * pixi.state.popups.file_setup_tiles[1],
+        };
+
+        const sizes_match = switch (pixi.state.popups.file_setup_state) {
+            .slice, .import_png => combined_size[0] == pixi.state.popups.file_setup_width and combined_size[1] == pixi.state.popups.file_setup_height,
+            else => true,
+        };
+
+        zgui.text("Image size: {d}x{d}", .{
+            if (sizes_match) pixi.state.popups.file_setup_width else combined_size[0],
+            if (sizes_match) pixi.state.popups.file_setup_height else combined_size[1],
+        });
+
+        if (!sizes_match) {
+            zgui.textColored(pixi.state.style.text_red.toSlice(), "Tile sizes and count do not match image size!", .{});
+        }
+
         zgui.spacing();
 
         const spacing = 5.0 * pixi.state.window.scale[0];
@@ -101,6 +121,9 @@ pub fn draw() void {
             pixi.state.popups.setupFileClose();
         }
         zgui.sameLine(.{ .spacing = spacing });
+        if (!sizes_match) {
+            zgui.beginDisabled(.{});
+        }
         if (zgui.button("Ok", .{ .w = half_width })) {
             const file_setup_path = std.mem.trimRight(u8, pixi.state.popups.file_setup_path[0..], "\u{0}");
             const ext = std.fs.path.extension(file_setup_path);
@@ -126,6 +149,9 @@ pub fn draw() void {
 
                 pixi.state.popups.setupFileClose();
             }
+        }
+        if (!sizes_match) {
+            zgui.endDisabled();
         }
     }
 }

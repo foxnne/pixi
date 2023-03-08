@@ -148,8 +148,8 @@ pub fn draw() void {
                     }
                 }
             } else {
-                const w = @intToFloat(f32, (pixi.state.background_logo.width) / 4) * pixi.state.window.scale[0];
-                const h = @intToFloat(f32, (pixi.state.background_logo.height) / 4) * pixi.state.window.scale[1];
+                const w = @intToFloat(f32, (pixi.state.background_logo.image.width) / 4) * pixi.state.window.scale[0];
+                const h = @intToFloat(f32, (pixi.state.background_logo.image.height) / 4) * pixi.state.window.scale[1];
                 zgui.setCursorPosX((zgui.getWindowWidth() - w) / 2.0);
                 zgui.setCursorPosY((zgui.getWindowHeight() - h) / 2.0);
                 zgui.image(pixi.state.gctx.lookupResource(pixi.state.background_logo.view_handle).?, .{

@@ -58,30 +58,19 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     };
 
     try internal.createBackground();
-    var layer = try internal.layers.addOne();
 
-    const layer_texture = pixi.gfx.Texture.init(pixi.state.gctx, internal.width, internal.height, .{});
-
-    layer.name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"});
-    layer.texture_handle = layer_texture.handle;
-    layer.texture_view_handle = layer_texture.view_handle;
+    var new_layer: pixi.storage.Internal.Layer = .{
+        .name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"}),
+        .texture = undefined,
+    };
 
     if (import_path) |import| {
-        layer.image = try zstbi.Image.loadFromFile(import[0..], 4);
+        new_layer.texture = try pixi.gfx.Texture.loadFromFile(pixi.state.gctx, import, .{});
     } else {
-        layer.image = try zstbi.Image.createEmpty(internal.width, internal.height, 4, .{});
+        new_layer.texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, internal.width, internal.height, .{});
     }
 
-    pixi.state.gctx.queue.writeTexture(
-        .{ .texture = pixi.state.gctx.lookupResource(layer_texture.handle).? },
-        .{
-            .bytes_per_row = layer.image.bytes_per_row,
-            .rows_per_image = layer.image.height,
-        },
-        .{ .width = layer.image.width, .height = layer.image.height },
-        u8,
-        layer.image.data,
-    );
+    try internal.layers.append(new_layer);
 
     // Create sprites for all tiles.
     {
@@ -183,34 +172,10 @@ pub fn openFile(path: [:0]const u8) !bool {
             if (img_buf) |data| {
                 var new_layer: pixi.storage.Internal.Layer = .{
                     .name = try pixi.state.allocator.dupeZ(u8, layer.name),
-                    .texture_handle = undefined,
-                    .texture_view_handle = undefined,
-                    .image = undefined,
+                    .texture = undefined,
                 };
 
-                new_layer.texture_handle = pixi.state.gctx.createTexture(.{
-                    .usage = .{ .texture_binding = true, .copy_dst = true },
-                    .size = .{
-                        .width = external.width,
-                        .height = external.height,
-                        .depth_or_array_layers = 1,
-                    },
-                    .format = zgpu.imageInfoToTextureFormat(4, 1, false),
-                });
-
-                new_layer.texture_view_handle = pixi.state.gctx.createTextureView(new_layer.texture_handle, .{});
-                new_layer.image = try zstbi.Image.loadFromMemory(@ptrCast([*]u8, data)[0..img_len], 4);
-
-                pixi.state.gctx.queue.writeTexture(
-                    .{ .texture = pixi.state.gctx.lookupResource(new_layer.texture_handle).? },
-                    .{
-                        .bytes_per_row = new_layer.image.bytes_per_row,
-                        .rows_per_image = new_layer.image.height,
-                    },
-                    .{ .width = new_layer.image.width, .height = new_layer.image.height },
-                    u8,
-                    new_layer.image.data,
-                );
+                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @ptrCast([*]u8, data)[0..img_len], .{});
 
                 try internal.layers.append(new_layer);
             }
@@ -267,12 +232,10 @@ pub fn closeFile(index: usize) !void {
     var file = pixi.state.open_files.swapRemove(index);
     file.background_image.deinit();
     for (file.layers.items) |*layer| {
-        pixi.state.gctx.releaseResource(layer.texture_handle);
-        pixi.state.gctx.releaseResource(layer.texture_view_handle);
+        layer.texture.deinit(pixi.state.gctx);
         pixi.state.gctx.releaseResource(file.background_texture_handle);
         pixi.state.gctx.releaseResource(file.background_texture_view_handle);
         pixi.state.allocator.free(layer.name);
-        layer.image.deinit();
     }
     for (file.sprites.items) |*sprite| {
         pixi.state.allocator.free(sprite.name);

@@ -139,8 +139,8 @@ pub const Camera = struct {
         tl[0] += window_position[0];
         tl[1] += window_position[1];
         var br = position;
-        br[0] += @intToFloat(f32, layer.image.width);
-        br[1] += @intToFloat(f32, layer.image.height);
+        br[0] += @intToFloat(f32, layer.texture.image.width);
+        br[1] += @intToFloat(f32, layer.texture.image.height);
         br = camera.matrix().transformVec2(br);
         br[0] += window_position[0];
         br[1] += window_position[1];
@@ -151,7 +151,7 @@ pub const Camera = struct {
         br[1] = std.math.floor(br[1]);
 
         const draw_list = zgui.getWindowDrawList();
-        if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
+        if (pixi.state.gctx.lookupResource(layer.texture.view_handle)) |texture_id| {
             draw_list.addImage(texture_id, .{
                 .pmin = tl,
                 .pmax = br,
@@ -177,14 +177,14 @@ pub const Camera = struct {
         br[0] = std.math.floor(br[0]);
         br[1] = std.math.floor(br[1]);
 
-        const inv_w = 1.0 / @intToFloat(f32, layer.image.width);
-        const inv_h = 1.0 / @intToFloat(f32, layer.image.height);
+        const inv_w = 1.0 / @intToFloat(f32, layer.texture.image.width);
+        const inv_h = 1.0 / @intToFloat(f32, layer.texture.image.height);
 
         const uvmin: [2]f32 = .{ src_rect[0] * inv_w, src_rect[1] * inv_h };
         const uvmax: [2]f32 = .{ (src_rect[0] + src_rect[2]) * inv_w, (src_rect[1] + src_rect[3]) * inv_h };
 
         const draw_list = zgui.getWindowDrawList();
-        if (pixi.state.gctx.lookupResource(layer.texture_view_handle)) |texture_id| {
+        if (pixi.state.gctx.lookupResource(layer.texture.view_handle)) |texture_id| {
             draw_list.addImage(texture_id, .{
                 .pmin = tl,
                 .pmax = br,

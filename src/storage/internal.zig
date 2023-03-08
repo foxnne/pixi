@@ -87,7 +87,7 @@ pub const Pixi = struct {
             for (self.layers.items) |layer| {
                 const layer_name = zgui.formatZ("{s}.png", .{layer.name});
                 _ = zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name));
-                try layer.image.writeToFn(write, z, .png);
+                try layer.texture.image.writeToFn(write, z, .png);
                 _ = zip.zip_entry_close(z);
             }
 
@@ -178,9 +178,7 @@ pub const Pixi = struct {
 
 pub const Layer = struct {
     name: [:0]const u8,
-    texture_handle: zgpu.TextureHandle,
-    texture_view_handle: zgpu.TextureViewHandle,
-    image: zstbi.Image,
+    texture: pixi.gfx.Texture,
 };
 
 pub const Sprite = struct {

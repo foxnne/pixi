@@ -108,7 +108,7 @@ pub const Popups = struct {
         std.mem.copy(u8, popups.file_setup_path[0..], new_file_path);
         std.mem.copy(u8, popups.file_setup_png_path[0..], png_path);
 
-        if (std.mem.eql(u8, std.fs.path.extension(png_path[0..]), ".png")) {
+        if (std.mem.eql(u8, std.fs.path.extension(png_path), ".png")) {
             const png_info = zstbi.Image.info(png_path);
             popups.file_setup_width = @intCast(i32, png_info.width);
             popups.file_setup_height = @intCast(i32, png_info.height);
@@ -123,16 +123,9 @@ pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
 fn init(allocator: std.mem.Allocator, window: *zglfw.Window) !*PixiState {
     const gctx = try zgpu.GraphicsContext.create(allocator, window);
 
-    var arena_state = std.heap.ArenaAllocator.init(allocator);
-    defer arena_state.deinit();
-    const arena = arena_state.allocator();
-
-    zstbi.init(arena);
-    defer zstbi.deinit();
-
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
-    const background_logo = try gfx.Texture.initFromFile(gctx, assets.Icon1024_png.path, .{});
-    const fox_logo = try gfx.Texture.initFromFile(gctx, assets.Fox1024_png.path, .{});
+    const background_logo = try gfx.Texture.loadFromFile(gctx, assets.Icon1024_png.path, .{});
+    const fox_logo = try gfx.Texture.loadFromFile(gctx, assets.Fox1024_png.path, .{});
 
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
@@ -227,12 +220,12 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
+    zstbi.init(allocator);
+
     state = try init(allocator, window);
     defer deinit(allocator);
 
     state.settings = settings;
-
-    zstbi.init(allocator);
 
     const scale_factor = scale_factor: {
         const scale = window.getContentScale();
