@@ -146,6 +146,14 @@ pub fn draw() void {
                             }
                         }
                     },
+                    .slice => {
+                        if (pixi.editor.getFileIndex(pixi.state.popups.file_setup_path[0..file_setup_path.len :0])) |index| {
+                            if (pixi.editor.getFile(index)) |file| {
+                                file.tile_width = @intCast(u32, pixi.state.popups.file_setup_tile_size[0]);
+                                file.tile_height = @intCast(u32, pixi.state.popups.file_setup_tile_size[1]);
+                            }
+                        }
+                    },
                     else => {},
                 }
 

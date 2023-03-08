@@ -29,6 +29,8 @@ pub fn draw() void {
     if (pixi.state.project_folder) |path| {
         const folder = std.fs.path.basename(path);
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.foreground.toSlice() });
+        defer zgui.popStyleColor(.{ .count = 1 });
 
         // Open files
         const file_count = pixi.state.open_files.items.len;
@@ -273,8 +275,15 @@ fn contextMenuFile(file: [:0]const u8) void {
                 pixi.state.popups.setupFileImportPng(new_file_path, file);
             }
         },
+        .pixi => {
+            if (zgui.menuItem("Re-slice...", .{})) {
+                pixi.state.popups.setupFileSlice(file);
+            }
+        },
         else => {},
     }
+
+    zgui.separator();
 
     if (zgui.menuItem("Rename...", .{})) {
         pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
@@ -285,6 +294,7 @@ fn contextMenuFile(file: [:0]const u8) void {
     }
 
     if (zgui.menuItem("Duplicate...", .{})) {}
+    zgui.separator();
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
     if (zgui.menuItem("Delete", .{})) {
         std.fs.deleteFileAbsolute(file) catch unreachable;

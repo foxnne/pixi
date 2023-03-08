@@ -90,9 +90,20 @@ pub const Popups = struct {
         std.mem.copy(u8, popups.file_setup_path[0..], new_file_path);
     }
 
-    pub fn setupFileSlice(popups: *Popups) void {
+    pub fn setupFileSlice(popups: *Popups, path: [:0]const u8) void {
         popups.file_setup = true;
         popups.file_setup_state = .slice;
+        popups.file_setup_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+        std.mem.copy(u8, popups.file_setup_path[0..], path);
+
+        if (editor.getFileIndex(path)) |index| {
+            if (editor.getFile(index)) |file| {
+                popups.file_setup_tile_size = .{ @intCast(i32, file.tile_width), @intCast(i32, file.tile_height) };
+                popups.file_setup_tiles = .{ @intCast(i32, @divExact(file.width, file.tile_width)), @intCast(i32, @divExact(file.height, file.tile_height)) };
+                popups.file_setup_width = @intCast(i32, file.width);
+                popups.file_setup_height = @intCast(i32, file.height);
+            }
+        }
     }
 
     pub fn setupFileClose(popups: *Popups) void {
