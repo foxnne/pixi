@@ -168,6 +168,10 @@ pub const Pixi = struct {
         return false;
     }
 
+    pub fn flipbookScrollFromSpriteIndex(self: Pixi, index: usize) f32 {
+        return -@intToFloat(f32, index * self.tile_width) * 1.1;
+    }
+
     pub fn pixelCoordinatesFromIndex(self: Pixi, index: usize) ?[2]f32 {
         if (index > self.sprites.items.len - 1) return null;
         const x = @intToFloat(f32, @mod(@intCast(u32, index), self.width));

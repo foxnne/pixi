@@ -61,7 +61,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     request.from = file.flipbook_scroll;
                     request.to = -@intToFloat(f32, tile_index) * tile_width * 1.1;
                 } else {
-                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = -@intToFloat(f32, tile_index) * tile_width * 1.1, .state = file.selected_animation_state };
+                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
                 }
             }
         }

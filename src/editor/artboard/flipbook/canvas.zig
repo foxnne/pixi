@@ -37,7 +37,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (file.flipbook_camera.position[0] < min_position[0]) scroll_delta = file.flipbook_camera.position[0] - min_position[0];
             if (file.flipbook_camera.position[0] > max_position[0]) scroll_delta = file.flipbook_camera.position[0] - max_position[0];
         }
-        file.flipbook_scroll = std.math.clamp(file.flipbook_scroll - scroll_delta, -@intToFloat(f32, file.sprites.items.len - 1) * tile_width * 1.1, 0.0);
+        file.flipbook_scroll = std.math.clamp(file.flipbook_scroll - scroll_delta, file.flipbookScrollFromSpriteIndex(file.sprites.items.len - 1), 0.0);
 
         file.flipbook_camera.position[0] = std.math.clamp(file.flipbook_camera.position[0], min_position[0], max_position[0]);
         file.flipbook_camera.position[1] = std.math.clamp(file.flipbook_camera.position[1], min_position[1], max_position[1]);
@@ -58,7 +58,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             }
         }
 
-        file.flipbook_scroll = -@intToFloat(f32, file.selected_sprite_index) * tile_width * 1.1;
+        file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(file.selected_sprite_index);
     }
 
     const tiles_wide = @divExact(file.width, file.tile_width);
