@@ -29,8 +29,6 @@ pub fn draw() void {
     if (pixi.state.project_folder) |path| {
         const folder = std.fs.path.basename(path);
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.foreground.toSlice() });
-        defer zgui.popStyleColor(.{ .count = 1 });
 
         // Open files
         const file_count = pixi.state.open_files.items.len;
@@ -241,7 +239,9 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 }
 
 fn contextMenuFolder(folder: [:0]const u8) void {
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.foreground.toSlice() });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+    defer zgui.popStyleColor(.{ .count = 2 });
     if (zgui.menuItem("New File...", .{})) {
         const new_file_path = std.fs.path.joinZ(pixi.state.allocator, &[_][]const u8{ folder, "New_file.pixi" }) catch unreachable;
         defer pixi.state.allocator.free(new_file_path);
@@ -260,13 +260,14 @@ fn contextMenuFolder(folder: [:0]const u8) void {
     if (zgui.menuItem("New Folder...", .{})) {
         std.log.debug("{s}", .{folder});
     }
-    zgui.popStyleColor(.{ .count = 1 });
 }
 
 fn contextMenuFile(file: [:0]const u8) void {
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+
     const ext = extension(file);
 
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
     switch (ext) {
         .png => {
             if (zgui.menuItem("Import...", .{})) {
@@ -302,7 +303,7 @@ fn contextMenuFile(file: [:0]const u8) void {
             pixi.editor.closeFile(index) catch unreachable;
         }
     }
-    zgui.popStyleColor(.{ .count = 2 });
+    zgui.popStyleColor(.{ .count = 3 });
 }
 
 fn newFileFromPng() void {}
