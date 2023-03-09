@@ -140,7 +140,7 @@ pub fn draw() void {
                     },
                     .import_png => {
                         const file_setup_png_path = std.mem.trimRight(u8, pixi.state.popups.file_setup_png_path[0..], "\u{0}");
-                        if (pixi.editor.importPng(pixi.state.allocator.dupeZ(u8, file_setup_png_path) catch unreachable) catch unreachable) {
+                        if (pixi.editor.importPng(pixi.state.allocator.dupeZ(u8, file_setup_png_path) catch unreachable, pixi.state.allocator.dupeZ(u8, file_setup_path) catch unreachable) catch unreachable) {
                             if (pixi.editor.getFile(0)) |file| {
                                 _ = file.save() catch unreachable;
                             }

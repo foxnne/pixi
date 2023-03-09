@@ -94,13 +94,13 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 }
 
 /// Returns true if png was imported and new file created.
-pub fn importPng(path: [:0]const u8) !bool {
+pub fn importPng(path: [:0]const u8, new_file_path: [:0]const u8) !bool {
     defer pixi.state.allocator.free(path);
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
         return false;
 
-    const new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{path[0 .. path.len - 4]}) catch unreachable;
-    _ = std.mem.replace(u8, path, ".png", ".pixi", new_file_path);
+    if (!std.mem.eql(u8, std.fs.path.extension(new_file_path[0..new_file_path.len]), ".pixi"))
+        return false;
 
     return try newFile(new_file_path, path);
 }
