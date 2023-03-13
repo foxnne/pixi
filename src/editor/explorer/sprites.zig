@@ -39,7 +39,9 @@ pub fn draw() void {
                     while (i < animation.start + animation.length) : (i += 1) {
                         for (file.sprites.items) |sprite| {
                             if (i == sprite.index) {
-                                if (zgui.selectable(zgui.formatZ("{s} - Index: {d}", .{ sprite.name, sprite.index }), .{})) {}
+                                if (zgui.selectable(zgui.formatZ("{s} - Index: {d}", .{ sprite.name, sprite.index }), .{})) {
+                                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
+                                }
                             }
                         }
                     }

@@ -102,6 +102,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 j -= 1;
                 file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect, pixi.state.style.text_secondary.toU32());
             }
+            if (file.flipbook_camera.isHovered(dst_rect)) {
+                file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.style.highlight_primary.toU32());
+                if (pixi.state.controls.mouse.primary.pressed() and file.selected_sprite_index != i) {
+                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
+                }
+            }
         }
     }
 }

@@ -96,7 +96,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         const row = @divTrunc(@intCast(u32, file.selected_sprite_index), tiles_wide);
         const x = @intToFloat(f32, column) * tile_width + layer_position[0];
         const y = @intToFloat(f32, row) * tile_height + layer_position[1];
+        const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
-        file.camera.drawRect(.{ x, y }, tile_width, tile_height, 3.0, pixi.state.style.text.toU32());
+        file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());
     }
 }

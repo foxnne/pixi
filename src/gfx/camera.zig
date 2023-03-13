@@ -80,22 +80,22 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawRect(camera: Camera, position: [2]f32, width: f32, height: f32, thickness: f32, color: u32) void {
+    pub fn drawRect(camera: Camera, rect: [4]f32, thickness: f32, color: u32) void {
         const window_position = zgui.getWindowPos();
-        var tl = camera.matrix().transformVec2(position);
+        var tl = camera.matrix().transformVec2(.{ rect[0], rect[1] });
         tl[0] += window_position[0];
         tl[1] += window_position[1];
-        var br = position;
-        br[0] += width;
-        br[1] += height;
+        var br: [2]f32 = .{ rect[0], rect[1] };
+        br[0] += rect[2];
+        br[1] += rect[3];
         br = camera.matrix().transformVec2(br);
         br[0] += window_position[0];
         br[1] += window_position[1];
 
-        tl[0] = std.math.round(tl[0]);
-        tl[1] = std.math.round(tl[1]);
-        br[0] = std.math.round(br[0]);
-        br[1] = std.math.round(br[1]);
+        tl[0] = std.math.floor(tl[0]);
+        tl[1] = std.math.floor(tl[1]);
+        br[0] = std.math.floor(br[0]);
+        br[1] = std.math.floor(br[1]);
 
         const draw_list = zgui.getWindowDrawList();
         draw_list.addRect(.{
@@ -223,6 +223,22 @@ pub const Camera = struct {
         if (nearest_zoom_index > 0)
             nearest_zoom_index -= 1;
         camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
+    }
+
+    pub fn isHovered(camera: Camera, rect: [4]f32) bool {
+        const screen_position = zgui.getCursorScreenPos();
+        const position: [2]f32 = .{ pixi.state.controls.mouse.position.x, pixi.state.controls.mouse.position.y };
+        var tl = camera.matrix().transformVec2(.{ rect[0], rect[1] });
+        tl[0] += screen_position[0];
+        tl[1] += screen_position[1];
+        var br: [2]f32 = .{ rect[0], rect[1] };
+        br[0] += rect[2];
+        br[1] += rect[3];
+        br = camera.matrix().transformVec2(br);
+        br[0] += screen_position[0];
+        br[1] += screen_position[1];
+
+        return (position[0] > tl[0] and position[0] < br[0] and position[1] < br[1] and position[1] > tl[1]);
     }
 
     pub fn pixelCoordinates(camera: Camera, texture_position: [2]f32, width: u32, height: u32, position: [2]f32) ?[2]f32 {
