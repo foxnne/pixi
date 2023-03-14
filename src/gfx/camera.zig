@@ -35,21 +35,7 @@ pub const Camera = struct {
     }
 
     pub fn drawGrid(camera: Camera, position: [2]f32, width: f32, height: f32, columns: usize, rows: usize, color: u32) void {
-        const window_position = zgui.getWindowPos();
-        var tl = camera.matrix().transformVec2(position);
-        tl[0] += window_position[0];
-        tl[1] += window_position[1];
-        var br = position;
-        br[0] += width;
-        br[1] += height;
-        br = camera.matrix().transformVec2(br);
-        br[0] += window_position[0];
-        br[1] += window_position[1];
-
-        tl[0] = std.math.round(tl[0]);
-        tl[1] = std.math.round(tl[1]);
-        br[0] = std.math.round(br[0]);
-        br[1] = std.math.round(br[1]);
+        const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], width, height });
 
         const draw_list = zgui.getWindowDrawList();
         const tile_width = width / @intToFloat(f32, columns);
@@ -57,8 +43,8 @@ pub const Camera = struct {
 
         var i: usize = 0;
         while (i < columns + 1) : (i += 1) {
-            const p1: [2]f32 = .{ tl[0] + @intToFloat(f32, i) * tile_width * camera.zoom, tl[1] };
-            const p2: [2]f32 = .{ tl[0] + @intToFloat(f32, i) * tile_width * camera.zoom, tl[1] + height * camera.zoom };
+            const p1: [2]f32 = .{ rect_min_max[0][0] + @intToFloat(f32, i) * tile_width * camera.zoom, rect_min_max[0][1] };
+            const p2: [2]f32 = .{ rect_min_max[0][0] + @intToFloat(f32, i) * tile_width * camera.zoom, rect_min_max[0][1] + height * camera.zoom };
             draw_list.addLine(.{
                 .p1 = p1,
                 .p2 = p2,
@@ -69,8 +55,8 @@ pub const Camera = struct {
 
         i = 0;
         while (i < rows + 1) : (i += 1) {
-            const p1: [2]f32 = .{ tl[0], tl[1] + @intToFloat(f32, i) * tile_height * camera.zoom };
-            const p2: [2]f32 = .{ tl[0] + width * camera.zoom, tl[1] + @intToFloat(f32, i) * tile_height * camera.zoom };
+            const p1: [2]f32 = .{ rect_min_max[0][0], rect_min_max[0][1] + @intToFloat(f32, i) * tile_height * camera.zoom };
+            const p2: [2]f32 = .{ rect_min_max[0][0] + width * camera.zoom, rect_min_max[0][1] + @intToFloat(f32, i) * tile_height * camera.zoom };
             draw_list.addLine(.{
                 .p1 = p1,
                 .p2 = p2,
@@ -80,102 +66,47 @@ pub const Camera = struct {
         }
     }
 
+    // TODO: refactor functions similar to below to cache and reuse `matrix`
     pub fn drawRect(camera: Camera, rect: [4]f32, thickness: f32, color: u32) void {
-        const window_position = zgui.getWindowPos();
-        var tl = camera.matrix().transformVec2(.{ rect[0], rect[1] });
-        tl[0] += window_position[0];
-        tl[1] += window_position[1];
-        var br: [2]f32 = .{ rect[0], rect[1] };
-        br[0] += rect[2];
-        br[1] += rect[3];
-        br = camera.matrix().transformVec2(br);
-        br[0] += window_position[0];
-        br[1] += window_position[1];
-
-        tl[0] = std.math.floor(tl[0]);
-        tl[1] = std.math.floor(tl[1]);
-        br[0] = std.math.floor(br[0]);
-        br[1] = std.math.floor(br[1]);
+        const rect_min_max = camera.getRectMinMax(rect);
 
         const draw_list = zgui.getWindowDrawList();
         draw_list.addRect(.{
-            .pmin = tl,
-            .pmax = br,
+            .pmin = rect_min_max[0],
+            .pmax = rect_min_max[1],
             .col = color,
             .thickness = thickness,
         });
     }
 
     pub fn drawTexture(camera: Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, position: [2]f32, color: u32) void {
-        const window_position = zgui.getWindowPos();
-        var tl = camera.matrix().transformVec2(position);
-        tl[0] += window_position[0];
-        tl[1] += window_position[1];
-        var br = position;
-        br[0] += @intToFloat(f32, width);
-        br[1] += @intToFloat(f32, height);
-        br = camera.matrix().transformVec2(br);
-        br[0] += window_position[0];
-        br[1] += window_position[1];
-
-        tl[0] = std.math.floor(tl[0]);
-        tl[1] = std.math.floor(tl[1]);
-        br[0] = std.math.floor(br[0]);
-        br[1] = std.math.floor(br[1]);
+        const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @intToFloat(f32, width), @intToFloat(f32, height) });
 
         const draw_list = zgui.getWindowDrawList();
         if (pixi.state.gctx.lookupResource(texture)) |texture_id| {
             draw_list.addImage(texture_id, .{
-                .pmin = tl,
-                .pmax = br,
+                .pmin = rect_min_max[0],
+                .pmax = rect_min_max[1],
                 .col = color,
             });
         }
     }
 
     pub fn drawLayer(camera: Camera, layer: pixi.storage.Internal.Layer, position: [2]f32) void {
-        const window_position = zgui.getWindowPos();
-        var tl = camera.matrix().transformVec2(position);
-        tl[0] += window_position[0];
-        tl[1] += window_position[1];
-        var br = position;
-        br[0] += @intToFloat(f32, layer.texture.image.width);
-        br[1] += @intToFloat(f32, layer.texture.image.height);
-        br = camera.matrix().transformVec2(br);
-        br[0] += window_position[0];
-        br[1] += window_position[1];
-
-        tl[0] = std.math.floor(tl[0]);
-        tl[1] = std.math.floor(tl[1]);
-        br[0] = std.math.floor(br[0]);
-        br[1] = std.math.floor(br[1]);
+        const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @intToFloat(f32, layer.texture.image.width), @intToFloat(f32, layer.texture.image.height) });
 
         const draw_list = zgui.getWindowDrawList();
         if (pixi.state.gctx.lookupResource(layer.texture.view_handle)) |texture_id| {
             draw_list.addImage(texture_id, .{
-                .pmin = tl,
-                .pmax = br,
+                .pmin = rect_min_max[0],
+                .pmax = rect_min_max[1],
                 .col = 0xFFFFFFFF,
             });
         }
     }
 
     pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32, color: u32) void {
-        const window_position = zgui.getWindowPos();
-        var tl = camera.matrix().transformVec2(.{ dst_rect[0], dst_rect[1] });
-        tl[0] += window_position[0];
-        tl[1] += window_position[1];
-        var br: [2]f32 = .{ dst_rect[0], dst_rect[1] };
-        br[0] += dst_rect[2];
-        br[1] += dst_rect[3];
-        br = camera.matrix().transformVec2(br);
-        br[0] += window_position[0];
-        br[1] += window_position[1];
-
-        tl[0] = std.math.floor(tl[0]);
-        tl[1] = std.math.floor(tl[1]);
-        br[0] = std.math.floor(br[0]);
-        br[1] = std.math.floor(br[1]);
+        const rect_min_max = camera.getRectMinMax(dst_rect);
 
         const inv_w = 1.0 / @intToFloat(f32, layer.texture.image.width);
         const inv_h = 1.0 / @intToFloat(f32, layer.texture.image.height);
@@ -186,15 +117,15 @@ pub const Camera = struct {
         const draw_list = zgui.getWindowDrawList();
         if (pixi.state.gctx.lookupResource(layer.texture.view_handle)) |texture_id| {
             draw_list.addImage(texture_id, .{
-                .pmin = tl,
-                .pmax = br,
+                .pmin = rect_min_max[0],
+                .pmax = rect_min_max[1],
                 .uvmin = uvmin,
                 .uvmax = uvmax,
                 .col = 0xFFFFFFFF,
             });
             draw_list.addRect(.{
-                .pmin = tl,
-                .pmax = br,
+                .pmin = rect_min_max[0],
+                .pmax = rect_min_max[1],
                 .col = color,
             });
         }
@@ -226,19 +157,34 @@ pub const Camera = struct {
     }
 
     pub fn isHovered(camera: Camera, rect: [4]f32) bool {
-        const screen_position = zgui.getCursorScreenPos();
-        const position: [2]f32 = .{ pixi.state.controls.mouse.position.x, pixi.state.controls.mouse.position.y };
-        var tl = camera.matrix().transformVec2(.{ rect[0], rect[1] });
-        tl[0] += screen_position[0];
-        tl[1] += screen_position[1];
+        const mouse_position: [2]f32 = .{ pixi.state.controls.mouse.position.x, pixi.state.controls.mouse.position.y };
+        return camera.isContained(rect, mouse_position);
+    }
+
+    pub fn isContained(camera: Camera, rect: [4]f32, position: [2]f32) bool {
+        const rect_min_max = camera.getRectMinMax(rect);
+        return (position[0] > rect_min_max[0][0] and position[0] < rect_min_max[1][0] and position[1] < rect_min_max[1][1] and position[1] > rect_min_max[0][1]);
+    }
+
+    pub fn getRectMinMax(camera: Camera, rect: [4]f32) [2][2]f32 {
+        const window_position = zgui.getWindowPos();
+        const mat = camera.matrix();
+        var tl = mat.transformVec2(.{ rect[0], rect[1] });
+        tl[0] += window_position[0];
+        tl[1] += window_position[1];
         var br: [2]f32 = .{ rect[0], rect[1] };
         br[0] += rect[2];
         br[1] += rect[3];
-        br = camera.matrix().transformVec2(br);
-        br[0] += screen_position[0];
-        br[1] += screen_position[1];
+        br = mat.transformVec2(br);
+        br[0] += window_position[0];
+        br[1] += window_position[1];
 
-        return (position[0] > tl[0] and position[0] < br[0] and position[1] < br[1] and position[1] > tl[1]);
+        tl[0] = std.math.floor(tl[0]);
+        tl[1] = std.math.floor(tl[1]);
+        br[0] = std.math.floor(br[0]);
+        br[1] = std.math.floor(br[1]);
+
+        return .{ tl, br };
     }
 
     pub fn pixelCoordinates(camera: Camera, texture_position: [2]f32, width: u32, height: u32, position: [2]f32) ?[2]f32 {
