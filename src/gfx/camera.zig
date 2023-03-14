@@ -66,7 +66,6 @@ pub const Camera = struct {
         }
     }
 
-    // TODO: refactor functions similar to below to cache and reuse `matrix`
     pub fn drawRect(camera: Camera, rect: [4]f32, thickness: f32, color: u32) void {
         const rect_min_max = camera.getRectMinMax(rect);
 
