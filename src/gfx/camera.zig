@@ -104,7 +104,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32, color: u32) void {
+    pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
         const rect_min_max = camera.getRectMinMax(dst_rect);
 
         const inv_w = 1.0 / @intToFloat(f32, layer.texture.image.width);
@@ -121,11 +121,6 @@ pub const Camera = struct {
                 .uvmin = uvmin,
                 .uvmax = uvmax,
                 .col = 0xFFFFFFFF,
-            });
-            draw_list.addRect(.{
-                .pmin = rect_min_max[0],
-                .pmax = rect_min_max[1],
-                .col = color,
             });
         }
     }

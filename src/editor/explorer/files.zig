@@ -154,6 +154,8 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
             var iter = dir.iterate();
             while (iter.next() catch unreachable) |entry| {
                 if (entry.kind == .File) {
+                    zgui.indent(.{});
+                    defer zgui.unindent(.{});
                     const ext = extension(entry.name);
                     if (ext == .hidden) continue;
                     const icon = switch (ext) {

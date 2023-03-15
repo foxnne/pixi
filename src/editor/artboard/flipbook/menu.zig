@@ -7,13 +7,14 @@ const nfd = @import("nfd");
 pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
     defer zgui.popStyleVar(.{ .count = 1 });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = pixi.state.style.foreground.toSlice() });
-    defer zgui.popStyleColor(.{ .count = 2 });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
+    defer zgui.popStyleColor(.{ .count = 3 });
     if (zgui.beginMenuBar()) {
         defer zgui.endMenuBar();
 
-        if (zgui.button(if (file.selected_animation_state == .play) pixi.fa.pause else pixi.fa.play, .{})) {
+        if (zgui.button(if (file.selected_animation_state == .play) " " ++ pixi.fa.pause ++ " " else " " ++ pixi.fa.play ++ " ", .{})) {
             file.selected_animation_state = switch (file.selected_animation_state) {
                 .play => .pause,
                 .pause => .play,
