@@ -3,15 +3,14 @@ const zgui = @import("zgui");
 const pixi = @import("root");
 
 pub fn draw() void {
-    zgui.spacing();
-    zgui.text("Sprites", .{});
-    zgui.separator();
-    zgui.spacing();
-
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         if (zgui.beginChild("Sprites", .{
             .h = @intToFloat(f32, std.math.min(file.sprites.items.len + 1, 12)) * zgui.getTextLineHeightWithSpacing(),
         })) {
+            zgui.spacing();
+            zgui.text("Sprites", .{});
+            zgui.separator();
+            zgui.spacing();
             for (file.sprites.items) |sprite| {
                 const color = if (file.selected_sprite_index == sprite.index) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice();
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = color });

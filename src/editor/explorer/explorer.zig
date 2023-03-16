@@ -47,6 +47,7 @@ pub fn draw() void {
                     zgui.text("Explorer", .{});
                     zgui.endMenuBar();
                 }
+                zgui.separator();
                 files.draw();
             },
             .tools => {
@@ -54,12 +55,14 @@ pub fn draw() void {
                     zgui.text("Tools", .{});
                     zgui.endMenuBar();
                 }
+                zgui.separator();
             },
             .layers => {
                 if (zgui.beginMenuBar()) {
                     zgui.text("Layers", .{});
                     zgui.endMenuBar();
                 }
+                zgui.separator();
                 if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                     for (file.layers.items) |layer| {
                         zgui.bulletText("{s}", .{layer.name});
@@ -71,6 +74,7 @@ pub fn draw() void {
                     zgui.text("Sprites & Animations", .{});
                     zgui.endMenuBar();
                 }
+                zgui.separator();
                 sprites.draw();
             },
             .settings => {
@@ -78,6 +82,7 @@ pub fn draw() void {
                     zgui.text("Settings", .{});
                     zgui.endMenuBar();
                 }
+                zgui.separator();
                 settings.draw();
             },
         }

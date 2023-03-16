@@ -2,6 +2,7 @@ const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("root");
 const editor = pixi.editor;
+const nfd = @import("nfd");
 
 pub const menu = @import("menu.zig");
 pub const rulers = @import("rulers.zig");
@@ -148,6 +149,9 @@ pub fn draw() void {
                     }
                 }
             } else {
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+                defer zgui.popStyleColor(.{ .count = 2 });
                 const w = @intToFloat(f32, (pixi.state.background_logo.image.width) / 4) * pixi.state.window.scale[0];
                 const h = @intToFloat(f32, (pixi.state.background_logo.image.height) / 4) * pixi.state.window.scale[1];
                 zgui.setCursorPosX((zgui.getWindowWidth() - w) / 2.0);
@@ -157,10 +161,16 @@ pub fn draw() void {
                     .h = h,
                     .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
                 });
-                const text = zgui.formatZ("Open File    {s}  ", .{pixi.fa.file});
+                const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
                 const size = zgui.calcTextSize(text, .{});
                 zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
-                zgui.textColored(pixi.state.style.text_background.toSlice(), "Open File    {s}  ", .{pixi.fa.file});
+                if (zgui.button(text, .{})) {
+                    const folder = nfd.openFolderDialog(null) catch unreachable;
+                    if (folder) |path| {
+                        defer nfd.freePath(path);
+                        pixi.editor.setProjectFolder(path);
+                    }
+                }
             }
             zgui.endChild();
         }

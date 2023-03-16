@@ -127,7 +127,9 @@ pub fn draw() void {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
         defer zgui.popStyleColor(.{ .count = 2 });
-        if (zgui.button("Select a folder", .{
+
+        zgui.textWrapped("Currently the project folder is not set. Please select a project folder to begin editing.", .{});
+        if (zgui.button("Open Folder", .{
             .w = -1,
         })) {
             const folder = nfd.openFolderDialog(null) catch unreachable;
