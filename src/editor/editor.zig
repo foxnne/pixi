@@ -27,6 +27,9 @@ pub fn draw() void {
 }
 
 pub fn setProjectFolder(path: [:0]const u8) void {
+    if (pixi.state.project_folder) |folder| {
+        pixi.state.allocator.free(folder);
+    }
     pixi.state.project_folder = pixi.state.allocator.dupeZ(u8, path) catch unreachable;
 }
 
