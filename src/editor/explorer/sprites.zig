@@ -30,6 +30,7 @@ pub fn draw() void {
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
         defer zgui.popStyleVar(.{ .count = 1 });
         if (zgui.beginChild("Animations", .{})) {
+            defer zgui.endChild();
             for (file.animations.items, 0..) |animation, a| {
                 const header_color = if (file.selected_animation_index == a) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice();
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = header_color });
@@ -56,7 +57,5 @@ pub fn draw() void {
                 }
             }
         }
-
-        zgui.endChild();
     }
 }

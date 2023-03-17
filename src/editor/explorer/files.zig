@@ -124,20 +124,11 @@ pub fn draw() void {
             pixi.state.project_folder = null;
         }
     } else {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
         defer zgui.popStyleColor(.{ .count = 2 });
 
-        zgui.textWrapped("Currently the project folder is not set. Please select a project folder to begin editing.", .{});
-        if (zgui.button("Open Folder", .{
-            .w = -1,
-        })) {
-            const folder = nfd.openFolderDialog(null) catch unreachable;
-            if (folder) |path| {
-                defer nfd.freePath(path);
-                pixi.editor.setProjectFolder(path);
-            }
-        }
+        zgui.textWrapped("Open a folder to begin editing", .{});
     }
 }
 

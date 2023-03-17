@@ -39,17 +39,17 @@ pub fn draw() void {
             .menu_bar = true,
         },
     })) {
-        menu.draw();
+        const window_height = zgui.getContentRegionAvail()[1];
+        const window_height_without_menu = window_height;
+        const artboard_height = if (pixi.state.open_files.items.len > 0) (window_height_without_menu - window_height_without_menu * pixi.state.settings.flipbook_height) else 0.0;
 
-        const art_height = zgui.getWindowHeight();
-        const art_mouse_ratio = (pixi.state.controls.mouse.position.y - zgui.getCursorScreenPos()[1]) / art_height;
-        const artboard_ratio_height = (art_height - art_height * pixi.state.settings.flipbook_height);
+        const artboard_mouse_ratio = (pixi.state.controls.mouse.position.y - zgui.getCursorScreenPos()[1]) / window_height_without_menu;
 
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
         defer zgui.popStyleVar(.{ .count = 1 });
         if (zgui.beginChild("Artboard", .{
             .w = 0.0,
-            .h = artboard_ratio_height,
+            .h = artboard_height,
             .border = false,
             .flags = .{},
         })) {
@@ -150,58 +150,73 @@ pub fn draw() void {
                 }
             } else {
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
-                defer zgui.popStyleColor(.{ .count = 2 });
-                const w = @intToFloat(f32, (pixi.state.background_logo.image.width) / 4) * pixi.state.window.scale[0];
-                const h = @intToFloat(f32, (pixi.state.background_logo.image.height) / 4) * pixi.state.window.scale[1];
-                zgui.setCursorPosX((zgui.getWindowWidth() - w) / 2.0);
-                zgui.setCursorPosY((zgui.getWindowHeight() - h) / 2.0);
-                zgui.image(pixi.state.gctx.lookupResource(pixi.state.background_logo.view_handle).?, .{
-                    .w = w,
-                    .h = h,
-                    .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
-                });
-                const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
-                const size = zgui.calcTextSize(text, .{});
-                zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
-                if (zgui.button(text, .{})) {
-                    const folder = nfd.openFolderDialog(null) catch unreachable;
-                    if (folder) |path| {
-                        defer nfd.freePath(path);
-                        pixi.editor.setProjectFolder(path);
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.background.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+                defer zgui.popStyleColor(.{ .count = 4 });
+                { // Draw semi-transparent logo
+                    const w = @intToFloat(f32, (pixi.state.background_logo.image.width) / 4) * pixi.state.window.scale[0];
+                    const h = @intToFloat(f32, (pixi.state.background_logo.image.height) / 4) * pixi.state.window.scale[1];
+                    const center: [2]f32 = .{ zgui.getWindowWidth() / 2.0, zgui.getWindowHeight() / 2.0 };
+
+                    zgui.setCursorPosX(center[0] - w / 2.0);
+                    zgui.setCursorPosY(center[1] - h / 2.0);
+                    // const draw_list = zgui.getWindowDrawList();
+                    // draw_list.addCircleFilled(.{
+                    //     .p = center,
+                    //     .r = w / 2.0,
+                    //     .col = pixi.state.style.foreground.toU32(),
+                    // });
+                    zgui.image(pixi.state.gctx.lookupResource(pixi.state.background_logo.view_handle).?, .{
+                        .w = w,
+                        .h = h,
+                        .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
+                    });
+                }
+                { // Draw `Open Folder` button
+                    const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
+                    const size = zgui.calcTextSize(text, .{});
+                    zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
+                    if (zgui.button(text, .{})) {
+                        const folder = nfd.openFolderDialog(null) catch unreachable;
+                        if (folder) |path| {
+                            defer nfd.freePath(path);
+                            pixi.editor.setProjectFolder(path);
+                        }
                     }
                 }
             }
-            zgui.endChild();
         }
+        zgui.endChild();
 
-        const flipbook_height = if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) zgui.getContentRegionAvail()[1] - pixi.state.settings.info_bar_height * pixi.state.window.scale[1] else 0.0;
-        zgui.separator();
+        if (pixi.state.open_files.items.len > 0) {
+            const flipbook_height = window_height_without_menu - artboard_height - pixi.state.settings.info_bar_height * pixi.state.window.scale[1];
+            zgui.separator();
 
-        if (zgui.beginChild("Flipbook", .{
-            .w = 0.0,
-            .h = flipbook_height,
-            .border = false,
-            .flags = .{
-                .menu_bar = if (pixi.editor.getFile(pixi.state.open_file_index)) |_| true else false,
-            },
-        })) {
-            if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                flipbook.menu.draw(file, art_mouse_ratio);
+            if (zgui.beginChild("Flipbook", .{
+                .w = 0.0,
+                .h = flipbook_height,
+                .border = false,
+                .flags = .{
+                    .menu_bar = if (pixi.editor.getFile(pixi.state.open_file_index)) |_| true else false,
+                },
+            })) {
+                if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                    flipbook.menu.draw(file, artboard_mouse_ratio);
 
-                if (zgui.beginChild("FlipbookCanvas", .{})) {
-                    flipbook.canvas.draw(file);
+                    if (zgui.beginChild("FlipbookCanvas", .{})) {
+                        flipbook.canvas.draw(file);
+                    }
                     zgui.endChild();
                 }
             }
             zgui.endChild();
-        }
-
-        if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
-            defer zgui.popStyleColor(.{ .count = 1 });
-            if (zgui.beginChild("InfoBar", .{})) {
-                infobar.draw();
+            if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
+                defer zgui.popStyleColor(.{ .count = 1 });
+                if (zgui.beginChild("InfoBar", .{})) {
+                    infobar.draw();
+                }
                 zgui.endChild();
             }
         }
