@@ -15,7 +15,7 @@ pub const ProcessAssetsStep = struct {
     pub fn init(builder: *Builder, comptime assets_path: []const u8, comptime assets_output_path: []const u8, comptime animations_output_path: []const u8) *ProcessAssetsStep {
         const self = builder.allocator.create(ProcessAssetsStep) catch unreachable;
         self.* = .{
-            .step = Step.init(.custom, "process-assets", builder.allocator, process),
+            .step = Step.init(.{ .id = .custom, .name = "process-assets", .owner = builder, .makeFn = process }),
             .builder = builder,
             .assets_root_path = assets_path,
             .assets_output_path = assets_output_path,
@@ -25,7 +25,8 @@ pub const ProcessAssetsStep = struct {
         return self;
     }
 
-    fn process(step: *Step) !void {
+    fn process(step: *Step, prog_node: *std.Progress.Node) anyerror!void {
+        _ = prog_node;
         const self = @fieldParentPtr(ProcessAssetsStep, "step", step);
         const root = self.assets_root_path;
         const assets_output = self.assets_output_path;

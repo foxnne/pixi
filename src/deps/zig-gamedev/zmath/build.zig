@@ -2,7 +2,7 @@ const std = @import("std");
 
 pub const Package = struct {
     pub const Options = struct {
-        prefer_determinism: bool = false,
+        enable_cross_platform_determinism: bool = true,
     };
 
     options: Options,
@@ -16,7 +16,7 @@ pub const Package = struct {
         },
     ) Package {
         const step = b.addOptions();
-        step.addOption(bool, "prefer_determinism", args.options.prefer_determinism);
+        step.addOption(bool, "enable_cross_platform_determinism", args.options.enable_cross_platform_determinism);
 
         const zmath_options = step.createModule();
 
@@ -39,13 +39,13 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
-    const zmath_pkg = Package.build(b, .{});
-
     const tests = buildTests(b, optimize, target);
-    tests.addModule("zmath_options", zmath_pkg.zmath_options);
-
     const test_step = b.step("test", "Run zmath tests");
     test_step.dependOn(&tests.step);
+
+    const benchmarks = buildBenchmarks(b, target);
+    const benchmark_step = b.step("benchmark", "Run zmath benchmarks");
+    benchmark_step.dependOn(&benchmarks.run().step);
 }
 
 pub fn buildTests(
@@ -58,6 +58,10 @@ pub fn buildTests(
         .target = target,
         .optimize = optimize,
     });
+
+    const zmath_pkg = Package.build(b, .{});
+    tests.addModule("zmath_options", zmath_pkg.zmath_options);
+
     return tests;
 }
 
@@ -71,6 +75,10 @@ pub fn buildBenchmarks(
         .target = target,
         .optimize = .ReleaseFast,
     });
+
+    const zmath_pkg = Package.build(b, .{});
+    exe.addModule("zmath", zmath_pkg.zmath);
+
     return exe;
 }
 
