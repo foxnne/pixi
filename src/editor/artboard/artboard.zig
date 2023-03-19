@@ -91,9 +91,10 @@ pub fn draw() void {
                             if (path_hover_timer >= 1.0) {
                                 zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
                                 defer zgui.popStyleVar(.{ .count = 1 });
-                                zgui.beginTooltip();
-                                defer zgui.endTooltip();
-                                zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                                if (zgui.beginTooltip()) {
+                                    defer zgui.endTooltip();
+                                    zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                                }
                             }
                         }
 

@@ -50,6 +50,17 @@ pub fn deinit() void {
         mem_allocator = null;
     }
 }
+pub fn initNoContext(allocator: std.mem.Allocator) void {
+    if (temp_buffer == null) {
+        temp_buffer = std.ArrayList(u8).init(allocator);
+        temp_buffer.?.resize(3 * 1024 + 1) catch unreachable;
+    }
+}
+pub fn deinitNoContext() void {
+    if (temp_buffer) |buf| {
+        buf.deinit();
+    }
+}
 extern fn zguiCreateContext(shared_font_atlas: ?*const anyopaque) Context;
 extern fn zguiDestroyContext(ctx: ?Context) void;
 extern fn zguiGetCurrentContext() ?Context;
@@ -92,16 +103,17 @@ extern fn zguiSetAllocatorFunctions(
     free_func: ?*const fn (?*anyopaque, ?*anyopaque) callconv(.C) void,
 ) void;
 //--------------------------------------------------------------------------------------------------
-pub const ConfigFlags = enum(u32) {
-    none = 0,
-    nav_enable_keyboard = 1 << 0,
-    nav_enable_gamepad = 1 << 1,
-    nav_enable_set_mouse_pos = 1 << 2,
-    nav_no_capture_keyboard = 1 << 3,
-    no_mouse = 1 << 4,
-    no_mouse_cursor_change = 1 << 5,
-    is_srgb = 1 << 20,
-    is_touch_screen = 1 << 21,
+pub const ConfigFlags = packed struct(u32) {
+    nav_enable_keyboard: bool = false,
+    nav_enable_gamepad: bool = false,
+    nav_enable_set_mouse_pos: bool = false,
+    nav_no_capture_keyboard: bool = false,
+    no_mouse: bool = false,
+    no_mouse_cursor_change: bool = false,
+    user_storage: u14 = 0,
+    is_srgb: bool = false,
+    is_touch_screen: bool = false,
+    _padding: u10 = 0,
 };
 
 pub const FontConfig = extern struct {
@@ -787,6 +799,9 @@ pub const Style = extern struct {
     color_button_position: Direction,
     button_text_align: [2]f32,
     selectable_text_align: [2]f32,
+    separator_text_border_size: f32,
+    separator_text_align: [2]f32,
+    separator_text_padding: [2]f32,
     display_window_padding: [2]f32,
     display_safe_area_padding: [2]f32,
     mouse_cursor_scale: f32,
@@ -929,6 +944,9 @@ pub const StyleVar = enum(u32) {
     tab_rounding, // 1f
     button_text_align, // 2f
     selectable_text_align, // 2f
+    separator_text_border_size, // 1f
+    separator_text_align, // 2f
+    separator_text_padding, // 2f
 };
 const PushStyleVar1f = struct {
     idx: StyleVar,
@@ -2055,6 +2073,7 @@ pub const InputTextFlags = packed struct(u32) {
 };
 //--------------------------------------------------------------------------------------------------
 pub const InputTextCallbackData = extern struct {
+    ctx: *Context,
     event_flag: InputTextFlags,
     flags: InputTextFlags,
     user_data: ?*anyopaque,
@@ -3061,6 +3080,15 @@ pub fn menuItem(label: [:0]const u8, args: MenuItem) bool {
     return zguiMenuItem(label, if (args.shortcut) |s| s.ptr else null, args.selected, args.enabled);
 }
 
+const MenuItemPtr = struct {
+    shortcut: ?[:0]const u8 = null,
+    selected: *bool,
+    enabled: bool = true,
+};
+pub fn menuItemPtr(label: [:0]const u8, args: MenuItemPtr) bool {
+    return zguiMenuItemPtr(label, if (args.shortcut) |s| s.ptr else null, args.selected, args.enabled);
+}
+
 extern fn zguiBeginMenuBar() bool;
 extern fn zguiEndMenuBar() void;
 extern fn zguiBeginMainMenuBar() bool;
@@ -3068,6 +3096,7 @@ extern fn zguiEndMainMenuBar() void;
 extern fn zguiBeginMenu(label: [*:0]const u8, enabled: bool) bool;
 extern fn zguiEndMenu() void;
 extern fn zguiMenuItem(label: [*:0]const u8, shortcut: ?[*:0]const u8, selected: bool, enabled: bool) bool;
+extern fn zguiMenuItemPtr(label: [*:0]const u8, shortcut: ?[*:0]const u8, selected: *bool, enabled: bool) bool;
 //--------------------------------------------------------------------------------------------------
 //
 // Popups
@@ -3077,7 +3106,7 @@ extern fn zguiMenuItem(label: [*:0]const u8, shortcut: ?[*:0]const u8, selected:
 pub const beginTooltip = zguiBeginTooltip;
 /// `pub fn endTooltip() void`
 pub const endTooltip = zguiEndTooltip;
-extern fn zguiBeginTooltip() void;
+extern fn zguiBeginTooltip() bool;
 extern fn zguiEndTooltip() void;
 
 /// `pub fn beginPopupContextWindow() bool`

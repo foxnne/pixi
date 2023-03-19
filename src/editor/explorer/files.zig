@@ -69,9 +69,10 @@ pub fn draw() void {
                             hover_timer += pixi.state.gctx.stats.delta_time;
 
                             if (hover_timer >= 1.0) {
-                                zgui.beginTooltip();
-                                defer zgui.endTooltip();
-                                zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                                if (zgui.beginTooltip()) {
+                                    defer zgui.endTooltip();
+                                    zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                                }
                             }
                         }
                     }

@@ -13,6 +13,9 @@ const zip = @import("src/deps/zip/build.zig");
 
 const content_dir = "assets/";
 
+const src_path = "src/pixi.zig";
+const name = @import("src/pixi.zig").name;
+
 const ProcessAssetsStep = @import("src/tools/process_assets.zig").ProcessAssetsStep;
 
 pub fn build(b: *std.Build) !void {
@@ -38,20 +41,60 @@ pub fn build(b: *std.Build) !void {
     }
     ensureGitLfsContent("/src/deps/zig-gamedev/zgpu/libs/dawn/x86_64-windows-gnu/dawn.lib") catch return;
 
-    var exe = createExe(b, target, optimize, "run", "src/pixi.zig");
+    var exe = b.addExecutable(.{
+        .name = name,
+        .root_source_file = .{ .path = src_path },
+        .optimize = optimize,
+        .target = target,
+    });
+
+    exe.want_lto = false;
+    if (exe.optimize == .ReleaseFast) {
+        exe.strip = true;
+        if (target.isWindows()) {
+            exe.subsystem = .Windows;
+        } else {
+            exe.subsystem = .Posix;
+        }
+    }
     b.default_step.dependOn(&exe.step);
 
     const zstbi_pkg = zstbi.Package.build(b, target, optimize, .{});
     const zmath_pkg = zmath.Package.build(b, .{});
-    const zpool_pkg = zpool.Package.build(b, .{});
     const zglfw_pkg = zglfw.Package.build(b, target, optimize, .{});
-    const zgui_pkg = zgui.Package.build(b, target, optimize, .{
-        .options = .{ .backend = .glfw_wgpu },
-    });
+    const zpool_pkg = zpool.Package.build(b, .{});
     const zgpu_pkg = zgpu.Package.build(b, .{
         .options = .{ .uniforms_buffer_size = 4 * 1024 * 1024 },
         .deps = .{ .zpool = zpool_pkg.zpool, .zglfw = zglfw_pkg.zglfw },
     });
+    const zgui_pkg = zgui.Package.build(b, target, optimize, .{
+        .options = .{
+            .backend = .glfw_wgpu,
+        },
+    });
+    const zip_pkg = zip.package(b, .{});
+
+    const run_cmd = exe.run();
+    const run_step = b.step("run", b.fmt("run {s}", .{name}));
+    run_cmd.step.dependOn(b.getInstallStep());
+    run_step.dependOn(&run_cmd.step);
+    exe.addModule("zstbi", zstbi_pkg.zstbi);
+    exe.addModule("zmath", zmath_pkg.zmath);
+    exe.addModule("zpool", zpool_pkg.zpool);
+    exe.addModule("zglfw", zglfw_pkg.zglfw);
+    exe.addModule("zgpu", zgpu_pkg.zgpu);
+    exe.addModule("zgui", zgui_pkg.zgui);
+    exe.addModule("nfd", nfd.getModule(b));
+    exe.addModule("zip", zip_pkg.module);
+
+    const nfd_lib = nfd.makeLib(b, target, optimize);
+
+    zgpu_pkg.link(exe);
+    zglfw_pkg.link(exe);
+    zstbi_pkg.link(exe);
+    zgui_pkg.link(exe);
+    exe.linkLibrary(nfd_lib);
+    zip.link(exe);
 
     const tests = b.step("test", "Run all tests");
     const pixi_tests = b.addTest(.{
@@ -82,64 +125,7 @@ pub fn build(b: *std.Build) !void {
         .install_subdir = "bin/" ++ content_dir,
     });
     exe.step.dependOn(&install_content_step.step);
-}
-
-fn createExe(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.Mode, name: []const u8, source: []const u8) *std.Build.CompileStep {
-    var exe = b.addExecutable(.{
-        .name = name,
-        .root_source_file = .{ .path = source },
-        .optimize = optimize,
-        .target = target,
-    });
-
-    exe.want_lto = false;
-    // if (b.is_release) {
-    //     if (target.isWindows()) {
-    //         exe.subsystem = .Windows;
-    //     } else {
-    //         exe.subsystem = .Posix;
-    //     }
-    // }
-
-    //const pixi_pkg = package(b, .{});
-    const zstbi_pkg = zstbi.Package.build(b, target, optimize, .{});
-    const zmath_pkg = zmath.Package.build(b, .{});
-    const zglfw_pkg = zglfw.Package.build(b, target, optimize, .{});
-    const zpool_pkg = zpool.Package.build(b, .{});
-    const zgui_pkg = zgui.Package.build(b, target, optimize, .{
-        .options = .{ .backend = .glfw_wgpu },
-    });
-    const zgpu_pkg = zgpu.Package.build(b, .{
-        .options = .{ .uniforms_buffer_size = 4 * 1024 * 1024 },
-        .deps = .{ .zpool = zpool_pkg.zpool, .zglfw = zglfw_pkg.zglfw },
-    });
-    const zip_pkg = zip.package(b, .{});
-
     exe.install();
-
-    const run_cmd = exe.run();
-    const exe_step = b.step("run", b.fmt("run {s}.zig", .{name}));
-    run_cmd.step.dependOn(b.getInstallStep());
-    exe_step.dependOn(&run_cmd.step);
-    exe.addModule("zstbi", zstbi_pkg.zstbi);
-    exe.addModule("zmath", zmath_pkg.zmath);
-    exe.addModule("zpool", zpool_pkg.zpool);
-    exe.addModule("zglfw", zglfw_pkg.zglfw);
-    exe.addModule("zgui", zgui_pkg.zgui);
-    exe.addModule("zgpu", zgpu_pkg.zgpu);
-    exe.addModule("nfd", nfd.getModule(b));
-    exe.addModule("zip", zip_pkg.module);
-
-    const nfd_lib = nfd.makeLib(b, target, optimize);
-
-    zgpu_pkg.link(exe);
-    zglfw_pkg.link(exe);
-    zstbi_pkg.link(exe);
-    zgui_pkg.link(exe);
-    exe.linkLibrary(nfd_lib);
-    zip.link(exe);
-
-    return exe;
 }
 
 inline fn thisDir() []const u8 {

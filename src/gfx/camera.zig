@@ -276,11 +276,12 @@ pub const Camera = struct {
     fn drawZoomTooltip(zoom: f32) void {
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
         defer zgui.popStyleVar(.{ .count = 1 });
-        zgui.beginTooltip();
-        defer zgui.endTooltip();
-        zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
-        zgui.sameLine(.{});
-        zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{d:0.1}", .{zoom});
+        if (zgui.beginTooltip()) {
+            defer zgui.endTooltip();
+            zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
+            zgui.sameLine(.{});
+            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{d:0.1}", .{zoom});
+        }
     }
 
     pub fn processTooltip(camera: *Camera, zoom: f32) void {
