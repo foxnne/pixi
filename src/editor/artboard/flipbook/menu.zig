@@ -20,6 +20,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
                 .pause => .play,
             };
         }
+        if (zgui.combo("Animation", .{})) {}
         _ = zgui.invisibleButton("FlipbookGrip", .{
             .w = -1.0,
             .h = -1.0,

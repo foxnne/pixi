@@ -34,8 +34,16 @@ pub fn draw() void {
 
         const w = @intToFloat(f32, pixi.state.fox_logo.image.width / 4) * pixi.state.window.scale[0];
         const h = @intToFloat(f32, pixi.state.fox_logo.image.height / 4) * pixi.state.window.scale[1];
-        zgui.setCursorPosX((zgui.getWindowWidth() - w) / 2.0);
-        zgui.setCursorPosY((zgui.getWindowHeight() - h) / 2.5);
+        const window_position = zgui.getWindowPos();
+        const center: [2]f32 = .{ zgui.getWindowWidth() / 2.0, zgui.getWindowHeight() / 2.0 };
+        zgui.setCursorPosX(center[0] - w / 2.0);
+        zgui.setCursorPosY(center[1] - h / 2.0);
+        const draw_list = zgui.getWindowDrawList();
+        draw_list.addCircleFilled(.{
+            .p = .{ window_position[0] + center[0], window_position[1] + center[1] },
+            .r = w / 2.5,
+            .col = pixi.state.style.foreground.toU32(),
+        });
         zgui.image(pixi.state.gctx.lookupResource(pixi.state.fox_logo.view_handle).?, .{
             .w = w,
             .h = h,

@@ -39,11 +39,11 @@ pub fn draw() void {
             .menu_bar = true,
         },
     })) {
+        menu.draw();
         const window_height = zgui.getContentRegionAvail()[1];
-        const window_height_without_menu = window_height;
-        const artboard_height = if (pixi.state.open_files.items.len > 0) (window_height_without_menu - window_height_without_menu * pixi.state.settings.flipbook_height) else 0.0;
+        const artboard_height = if (pixi.state.open_files.items.len > 0) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
 
-        const artboard_mouse_ratio = (pixi.state.controls.mouse.position.y - zgui.getCursorScreenPos()[1]) / window_height_without_menu;
+        const artboard_mouse_ratio = (pixi.state.controls.mouse.position.y - zgui.getCursorScreenPos()[1]) / window_height;
 
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
         defer zgui.popStyleVar(.{ .count = 1 });
@@ -161,12 +161,6 @@ pub fn draw() void {
 
                     zgui.setCursorPosX(center[0] - w / 2.0);
                     zgui.setCursorPosY(center[1] - h / 2.0);
-                    // const draw_list = zgui.getWindowDrawList();
-                    // draw_list.addCircleFilled(.{
-                    //     .p = center,
-                    //     .r = w / 2.0,
-                    //     .col = pixi.state.style.foreground.toU32(),
-                    // });
                     zgui.image(pixi.state.gctx.lookupResource(pixi.state.background_logo.view_handle).?, .{
                         .w = w,
                         .h = h,
@@ -190,7 +184,7 @@ pub fn draw() void {
         zgui.endChild();
 
         if (pixi.state.open_files.items.len > 0) {
-            const flipbook_height = window_height_without_menu - artboard_height - pixi.state.settings.info_bar_height * pixi.state.window.scale[1];
+            const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.state.window.scale[1];
             zgui.separator();
 
             if (zgui.beginChild("Flipbook", .{
