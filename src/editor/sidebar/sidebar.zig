@@ -37,6 +37,7 @@ pub fn draw() void {
         drawOption(.tools, pixi.fa.pencil_alt);
         drawOption(.layers, pixi.fa.layer_group);
         drawOption(.sprites, pixi.fa.th);
+        drawOption(.animations, pixi.fa.play_circle);
         drawOption(.settings, pixi.fa.cog);
     }
 

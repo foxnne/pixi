@@ -129,7 +129,7 @@ pub fn draw() void {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
         defer zgui.popStyleColor(.{ .count = 2 });
 
-        zgui.textWrapped("Open a folder to begin editing", .{});
+        zgui.textWrapped("Open a folder to begin editing.", .{});
     }
 }
 

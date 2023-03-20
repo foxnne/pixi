@@ -5,6 +5,7 @@ const nfd = @import("nfd");
 
 pub const files = @import("files.zig");
 pub const sprites = @import("sprites.zig");
+pub const animations = @import("animations.zig");
 pub const settings = @import("settings.zig");
 
 pub fn draw() void {
@@ -71,11 +72,19 @@ pub fn draw() void {
             },
             .sprites => {
                 if (zgui.beginMenuBar()) {
-                    zgui.text("Sprites & Animations", .{});
+                    zgui.text("Sprites", .{});
                     zgui.endMenuBar();
                 }
                 zgui.separator();
                 sprites.draw();
+            },
+            .animations => {
+                if (zgui.beginMenuBar()) {
+                    zgui.text("Animations", .{});
+                    zgui.endMenuBar();
+                }
+                zgui.separator();
+                animations.draw();
             },
             .settings => {
                 if (zgui.beginMenuBar()) {

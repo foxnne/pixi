@@ -52,6 +52,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .tile_height = @intCast(u32, pixi.state.popups.file_setup_tile_size[1]),
         .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
         .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
+        .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
         .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
         .flipbook_camera = .{ .position = .{ -@intToFloat(f32, pixi.state.popups.file_setup_tile_size[0]) / 2.0, 0.0 } },
         .background_image = undefined,
@@ -151,6 +152,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             .tile_height = external.tileHeight,
             .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
             .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
+            .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
             .flipbook_camera = .{ .position = .{ -@intToFloat(f32, external.tileWidth) / 2.0, 0.0 } },
             .background_image = undefined,
@@ -248,6 +250,7 @@ pub fn closeFile(index: usize) !void {
     }
     file.layers.deinit();
     file.sprites.deinit();
+    file.selected_sprites.deinit();
     file.animations.deinit();
     pixi.state.allocator.free(file.path);
 }

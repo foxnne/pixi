@@ -17,7 +17,6 @@ pub fn scroll(_: *zglfw.Window, x: f64, y: f64) callconv(.C) void {
 
 pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Action, _: zglfw.Mods) callconv(.C) void {
     if (glfw_button == pixi.state.controls.mouse.primary.button) {
-        pixi.state.controls.mouse.primary.previous_state = pixi.state.controls.mouse.primary.state;
         switch (action) {
             .release => {
                 pixi.state.controls.mouse.primary.state = false;
@@ -29,7 +28,6 @@ pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Ac
     }
 
     if (glfw_button == pixi.state.controls.mouse.secondary.button) {
-        pixi.state.controls.mouse.secondary.previous_state = pixi.state.controls.mouse.secondary.state;
         switch (action) {
             .release => {
                 pixi.state.controls.mouse.secondary.state = false;

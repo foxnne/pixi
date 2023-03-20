@@ -7,25 +7,37 @@ const pixi = @import("root");
 pub const callbacks = @import("callbacks.zig");
 
 pub const Keys = enum(usize) {
-    zoom,
+    primary_modifier,
+    secondary_modifier,
 };
 
 pub const Controls = struct {
     mouse: Mouse = .{},
 
     /// Holds all rebindable keys.
-    keys: [1]Key = [_]Key{
+    keys: [2]Key = [_]Key{
         .{
-            .name = "Zoom",
+            .name = "Primary Modifier",
             .primary = zglfw.Key.left_control,
             .secondary = zglfw.Key.left_super,
             .default_primary = zglfw.Key.left_control,
             .default_secondary = zglfw.Key.left_super,
         },
+        .{
+            .name = "Secondary Modifier",
+            .primary = zglfw.Key.left_shift,
+            .secondary = zglfw.Key.right_shift,
+            .default_primary = zglfw.Key.left_shift,
+            .default_secondary = zglfw.Key.right_shift,
+        },
     },
 
+    pub fn key(self: Controls, k: Keys) Key {
+        return self.keys[@enumToInt(k)];
+    }
+
     pub fn zoom(self: Controls) bool {
-        return if (pixi.state.settings.input_scheme == .trackpad) self.keys[@enumToInt(Keys.zoom)].state else !self.keys[@enumToInt(Keys.zoom)].state;
+        return if (pixi.state.settings.input_scheme == .trackpad) self.key(Keys.primary_modifier).state else !self.key(Keys.primary_modifier).state;
     }
 };
 
@@ -39,22 +51,22 @@ pub const Key = struct {
     previous_state: bool = false,
 
     /// Returns true the frame the key was pressed.
-    pub fn pressed(self: MouseButton) bool {
-        return self.state == true and self.state != self.previous_state;
+    pub fn pressed(self: Key) bool {
+        return (self.state == true and self.state != self.previous_state);
     }
 
     /// Returns true while the key is pressed down.
-    pub fn down(self: MouseButton) bool {
+    pub fn down(self: Key) bool {
         return self.state == true;
     }
 
     /// Returns true the frame the key was released.
-    pub fn released(self: MouseButton) bool {
-        return self.state == false and self.state != self.previous_state;
+    pub fn released(self: Key) bool {
+        return (self.state == false and self.state != self.previous_state);
     }
 
     /// Returns true while the key is released.
-    pub fn up(self: MouseButton) bool {
+    pub fn up(self: Key) bool {
         return self.state == false;
     }
 };

@@ -56,6 +56,7 @@ pub const Sidebar = enum {
     tools,
     layers,
     sprites,
+    animations,
     settings,
 };
 
@@ -172,6 +173,8 @@ fn deinit(allocator: std.mem.Allocator) void {
 fn update() void {
     zgui.backend.newFrame(state.gctx.swapchain_descriptor.width, state.gctx.swapchain_descriptor.height);
     editor.draw();
+    state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
+    state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;
     //zgui.showDemoWindow(null);
 }
 

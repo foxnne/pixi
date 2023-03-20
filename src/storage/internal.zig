@@ -20,6 +20,7 @@ pub const Pixi = struct {
     flipbook_scroll: f32 = 0.0,
     flipbook_scroll_request: ?ScrollRequest = null,
     selected_sprite_index: usize = 0,
+    selected_sprites: std.ArrayList(usize),
     selected_animation_index: usize = 0,
     selected_animation_state: AnimationState = .pause,
     selected_animation_elapsed: f32 = 0.0,
@@ -177,6 +178,54 @@ pub const Pixi = struct {
         const x = @intToFloat(f32, @mod(@intCast(u32, index), self.width));
         const y = @intToFloat(f32, @divTrunc(@intCast(u32, index), self.width));
         return .{ x, y };
+    }
+
+    pub fn spriteSelectionIndex(self: Pixi, index: usize) ?usize {
+        return std.mem.indexOf(usize, self.selected_sprites.items, &[_]usize{index});
+    }
+
+    pub fn makeSpriteSelection(self: *Pixi, selected_sprite: usize) void {
+        const selection = self.selected_sprites.items.len > 0;
+        const selected_sprite_index = self.spriteSelectionIndex(selected_sprite);
+        const contains = selected_sprite_index != null;
+        if (pixi.state.controls.key(.primary_modifier).down()) {
+            if (!contains) {
+                self.selected_sprites.append(selected_sprite) catch unreachable;
+            } else {
+                if (selected_sprite_index) |i| {
+                    _ = self.selected_sprites.swapRemove(i);
+                }
+            }
+        } else if (pixi.state.controls.key(.secondary_modifier).down()) {
+            if (selection) {
+                const last = self.selected_sprites.getLast();
+                if (selected_sprite > last) {
+                    for (last..selected_sprite + 1) |i| {
+                        if (std.mem.indexOf(usize, self.selected_sprites.items, &[_]usize{i}) == null) {
+                            self.selected_sprites.append(i) catch unreachable;
+                        }
+                    }
+                } else if (selected_sprite < last) {
+                    for (selected_sprite..last) |i| {
+                        if (std.mem.indexOf(usize, self.selected_sprites.items, &[_]usize{i}) == null) {
+                            self.selected_sprites.append(i) catch unreachable;
+                        }
+                    }
+                } else if (selected_sprite_index) |i| {
+                    _ = self.selected_sprites.swapRemove(i);
+                } else {
+                    self.selected_sprites.append(selected_sprite) catch unreachable;
+                }
+            } else {
+                self.selected_sprites.append(selected_sprite) catch unreachable;
+            }
+        } else {
+            if (selection) {
+                self.selected_sprites.clearAndFree();
+            }
+            self.selected_sprites.append(selected_sprite) catch unreachable;
+            //self.flipbook_scroll_request = .{ .from = self.flipbook_scroll, .to = self.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
+        }
     }
 };
 

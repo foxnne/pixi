@@ -66,6 +66,31 @@ pub const Camera = struct {
         }
     }
 
+    pub fn drawLine(camera: Camera, start: [2]f32, end: [2]f32, color: u32) void {
+        const window_position = zgui.getWindowPos();
+        const mat = camera.matrix();
+
+        var p1 = mat.transformVec2(start);
+        p1[0] += window_position[0];
+        p1[1] += window_position[1];
+        var p2 = mat.transformVec2(end);
+        p2[0] += window_position[0];
+        p2[1] += window_position[1];
+
+        p1[0] = std.math.floor(p1[0]);
+        p1[1] = std.math.floor(p1[1]);
+        p2[0] = std.math.floor(p2[0]);
+        p2[1] = std.math.floor(p2[1]);
+
+        const draw_list = zgui.getWindowDrawList();
+        draw_list.addLine(.{
+            .p1 = p1,
+            .p2 = p2,
+            .col = color,
+            .thickness = 1.0,
+        });
+    }
+
     pub fn drawRect(camera: Camera, rect: [4]f32, thickness: f32, color: u32) void {
         const rect_min_max = camera.getRectMinMax(rect);
 

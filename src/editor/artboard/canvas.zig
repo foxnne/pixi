@@ -11,8 +11,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const tile_height = @intToFloat(f32, file.tile_height);
 
     const layer_position: [2]f32 = .{
-        -file_width / 2,
-        -file_height / 2,
+        -file_width / 2.0,
+        -file_height / 2.0,
     };
 
     // Handle zooming, panning and extents
@@ -52,16 +52,21 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
-            if (pixi.state.controls.mouse.primary.down()) {
+            if (pixi.state.controls.mouse.primary.released()) {
                 var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
                 var tile_index = tile_column + tile_row * tiles_wide;
-                // Ensure we only set the request state on the first set.
-                if (file.flipbook_scroll_request) |*request| {
-                    request.elapsed = 0.0;
-                    request.from = file.flipbook_scroll;
-                    request.to = -@intToFloat(f32, tile_index) * tile_width * 1.1;
+
+                if (pixi.state.sidebar == .sprites) {
+                    file.makeSpriteSelection(tile_index);
                 } else {
-                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
+                    // Ensure we only set the request state on the first set.
+                    if (file.flipbook_scroll_request) |*request| {
+                        request.elapsed = 0.0;
+                        request.from = file.flipbook_scroll;
+                        request.to = -@intToFloat(f32, tile_index) * tile_width * 1.1;
+                    } else {
+                        file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
+                    }
                 }
             }
         }
@@ -92,12 +97,40 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     // Draw selection
     {
         const tiles_wide = @divExact(file.width, file.tile_width);
-        const column = @mod(@intCast(u32, file.selected_sprite_index), tiles_wide);
-        const row = @divTrunc(@intCast(u32, file.selected_sprite_index), tiles_wide);
-        const x = @intToFloat(f32, column) * tile_width + layer_position[0];
-        const y = @intToFloat(f32, row) * tile_height + layer_position[1];
-        const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
-        file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());
+        if (pixi.state.sidebar == .sprites) {
+            if (file.selected_sprites.items.len > 0) {
+                for (file.selected_sprites.items) |sprite_index| {
+                    const column = @mod(@intCast(u32, sprite_index), tiles_wide);
+                    const row = @divTrunc(@intCast(u32, sprite_index), tiles_wide);
+                    const x = @intToFloat(f32, column) * tile_width + layer_position[0];
+                    const y = @intToFloat(f32, row) * tile_height + layer_position[1];
+                    const rect: [4]f32 = .{ x, y, tile_width, tile_height };
+
+                    file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());
+
+                    // Draw the origin
+                    const sprite: pixi.storage.Internal.Sprite = file.sprites.items[sprite_index];
+                    file.camera.drawLine(
+                        .{ x + sprite.origin_x, y },
+                        .{ x + sprite.origin_x, y + tile_height },
+                        pixi.state.style.text_red.toU32(),
+                    );
+                    file.camera.drawLine(
+                        .{ x, y + sprite.origin_y },
+                        .{ x + tile_width, y + sprite.origin_y },
+                        pixi.state.style.text_red.toU32(),
+                    );
+                }
+            }
+        } else {
+            const column = @mod(@intCast(u32, file.selected_sprite_index), tiles_wide);
+            const row = @divTrunc(@intCast(u32, file.selected_sprite_index), tiles_wide);
+            const x = @intToFloat(f32, column) * tile_width + layer_position[0];
+            const y = @intToFloat(f32, row) * tile_height + layer_position[1];
+            const rect: [4]f32 = .{ x, y, tile_width, tile_height };
+
+            file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());
+        }
     }
 }
