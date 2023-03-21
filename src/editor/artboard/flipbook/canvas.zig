@@ -102,7 +102,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 j -= 1;
                 file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
             }
-            if (file.flipbook_camera.isHovered(dst_rect) and i != file.selected_sprite_index) {
+            if (file.flipbook_camera.isHovered(dst_rect) and i != file.selected_sprite_index and zgui.isWindowHovered(.{})) {
                 file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.style.text.toU32());
                 if (pixi.state.controls.mouse.primary.pressed() and file.selected_sprite_index != i) {
                     file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
