@@ -25,8 +25,7 @@ pub fn build(b: *std.Build) !void {
     ensureTarget(target) catch return;
     ensureGit(b.allocator) catch return;
     ensureGitLfs(b.allocator, "install") catch return;
-    // Temporarily commented out the line below because it breaks ZLS
-    //ensureGitLfs(b.allocator, "pull") catch return;
+    ensureGitLfs(b.allocator, "pull") catch return;
 
     // Fetch the latest Dawn/WebGPU binaries.
     {

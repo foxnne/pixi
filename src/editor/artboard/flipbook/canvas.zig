@@ -59,6 +59,25 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
 
         file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(file.selected_sprite_index);
+
+        // Draw progress bar
+        {
+            const window_position = zgui.getWindowPos();
+            const window_width = zgui.getWindowWidth();
+
+            const progress_start: [2]f32 = .{ window_position[0], window_position[1] + 2 };
+            const animation_length = @intToFloat(f32, animation.length) / @intToFloat(f32, animation.fps);
+            const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
+            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@intToFloat(f32, current_frame) / @intToFloat(f32, animation.length)) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
+
+            const draw_list = zgui.getWindowDrawList();
+            draw_list.addLine(.{
+                .p1 = progress_start,
+                .p2 = progress_end,
+                .col = pixi.state.style.highlight_primary.toU32(),
+                .thickness = 3.0,
+            });
+        }
     }
 
     const tiles_wide = @divExact(file.width, file.tile_width);
@@ -114,6 +133,28 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.style.text.toU32());
                 }
             }
+        }
+    }
+
+    if (file.selected_animation_state == .play) {
+        const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
+        // Draw progress bar
+        {
+            const window_position = zgui.getWindowPos();
+            const window_width = zgui.getWindowWidth();
+
+            const progress_start: [2]f32 = .{ window_position[0], window_position[1] + 2 };
+            const animation_length = @intToFloat(f32, animation.length) / @intToFloat(f32, animation.fps);
+            const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
+            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@intToFloat(f32, current_frame) / @intToFloat(f32, animation.length)) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
+
+            const draw_list = zgui.getWindowDrawList();
+            draw_list.addLine(.{
+                .p1 = progress_start,
+                .p2 = progress_end,
+                .col = pixi.state.style.text_secondary.toU32(),
+                .thickness = 3.0,
+            });
         }
     }
 }
