@@ -152,7 +152,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             draw_list.addLine(.{
                 .p1 = progress_start,
                 .p2 = progress_end,
-                .col = pixi.state.style.text_secondary.toU32(),
+                .col = pixi.state.style.text_background.toU32(),
                 .thickness = 3.0,
             });
         }
