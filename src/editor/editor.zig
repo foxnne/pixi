@@ -15,6 +15,7 @@ pub const artboard = @import("artboard/artboard.zig");
 pub const popup_rename = @import("popups/rename.zig");
 pub const popup_file_setup = @import("popups/file_setup.zig");
 pub const popup_about = @import("popups/about.zig");
+pub const popup_file_confirm_close = @import("popups/file_confirm_close.zig");
 
 pub fn draw() void {
     sidebar.draw();
@@ -24,6 +25,7 @@ pub fn draw() void {
     popup_rename.draw();
     popup_file_setup.draw();
     popup_about.draw();
+    popup_file_confirm_close.draw();
 }
 
 pub fn setProjectFolder(path: [:0]const u8) void {
@@ -232,7 +234,24 @@ pub fn getFile(index: usize) ?*pixi.storage.Internal.Pixi {
     return &pixi.state.open_files.items[index];
 }
 
+pub fn forceCloseFile(index: usize) !void {
+    if (getFile(index)) |file| {
+        file.dirty = false;
+    }
+    return closeFile(index);
+}
+
 pub fn closeFile(index: usize) !void {
+    // Handle confirm close if file is dirty
+    {
+        const file = pixi.state.open_files.items[index];
+        if (file.dirty) {
+            pixi.state.popups.file_confirm_close = true;
+            pixi.state.popups.file_confirm_close_index = index;
+            return;
+        }
+    }
+
     pixi.state.open_file_index = 0;
     var file = pixi.state.open_files.swapRemove(index);
     file.background_image.deinit();

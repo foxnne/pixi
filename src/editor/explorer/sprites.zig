@@ -53,6 +53,7 @@ pub fn draw() void {
                     .max = tile_width,
                     .cfmt = "%.0f",
                 })) {
+                    file.dirty = true;
                     for (file.selected_sprites.items) |selected_index| {
                         file.sprites.items[selected_index].origin_x = std.math.round(origin_x);
                     }
@@ -65,6 +66,7 @@ pub fn draw() void {
                     .max = tile_height,
                     .cfmt = "%.0f",
                 })) {
+                    file.dirty = true;
                     for (file.selected_sprites.items) |selected_index| {
                         file.sprites.items[selected_index].origin_y = std.math.round(origin_y);
                     }

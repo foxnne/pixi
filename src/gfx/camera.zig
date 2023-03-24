@@ -66,7 +66,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawLine(camera: Camera, start: [2]f32, end: [2]f32, color: u32) void {
+    pub fn drawLine(camera: Camera, start: [2]f32, end: [2]f32, color: u32, thickness: f32) void {
         const window_position = zgui.getWindowPos();
         const mat = camera.matrix();
 
@@ -87,7 +87,7 @@ pub const Camera = struct {
             .p1 = p1,
             .p2 = p2,
             .col = color,
-            .thickness = 1.0,
+            .thickness = thickness,
         });
     }
 

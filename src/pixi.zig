@@ -74,6 +74,9 @@ pub const Popups = struct {
     file_setup_tiles: [2]i32 = .{ 32, 32 },
     file_setup_width: i32 = 0,
     file_setup_height: i32 = 0,
+    // File close
+    file_confirm_close: bool = false,
+    file_confirm_close_index: usize = 0,
     // About
     about: bool = false,
 

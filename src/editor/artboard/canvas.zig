@@ -115,11 +115,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         .{ x + sprite.origin_x, y },
                         .{ x + sprite.origin_x, y + tile_height },
                         pixi.state.style.text_red.toU32(),
+                        2.0,
                     );
                     file.camera.drawLine(
                         .{ x, y + sprite.origin_y },
                         .{ x + tile_width, y + sprite.origin_y },
                         pixi.state.style.text_red.toU32(),
+                        2.0,
                     );
                 }
             }
