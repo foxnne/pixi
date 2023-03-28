@@ -299,8 +299,6 @@ pub const Camera = struct {
     }
 
     fn drawZoomTooltip(zoom: f32) void {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 1 });
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();
             zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
@@ -310,8 +308,6 @@ pub const Camera = struct {
     }
 
     fn drawColorTooltip(color: [4]u8) void {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 1 });
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();
             const col: [4]f32 = .{
@@ -328,6 +324,13 @@ pub const Camera = struct {
         }
     }
 
+    fn drawLayerTooltip(layer: [:0]const u8) void {
+        if (zgui.beginTooltip()) {
+            defer zgui.endTooltip();
+            zgui.text("{s} {s}", .{ pixi.fa.layer_group, layer });
+        }
+    }
+
     pub const Tooltip = struct {
         zoom: f32,
         color: ?[4]u8 = null,
@@ -335,6 +338,10 @@ pub const Camera = struct {
     };
 
     pub fn processTooltip(camera: *Camera, tooltip: Tooltip) void {
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.state.window.scale[0] });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+        defer zgui.popStyleVar(.{ .count = 3 });
         // Draw current zoom tooltip
         if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
             camera.zoom_tooltip_timer = std.math.min(camera.zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
@@ -342,8 +349,6 @@ pub const Camera = struct {
         } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .trackpad) {
             camera.zoom_tooltip_timer = 0.0;
             drawZoomTooltip(tooltip.zoom);
-            if (tooltip.color) |color|
-                drawColorTooltip(color);
         } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .mouse) {
             if (camera.zoom_wait_timer < pixi.state.settings.zoom_wait_time) {
                 camera.zoom_tooltip_timer = 0.0;
@@ -351,6 +356,9 @@ pub const Camera = struct {
             }
         }
         if (pixi.state.controls.sample()) {
+            if (tooltip.layer) |layer| {
+                drawLayerTooltip(layer);
+            }
             if (tooltip.color) |color|
                 drawColorTooltip(color);
         }

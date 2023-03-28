@@ -45,8 +45,22 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const pixel_x = @floatToInt(usize, pixel_coord[0]);
             const pixel_y = @floatToInt(usize, pixel_coord[1]);
 
-            const color = file.layers.items[0].getPixel(.{ pixel_x, pixel_y });
-            file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color });
+            var color: [4]u8 = [_]u8{0} ** 4;
+            var layer_name: ?[:0]const u8 = null;
+
+            for (file.layers.items) |layer| {
+                const pixel = layer.getPixel(.{ pixel_x, pixel_y });
+                if (pixel[3] > 0) {
+                    color = pixel;
+                    layer_name = layer.name;
+                    break;
+                } else continue;
+            }
+            if (layer_name) |name| {
+                file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color, .layer = name });
+            } else {
+                file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color });
+            }
 
             var tile_column = @divTrunc(pixel_x, @intCast(usize, file.tile_width));
             var tile_row = @divTrunc(pixel_y, @intCast(usize, file.tile_height));
