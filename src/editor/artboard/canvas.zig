@@ -45,8 +45,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const pixel_x = @floatToInt(usize, pixel_coord[0]);
             const pixel_y = @floatToInt(usize, pixel_coord[1]);
 
-            
-
             const color = file.layers.items[0].getPixel(.{ pixel_x, pixel_y });
             file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color });
 

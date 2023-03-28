@@ -9,28 +9,32 @@ pub const callbacks = @import("callbacks.zig");
 pub const Keys = enum(usize) {
     primary_modifier,
     secondary_modifier,
+    alternate,
 };
 
 pub const Controls = struct {
     mouse: Mouse = .{},
 
     /// Holds all rebindable keys.
-    keys: [2]Key = [_]Key{
-        .{
-            .name = "Primary Modifier",
-            .primary = zglfw.Key.left_control,
-            .secondary = zglfw.Key.left_super,
-            .default_primary = zglfw.Key.left_control,
-            .default_secondary = zglfw.Key.left_super,
-        },
-        .{
-            .name = "Secondary Modifier",
-            .primary = zglfw.Key.left_shift,
-            .secondary = zglfw.Key.right_shift,
-            .default_primary = zglfw.Key.left_shift,
-            .default_secondary = zglfw.Key.right_shift,
-        },
-    },
+    keys: [3]Key = [_]Key{ .{
+        .name = "Primary Modifier",
+        .primary = zglfw.Key.left_control,
+        .secondary = zglfw.Key.left_super,
+        .default_primary = zglfw.Key.left_control,
+        .default_secondary = zglfw.Key.left_super,
+    }, .{
+        .name = "Secondary Modifier",
+        .primary = zglfw.Key.left_shift,
+        .secondary = zglfw.Key.right_shift,
+        .default_primary = zglfw.Key.left_shift,
+        .default_secondary = zglfw.Key.right_shift,
+    }, .{
+        .name = "Alternate",
+        .primary = zglfw.Key.left_alt,
+        .secondary = zglfw.Key.right_alt,
+        .default_primary = zglfw.Key.left_alt,
+        .default_secondary = zglfw.Key.right_alt,
+    } },
 
     pub fn key(self: Controls, k: Keys) Key {
         return self.keys[@enumToInt(k)];
@@ -38,6 +42,10 @@ pub const Controls = struct {
 
     pub fn zoom(self: Controls) bool {
         return if (pixi.state.settings.input_scheme == .trackpad) self.key(Keys.primary_modifier).state else !self.key(Keys.primary_modifier).state;
+    }
+
+    pub fn sample(self: Controls) bool {
+        return self.key(Keys.alternate).state;
     }
 };
 

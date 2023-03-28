@@ -331,6 +331,7 @@ pub const Camera = struct {
     pub const Tooltip = struct {
         zoom: f32,
         color: ?[4]u8 = null,
+        layer: ?[:0]const u8 = null,
     };
 
     pub fn processTooltip(camera: *Camera, tooltip: Tooltip) void {
@@ -338,8 +339,6 @@ pub const Camera = struct {
         if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
             camera.zoom_tooltip_timer = std.math.min(camera.zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
             drawZoomTooltip(tooltip.zoom);
-            if (tooltip.color) |color|
-                drawColorTooltip(color);
         } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .trackpad) {
             camera.zoom_tooltip_timer = 0.0;
             drawZoomTooltip(tooltip.zoom);
@@ -349,9 +348,11 @@ pub const Camera = struct {
             if (camera.zoom_wait_timer < pixi.state.settings.zoom_wait_time) {
                 camera.zoom_tooltip_timer = 0.0;
                 drawZoomTooltip(tooltip.zoom);
-                if (tooltip.color) |color|
-                    drawColorTooltip(color);
             }
+        }
+        if (pixi.state.controls.sample()) {
+            if (tooltip.color) |color|
+                drawColorTooltip(color);
         }
     }
 };
