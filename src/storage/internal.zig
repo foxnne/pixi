@@ -274,8 +274,9 @@ pub const Layer = struct {
     texture: pixi.gfx.Texture,
 
     pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
-        const index = (pixel[0] * 4) + (pixel[1] * @intCast(usize, self.texture.image.width) * 4);
-        return self.texture.image.data[index .. index + 4][0..4].*;
+        const index = (pixel[0]) + (pixel[1] * @intCast(usize, self.texture.image.width));
+        const pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
+        return pixels[index][0..4].*;
     }
 };
 
