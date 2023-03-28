@@ -36,16 +36,22 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         // Lock camera from moving too far away from canvas
         file.camera.position[0] = std.math.clamp(file.camera.position[0], -(layer_position[0] + file_width), layer_position[0] + file_width);
         file.camera.position[1] = std.math.clamp(file.camera.position[1], -(layer_position[1] + file_height), layer_position[1] + file_height);
-
-        file.camera.processTooltip(file.camera.zoom);
     }
 
     if (zgui.isWindowHovered(.{})) {
         var mouse_position = pixi.state.controls.mouse.position.toSlice();
 
         if (file.camera.pixelCoordinates(layer_position, file.width, file.height, mouse_position)) |pixel_coord| {
-            var tile_column = @divTrunc(@floatToInt(usize, pixel_coord[0]), @intCast(usize, file.tile_width));
-            var tile_row = @divTrunc(@floatToInt(usize, pixel_coord[1]), @intCast(usize, file.tile_height));
+            const pixel_x = @floatToInt(usize, pixel_coord[0]);
+            const pixel_y = @floatToInt(usize, pixel_coord[1]);
+
+            
+
+            const color = file.layers.items[0].getPixel(.{ pixel_x, pixel_y });
+            file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color });
+
+            var tile_column = @divTrunc(pixel_x, @intCast(usize, file.tile_width));
+            var tile_row = @divTrunc(pixel_y, @intCast(usize, file.tile_height));
 
             const x = @intToFloat(f32, tile_column) * tile_width + layer_position[0];
             const y = @intToFloat(f32, tile_row) * tile_height + layer_position[1];

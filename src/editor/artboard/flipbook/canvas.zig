@@ -41,8 +41,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         file.flipbook_camera.position[0] = std.math.clamp(file.flipbook_camera.position[0], min_position[0], max_position[0]);
         file.flipbook_camera.position[1] = std.math.clamp(file.flipbook_camera.position[1], min_position[1], max_position[1]);
+    }
 
-        file.flipbook_camera.processTooltip(file.flipbook_camera.zoom);
+    if (zgui.isWindowHovered(.{})) {
+        file.flipbook_camera.processTooltip(.{ .zoom = file.flipbook_camera.zoom });
     }
 
     if (file.selected_animation_state == .play) {

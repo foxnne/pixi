@@ -309,20 +309,48 @@ pub const Camera = struct {
         }
     }
 
-    pub fn processTooltip(camera: *Camera, zoom: f32) void {
-        if (zgui.isWindowHovered(.{})) {
-            // Draw current zoom tooltip
-            if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
-                camera.zoom_tooltip_timer = std.math.min(camera.zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
-                drawZoomTooltip(zoom);
-            } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .trackpad) {
+    fn drawColorTooltip(color: [4]u8) void {
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+        defer zgui.popStyleVar(.{ .count = 1 });
+        if (zgui.beginTooltip()) {
+            defer zgui.endTooltip();
+            const col: [4]f32 = .{
+                @intToFloat(f32, color[0]) / 255.0,
+                @intToFloat(f32, color[1]) / 255.0,
+                @intToFloat(f32, color[2]) / 255.0,
+                @intToFloat(f32, color[3]) / 255.0,
+            };
+            _ = zgui.colorButton("Eyedropper", .{
+                .col = col,
+                .w = 64.0 * pixi.state.window.scale[0],
+                .h = 64.0 * pixi.state.window.scale[1],
+            });
+        }
+    }
+
+    pub const Tooltip = struct {
+        zoom: f32,
+        color: ?[4]u8 = null,
+    };
+
+    pub fn processTooltip(camera: *Camera, tooltip: Tooltip) void {
+        // Draw current zoom tooltip
+        if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
+            camera.zoom_tooltip_timer = std.math.min(camera.zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
+            drawZoomTooltip(tooltip.zoom);
+            if (tooltip.color) |color|
+                drawColorTooltip(color);
+        } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .trackpad) {
+            camera.zoom_tooltip_timer = 0.0;
+            drawZoomTooltip(tooltip.zoom);
+            if (tooltip.color) |color|
+                drawColorTooltip(color);
+        } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .mouse) {
+            if (camera.zoom_wait_timer < pixi.state.settings.zoom_wait_time) {
                 camera.zoom_tooltip_timer = 0.0;
-                drawZoomTooltip(zoom);
-            } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .mouse) {
-                if (camera.zoom_wait_timer < pixi.state.settings.zoom_wait_time) {
-                    camera.zoom_tooltip_timer = 0.0;
-                    drawZoomTooltip(zoom);
-                }
+                drawZoomTooltip(tooltip.zoom);
+                if (tooltip.color) |color|
+                    drawColorTooltip(color);
             }
         }
     }
