@@ -70,7 +70,7 @@ pub fn draw() void {
                         zgui.pushIntId(@intCast(i32, i));
                         defer zgui.popId();
 
-                        const label = zgui.formatZ("  {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name });
+                        const label = zgui.formatZ(" {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name });
 
                         if (zgui.beginTabItem(label, .{
                             .p_open = &open,

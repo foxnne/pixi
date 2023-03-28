@@ -46,37 +46,28 @@ pub fn draw() void {
                     }
                 }
 
-                const label_origin_x = if (x_same) "X##originx" else "X (varies)##originx";
+                const label_origin_x = "X  " ++ if (x_same) pixi.fa.link else pixi.fa.unlink;
                 if (zgui.sliderFloat(label_origin_x, .{
                     .v = &origin_x,
                     .min = 0.0,
                     .max = tile_width,
                     .cfmt = "%.0f",
                 })) {
-                    file.dirty = true;
-                    for (file.selected_sprites.items) |selected_index| {
-                        file.sprites.items[selected_index].origin_x = std.math.round(origin_x);
-                    }
+                    file.setSelectedSpritesOriginX(origin_x);
                 }
 
-                const label_origin_y = if (y_same) "Y##originy" else "Y (varies)##originy";
+                const label_origin_y = "Y  " ++ if (y_same) pixi.fa.link else pixi.fa.unlink;
                 if (zgui.sliderFloat(label_origin_y, .{
                     .v = &origin_y,
                     .min = 0.0,
                     .max = tile_height,
                     .cfmt = "%.0f",
                 })) {
-                    file.dirty = true;
-                    for (file.selected_sprites.items) |selected_index| {
-                        file.sprites.items[selected_index].origin_y = std.math.round(origin_y);
-                    }
+                    file.setSelectedSpritesOriginY(origin_y);
                 }
 
                 if (zgui.button(" Center ", .{ .w = -1.0 })) {
-                    for (file.selected_sprites.items) |selected_index| {
-                        file.sprites.items[selected_index].origin_x = tile_width / 2.0;
-                        file.sprites.items[selected_index].origin_y = tile_height / 2.0;
-                    }
+                    file.setSelectedSpritesOrigin(.{ tile_width / 2.0, tile_height / 2.0 });
                 }
             }
         }

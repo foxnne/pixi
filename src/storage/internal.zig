@@ -157,6 +157,46 @@ pub const Pixi = struct {
         );
     }
 
+    pub fn setSelectedSpritesOriginX(self: *Pixi, origin_x: f32) void {
+        var dirty: bool = false;
+        for (self.selected_sprites.items) |sprite_index| {
+            if (self.sprites.items[sprite_index].origin_x != origin_x) {
+                self.sprites.items[sprite_index].origin_x = origin_x;
+                dirty = true;
+            }
+        }
+        if (dirty) {
+            self.dirty = dirty;
+        }
+    }
+
+    pub fn setSelectedSpritesOriginY(self: *Pixi, origin_y: f32) void {
+        var dirty: bool = false;
+        for (self.selected_sprites.items) |sprite_index| {
+            if (self.sprites.items[sprite_index].origin_y != origin_y) {
+                self.sprites.items[sprite_index].origin_y = origin_y;
+                dirty = true;
+            }
+        }
+        if (dirty) {
+            self.dirty = dirty;
+        }
+    }
+
+    pub fn setSelectedSpritesOrigin(self: *Pixi, origin: [2]f32) void {
+        var dirty: bool = false;
+        for (self.selected_sprites.items) |sprite_index| {
+            if (self.sprites.items[sprite_index].origin_x != origin[0] or self.sprites.items[sprite_index].origin_y != origin[1]) {
+                self.sprites.items[sprite_index].origin_x = origin[0];
+                self.sprites.items[sprite_index].origin_y = origin[1];
+                dirty = true;
+            }
+        }
+        if (dirty) {
+            self.dirty = dirty;
+        }
+    }
+
     /// Searches for an animation containing the current selected sprite index
     /// Returns true if one is found and set, false if not
     pub fn setAnimationFromSpriteIndex(self: *Pixi) bool {
@@ -224,7 +264,6 @@ pub const Pixi = struct {
                 self.selected_sprites.clearAndFree();
             }
             self.selected_sprites.append(selected_sprite) catch unreachable;
-            //self.flipbook_scroll_request = .{ .from = self.flipbook_scroll, .to = self.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
         }
     }
 };
@@ -232,6 +271,11 @@ pub const Pixi = struct {
 pub const Layer = struct {
     name: [:0]const u8,
     texture: pixi.gfx.Texture,
+
+    pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
+        const index = (pixel[0] * 4) + (pixel[1] * @intCast(usize, self.texture.image.width) * 4);
+        return self.texture.image.data[index .. index + 4][0..4].*;
+    }
 };
 
 pub const Sprite = struct {
