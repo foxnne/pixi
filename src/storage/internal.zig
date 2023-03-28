@@ -276,7 +276,7 @@ pub const Layer = struct {
     pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
         const index = (pixel[0]) + (pixel[1] * @intCast(usize, self.texture.image.width));
         const pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
-        return pixels[index][0..4].*;
+        return pixels[index];
     }
 };
 
