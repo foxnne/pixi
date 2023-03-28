@@ -324,17 +324,18 @@ pub const Camera = struct {
         }
     }
 
-    fn drawLayerTooltip(layer: [:0]const u8) void {
+    fn drawLayerTooltip(layer_index: usize) void {
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();
-            zgui.text("{s} {s}", .{ pixi.fa.layer_group, layer });
+            const layer_name = pixi.state.open_files.items[pixi.state.open_file_index].layers.items[layer_index].name;
+            zgui.text("{s} {s}", .{ pixi.fa.layer_group, layer_name });
         }
     }
 
     pub const Tooltip = struct {
         zoom: f32,
         color: ?[4]u8 = null,
-        layer: ?[:0]const u8 = null,
+        layer: ?usize = null,
     };
 
     pub fn processTooltip(camera: *Camera, tooltip: Tooltip) void {

@@ -19,6 +19,7 @@ pub const Pixi = struct {
     flipbook_camera: pixi.gfx.Camera = .{},
     flipbook_scroll: f32 = 0.0,
     flipbook_scroll_request: ?ScrollRequest = null,
+    selected_layer_index: usize = 0,
     selected_sprite_index: usize = 0,
     selected_sprites: std.ArrayList(usize),
     selected_animation_index: usize = 0,

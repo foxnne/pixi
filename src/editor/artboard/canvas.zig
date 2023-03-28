@@ -46,18 +46,18 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const pixel_y = @floatToInt(usize, pixel_coord[1]);
 
             var color: [4]u8 = [_]u8{0} ** 4;
-            var layer_name: ?[:0]const u8 = null;
+            var layer_index: ?usize = null;
 
-            for (file.layers.items) |layer| {
+            for (file.layers.items, 0..) |layer, i| {
                 const pixel = layer.getPixel(.{ pixel_x, pixel_y });
                 if (pixel[3] > 0) {
                     color = pixel;
-                    layer_name = layer.name;
+                    layer_index = i;
                     break;
                 } else continue;
             }
-            if (layer_name) |name| {
-                file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color, .layer = name });
+            if (layer_index) |index| {
+                file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color, .layer = index });
             } else {
                 file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color });
             }
@@ -71,6 +71,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
             if (pixi.state.controls.mouse.primary.released()) {
+                if (layer_index) |selected_layer_index| {
+                    if (pixi.state.settings.auto_switch_layer)
+                        file.selected_layer_index = selected_layer_index;
+                }
+
                 var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
                 var tile_index = tile_column + tile_row * tiles_wide;
 
@@ -87,18 +92,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     }
                 }
             }
-        }
-    }
-
-    if (file.flipbook_scroll_request) |*request| {
-        if (request.elapsed < 1.0) {
-            file.selected_animation_state = .pause;
-            request.elapsed += pixi.state.gctx.stats.delta_time * 2.0;
-            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed, .ease_out);
-        } else {
-            file.flipbook_scroll = request.to;
-            file.selected_animation_state = request.state;
-            file.flipbook_scroll_request = null;
         }
     }
 

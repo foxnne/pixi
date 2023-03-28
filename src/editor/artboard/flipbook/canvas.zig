@@ -12,6 +12,18 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         -tile_height / 2.0,
     };
 
+    if (file.flipbook_scroll_request) |*request| {
+        if (request.elapsed < 1.0) {
+            file.selected_animation_state = .pause;
+            request.elapsed += pixi.state.gctx.stats.delta_time * 2.0;
+            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed, .ease_out);
+        } else {
+            file.flipbook_scroll = request.to;
+            file.selected_animation_state = request.state;
+            file.flipbook_scroll_request = null;
+        }
+    }
+
     // Handle zooming, panning and extents
     {
         var sprite_camera: pixi.gfx.Camera = .{

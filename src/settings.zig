@@ -56,4 +56,7 @@ zoom_wait_time: f32 = 0.1,
 /// Maximum file size
 max_file_size: [2]i32 = .{ 4096, 4096 },
 
+/// Automatically switch layers when using eyedropper tool
+auto_switch_layer: bool = true,
+
 pub const InputScheme = enum { mouse, trackpad };
