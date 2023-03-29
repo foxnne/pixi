@@ -92,6 +92,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     }
                 }
             }
+        } else {
+            if (pixi.state.controls.mouse.primary.released()) {
+                if (pixi.state.sidebar == .sprites) {
+                    file.selected_sprites.clearAndFree();
+                }
+            }
         }
     }
 
