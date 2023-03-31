@@ -19,9 +19,9 @@
 ## Features planned for 0.1
 - [ ] Typical pixel art operations. (draw, erase, color select)
 - [ ] Create animations and preview easily, edit directly on the preview.
-- [ ] View previous and next frames of the animation.
-- [ ] Set sprite origins for drawing sprites easily in game frameworks.
-- [ ] Import and slice existing .png spritesheets.
+- [x] View previous and next frames of the animation.
+- [x] Set sprite origins for drawing sprites easily in game frameworks.
+- [x] Import and slice existing .png spritesheets.
 - [x] Intuitive and customizeable user interface.
 - [ ] Sprite packing
 
