@@ -298,7 +298,21 @@ pub const Camera = struct {
         }
     }
 
-    fn drawZoomTooltip(zoom: f32) void {
+    pub fn drawLayerTooltip(camera: Camera, layer_index: usize) void {
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.state.window.scale[0] });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+        defer zgui.popStyleVar(.{ .count = 3 });
+        _ = camera;
+        if (zgui.beginTooltip()) {
+            defer zgui.endTooltip();
+            const layer_name = pixi.state.open_files.items[pixi.state.open_file_index].layers.items[layer_index].name;
+            zgui.text("{s} {s}", .{ pixi.fa.layer_group, layer_name });
+        }
+    }
+
+    pub fn drawZoomTooltip(camera: Camera, zoom: f32) void {
+        _ = camera;
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();
             zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
@@ -307,7 +321,12 @@ pub const Camera = struct {
         }
     }
 
-    fn drawColorTooltip(color: [4]u8) void {
+    pub fn drawColorTooltip(camera: Camera, color: [4]u8) void {
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.state.window.scale[0] });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+        defer zgui.popStyleVar(.{ .count = 3 });
+        _ = camera;
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();
             const col: [4]f32 = .{
@@ -318,17 +337,13 @@ pub const Camera = struct {
             };
             _ = zgui.colorButton("Eyedropper", .{
                 .col = col,
-                .w = 64.0 * pixi.state.window.scale[0],
-                .h = 64.0 * pixi.state.window.scale[1],
+                .w = pixi.state.settings.eyedropper_preview_size * pixi.state.window.scale[0],
+                .h = pixi.state.settings.eyedropper_preview_size * pixi.state.window.scale[1],
             });
-        }
-    }
-
-    fn drawLayerTooltip(layer_index: usize) void {
-        if (zgui.beginTooltip()) {
-            defer zgui.endTooltip();
-            const layer_name = pixi.state.open_files.items[pixi.state.open_file_index].layers.items[layer_index].name;
-            zgui.text("{s} {s}", .{ pixi.fa.layer_group, layer_name });
+            zgui.text("R: {d}", .{color[0]});
+            zgui.text("G: {d}", .{color[1]});
+            zgui.text("B: {d}", .{color[2]});
+            zgui.text("A: {d}", .{color[3]});
         }
     }
 
@@ -338,7 +353,7 @@ pub const Camera = struct {
         layer: ?usize = null,
     };
 
-    pub fn processTooltip(camera: *Camera, tooltip: Tooltip) void {
+    pub fn processZoomTooltip(camera: *Camera, tooltip: Tooltip) void {
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] } });
         zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.state.window.scale[0] });
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
@@ -346,22 +361,15 @@ pub const Camera = struct {
         // Draw current zoom tooltip
         if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
             camera.zoom_tooltip_timer = std.math.min(camera.zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
-            drawZoomTooltip(tooltip.zoom);
+            camera.drawZoomTooltip(tooltip.zoom);
         } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .trackpad) {
             camera.zoom_tooltip_timer = 0.0;
-            drawZoomTooltip(tooltip.zoom);
+            camera.drawZoomTooltip(tooltip.zoom);
         } else if (pixi.state.controls.zoom() and pixi.state.settings.input_scheme == .mouse) {
             if (camera.zoom_wait_timer < pixi.state.settings.zoom_wait_time) {
                 camera.zoom_tooltip_timer = 0.0;
-                drawZoomTooltip(tooltip.zoom);
+                camera.drawZoomTooltip(tooltip.zoom);
             }
-        }
-        if (pixi.state.controls.sample()) {
-            if (tooltip.layer) |layer| {
-                drawLayerTooltip(layer);
-            }
-            if (tooltip.color) |color|
-                drawColorTooltip(color);
         }
     }
 };

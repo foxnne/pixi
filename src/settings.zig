@@ -1,5 +1,5 @@
 const builtin = @import("builtin");
-const pixi = @import("pixi");
+const pixi = @import("root");
 
 /// Width of the explorer bar.
 explorer_width: f32 = 200,
@@ -57,6 +57,9 @@ zoom_wait_time: f32 = 0.1,
 max_file_size: [2]i32 = .{ 4096, 4096 },
 
 /// Automatically switch layers when using eyedropper tool
-auto_switch_layer: bool = true,
+eyedropper_auto_switch_layer: bool = true,
+
+/// Width and height of the eyedropper preview
+eyedropper_preview_size: f32 = 64.0,
 
 pub const InputScheme = enum { mouse, trackpad };

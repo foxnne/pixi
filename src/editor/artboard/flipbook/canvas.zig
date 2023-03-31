@@ -12,6 +12,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         -tile_height / 2.0,
     };
 
+    // Progress flipbook scroll request
     if (file.flipbook_scroll_request) |*request| {
         if (request.elapsed < 1.0) {
             file.selected_animation_state = .pause;
@@ -55,10 +56,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         file.flipbook_camera.position[1] = std.math.clamp(file.flipbook_camera.position[1], min_position[1], max_position[1]);
     }
 
-    if (zgui.isWindowHovered(.{})) {
-        file.flipbook_camera.processTooltip(.{ .zoom = file.flipbook_camera.zoom });
-    }
-
+    // Handle playing animations and locking the current extents
     if (file.selected_animation_state == .play) {
         const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
         file.selected_animation_elapsed += pixi.state.gctx.stats.delta_time;
@@ -94,8 +92,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
     }
 
+    // Draw all sprites sequentially
     const tiles_wide = @divExact(file.width, file.tile_width);
-
     for (file.sprites.items, 0..) |_, i| {
         const column = @intToFloat(f32, @mod(@intCast(u32, i), tiles_wide));
         const row = @intToFloat(f32, @divTrunc(@intCast(u32, i), tiles_wide));
@@ -135,7 +133,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 j -= 1;
                 file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
             }
-            if (file.flipbook_camera.isHovered(dst_rect) and i != file.selected_sprite_index and zgui.isWindowHovered(.{})) {
+
+            if (file.flipbook_camera.isHovered(dst_rect) and i != file.selected_sprite_index) {
                 file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.style.text.toU32());
                 if (pixi.state.controls.mouse.primary.pressed() and file.selected_sprite_index != i) {
                     file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
@@ -148,6 +147,39 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
         }
+    }
+
+    // TODO: Make an equivalent function to `pixelCoordinates` that will work for the flipbook and get this working.
+    if (zgui.isWindowHovered(.{})) {
+        //     var mouse_position = pixi.state.controls.mouse.position.toSlice();
+        //     if (file.flipbook_camera.pixelCoordinates(.{ dst_rect[0], dst_rect[1] }, file.width, file.height, mouse_position)) |pixel_coord| {
+        //         const pixel_x = @floatToInt(usize, pixel_coord[0]);
+        //         const pixel_y = @floatToInt(usize, pixel_coord[1]);
+
+        //         var color: [4]u8 = [_]u8{0} ** 4;
+        //         var layer_index: ?usize = null;
+
+        //         for (file.layers.items, 0..) |layer, k| {
+        //             const pixel = layer.getPixel(.{ pixel_x, pixel_y });
+        //             if (pixel[3] > 0) {
+        //                 color = pixel;
+        //                 layer_index = k;
+        //                 break;
+        //             } else continue;
+        //         }
+        //         if (layer_index) |index| {
+        file.flipbook_camera.processZoomTooltip(.{ .zoom = file.flipbook_camera.zoom });
+        //             if (pixi.state.controls.sample()) {
+        //                 file.flipbook_camera.drawLayerTooltip(index);
+        //                 file.flipbook_camera.drawColorTooltip(color);
+        //             }
+        //         } else {
+        //             file.flipbook_camera.processZoomTooltip(.{ .zoom = file.camera.zoom, .color = color });
+        //             if (pixi.state.controls.sample()) {
+        //                 file.flipbook_camera.drawColorTooltip(color);
+        //             }
+        //         }
+        //     }
     }
 
     if (file.selected_animation_state == .play) {

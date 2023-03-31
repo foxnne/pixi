@@ -272,6 +272,7 @@ pub const Pixi = struct {
 pub const Layer = struct {
     name: [:0]const u8,
     texture: pixi.gfx.Texture,
+    visible: bool = true,
 
     pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
         const index = (pixel[0]) + (pixel[1] * @intCast(usize, self.texture.image.width));

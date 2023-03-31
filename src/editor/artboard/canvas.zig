@@ -57,9 +57,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 } else continue;
             }
             if (layer_index) |index| {
-                file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color, .layer = index });
+                file.camera.processZoomTooltip(.{ .zoom = file.camera.zoom, .color = color, .layer = index });
+                if (pixi.state.controls.sample()) {
+                    file.camera.drawLayerTooltip(index);
+                    file.camera.drawColorTooltip(color);
+                }
             } else {
-                file.camera.processTooltip(.{ .zoom = file.camera.zoom, .color = color });
+                file.camera.processZoomTooltip(.{ .zoom = file.camera.zoom, .color = color });
+                if (pixi.state.controls.sample()) {
+                    file.camera.drawColorTooltip(color);
+                }
             }
 
             var tile_column = @divTrunc(pixel_x, @intCast(usize, file.tile_width));
@@ -72,7 +79,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             if (pixi.state.controls.mouse.primary.released()) {
                 if (layer_index) |selected_layer_index| {
-                    if (pixi.state.settings.auto_switch_layer)
+                    if (pixi.state.settings.eyedropper_auto_switch_layer)
                         file.selected_layer_index = selected_layer_index;
                 }
 
@@ -86,7 +93,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     if (file.flipbook_scroll_request) |*request| {
                         request.elapsed = 0.0;
                         request.from = file.flipbook_scroll;
-                        request.to = -@intToFloat(f32, tile_index) * tile_width * 1.1;
+                        request.to = file.flipbookScrollFromSpriteIndex(tile_index);
                     } else {
                         file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
                     }

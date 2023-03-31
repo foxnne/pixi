@@ -45,7 +45,7 @@ pub const Controls = struct {
     }
 
     pub fn sample(self: Controls) bool {
-        return self.key(Keys.alternate).state;
+        return self.key(Keys.alternate).state or self.mouse.secondary.state;
     }
 };
 

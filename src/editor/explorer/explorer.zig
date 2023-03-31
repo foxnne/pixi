@@ -4,6 +4,7 @@ const pixi = @import("root");
 const nfd = @import("nfd");
 
 pub const files = @import("files.zig");
+pub const layers = @import("layers.zig");
 pub const sprites = @import("sprites.zig");
 pub const animations = @import("animations.zig");
 pub const settings = @import("settings.zig");
@@ -64,11 +65,7 @@ pub fn draw() void {
                     zgui.endMenuBar();
                 }
                 zgui.separator();
-                if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                    for (file.layers.items) |layer| {
-                        zgui.bulletText("{s}", .{layer.name});
-                    }
-                }
+                layers.draw();
             },
             .sprites => {
                 if (zgui.beginMenuBar()) {
