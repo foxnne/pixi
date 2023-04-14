@@ -58,22 +58,22 @@ pub fn build(b: *std.Build) !void {
     }
     b.default_step.dependOn(&exe.step);
 
-    const zstbi_pkg = zstbi.Package.build(b, target, optimize, .{});
-    const zmath_pkg = zmath.Package.build(b, .{});
-    const zglfw_pkg = zglfw.Package.build(b, target, optimize, .{});
-    const zpool_pkg = zpool.Package.build(b, .{});
-    const zgpu_pkg = zgpu.Package.build(b, .{
+    const zstbi_pkg = zstbi.package(b, target, optimize, .{});
+    const zmath_pkg = zmath.package(b, target, optimize, .{});
+    const zglfw_pkg = zglfw.package(b, target, optimize, .{});
+    const zpool_pkg = zpool.package(b, target, optimize, .{});
+    const zgpu_pkg = zgpu.package(b, target, optimize, .{
         .options = .{ .uniforms_buffer_size = 4 * 1024 * 1024 },
         .deps = .{ .zpool = zpool_pkg.zpool, .zglfw = zglfw_pkg.zglfw },
     });
-    const zgui_pkg = zgui.Package.build(b, target, optimize, .{
+    const zgui_pkg = zgui.package(b, target, optimize, .{
         .options = .{
             .backend = .glfw_wgpu,
         },
     });
     const zip_pkg = zip.package(b, .{});
 
-    const run_cmd = exe.run();
+    const run_cmd = b.addRunArtifact(exe);
     const run_step = b.step("run", b.fmt("run {s}", .{name}));
     run_cmd.step.dependOn(b.getInstallStep());
     run_step.dependOn(&run_cmd.step);
@@ -124,7 +124,7 @@ pub fn build(b: *std.Build) !void {
         .install_subdir = "bin/" ++ content_dir,
     });
     exe.step.dependOn(&install_content_step.step);
-    exe.install();
+    b.installArtifact(exe);
 }
 
 inline fn thisDir() []const u8 {

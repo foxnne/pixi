@@ -475,10 +475,10 @@ pub const Window = opaque {
     }
     extern fn glfwWindowShouldClose(window: *Window) i32;
 
-    pub fn setShouldClose(window: *Window, close: bool) void {
-        glfwSetWindowShouldClose(window, if (close) 1 else 0);
+    pub fn setShouldClose(window: *Window, should_close: bool) void {
+        return glfwSetWindowShouldClose(window, if (should_close) 1 else 0);
     }
-    extern fn glfwSetWindowShouldClose(window: *Window, close: i32) void;
+    extern fn glfwSetWindowShouldClose(window: *Window, should_close: i32) void;
 
     /// `pub fn destroy(window: *Window) void`
     pub const destroy = glfwDestroyWindow;
