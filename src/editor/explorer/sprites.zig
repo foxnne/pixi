@@ -47,26 +47,44 @@ pub fn draw() void {
                 }
 
                 const label_origin_x = "X  " ++ if (x_same) pixi.fa.link else pixi.fa.unlink;
+                var changed_origin_x: bool = false;
                 if (zgui.sliderFloat(label_origin_x, .{
                     .v = &origin_x,
                     .min = 0.0,
                     .max = tile_width,
                     .cfmt = "%.0f",
                 })) {
-                    file.setSelectedSpritesOriginX(origin_x);
+                    changed_origin_x = true;
                 }
 
+                if (zgui.isItemActivated()) {
+                    file.historyPushOrigin() catch unreachable;
+                }
+
+                if (changed_origin_x)
+                    file.setSelectedSpritesOriginX(origin_x);
+
                 const label_origin_y = "Y  " ++ if (y_same) pixi.fa.link else pixi.fa.unlink;
+                var changed_origin_y: bool = false;
                 if (zgui.sliderFloat(label_origin_y, .{
                     .v = &origin_y,
                     .min = 0.0,
                     .max = tile_height,
                     .cfmt = "%.0f",
                 })) {
+                    changed_origin_y = true;
+                }
+
+                if (zgui.isItemActivated()) {
+                    file.historyPushOrigin() catch unreachable;
+                }
+
+                if (changed_origin_y) {
                     file.setSelectedSpritesOriginY(origin_y);
                 }
 
                 if (zgui.button(" Center ", .{ .w = -1.0 })) {
+                    file.historyPushOrigin() catch unreachable;
                     file.setSelectedSpritesOrigin(.{ tile_width / 2.0, tile_height / 2.0 });
                 }
             }

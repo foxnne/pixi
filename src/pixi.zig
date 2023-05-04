@@ -106,6 +106,8 @@ fn deinit(allocator: std.mem.Allocator) void {
 fn update() void {
     zgui.backend.newFrame(state.gctx.swapchain_descriptor.width, state.gctx.swapchain_descriptor.height);
 
+    input.process();
+
     if (window.shouldClose()) {
         var should_close = true;
         for (state.open_files.items) |file| {
@@ -120,6 +122,10 @@ fn update() void {
 
 fn draw() void {
     editor.draw();
+
+    for (&state.controls.keys) |*k| {
+        k.previous_state = k.state;
+    }
 
     state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
     state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;

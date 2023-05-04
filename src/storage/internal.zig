@@ -28,6 +28,7 @@ pub const Pixi = struct {
     background_image: zstbi.Image,
     background_texture_handle: zgpu.TextureHandle,
     background_texture_view_handle: zgpu.TextureViewHandle,
+    history: History,
     dirty: bool = true,
 
     pub const ScrollRequest = struct {
@@ -38,6 +39,8 @@ pub const Pixi = struct {
     };
 
     pub const AnimationState = enum { pause, play };
+
+    pub const History = @import("History.zig");
 
     pub fn toExternal(self: Pixi, allocator: std.mem.Allocator) !storage.External.Pixi {
         var layers = try allocator.alloc(storage.External.Layer, self.layers.items.len);
@@ -62,6 +65,14 @@ pub const Pixi = struct {
             .sprites = sprites,
             .animations = self.animations.items,
         };
+    }
+
+    fn write(context: ?*anyopaque, data: ?*anyopaque, size: c_int) callconv(.C) void {
+        const zip_file = @ptrCast(?*zip.struct_zip_t, context);
+
+        if (zip_file) |z| {
+            _ = zip.zip_entry_write(z, data, @intCast(usize, size));
+        }
     }
 
     /// Returns true if file saved.
@@ -103,12 +114,22 @@ pub const Pixi = struct {
         return false;
     }
 
-    fn write(context: ?*anyopaque, data: ?*anyopaque, size: c_int) callconv(.C) void {
-        const zip_file = @ptrCast(?*zip.struct_zip_t, context);
-
-        if (zip_file) |z| {
-            _ = zip.zip_entry_write(z, data, @intCast(usize, size));
+    pub fn historyPushOrigin(file: *pixi.storage.Internal.Pixi) !void {
+        var change = try pixi.storage.Internal.Pixi.History.Change.create(pixi.state.allocator, .origins, file.selected_sprites.items.len);
+        for (file.selected_sprites.items, 0..) |sprite_index, i| {
+            const sprite = file.sprites.items[sprite_index];
+            change.origins.sprites[i] = sprite_index;
+            change.origins.values[i] = .{ sprite.origin_x, sprite.origin_y };
         }
+        try file.history.append(change);
+    }
+
+    pub fn undo(self: *Pixi) !void {
+        return self.history.undo(self);
+    }
+
+    pub fn redo(self: *Pixi) !void {
+        return self.history.redo(self);
     }
 
     pub fn createBackground(self: *Pixi) !void {
@@ -173,6 +194,7 @@ pub const Pixi = struct {
 
     pub fn setSelectedSpritesOriginY(self: *Pixi, origin_y: f32) void {
         var dirty: bool = false;
+
         for (self.selected_sprites.items) |sprite_index| {
             if (self.sprites.items[sprite_index].origin_y != origin_y) {
                 self.sprites.items[sprite_index].origin_y = origin_y;
@@ -184,10 +206,26 @@ pub const Pixi = struct {
         }
     }
 
+    pub fn getSelectedSpritesOrigin(self: *Pixi) ?[2]f32 {
+        if (self.selected_sprites.items.len == 0) return null;
+        const first = self.sprites.items[self.selected_sprites.items[0]];
+        const origin = .{ first.origin_x, first.origin_y };
+
+        for (self.selected_sprites.items) |sprite_index| {
+            const sprite = self.sprites.items[sprite_index];
+            if (sprite.origin_x != origin[0] or sprite.origin_y != origin[1])
+                return null;
+        }
+
+        return origin;
+    }
+
     pub fn setSelectedSpritesOrigin(self: *Pixi, origin: [2]f32) void {
         var dirty: bool = false;
+
         for (self.selected_sprites.items) |sprite_index| {
-            if (self.sprites.items[sprite_index].origin_x != origin[0] or self.sprites.items[sprite_index].origin_y != origin[1]) {
+            const current_origin = .{ self.sprites.items[sprite_index].origin_x, self.sprites.items[sprite_index].origin_y };
+            if (current_origin[0] != origin[0] or current_origin[1] != origin[1]) {
                 self.sprites.items[sprite_index].origin_x = origin[0];
                 self.sprites.items[sprite_index].origin_y = origin[1];
                 dirty = true;

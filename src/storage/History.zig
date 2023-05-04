@@ -1,0 +1,212 @@
+const std = @import("std");
+const pixi = @import("root");
+const History = @This();
+
+pub const ChangeType = enum {
+    pixels,
+    origins,
+};
+
+pub const Change = union(ChangeType) {
+    pub const Pixels = struct {
+        layer: usize,
+        indices: []usize,
+        values: [][4]f32,
+    };
+
+    pub const Origins = struct {
+        sprites: []usize,
+        values: [][2]f32,
+    };
+
+    pixels: Pixels,
+    origins: Origins,
+
+    pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
+        return switch (field) {
+            .pixels => .{
+                .pixels = .{
+                    .layer = 0,
+                    .indices = try allocator.alloc(usize, len),
+                    .values = try allocator.alloc([4]f32, len),
+                },
+            },
+            .origins => .{
+                .origins = .{
+                    .sprites = try allocator.alloc(usize, len),
+                    .values = try allocator.alloc([2]f32, len),
+                },
+            },
+        };
+    }
+
+    pub fn deinit(self: Change) void {
+        switch (self) {
+            .pixels => |*pixels| {
+                pixi.state.allocator.free(pixels.indices);
+                pixi.state.allocator.free(pixels.values);
+            },
+            .origins => |*origins| {
+                pixi.state.allocator.free(origins.sprites);
+                pixi.state.allocator.free(origins.values);
+            },
+        }
+    }
+};
+
+undo_stack: std.ArrayList(Change),
+redo_stack: std.ArrayList(Change),
+
+pub fn init(allocator: std.mem.Allocator) History {
+    return .{
+        .undo_stack = std.ArrayList(Change).init(allocator),
+        .redo_stack = std.ArrayList(Change).init(allocator),
+    };
+}
+
+pub fn append(self: *History, change: Change) !void {
+    if (self.redo_stack.items.len > 0) {
+        for (self.redo_stack.items) |*c| {
+            c.deinit();
+        }
+        self.redo_stack.clearRetainingCapacity();
+    }
+
+    // Equality check, don't append if equal
+    var equal: bool = self.undo_stack.items.len > 0;
+    if (self.undo_stack.getLastOrNull()) |last| {
+        const last_active_tag = std.meta.activeTag(last);
+        const change_active_tag = std.meta.activeTag(change);
+
+        if (last_active_tag == change_active_tag) {
+            switch (last) {
+                .origins => |origins| {
+                    if (std.mem.eql(usize, origins.sprites, change.origins.sprites)) {
+                        for (origins.values, 0..) |value, i| {
+                            if (!std.mem.eql(f32, &value, &change.origins.values[i])) {
+                                equal = false;
+                                break;
+                            }
+                        }
+                    } else {
+                        equal = false;
+                    }
+                },
+                else => {
+                    // TODO: Do we want to merge duplicate draw actions?
+                    equal = false;
+                },
+            }
+        }
+    }
+
+    if (equal) {
+        change.deinit();
+    } else try self.undo_stack.append(change);
+}
+
+pub fn undo(self: *History, file: *pixi.storage.Internal.Pixi) !void {
+    if (self.undo_stack.items.len == 0) {
+        return;
+    }
+
+    if (self.undo_stack.popOrNull()) |change| {
+        switch (change) {
+            .pixels => |*pixels| {
+                for (pixels.indices, 0..) |pixel_index, i| {
+                    const color: [4]u8 = .{
+                        @floatToInt(u8, pixels.values[i][0] * 255),
+                        @floatToInt(u8, pixels.values[i][1] * 255),
+                        @floatToInt(u8, pixels.values[i][2] * 255),
+                        @floatToInt(u8, pixels.values[i][3] * 255),
+                    };
+                    var current_pixels = @ptrCast([*][4]u8, file.layers.items[pixels.layer].texture.image.data.ptr)[0 .. file.layers.items[pixels.layer].texture.image.data.len / 4];
+                    pixels.values[pixel_index] = [4]f32{
+                        @intToFloat(f32, current_pixels[pixel_index][0]) / 255.0,
+                        @intToFloat(f32, current_pixels[pixel_index][1]) / 255.0,
+                        @intToFloat(f32, current_pixels[pixel_index][2]) / 255.0,
+                        @intToFloat(f32, current_pixels[pixel_index][3]) / 255.0,
+                    };
+
+                    current_pixels[pixel_index] = color;
+                }
+            },
+            .origins => |*origins| {
+                for (origins.sprites, 0..) |sprite_index, i| {
+                    var origin_x = origins.values[i][0];
+                    var origin_y = origins.values[i][1];
+                    origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
+                    file.sprites.items[sprite_index].origin_x = origin_x;
+                    file.sprites.items[sprite_index].origin_y = origin_y;
+                }
+            },
+        }
+        try self.redo_stack.append(change);
+    }
+}
+
+pub fn redo(self: *History, file: *pixi.storage.Internal.Pixi) !void {
+    if (self.redo_stack.items.len == 0) return;
+
+    if (self.redo_stack.popOrNull()) |change| {
+        switch (change) {
+            .pixels => |*pixels| {
+                for (pixels.indices, 0..) |pixel_index, i| {
+                    const color: [4]u8 = .{
+                        @floatToInt(u8, pixels.values[i][0] * 255),
+                        @floatToInt(u8, pixels.values[i][1] * 255),
+                        @floatToInt(u8, pixels.values[i][2] * 255),
+                        @floatToInt(u8, pixels.values[i][3] * 255),
+                    };
+                    var current_pixels = @ptrCast([*][4]u8, file.layers.items[pixels.layer].texture.image.data.ptr)[0 .. file.layers.items[pixels.layer].texture.image.data.len / 4];
+                    pixels.values[pixel_index] = [4]f32{
+                        @intToFloat(f32, current_pixels[pixel_index][0]) / 255.0,
+                        @intToFloat(f32, current_pixels[pixel_index][1]) / 255.0,
+                        @intToFloat(f32, current_pixels[pixel_index][2]) / 255.0,
+                        @intToFloat(f32, current_pixels[pixel_index][3]) / 255.0,
+                    };
+
+                    current_pixels[pixel_index] = color;
+                }
+            },
+            .origins => |origins| {
+                for (origins.sprites, 0..) |sprite_index, i| {
+                    const origin_x = origins.values[i][0];
+                    const origin_y = origins.values[i][1];
+                    origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
+                    file.sprites.items[sprite_index].origin_x = origin_x;
+                    file.sprites.items[sprite_index].origin_y = origin_y;
+                }
+            },
+        }
+        try self.undo_stack.append(change);
+    }
+}
+
+pub fn clearAndFree(self: *History) void {
+    for (self.undo_stack.items) |*u| {
+        u.deinit();
+    }
+    for (self.redo_stack.items) |*r| {
+        r.deinit();
+    }
+    self.undo_stack.clearAndFree();
+    self.redo_stack.clearAndFree();
+}
+
+pub fn clearRetainingCapacity(self: *History) void {
+    for (self.undo_stack.items) |*u| {
+        u.deinit();
+    }
+    for (self.redo_stack.items) |*r| {
+        r.deinit();
+    }
+    self.undo_stack.clearRetainingCapacity();
+    self.redo_stack.clearRetainingCapacity();
+}
+
+pub fn deinit(self: *History) void {
+    self.clearAndFree();
+    self.undo_stack.deinit();
+    self.redo_stack.deinit();
+}

@@ -10,31 +10,43 @@ pub const Keys = enum(usize) {
     primary_modifier,
     secondary_modifier,
     alternate,
+    undo_redo,
 };
 
 pub const Controls = struct {
     mouse: Mouse = .{},
 
     /// Holds all rebindable keys.
-    keys: [3]Key = [_]Key{ .{
-        .name = "Primary Modifier",
-        .primary = zglfw.Key.left_control,
-        .secondary = zglfw.Key.left_super,
-        .default_primary = zglfw.Key.left_control,
-        .default_secondary = zglfw.Key.left_super,
-    }, .{
-        .name = "Secondary Modifier",
-        .primary = zglfw.Key.left_shift,
-        .secondary = zglfw.Key.right_shift,
-        .default_primary = zglfw.Key.left_shift,
-        .default_secondary = zglfw.Key.right_shift,
-    }, .{
-        .name = "Alternate",
-        .primary = zglfw.Key.left_alt,
-        .secondary = zglfw.Key.right_alt,
-        .default_primary = zglfw.Key.left_alt,
-        .default_secondary = zglfw.Key.right_alt,
-    } },
+    keys: [4]Key = [_]Key{
+        .{
+            .name = "Primary Modifier",
+            .primary = zglfw.Key.left_control,
+            .secondary = zglfw.Key.left_super,
+            .default_primary = zglfw.Key.left_control,
+            .default_secondary = zglfw.Key.left_super,
+        },
+        .{
+            .name = "Secondary Modifier",
+            .primary = zglfw.Key.left_shift,
+            .secondary = zglfw.Key.right_shift,
+            .default_primary = zglfw.Key.left_shift,
+            .default_secondary = zglfw.Key.right_shift,
+        },
+        .{
+            .name = "Alternate",
+            .primary = zglfw.Key.left_alt,
+            .secondary = zglfw.Key.right_alt,
+            .default_primary = zglfw.Key.left_alt,
+            .default_secondary = zglfw.Key.right_alt,
+        },
+        .{
+            .name = "Undo Redo",
+            .primary = zglfw.Key.z,
+            .secondary = zglfw.Key.unknown,
+            .default_primary = zglfw.Key.z,
+            .default_secondary = zglfw.Key.unknown,
+        },
+    },
 
     pub fn key(self: Controls, k: Keys) Key {
         return self.keys[@enumToInt(k)];
@@ -46,6 +58,14 @@ pub const Controls = struct {
 
     pub fn sample(self: Controls) bool {
         return self.key(Keys.alternate).state or self.mouse.secondary.state;
+    }
+
+    pub fn undo(self: Controls) bool {
+        return self.key(Keys.undo_redo).pressed() and self.key(Keys.primary_modifier).state and !self.key(Keys.secondary_modifier).state;
+    }
+
+    pub fn redo(self: Controls) bool {
+        return self.key(Keys.undo_redo).pressed() and self.key(Keys.primary_modifier).state and self.key(Keys.secondary_modifier).state;
     }
 };
 
@@ -140,3 +160,13 @@ pub const Mouse = struct {
     scroll_y: ?f32 = null,
     cursor: MouseCursor = .standard,
 };
+
+pub fn process() void {
+    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+        if (pixi.state.controls.undo())
+            file.undo() catch unreachable;
+
+        if (pixi.state.controls.redo())
+            file.redo() catch unreachable;
+    }
+}

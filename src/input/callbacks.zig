@@ -42,7 +42,6 @@ pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Ac
 pub fn key(_: *zglfw.Window, glfw_key: zglfw.Key, _: i32, action: zglfw.Action, _: zglfw.Mods) callconv(.C) void {
     for (&pixi.state.controls.keys) |*k| {
         if (k.primary == glfw_key or k.secondary == glfw_key) {
-            k.previous_state = k.state;
             k.state = switch (action) {
                 .release => false,
                 else => true,
