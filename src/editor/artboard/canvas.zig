@@ -45,6 +45,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const pixel_x = @floatToInt(usize, pixel_coord[0]);
             const pixel_y = @floatToInt(usize, pixel_coord[1]);
 
+            file.temporary_layer.clear();
+            file.temporary_layer.setPixel(.{ pixel_x, pixel_y }, .{ 255, 255, 255, 255 });
+
             var color: [4]u8 = [_]u8{0} ** 4;
             var layer_index: ?usize = null;
 
@@ -114,6 +117,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         i -= 1;
         file.camera.drawLayer(file.layers.items[i], layer_position);
     }
+
+    // Draw the temporary layer
+    file.camera.drawLayer(file.temporary_layer, layer_position);
 
     // Draw grid
     file.camera.drawGrid(layer_position, file_width, file_height, @floatToInt(usize, file_width / tile_width), @floatToInt(usize, file_height / tile_height), pixi.state.style.text_secondary.toU32());

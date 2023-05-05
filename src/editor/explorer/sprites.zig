@@ -58,7 +58,7 @@ pub fn draw() void {
                 }
 
                 if (zgui.isItemActivated()) {
-                    file.historyPushOrigin() catch unreachable;
+                    file.newHistory(.origins) catch unreachable;
                 }
 
                 if (changed_origin_x)
@@ -76,7 +76,7 @@ pub fn draw() void {
                 }
 
                 if (zgui.isItemActivated()) {
-                    file.historyPushOrigin() catch unreachable;
+                    file.newHistory(.origins) catch unreachable;
                 }
 
                 if (changed_origin_y) {
@@ -84,7 +84,7 @@ pub fn draw() void {
                 }
 
                 if (zgui.button(" Center ", .{ .w = -1.0 })) {
-                    file.historyPushOrigin() catch unreachable;
+                    file.newHistory(.origins) catch unreachable;
                     file.setSelectedSpritesOrigin(.{ tile_width / 2.0, tile_height / 2.0 });
                 }
             }

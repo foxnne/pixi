@@ -2,10 +2,8 @@ const std = @import("std");
 const pixi = @import("root");
 const History = @This();
 
-pub const ChangeType = enum {
-    pixels,
-    origins,
-};
+pub const Action = enum { undo, redo };
+pub const ChangeType = enum { pixels, origins };
 
 pub const Change = union(ChangeType) {
     pub const Pixels = struct {
@@ -15,7 +13,7 @@ pub const Change = union(ChangeType) {
     };
 
     pub const Origins = struct {
-        sprites: []usize,
+        indices: []usize,
         values: [][2]f32,
     };
 
@@ -33,7 +31,7 @@ pub const Change = union(ChangeType) {
             },
             .origins => .{
                 .origins = .{
-                    .sprites = try allocator.alloc(usize, len),
+                    .indices = try allocator.alloc(usize, len),
                     .values = try allocator.alloc([2]f32, len),
                 },
             },
@@ -47,7 +45,7 @@ pub const Change = union(ChangeType) {
                 pixi.state.allocator.free(pixels.values);
             },
             .origins => |*origins| {
-                pixi.state.allocator.free(origins.sprites);
+                pixi.state.allocator.free(origins.indices);
                 pixi.state.allocator.free(origins.values);
             },
         }
@@ -81,7 +79,7 @@ pub fn append(self: *History, change: Change) !void {
         if (last_active_tag == change_active_tag) {
             switch (last) {
                 .origins => |origins| {
-                    if (std.mem.eql(usize, origins.sprites, change.origins.sprites)) {
+                    if (std.mem.eql(usize, origins.indices, change.origins.indices)) {
                         for (origins.values, 0..) |value, i| {
                             if (!std.mem.eql(f32, &value, &change.origins.values[i])) {
                                 equal = false;
@@ -105,12 +103,22 @@ pub fn append(self: *History, change: Change) !void {
     } else try self.undo_stack.append(change);
 }
 
-pub fn undo(self: *History, file: *pixi.storage.Internal.Pixi) !void {
-    if (self.undo_stack.items.len == 0) {
+pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Action) !void {
+    var active_stack = switch (action) {
+        .undo => &self.undo_stack,
+        .redo => &self.redo_stack,
+    };
+
+    var other_stack = switch (action) {
+        .undo => &self.redo_stack,
+        .redo => &self.undo_stack,
+    };
+
+    if (active_stack.items.len == 0) {
         return;
     }
 
-    if (self.undo_stack.popOrNull()) |change| {
+    if (active_stack.popOrNull()) |change| {
         switch (change) {
             .pixels => |*pixels| {
                 for (pixels.indices, 0..) |pixel_index, i| {
@@ -132,7 +140,7 @@ pub fn undo(self: *History, file: *pixi.storage.Internal.Pixi) !void {
                 }
             },
             .origins => |*origins| {
-                for (origins.sprites, 0..) |sprite_index, i| {
+                for (origins.indices, 0..) |sprite_index, i| {
                     var origin_x = origins.values[i][0];
                     var origin_y = origins.values[i][1];
                     origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
@@ -141,45 +149,7 @@ pub fn undo(self: *History, file: *pixi.storage.Internal.Pixi) !void {
                 }
             },
         }
-        try self.redo_stack.append(change);
-    }
-}
-
-pub fn redo(self: *History, file: *pixi.storage.Internal.Pixi) !void {
-    if (self.redo_stack.items.len == 0) return;
-
-    if (self.redo_stack.popOrNull()) |change| {
-        switch (change) {
-            .pixels => |*pixels| {
-                for (pixels.indices, 0..) |pixel_index, i| {
-                    const color: [4]u8 = .{
-                        @floatToInt(u8, pixels.values[i][0] * 255),
-                        @floatToInt(u8, pixels.values[i][1] * 255),
-                        @floatToInt(u8, pixels.values[i][2] * 255),
-                        @floatToInt(u8, pixels.values[i][3] * 255),
-                    };
-                    var current_pixels = @ptrCast([*][4]u8, file.layers.items[pixels.layer].texture.image.data.ptr)[0 .. file.layers.items[pixels.layer].texture.image.data.len / 4];
-                    pixels.values[pixel_index] = [4]f32{
-                        @intToFloat(f32, current_pixels[pixel_index][0]) / 255.0,
-                        @intToFloat(f32, current_pixels[pixel_index][1]) / 255.0,
-                        @intToFloat(f32, current_pixels[pixel_index][2]) / 255.0,
-                        @intToFloat(f32, current_pixels[pixel_index][3]) / 255.0,
-                    };
-
-                    current_pixels[pixel_index] = color;
-                }
-            },
-            .origins => |origins| {
-                for (origins.sprites, 0..) |sprite_index, i| {
-                    const origin_x = origins.values[i][0];
-                    const origin_y = origins.values[i][1];
-                    origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
-                    file.sprites.items[sprite_index].origin_x = origin_x;
-                    file.sprites.items[sprite_index].origin_y = origin_y;
-                }
-            },
-        }
-        try self.undo_stack.append(change);
+        try other_stack.append(change);
     }
 }
 

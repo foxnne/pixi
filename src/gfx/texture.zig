@@ -140,6 +140,19 @@ pub const Texture = struct {
         };
     }
 
+    pub fn update(texture: *Texture, gctx: *zgpu.GraphicsContext) void {
+        gctx.queue.writeTexture(
+            .{ .texture = gctx.lookupResource(texture.handle).? },
+            .{
+                .bytes_per_row = texture.image.bytes_per_row,
+                .rows_per_image = texture.image.height,
+            },
+            .{ .width = texture.image.width, .height = texture.image.height },
+            u8,
+            texture.image.data,
+        );
+    }
+
     pub fn deinit(texture: *Texture, gctx: *zgpu.GraphicsContext) void {
         gctx.releaseResource(texture.handle);
         gctx.releaseResource(texture.sampler_handle);

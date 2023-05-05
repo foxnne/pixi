@@ -61,10 +61,17 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .background_texture_handle = undefined,
         .background_texture_view_handle = undefined,
         .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
+        .temporary_layer = undefined,
         .dirty = true,
     };
 
     try internal.createBackground();
+
+    internal.temporary_layer = .{
+        .name = "Temporary",
+        .texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, internal.width, internal.height, .{}),
+        .visible = true,
+    };
 
     var new_layer: pixi.storage.Internal.Layer = .{
         .name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"}),
@@ -162,10 +169,17 @@ pub fn openFile(path: [:0]const u8) !bool {
             .background_texture_handle = undefined,
             .background_texture_view_handle = undefined,
             .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
+            .temporary_layer = undefined,
             .dirty = false,
         };
 
         try internal.createBackground();
+
+        internal.temporary_layer = .{
+            .name = "Temporary",
+            .texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, internal.width, internal.height, .{}),
+            .visible = true,
+        };
 
         for (external.layers) |layer| {
             const layer_image_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});
@@ -258,6 +272,7 @@ pub fn closeFile(index: usize) !void {
     var file = pixi.state.open_files.swapRemove(index);
     file.history.deinit();
     file.background_image.deinit();
+    file.temporary_layer.texture.deinit(pixi.state.gctx);
     for (file.layers.items) |*layer| {
         layer.texture.deinit(pixi.state.gctx);
         pixi.state.gctx.releaseResource(file.background_texture_handle);

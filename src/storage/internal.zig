@@ -28,6 +28,7 @@ pub const Pixi = struct {
     background_image: zstbi.Image,
     background_texture_handle: zgpu.TextureHandle,
     background_texture_view_handle: zgpu.TextureViewHandle,
+    temporary_layer: Layer,
     history: History,
     dirty: bool = true,
 
@@ -114,22 +115,27 @@ pub const Pixi = struct {
         return false;
     }
 
-    pub fn historyPushOrigin(file: *pixi.storage.Internal.Pixi) !void {
-        var change = try pixi.storage.Internal.Pixi.History.Change.create(pixi.state.allocator, .origins, file.selected_sprites.items.len);
-        for (file.selected_sprites.items, 0..) |sprite_index, i| {
-            const sprite = file.sprites.items[sprite_index];
-            change.origins.sprites[i] = sprite_index;
-            change.origins.values[i] = .{ sprite.origin_x, sprite.origin_y };
+    pub fn newHistory(file: *Pixi, change_type: History.ChangeType) !void {
+        switch (change_type) {
+            .origins => {
+                var change = try pixi.storage.Internal.Pixi.History.Change.create(pixi.state.allocator, change_type, file.selected_sprites.items.len);
+                for (file.selected_sprites.items, 0..) |sprite_index, i| {
+                    const sprite = file.sprites.items[sprite_index];
+                    change.origins.indices[i] = sprite_index;
+                    change.origins.values[i] = .{ sprite.origin_x, sprite.origin_y };
+                }
+                try file.history.append(change);
+            },
+            .pixels => {},
         }
-        try file.history.append(change);
     }
 
     pub fn undo(self: *Pixi) !void {
-        return self.history.undo(self);
+        return self.history.undoRedo(self, .undo);
     }
 
     pub fn redo(self: *Pixi) !void {
-        return self.history.redo(self);
+        return self.history.undoRedo(self, .redo);
     }
 
     pub fn createBackground(self: *Pixi) !void {
@@ -316,6 +322,21 @@ pub const Layer = struct {
         const index = (pixel[0]) + (pixel[1] * @intCast(usize, self.texture.image.width));
         const pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
         return pixels[index];
+    }
+
+    pub fn setPixel(self: *Layer, pixel: [2]usize, color: [4]u8) void {
+        const index = (pixel[0]) + (pixel[1] * @intCast(usize, self.texture.image.width));
+        var pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
+        pixels[index] = color;
+        self.texture.update(pixi.state.gctx);
+    }
+
+    pub fn clear(self: *Layer) void {
+        var pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
+        for (pixels) |*pixel| {
+            pixel.* = .{ 0, 0, 0, 0 };
+        }
+        self.texture.update(pixi.state.gctx);
     }
 };
 
