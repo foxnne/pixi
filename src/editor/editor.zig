@@ -70,7 +70,6 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     internal.temporary_layer = .{
         .name = "Temporary",
         .texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, internal.width, internal.height, .{}),
-        .visible = true,
     };
 
     var new_layer: pixi.storage.Internal.Layer = .{

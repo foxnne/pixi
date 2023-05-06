@@ -168,7 +168,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         //             } else continue;
         //         }
         //         if (layer_index) |index| {
-        file.flipbook_camera.processZoomTooltip(.{ .zoom = file.flipbook_camera.zoom });
+        file.flipbook_camera.processZoomTooltip(file.flipbook_camera.zoom);
         //             if (pixi.state.controls.sample()) {
         //                 file.flipbook_camera.drawLayerTooltip(index);
         //                 file.flipbook_camera.drawColorTooltip(color);

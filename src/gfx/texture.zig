@@ -28,7 +28,7 @@ pub const Texture = struct {
                 .height = height,
                 .depth_or_array_layers = 1,
             },
-            .format = .bgra8_unorm,
+            .format = .rgba8_unorm,
         });
         const view_handle = gctx.createTextureView(handle, .{});
 

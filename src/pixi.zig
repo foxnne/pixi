@@ -25,6 +25,8 @@ pub const gfx = @import("gfx/gfx.zig");
 pub const input = @import("input/input.zig");
 pub const storage = @import("storage/storage.zig");
 
+pub const algorithms = @import("algorithms/algorithms.zig");
+
 test {
     _ = zstbi;
     _ = math;
@@ -129,6 +131,7 @@ fn draw() void {
 
     state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
     state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;
+    state.controls.mouse.previous_position = state.controls.mouse.position;
 
     const swapchain_texv = state.gctx.swapchain.getCurrentTextureView();
     defer swapchain_texv.release();

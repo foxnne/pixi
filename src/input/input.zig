@@ -156,9 +156,15 @@ pub const Mouse = struct {
     primary: MouseButton = .{ .name = "Primary", .button = zglfw.MouseButton.left },
     secondary: MouseButton = .{ .name = "Secondary", .button = zglfw.MouseButton.right },
     position: MousePosition = .{},
+    previous_position: MousePosition = .{},
+    clicked_position: MousePosition = .{},
     scroll_x: ?f32 = null,
     scroll_y: ?f32 = null,
     cursor: MouseCursor = .standard,
+
+    pub fn dragging(self: Mouse) bool {
+        return self.primary.down() and (self.previous_position.x != self.position.x or self.previous_position.y != self.position.y);
+    }
 };
 
 pub fn process() void {

@@ -12,6 +12,7 @@ pub const Pixi = struct {
     height: u32,
     tile_width: u32,
     tile_height: u32,
+    tools: Tools = .{},
     layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
@@ -311,6 +312,11 @@ pub const Pixi = struct {
             self.selected_sprites.append(selected_sprite) catch unreachable;
         }
     }
+
+    pub const Tools = struct {
+        primary_color: [4]u8 = .{ 255, 255, 255, 255 },
+        secondary_color: [4]u8 = .{ 0, 0, 0, 255 },
+    };
 };
 
 pub const Layer = struct {
@@ -318,25 +324,31 @@ pub const Layer = struct {
     texture: pixi.gfx.Texture,
     visible: bool = true,
 
+    pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {
+        return pixel[0] + pixel[1] * @intCast(usize, self.texture.image.width);
+    }
+
     pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
-        const index = (pixel[0]) + (pixel[1] * @intCast(usize, self.texture.image.width));
+        const index = self.getPixelIndex(pixel);
         const pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
         return pixels[index];
     }
 
-    pub fn setPixel(self: *Layer, pixel: [2]usize, color: [4]u8) void {
-        const index = (pixel[0]) + (pixel[1] * @intCast(usize, self.texture.image.width));
+    pub fn setPixel(self: *Layer, pixel: [2]usize, color: [4]u8, update: bool) void {
+        const index = self.getPixelIndex(pixel);
         var pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
         pixels[index] = color;
-        self.texture.update(pixi.state.gctx);
+        if (update)
+            self.texture.update(pixi.state.gctx);
     }
 
-    pub fn clear(self: *Layer) void {
+    pub fn clear(self: *Layer, update: bool) void {
         var pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
         for (pixels) |*pixel| {
             pixel.* = .{ 0, 0, 0, 0 };
         }
-        self.texture.update(pixi.state.gctx);
+        if (update)
+            self.texture.update(pixi.state.gctx);
     }
 };
 

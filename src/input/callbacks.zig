@@ -6,6 +6,8 @@ const zgpu = @import("zgpu");
 const zgui = @import("zgui");
 
 pub fn cursor(_: *zglfw.Window, x: f64, y: f64) callconv(.C) void {
+    pixi.state.controls.mouse.previous_position.x = pixi.state.controls.mouse.position.x;
+    pixi.state.controls.mouse.previous_position.y = pixi.state.controls.mouse.position.y;
     pixi.state.controls.mouse.position.x = @floatCast(f32, x);
     pixi.state.controls.mouse.position.y = @floatCast(f32, y);
 }
@@ -23,6 +25,10 @@ pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Ac
             },
             .repeat, .press => {
                 pixi.state.controls.mouse.primary.state = true;
+
+                if (pixi.state.controls.mouse.primary.pressed()) {
+                    pixi.state.controls.mouse.clicked_position = pixi.state.controls.mouse.position;
+                }
             },
         }
     }
