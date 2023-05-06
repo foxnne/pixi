@@ -58,27 +58,30 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             // Eyedropper tool
             {
                 if (pixi.state.controls.sample()) {
-                    file.tools.primary_color = .{ 0, 0, 0, 0 };
+                    var color: [4]u8 = .{ 0, 0, 0, 0 };
 
                     var layer_index: ?usize = null;
                     // Go through all layers until we hit an opaque pixel
                     for (file.layers.items, 0..) |layer, i| {
                         const p = layer.getPixel(pixel);
                         if (p[3] > 0) {
-                            file.tools.primary_color = p;
+                            color = p;
                             if (pixi.state.settings.eyedropper_auto_switch_layer)
                                 file.selected_layer_index = i;
                             break;
                         } else continue;
                     }
+
+                    file.tools.primary_color = color;
+
                     if (layer_index) |index| {
                         file.camera.processZoomTooltip(file.camera.zoom);
 
                         file.camera.drawLayerTooltip(index);
-                        file.camera.drawColorTooltip(file.tools.primary_color);
+                        file.camera.drawColorTooltip(color);
                     } else {
                         file.camera.processZoomTooltip(file.camera.zoom);
-                        file.camera.drawColorTooltip(file.tools.primary_color);
+                        file.camera.drawColorTooltip(color);
                     }
                 }
             }
