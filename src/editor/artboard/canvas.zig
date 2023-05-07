@@ -10,10 +10,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const tile_width = @intToFloat(f32, file.tile_width);
     const tile_height = @intToFloat(f32, file.tile_height);
 
-    const layer_position: [2]f32 = .{
-        -file_width / 2.0,
-        -file_height / 2.0,
-    };
+    const layer_position: [2]f32 = .{ -file_width / 2.0, -file_height / 2.0 };
 
     // Handle zooming, panning and extents
     {
@@ -44,6 +41,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     if (zgui.isWindowHovered(.{})) {
         var mouse_position = pixi.state.controls.mouse.position.toSlice();
 
+        file.camera.processZoomTooltip(file.camera.zoom);
+
         if (file.camera.pixelCoordinates(layer_position, file.width, file.height, mouse_position)) |pixel_coord| {
             const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
 
@@ -56,33 +55,29 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             file.temporary_layer.setPixel(pixel, file.tools.primary_color, true);
 
             // Eyedropper tool
-            {
-                if (pixi.state.controls.sample()) {
-                    var color: [4]u8 = .{ 0, 0, 0, 0 };
+            if (pixi.state.controls.sample()) {
+                var color: [4]u8 = .{ 0, 0, 0, 0 };
 
-                    var layer_index: ?usize = null;
-                    // Go through all layers until we hit an opaque pixel
-                    for (file.layers.items, 0..) |layer, i| {
-                        const p = layer.getPixel(pixel);
-                        if (p[3] > 0) {
-                            color = p;
-                            if (pixi.state.settings.eyedropper_auto_switch_layer)
-                                file.selected_layer_index = i;
-                            break;
-                        } else continue;
-                    }
+                var layer_index: ?usize = null;
+                // Go through all layers until we hit an opaque pixel
+                for (file.layers.items, 0..) |layer, i| {
+                    const p = layer.getPixel(pixel);
+                    if (p[3] > 0) {
+                        color = p;
+                        layer_index = i;
+                        if (pixi.state.settings.eyedropper_auto_switch_layer)
+                            file.selected_layer_index = i;
+                        break;
+                    } else continue;
+                }
 
-                    file.tools.primary_color = color;
+                file.tools.primary_color = color;
 
-                    if (layer_index) |index| {
-                        file.camera.processZoomTooltip(file.camera.zoom);
-
-                        file.camera.drawLayerTooltip(index);
-                        file.camera.drawColorTooltip(color);
-                    } else {
-                        file.camera.processZoomTooltip(file.camera.zoom);
-                        file.camera.drawColorTooltip(color);
-                    }
+                if (layer_index) |index| {
+                    file.camera.drawLayerTooltip(index);
+                    file.camera.drawColorTooltip(color);
+                } else {
+                    file.camera.drawColorTooltip(color);
                 }
             }
 
@@ -99,7 +94,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         layer.texture.update(pixi.state.gctx);
                         pixi.state.allocator.free(pixel_coords);
                     }
-                } else if (pixi.state.controls.mouse.primary.pressed()) {
+                }
+                if (pixi.state.controls.mouse.primary.pressed()) {
                     layer.setPixel(pixel, file.tools.primary_color, true);
 
                     var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
