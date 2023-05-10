@@ -133,15 +133,20 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                     current_pixels[pixel_index] = color;
                 }
                 file.layers.items[pixels.layer].texture.update(pixi.state.gctx);
+                if (pixi.state.sidebar == .sprites)
+                    pixi.state.sidebar = .tools;
             },
             .origins => |*origins| {
+                file.selected_sprites.clearAndFree();
                 for (origins.indices, 0..) |sprite_index, i| {
                     var origin_x = origins.values[i][0];
                     var origin_y = origins.values[i][1];
                     origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
                     file.sprites.items[sprite_index].origin_x = origin_x;
                     file.sprites.items[sprite_index].origin_y = origin_y;
+                    try file.selected_sprites.append(sprite_index);
                 }
+                pixi.state.sidebar = .sprites;
             },
         }
         try other_stack.append(change);
