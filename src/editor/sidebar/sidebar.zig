@@ -70,6 +70,8 @@ fn drawOption(option: pixi.Sidebar, icon: [:0]const u8) void {
         },
     })) {
         pixi.state.sidebar = option;
+        if (option == .sprites)
+            pixi.state.tools.set(.pointer);
     }
     zgui.popStyleColor(.{ .count = 1 });
 }

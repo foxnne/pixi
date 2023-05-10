@@ -43,6 +43,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         file.camera.processZoomTooltip(file.camera.zoom);
 
+        const pencil = pixi.state.tools.current == .pencil or pixi.state.tools.current == .eraser;
+
         if (file.camera.pixelCoordinates(layer_position, file.width, file.height, mouse_position)) |pixel_coord| {
             const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
 
@@ -52,7 +54,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const x = @intToFloat(f32, tile_column) * tile_width + layer_position[0];
             const y = @intToFloat(f32, tile_row) * tile_height + layer_position[1];
 
-            file.temporary_layer.setPixel(pixel, file.tools.primary_color, true);
+            file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
+
+            if (pencil)
+                file.temporary_layer.setPixel(pixel, file.tools.primary_color, true);
 
             // Eyedropper tool
             if (pixi.state.controls.sample()) {
@@ -81,22 +86,31 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
 
-            // Strokes
+            // Pixel editing tools
             if (pixi.state.controls.mouse.primary.down()) {
                 var layer: pixi.storage.Internal.Layer = file.layers.items[file.selected_layer_index];
-                if (pixi.state.controls.mouse.dragging()) {
+                if (pixi.state.controls.mouse.dragging() and pencil) {
                     if (file.camera.pixelCoordinates(layer_position, file.width, file.height, pixi.state.controls.mouse.previous_position.toSlice())) |prev_pixel_coord| {
                         const pixel_coords = pixi.algorithms.brezenham.process(prev_pixel_coord, pixel_coord) catch unreachable;
                         for (pixel_coords) |p_coord| {
                             const p = .{ @floatToInt(usize, p_coord[0]), @floatToInt(usize, p_coord[1]) };
+                            const index = layer.getPixelIndex(p);
+                            const value = layer.getPixel(p);
+                            if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
+                                file.buffers.stroke.append(index, value) catch unreachable;
                             layer.setPixel(p, file.tools.primary_color, false);
                         }
                         layer.texture.update(pixi.state.gctx);
                         pixi.state.allocator.free(pixel_coords);
                     }
-                }
-                if (pixi.state.controls.mouse.primary.pressed()) {
-                    layer.setPixel(pixel, file.tools.primary_color, true);
+                } else if (pixi.state.controls.mouse.primary.pressed()) {
+                    if (pencil) {
+                        const index = layer.getPixelIndex(pixel);
+                        const value = layer.getPixel(pixel);
+                        file.buffers.stroke.append(index, value) catch unreachable;
+
+                        layer.setPixel(pixel, file.tools.primary_color, true);
+                    }
 
                     var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
                     var tile_index = tile_column + tile_row * tiles_wide;
@@ -115,8 +129,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     }
                 }
             }
-
-            file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
         } else {
             if (pixi.state.controls.mouse.primary.released()) {
                 if (pixi.state.sidebar == .sprites) {
@@ -124,6 +136,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
         }
+    }
+
+    // Submit the stroke change buffer
+    if (file.buffers.stroke.indices.items.len > 0 and pixi.state.controls.mouse.primary.released()) {
+        const change = file.buffers.stroke.toChange(file.selected_layer_index) catch unreachable;
+        file.history.append(change) catch unreachable;
     }
 
     // Draw all layers in reverse order

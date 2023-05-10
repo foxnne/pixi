@@ -61,6 +61,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .background_texture_handle = undefined,
         .background_texture_view_handle = undefined,
         .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
+        .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
         .temporary_layer = undefined,
         .dirty = true,
     };
@@ -168,6 +169,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             .background_texture_handle = undefined,
             .background_texture_view_handle = undefined,
             .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
+            .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
             .temporary_layer = undefined,
             .dirty = false,
         };
@@ -270,6 +272,7 @@ pub fn closeFile(index: usize) !void {
     pixi.state.open_file_index = 0;
     var file = pixi.state.open_files.swapRemove(index);
     file.history.deinit();
+    file.buffers.deinit();
     file.background_image.deinit();
     file.temporary_layer.texture.deinit(pixi.state.gctx);
     for (file.layers.items) |*layer| {

@@ -51,6 +51,7 @@ pub const PixiState = struct {
     fox_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
     open_file_index: usize = 0,
+    tools: Tools = .{},
     popups: Popups = .{},
     should_close: bool = false,
 };
@@ -62,6 +63,24 @@ pub const Sidebar = enum {
     sprites,
     animations,
     settings,
+};
+
+pub const Tool = enum {
+    pointer,
+    pencil,
+    eraser,
+};
+
+pub const Tools = struct {
+    current: Tool = .pointer,
+    previous: Tool = .pointer,
+
+    pub fn set(tools: *Tools, tool: Tool) void {
+        if (tools.current != tool) {
+            tools.previous = tools.current;
+            tools.current = tool;
+        }
+    }
 };
 
 pub const Popups = @import("editor/Popups.zig");

@@ -31,6 +31,7 @@ pub const Pixi = struct {
     background_texture_view_handle: zgpu.TextureViewHandle,
     temporary_layer: Layer,
     history: History,
+    buffers: Buffers,
     dirty: bool = true,
 
     pub const ScrollRequest = struct {
@@ -43,6 +44,7 @@ pub const Pixi = struct {
     pub const AnimationState = enum { pause, play };
 
     pub const History = @import("History.zig");
+    pub const Buffers = @import("Buffers.zig");
 
     pub fn toExternal(self: Pixi, allocator: std.mem.Allocator) !storage.External.Pixi {
         var layers = try allocator.alloc(storage.External.Layer, self.layers.items.len);

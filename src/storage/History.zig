@@ -9,7 +9,7 @@ pub const Change = union(ChangeType) {
     pub const Pixels = struct {
         layer: usize,
         indices: []usize,
-        values: [][4]f32,
+        values: [][4]u8,
     };
 
     pub const Origins = struct {
@@ -26,7 +26,7 @@ pub const Change = union(ChangeType) {
                 .pixels = .{
                     .layer = 0,
                     .indices = try allocator.alloc(usize, len),
-                    .values = try allocator.alloc([4]f32, len),
+                    .values = try allocator.alloc([4]u8, len),
                 },
             },
             .origins => .{
@@ -90,12 +90,17 @@ pub fn append(self: *History, change: Change) !void {
                         equal = false;
                     }
                 },
-                else => {
-                    // TODO: Do we want to merge duplicate draw actions?
-                    equal = false;
+                .pixels => |pixels| {
+                    equal = std.mem.eql(usize, pixels.indices, change.pixels.indices);
+                    if (equal) {
+                        for (pixels.values, 0..) |value, i| {
+                            equal = std.mem.eql(u8, &value, &change.pixels.values[i]);
+                            if (!equal) break;
+                        }
+                    }
                 },
             }
-        }
+        } else equal = false;
     }
 
     if (equal) {
@@ -122,22 +127,12 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
         switch (change) {
             .pixels => |*pixels| {
                 for (pixels.indices, 0..) |pixel_index, i| {
-                    const color: [4]u8 = .{
-                        @floatToInt(u8, pixels.values[i][0] * 255),
-                        @floatToInt(u8, pixels.values[i][1] * 255),
-                        @floatToInt(u8, pixels.values[i][2] * 255),
-                        @floatToInt(u8, pixels.values[i][3] * 255),
-                    };
+                    const color: [4]u8 = pixels.values[i];
                     var current_pixels = @ptrCast([*][4]u8, file.layers.items[pixels.layer].texture.image.data.ptr)[0 .. file.layers.items[pixels.layer].texture.image.data.len / 4];
-                    pixels.values[pixel_index] = [4]f32{
-                        @intToFloat(f32, current_pixels[pixel_index][0]) / 255.0,
-                        @intToFloat(f32, current_pixels[pixel_index][1]) / 255.0,
-                        @intToFloat(f32, current_pixels[pixel_index][2]) / 255.0,
-                        @intToFloat(f32, current_pixels[pixel_index][3]) / 255.0,
-                    };
-
+                    pixels.values[i] = current_pixels[pixel_index];
                     current_pixels[pixel_index] = color;
                 }
+                file.layers.items[pixels.layer].texture.update(pixi.state.gctx);
             },
             .origins => |*origins| {
                 for (origins.indices, 0..) |sprite_index, i| {

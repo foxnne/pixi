@@ -4,6 +4,7 @@ const pixi = @import("root");
 const nfd = @import("nfd");
 
 pub const files = @import("files.zig");
+pub const tools = @import("tools.zig");
 pub const layers = @import("layers.zig");
 pub const sprites = @import("sprites.zig");
 pub const animations = @import("animations.zig");
@@ -58,6 +59,7 @@ pub fn draw() void {
                     zgui.endMenuBar();
                 }
                 zgui.separator();
+                tools.draw();
             },
             .layers => {
                 if (zgui.beginMenuBar()) {
