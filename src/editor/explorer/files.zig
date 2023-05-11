@@ -302,8 +302,6 @@ fn contextMenuFile(file: [:0]const u8) void {
     zgui.popStyleColor(.{ .count = 3 });
 }
 
-fn newFileFromPng() void {}
-
 pub fn extension(file: []const u8) Extension {
     const ext = std.fs.path.extension(file);
     if (std.mem.eql(u8, ext, "")) return .hidden;
