@@ -11,13 +11,14 @@ pub const Keys = enum(usize) {
     secondary_modifier,
     alternate,
     undo_redo,
+    save,
 };
 
 pub const Controls = struct {
     mouse: Mouse = .{},
 
     /// Holds all rebindable keys.
-    keys: [4]Key = [_]Key{
+    keys: [5]Key = [_]Key{
         .{
             .name = "Primary Modifier",
             .primary = zglfw.Key.left_control,
@@ -46,6 +47,13 @@ pub const Controls = struct {
             .default_primary = zglfw.Key.z,
             .default_secondary = zglfw.Key.unknown,
         },
+        .{
+            .name = "Save",
+            .primary = zglfw.Key.s,
+            .secondary = zglfw.Key.unknown,
+            .default_primary = zglfw.Key.s,
+            .default_secondary = zglfw.Key.unknown,
+        },
     },
 
     pub fn key(self: Controls, k: Keys) Key {
@@ -61,11 +69,15 @@ pub const Controls = struct {
     }
 
     pub fn undo(self: Controls) bool {
-        return self.key(Keys.undo_redo).pressed() and self.key(Keys.primary_modifier).state and !self.key(Keys.secondary_modifier).state;
+        return self.key(Keys.undo_redo).pressed() and self.key(Keys.primary_modifier).down() and self.key(Keys.secondary_modifier).up();
     }
 
     pub fn redo(self: Controls) bool {
-        return self.key(Keys.undo_redo).pressed() and self.key(Keys.primary_modifier).state and self.key(Keys.secondary_modifier).state;
+        return self.key(Keys.undo_redo).pressed() and self.key(Keys.primary_modifier).down() and self.key(Keys.secondary_modifier).down();
+    }
+
+    pub fn save(self: Controls) bool {
+        return self.key(Keys.save).pressed() and self.key(Keys.primary_modifier).down();
     }
 };
 
@@ -174,5 +186,8 @@ pub fn process() void {
 
         if (pixi.state.controls.redo())
             file.redo() catch unreachable;
+
+        if (pixi.state.controls.save())
+            _ = file.save() catch unreachable;
     }
 }
