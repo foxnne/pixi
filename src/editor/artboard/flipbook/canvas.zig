@@ -134,6 +134,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
             }
 
+            if (i == file.selected_sprite_index)
+                file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
+
             if (file.flipbook_camera.isHovered(dst_rect)) {
                 if (i != file.selected_sprite_index) {
                     file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.style.text.toU32());
@@ -143,7 +146,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 } else {
                     file.processSample(.flipbook);
                     file.processStroke(.flipbook);
-                    file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
                     file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.style.text.toU32());
                 }
             } else {
