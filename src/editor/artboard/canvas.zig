@@ -59,12 +59,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
-            switch (pixi.state.tools.current) {
-                .pencil => file.temporary_layer.setPixel(pixel, file.tools.primary_color, true),
-                .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
-                else => {},
-            }
-
             // Check inputs for sampling conditions and show tooltips
             file.processSample(.primary);
             // Check inputs for stroke condition and complete strokes if necessary
@@ -94,12 +88,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
         }
-    }
-
-    // Submit the stroke change buffer
-    if (file.buffers.stroke.indices.items.len > 0 and pixi.state.controls.mouse.primary.released()) {
-        const change = file.buffers.stroke.toChange(file.selected_layer_index) catch unreachable;
-        file.history.append(change) catch unreachable;
     }
 
     // Draw all layers in reverse order
