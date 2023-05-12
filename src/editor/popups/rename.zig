@@ -3,8 +3,14 @@ const pixi = @import("root");
 const zgui = @import("zgui");
 
 pub fn draw() void {
+    const dialog_name = switch (pixi.state.popups.rename_state) {
+        .none => "None...",
+        .rename => "Rename...",
+        .duplicate => "Duplicate...",
+    };
+
     if (pixi.state.popups.rename) {
-        zgui.openPopup("Rename...", .{});
+        zgui.openPopup(dialog_name, .{});
     } else return;
 
     const popup_width = 350 * pixi.state.window.scale[0];
@@ -22,7 +28,7 @@ pub fn draw() void {
         .h = popup_height,
     });
 
-    if (zgui.beginPopupModal("Rename...", .{
+    if (zgui.beginPopupModal(dialog_name, .{
         .popen = &pixi.state.popups.rename,
         .flags = .{
             .no_resize = true,
@@ -56,16 +62,29 @@ pub fn draw() void {
         }
         zgui.sameLine(.{});
         if (zgui.button("Ok", .{ .w = half_width }) or enter) {
-            const old_path = std.mem.trimRight(u8, pixi.state.popups.rename_old_path[0..], "\u{0}");
-            const new_path = std.mem.trimRight(u8, pixi.state.popups.rename_path[0..], "\u{0}");
-            std.fs.renameAbsolute(old_path[0..], new_path[0..]) catch unreachable;
+            switch (pixi.state.popups.rename_state) {
+                .rename => {
+                    const old_path = std.mem.trimRight(u8, pixi.state.popups.rename_old_path[0..], "\u{0}");
+                    const new_path = std.mem.trimRight(u8, pixi.state.popups.rename_path[0..], "\u{0}");
 
-            const old_path_z = pixi.state.popups.rename_old_path[0..old_path.len :0];
-            for (pixi.state.open_files.items) |*open_file| {
-                if (std.mem.eql(u8, open_file.path, old_path_z)) {
-                    open_file.path = pixi.state.allocator.dupeZ(u8, new_path) catch unreachable;
-                }
+                    std.fs.renameAbsolute(old_path[0..], new_path[0..]) catch unreachable;
+
+                    const old_path_z = pixi.state.popups.rename_old_path[0..old_path.len :0];
+                    for (pixi.state.open_files.items) |*open_file| {
+                        if (std.mem.eql(u8, open_file.path, old_path_z)) {
+                            open_file.path = pixi.state.allocator.dupeZ(u8, new_path) catch unreachable;
+                        }
+                    }
+                },
+                .duplicate => {
+                    const original_path = std.mem.trimRight(u8, pixi.state.popups.rename_old_path[0..], "\u{0}");
+                    const new_path = std.mem.trimRight(u8, pixi.state.popups.rename_path[0..], "\u{0}");
+
+                    std.fs.copyFileAbsolute(original_path, new_path, .{}) catch unreachable;
+                },
+                else => unreachable,
             }
+            pixi.state.popups.rename_state = .none;
             pixi.state.popups.rename = false;
         }
 

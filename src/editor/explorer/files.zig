@@ -288,9 +288,25 @@ fn contextMenuFile(file: [:0]const u8) void {
         std.mem.copy(u8, pixi.state.popups.rename_path[0..], file);
         std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], file);
         pixi.state.popups.rename = true;
+        pixi.state.popups.rename_state = .rename;
     }
 
-    if (zgui.menuItem("Duplicate...", .{})) {}
+    if (zgui.menuItem("Duplicate...", .{})) {
+        pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+        pixi.state.popups.rename_old_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+        std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], file);
+
+        const ex = std.fs.path.extension(file);
+
+        if (std.mem.indexOf(u8, file, ex)) |ext_i| {
+            const new_base_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}{s}", .{ file[0..ext_i], "_copy", ex }) catch unreachable;
+            defer pixi.state.allocator.free(new_base_name);
+            std.mem.copy(u8, pixi.state.popups.rename_path[0..], new_base_name);
+
+            pixi.state.popups.rename = true;
+            pixi.state.popups.rename_state = .duplicate;
+        }
+    }
     zgui.separator();
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
     if (zgui.menuItem("Delete", .{})) {

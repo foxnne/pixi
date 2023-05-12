@@ -6,6 +6,7 @@ const zstbi = @import("zstbi");
 
 // Renaming
 rename: bool = false,
+rename_state: RenameState = .none,
 rename_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
 rename_old_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
 // File setup
@@ -23,12 +24,8 @@ file_confirm_close_index: usize = 0,
 // About
 about: bool = false,
 
-pub const SetupState = enum {
-    none,
-    new,
-    slice,
-    import_png,
-};
+pub const SetupState = enum { none, new, slice, import_png };
+pub const RenameState = enum { none, rename, duplicate };
 
 pub fn fileSetupNew(popups: *Popups, new_file_path: [:0]const u8) void {
     popups.file_setup = true;
