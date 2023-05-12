@@ -42,9 +42,160 @@ pub const Pixi = struct {
     };
 
     pub const AnimationState = enum { pause, play };
+    pub const Canvas = enum { primary, flipbook };
 
     pub const History = @import("History.zig");
     pub const Buffers = @import("Buffers.zig");
+
+    pub fn canvasCenterOffset(self: *Pixi, canvas: Canvas) [2]f32 {
+        const width = switch (canvas) {
+            .primary => @intToFloat(f32, self.width),
+            .flipbook => @intToFloat(f32, self.tile_width),
+        };
+        const height = switch (canvas) {
+            .primary => @intToFloat(f32, self.height),
+            .flipbook => @intToFloat(f32, self.tile_height),
+        };
+
+        return .{ -width / 2.0, -height / 2.0 };
+    }
+
+    pub fn processSample(file: *Pixi, canvas: Canvas) void {
+        var mouse_position = pixi.state.controls.mouse.position.toSlice();
+        var camera = switch (canvas) {
+            .primary => file.camera,
+            .flipbook => file.flipbook_camera,
+        };
+
+        const pixel_coord_opt = switch (canvas) {
+            .primary => camera.pixelCoordinates(.{
+                .texture_position = canvasCenterOffset(file, canvas),
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            }),
+            .flipbook => camera.flipbookPixelCoordinates(file, .{
+                .sprite_position = canvasCenterOffset(file, canvas),
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            }),
+        };
+
+        if (pixel_coord_opt) |pixel_coord| {
+            const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
+            // Eyedropper tool
+            if (pixi.state.controls.sample()) {
+                var color: [4]u8 = .{ 0, 0, 0, 0 };
+
+                var layer_index: ?usize = null;
+                // Go through all layers until we hit an opaque pixel
+                for (file.layers.items, 0..) |layer, i| {
+                    const p = layer.getPixel(pixel);
+                    if (p[3] > 0) {
+                        color = p;
+                        layer_index = i;
+                        if (pixi.state.settings.eyedropper_auto_switch_layer)
+                            file.selected_layer_index = i;
+                        break;
+                    } else continue;
+                }
+
+                file.tools.primary_color = color;
+
+                if (layer_index) |index| {
+                    camera.drawLayerTooltip(index);
+                    camera.drawColorTooltip(color);
+                } else {
+                    camera.drawColorTooltip(color);
+                }
+            }
+        }
+    }
+
+    pub fn processStroke(file: *Pixi, canvas: Canvas) void {
+        if (!pixi.state.controls.mouse.primary.down()) return;
+        const canvas_center_offset = canvasCenterOffset(file, canvas);
+        const mouse_position = pixi.state.controls.mouse.position.toSlice();
+        const previous_mouse_position = pixi.state.controls.mouse.previous_position.toSlice();
+
+        var layer: pixi.storage.Internal.Layer = file.layers.items[file.selected_layer_index];
+
+        const camera = switch (canvas) {
+            .primary => file.camera,
+            .flipbook => file.flipbook_camera,
+        };
+
+        const pixel_coords_opt = switch (canvas) {
+            .primary => camera.pixelCoordinates(.{
+                .texture_position = canvas_center_offset,
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            }),
+
+            .flipbook => camera.flipbookPixelCoordinates(file, .{
+                .sprite_position = canvas_center_offset,
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            }),
+        };
+
+        if (pixi.state.controls.mouse.dragging() and switch (pixi.state.tools.current) {
+            .pencil, .eraser => true,
+            else => false,
+        }) {
+            if (pixel_coords_opt) |pixel_coord| {
+                const prev_pixel_coords_opt = switch (canvas) {
+                    .primary => camera.pixelCoordinates(.{
+                        .texture_position = canvas_center_offset,
+                        .position = previous_mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    }),
+
+                    .flipbook => camera.flipbookPixelCoordinates(file, .{
+                        .sprite_position = canvas_center_offset,
+                        .position = previous_mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    }),
+                };
+
+                if (prev_pixel_coords_opt) |prev_pixel_coord| {
+                    const pixel_coords = pixi.algorithms.brezenham.process(prev_pixel_coord, pixel_coord) catch unreachable;
+                    for (pixel_coords) |p_coord| {
+                        const p = .{ @floatToInt(usize, p_coord[0]), @floatToInt(usize, p_coord[1]) };
+                        const index = layer.getPixelIndex(p);
+                        const value = layer.getPixel(p);
+                        if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
+                            file.buffers.stroke.append(index, value) catch unreachable;
+                        layer.setPixel(p, file.tools.primary_color, false);
+                    }
+                    layer.texture.update(pixi.state.gctx);
+                    file.dirty = true;
+                    pixi.state.allocator.free(pixel_coords);
+                }
+            }
+        } else if (pixi.state.controls.mouse.primary.pressed()) {
+            if (pixel_coords_opt) |pixel_coord| {
+                const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
+
+                if (switch (pixi.state.tools.current) {
+                    .pencil, .eraser => true,
+                    else => false,
+                }) {
+                    const index = layer.getPixelIndex(pixel);
+                    const value = layer.getPixel(pixel);
+                    file.buffers.stroke.append(index, value) catch unreachable;
+
+                    layer.setPixel(pixel, file.tools.primary_color, true);
+                    file.dirty = true;
+                }
+            }
+        }
+    }
 
     pub fn toExternal(self: Pixi, allocator: std.mem.Allocator) !storage.External.Pixi {
         var layers = try allocator.alloc(storage.External.Layer, self.layers.items.len);

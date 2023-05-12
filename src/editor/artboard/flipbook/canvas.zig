@@ -7,7 +7,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const tile_width = @intToFloat(f32, file.tile_width);
     const tile_height = @intToFloat(f32, file.tile_height);
 
-    const center: [2]f32 = .{
+    const canvas_center_offset: [2]f32 = .{
         -tile_width / 2.0,
         -tile_height / 2.0,
     };
@@ -42,8 +42,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         file.flipbook_camera.zoom = std.math.clamp(file.flipbook_camera.zoom, min_zoom, max_zoom);
 
         // Lock camera from moving too far away from canvas
-        const min_position: [2]f32 = .{ -(center[0] + tile_width) - tile_width / 2.0, -(center[1] + tile_height) };
-        const max_position: [2]f32 = .{ center[0] + tile_width - tile_width / 2.0, center[1] + tile_height };
+        const min_position: [2]f32 = .{ -(canvas_center_offset[0] + tile_width) - tile_width / 2.0, -(canvas_center_offset[1] + tile_height) };
+        const max_position: [2]f32 = .{ canvas_center_offset[0] + tile_width - tile_width / 2.0, canvas_center_offset[1] + tile_height };
 
         var scroll_delta: f32 = 0.0;
         if (file.selected_animation_state != .play) {
@@ -103,8 +103,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         const sprite_scale = std.math.clamp(0.5 / @fabs(@intToFloat(f32, i) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
         const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
-        var dst_x: f32 = center[0] + file.flipbook_scroll + @intToFloat(f32, i) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
-        var dst_y: f32 = center[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
+        var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + @intToFloat(f32, i) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
+        var dst_y: f32 = canvas_center_offset[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
         var dst_width: f32 = tile_width * sprite_scale;
         var dst_height: f32 = tile_height * sprite_scale;
 
@@ -134,10 +134,17 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
             }
 
-            if (file.flipbook_camera.isHovered(dst_rect) and i != file.selected_sprite_index) {
-                file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.style.text.toU32());
-                if (pixi.state.controls.mouse.primary.pressed() and file.selected_sprite_index != i) {
-                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
+            if (file.flipbook_camera.isHovered(dst_rect)) {
+                if (i != file.selected_sprite_index) {
+                    file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.style.text.toU32());
+                    if (pixi.state.controls.mouse.primary.pressed() and file.selected_sprite_index != i) {
+                        file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
+                    }
+                } else {
+                    file.processSample(.flipbook);
+                    file.processStroke(.flipbook);
+                    file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
+                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.style.text.toU32());
                 }
             } else {
                 if (i != file.selected_sprite_index) {
@@ -149,38 +156,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
     }
 
-    // TODO: Make an equivalent function to `pixelCoordinates` that will work for the flipbook and get this working.
-    if (zgui.isWindowHovered(.{})) {
-        //     var mouse_position = pixi.state.controls.mouse.position.toSlice();
-        //     if (file.flipbook_camera.pixelCoordinates(.{ dst_rect[0], dst_rect[1] }, file.width, file.height, mouse_position)) |pixel_coord| {
-        //         const pixel_x = @floatToInt(usize, pixel_coord[0]);
-        //         const pixel_y = @floatToInt(usize, pixel_coord[1]);
-
-        //         var color: [4]u8 = [_]u8{0} ** 4;
-        //         var layer_index: ?usize = null;
-
-        //         for (file.layers.items, 0..) |layer, k| {
-        //             const pixel = layer.getPixel(.{ pixel_x, pixel_y });
-        //             if (pixel[3] > 0) {
-        //                 color = pixel;
-        //                 layer_index = k;
-        //                 break;
-        //             } else continue;
-        //         }
-        //         if (layer_index) |index| {
+    if (zgui.isWindowHovered(.{}))
         file.flipbook_camera.processZoomTooltip(file.flipbook_camera.zoom);
-        //             if (pixi.state.controls.sample()) {
-        //                 file.flipbook_camera.drawLayerTooltip(index);
-        //                 file.flipbook_camera.drawColorTooltip(color);
-        //             }
-        //         } else {
-        //             file.flipbook_camera.processZoomTooltip(.{ .zoom = file.camera.zoom, .color = color });
-        //             if (pixi.state.controls.sample()) {
-        //                 file.flipbook_camera.drawColorTooltip(color);
-        //             }
-        //         }
-        //     }
-    }
 
     if (file.selected_animation_state == .play) {
         const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];

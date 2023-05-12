@@ -10,7 +10,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const tile_width = @intToFloat(f32, file.tile_width);
     const tile_height = @intToFloat(f32, file.tile_height);
 
-    const layer_position: [2]f32 = .{ -file_width / 2.0, -file_height / 2.0 };
+    const canvas_center_offset = file.canvasCenterOffset(.primary);
 
     // Handle zooming, panning and extents
     {
@@ -31,8 +31,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         file.camera.zoom = std.math.clamp(file.camera.zoom, min_zoom, pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
 
         // Lock camera from moving too far away from canvas
-        file.camera.position[0] = std.math.clamp(file.camera.position[0], -(layer_position[0] + file_width), layer_position[0] + file_width);
-        file.camera.position[1] = std.math.clamp(file.camera.position[1], -(layer_position[1] + file_height), layer_position[1] + file_height);
+        file.camera.position[0] = std.math.clamp(file.camera.position[0], -(canvas_center_offset[0] + file_width), canvas_center_offset[0] + file_width);
+        file.camera.position[1] = std.math.clamp(file.camera.position[1], -(canvas_center_offset[1] + file_height), canvas_center_offset[1] + file_height);
     }
 
     // TODO: Only clear and update if we need to?
@@ -43,89 +43,47 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         file.camera.processZoomTooltip(file.camera.zoom);
 
-        const pencil = pixi.state.tools.current == .pencil or pixi.state.tools.current == .eraser;
-
-        if (file.camera.pixelCoordinates(layer_position, file.width, file.height, mouse_position)) |pixel_coord| {
+        if (file.camera.pixelCoordinates(.{
+            .texture_position = canvas_center_offset,
+            .position = mouse_position,
+            .width = file.width,
+            .height = file.height,
+        })) |pixel_coord| {
             const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
 
             var tile_column = @divTrunc(pixel[0], @intCast(usize, file.tile_width));
             var tile_row = @divTrunc(pixel[1], @intCast(usize, file.tile_height));
 
-            const x = @intToFloat(f32, tile_column) * tile_width + layer_position[0];
-            const y = @intToFloat(f32, tile_row) * tile_height + layer_position[1];
+            const x = @intToFloat(f32, tile_column) * tile_width + canvas_center_offset[0];
+            const y = @intToFloat(f32, tile_row) * tile_height + canvas_center_offset[1];
 
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
-            if (pencil)
-                file.temporary_layer.setPixel(pixel, file.tools.primary_color, true);
-
-            // Eyedropper tool
-            if (pixi.state.controls.sample()) {
-                var color: [4]u8 = .{ 0, 0, 0, 0 };
-
-                var layer_index: ?usize = null;
-                // Go through all layers until we hit an opaque pixel
-                for (file.layers.items, 0..) |layer, i| {
-                    const p = layer.getPixel(pixel);
-                    if (p[3] > 0) {
-                        color = p;
-                        layer_index = i;
-                        if (pixi.state.settings.eyedropper_auto_switch_layer)
-                            file.selected_layer_index = i;
-                        break;
-                    } else continue;
-                }
-
-                file.tools.primary_color = color;
-
-                if (layer_index) |index| {
-                    file.camera.drawLayerTooltip(index);
-                    file.camera.drawColorTooltip(color);
-                } else {
-                    file.camera.drawColorTooltip(color);
-                }
+            switch (pixi.state.tools.current) {
+                .pencil => file.temporary_layer.setPixel(pixel, file.tools.primary_color, true),
+                .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
+                else => {},
             }
 
-            // Pixel editing tools
-            if (pixi.state.controls.mouse.primary.down()) {
-                var layer: pixi.storage.Internal.Layer = file.layers.items[file.selected_layer_index];
-                if (pixi.state.controls.mouse.dragging() and pencil) {
-                    if (file.camera.pixelCoordinates(layer_position, file.width, file.height, pixi.state.controls.mouse.previous_position.toSlice())) |prev_pixel_coord| {
-                        const pixel_coords = pixi.algorithms.brezenham.process(prev_pixel_coord, pixel_coord) catch unreachable;
-                        for (pixel_coords) |p_coord| {
-                            const p = .{ @floatToInt(usize, p_coord[0]), @floatToInt(usize, p_coord[1]) };
-                            const index = layer.getPixelIndex(p);
-                            const value = layer.getPixel(p);
-                            if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
-                                file.buffers.stroke.append(index, value) catch unreachable;
-                            layer.setPixel(p, file.tools.primary_color, false);
-                        }
-                        layer.texture.update(pixi.state.gctx);
-                        pixi.state.allocator.free(pixel_coords);
-                    }
-                } else if (pixi.state.controls.mouse.primary.pressed()) {
-                    if (pencil) {
-                        const index = layer.getPixelIndex(pixel);
-                        const value = layer.getPixel(pixel);
-                        file.buffers.stroke.append(index, value) catch unreachable;
+            // Check inputs for sampling conditions and show tooltips
+            file.processSample(.primary);
+            // Check inputs for stroke condition and complete strokes if necessary
+            file.processStroke(.primary);
 
-                        layer.setPixel(pixel, file.tools.primary_color, true);
-                    }
+            if (pixi.state.controls.mouse.primary.pressed()) {
+                var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
+                var tile_index = tile_column + tile_row * tiles_wide;
 
-                    var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
-                    var tile_index = tile_column + tile_row * tiles_wide;
-
-                    if (pixi.state.sidebar == .sprites) {
-                        file.makeSpriteSelection(tile_index);
+                if (pixi.state.sidebar == .sprites) {
+                    file.makeSpriteSelection(tile_index);
+                } else {
+                    // Ensure we only set the request state on the first set.
+                    if (file.flipbook_scroll_request) |*request| {
+                        request.elapsed = 0.0;
+                        request.from = file.flipbook_scroll;
+                        request.to = file.flipbookScrollFromSpriteIndex(tile_index);
                     } else {
-                        // Ensure we only set the request state on the first set.
-                        if (file.flipbook_scroll_request) |*request| {
-                            request.elapsed = 0.0;
-                            request.from = file.flipbook_scroll;
-                            request.to = file.flipbookScrollFromSpriteIndex(tile_index);
-                        } else {
-                            file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
-                        }
+                        file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
                     }
                 }
             }
@@ -149,15 +107,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         var i: usize = file.layers.items.len;
         while (i > 0) {
             i -= 1;
-            file.camera.drawLayer(file.layers.items[i], layer_position);
+            file.camera.drawLayer(file.layers.items[i], canvas_center_offset);
         }
     }
 
     // Draw the temporary layer
-    file.camera.drawLayer(file.temporary_layer, layer_position);
+    file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
 
     // Draw grid
-    file.camera.drawGrid(layer_position, file_width, file_height, @floatToInt(usize, file_width / tile_width), @floatToInt(usize, file_height / tile_height), pixi.state.style.text_secondary.toU32());
+    file.camera.drawGrid(canvas_center_offset, file_width, file_height, @floatToInt(usize, file_width / tile_width), @floatToInt(usize, file_height / tile_height), pixi.state.style.text_secondary.toU32());
 
     // Draw box around selected sprite or origin selection if on sprites tab
     {
@@ -168,8 +126,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 for (file.selected_sprites.items) |sprite_index| {
                     const column = @mod(@intCast(u32, sprite_index), tiles_wide);
                     const row = @divTrunc(@intCast(u32, sprite_index), tiles_wide);
-                    const x = @intToFloat(f32, column) * tile_width + layer_position[0];
-                    const y = @intToFloat(f32, row) * tile_height + layer_position[1];
+                    const x = @intToFloat(f32, column) * tile_width + canvas_center_offset[0];
+                    const y = @intToFloat(f32, row) * tile_height + canvas_center_offset[1];
                     const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
                     file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());
@@ -193,8 +151,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         } else {
             const column = @mod(@intCast(u32, file.selected_sprite_index), tiles_wide);
             const row = @divTrunc(@intCast(u32, file.selected_sprite_index), tiles_wide);
-            const x = @intToFloat(f32, column) * tile_width + layer_position[0];
-            const y = @intToFloat(f32, row) * tile_height + layer_position[1];
+            const x = @intToFloat(f32, column) * tile_width + canvas_center_offset[0];
+            const y = @intToFloat(f32, row) * tile_height + canvas_center_offset[1];
             const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
             file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());

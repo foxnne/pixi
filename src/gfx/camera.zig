@@ -206,24 +206,62 @@ pub const Camera = struct {
         return .{ tl, br };
     }
 
-    pub fn pixelCoordinates(camera: Camera, texture_position: [2]f32, width: u32, height: u32, position: [2]f32) ?[2]f32 {
+    const PixelCoordinatesOptions = struct {
+        texture_position: [2]f32,
+        position: [2]f32,
+        width: u32,
+        height: u32,
+    };
+
+    pub fn pixelCoordinates(camera: Camera, options: PixelCoordinatesOptions) ?[2]f32 {
         const screen_position = zgui.getCursorScreenPos();
-        var tl = camera.matrix().transformVec2(texture_position);
+        var tl = camera.matrix().transformVec2(options.texture_position);
         tl[0] += screen_position[0];
         tl[1] += screen_position[1];
-        var br = texture_position;
-        br[0] += @intToFloat(f32, width);
-        br[1] += @intToFloat(f32, height);
+        var br = options.texture_position;
+        br[0] += @intToFloat(f32, options.width);
+        br[1] += @intToFloat(f32, options.height);
         br = camera.matrix().transformVec2(br);
         br[0] += screen_position[0];
         br[1] += screen_position[1];
 
-        if (position[0] > tl[0] and position[0] < br[0] and position[1] < br[1] and position[1] > tl[1]) {
+        if (options.position[0] > tl[0] and options.position[0] < br[0] and options.position[1] < br[1] and options.position[1] > tl[1]) {
             var pixel_pos: [2]f32 = .{ 0.0, 0.0 };
 
-            pixel_pos[0] = @divTrunc(position[0] - tl[0], camera.zoom);
-            pixel_pos[1] = @divTrunc(position[1] - tl[1], camera.zoom);
+            pixel_pos[0] = @divTrunc(options.position[0] - tl[0], camera.zoom);
+            pixel_pos[1] = @divTrunc(options.position[1] - tl[1], camera.zoom);
 
+            return pixel_pos;
+        } else return null;
+    }
+
+    const FlipbookPixelCoordinatesOptions = struct {
+        sprite_position: [2]f32,
+        position: [2]f32,
+        width: u32,
+        height: u32,
+    };
+
+    pub fn flipbookPixelCoordinates(camera: Camera, file: *pixi.storage.Internal.Pixi, options: FlipbookPixelCoordinatesOptions) ?[2]f32 {
+        const i = file.selected_sprite_index;
+        const tile_width = @intToFloat(f32, file.tile_width);
+        const tile_height = @intToFloat(f32, file.tile_height);
+        const sprite_scale = std.math.clamp(0.5 / @fabs(@intToFloat(f32, i) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
+        var dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + @intToFloat(f32, i) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
+        var dst_y: f32 = options.sprite_position[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
+        var dst_width: f32 = tile_width * sprite_scale;
+        var dst_height: f32 = tile_height * sprite_scale;
+        const dst_rect: [4]f32 = .{ dst_x, dst_y, dst_width, dst_height };
+        const rect_min_max = camera.getRectMinMax(dst_rect);
+
+        if (options.position[0] > rect_min_max[0][0] and options.position[0] < rect_min_max[1][0] and options.position[1] < rect_min_max[1][1] and options.position[1] > rect_min_max[0][1]) {
+            const tiles_wide = @divExact(file.width, file.tile_width);
+            const column = @intToFloat(f32, @mod(@intCast(u32, i), tiles_wide));
+            const row = @intToFloat(f32, @divTrunc(@intCast(u32, i), tiles_wide));
+
+            var pixel_pos: [2]f32 = .{ 0.0, 0.0 };
+            pixel_pos[0] = @divTrunc(options.position[0] - rect_min_max[0][0], camera.zoom) + (column * tile_width);
+            pixel_pos[1] = @divTrunc(options.position[1] - rect_min_max[0][1], camera.zoom) + (row * tile_height);
             return pixel_pos;
         } else return null;
     }
