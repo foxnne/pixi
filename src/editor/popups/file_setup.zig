@@ -120,7 +120,7 @@ pub fn draw() void {
         const spacing = 5.0 * pixi.state.window.scale[0];
         const half_width = (popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - spacing) / 2.0;
         if (zgui.button("Cancel", .{ .w = half_width })) {
-            pixi.state.popups.setupFileClose();
+            pixi.state.popups.fileSetupClose();
         }
         zgui.sameLine(.{ .spacing = spacing });
         if (!sizes_match) {
@@ -157,7 +157,7 @@ pub fn draw() void {
                     else => {},
                 }
 
-                pixi.state.popups.setupFileClose();
+                pixi.state.popups.fileSetupClose();
             }
         }
         if (!sizes_match) {

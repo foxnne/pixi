@@ -30,14 +30,14 @@ pub const SetupState = enum {
     import_png,
 };
 
-pub fn setupFileNew(popups: *Popups, new_file_path: [:0]const u8) void {
+pub fn fileSetupNew(popups: *Popups, new_file_path: [:0]const u8) void {
     popups.file_setup = true;
     popups.file_setup_state = .new;
     popups.file_setup_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
     std.mem.copy(u8, popups.file_setup_path[0..], new_file_path);
 }
 
-pub fn setupFileSlice(popups: *Popups, path: [:0]const u8) void {
+pub fn fileSetupSlice(popups: *Popups, path: [:0]const u8) void {
     popups.file_setup = true;
     popups.file_setup_state = .slice;
     popups.file_setup_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
@@ -53,12 +53,12 @@ pub fn setupFileSlice(popups: *Popups, path: [:0]const u8) void {
     }
 }
 
-pub fn setupFileClose(popups: *Popups) void {
+pub fn fileSetupClose(popups: *Popups) void {
     popups.file_setup = false;
     popups.file_setup_state = .none;
 }
 
-pub fn setupFileImportPng(popups: *Popups, new_file_path: [:0]const u8, png_path: [:0]const u8) void {
+pub fn fileSetupImportPng(popups: *Popups, new_file_path: [:0]const u8, png_path: [:0]const u8) void {
     popups.file_setup = true;
     popups.file_setup_state = .import_png;
     popups.file_setup_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;

@@ -241,7 +241,7 @@ fn contextMenuFolder(folder: [:0]const u8) void {
     if (zgui.menuItem("New File...", .{})) {
         const new_file_path = std.fs.path.joinZ(pixi.state.allocator, &[_][]const u8{ folder, "New_file.pixi" }) catch unreachable;
         defer pixi.state.allocator.free(new_file_path);
-        pixi.state.popups.setupFileNew(new_file_path);
+        pixi.state.popups.fileSetupNew(new_file_path);
     }
     if (zgui.menuItem("New File from PNG...", .{})) {
         const png_path = nfd.openFileDialog("png", null) catch unreachable;
@@ -250,7 +250,7 @@ fn contextMenuFolder(folder: [:0]const u8) void {
             defer nfd.freePath(path);
             var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{path[0 .. path.len - 4]}) catch unreachable;
             defer pixi.state.allocator.free(new_file_path);
-            pixi.state.popups.setupFileImportPng(new_file_path, path);
+            pixi.state.popups.fileSetupImportPng(new_file_path, path);
         }
     }
     if (zgui.menuItem("New Folder...", .{})) {
@@ -269,12 +269,12 @@ fn contextMenuFile(file: [:0]const u8) void {
             if (zgui.menuItem("Import...", .{})) {
                 var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{file[0 .. file.len - 4]}) catch unreachable;
                 defer pixi.state.allocator.free(new_file_path);
-                pixi.state.popups.setupFileImportPng(new_file_path, file);
+                pixi.state.popups.fileSetupImportPng(new_file_path, file);
             }
         },
         .pixi => {
             if (zgui.menuItem("Re-slice...", .{})) {
-                pixi.state.popups.setupFileSlice(file);
+                pixi.state.popups.fileSetupSlice(file);
             }
         },
         else => {},
