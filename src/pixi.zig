@@ -90,8 +90,9 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
     const gctx = try zgpu.GraphicsContext.create(allocator, window);
 
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
-    const background_logo = try gfx.Texture.loadFromFile(gctx, assets.Icon1024_png.path, .{});
-    const fox_logo = try gfx.Texture.loadFromFile(gctx, assets.Fox1024_png.path, .{});
+
+    const background_logo = try gfx.Texture.loadFromFile(gctx, assets.icon1024_png.path, .{});
+    const fox_logo = try gfx.Texture.loadFromFile(gctx, assets.fox1024_png.path, .{});
 
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
@@ -185,6 +186,13 @@ fn draw() void {
 }
 
 pub fn main() !void {
+    // Change current working directory to where the executable is located.
+    {
+        var buffer: [1024]u8 = undefined;
+        const path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
+        std.os.chdir(path) catch {};
+    }
+
     try zglfw.init();
     defer zglfw.terminate();
 
