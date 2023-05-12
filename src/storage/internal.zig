@@ -101,7 +101,12 @@ pub const Pixi = struct {
                     } else continue;
                 }
 
-                file.tools.primary_color = color;
+                if (color[3] == 0) {
+                    pixi.state.tools.set(.eraser);
+                } else {
+                    pixi.state.tools.set(.pencil);
+                    file.tools.primary_color = color;
+                }
 
                 if (layer_index) |index| {
                     camera.drawLayerTooltip(index);
@@ -114,6 +119,11 @@ pub const Pixi = struct {
     }
 
     pub fn processStroke(file: *Pixi, canvas: Canvas) void {
+        if (switch (pixi.state.tools.current) {
+            .pencil, .eraser => false,
+            else => true,
+        }) return;
+
         const canvas_center_offset = canvasCenterOffset(file, canvas);
         const mouse_position = pixi.state.controls.mouse.position.toSlice();
         const previous_mouse_position = pixi.state.controls.mouse.previous_position.toSlice();
@@ -142,10 +152,13 @@ pub const Pixi = struct {
         };
 
         if (pixi.state.controls.mouse.primary.down()) {
-            if (pixi.state.controls.mouse.dragging() and switch (pixi.state.tools.current) {
-                .pencil, .eraser => true,
-                else => false,
-            }) {
+            const color = switch (pixi.state.tools.current) {
+                .pencil => file.tools.primary_color,
+                .eraser => [_]u8{ 0, 0, 0, 0 },
+                else => unreachable,
+            };
+
+            if (pixi.state.controls.mouse.dragging()) {
                 if (pixel_coords_opt) |pixel_coord| {
                     const prev_pixel_coords_opt = switch (canvas) {
                         .primary => camera.pixelCoordinates(.{
@@ -171,7 +184,7 @@ pub const Pixi = struct {
                             const value = layer.getPixel(p);
                             if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
                                 file.buffers.stroke.append(index, value) catch unreachable;
-                            layer.setPixel(p, file.tools.primary_color, false);
+                            layer.setPixel(p, color, false);
                         }
                         layer.texture.update(pixi.state.gctx);
                         file.dirty = true;
@@ -182,17 +195,12 @@ pub const Pixi = struct {
                 if (pixel_coords_opt) |pixel_coord| {
                     const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
 
-                    if (switch (pixi.state.tools.current) {
-                        .pencil, .eraser => true,
-                        else => false,
-                    }) {
-                        const index = layer.getPixelIndex(pixel);
-                        const value = layer.getPixel(pixel);
-                        file.buffers.stroke.append(index, value) catch unreachable;
+                    const index = layer.getPixelIndex(pixel);
+                    const value = layer.getPixel(pixel);
+                    file.buffers.stroke.append(index, value) catch unreachable;
 
-                        layer.setPixel(pixel, file.tools.primary_color, true);
-                        file.dirty = true;
-                    }
+                    layer.setPixel(pixel, color, true);
+                    file.dirty = true;
                 }
             }
         } else { // Not actively drawing, but hovering over canvas
@@ -201,7 +209,7 @@ pub const Pixi = struct {
                 switch (pixi.state.tools.current) {
                     .pencil => file.temporary_layer.setPixel(pixel, file.tools.primary_color, true),
                     .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
-                    else => {},
+                    else => unreachable,
                 }
             }
 

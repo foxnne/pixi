@@ -59,9 +59,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
-            // Check inputs for sampling conditions and show tooltips
             file.processSample(.primary);
-            // Check inputs for stroke condition and complete strokes if necessary
             file.processStroke(.primary);
 
             if (pixi.state.controls.mouse.primary.pressed()) {
