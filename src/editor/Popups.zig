@@ -21,11 +21,14 @@ file_setup_height: i32 = 0,
 // File close
 file_confirm_close: bool = false,
 file_confirm_close_index: usize = 0,
+file_confirm_close_state: CloseState = .none,
+file_confirm_close_exit: bool = false,
 // About
 about: bool = false,
 
 pub const SetupState = enum { none, new, slice, import_png };
 pub const RenameState = enum { none, rename, duplicate };
+pub const CloseState = enum { none, one, all };
 
 pub fn fileSetupNew(popups: *Popups, new_file_path: [:0]const u8) void {
     popups.file_setup = true;

@@ -264,6 +264,7 @@ pub fn closeFile(index: usize) !void {
         const file = pixi.state.open_files.items[index];
         if (file.dirty) {
             pixi.state.popups.file_confirm_close = true;
+            pixi.state.popups.file_confirm_close_state = .one;
             pixi.state.popups.file_confirm_close_index = index;
             return;
         }

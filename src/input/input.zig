@@ -12,13 +12,16 @@ pub const Keys = enum(usize) {
     alternate,
     undo_redo,
     save,
+    pencil,
+    eraser,
+    pointer,
 };
 
 pub const Controls = struct {
     mouse: Mouse = .{},
 
     /// Holds all rebindable keys.
-    keys: [5]Key = [_]Key{
+    keys: [8]Key = [_]Key{
         .{
             .name = "Primary Modifier",
             .primary = zglfw.Key.left_control,
@@ -52,6 +55,27 @@ pub const Controls = struct {
             .primary = zglfw.Key.s,
             .secondary = zglfw.Key.unknown,
             .default_primary = zglfw.Key.s,
+            .default_secondary = zglfw.Key.unknown,
+        },
+        .{
+            .name = "Pencil",
+            .primary = zglfw.Key.d,
+            .secondary = zglfw.Key.unknown,
+            .default_primary = zglfw.Key.d,
+            .default_secondary = zglfw.Key.unknown,
+        },
+        .{
+            .name = "Eraser",
+            .primary = zglfw.Key.e,
+            .secondary = zglfw.Key.unknown,
+            .default_primary = zglfw.Key.e,
+            .default_secondary = zglfw.Key.unknown,
+        },
+        .{
+            .name = "Pointer",
+            .primary = zglfw.Key.a,
+            .secondary = zglfw.Key.unknown,
+            .default_primary = zglfw.Key.a,
             .default_secondary = zglfw.Key.unknown,
         },
     },
@@ -180,6 +204,15 @@ pub const Mouse = struct {
 };
 
 pub fn process() void {
+    if (pixi.state.controls.key(.pencil).pressed())
+        pixi.state.tools.set(.pencil);
+
+    if (pixi.state.controls.key(.eraser).pressed())
+        pixi.state.tools.set(.eraser);
+
+    if (pixi.state.controls.key(.pointer).pressed())
+        pixi.state.tools.set(.pointer);
+
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         if (pixi.state.controls.undo())
             file.undo() catch unreachable;

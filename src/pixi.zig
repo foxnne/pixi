@@ -137,6 +137,12 @@ fn update() void {
                 should_close = false;
             }
         }
+
+        if (!should_close) {
+            state.popups.file_confirm_close = true;
+            state.popups.file_confirm_close_state = .all;
+            state.popups.file_confirm_close_exit = true;
+        }
         state.should_close = should_close;
         window.setShouldClose(should_close);
     }
