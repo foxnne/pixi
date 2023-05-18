@@ -77,8 +77,10 @@ pub fn draw() void {
                     pixi.editor.forceCloseFile(pixi.state.popups.file_confirm_close_index) catch unreachable;
                 },
                 .all => {
-                    for (pixi.state.open_files.items, 0..) |_, i| {
-                        pixi.editor.forceCloseFile(i) catch unreachable;
+                    var len = pixi.state.open_files.items.len;
+                    var i: usize = 0;
+                    while (i < len) : (i += 1) {
+                        pixi.editor.forceCloseFile(0) catch unreachable;
                     }
                 },
                 else => unreachable,
@@ -95,10 +97,8 @@ pub fn draw() void {
                     pixi.editor.closeFile(pixi.state.popups.file_confirm_close_index) catch unreachable;
                 },
                 .all => {
-                    for (pixi.state.open_files.items, 0..) |*file, i| {
-                        _ = file.save() catch unreachable;
-                        pixi.editor.closeFile(i) catch unreachable;
-                    }
+                    pixi.editor.saveAllFiles() catch unreachable;
+                    pixi.editor.forceCloseAllFiles() catch unreachable;
                 },
                 else => unreachable,
             }

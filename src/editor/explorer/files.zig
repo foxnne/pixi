@@ -188,7 +188,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         .selected = if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
                     })) {
                         if (ext == .pixi)
-                            _ = pixi.editor.openFile(alloc.dupeZ(u8, abs_path) catch unreachable) catch unreachable;
+                            _ = pixi.editor.openFile(abs_path) catch unreachable;
                     }
                     zgui.popStyleColor(.{ .count = 1 });
 

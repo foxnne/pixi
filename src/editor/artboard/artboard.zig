@@ -61,7 +61,6 @@ pub fn draw() void {
                     defer zgui.endTabBar();
 
                     var hovered: bool = false;
-
                     for (pixi.state.open_files.items, 0..) |file, i| {
                         var open: bool = true;
 
@@ -81,9 +80,14 @@ pub fn draw() void {
                         })) {
                             zgui.endTabItem();
                         }
+                        if (!open) {
+                            pixi.editor.closeFile(i) catch unreachable;
+                        }
+
                         if (zgui.isItemClicked(.left)) {
                             pixi.editor.setActiveFile(i);
                         }
+
                         if (zgui.isItemHovered(.{})) {
                             hovered = true;
                             path_hover_timer += pixi.state.gctx.stats.delta_time;
@@ -96,10 +100,6 @@ pub fn draw() void {
                                     zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
                                 }
                             }
-                        }
-
-                        if (!open) {
-                            pixi.editor.closeFile(i) catch unreachable;
                         }
                     }
 

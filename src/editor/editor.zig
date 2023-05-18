@@ -155,7 +155,7 @@ pub fn openFile(path: [:0]const u8) !bool {
         defer std.json.parseFree(pixi.storage.External.Pixi, external, options);
 
         var internal: pixi.storage.Internal.Pixi = .{
-            .path = path,
+            .path = try pixi.state.allocator.dupeZ(u8, path),
             .width = external.width,
             .height = external.height,
             .tile_width = external.tileWidth,
@@ -227,8 +227,6 @@ pub fn openFile(path: [:0]const u8) !bool {
         setActiveFile(0);
         return true;
     }
-
-    pixi.state.allocator.free(path);
     return error.FailedToOpenFile;
 }
 
@@ -254,11 +252,26 @@ pub fn getFile(index: usize) ?*pixi.storage.Internal.Pixi {
 pub fn forceCloseFile(index: usize) !void {
     if (getFile(index)) |file| {
         file.dirty = false;
+        return closeFile(index);
     }
-    return closeFile(index);
+}
+
+pub fn forceCloseAllFiles() !void {
+    var len: usize = pixi.state.open_files.items.len;
+    var i: usize = 0;
+    while (i < len) : (i += 1) {
+        try forceCloseFile(0);
+    }
+}
+
+pub fn saveAllFiles() !void {
+    for (pixi.state.open_files.items) |*file| {
+        _ = try file.save();
+    }
 }
 
 pub fn closeFile(index: usize) !void {
+
     // Handle confirm close if file is dirty
     {
         const file = pixi.state.open_files.items[index];
