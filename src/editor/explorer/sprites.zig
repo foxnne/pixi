@@ -7,10 +7,10 @@ pub fn draw() void {
         const selection = file.selected_sprites.items.len > 0;
 
         zgui.spacing();
-        zgui.text("Origin", .{});
+        zgui.text("Edit Sprite", .{});
         zgui.separator();
         zgui.spacing();
-        if (zgui.beginChild("Origin", .{
+        if (zgui.beginChild("Sprite", .{
             .h = pixi.state.settings.sprite_edit_height * pixi.state.window.scale[1],
         })) {
             defer zgui.endChild();
@@ -58,7 +58,7 @@ pub fn draw() void {
                 }
 
                 if (zgui.isItemActivated()) {
-                    file.newHistory(.origins) catch unreachable;
+                    file.newHistorySelectedSprites(.origins) catch unreachable;
                 }
 
                 if (changed_origin_x)
@@ -76,7 +76,7 @@ pub fn draw() void {
                 }
 
                 if (zgui.isItemActivated()) {
-                    file.newHistory(.origins) catch unreachable;
+                    file.newHistorySelectedSprites(.origins) catch unreachable;
                 }
 
                 if (changed_origin_y) {
@@ -84,7 +84,7 @@ pub fn draw() void {
                 }
 
                 if (zgui.button(" Center ", .{ .w = -1.0 })) {
-                    file.newHistory(.origins) catch unreachable;
+                    file.newHistorySelectedSprites(.origins) catch unreachable;
                     file.setSelectedSpritesOrigin(.{ tile_width / 2.0, tile_height / 2.0 });
                 }
             }

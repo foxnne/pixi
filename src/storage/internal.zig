@@ -293,7 +293,7 @@ pub const Pixi = struct {
         return false;
     }
 
-    pub fn newHistory(file: *Pixi, change_type: History.ChangeType) !void {
+    pub fn newHistorySelectedSprites(file: *Pixi, change_type: History.ChangeType) !void {
         switch (change_type) {
             .origins => {
                 var change = try pixi.storage.Internal.Pixi.History.Change.create(pixi.state.allocator, change_type, file.selected_sprites.items.len);

@@ -35,6 +35,9 @@ sidebar_width: f32 = 50,
 /// Height of the sprite edit panel
 sprite_edit_height: f32 = 100,
 
+/// Height of the animation edit panel
+animation_edit_height: f32 = 100,
+
 /// Maximum zoom sensitivity applied at last zoom steps.
 zoom_max_sensitivity: f32 = 1.0,
 

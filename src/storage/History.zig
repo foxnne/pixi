@@ -17,6 +17,8 @@ pub const Change = union(ChangeType) {
         values: [][2]f32,
     };
 
+    pub const Animation = struct {};
+
     pixels: Pixels,
     origins: Origins,
 

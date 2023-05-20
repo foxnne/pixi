@@ -24,27 +24,50 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg_hovered, .c = pixi.state.style.background.toSlice() });
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg, .c = pixi.state.style.background.toSlice() });
             defer zgui.popStyleColor(.{ .count = 2 });
-            const animation = file.animations.items[file.selected_animation_index];
-            zgui.setNextItemWidth(zgui.calcTextSize(animation.name, .{})[0] + 40 * pixi.state.window.scale[0]);
 
-            if (zgui.beginCombo("Animation  ", .{ .preview_value = animation.name, .flags = .{ .height_largest = true } })) {
-                defer zgui.endCombo();
-                for (file.animations.items, 0..) |a, i| {
-                    if (zgui.selectable(a.name, .{ .selected = i == file.selected_animation_index })) {
-                        file.selected_animation_index = i;
-                        file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(a.start), .state = file.selected_animation_state };
+            var animation = &file.animations.items[file.selected_animation_index];
+
+            { // Animation Selection
+                zgui.setNextItemWidth(zgui.calcTextSize(animation.name, .{})[0] + 40 * pixi.state.window.scale[0]);
+                if (zgui.beginCombo("Animation  ", .{ .preview_value = animation.name, .flags = .{ .height_largest = true } })) {
+                    defer zgui.endCombo();
+                    for (file.animations.items, 0..) |a, i| {
+                        if (zgui.selectable(a.name, .{ .selected = i == file.selected_animation_index })) {
+                            file.selected_animation_index = i;
+                            file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(a.start), .state = file.selected_animation_state };
+                        }
                     }
                 }
             }
-            const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-            const frame = zgui.formatZ("{d}/{d}", .{ current_frame + 1, animation.length });
-            zgui.setNextItemWidth(zgui.calcTextSize(frame, .{})[0] + 40 * pixi.state.window.scale[0]);
-            if (zgui.beginCombo("Frame  ", .{ .preview_value = frame })) {
-                defer zgui.endCombo();
-                for (0..animation.length) |i| {
-                    if (zgui.selectable(zgui.formatZ("{d}/{d}", .{ i + 1, animation.length }), .{ .selected = animation.start + i == file.selected_animation_index })) {
-                        file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(animation.start + i), .state = file.selected_animation_state };
+
+            { // Frame Selection
+                const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
+                const frame = zgui.formatZ("{d}/{d}", .{ current_frame + 1, animation.length });
+
+                zgui.setNextItemWidth(zgui.calcTextSize(frame, .{})[0] + 40 * pixi.state.window.scale[0]);
+                if (zgui.beginCombo("Frame  ", .{ .preview_value = frame })) {
+                    defer zgui.endCombo();
+                    for (0..animation.length) |i| {
+                        if (zgui.selectable(zgui.formatZ("{d}/{d}", .{ i + 1, animation.length }), .{ .selected = animation.start + i == file.selected_animation_index })) {
+                            file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(animation.start + i), .state = file.selected_animation_state };
+                        }
                     }
+                }
+            }
+
+            { // FPS Selection
+                zgui.setNextItemWidth(100 * pixi.state.window.scale[0]);
+                var fps = @intCast(i32, animation.fps);
+                if (zgui.sliderInt("FPS", .{
+                    .v = &fps,
+                    .min = 1,
+                    .max = 60,
+                })) {
+                    animation.fps = @intCast(usize, fps);
+                }
+
+                if (zgui.isItemActivated()) {
+                    // Apply history of animation state
                 }
             }
         }
