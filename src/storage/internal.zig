@@ -257,7 +257,6 @@ pub const Pixi = struct {
     /// Returns true if file saved.
     pub fn save(self: *Pixi) !bool {
         if (!self.dirty) return false;
-        self.history.bookmark();
 
         var external = try self.toExternal(pixi.state.allocator);
 
@@ -290,6 +289,8 @@ pub const Pixi = struct {
 
         pixi.state.allocator.free(external.layers);
         pixi.state.allocator.free(external.sprites);
+
+        self.history.bookmark = 0;
 
         return false;
     }
