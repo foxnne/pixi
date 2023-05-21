@@ -3,24 +3,34 @@ const pixi = @import("root");
 const History = @This();
 
 pub const Action = enum { undo, redo };
-pub const ChangeType = enum { pixels, origins };
+pub const ChangeType = enum { pixels, origins, animation };
 
 pub const Change = union(ChangeType) {
     pub const Pixels = struct {
         layer: usize,
         indices: []usize,
         values: [][4]u8,
+        bookmark: bool = false,
     };
 
     pub const Origins = struct {
         indices: []usize,
         values: [][2]f32,
+        bookmark: bool = false,
     };
 
-    pub const Animation = struct {};
+    pub const Animation = struct {
+        index: usize,
+        name: [:0]const u8,
+        fps: usize,
+        start: usize,
+        length: usize,
+        bookmark: bool = false,
+    };
 
     pixels: Pixels,
     origins: Origins,
+    animation: Animation,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -37,7 +47,40 @@ pub const Change = union(ChangeType) {
                     .values = try allocator.alloc([2]f32, len),
                 },
             },
+            .animation => .{
+                .animation = .{
+                    .index = 0,
+                    .name = undefined,
+                    .fps = 1,
+                    .start = 0,
+                    .length = 1,
+                },
+            },
         };
+    }
+
+    pub fn bookmarked(self: Change) bool {
+        return switch (self) {
+            .pixels => |pixels| pixels.bookmark,
+            .origins => |origins| origins.bookmark,
+            .animation => |animation| animation.bookmark,
+        };
+    }
+
+    pub fn bookmark(self: *Change) void {
+        switch (self.*) {
+            .pixels => self.pixels.bookmark = true,
+            .origins => self.origins.bookmark = true,
+            .animation => self.animation.bookmark = true,
+        }
+    }
+
+    pub fn clearBookmark(self: *Change) void {
+        switch (self.*) {
+            .pixels => self.pixels.bookmark = false,
+            .origins => self.origins.bookmark = false,
+            .animation => self.animation.bookmark = false,
+        }
     }
 
     pub fn deinit(self: Change) void {
@@ -49,6 +92,9 @@ pub const Change = union(ChangeType) {
             .origins => |*origins| {
                 pixi.state.allocator.free(origins.indices);
                 pixi.state.allocator.free(origins.values);
+            },
+            .animation => |*animation| {
+                pixi.state.allocator.free(animation.name);
             },
         }
     }
@@ -101,6 +147,21 @@ pub fn append(self: *History, change: Change) !void {
                         }
                     }
                 },
+                .animation => |animation| {
+                    equal = std.mem.eql(u8, animation.name, change.animation.name);
+                    if (equal) {
+                        equal = animation.index == change.animation.index;
+                        if (equal) {
+                            equal = animation.fps == change.animation.fps;
+                            if (equal) {
+                                equal = animation.start == change.animation.start;
+                                if (equal) {
+                                    equal = animation.length == change.animation.length;
+                                }
+                            }
+                        }
+                    }
+                },
             }
         } else equal = false;
     }
@@ -108,6 +169,32 @@ pub fn append(self: *History, change: Change) !void {
     if (equal) {
         change.deinit();
     } else try self.undo_stack.append(change);
+
+    if (self.undo_stack.items.len == 1 and self.redo_stack.items.len == 0) {
+        self.bookmark();
+    }
+}
+
+pub fn bookmark(self: *History) void {
+    if (self.undo_stack.items.len == 0) return;
+    self.clearBookmark();
+    self.undo_stack.items[self.undo_stack.items.len - 1].bookmark();
+}
+
+pub fn bookmarked(self: History) bool {
+    var b: bool = false;
+    if (self.undo_stack.getLastOrNull()) |last| {
+        b = last.bookmarked();
+    }
+    return b;
+}
+
+pub fn clearBookmark(self: *History) void {
+    for (self.undo_stack.items) |*undo|
+        undo.clearBookmark();
+
+    for (self.redo_stack.items) |*redo|
+        redo.clearBookmark();
 }
 
 pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Action) !void {
@@ -121,9 +208,10 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
         .redo => &self.undo_stack,
     };
 
-    if (active_stack.items.len == 0) {
+    if (active_stack.items.len == 0)
         return;
-    }
+
+    file.dirty = !self.bookmarked();
 
     if (active_stack.popOrNull()) |change| {
         switch (change) {
@@ -150,6 +238,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                 }
                 pixi.state.sidebar = .sprites;
             },
+            else => {},
         }
         try other_stack.append(change);
     }
