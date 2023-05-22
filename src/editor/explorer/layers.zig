@@ -33,38 +33,31 @@ pub fn draw() void {
                 i -= 1;
                 const layer = file.layers.items[i];
 
-                if (i == file.selected_layer_index) {
-                    zgui.bullet();
-                    zgui.sameLine(.{});
-                }
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.foreground.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.foreground.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
 
                 zgui.pushStyleColor4f(.{
                     .idx = zgui.StyleCol.text,
                     .c = if (i == file.selected_layer_index) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice(),
                 });
-                defer zgui.popStyleColor(.{ .count = 1 });
+                defer zgui.popStyleColor(.{ .count = 4 });
+
+                zgui.pushFont(pixi.state.fonts.fa_small_regular);
+                zgui.pushFont(pixi.state.fonts.fa_small_solid);
+                zgui.pushStrId(layer.name);
+                if (zgui.smallButton(if (layer.visible) pixi.fa.eye else pixi.fa.eye_slash)) {
+                    file.layers.items[i].visible = !file.layers.items[i].visible;
+                }
+                zgui.popId();
+                zgui.popFont();
+                zgui.popFont();
+                zgui.sameLine(.{});
 
                 zgui.indent(.{});
                 defer zgui.unindent(.{});
-                if (zgui.selectable(zgui.formatZ("{s}", .{layer.name}), .{ .selected = i == file.selected_layer_index })) {
+                if (zgui.selectable(zgui.formatZ(" {s}", .{layer.name}), .{ .selected = i == file.selected_layer_index })) {
                     file.selected_layer_index = i;
-                }
-
-                if (zgui.beginPopupContextItem()) {
-                    defer zgui.endPopup();
-
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
-                    defer zgui.popStyleColor(.{ .count = 1 });
-
-                    if (zgui.button(if (layer.visible) pixi.fa.eye else pixi.fa.eye_slash, .{})) {
-                        file.layers.items[i].visible = !file.layers.items[i].visible;
-                    }
-                    zgui.sameLine(.{});
-
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
-                    defer zgui.popStyleColor(.{ .count = 1 });
-
-                    if (zgui.button(pixi.fa.trash, .{})) {}
                 }
 
                 if (zgui.isItemActive() and !zgui.isItemHovered(.{}) and zgui.isAnyItemHovered()) {

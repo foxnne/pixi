@@ -54,6 +54,7 @@ pub const PixiState = struct {
     tools: Tools = .{},
     popups: Popups = .{},
     should_close: bool = false,
+    fonts: Fonts = .{},
 };
 
 pub const Sidebar = enum {
@@ -69,6 +70,13 @@ pub const Tool = enum {
     pointer,
     pencil,
     eraser,
+};
+
+pub const Fonts = struct {
+    fa_standard_regular: zgui.Font = undefined,
+    fa_standard_solid: zgui.Font = undefined,
+    fa_small_regular: zgui.Font = undefined,
+    fa_small_solid: zgui.Font = undefined,
 };
 
 pub const Tools = struct {
@@ -239,8 +247,10 @@ pub fn main() !void {
     var config = zgui.FontConfig.init();
     config.merge_mode = true;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
-    _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor * 1.1, config, ranges.ptr);
-    _ = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor * 1.1, config, ranges.ptr);
+    state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
+    state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
+    state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
+    state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
     zgui.backend.initWithConfig(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
 
     // Base style
