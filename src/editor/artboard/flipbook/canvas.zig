@@ -131,6 +131,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             var j: usize = file.layers.items.len;
             while (j > 0) {
                 j -= 1;
+                if (!file.layers.items[j].visible) continue;
                 file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
             }
 

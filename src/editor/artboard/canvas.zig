@@ -93,6 +93,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         var i: usize = file.layers.items.len;
         while (i > 0) {
             i -= 1;
+            if (!file.layers.items[i].visible) continue;
             file.camera.drawLayer(file.layers.items[i], canvas_center_offset);
         }
     }

@@ -503,6 +503,7 @@ pub const Layer = struct {
     name: [:0]const u8,
     texture: pixi.gfx.Texture,
     visible: bool = true,
+    active: bool = false,
 
     pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {
         return pixel[0] + pixel[1] * @intCast(usize, self.texture.image.width);
