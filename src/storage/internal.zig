@@ -383,6 +383,7 @@ pub const Pixi = struct {
             .action = .delete,
             .index = 0,
         } });
+        self.dirty = true;
     }
 
     pub fn deleteLayer(self: *Pixi, index: usize) !void {
@@ -392,6 +393,7 @@ pub const Pixi = struct {
             .action = .restore,
             .index = index,
         } });
+        self.dirty = true;
     }
 
     pub fn setSelectedSpritesOriginX(self: *Pixi, origin_x: f32) void {

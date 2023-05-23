@@ -14,7 +14,7 @@ pub fn draw() void {
     } else return;
 
     const popup_width = 350 * pixi.state.window.scale[0];
-    const popup_height = 110 * pixi.state.window.scale[1];
+    const popup_height = 115 * pixi.state.window.scale[1];
 
     const window_size = pixi.state.window.size * pixi.state.window.scale;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
@@ -57,6 +57,7 @@ pub fn draw() void {
                 .enter_returns_true = true,
             },
         });
+        zgui.spacing();
         if (zgui.button("Cancel", .{ .w = half_width })) {
             pixi.state.popups.rename = false;
         }

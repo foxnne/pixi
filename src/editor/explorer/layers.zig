@@ -18,7 +18,6 @@ pub fn draw() void {
             .h = pixi.state.settings.sprite_edit_height * pixi.state.window.scale[1],
         })) {
             defer zgui.endChild();
-            if (zgui.button("New Layer", .{ .w = -1.0 })) {}
         }
 
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.foreground.toSlice() });
@@ -70,6 +69,21 @@ pub fn draw() void {
                 defer zgui.unindent(.{});
                 if (zgui.selectable(zgui.formatZ(" {s}", .{layer.name}), .{ .selected = i == file.selected_layer_index })) {
                     file.selected_layer_index = i;
+                }
+
+                zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
+                zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
+                zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.state.window.scale[0] });
+                zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
+                defer zgui.popStyleVar(.{ .count = 4 });
+
+                if (zgui.beginPopupContextItem()) {
+                    defer zgui.endPopup();
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
+                    defer zgui.popStyleColor(.{ .count = 1 });
+                    if (zgui.menuItem("Delete", .{})) {
+                        file.deleteLayer(i) catch unreachable;
+                    }
                 }
 
                 if (zgui.isItemActive() and !zgui.isItemHovered(.{}) and zgui.isAnyItemHovered()) {

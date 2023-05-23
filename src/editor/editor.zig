@@ -274,7 +274,6 @@ pub fn saveAllFiles() !void {
 }
 
 pub fn closeFile(index: usize) !void {
-
     // Handle confirm close if file is dirty
     {
         const file = pixi.state.open_files.items[index];
