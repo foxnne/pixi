@@ -127,8 +127,6 @@ pub fn openFile(path: [:0]const u8) !bool {
 
     for (pixi.state.open_files.items, 0..) |file, i| {
         if (std.mem.eql(u8, file.path, path)) {
-            // Free path since we aren't adding it to open files again.
-            pixi.state.allocator.free(path);
             setActiveFile(i);
             return false;
         }
