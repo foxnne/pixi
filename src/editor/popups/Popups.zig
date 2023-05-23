@@ -23,6 +23,11 @@ file_confirm_close: bool = false,
 file_confirm_close_index: usize = 0,
 file_confirm_close_state: CloseState = .none,
 file_confirm_close_exit: bool = false,
+// Layer Setup
+layer_setup: bool = false,
+layer_setup_state: RenameState = .none,
+layer_setup_name: [128:0]u8 = undefined,
+layer_setup_old_name: [128:0]u8 = undefined,
 // About
 about: bool = false,
 

@@ -14,6 +14,7 @@ pub const Pixi = struct {
     tile_height: u32,
     tools: Tools = .{},
     layers: std.ArrayList(Layer),
+    deleted_layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
     camera: pixi.gfx.Camera = .{},
@@ -312,9 +313,7 @@ pub const Pixi = struct {
                 }
                 try file.history.append(change);
             },
-            .pixels => {},
-            .animation => {},
-            .layers_order => {},
+            else => {},
         }
     }
 
@@ -371,6 +370,28 @@ pub const Pixi = struct {
             u8,
             self.background_image.data,
         );
+    }
+
+    pub fn createLayer(self: *Pixi, name: [:0]const u8) !void {
+        try self.layers.insert(0, .{
+            .name = try pixi.state.allocator.dupeZ(u8, name),
+            .texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, self.width, self.height, .{}),
+            .visible = true,
+            .id = self.id(),
+        });
+        try self.history.append(.{ .layer_restore_delete = .{
+            .action = .delete,
+            .index = 0,
+        } });
+    }
+
+    pub fn deleteLayer(self: *Pixi, index: usize) !void {
+        if (index >= self.layers.items.len) return;
+        try self.deleted_layers.append(self.layers.orderedRemove(index));
+        try self.history.append(.{ .layer_restore_delete = .{
+            .action = .restore,
+            .index = index,
+        } });
     }
 
     pub fn setSelectedSpritesOriginX(self: *Pixi, origin_x: f32) void {

@@ -3,7 +3,8 @@ const pixi = @import("root");
 const History = @This();
 
 pub const Action = enum { undo, redo };
-pub const ChangeType = enum { pixels, origins, animation, layers_order };
+pub const LayerAction = enum { restore, delete };
+pub const ChangeType = enum { pixels, origins, animation, layers_order, layer_restore_delete };
 
 pub const Change = union(ChangeType) {
     pub const Pixels = struct {
@@ -30,10 +31,16 @@ pub const Change = union(ChangeType) {
         selected: usize,
     };
 
+    pub const LayerRestoreDelete = struct {
+        action: LayerAction,
+        index: usize,
+    };
+
     pixels: Pixels,
     origins: Origins,
     animation: Animation,
     layers_order: LayersOrder,
+    layer_restore_delete: LayerRestoreDelete,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -63,6 +70,7 @@ pub const Change = union(ChangeType) {
                 .order = try allocator.alloc(usize, len),
                 .selected = 0,
             } },
+            else => error.NotSupported,
         };
     }
 
@@ -82,6 +90,7 @@ pub const Change = union(ChangeType) {
             .layers_order => |*layers_order| {
                 pixi.state.allocator.free(layers_order.order);
             },
+            else => {},
         }
     }
 };
@@ -150,6 +159,9 @@ pub fn append(self: *History, change: Change) !void {
                     }
                 },
                 .layers_order => {},
+                .layer_restore_delete => {
+                    equal = false;
+                },
             }
         } else equal = false;
     }
@@ -173,72 +185,87 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
         .redo => &self.undo_stack,
     };
 
-    if (active_stack.popOrNull()) |change| {
-        switch (change) {
-            .pixels => |*pixels| {
-                for (pixels.indices, 0..) |pixel_index, i| {
-                    const color: [4]u8 = pixels.values[i];
-                    var current_pixels = @ptrCast([*][4]u8, file.layers.items[pixels.layer].texture.image.data.ptr)[0 .. file.layers.items[pixels.layer].texture.image.data.len / 4];
-                    pixels.values[i] = current_pixels[pixel_index];
-                    current_pixels[pixel_index] = color;
-                }
-                file.layers.items[pixels.layer].texture.update(pixi.state.gctx);
-                if (pixi.state.sidebar == .sprites)
-                    pixi.state.sidebar = .tools;
-            },
-            .origins => |*origins| {
-                file.selected_sprites.clearAndFree();
-                for (origins.indices, 0..) |sprite_index, i| {
-                    var origin_x = origins.values[i][0];
-                    var origin_y = origins.values[i][1];
-                    origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
-                    file.sprites.items[sprite_index].origin_x = origin_x;
-                    file.sprites.items[sprite_index].origin_y = origin_y;
-                    try file.selected_sprites.append(sprite_index);
-                }
-                pixi.state.sidebar = .sprites;
-            },
-            .layers_order => |*layers_order| {
-                var new_order = pixi.state.allocator.alloc(usize, layers_order.order.len) catch unreachable;
-                for (file.layers.items, 0..) |layer, i| {
-                    new_order[i] = layer.id;
-                }
+    if (active_stack.items.len == 0) return;
 
-                for (layers_order.order, 0..) |id, i| {
-                    if (file.layers.items[i].id == id) continue;
+    var change = active_stack.popOrNull().?;
 
-                    // Save current layer
-                    const current_layer = file.layers.items[i];
-                    layers_order.order[i] = current_layer.id;
+    switch (change) {
+        .pixels => |*pixels| {
+            for (pixels.indices, 0..) |pixel_index, i| {
+                const color: [4]u8 = pixels.values[i];
+                var current_pixels = @ptrCast([*][4]u8, file.layers.items[pixels.layer].texture.image.data.ptr)[0 .. file.layers.items[pixels.layer].texture.image.data.len / 4];
+                pixels.values[i] = current_pixels[pixel_index];
+                current_pixels[pixel_index] = color;
+            }
+            file.layers.items[pixels.layer].texture.update(pixi.state.gctx);
+            if (pixi.state.sidebar == .sprites)
+                pixi.state.sidebar = .tools;
+        },
+        .origins => |*origins| {
+            file.selected_sprites.clearAndFree();
+            for (origins.indices, 0..) |sprite_index, i| {
+                var origin_x = origins.values[i][0];
+                var origin_y = origins.values[i][1];
+                origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
+                file.sprites.items[sprite_index].origin_x = origin_x;
+                file.sprites.items[sprite_index].origin_y = origin_y;
+                try file.selected_sprites.append(sprite_index);
+            }
+            pixi.state.sidebar = .sprites;
+        },
+        .layers_order => |*layers_order| {
+            var new_order = try pixi.state.allocator.alloc(usize, layers_order.order.len);
+            for (file.layers.items, 0..) |layer, i| {
+                new_order[i] = layer.id;
+            }
 
-                    // Make changes to the layers
-                    for (file.layers.items, 0..) |layer, layer_i| {
-                        if (layer.id == layers_order.selected) {
-                            file.selected_layer_index = layer_i;
-                        }
-                        if (layer.id == id) {
-                            file.layers.items[i] = layer;
-                            file.layers.items[layer_i] = current_layer;
-                            continue;
-                        }
+            for (layers_order.order, 0..) |id, i| {
+                if (file.layers.items[i].id == id) continue;
+
+                // Save current layer
+                const current_layer = file.layers.items[i];
+                layers_order.order[i] = current_layer.id;
+
+                // Make changes to the layers
+                for (file.layers.items, 0..) |layer, layer_i| {
+                    if (layer.id == layers_order.selected) {
+                        file.selected_layer_index = layer_i;
+                    }
+                    if (layer.id == id) {
+                        file.layers.items[i] = layer;
+                        file.layers.items[layer_i] = current_layer;
+                        continue;
                     }
                 }
+            }
 
-                @memcpy(layers_order.order, new_order);
-                pixi.state.allocator.free(new_order);
-            },
-            else => {},
-        }
-
-        try other_stack.append(change);
-
-        self.bookmark += switch (action) {
-            .undo => -1,
-            .redo => 1,
-        };
-
-        file.dirty = self.bookmark != 0;
+            @memcpy(layers_order.order, new_order);
+            pixi.state.allocator.free(new_order);
+        },
+        .layer_restore_delete => |*layer_restore_delete| {
+            const a = layer_restore_delete.action;
+            switch (a) {
+                .restore => {
+                    try file.layers.insert(layer_restore_delete.index, file.deleted_layers.pop());
+                    layer_restore_delete.action = .delete;
+                },
+                .delete => {
+                    try file.deleted_layers.append(file.layers.orderedRemove(layer_restore_delete.index));
+                    layer_restore_delete.action = .restore;
+                },
+            }
+        },
+        else => {},
     }
+
+    try other_stack.append(change);
+
+    self.bookmark += switch (action) {
+        .undo => -1,
+        .redo => 1,
+    };
+
+    file.dirty = self.bookmark != 0;
 }
 
 pub fn clearAndFree(self: *History) void {

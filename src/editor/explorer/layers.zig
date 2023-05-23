@@ -36,7 +36,12 @@ pub fn draw() void {
         zgui.spacing();
         zgui.text("Layers", .{});
         zgui.sameLine(.{});
-        if (zgui.smallButton(pixi.fa.plus)) {}
+        if (zgui.smallButton(pixi.fa.plus)) {
+            pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
+            std.mem.copyForwards(u8, &pixi.state.popups.layer_setup_name, "New Layer");
+            pixi.state.popups.layer_setup_state = .none;
+            pixi.state.popups.layer_setup = true;
+        }
         zgui.separator();
         zgui.spacing();
 

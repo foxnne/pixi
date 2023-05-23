@@ -12,6 +12,8 @@ const zm = @import("zmath");
 pub const name: [:0]const u8 = "Pixi";
 pub const version: []const u8 = "0.0.1";
 pub const Settings = @import("settings.zig");
+pub const Popups = @import("editor/popups/Popups.zig");
+pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
 
 pub const editor = @import("editor/editor.zig");
 
@@ -90,9 +92,6 @@ pub const Tools = struct {
         }
     }
 };
-
-pub const Popups = @import("editor/Popups.zig");
-pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
 
 fn init(allocator: std.mem.Allocator) !*PixiState {
     const gctx = try zgpu.GraphicsContext.create(allocator, window);

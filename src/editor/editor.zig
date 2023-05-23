@@ -16,6 +16,7 @@ pub const popup_rename = @import("popups/rename.zig");
 pub const popup_file_setup = @import("popups/file_setup.zig");
 pub const popup_about = @import("popups/about.zig");
 pub const popup_file_confirm_close = @import("popups/file_confirm_close.zig");
+pub const popup_layer_setup = @import("popups/layer_setup.zig");
 
 pub fn draw() void {
     sidebar.draw();
@@ -26,6 +27,7 @@ pub fn draw() void {
     popup_file_setup.draw();
     popup_about.draw();
     popup_file_confirm_close.draw();
+    popup_layer_setup.draw();
 }
 
 pub fn setProjectFolder(path: [:0]const u8) void {
@@ -53,6 +55,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .tile_width = @intCast(u32, pixi.state.popups.file_setup_tile_size[0]),
         .tile_height = @intCast(u32, pixi.state.popups.file_setup_tile_size[1]),
         .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
+        .deleted_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
         .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
         .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
         .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
@@ -160,6 +163,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             .tile_width = external.tileWidth,
             .tile_height = external.tileHeight,
             .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
+            .deleted_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
             .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
             .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
@@ -294,6 +298,12 @@ pub fn closeFile(index: usize) !void {
         pixi.state.gctx.releaseResource(file.background_texture_view_handle);
         pixi.state.allocator.free(layer.name);
     }
+    for (file.deleted_layers.items) |*layer| {
+        layer.texture.deinit(pixi.state.gctx);
+        pixi.state.gctx.releaseResource(file.background_texture_handle);
+        pixi.state.gctx.releaseResource(file.background_texture_view_handle);
+        pixi.state.allocator.free(layer.name);
+    }
     for (file.sprites.items) |*sprite| {
         pixi.state.allocator.free(sprite.name);
     }
@@ -301,6 +311,7 @@ pub fn closeFile(index: usize) !void {
         pixi.state.allocator.free(animation.name);
     }
     file.layers.deinit();
+    file.deleted_layers.deinit();
     file.sprites.deinit();
     file.selected_sprites.deinit();
     file.animations.deinit();
