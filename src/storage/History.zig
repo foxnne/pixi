@@ -3,7 +3,7 @@ const pixi = @import("root");
 const History = @This();
 
 pub const Action = enum { undo, redo };
-pub const ChangeType = enum { pixels, origins, animation };
+pub const ChangeType = enum { pixels, origins, animation, layers_order };
 
 pub const Change = union(ChangeType) {
     pub const Pixels = struct {
@@ -25,9 +25,15 @@ pub const Change = union(ChangeType) {
         length: usize,
     };
 
+    pub const LayersOrder = struct {
+        order: []usize,
+        selected: usize,
+    };
+
     pixels: Pixels,
     origins: Origins,
     animation: Animation,
+    layers_order: LayersOrder,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -53,6 +59,10 @@ pub const Change = union(ChangeType) {
                     .length = 1,
                 },
             },
+            .layers_order => .{ .layers_order = .{
+                .order = try allocator.alloc(usize, len),
+                .selected = 0,
+            } },
         };
     }
 
@@ -68,6 +78,9 @@ pub const Change = union(ChangeType) {
             },
             .animation => |*animation| {
                 pixi.state.allocator.free(animation.name);
+            },
+            .layers_order => |*layers_order| {
+                pixi.state.allocator.free(layers_order.order);
             },
         }
     }
@@ -136,6 +149,7 @@ pub fn append(self: *History, change: Change) !void {
                         }
                     }
                 },
+                .layers_order => {},
             }
         } else equal = false;
     }
@@ -183,6 +197,35 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                     try file.selected_sprites.append(sprite_index);
                 }
                 pixi.state.sidebar = .sprites;
+            },
+            .layers_order => |*layers_order| {
+                var new_order = pixi.state.allocator.alloc(usize, layers_order.order.len) catch unreachable;
+                for (file.layers.items, 0..) |layer, i| {
+                    new_order[i] = layer.id;
+                }
+
+                for (layers_order.order, 0..) |id, i| {
+                    if (file.layers.items[i].id == id) continue;
+
+                    // Save current layer
+                    const current_layer = file.layers.items[i];
+                    layers_order.order[i] = current_layer.id;
+
+                    // Make changes to the layers
+                    for (file.layers.items, 0..) |layer, layer_i| {
+                        if (layer.id == layers_order.selected) {
+                            file.selected_layer_index = layer_i;
+                        }
+                        if (layer.id == id) {
+                            file.layers.items[i] = layer;
+                            file.layers.items[layer_i] = current_layer;
+                            continue;
+                        }
+                    }
+                }
+
+                @memcpy(layers_order.order, new_order);
+                pixi.state.allocator.free(new_order);
             },
             else => {},
         }

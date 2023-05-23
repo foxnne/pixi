@@ -32,6 +32,7 @@ pub const Pixi = struct {
     temporary_layer: Layer,
     history: History,
     buffers: Buffers,
+    counter: usize = 0,
     dirty: bool = true,
 
     pub const ScrollRequest = struct {
@@ -58,6 +59,11 @@ pub const Pixi = struct {
         };
 
         return .{ -width / 2.0, -height / 2.0 };
+    }
+
+    pub fn id(file: *Pixi) usize {
+        file.counter += 1;
+        return file.counter;
     }
 
     pub fn processSample(file: *Pixi, canvas: Canvas) void {
@@ -308,6 +314,7 @@ pub const Pixi = struct {
             },
             .pixels => {},
             .animation => {},
+            .layers_order => {},
         }
     }
 
@@ -504,6 +511,7 @@ pub const Layer = struct {
     texture: pixi.gfx.Texture,
     visible: bool = true,
     active: bool = false,
+    id: usize = 0,
 
     pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {
         return pixel[0] + pixel[1] * @intCast(usize, self.texture.image.width);

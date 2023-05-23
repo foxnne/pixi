@@ -7,7 +7,7 @@ pub fn draw() void {
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
         defer zgui.popStyleVar(.{ .count = 1 });
         zgui.spacing();
-        zgui.text("Edit Animation", .{});
+        zgui.text("Edit", .{});
         zgui.separator();
         zgui.spacing();
         if (zgui.beginChild("Animation", .{

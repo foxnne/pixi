@@ -76,6 +76,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     var new_layer: pixi.storage.Internal.Layer = .{
         .name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"}),
         .texture = undefined,
+        .id = internal.id(),
     };
 
     if (import_path) |import| {
@@ -200,7 +201,7 @@ pub fn openFile(path: [:0]const u8) !bool {
                 };
 
                 new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @ptrCast([*]u8, data)[0..img_len], .{});
-
+                new_layer.id = internal.id();
                 try internal.layers.append(new_layer);
             }
         }

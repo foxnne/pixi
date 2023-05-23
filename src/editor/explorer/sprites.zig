@@ -7,7 +7,7 @@ pub fn draw() void {
         const selection = file.selected_sprites.items.len > 0;
 
         zgui.spacing();
-        zgui.text("Edit Sprite", .{});
+        zgui.text("Edit", .{});
         zgui.separator();
         zgui.spacing();
         if (zgui.beginChild("Sprite", .{
