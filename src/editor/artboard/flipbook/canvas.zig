@@ -138,7 +138,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (i == file.selected_sprite_index)
                 file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
 
-            if (file.flipbook_camera.isHovered(dst_rect)) {
+            if (file.flipbook_camera.isHovered(dst_rect) and !zgui.isAnyItemHovered()) {
                 if (i != file.selected_sprite_index) {
                     file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.style.text.toU32());
                     if (pixi.state.controls.mouse.primary.pressed() and file.selected_sprite_index != i) {

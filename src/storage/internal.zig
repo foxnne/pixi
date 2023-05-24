@@ -386,6 +386,24 @@ pub const Pixi = struct {
         self.dirty = true;
     }
 
+    pub fn duplicateLayer(self: *Pixi, name: [:0]const u8, src_index: usize) !void {
+        const src = self.layers.items[src_index];
+        var texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, self.width, self.height, .{});
+        @memcpy(texture.image.data, src.texture.image.data);
+        texture.update(pixi.state.gctx);
+        try self.layers.insert(0, .{
+            .name = try pixi.state.allocator.dupeZ(u8, name),
+            .texture = texture,
+            .visible = true,
+            .id = self.id(),
+        });
+        try self.history.append(.{ .layer_restore_delete = .{
+            .action = .delete,
+            .index = 0,
+        } });
+        self.dirty = true;
+    }
+
     pub fn deleteLayer(self: *Pixi, index: usize) !void {
         if (index >= self.layers.items.len) return;
         try self.deleted_layers.append(self.layers.orderedRemove(index));
@@ -521,6 +539,48 @@ pub const Pixi = struct {
             }
             self.selected_sprites.append(selected_sprite) catch unreachable;
         }
+    }
+
+    pub fn spriteToImage(file: *Pixi, sprite_index: usize) !zstbi.Image {
+        var sprite_image = try zstbi.Image.createEmpty(file.tile_width, file.tile_height, 4, .{});
+
+        const tiles_wide = @divExact(file.width, file.tile_width);
+
+        const column = @mod(@intCast(u32, sprite_index), tiles_wide);
+        const row = @divTrunc(@intCast(u32, sprite_index), tiles_wide);
+
+        const src_x = column * file.tile_width;
+        const src_y = row * file.tile_height;
+
+        var i: usize = file.layers.items.len;
+        while (i > 0) {
+            i -= 1;
+
+            const layer = &file.layers.items[i];
+
+            if (!layer.visible) continue;
+
+            const first_index = layer.getPixelIndex(.{ src_x, src_y });
+
+            var src_pixels = @ptrCast([*][4]u8, layer.texture.image.data.ptr)[0 .. layer.texture.image.data.len / 4];
+            var dest_pixels = @ptrCast([*][4]u8, sprite_image.data.ptr)[0 .. sprite_image.data.len / 4];
+
+            var r: usize = 0;
+            while (r < @intCast(usize, file.tile_height)) : (r += 1) {
+                const p_src = first_index + (r * @intCast(usize, file.width));
+                const src = src_pixels[p_src .. p_src + @intCast(usize, file.tile_width)];
+
+                const p_dest = r * @intCast(usize, file.tile_width);
+                const dest = dest_pixels[p_dest .. p_dest + @intCast(usize, file.tile_width)];
+
+                for (src, 0..) |pixel, pixel_i| {
+                    if (pixel[3] != 0)
+                        dest[pixel_i] = pixel;
+                }
+            }
+        }
+
+        return sprite_image;
     }
 
     pub const Tools = struct {

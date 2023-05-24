@@ -64,8 +64,15 @@ pub fn draw() void {
                         const new_name = std.mem.trimRight(u8, pixi.state.popups.layer_setup_name[0..], "\u{0}");
                         file.createLayer(pixi.state.popups.layer_setup_name[0..new_name.len :0]) catch unreachable;
                     },
-                    .rename => {},
-                    .duplicate => {},
+                    .rename => {
+                        const new_name = std.mem.trimRight(u8, pixi.state.popups.layer_setup_name[0..], "\u{0}");
+                        pixi.state.allocator.free(file.layers.items[pixi.state.popups.layer_setup_index].name);
+                        file.layers.items[pixi.state.popups.layer_setup_index].name = pixi.state.allocator.dupeZ(u8, new_name) catch unreachable;
+                    },
+                    .duplicate => {
+                        const new_name = std.mem.trimRight(u8, pixi.state.popups.layer_setup_name[0.. :0], "\u{0}");
+                        file.duplicateLayer(pixi.state.popups.layer_setup_name[0..new_name.len :0], pixi.state.popups.layer_setup_index) catch unreachable;
+                    },
                 }
                 pixi.state.popups.layer_setup_state = .none;
                 pixi.state.popups.layer_setup = false;

@@ -10,16 +10,6 @@ pub fn draw() void {
         defer zgui.popStyleColor(.{ .count = 1 });
         defer zgui.popStyleVar(.{ .count = 1 });
 
-        zgui.spacing();
-        zgui.text("Edit", .{});
-        zgui.separator();
-        zgui.spacing();
-        if (zgui.beginChild("LayerChild", .{
-            .h = pixi.state.settings.sprite_edit_height * pixi.state.window.scale[1],
-        })) {
-            defer zgui.endChild();
-        }
-
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.foreground.toSlice() });
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.foreground.toSlice() });
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
@@ -33,8 +23,6 @@ pub fn draw() void {
         }
 
         zgui.spacing();
-        zgui.text("Layers", .{});
-        zgui.sameLine(.{});
         if (zgui.smallButton(pixi.fa.plus)) {
             pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
             std.mem.copyForwards(u8, &pixi.state.popups.layer_setup_name, "New Layer");
@@ -79,8 +67,27 @@ pub fn draw() void {
 
                 if (zgui.beginPopupContextItem()) {
                     defer zgui.endPopup();
+
+                    if (zgui.menuItem("Rename...", .{})) {
+                        pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(pixi.state.popups.layer_setup_name[0..layer.name.len], layer.name);
+                        pixi.state.popups.layer_setup_index = i;
+                        pixi.state.popups.layer_setup_state = .rename;
+                        pixi.state.popups.layer_setup = true;
+                    }
+
+                    if (zgui.menuItem("Duplicate...", .{})) {
+                        const new_name = zgui.format("{s}_copy", .{layer.name});
+                        pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(pixi.state.popups.layer_setup_name[0..new_name.len], new_name);
+                        pixi.state.popups.layer_setup_state = .duplicate;
+                        pixi.state.popups.layer_setup = true;
+                    }
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
-                    defer zgui.popStyleColor(.{ .count = 1 });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.foreground.toSlice() });
+                    defer zgui.popStyleColor(.{ .count = 2 });
+
+                    zgui.separator();
                     if (zgui.menuItem("Delete", .{})) {
                         file.deleteLayer(i) catch unreachable;
                     }

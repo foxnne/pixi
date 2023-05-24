@@ -426,7 +426,7 @@ typedef unsigned char stbir__validate_uint32[sizeof(stbir_uint32) == 4 ? 1 : -1]
 #define STBIR__ARRAY_SIZE(a) (sizeof((a))/sizeof((a)[0]))
 
 #ifndef STBIR_DEFAULT_FILTER_UPSAMPLE
-#define STBIR_DEFAULT_FILTER_UPSAMPLE    STBIR_FILTER_CATMULLROM
+#define STBIR_DEFAULT_FILTER_UPSAMPLE    STBIR_FILTER_BOX 
 #endif
 
 #ifndef STBIR_DEFAULT_FILTER_DOWNSAMPLE
