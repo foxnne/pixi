@@ -386,6 +386,18 @@ pub const Pixi = struct {
         self.dirty = true;
     }
 
+    pub fn renameLayer(file: *Pixi, name: [:0]const u8, index: usize) !void {
+        var change: History.Change = .{ .layer_name = .{
+            .name = [_:0]u8{0} ** 128,
+            .index = index,
+        } };
+        @memcpy(change.layer_name.name[0..file.layers.items[index].name.len], file.layers.items[index].name);
+        pixi.state.allocator.free(file.layers.items[index].name);
+        file.layers.items[pixi.state.popups.layer_setup_index].name = pixi.state.allocator.dupeZ(u8, name) catch unreachable;
+        try file.history.append(change);
+        file.dirty = true;
+    }
+
     pub fn duplicateLayer(self: *Pixi, name: [:0]const u8, src_index: usize) !void {
         const src = self.layers.items[src_index];
         var texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, self.width, self.height, .{});

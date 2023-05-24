@@ -80,6 +80,7 @@ pub fn draw() void {
                         const new_name = zgui.format("{s}_copy", .{layer.name});
                         pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
                         @memcpy(pixi.state.popups.layer_setup_name[0..new_name.len], new_name);
+                        pixi.state.popups.layer_setup_index = i;
                         pixi.state.popups.layer_setup_state = .duplicate;
                         pixi.state.popups.layer_setup = true;
                     }

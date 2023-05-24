@@ -4,7 +4,14 @@ const History = @This();
 
 pub const Action = enum { undo, redo };
 pub const LayerAction = enum { restore, delete };
-pub const ChangeType = enum { pixels, origins, animation, layers_order, layer_restore_delete };
+pub const ChangeType = enum {
+    pixels,
+    origins,
+    animation,
+    layers_order,
+    layer_restore_delete,
+    layer_name,
+};
 
 pub const Change = union(ChangeType) {
     pub const Pixels = struct {
@@ -35,12 +42,17 @@ pub const Change = union(ChangeType) {
         action: LayerAction,
         index: usize,
     };
+    pub const LayerName = struct {
+        name: [128:0]u8,
+        index: usize,
+    };
 
     pixels: Pixels,
     origins: Origins,
     animation: Animation,
     layers_order: LayersOrder,
     layer_restore_delete: LayerRestoreDelete,
+    layer_name: LayerName,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -69,6 +81,10 @@ pub const Change = union(ChangeType) {
             .layers_order => .{ .layers_order = .{
                 .order = try allocator.alloc(usize, len),
                 .selected = 0,
+            } },
+            .layer_name => .{ .layer_name = .{
+                .name = [_:0]u8{0} ** 128,
+                .index = 0,
             } },
             else => error.NotSupported,
         };
@@ -162,6 +178,9 @@ pub fn append(self: *History, change: Change) !void {
                 .layer_restore_delete => {
                     equal = false;
                 },
+                .layer_name => {
+                    equal = false;
+                },
             }
         } else equal = false;
     }
@@ -187,7 +206,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
 
     if (active_stack.items.len == 0) return;
 
-    var change = active_stack.popOrNull().?;
+    var change = active_stack.pop();
 
     switch (change) {
         .pixels => |*pixels| {
@@ -254,6 +273,14 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                     layer_restore_delete.action = .restore;
                 },
             }
+        },
+        .layer_name => |*layer_name| {
+            var name = [_:0]u8{0} ** 128;
+            @memcpy(name[0..layer_name.name.len], &layer_name.name);
+            layer_name.name = [_:0]u8{0} ** 128;
+            @memcpy(layer_name.name[0..file.layers.items[layer_name.index].name.len], file.layers.items[layer_name.index].name);
+            pixi.state.allocator.free(file.layers.items[layer_name.index].name);
+            file.layers.items[layer_name.index].name = try pixi.state.allocator.dupeZ(u8, &name);
         },
         else => {},
     }
