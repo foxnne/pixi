@@ -39,12 +39,16 @@ pub fn draw() void {
         if (zgui.radioButton("Selected Sprite", .{ .active = pixi.state.popups.export_to_png_state == .selected_sprite })) {
             pixi.state.popups.export_to_png_state = .selected_sprite;
         }
-        if (zgui.radioButton("Selected Animation", .{ .active = pixi.state.popups.export_to_png_state == .selected_animation })) {
-            if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                if (file.animations.items.len > 0)
-                    pixi.state.popups.export_to_png_state = .selected_animation;
-            }
+        var disabled = true;
+        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+            if (file.animations.items.len > 0)
+                disabled = false;
         }
+        if (disabled) zgui.beginDisabled(.{});
+        if (zgui.radioButton("Selected Animation", .{ .active = pixi.state.popups.export_to_png_state == .selected_animation })) {
+            pixi.state.popups.export_to_png_state = .selected_animation;
+        }
+        if (disabled) zgui.endDisabled();
         if (zgui.radioButton("Selected Layer", .{ .active = pixi.state.popups.export_to_png_state == .selected_layer })) {
             pixi.state.popups.export_to_png_state = .selected_layer;
         }

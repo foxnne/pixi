@@ -45,7 +45,7 @@ pub fn set(self: @This()) void {
     style.grab_rounding = 4.0;
     style.frame_padding = .{ 12.0, 4.0 };
     style.window_padding = .{ 5.0, 5.0 };
-    style.item_spacing = .{ 7.0, 4.0 };
+    style.item_spacing = .{ 4.0, 4.0 };
     style.item_inner_spacing = .{ 3.0, 3.0 };
     style.window_menu_button_position = .none;
     style.window_title_align = .{ 0.5, 0.5 };

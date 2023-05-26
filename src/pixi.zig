@@ -158,8 +158,6 @@ fn update() void {
 fn draw() void {
     editor.draw();
 
-    zgui.showDemoWindow(null);
-
     for (&state.controls.keys) |*k| {
         k.previous_state = k.state;
     }
