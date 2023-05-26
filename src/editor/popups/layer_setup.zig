@@ -52,7 +52,8 @@ pub fn draw() void {
                     .enter_returns_true = true,
                 },
             });
-            zgui.spacing();
+
+            zgui.setCursorPosY(popup_height - zgui.getTextLineHeightWithSpacing() * 2.0);
 
             if (zgui.button("Cancel", .{ .w = half_width })) {
                 pixi.state.popups.layer_setup = false;

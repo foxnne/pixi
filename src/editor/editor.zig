@@ -17,6 +17,7 @@ pub const popup_file_setup = @import("popups/file_setup.zig");
 pub const popup_about = @import("popups/about.zig");
 pub const popup_file_confirm_close = @import("popups/file_confirm_close.zig");
 pub const popup_layer_setup = @import("popups/layer_setup.zig");
+pub const popup_export_to_png = @import("popups/export_png.zig");
 
 pub fn draw() void {
     sidebar.draw();
@@ -28,6 +29,7 @@ pub fn draw() void {
     popup_about.draw();
     popup_file_confirm_close.draw();
     popup_layer_setup.draw();
+    popup_export_to_png.draw();
 }
 
 pub fn setProjectFolder(path: [:0]const u8) void {
@@ -247,6 +249,7 @@ pub fn getFileIndex(path: [:0]const u8) ?usize {
 }
 
 pub fn getFile(index: usize) ?*pixi.storage.Internal.Pixi {
+    if (pixi.state.open_files.items.len == 0) return null;
     if (index >= pixi.state.open_files.items.len) return null;
 
     return &pixi.state.open_files.items[index];

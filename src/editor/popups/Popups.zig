@@ -28,11 +28,17 @@ layer_setup: bool = false,
 layer_setup_state: RenameState = .none,
 layer_setup_name: [128:0]u8 = undefined,
 layer_setup_index: usize = 0,
+// Export to png
+export_to_png: bool = false,
+export_to_png_state: ExportToPngState = .selected_sprite,
+export_to_png_scale: u32 = 1,
+export_to_png_preserve_names: bool = true,
 // About
 about: bool = false,
 
 pub const SetupState = enum { none, new, slice, import_png };
 pub const RenameState = enum { none, rename, duplicate };
+pub const ExportToPngState = enum { selected_sprite, selected_animation, selected_layer, all_layers, full_image };
 pub const CloseState = enum { none, one, all };
 
 pub fn fileSetupNew(popups: *Popups, new_file_path: [:0]const u8) void {

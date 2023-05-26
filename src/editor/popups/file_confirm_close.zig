@@ -60,9 +60,9 @@ pub fn draw() void {
 
         zgui.separator();
 
-        zgui.spacing();
-        zgui.spacing();
-        zgui.spacing();
+
+
+        zgui.setCursorPosY(popup_height - zgui.getTextLineHeightWithSpacing() * 2.0);
 
         zgui.pushItemWidth(full_width);
         if (zgui.button("Cancel", .{ .w = third_width })) {

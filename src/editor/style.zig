@@ -51,7 +51,7 @@ pub fn set(self: @This()) void {
     style.window_title_align = .{ 0.5, 0.5 };
     style.grab_min_size = 6.5;
     style.scrollbar_size = 12;
-    style.frame_padding = .{ 4.0, 8.0 };
+    style.frame_padding = .{ 4.0, 4.0 };
     style.frame_border_size = 1.0;
     style.scaleAllSizes(std.math.max(pixi.state.window.scale[0], pixi.state.window.scale[1]));
     style.setColor(zgui.StyleCol.window_bg, bg);
