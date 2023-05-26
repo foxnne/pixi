@@ -147,16 +147,14 @@ pub fn openFile(path: [:0]const u8) !bool {
         _ = zip.zip_entry_close(pixi_file);
 
         var content: []const u8 = @ptrCast([*]const u8, buf)[0..size];
+
         const options = std.json.ParseOptions{
-            .allocator = pixi.state.allocator,
-            .duplicate_field_behavior = .UseFirst,
+            .duplicate_field_behavior = .use_first,
             .ignore_unknown_fields = true,
-            .allow_trailing_data = true,
         };
 
-        var stream = std.json.TokenStream.init(content);
-        const external = std.json.parse(pixi.storage.External.Pixi, &stream, options) catch unreachable;
-        defer std.json.parseFree(pixi.storage.External.Pixi, external, options);
+        const external = std.json.parseFromSlice(pixi.storage.External.Pixi, pixi.state.allocator, content, options) catch unreachable;
+        defer std.json.parseFree(pixi.storage.External.Pixi, pixi.state.allocator, external);
 
         var internal: pixi.storage.Internal.Pixi = .{
             .path = try pixi.state.allocator.dupeZ(u8, path),

@@ -48,12 +48,11 @@ pub const Atlas = struct {
     }
 
     pub fn initFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
-        const r = try fs.read(allocator, file);
-        errdefer allocator.free(r);
+        const read = try fs.read(allocator, file);
+        errdefer allocator.free(read);
 
-        const options = std.json.ParseOptions{ .allocator = allocator, .duplicate_field_behavior = .UseFirst, .ignore_unknown_fields = true, .allow_trailing_data = true };
-        var ts = std.json.TokenStream.init(r);
-        const atlas = try std.json.parse(Atlas, &ts, options);
+        const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
+        const atlas = try std.json.parseFromSlice(Atlas, allocator, read, options);
 
         return atlas;
     }
