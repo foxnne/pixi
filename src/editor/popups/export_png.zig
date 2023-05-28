@@ -193,10 +193,63 @@ pub fn draw() void {
                     }
                 },
                 .selected_layer => {
-                    pixi.state.popups.export_to_png = false;
+                    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                        const path_opt = if (pixi.state.popups.export_to_png_preserve_names)
+                            nfd.openFolderDialog(null) catch unreachable
+                        else
+                            nfd.saveFileDialog("png", null) catch unreachable;
+
+                        if (path_opt) |path| {
+                            const ext = std.fs.path.extension(path);
+                            var full_path: [:0]const u8 = undefined;
+                            if (std.mem.eql(u8, ext, ".png")) {
+                                full_path = path;
+                            } else {
+                                const name = file.layers.items[file.selected_layer_index].name;
+                                full_path = zgui.formatZ("{s}{c}{s}.png", .{ path, std.fs.path.sep, name });
+                            }
+
+                            file.layers.items[file.selected_layer_index].texture.image.writeToFile(full_path, .png) catch unreachable;
+                            pixi.state.popups.export_to_png = false;
+                        }
+                    }
                 },
                 .all_layers => {
-                    pixi.state.popups.export_to_png = false;
+                    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                        const path_opt = if (pixi.state.popups.export_to_png_preserve_names)
+                            nfd.openFolderDialog(null) catch unreachable
+                        else
+                            nfd.saveFileDialog("png", null) catch unreachable;
+
+                        if (path_opt) |path| {
+                            var i: usize = 0;
+                            while (i < file.layers.items.len) : (i += 1) {
+                                if (pixi.state.popups.export_to_png_preserve_names) {
+                                    const folder = path;
+                                    const name = file.layers.items[i].name;
+                                    const full_path = zgui.formatZ("{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
+                                    file.layers.items[i].texture.image.writeToFile(full_path, .png) catch unreachable;
+                                    pixi.state.popups.export_to_png = false;
+                                } else {
+                                    const base_name = std.fs.path.basename(path);
+                                    if (std.mem.indexOf(u8, path, base_name)) |folder_index| {
+                                        const folder = path[0..folder_index];
+                                        const ext = std.fs.path.extension(base_name);
+
+                                        if (std.mem.eql(u8, ext, ".png")) {
+                                            if (std.mem.indexOf(u8, base_name, ext)) |ext_index| {
+                                                const name = base_name[0..ext_index];
+                                                const full_path = zgui.formatZ("{s}{s}_{d}.png", .{ folder, name, i });
+
+                                                file.layers.items[i].texture.image.writeToFile(full_path, .png) catch unreachable;
+                                                pixi.state.popups.export_to_png = false;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 },
                 .full_image => {
                     pixi.state.popups.export_to_png = false;
