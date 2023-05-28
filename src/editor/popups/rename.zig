@@ -39,9 +39,9 @@ pub fn draw() void {
         zgui.spacing();
 
         const style = zgui.getStyle();
-        const spacing = 5.0 * pixi.state.window.scale[0];
-        const full_width = popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - zgui.calcTextSize("Name", .{})[0];
-        const half_width = (popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - spacing) / 2.0;
+        const spacing = style.item_spacing[0];
+        const full_width = popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - zgui.calcTextSize("Name", .{})[0];
+        const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing) / 2.0;
 
         const base_name = std.fs.path.basename(pixi.state.popups.rename_path[0..]);
         var base_index: usize = 0;

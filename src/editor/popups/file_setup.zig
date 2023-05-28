@@ -120,7 +120,7 @@ pub fn draw() void {
         zgui.setCursorPosY(popup_height - zgui.getTextLineHeightWithSpacing() * 2.0);
 
         const spacing = 5.0 * pixi.state.window.scale[0];
-        const half_width = (popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - spacing) / 2.0;
+        const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing) / 2.0;
         if (zgui.button("Cancel", .{ .w = half_width })) {
             pixi.state.popups.fileSetupClose();
         }

@@ -33,8 +33,8 @@ pub fn draw() void {
         defer zgui.endPopup();
 
         const style = zgui.getStyle();
-        const spacing = 5.0 * pixi.state.window.scale[0];
-        const half_width = (popup_width - (style.frame_padding[0] * 2.5 * pixi.state.window.scale[0]) - spacing) / 2.0;
+        const spacing = style.item_spacing[0];
+        const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing) / 2.0;
 
         if (zgui.radioButton("Selected Sprite", .{ .active = pixi.state.popups.export_to_png_state == .selected_sprite })) {
             pixi.state.popups.export_to_png_state = .selected_sprite;
@@ -116,7 +116,8 @@ pub fn draw() void {
                             if (std.mem.eql(u8, ext, ".png")) {
                                 full_path = path;
                             } else {
-                                full_path = zgui.formatZ("{s}{c}{s}.png", .{ path, std.fs.path.sep, file.sprites.items[file.selected_sprite_index].name });
+                                const name = file.sprites.items[file.selected_sprite_index].name;
+                                full_path = zgui.formatZ("{s}{c}{s}.png", .{ path, std.fs.path.sep, name });
                             }
 
                             var sprite_image = file.spriteToImage(file.selected_sprite_index) catch unreachable;
@@ -141,31 +142,53 @@ pub fn draw() void {
                             nfd.saveFileDialog("png", null) catch unreachable;
 
                         if (path_opt) |path| {
-                            const ext = std.fs.path.extension(path);
-                            _ = ext;
+                            const animation = file.animations.items[file.selected_animation_index];
 
-                            const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
-                            _ = animation;
+                            var i: usize = animation.start;
+                            while (i < animation.start + animation.length) : (i += 1) {
+                                if (pixi.state.popups.export_to_png_preserve_names) {
+                                    const folder = path;
+                                    const name = file.sprites.items[i].name;
+                                    const full_path = zgui.formatZ("{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
 
-                            // const ext = std.fs.path.extension(path);
-                            // var full_path: [:0]const u8 = undefined;
-                            // if (std.mem.eql(u8, ext, ".png")) {
-                            //     full_path = path;
-                            // } else {
-                            //     full_path = zgui.formatZ("{s}{c}{s}.png", .{ path, std.fs.path.sep, file.sprites.items[file.selected_sprite_index].name });
-                            // }
+                                    var sprite_image = file.spriteToImage(i) catch unreachable;
+                                    defer sprite_image.deinit();
 
-                            // var sprite_image = file.spriteToImage(file.selected_sprite_index) catch unreachable;
-                            // defer sprite_image.deinit();
+                                    if (pixi.state.popups.export_to_png_scale > 1) {
+                                        var scaled_image = sprite_image.resize(file.tile_width * pixi.state.popups.export_to_png_scale, file.tile_height * pixi.state.popups.export_to_png_scale);
+                                        defer scaled_image.deinit();
+                                        scaled_image.writeToFile(full_path, .png) catch unreachable;
+                                    } else {
+                                        sprite_image.writeToFile(full_path, .png) catch unreachable;
+                                    }
+                                    pixi.state.popups.export_to_png = false;
+                                } else {
+                                    const base_name = std.fs.path.basename(path);
+                                    if (std.mem.indexOf(u8, path, base_name)) |folder_index| {
+                                        const folder = path[0..folder_index];
+                                        const ext = std.fs.path.extension(base_name);
 
-                            // if (pixi.state.popups.export_to_png_scale > 1) {
-                            //     var scaled_image = sprite_image.resize(file.tile_width * pixi.state.popups.export_to_png_scale, file.tile_height * pixi.state.popups.export_to_png_scale);
-                            //     defer scaled_image.deinit();
-                            //     scaled_image.writeToFile(full_path, .png) catch unreachable;
-                            // } else {
-                            //     sprite_image.writeToFile(full_path, .png) catch unreachable;
-                            // }
-                            // pixi.state.popups.export_to_png = false;
+                                        if (std.mem.eql(u8, ext, ".png")) {
+                                            if (std.mem.indexOf(u8, base_name, ext)) |ext_index| {
+                                                const name = base_name[0..ext_index];
+                                                const full_path = zgui.formatZ("{s}{s}_{d}.png", .{ folder, name, i });
+
+                                                var sprite_image = file.spriteToImage(i) catch unreachable;
+                                                defer sprite_image.deinit();
+
+                                                if (pixi.state.popups.export_to_png_scale > 1) {
+                                                    var scaled_image = sprite_image.resize(file.tile_width * pixi.state.popups.export_to_png_scale, file.tile_height * pixi.state.popups.export_to_png_scale);
+                                                    defer scaled_image.deinit();
+                                                    scaled_image.writeToFile(full_path, .png) catch unreachable;
+                                                } else {
+                                                    sprite_image.writeToFile(full_path, .png) catch unreachable;
+                                                }
+                                                pixi.state.popups.export_to_png = false;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },
