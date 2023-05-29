@@ -15,13 +15,14 @@ pub const Keys = enum(usize) {
     pencil,
     eraser,
     pointer,
+    plot,
 };
 
 pub const Controls = struct {
     mouse: Mouse = .{},
 
     /// Holds all rebindable keys.
-    keys: [8]Key = [_]Key{
+    keys: [9]Key = [_]Key{
         .{
             .name = "Primary Modifier",
             .primary = zglfw.Key.left_control,
@@ -76,6 +77,13 @@ pub const Controls = struct {
             .primary = zglfw.Key.a,
             .secondary = zglfw.Key.unknown,
             .default_primary = zglfw.Key.a,
+            .default_secondary = zglfw.Key.unknown,
+        },
+        .{
+            .name = "Plot",
+            .primary = zglfw.Key.p,
+            .secondary = zglfw.Key.unknown,
+            .default_primary = zglfw.Key.p,
             .default_secondary = zglfw.Key.unknown,
         },
     },
@@ -212,6 +220,9 @@ pub fn process() void {
 
     if (pixi.state.controls.key(.pointer).pressed())
         pixi.state.tools.set(.pointer);
+
+    if (pixi.state.controls.key(.plot).pressed() and pixi.state.controls.key(.primary_modifier).down())
+        pixi.state.popups.export_to_png = true;
 
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         if (pixi.state.controls.undo())

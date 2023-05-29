@@ -2,6 +2,7 @@ const std = @import("std");
 const pixi = @import("root");
 const zgui = @import("zgui");
 const nfd = @import("nfd");
+const zstbi = @import("zstbi");
 
 pub fn draw() void {
     if (pixi.state.popups.export_to_png) {
@@ -252,6 +253,24 @@ pub fn draw() void {
                     }
                 },
                 .full_image => {
+                    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                        if (nfd.saveFileDialog("png", null) catch unreachable) |path| {
+                            var dest_image = zstbi.Image.createEmpty(file.width, file.height, 4, .{}) catch unreachable;
+                            defer dest_image.deinit();
+                            var dest_pixels = @ptrCast([*][4]u8, dest_image.data.ptr)[0 .. dest_image.data.len / 4];
+
+                            var i: usize = file.layers.items.len;
+                            while (i > 0) {
+                                i -= 1;
+                                const src_image = file.layers.items[i].texture.image;
+                                const src_pixels = @ptrCast([*][4]u8, src_image.data.ptr)[0 .. src_image.data.len / 4];
+                                for (src_pixels, 0..) |src, j| {
+                                    if (src[3] != 0) dest_pixels[j] = src;
+                                }
+                            }
+                            dest_image.writeToFile(path, .png) catch unreachable;
+                        }
+                    }
                     pixi.state.popups.export_to_png = false;
                 },
             }
