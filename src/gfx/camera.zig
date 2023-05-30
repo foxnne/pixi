@@ -103,6 +103,55 @@ pub const Camera = struct {
         });
     }
 
+    pub fn drawAnimationRect(camera: Camera, start_rect: [4]f32, end_rect: [4]f32, thickness: f32, start_color: u32, end_color: u32) void {
+        const start_rect_min_max = camera.getRectMinMax(start_rect);
+        const end_rect_min_max = camera.getRectMinMax(end_rect);
+
+        const width = start_rect_min_max[1][0] - start_rect_min_max[0][0];
+        const height = start_rect_min_max[1][1] - start_rect_min_max[0][1];
+        _ = height;
+
+        const draw_list = zgui.getWindowDrawList();
+        // Start
+        draw_list.addLine(.{
+            .p1 = start_rect_min_max[0],
+            .p2 = .{ start_rect_min_max[0][0] + width / 2.0, start_rect_min_max[0][1] },
+            .col = start_color,
+            .thickness = thickness,
+        });
+        draw_list.addLine(.{
+            .p1 = start_rect_min_max[0],
+            .p2 = .{ start_rect_min_max[0][0], start_rect_min_max[1][1] },
+            .col = start_color,
+            .thickness = thickness,
+        });
+        draw_list.addLine(.{
+            .p1 = .{ start_rect_min_max[0][0], start_rect_min_max[1][1] },
+            .p2 = .{ start_rect_min_max[0][0] + width / 2.0, start_rect_min_max[1][1] },
+            .col = start_color,
+            .thickness = thickness,
+        });
+        // End
+        draw_list.addLine(.{
+            .p1 = end_rect_min_max[1],
+            .p2 = .{ end_rect_min_max[1][0] - width / 2.0, end_rect_min_max[1][1] },
+            .col = end_color,
+            .thickness = thickness,
+        });
+        draw_list.addLine(.{
+            .p1 = end_rect_min_max[1],
+            .p2 = .{ end_rect_min_max[1][0], end_rect_min_max[0][1] },
+            .col = end_color,
+            .thickness = thickness,
+        });
+        draw_list.addLine(.{
+            .p1 = .{ end_rect_min_max[1][0], end_rect_min_max[0][1] },
+            .p2 = .{ end_rect_min_max[1][0] - width / 2.0, end_rect_min_max[0][1] },
+            .col = end_color,
+            .thickness = thickness,
+        });
+    }
+
     pub fn drawTexture(camera: Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, position: [2]f32, color: u32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @intToFloat(f32, width), @intToFloat(f32, height) });
 
