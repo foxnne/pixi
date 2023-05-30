@@ -21,7 +21,7 @@ pub fn draw() void {
     });
     zgui.setNextWindowSize(.{
         .w = popup_width,
-        .h = popup_height,
+        .h = 0.0,
     });
 
     if (zgui.beginPopupModal("Export to .png...", .{
@@ -35,29 +35,60 @@ pub fn draw() void {
 
         const style = zgui.getStyle();
         const spacing = style.item_spacing[0];
+        const content = zgui.getContentRegionAvail();
         const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing) / 2.0;
 
-        if (zgui.radioButton("Selected Sprite", .{ .active = pixi.state.popups.export_to_png_state == .selected_sprite })) {
-            pixi.state.popups.export_to_png_state = .selected_sprite;
-        }
-        var disabled = true;
-        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-            if (file.animations.items.len > 0)
-                disabled = false;
-        }
-        if (disabled) zgui.beginDisabled(.{});
-        if (zgui.radioButton("Selected Animation", .{ .active = pixi.state.popups.export_to_png_state == .selected_animation })) {
-            pixi.state.popups.export_to_png_state = .selected_animation;
-        }
-        if (disabled) zgui.endDisabled();
-        if (zgui.radioButton("Selected Layer", .{ .active = pixi.state.popups.export_to_png_state == .selected_layer })) {
-            pixi.state.popups.export_to_png_state = .selected_layer;
-        }
-        if (zgui.radioButton("All Layers", .{ .active = pixi.state.popups.export_to_png_state == .all_layers })) {
-            pixi.state.popups.export_to_png_state = .all_layers;
-        }
-        if (zgui.radioButton("Full Image", .{ .active = pixi.state.popups.export_to_png_state == .full_image })) {
-            pixi.state.popups.export_to_png_state = .full_image;
+        // if (zgui.radioButton("Selected Sprite", .{ .active = pixi.state.popups.export_to_png_state == .selected_sprite })) {
+        //     pixi.state.popups.export_to_png_state = .selected_sprite;
+        // }
+        // var disabled = true;
+        // if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+        //     if (file.animations.items.len > 0)
+        //         disabled = false;
+        // }
+        // if (disabled) zgui.beginDisabled(.{});
+        // if (zgui.radioButton("Selected Animation", .{ .active = pixi.state.popups.export_to_png_state == .selected_animation })) {
+        //     pixi.state.popups.export_to_png_state = .selected_animation;
+        // }
+        // if (disabled) zgui.endDisabled();
+        // if (zgui.radioButton("Selected Layer", .{ .active = pixi.state.popups.export_to_png_state == .selected_layer })) {
+        //     pixi.state.popups.export_to_png_state = .selected_layer;
+        // }
+        // if (zgui.radioButton("All Layers", .{ .active = pixi.state.popups.export_to_png_state == .all_layers })) {
+        //     pixi.state.popups.export_to_png_state = .all_layers;
+        // }
+        // if (zgui.radioButton("Full Image", .{ .active = pixi.state.popups.export_to_png_state == .full_image })) {
+        //     pixi.state.popups.export_to_png_state = .full_image;
+        // }
+
+        const plot_name = switch (pixi.state.popups.export_to_png_state) {
+            .selected_sprite => "Selected Sprite",
+            .selected_animation => "Selected Animation",
+            .selected_layer => "Selected Layer",
+            .all_layers => "All Layers Individually",
+            .full_image => "Full Flattened Image",
+        };
+
+        zgui.pushItemWidth(content[0]);
+
+        zgui.text("Select an export area:", .{});
+
+        if (zgui.beginCombo("Plot", .{ .preview_value = plot_name })) {
+            defer zgui.endCombo();
+            var i: usize = 0;
+            while (i < 5) : (i += 1) {
+                const current = @intToEnum(pixi.Popups.ExportToPngState, i);
+                const current_plot_name = switch (current) {
+                    .selected_sprite => "Selected Sprite",
+                    .selected_animation => "Selected Animation",
+                    .selected_layer => "Selected Layer",
+                    .all_layers => "All Layers Individually",
+                    .full_image => "Full Flattened Image",
+                };
+                if (zgui.selectable(current_plot_name, .{ .selected = current == pixi.state.popups.export_to_png_state })) {
+                    pixi.state.popups.export_to_png_state = current;
+                }
+            }
         }
 
         zgui.separator();
@@ -69,6 +100,7 @@ pub fn draw() void {
             .selected_sprite, .selected_animation => {
                 image_scale = @intCast(i32, pixi.state.popups.export_to_png_scale);
 
+                zgui.text("Select an export scale:", .{});
                 if (zgui.sliderInt("Image Scale", .{
                     .v = &image_scale,
                     .min = 1,
@@ -90,13 +122,14 @@ pub fn draw() void {
             .all_layers,
             => {
                 _ = zgui.checkbox("Preserve names", .{ .v = &pixi.state.popups.export_to_png_preserve_names });
+                zgui.spacing();
             },
             else => {
                 zgui.spacing();
             },
         }
 
-        zgui.setCursorPosY(popup_height - zgui.getTextLineHeightWithSpacing() * 2.0);
+        zgui.popItemWidth();
 
         if (zgui.button("Cancel", .{ .w = half_width })) {
             pixi.state.popups.export_to_png = false;
