@@ -147,7 +147,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 
             var iter = dir.iterate();
             while (iter.next() catch unreachable) |entry| {
-                if (entry.kind == .File) {
+                if (entry.kind == .file) {
                     zgui.indent(.{});
                     defer zgui.unindent(.{});
                     const ext = extension(entry.name);
@@ -198,7 +198,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         zgui.endPopup();
                     }
                     zgui.popId();
-                } else if (entry.kind == .Directory) {
+                } else if (entry.kind == .directory) {
                     const abs_path = std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
                     defer alloc.free(abs_path);
                     const folder = zgui.formatZ("{s}  {s}", .{ pixi.fa.folder, entry.name });

@@ -135,11 +135,11 @@ pub const ProcessAssetsStep = struct {
 
                 var iter = dir.iterate();
                 while (iter.next() catch unreachable) |entry| {
-                    if (entry.kind == .File) {
+                    if (entry.kind == .file) {
                         const name_null_term = std.mem.concat(alloc, u8, &[_][]const u8{ entry.name, "\x00" }) catch unreachable;
                         const abs_path = std.fs.path.join(alloc, &[_][]const u8{ directory, name_null_term }) catch unreachable;
                         filelist.append(abs_path[0 .. abs_path.len - 1 :0]) catch unreachable;
-                    } else if (entry.kind == .Directory) {
+                    } else if (entry.kind == .directory) {
                         const abs_path = std.fs.path.join(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
                         search(alloc, abs_path, recursive, filelist);
                     }
