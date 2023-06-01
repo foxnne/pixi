@@ -1,54 +1,76 @@
 const std = @import("std");
 const zgui = @import("zgui");
 const pixi = @import("root");
+const tools = @import("tools.zig");
 
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
         defer zgui.popStyleVar(.{ .count = 1 });
         zgui.spacing();
-        zgui.text("Edit", .{});
+        zgui.text("Tools", .{});
         zgui.separator();
         zgui.spacing();
-        if (zgui.beginChild("Animation", .{
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 8.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.8 } });
+        defer zgui.popStyleVar(.{ .count = 2 });
+
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.style.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.style.foreground.toSlice() });
+        defer zgui.popStyleColor(.{ .count = 3 });
+        if (zgui.beginChild("AnimationTools", .{
             .h = pixi.state.settings.animation_edit_height * pixi.state.window.scale[1],
         })) {
             defer zgui.endChild();
 
-            if (file.animations.items.len == 0) {
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
-                defer zgui.popStyleColor(.{ .count = 1 });
-                zgui.textWrapped("Add an animation to begin editing.", .{});
-            } else {
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.background.toSlice() });
-                defer zgui.popStyleColor(.{ .count = 3 });
+            const style = zgui.getStyle();
+            const window_size = zgui.getWindowSize();
 
-                var animation = &file.animations.items[file.selected_animation_index];
+            const button_width = window_size[0] / 4.0;
+            const button_height = button_width / 2.0;
 
-                { // FPS
-                    var fps = @intCast(i32, animation.fps);
-                    if (zgui.sliderInt("FPS", .{
-                        .v = &fps,
-                        .min = 1,
-                        .max = 60,
-                    })) {
-                        const new_fps = @intCast(usize, fps);
-                        if (new_fps != animation.fps) {
-                            animation.fps = new_fps;
-                            file.dirty = true;
-                        }
-                    }
-                }
-
-                { // Start/Length
-                    var start = @intCast(i32, animation.start);
-                    _ = start;
-                    var length = @intCast(i32, animation.length);
-                    _ = length;
-                }
+            { // Draw tools for animation editing
+                zgui.setCursorPosX(style.item_spacing[0]);
+                tools.drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+                zgui.sameLine(.{});
+                tools.drawTool("[]", button_width, button_height, .animation);
             }
+
+            // if (file.animations.items.len == 0) {
+            //     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+            //     defer zgui.popStyleColor(.{ .count = 1 });
+            //     zgui.textWrapped("Add an animation to begin editing.", .{});
+            // } else {
+            //     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
+            //     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
+            //     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.background.toSlice() });
+            //     defer zgui.popStyleColor(.{ .count = 3 });
+
+            //     var animation = &file.animations.items[file.selected_animation_index];
+
+            //     { // FPS
+            //         var fps = @intCast(i32, animation.fps);
+            //         if (zgui.sliderInt("FPS", .{
+            //             .v = &fps,
+            //             .min = 1,
+            //             .max = 60,
+            //         })) {
+            //             const new_fps = @intCast(usize, fps);
+            //             if (new_fps != animation.fps) {
+            //                 animation.fps = new_fps;
+            //                 file.dirty = true;
+            //             }
+            //         }
+            //     }
+
+            //     { // Start/Length
+            //         var start = @intCast(i32, animation.start);
+            //         _ = start;
+            //         var length = @intCast(i32, animation.length);
+            //         _ = length;
+            //     }
+            // }
         }
 
         zgui.spacing();

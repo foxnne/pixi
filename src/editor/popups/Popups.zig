@@ -33,6 +33,14 @@ export_to_png: bool = false,
 export_to_png_state: ExportToPngState = .selected_sprite,
 export_to_png_scale: u32 = 1,
 export_to_png_preserve_names: bool = true,
+// Animation
+animation: bool = false,
+animation_index: usize = 0,
+animation_state: AnimationState = .none,
+animation_start: usize = 0,
+animation_length: usize = 0,
+animation_name: [128:0]u8 = undefined,
+animation_fps: usize = 0,
 // About
 about: bool = false,
 
@@ -40,6 +48,11 @@ pub const SetupState = enum { none, new, slice, import_png };
 pub const RenameState = enum { none, rename, duplicate };
 pub const ExportToPngState = enum { selected_sprite, selected_animation, selected_layer, all_layers, full_image };
 pub const CloseState = enum { none, one, all };
+pub const AnimationState = enum { none, create, edit };
+
+pub fn anyPopupOpen(popups: *Popups) bool {
+    return popups.rename or popups.file_setup or popups.file_confirm_close or popups.layer_setup or popups.export_to_png or popups.animation;
+}
 
 pub fn fileSetupNew(popups: *Popups, new_file_path: [:0]const u8) void {
     popups.file_setup = true;

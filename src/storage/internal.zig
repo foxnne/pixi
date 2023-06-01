@@ -67,7 +67,9 @@ pub const Pixi = struct {
         return file.counter;
     }
 
-    pub fn processSample(file: *Pixi, canvas: Canvas) void {
+    pub fn processSampleTool(file: *Pixi, canvas: Canvas) void {
+        if (!pixi.state.controls.sample()) return;
+
         var mouse_position = pixi.state.controls.mouse.position.toSlice();
         var camera = switch (canvas) {
             .primary => file.camera,
@@ -91,41 +93,39 @@ pub const Pixi = struct {
 
         if (pixel_coord_opt) |pixel_coord| {
             const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
-            // Eyedropper tool
-            if (pixi.state.controls.sample()) {
-                var color: [4]u8 = .{ 0, 0, 0, 0 };
 
-                var layer_index: ?usize = null;
-                // Go through all layers until we hit an opaque pixel
-                for (file.layers.items, 0..) |layer, i| {
-                    const p = layer.getPixel(pixel);
-                    if (p[3] > 0) {
-                        color = p;
-                        layer_index = i;
-                        if (pixi.state.settings.eyedropper_auto_switch_layer)
-                            file.selected_layer_index = i;
-                        break;
-                    } else continue;
-                }
+            var color: [4]u8 = .{ 0, 0, 0, 0 };
 
-                if (color[3] == 0) {
-                    pixi.state.tools.set(.eraser);
-                } else {
-                    pixi.state.tools.set(.pencil);
-                    file.tools.primary_color = color;
-                }
+            var layer_index: ?usize = null;
+            // Go through all layers until we hit an opaque pixel
+            for (file.layers.items, 0..) |layer, i| {
+                const p = layer.getPixel(pixel);
+                if (p[3] > 0) {
+                    color = p;
+                    layer_index = i;
+                    if (pixi.state.settings.eyedropper_auto_switch_layer)
+                        file.selected_layer_index = i;
+                    break;
+                } else continue;
+            }
 
-                if (layer_index) |index| {
-                    camera.drawLayerTooltip(index);
-                    camera.drawColorTooltip(color);
-                } else {
-                    camera.drawColorTooltip(color);
-                }
+            if (color[3] == 0) {
+                pixi.state.tools.set(.eraser);
+            } else {
+                pixi.state.tools.set(.pencil);
+                file.tools.primary_color = color;
+            }
+
+            if (layer_index) |index| {
+                camera.drawLayerTooltip(index);
+                camera.drawColorTooltip(color);
+            } else {
+                camera.drawColorTooltip(color);
             }
         }
     }
 
-    pub fn processStroke(file: *Pixi, canvas: Canvas) void {
+    pub fn processStrokeTool(file: *Pixi, canvas: Canvas) void {
         if (switch (pixi.state.tools.current) {
             .pencil, .eraser => false,
             else => true,
@@ -224,6 +224,55 @@ pub const Pixi = struct {
             if (file.buffers.stroke.indices.items.len > 0 and pixi.state.controls.mouse.primary.released()) {
                 const change = file.buffers.stroke.toChange(file.selected_layer_index) catch unreachable;
                 file.history.append(change) catch unreachable;
+            }
+        }
+    }
+
+    pub fn processAnimationTool(file: *Pixi) void {
+        if (pixi.state.sidebar != .animations or pixi.state.tools.current != .animation) return;
+        // if (!pixi.state.controls.mouse.primary.pressed() and !pixi.state.controls.mouse.primary.released()) return;
+
+        const canvas_center_offset = canvasCenterOffset(file, .primary);
+        const mouse_position = pixi.state.controls.mouse.position.toSlice();
+
+        if (file.camera.pixelCoordinates(.{
+            .texture_position = canvas_center_offset,
+            .position = mouse_position,
+            .width = file.width,
+            .height = file.height,
+        })) |pixel_coord| {
+            const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
+
+            var tile_column = @divTrunc(pixel[0], @intCast(usize, file.tile_width));
+            var tile_row = @divTrunc(pixel[1], @intCast(usize, file.tile_height));
+
+            var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
+            var tile_index = tile_column + tile_row * tiles_wide;
+
+            if (tile_index >= pixi.state.popups.animation_start) {
+                pixi.state.popups.animation_length = (tile_index - pixi.state.popups.animation_start) + 1;
+            } else {
+                pixi.state.popups.animation_start = tile_index;
+                pixi.state.popups.animation_length = 1;
+            }
+
+            if (pixi.state.controls.mouse.primary.pressed())
+                pixi.state.popups.animation_start = tile_index;
+
+            if (pixi.state.controls.mouse.primary.released()) {
+                if (pixi.state.controls.key(.primary_modifier).down()) {
+                    // Create new animation
+                    pixi.state.popups.animation_state = .create;
+                    pixi.state.popups.animation = true;
+                } else {
+                    if (file.animations.items.len > 0) {
+                        // Edit existing animation
+                        var animation = &file.animations.items[file.selected_animation_index];
+
+                        animation.start = pixi.state.popups.animation_start;
+                        animation.length = pixi.state.popups.animation_length;
+                    }
+                }
             }
         }
     }

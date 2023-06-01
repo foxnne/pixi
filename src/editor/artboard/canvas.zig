@@ -59,8 +59,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
-            file.processSample(.primary);
-            file.processStroke(.primary);
+            file.processSampleTool(.primary);
+            file.processStrokeTool(.primary);
+            file.processAnimationTool();
 
             if (pixi.state.controls.mouse.primary.pressed()) {
                 var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
@@ -68,7 +69,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                 if (pixi.state.sidebar == .sprites) {
                     file.makeSpriteSelection(tile_index);
-                } else {
+                } else if (pixi.state.tools.current != .animation) {
                     // Ensure we only set the request state on the first set.
                     if (file.flipbook_scroll_request) |*request| {
                         request.elapsed = 0.0;
@@ -104,7 +105,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     // Draw grid
     file.camera.drawGrid(canvas_center_offset, file_width, file_height, @floatToInt(usize, file_width / tile_width), @floatToInt(usize, file_height / tile_height), pixi.state.style.text_secondary.toU32());
 
-    // Draw box around selected sprite or origin selection if on sprites tab
+    // Draw box around selected sprite or origin selection if on sprites tab, as well as animation start and end
     {
         const tiles_wide = @divExact(file.width, file.tile_width);
 
@@ -146,21 +147,55 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
 
         if (file.animations.items.len > 0) {
-            const animation = file.animations.items[file.selected_animation_index];
+            if (pixi.state.tools.current == .animation) {
+                for (file.animations.items, 0..) |animation, i| {
+                    const start_column = @mod(@intCast(u32, animation.start), tiles_wide);
+                    const start_row = @divTrunc(@intCast(u32, animation.start), tiles_wide);
+                    const start_x = @intToFloat(f32, start_column) * tile_width + canvas_center_offset[0];
+                    const start_y = @intToFloat(f32, start_row) * tile_height + canvas_center_offset[1];
+                    const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
 
-            const start_column = @mod(@intCast(u32, animation.start), tiles_wide);
-            const start_row = @divTrunc(@intCast(u32, animation.start), tiles_wide);
-            const start_x = @intToFloat(f32, start_column) * tile_width + canvas_center_offset[0];
-            const start_y = @intToFloat(f32, start_row) * tile_height + canvas_center_offset[1];
-            const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
+                    const end_column = @mod(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
+                    const end_row = @divTrunc(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
+                    const end_x = @intToFloat(f32, end_column) * tile_width + canvas_center_offset[0];
+                    const end_y = @intToFloat(f32, end_row) * tile_height + canvas_center_offset[1];
+                    const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-            const end_column = @mod(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
-            const end_row = @divTrunc(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
-            const end_x = @intToFloat(f32, end_column) * tile_width + canvas_center_offset[0];
-            const end_y = @intToFloat(f32, end_row) * tile_height + canvas_center_offset[1];
-            const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
+                    const thickness: f32 = if (i == file.selected_animation_index) 3.0 else 1.0;
+                    file.camera.drawAnimationRect(start_rect, end_rect, thickness, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
+                }
+                if (pixi.state.controls.mouse.primary.down()) {
+                    const start_column = @mod(@intCast(u32, pixi.state.popups.animation_start), tiles_wide);
+                    const start_row = @divTrunc(@intCast(u32, pixi.state.popups.animation_start), tiles_wide);
+                    const start_x = @intToFloat(f32, start_column) * tile_width + canvas_center_offset[0];
+                    const start_y = @intToFloat(f32, start_row) * tile_height + canvas_center_offset[1];
+                    const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
 
-            file.camera.drawAnimationRect(start_rect, end_rect, 3.0, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
+                    const end_column = @mod(@intCast(u32, pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1), tiles_wide);
+                    const end_row = @divTrunc(@intCast(u32, pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1), tiles_wide);
+                    const end_x = @intToFloat(f32, end_column) * tile_width + canvas_center_offset[0];
+                    const end_y = @intToFloat(f32, end_row) * tile_height + canvas_center_offset[1];
+                    const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
+
+                    file.camera.drawAnimationRect(start_rect, end_rect, 3.0, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
+                }
+            } else {
+                const animation = file.animations.items[file.selected_animation_index];
+
+                const start_column = @mod(@intCast(u32, animation.start), tiles_wide);
+                const start_row = @divTrunc(@intCast(u32, animation.start), tiles_wide);
+                const start_x = @intToFloat(f32, start_column) * tile_width + canvas_center_offset[0];
+                const start_y = @intToFloat(f32, start_row) * tile_height + canvas_center_offset[1];
+                const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
+
+                const end_column = @mod(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
+                const end_row = @divTrunc(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
+                const end_x = @intToFloat(f32, end_column) * tile_width + canvas_center_offset[0];
+                const end_y = @intToFloat(f32, end_row) * tile_height + canvas_center_offset[1];
+                const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
+
+                file.camera.drawAnimationRect(start_rect, end_rect, 3.0, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
+            }
         }
     }
 }

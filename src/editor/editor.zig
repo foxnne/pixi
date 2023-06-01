@@ -18,6 +18,7 @@ pub const popup_about = @import("popups/about.zig");
 pub const popup_file_confirm_close = @import("popups/file_confirm_close.zig");
 pub const popup_layer_setup = @import("popups/layer_setup.zig");
 pub const popup_export_to_png = @import("popups/export_png.zig");
+pub const popup_animation = @import("popups/animation.zig");
 
 pub fn draw() void {
     sidebar.draw();
@@ -30,6 +31,7 @@ pub fn draw() void {
     popup_file_confirm_close.draw();
     popup_layer_setup.draw();
     popup_export_to_png.draw();
+    popup_animation.draw();
 }
 
 pub fn setProjectFolder(path: [:0]const u8) void {

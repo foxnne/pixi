@@ -15,6 +15,9 @@ pub const Keys = enum(usize) {
     pencil,
     eraser,
     pointer,
+    animation,
+    layers,
+    sprites,
     plot,
 };
 
@@ -22,7 +25,7 @@ pub const Controls = struct {
     mouse: Mouse = .{},
 
     /// Holds all rebindable keys.
-    keys: [9]Key = [_]Key{
+    keys: [12]Key = [_]Key{
         .{
             .name = "Primary Modifier",
             .primary = zglfw.Key.left_control,
@@ -74,9 +77,30 @@ pub const Controls = struct {
         },
         .{
             .name = "Pointer",
+            .primary = zglfw.Key.escape,
+            .secondary = zglfw.Key.unknown,
+            .default_primary = zglfw.Key.escape,
+            .default_secondary = zglfw.Key.unknown,
+        },
+        .{
+            .name = "Animation",
             .primary = zglfw.Key.a,
             .secondary = zglfw.Key.unknown,
             .default_primary = zglfw.Key.a,
+            .default_secondary = zglfw.Key.unknown,
+        },
+        .{
+            .name = "Layers",
+            .primary = zglfw.Key.l,
+            .secondary = zglfw.Key.unknown,
+            .default_primary = zglfw.Key.l,
+            .default_secondary = zglfw.Key.unknown,
+        },
+        .{
+            .name = "Animation",
+            .primary = zglfw.Key.s,
+            .secondary = zglfw.Key.unknown,
+            .default_primary = zglfw.Key.s,
             .default_secondary = zglfw.Key.unknown,
         },
         .{
@@ -212,26 +236,44 @@ pub const Mouse = struct {
 };
 
 pub fn process() void {
-    if (pixi.state.controls.key(.pencil).pressed())
-        pixi.state.tools.set(.pencil);
+    if (!pixi.state.popups.anyPopupOpen()) {
+        if (pixi.state.controls.key(.pencil).pressed()) {
+            pixi.state.tools.set(.pencil);
+            pixi.state.sidebar = .tools;
+        }
 
-    if (pixi.state.controls.key(.eraser).pressed())
-        pixi.state.tools.set(.eraser);
+        if (pixi.state.controls.key(.eraser).pressed()) {
+            pixi.state.tools.set(.eraser);
+            pixi.state.sidebar = .tools;
+        }
 
-    if (pixi.state.controls.key(.pointer).pressed())
-        pixi.state.tools.set(.pointer);
+        if (pixi.state.controls.key(.pointer).pressed())
+            pixi.state.tools.set(.pointer);
 
-    if (pixi.state.controls.key(.plot).pressed() and pixi.state.controls.key(.primary_modifier).down())
-        pixi.state.popups.export_to_png = true;
+        if (pixi.state.controls.key(.animation).pressed()) {
+            pixi.state.tools.set(.animation);
+            pixi.state.sidebar = .animations;
+        }
 
-    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-        if (pixi.state.controls.undo())
-            file.undo() catch unreachable;
+        if (pixi.state.controls.key(.layers).pressed()) {
+            pixi.state.sidebar = .layers;
+        }
 
-        if (pixi.state.controls.redo())
-            file.redo() catch unreachable;
+        if (pixi.state.controls.key(.sprites).pressed() and pixi.state.controls.key(.primary_modifier).up())
+            pixi.state.sidebar = .sprites;
 
-        if (pixi.state.controls.save())
-            _ = file.save() catch unreachable;
+        if (pixi.state.controls.key(.plot).pressed() and pixi.state.controls.key(.primary_modifier).down())
+            pixi.state.popups.export_to_png = true;
+
+        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+            if (pixi.state.controls.undo())
+                file.undo() catch unreachable;
+
+            if (pixi.state.controls.redo())
+                file.redo() catch unreachable;
+
+            if (pixi.state.controls.save())
+                _ = file.save() catch unreachable;
+        }
     }
 }

@@ -108,10 +108,9 @@ pub const Camera = struct {
         const end_rect_min_max = camera.getRectMinMax(end_rect);
 
         const width = start_rect_min_max[1][0] - start_rect_min_max[0][0];
-        const height = start_rect_min_max[1][1] - start_rect_min_max[0][1];
-        _ = height;
 
         const draw_list = zgui.getWindowDrawList();
+
         // Start
         draw_list.addLine(.{
             .p1 = start_rect_min_max[0],

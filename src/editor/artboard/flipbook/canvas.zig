@@ -145,9 +145,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
                     }
                 } else {
-                    file.processSample(.flipbook);
-                    file.processStroke(.flipbook);
                     file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.style.text.toU32());
+
+                    file.processSampleTool(.flipbook);
+                    file.processStrokeTool(.flipbook);
                 }
             } else {
                 if (i != file.selected_sprite_index) {

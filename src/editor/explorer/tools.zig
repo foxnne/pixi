@@ -18,18 +18,20 @@ pub fn draw() void {
         const window_size = zgui.getWindowSize();
 
         const button_width = window_size[0] / 4.0;
+        const button_height = button_width / 2.0;
 
-        zgui.setCursorPosX(style.item_spacing[0]);
-
-        drawTool(pixi.fa.mouse_pointer, button_width, button_width / 2.0, .pointer);
-        zgui.sameLine(.{});
-        drawTool(pixi.fa.pencil_alt, button_width, button_width / 2.0, .pencil);
-        zgui.sameLine(.{});
-        drawTool(pixi.fa.eraser, button_width, button_width / 2.0, .eraser);
+        { // Row 1
+            zgui.setCursorPosX(style.item_spacing[0]);
+            drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+            zgui.sameLine(.{});
+            drawTool(pixi.fa.pencil_alt, button_width, button_height, .pencil);
+            zgui.sameLine(.{});
+            drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
+        }
     }
 }
 
-fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tool) void {
+pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tool) void {
     const selected = pixi.state.tools.current == tool;
     if (selected) {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
@@ -41,6 +43,25 @@ fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tool) void {
         .selected = selected,
         .w = w,
         .h = h,
-    }))
+    })) {
         pixi.state.tools.set(tool);
+    }
+    drawTooltip(tool);
+}
+
+fn drawTooltip(tool: pixi.Tool) void {
+    if (zgui.isItemHovered(.{})) {
+        if (zgui.beginTooltip()) {
+            defer zgui.endTooltip();
+
+            const text = switch (tool) {
+                .pointer => "Select",
+                .pencil => "Pencil",
+                .eraser => "Eraser",
+                .animation => "Animation",
+            };
+
+            zgui.text("{s}", .{text});
+        }
+    }
 }

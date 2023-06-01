@@ -68,17 +68,18 @@ pub const Sidebar = enum {
     settings,
 };
 
-pub const Tool = enum {
-    pointer,
-    pencil,
-    eraser,
-};
-
 pub const Fonts = struct {
     fa_standard_regular: zgui.Font = undefined,
     fa_standard_solid: zgui.Font = undefined,
     fa_small_regular: zgui.Font = undefined,
     fa_small_solid: zgui.Font = undefined,
+};
+
+pub const Tool = enum {
+    pointer,
+    pencil,
+    eraser,
+    animation,
 };
 
 pub const Tools = struct {
