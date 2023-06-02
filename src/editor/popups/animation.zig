@@ -55,7 +55,6 @@ pub fn draw() void {
             });
 
             zgui.spacing();
-            zgui.text("FPS:", .{});
 
             var fps = @intCast(i32, pixi.state.popups.animation_fps);
             if (zgui.sliderInt("FPS", .{

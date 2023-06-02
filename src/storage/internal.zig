@@ -263,12 +263,12 @@ pub const Pixi = struct {
                 if (pixi.state.controls.key(.primary_modifier).down()) {
                     // Create new animation
                     pixi.state.popups.animation_state = .create;
+                    pixi.state.popups.animation_fps = pixi.state.popups.animation_length;
                     pixi.state.popups.animation = true;
                 } else {
                     if (file.animations.items.len > 0) {
                         // Edit existing animation
                         var animation = &file.animations.items[file.selected_animation_index];
-
                         animation.start = pixi.state.popups.animation_start;
                         animation.length = pixi.state.popups.animation_length;
                     }

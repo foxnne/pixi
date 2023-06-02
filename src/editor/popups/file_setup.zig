@@ -19,7 +19,7 @@ pub fn draw() void {
     });
     zgui.setNextWindowSize(.{
         .w = popup_width,
-        .h = popup_height,
+        .h = 0.0,
     });
 
     if (zgui.beginPopupModal("File Setup...", .{
@@ -34,14 +34,14 @@ pub fn draw() void {
         const style = zgui.getStyle();
 
         const full_width = popup_width - (style.frame_padding[0] * 3 * pixi.state.window.scale[0]) - zgui.calcTextSize("Tile Height", .{})[0];
-        const base_name_index = if (std.mem.lastIndexOf(u8, pixi.state.popups.file_setup_path[0..], &[_]u8{std.fs.path.sep})) |index| index + 1 else 0;
+        const base_name = std.fs.path.basename(&pixi.state.popups.file_setup_path);
+        const base_name_index = if (std.mem.indexOf(u8, pixi.state.popups.file_setup_path[0..], base_name)) |index| index else 0;
 
         zgui.spacing();
         zgui.pushItemWidth(full_width);
-        _ = zgui.inputText("Name", .{
+        var enter = zgui.inputText("Name", .{
             .buf = pixi.state.popups.file_setup_path[base_name_index..],
             .flags = .{
-                .chars_no_blank = true,
                 .auto_select_all = true,
                 .enter_returns_true = true,
             },
@@ -117,8 +117,6 @@ pub fn draw() void {
             zgui.textColored(pixi.state.style.highlight_primary.toSlice(), " " ++ pixi.fa.check, .{});
         }
 
-        zgui.setCursorPosY(popup_height - zgui.getTextLineHeightWithSpacing() * 2.0);
-
         const spacing = 5.0 * pixi.state.window.scale[0];
         const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing) / 2.0;
         if (zgui.button("Cancel", .{ .w = half_width })) {
@@ -128,7 +126,7 @@ pub fn draw() void {
         if (!sizes_match) {
             zgui.beginDisabled(.{});
         }
-        if (zgui.button("Ok", .{ .w = half_width })) {
+        if (zgui.button("Ok", .{ .w = half_width }) or enter) {
             const file_setup_path = std.mem.trimRight(u8, pixi.state.popups.file_setup_path[0..], "\u{0}");
             const ext = std.fs.path.extension(file_setup_path);
             if (std.mem.eql(u8, ".pixi", ext)) {
