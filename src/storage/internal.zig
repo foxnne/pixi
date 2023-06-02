@@ -34,7 +34,6 @@ pub const Pixi = struct {
     history: History,
     buffers: Buffers,
     counter: usize = 0,
-    dirty: bool = true,
 
     pub const ScrollRequest = struct {
         from: f32,
@@ -48,6 +47,10 @@ pub const Pixi = struct {
 
     pub const History = @import("History.zig");
     pub const Buffers = @import("Buffers.zig");
+
+    pub fn dirty(self: Pixi) bool {
+        return self.history.bookmark != 0;
+    }
 
     pub fn canvasCenterOffset(self: *Pixi, canvas: Canvas) [2]f32 {
         const width = switch (canvas) {
@@ -194,7 +197,6 @@ pub const Pixi = struct {
                             layer.setPixel(p, color, false);
                         }
                         layer.texture.update(pixi.state.gctx);
-                        file.dirty = true;
                         pixi.state.allocator.free(pixel_coords);
                     }
                 }
@@ -207,7 +209,6 @@ pub const Pixi = struct {
                     file.buffers.stroke.append(index, value) catch unreachable;
 
                     layer.setPixel(pixel, color, true);
-                    file.dirty = true;
                 }
             }
         } else { // Not actively drawing, but hovering over canvas
@@ -310,12 +311,9 @@ pub const Pixi = struct {
         }
     }
 
-    /// Returns true if file saved.
-    pub fn save(self: *Pixi) !bool {
-        if (!self.dirty) return false;
-
+    pub fn rawSave(self: *Pixi) !void {
+        self.history.bookmark = 0;
         var external = try self.toExternal(pixi.state.allocator);
-
         var zip_file = zip.zip_open(self.path, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
         if (zip_file) |z| {
@@ -340,15 +338,15 @@ pub const Pixi = struct {
             }
 
             zip.zip_close(z);
-            self.dirty = false;
         }
 
         pixi.state.allocator.free(external.layers);
         pixi.state.allocator.free(external.sprites);
+    }
 
-        self.history.bookmark = 0;
-
-        return false;
+    pub fn save(self: *Pixi) !void {
+        if (!self.dirty()) return;
+        _ = try std.Thread.spawn(.{}, rawSave, .{self});
     }
 
     pub fn newHistorySelectedSprites(file: *Pixi, change_type: History.ChangeType) !void {
@@ -432,7 +430,6 @@ pub const Pixi = struct {
             .action = .delete,
             .index = 0,
         } });
-        self.dirty = true;
     }
 
     pub fn renameLayer(file: *Pixi, name: [:0]const u8, index: usize) !void {
@@ -444,7 +441,6 @@ pub const Pixi = struct {
         pixi.state.allocator.free(file.layers.items[index].name);
         file.layers.items[pixi.state.popups.layer_setup_index].name = pixi.state.allocator.dupeZ(u8, name) catch unreachable;
         try file.history.append(change);
-        file.dirty = true;
     }
 
     pub fn duplicateLayer(self: *Pixi, name: [:0]const u8, src_index: usize) !void {
@@ -462,7 +458,6 @@ pub const Pixi = struct {
             .action = .delete,
             .index = 0,
         } });
-        self.dirty = true;
     }
 
     pub fn deleteLayer(self: *Pixi, index: usize) !void {
@@ -472,33 +467,21 @@ pub const Pixi = struct {
             .action = .restore,
             .index = index,
         } });
-        self.dirty = true;
     }
 
     pub fn setSelectedSpritesOriginX(self: *Pixi, origin_x: f32) void {
-        var dirty: bool = false;
         for (self.selected_sprites.items) |sprite_index| {
             if (self.sprites.items[sprite_index].origin_x != origin_x) {
                 self.sprites.items[sprite_index].origin_x = origin_x;
-                dirty = true;
             }
-        }
-        if (dirty) {
-            self.dirty = dirty;
         }
     }
 
     pub fn setSelectedSpritesOriginY(self: *Pixi, origin_y: f32) void {
-        var dirty: bool = false;
-
         for (self.selected_sprites.items) |sprite_index| {
             if (self.sprites.items[sprite_index].origin_y != origin_y) {
                 self.sprites.items[sprite_index].origin_y = origin_y;
-                dirty = true;
             }
-        }
-        if (dirty) {
-            self.dirty = dirty;
         }
     }
 
@@ -517,18 +500,12 @@ pub const Pixi = struct {
     }
 
     pub fn setSelectedSpritesOrigin(self: *Pixi, origin: [2]f32) void {
-        var dirty: bool = false;
-
         for (self.selected_sprites.items) |sprite_index| {
             const current_origin = .{ self.sprites.items[sprite_index].origin_x, self.sprites.items[sprite_index].origin_y };
             if (current_origin[0] != origin[0] or current_origin[1] != origin[1]) {
                 self.sprites.items[sprite_index].origin_x = origin[0];
                 self.sprites.items[sprite_index].origin_y = origin[1];
-                dirty = true;
             }
-        }
-        if (dirty) {
-            self.dirty = dirty;
         }
     }
 

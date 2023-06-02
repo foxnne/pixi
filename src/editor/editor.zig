@@ -70,7 +70,6 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
         .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
         .temporary_layer = undefined,
-        .dirty = true,
     };
 
     try internal.createBackground();
@@ -176,7 +175,6 @@ pub fn openFile(path: [:0]const u8) !bool {
             .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
             .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
             .temporary_layer = undefined,
-            .dirty = false,
         };
 
         try internal.createBackground();
@@ -257,8 +255,8 @@ pub fn getFile(index: usize) ?*pixi.storage.Internal.Pixi {
 
 pub fn forceCloseFile(index: usize) !void {
     if (getFile(index)) |file| {
-        file.dirty = false;
-        return closeFile(index);
+        _ = file;
+        return rawCloseFile(index);
     }
 }
 
@@ -280,14 +278,17 @@ pub fn closeFile(index: usize) !void {
     // Handle confirm close if file is dirty
     {
         const file = pixi.state.open_files.items[index];
-        if (file.dirty) {
+        if (file.dirty()) {
             pixi.state.popups.file_confirm_close = true;
             pixi.state.popups.file_confirm_close_state = .one;
             pixi.state.popups.file_confirm_close_index = index;
             return;
         }
     }
+    try rawCloseFile(index);
+}
 
+pub fn rawCloseFile(index: usize) !void {
     pixi.state.open_file_index = 0;
     var file = pixi.state.open_files.swapRemove(index);
     file.history.deinit();

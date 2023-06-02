@@ -51,7 +51,7 @@ pub fn draw() void {
                     defer zgui.endChild();
                     for (pixi.state.open_files.items) |file| {
                         const base_name = std.fs.path.basename(file.path);
-                        if (file.dirty) zgui.bulletText("{s}", .{base_name});
+                        if (file.dirty()) zgui.bulletText("{s}", .{base_name});
                     }
                 }
             },

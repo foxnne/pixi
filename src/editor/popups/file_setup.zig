@@ -134,7 +134,7 @@ pub fn draw() void {
                     .new => {
                         if (pixi.editor.newFile(pixi.state.allocator.dupeZ(u8, file_setup_path) catch unreachable, null) catch unreachable) {
                             if (pixi.editor.getFile(0)) |file| {
-                                _ = file.save() catch unreachable;
+                                file.rawSave() catch unreachable;
                             }
                         }
                     },
@@ -142,7 +142,7 @@ pub fn draw() void {
                         const file_setup_png_path = std.mem.trimRight(u8, &pixi.state.popups.file_setup_png_path, "\u{0}");
                         if (pixi.editor.importPng(pixi.state.allocator.dupeZ(u8, file_setup_png_path) catch unreachable, pixi.state.allocator.dupeZ(u8, file_setup_path) catch unreachable) catch unreachable) {
                             if (pixi.editor.getFile(0)) |file| {
-                                _ = file.save() catch unreachable;
+                                file.rawSave() catch unreachable;
                             }
                         }
                     },

@@ -40,10 +40,10 @@ pub fn draw() void {
 
             if (zgui.menuItem("Save", .{
                 .shortcut = "Cmd+S",
-                .enabled = file != null and file.?.dirty,
+                .enabled = file != null and file.?.dirty(),
             })) {
                 if (file) |f| {
-                    _ = f.save() catch unreachable;
+                    f.save() catch unreachable;
                 }
             }
 

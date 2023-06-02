@@ -141,7 +141,7 @@ fn update() void {
     if (window.shouldClose()) {
         var should_close = true;
         for (state.open_files.items) |file| {
-            if (file.dirty) {
+            if (file.dirty()) {
                 should_close = false;
             }
         }

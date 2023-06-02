@@ -291,8 +291,6 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
         .undo => -1,
         .redo => 1,
     };
-
-    file.dirty = self.bookmark != 0;
 }
 
 pub fn clearAndFree(self: *History) void {
