@@ -25,7 +25,7 @@ pub fn draw() void {
     });
     zgui.setNextWindowSize(.{
         .w = popup_width,
-        .h = popup_height,
+        .h = 0.0,
     });
 
     if (zgui.beginPopupModal(dialog_name, .{
@@ -52,13 +52,10 @@ pub fn draw() void {
         var enter = zgui.inputText("Name", .{
             .buf = pixi.state.popups.rename_path[base_index..],
             .flags = .{
-                .chars_no_blank = true,
                 .auto_select_all = true,
                 .enter_returns_true = true,
             },
         });
-
-        zgui.setCursorPosY(popup_height - zgui.getTextLineHeightWithSpacing() * 2.0);
 
         if (zgui.button("Cancel", .{ .w = half_width })) {
             pixi.state.popups.rename = false;
@@ -75,6 +72,7 @@ pub fn draw() void {
                     const old_path_z = pixi.state.popups.rename_old_path[0..old_path.len :0];
                     for (pixi.state.open_files.items) |*open_file| {
                         if (std.mem.eql(u8, open_file.path, old_path_z)) {
+                            pixi.state.allocator.free(open_file.path);
                             open_file.path = pixi.state.allocator.dupeZ(u8, new_path) catch unreachable;
                         }
                     }

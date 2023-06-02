@@ -127,7 +127,7 @@ pub fn draw() void {
             zgui.beginDisabled(.{});
         }
         if (zgui.button("Ok", .{ .w = half_width }) or enter) {
-            const file_setup_path = std.mem.trimRight(u8, pixi.state.popups.file_setup_path[0..], "\u{0}");
+            const file_setup_path = std.mem.trimRight(u8, &pixi.state.popups.file_setup_path, "\u{0}");
             const ext = std.fs.path.extension(file_setup_path);
             if (std.mem.eql(u8, ".pixi", ext)) {
                 switch (pixi.state.popups.file_setup_state) {
@@ -139,7 +139,7 @@ pub fn draw() void {
                         }
                     },
                     .import_png => {
-                        const file_setup_png_path = std.mem.trimRight(u8, pixi.state.popups.file_setup_png_path[0..], "\u{0}");
+                        const file_setup_png_path = std.mem.trimRight(u8, &pixi.state.popups.file_setup_png_path, "\u{0}");
                         if (pixi.editor.importPng(pixi.state.allocator.dupeZ(u8, file_setup_png_path) catch unreachable, pixi.state.allocator.dupeZ(u8, file_setup_path) catch unreachable) catch unreachable) {
                             if (pixi.editor.getFile(0)) |file| {
                                 _ = file.save() catch unreachable;
