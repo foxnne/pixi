@@ -273,7 +273,7 @@ pub fn process() void {
                 file.redo() catch unreachable;
 
             if (pixi.state.controls.save()) {
-                file.save() catch unreachable;
+                file.saveAsync() catch unreachable;
             }
         }
     }

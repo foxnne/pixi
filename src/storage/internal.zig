@@ -34,6 +34,7 @@ pub const Pixi = struct {
     history: History,
     buffers: Buffers,
     counter: usize = 0,
+    saving: bool = false,
 
     pub const ScrollRequest = struct {
         from: f32,
@@ -311,7 +312,9 @@ pub const Pixi = struct {
         }
     }
 
-    pub fn rawSave(self: *Pixi) !void {
+    pub fn save(self: *Pixi) !void {
+        if (self.saving) return;
+        self.saving = true;
         self.history.bookmark = 0;
         var external = try self.toExternal(pixi.state.allocator);
         var zip_file = zip.zip_open(self.path, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
@@ -342,11 +345,13 @@ pub const Pixi = struct {
 
         pixi.state.allocator.free(external.layers);
         pixi.state.allocator.free(external.sprites);
+        self.saving = false;
     }
 
-    pub fn save(self: *Pixi) !void {
+    pub fn saveAsync(self: *Pixi) !void {
         if (!self.dirty()) return;
-        _ = try std.Thread.spawn(.{}, rawSave, .{self});
+        const thread = try std.Thread.spawn(.{}, save, .{self});
+        thread.detach();
     }
 
     pub fn newHistorySelectedSprites(file: *Pixi, change_type: History.ChangeType) !void {

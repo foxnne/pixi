@@ -256,7 +256,7 @@ pub fn main() !void {
     // Base style
     state.style.set();
 
-    while (!state.should_close) {
+    while (!state.should_close or editor.saving()) {
         zglfw.pollEvents();
         update();
         draw();

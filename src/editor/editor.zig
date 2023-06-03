@@ -41,6 +41,13 @@ pub fn setProjectFolder(path: [:0]const u8) void {
     pixi.state.project_folder = pixi.state.allocator.dupeZ(u8, path) catch unreachable;
 }
 
+pub fn saving() bool {
+    for (pixi.state.open_files.items) |file| {
+        if (file.saving) return true;
+    }
+    return false;
+}
+
 /// Returns true if a new file was created.
 pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     for (pixi.state.open_files.items, 0..) |file, i| {
