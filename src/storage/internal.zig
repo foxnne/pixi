@@ -266,7 +266,7 @@ pub const Pixi = struct {
                 if (pixi.state.controls.key(.primary_modifier).down()) {
                     var valid: bool = true;
                     var i: usize = pixi.state.popups.animation_start;
-                    while (i <= pixi.state.popups.animation_start + (pixi.state.popups.animation_length - 1)) : (i += 1) {
+                    while (i < pixi.state.popups.animation_start + pixi.state.popups.animation_length) : (i += 1) {
                         if (file.getAnimationIndexFromSpriteIndex(i)) |_| {
                             valid = false;
                             break;
@@ -286,7 +286,7 @@ pub const Pixi = struct {
                         var animation = &file.animations.items[file.selected_animation_index];
                         var valid: bool = true;
                         var i: usize = pixi.state.popups.animation_start;
-                        while (i <= pixi.state.popups.animation_start + (pixi.state.popups.animation_length - 1)) : (i += 1) {
+                        while (i < pixi.state.popups.animation_start + pixi.state.popups.animation_length) : (i += 1) {
                             if (file.getAnimationIndexFromSpriteIndex(i)) |match_index| {
                                 if (match_index != file.selected_animation_index) {
                                     valid = false;
@@ -295,7 +295,6 @@ pub const Pixi = struct {
                             }
                         }
                         if (valid) {
-
                             // Edit existing animation
                             var change: History.Change = .{ .animation = .{
                                 .index = file.selected_animation_index,
