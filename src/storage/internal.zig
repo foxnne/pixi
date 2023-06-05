@@ -264,16 +264,26 @@ pub const Pixi = struct {
 
             if (pixi.state.controls.mouse.primary.released()) {
                 if (pixi.state.controls.key(.primary_modifier).down()) {
-                    // Create new animation
-                    pixi.state.popups.animation_state = .create;
-                    pixi.state.popups.animation_fps = pixi.state.popups.animation_length;
-                    pixi.state.popups.animation = true;
+                    var valid: bool = true;
+                    var i: usize = pixi.state.popups.animation_start;
+                    while (i <= pixi.state.popups.animation_start + (pixi.state.popups.animation_length - 1)) : (i += 1) {
+                        if (file.getAnimationIndexFromSpriteIndex(i)) |_| {
+                            valid = false;
+                            break;
+                        }
+                    }
+                    if (valid) {
+                        // Create new animation
+                        pixi.state.popups.animation_state = .create;
+                        pixi.state.popups.animation_fps = pixi.state.popups.animation_length;
+                        pixi.state.popups.animation = true;
+                    }
                 } else {
                     if (file.animations.items.len > 0) {
                         var animation = &file.animations.items[file.selected_animation_index];
                         var valid: bool = true;
                         var i: usize = pixi.state.popups.animation_start;
-                        while (i < pixi.state.popups.animation_start + (pixi.state.popups.animation_length - 1)) : (i += 1) {
+                        while (i <= pixi.state.popups.animation_start + (pixi.state.popups.animation_length - 1)) : (i += 1) {
                             if (file.getAnimationIndexFromSpriteIndex(i)) |match_index| {
                                 if (match_index != file.selected_animation_index) {
                                     valid = false;
@@ -281,7 +291,6 @@ pub const Pixi = struct {
                                 }
                             }
                         }
-
                         if (valid) {
 
                             // Edit existing animation
