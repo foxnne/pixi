@@ -296,7 +296,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             animation.name = [_:0]u8{0} ** 128;
             @memcpy(animation.name[0..file.animations.items[animation.index].name.len], file.animations.items[animation.index].name);
             pixi.state.allocator.free(file.animations.items[animation.index].name);
-            file.animations.items[animation.index].name = try pixi.state.allocator.dupeZ(u8, &name);
+            file.animations.items[animation.index].name = try pixi.state.allocator.dupeZ(u8, std.mem.trimRight(u8, &name, "\u{0}"));
             // FPS
             const fps = animation.fps;
             animation.fps = file.animations.items[animation.index].fps;

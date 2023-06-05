@@ -4,6 +4,8 @@ const pixi = @import("root");
 const filebrowser = @import("filebrowser");
 const nfd = @import("nfd");
 
+const History = pixi.storage.Internal.Pixi.History;
+
 pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
     defer zgui.popStyleVar(.{ .count = 1 });
@@ -68,6 +70,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
 
                 if (zgui.isItemActivated()) {
                     // Apply history of animation state
+                    var change: History.Change = .{ .animation = .{
+                        .index = file.selected_animation_index,
+                        .name = [_:0]u8{0} ** 128,
+                        .fps = animation.fps,
+                        .start = animation.start,
+                        .length = animation.length,
+                    } };
+                    @memcpy(change.animation.name[0..animation.name.len], animation.name);
+                    file.history.append(change) catch unreachable;
                 }
             }
         }

@@ -270,10 +270,35 @@ pub const Pixi = struct {
                     pixi.state.popups.animation = true;
                 } else {
                     if (file.animations.items.len > 0) {
-                        // Edit existing animation
                         var animation = &file.animations.items[file.selected_animation_index];
-                        animation.start = pixi.state.popups.animation_start;
-                        animation.length = pixi.state.popups.animation_length;
+                        var valid: bool = true;
+                        var i: usize = pixi.state.popups.animation_start;
+                        while (i < pixi.state.popups.animation_start + (pixi.state.popups.animation_length - 1)) : (i += 1) {
+                            if (file.getAnimationIndexFromSpriteIndex(i)) |match_index| {
+                                if (match_index != file.selected_animation_index) {
+                                    valid = false;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (valid) {
+
+                            // Edit existing animation
+                            var change: History.Change = .{ .animation = .{
+                                .index = file.selected_animation_index,
+                                .name = [_:0]u8{0} ** 128,
+                                .fps = animation.fps,
+                                .start = animation.start,
+                                .length = animation.length,
+                            } };
+                            @memcpy(change.animation.name[0..animation.name.len], animation.name);
+
+                            animation.start = pixi.state.popups.animation_start;
+                            animation.length = pixi.state.popups.animation_length;
+
+                            file.history.append(change) catch unreachable;
+                        }
                     }
                 }
             }
@@ -522,6 +547,15 @@ pub const Pixi = struct {
                 self.sprites.items[sprite_index].origin_y = origin[1];
             }
         }
+    }
+
+    pub fn getAnimationIndexFromSpriteIndex(self: Pixi, sprite_index: usize) ?usize {
+        for (self.animations.items, 0..) |animation, i| {
+            if (sprite_index >= animation.start and sprite_index <= animation.start + animation.length - 1) {
+                return i;
+            }
+        }
+        return null;
     }
 
     /// Searches for an animation containing the current selected sprite index
