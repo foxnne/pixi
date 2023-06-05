@@ -2,6 +2,8 @@ const std = @import("std");
 const pixi = @import("root");
 const zgui = @import("zgui");
 
+const History = pixi.storage.Internal.Pixi.History;
+
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         const dialog_name = switch (pixi.state.popups.animation_state) {
@@ -55,18 +57,19 @@ pub fn draw() void {
             });
 
             zgui.spacing();
-
-            var fps = @intCast(i32, pixi.state.popups.animation_fps);
-            if (zgui.sliderInt("FPS", .{
-                .v = &fps,
-                .min = 1,
-                .max = 60,
-            })) {
-                pixi.state.popups.animation_fps = @intCast(usize, fps);
+            if (pixi.state.popups.animation_state == .create) {
+                var fps = @intCast(i32, pixi.state.popups.animation_fps);
+                if (zgui.sliderInt("FPS", .{
+                    .v = &fps,
+                    .min = 1,
+                    .max = 60,
+                })) {
+                    pixi.state.popups.animation_fps = @intCast(usize, fps);
+                }
+                zgui.spacing();
             }
-            zgui.spacing();
-            zgui.separator();
 
+            zgui.separator();
             if (zgui.button("Cancel", .{ .w = half_width })) {
                 pixi.state.popups.animation = false;
             }
@@ -84,14 +87,21 @@ pub fn draw() void {
                         file.selected_animation_index = file.animations.items.len - 1;
                     },
                     .edit => {
+                        var animation = &file.animations.items[pixi.state.popups.animation_index];
+                        var change: History.Change = .{ .animation = .{
+                            .index = pixi.state.popups.animation_index,
+                            .name = [_:0]u8{0} ** 128,
+                            .fps = animation.fps,
+                            .start = animation.start,
+                            .length = animation.length,
+                        } };
+                        @memcpy(change.animation.name[0..animation.name.len], animation.name);
                         const name = std.mem.trimRight(u8, &pixi.state.popups.animation_name, "\u{0}");
                         file.selected_animation_index = pixi.state.popups.animation_index;
-                        var animation = &file.animations.items[file.selected_animation_index];
                         pixi.state.allocator.free(animation.name);
                         animation.name = pixi.state.allocator.dupeZ(u8, name) catch unreachable;
-                        animation.fps = pixi.state.popups.animation_fps;
-                        animation.start = pixi.state.popups.animation_start;
-                        animation.length = pixi.state.popups.animation_length;
+
+                        file.history.append(change) catch unreachable;
                     },
                     else => unreachable,
                 }

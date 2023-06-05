@@ -36,41 +36,6 @@ pub fn draw() void {
                 zgui.sameLine(.{});
                 tools.drawTool("[]", button_width, button_height, .animation);
             }
-
-            // if (file.animations.items.len == 0) {
-            //     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
-            //     defer zgui.popStyleColor(.{ .count = 1 });
-            //     zgui.textWrapped("Add an animation to begin editing.", .{});
-            // } else {
-            //     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
-            //     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
-            //     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.background.toSlice() });
-            //     defer zgui.popStyleColor(.{ .count = 3 });
-
-            //     var animation = &file.animations.items[file.selected_animation_index];
-
-            //     { // FPS
-            //         var fps = @intCast(i32, animation.fps);
-            //         if (zgui.sliderInt("FPS", .{
-            //             .v = &fps,
-            //             .min = 1,
-            //             .max = 60,
-            //         })) {
-            //             const new_fps = @intCast(usize, fps);
-            //             if (new_fps != animation.fps) {
-            //                 animation.fps = new_fps;
-            //                 file.dirty = true;
-            //             }
-            //         }
-            //     }
-
-            //     { // Start/Length
-            //         var start = @intCast(i32, animation.start);
-            //         _ = start;
-            //         var length = @intCast(i32, animation.length);
-            //         _ = length;
-            //     }
-            // }
         }
 
         zgui.spacing();
@@ -80,12 +45,21 @@ pub fn draw() void {
 
         if (zgui.beginChild("Animations", .{})) {
             defer zgui.endChild();
-            for (file.animations.items, 0..) |animation, a| {
-                const header_color = if (file.selected_animation_index == a) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice();
+
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
+            zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.state.window.scale[0] });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
+            defer zgui.popStyleVar(.{ .count = 4 });
+            for (file.animations.items, 0..) |animation, animation_index| {
+                const header_color = if (file.selected_animation_index == animation_index) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice();
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = header_color });
                 defer zgui.popStyleColor(.{ .count = 1 });
                 if (zgui.treeNode(zgui.formatZ(" {s}  {s}", .{ pixi.fa.film, animation.name }))) {
-                    zgui.indent(.{});
+                    zgui.pushStrId(animation.name);
+                    contextMenu(animation_index, file);
+                    zgui.popId();
+
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 1 });
                     var i: usize = animation.start;
@@ -102,10 +76,37 @@ pub fn draw() void {
                             }
                         }
                     }
-                    zgui.unindent(.{});
                     zgui.treePop();
+                } else {
+                    zgui.pushStrId(animation.name);
+                    contextMenu(animation_index, file);
+                    zgui.popId();
                 }
             }
+        }
+    }
+}
+
+fn contextMenu(animation_index: usize, file: *pixi.storage.Internal.Pixi) void {
+    if (zgui.beginPopupContextItem()) {
+        defer zgui.endPopup();
+
+        if (zgui.menuItem("Rename...", .{})) {
+            const animation = file.animations.items[animation_index];
+            pixi.state.popups.animation_name = [_:0]u8{0} ** 128;
+            @memcpy(pixi.state.popups.animation_name[0..animation.name.len], animation.name);
+            pixi.state.popups.animation_index = animation_index;
+            pixi.state.popups.animation_fps = animation.fps;
+            pixi.state.popups.animation_state = .edit;
+            pixi.state.popups.animation = true;
+        }
+
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
+        defer zgui.popStyleColor(.{ .count = 1 });
+        if (zgui.menuItem("Delete", .{})) {
+            file.deleteAnimation(animation_index) catch unreachable;
+            if (animation_index == file.selected_animation_index)
+                file.selected_animation_index = 0;
         }
     }
 }

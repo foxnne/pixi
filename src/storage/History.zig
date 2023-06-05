@@ -3,11 +3,12 @@ const pixi = @import("root");
 const History = @This();
 
 pub const Action = enum { undo, redo };
-pub const LayerAction = enum { restore, delete };
+pub const RestoreDelete = enum { restore, delete };
 pub const ChangeType = enum {
     pixels,
     origins,
     animation,
+    animation_restore_delete,
     layers_order,
     layer_restore_delete,
     layer_name,
@@ -27,10 +28,15 @@ pub const Change = union(ChangeType) {
 
     pub const Animation = struct {
         index: usize,
-        name: [:0]const u8,
+        name: [128:0]u8,
         fps: usize,
         start: usize,
         length: usize,
+    };
+
+    pub const AnimationRestoreDelete = struct {
+        action: RestoreDelete,
+        index: usize,
     };
 
     pub const LayersOrder = struct {
@@ -39,7 +45,7 @@ pub const Change = union(ChangeType) {
     };
 
     pub const LayerRestoreDelete = struct {
-        action: LayerAction,
+        action: RestoreDelete,
         index: usize,
     };
     pub const LayerName = struct {
@@ -50,6 +56,7 @@ pub const Change = union(ChangeType) {
     pixels: Pixels,
     origins: Origins,
     animation: Animation,
+    animation_restore_delete: AnimationRestoreDelete,
     layers_order: LayersOrder,
     layer_restore_delete: LayerRestoreDelete,
     layer_name: LayerName,
@@ -99,9 +106,6 @@ pub const Change = union(ChangeType) {
             .origins => |*origins| {
                 pixi.state.allocator.free(origins.indices);
                 pixi.state.allocator.free(origins.values);
-            },
-            .animation => |*animation| {
-                pixi.state.allocator.free(animation.name);
             },
             .layers_order => |*layers_order| {
                 pixi.state.allocator.free(layers_order.order);
@@ -160,7 +164,7 @@ pub fn append(self: *History, change: Change) !void {
                     }
                 },
                 .animation => |animation| {
-                    equal = std.mem.eql(u8, animation.name, change.animation.name);
+                    equal = std.mem.eql(u8, &animation.name, &change.animation.name);
                     if (equal) {
                         equal = animation.index == change.animation.index;
                         if (equal) {
@@ -173,6 +177,9 @@ pub fn append(self: *History, change: Change) !void {
                             }
                         }
                     }
+                },
+                .animation_restore_delete => {
+                    equal = false;
                 },
                 .layers_order => {},
                 .layer_restore_delete => {
@@ -282,7 +289,43 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             pixi.state.allocator.free(file.layers.items[layer_name.index].name);
             file.layers.items[layer_name.index].name = try pixi.state.allocator.dupeZ(u8, &name);
         },
-        else => {},
+        .animation => |*animation| {
+            // Name
+            var name = [_:0]u8{0} ** 128;
+            @memcpy(name[0..animation.name.len], &animation.name);
+            animation.name = [_:0]u8{0} ** 128;
+            @memcpy(animation.name[0..file.animations.items[animation.index].name.len], file.animations.items[animation.index].name);
+            pixi.state.allocator.free(file.animations.items[animation.index].name);
+            file.animations.items[animation.index].name = try pixi.state.allocator.dupeZ(u8, &name);
+            // FPS
+            const fps = animation.fps;
+            animation.fps = file.animations.items[animation.index].fps;
+            file.animations.items[animation.index].fps = fps;
+            // Start
+            const start = animation.start;
+            animation.start = file.animations.items[animation.index].start;
+            file.animations.items[animation.index].start = start;
+            // Length
+            const length = animation.length;
+            animation.length = file.animations.items[animation.index].length;
+            file.animations.items[animation.index].length = length;
+        },
+        .animation_restore_delete => |*animation_restore_delete| {
+            const a = animation_restore_delete.action;
+            switch (a) {
+                .restore => {
+                    try file.animations.insert(animation_restore_delete.index, file.deleted_animations.pop());
+                    animation_restore_delete.action = .delete;
+                },
+                .delete => {
+                    try file.deleted_animations.append(file.animations.orderedRemove(animation_restore_delete.index));
+                    animation_restore_delete.action = .restore;
+                    if (file.selected_animation_index == animation_restore_delete.index)
+                        file.selected_animation_index = 0;
+                },
+            }
+        },
+        //else => {},
     }
 
     try other_stack.append(change);

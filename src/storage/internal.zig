@@ -17,6 +17,7 @@ pub const Pixi = struct {
     deleted_layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
+    deleted_animations: std.ArrayList(Animation),
     camera: pixi.gfx.Camera = .{},
     flipbook_camera: pixi.gfx.Camera = .{},
     flipbook_scroll: f32 = 0.0,
@@ -469,6 +470,15 @@ pub const Pixi = struct {
         if (index >= self.layers.items.len) return;
         try self.deleted_layers.append(self.layers.orderedRemove(index));
         try self.history.append(.{ .layer_restore_delete = .{
+            .action = .restore,
+            .index = index,
+        } });
+    }
+
+    pub fn deleteAnimation(self: *Pixi, index: usize) !void {
+        if (index >= self.animations.items.len) return;
+        try self.deleted_animations.append(self.animations.orderedRemove(index));
+        try self.history.append(.{ .animation_restore_delete = .{
             .action = .restore,
             .index = index,
         } });
