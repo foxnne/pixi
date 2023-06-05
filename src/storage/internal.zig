@@ -274,6 +274,9 @@ pub const Pixi = struct {
                     }
                     if (valid) {
                         // Create new animation
+                        pixi.state.popups.animation_name = [_:0]u8{0} ** 128;
+                        const new_name = "New_Animation";
+                        @memcpy(pixi.state.popups.animation_name[0..new_name.len], new_name);
                         pixi.state.popups.animation_state = .create;
                         pixi.state.popups.animation_fps = pixi.state.popups.animation_length;
                         pixi.state.popups.animation = true;
