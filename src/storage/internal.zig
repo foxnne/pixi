@@ -305,8 +305,24 @@ pub const Pixi = struct {
                             } };
                             @memcpy(change.animation.name[0..animation.name.len], animation.name);
 
+                            var sprite_index = animation.start;
+                            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
+                                const new_sprite_name = zgui.format("Sprite_{d}", .{sprite_index});
+                                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
+                                file.sprites.items[sprite_index].name = pixi.state.allocator.dupeZ(u8, new_sprite_name) catch unreachable;
+                            }
+
                             animation.start = pixi.state.popups.animation_start;
                             animation.length = pixi.state.popups.animation_length;
+
+                            sprite_index = animation.start;
+                            var animation_index: usize = 0;
+                            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
+                                const new_sprite_name = zgui.format("{s}_{d}", .{ animation.name, animation_index });
+                                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
+                                file.sprites.items[sprite_index].name = pixi.state.allocator.dupeZ(u8, new_sprite_name) catch unreachable;
+                                animation_index += 1;
+                            }
 
                             file.history.append(change) catch unreachable;
                         }

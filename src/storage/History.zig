@@ -1,5 +1,6 @@
 const std = @import("std");
 const pixi = @import("root");
+const zgui = @import("zgui");
 const History = @This();
 
 pub const Action = enum { undo, redo };
@@ -290,6 +291,14 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             file.layers.items[layer_name.index].name = try pixi.state.allocator.dupeZ(u8, &name);
         },
         .animation => |*animation| {
+            // Set sprite names to generic
+            var sprite_index = animation.start;
+            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
+                const new_sprite_name = zgui.format("Sprite_{d}", .{sprite_index});
+                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
+                file.sprites.items[sprite_index].name = pixi.state.allocator.dupeZ(u8, new_sprite_name) catch unreachable;
+            }
+
             // Name
             var name = [_:0]u8{0} ** 128;
             @memcpy(name[0..animation.name.len], &animation.name);
@@ -309,6 +318,16 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             const length = animation.length;
             animation.length = file.animations.items[animation.index].length;
             file.animations.items[animation.index].length = length;
+
+            // Set sprite names to animation
+            sprite_index = start;
+            var animation_index: usize = 0;
+            while (sprite_index < start + length) : (sprite_index += 1) {
+                const new_sprite_name = zgui.format("{s}_{d}", .{ name, animation_index });
+                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
+                file.sprites.items[sprite_index].name = pixi.state.allocator.dupeZ(u8, new_sprite_name) catch unreachable;
+                animation_index += 1;
+            }
         },
         .animation_restore_delete => |*animation_restore_delete| {
             const a = animation_restore_delete.action;
