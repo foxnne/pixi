@@ -78,30 +78,11 @@ pub fn draw() void {
                 switch (pixi.state.popups.animation_state) {
                     .create => {
                         const name = std.mem.trimRight(u8, &pixi.state.popups.animation_name, "\u{0}");
-                        file.animations.append(.{
-                            .name = pixi.state.allocator.dupeZ(u8, name) catch unreachable,
-                            .fps = pixi.state.popups.animation_fps,
-                            .start = pixi.state.popups.animation_start,
-                            .length = pixi.state.popups.animation_length,
-                        }) catch unreachable;
-                        file.selected_animation_index = file.animations.items.len - 1;
+                        file.createAnimation(pixi.state.popups.animation_name[0..name.len :0], pixi.state.popups.animation_fps, pixi.state.popups.animation_start, pixi.state.popups.animation_length) catch unreachable;
                     },
                     .edit => {
-                        var animation = &file.animations.items[pixi.state.popups.animation_index];
-                        var change: History.Change = .{ .animation = .{
-                            .index = pixi.state.popups.animation_index,
-                            .name = [_:0]u8{0} ** 128,
-                            .fps = animation.fps,
-                            .start = animation.start,
-                            .length = animation.length,
-                        } };
-                        @memcpy(change.animation.name[0..animation.name.len], animation.name);
                         const name = std.mem.trimRight(u8, &pixi.state.popups.animation_name, "\u{0}");
-                        file.selected_animation_index = pixi.state.popups.animation_index;
-                        pixi.state.allocator.free(animation.name);
-                        animation.name = pixi.state.allocator.dupeZ(u8, name) catch unreachable;
-
-                        file.history.append(change) catch unreachable;
+                        file.renameAnimation(pixi.state.popups.animation_name[0..name.len :0], pixi.state.popups.animation_index) catch unreachable;
                     },
                     else => unreachable,
                 }

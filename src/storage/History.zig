@@ -36,8 +36,8 @@ pub const Change = union(ChangeType) {
     };
 
     pub const AnimationRestoreDelete = struct {
-        action: RestoreDelete,
         index: usize,
+        action: RestoreDelete,
     };
 
     pub const LayersOrder = struct {
@@ -46,12 +46,12 @@ pub const Change = union(ChangeType) {
     };
 
     pub const LayerRestoreDelete = struct {
-        action: RestoreDelete,
         index: usize,
+        action: RestoreDelete,
     };
     pub const LayerName = struct {
-        name: [128:0]u8,
         index: usize,
+        name: [128:0]u8,
     };
 
     pixels: Pixels,
@@ -299,11 +299,13 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                 file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{sprite_index}) catch unreachable;
             }
 
+            // Set sprite names to specific animation
             sprite_index = animation.start;
             var animation_index: usize = 0;
             while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
                 pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name, sprite_index }) catch unreachable;
+                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &animation.name, "\u{0}"), animation_index }) catch unreachable;
+                animation_index += 1;
             }
 
             // Name
@@ -325,26 +327,34 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             const length = animation.length;
             animation.length = file.animations.items[animation.index].length;
             file.animations.items[animation.index].length = length;
-
-            // Set sprite names to animation
-            sprite_index = start;
-
-            while (sprite_index < start + length) : (sprite_index += 1) {
-                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &name, "\u{0}"), animation_index }) catch unreachable;
-                animation_index += 1;
-            }
         },
         .animation_restore_delete => |*animation_restore_delete| {
             const a = animation_restore_delete.action;
             switch (a) {
                 .restore => {
-                    try file.animations.insert(animation_restore_delete.index, file.deleted_animations.pop());
+                    const animation = file.deleted_animations.pop();
+                    try file.animations.insert(animation_restore_delete.index, animation);
                     animation_restore_delete.action = .delete;
+
+                    var i: usize = animation.start;
+                    var animation_i: usize = 0;
+                    while (i < animation.start + animation.length) : (i += 1) {
+                        pixi.state.allocator.free(file.sprites.items[i].name);
+                        file.sprites.items[i].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name[0..], animation_i }) catch unreachable;
+                        animation_i += 1;
+                    }
                 },
                 .delete => {
-                    try file.deleted_animations.append(file.animations.orderedRemove(animation_restore_delete.index));
+                    const animation = file.animations.orderedRemove(animation_restore_delete.index);
+                    try file.deleted_animations.append(animation);
                     animation_restore_delete.action = .restore;
+
+                    var i: usize = animation.start;
+                    while (i < animation.start + animation.length) : (i += 1) {
+                        pixi.state.allocator.free(file.sprites.items[i].name);
+                        file.sprites.items[i].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{i}) catch unreachable;
+                    }
+
                     if (file.selected_animation_index == animation_restore_delete.index)
                         file.selected_animation_index = 0;
                 },

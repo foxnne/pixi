@@ -525,13 +525,53 @@ pub const Pixi = struct {
         } });
     }
 
+    pub fn createAnimation(self: *Pixi, name: [:0]const u8, fps: usize, start: usize, length: usize) !void {
+        try self.animations.append(.{
+            .name = try pixi.state.allocator.dupeZ(u8, name),
+            .fps = fps,
+            .start = start,
+            .length = length,
+        });
+        self.selected_animation_index = self.animations.items.len - 1;
+
+        try self.history.append(.{ .animation_restore_delete = .{
+            .index = self.selected_animation_index,
+            .action = .delete,
+        } });
+    }
+
+    pub fn renameAnimation(self: *Pixi, name: [:0]const u8, index: usize) !void {
+        var animation = &self.animations.items[index];
+        var change: History.Change = .{ .animation = .{
+            .index = index,
+            .name = [_:0]u8{0} ** 128,
+            .fps = animation.fps,
+            .start = animation.start,
+            .length = animation.length,
+        } };
+        @memcpy(change.animation.name[0..animation.name.len], animation.name);
+
+        self.selected_animation_index = index;
+        pixi.state.allocator.free(animation.name);
+        animation.name = try pixi.state.allocator.dupeZ(u8, name);
+
+        try self.history.append(change);
+    }
+
     pub fn deleteAnimation(self: *Pixi, index: usize) !void {
         if (index >= self.animations.items.len) return;
-        try self.deleted_animations.append(self.animations.orderedRemove(index));
+        const animation = self.animations.orderedRemove(index);
+        try self.deleted_animations.append(animation);
         try self.history.append(.{ .animation_restore_delete = .{
             .action = .restore,
             .index = index,
         } });
+
+        var i: usize = animation.start;
+        while (i < animation.start + animation.length) : (i += 1) {
+            pixi.state.allocator.free(self.sprites.items[i].name);
+            self.sprites.items[i].name = try std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{i});
+        }
     }
 
     pub fn setSelectedSpritesOriginX(self: *Pixi, origin_x: f32) void {
