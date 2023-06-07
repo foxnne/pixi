@@ -292,11 +292,18 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
         },
         .animation => |*animation| {
             // Set sprite names to generic
-            var sprite_index = animation.start;
-            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                const new_sprite_name = zgui.format("Sprite_{d}", .{sprite_index});
+            const current_animation = file.animations.items[animation.index];
+            var sprite_index = current_animation.start;
+            while (sprite_index < current_animation.start + current_animation.length) : (sprite_index += 1) {
                 pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                file.sprites.items[sprite_index].name = pixi.state.allocator.dupeZ(u8, new_sprite_name) catch unreachable;
+                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{sprite_index}) catch unreachable;
+            }
+
+            sprite_index = animation.start;
+            var animation_index: usize = 0;
+            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
+                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
+                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name, sprite_index }) catch unreachable;
             }
 
             // Name
@@ -321,11 +328,10 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
 
             // Set sprite names to animation
             sprite_index = start;
-            var animation_index: usize = 0;
+
             while (sprite_index < start + length) : (sprite_index += 1) {
-                const new_sprite_name = zgui.format("{s}_{d}", .{ name, animation_index });
                 pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                file.sprites.items[sprite_index].name = pixi.state.allocator.dupeZ(u8, new_sprite_name) catch unreachable;
+                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &name, "\u{0}"), animation_index }) catch unreachable;
                 animation_index += 1;
             }
         },

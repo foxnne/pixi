@@ -307,9 +307,8 @@ pub const Pixi = struct {
 
                             var sprite_index = animation.start;
                             while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                                const new_sprite_name = zgui.format("Sprite_{d}", .{sprite_index});
                                 pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                                file.sprites.items[sprite_index].name = pixi.state.allocator.dupeZ(u8, new_sprite_name) catch unreachable;
+                                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{sprite_index}) catch unreachable;
                             }
 
                             animation.start = pixi.state.popups.animation_start;
@@ -318,9 +317,8 @@ pub const Pixi = struct {
                             sprite_index = animation.start;
                             var animation_index: usize = 0;
                             while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                                const new_sprite_name = zgui.format("{s}_{d}", .{ animation.name, animation_index });
                                 pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                                file.sprites.items[sprite_index].name = pixi.state.allocator.dupeZ(u8, new_sprite_name) catch unreachable;
+                                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name, animation_index }) catch unreachable;
                                 animation_index += 1;
                             }
 
