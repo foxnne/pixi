@@ -11,3 +11,11 @@ pub const fox1024_png = struct {
   pub const path = "assets/fox1024.png";
 };
 
+pub const eraser_png = struct {
+  pub const path = "assets/cursors/eraser.png";
+};
+
+pub const pencil_png = struct {
+  pub const path = "assets/cursors/pencil.png";
+};
+

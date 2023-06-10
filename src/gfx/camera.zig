@@ -164,6 +164,20 @@ pub const Camera = struct {
         }
     }
 
+    pub fn drawCursor(_: Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, color: u32) void {
+        zgui.setMouseCursor(.none);
+        var position = pixi.state.controls.mouse.position.toSlice();
+
+        const draw_list = zgui.getForegroundDrawList();
+        if (pixi.state.gctx.lookupResource(texture)) |texture_id| {
+            draw_list.addImage(texture_id, .{
+                .pmin = .{ position[0], position[1] - @intToFloat(f32, height) },
+                .pmax = .{ position[0] + @intToFloat(f32, width), position[1] },
+                .col = color,
+            });
+        }
+    }
+
     pub fn drawLayer(camera: Camera, layer: pixi.storage.Internal.Layer, position: [2]f32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @intToFloat(f32, layer.texture.image.width), @intToFloat(f32, layer.texture.image.height) });
 

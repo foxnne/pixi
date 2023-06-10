@@ -57,6 +57,7 @@ pub const PixiState = struct {
     popups: Popups = .{},
     should_close: bool = false,
     fonts: Fonts = .{},
+    cursors: Cursors,
 };
 
 pub const Sidebar = enum {
@@ -73,6 +74,16 @@ pub const Fonts = struct {
     fa_standard_solid: zgui.Font = undefined,
     fa_small_regular: zgui.Font = undefined,
     fa_small_solid: zgui.Font = undefined,
+};
+
+pub const Cursors = struct {
+    pencil: gfx.Texture,
+    eraser: gfx.Texture,
+
+    pub fn deinit(cursors: *Cursors, gctx: *zgpu.GraphicsContext) void {
+        cursors.pencil.deinit(gctx);
+        cursors.eraser.deinit(gctx);
+    }
 };
 
 pub const Tool = enum {
@@ -99,8 +110,13 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
 
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
+    // Logos
     const background_logo = try gfx.Texture.loadFromFile(gctx, assets.icon1024_png.path, .{});
     const fox_logo = try gfx.Texture.loadFromFile(gctx, assets.fox1024_png.path, .{});
+
+    // Cursors
+    const pencil = try gfx.Texture.loadFromFile(gctx, assets.pencil_png.path, .{});
+    const eraser = try gfx.Texture.loadFromFile(gctx, assets.eraser_png.path, .{});
 
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
@@ -117,6 +133,10 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
         .background_logo = background_logo,
         .fox_logo = fox_logo,
         .open_files = open_files,
+        .cursors = .{
+            .pencil = pencil,
+            .eraser = eraser,
+        },
     };
 
     return state;
@@ -125,6 +145,7 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
 fn deinit(allocator: std.mem.Allocator) void {
     state.background_logo.deinit(state.gctx);
     state.fox_logo.deinit(state.gctx);
+    state.cursors.deinit(state.gctx);
     editor.deinit();
     zgui.backend.deinit();
     zgui.deinit();

@@ -136,6 +136,12 @@ pub const Pixi = struct {
             else => true,
         }) return;
 
+        switch (pixi.state.tools.current) {
+            .pencil => file.camera.drawCursor(pixi.state.cursors.pencil.view_handle, pixi.state.cursors.pencil.image.width, pixi.state.cursors.pencil.image.height, 0xFFFFFFFF),
+            .eraser => file.camera.drawCursor(pixi.state.cursors.eraser.view_handle, pixi.state.cursors.eraser.image.width, pixi.state.cursors.eraser.image.height, 0xFFFFFFFF),
+            else => {},
+        }
+
         const canvas_center_offset = canvasCenterOffset(file, canvas);
         const mouse_position = pixi.state.controls.mouse.position.toSlice();
         const previous_mouse_position = pixi.state.controls.mouse.previous_position.toSlice();
@@ -233,7 +239,6 @@ pub const Pixi = struct {
 
     pub fn processAnimationTool(file: *Pixi) void {
         if (pixi.state.sidebar != .animations or pixi.state.tools.current != .animation) return;
-        // if (!pixi.state.controls.mouse.primary.pressed() and !pixi.state.controls.mouse.primary.released()) return;
 
         const canvas_center_offset = canvasCenterOffset(file, .primary);
         const mouse_position = pixi.state.controls.mouse.position.toSlice();

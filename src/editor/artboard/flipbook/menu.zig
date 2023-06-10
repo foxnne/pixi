@@ -60,12 +60,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
             { // FPS Selection
                 zgui.setNextItemWidth(100 * pixi.state.window.scale[0]);
                 var fps = @intCast(i32, animation.fps);
+                var changed: bool = false;
                 if (zgui.sliderInt("FPS", .{
                     .v = &fps,
                     .min = 1,
                     .max = 60,
                 })) {
-                    animation.fps = @intCast(usize, fps);
+                    changed = true;
                 }
 
                 if (zgui.isItemActivated()) {
@@ -79,6 +80,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
                     } };
                     @memcpy(change.animation.name[0..animation.name.len], animation.name);
                     file.history.append(change) catch unreachable;
+                }
+
+                if (changed) {
+                    animation.fps = @intCast(usize, fps);
                 }
             }
         }

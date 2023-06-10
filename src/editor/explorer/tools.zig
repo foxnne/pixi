@@ -28,6 +28,26 @@ pub fn draw() void {
             zgui.sameLine(.{});
             drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
         }
+
+        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+            var color: [4]f32 = .{
+                @intToFloat(f32, file.tools.primary_color[0]) / 255.0,
+                @intToFloat(f32, file.tools.primary_color[1]) / 255.0,
+                @intToFloat(f32, file.tools.primary_color[2]) / 255.0,
+                @intToFloat(f32, file.tools.primary_color[3]) / 255.0,
+            };
+
+            if (zgui.colorEdit4("Primary", .{
+                .col = &color,
+            })) {
+                file.tools.primary_color = .{
+                    @floatToInt(u8, color[0] * 255.0),
+                    @floatToInt(u8, color[1] * 255.0),
+                    @floatToInt(u8, color[2] * 255.0),
+                    @floatToInt(u8, color[3] * 255.0),
+                };
+            }
+        }
     }
 }
 
