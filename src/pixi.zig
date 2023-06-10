@@ -110,20 +110,32 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
 
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
-    // Logos
-    const background_logo = try gfx.Texture.loadFromFile(gctx, assets.icon1024_png.path, .{});
-    const fox_logo = try gfx.Texture.loadFromFile(gctx, assets.fox1024_png.path, .{});
-
-    // Cursors
-    const pencil = try gfx.Texture.loadFromFile(gctx, assets.pencil_png.path, .{});
-    const eraser = try gfx.Texture.loadFromFile(gctx, assets.eraser_png.path, .{});
-
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
     const state_window: Window = .{
         .size = zm.f32x4(@intToFloat(f32, window_size[0]), @intToFloat(f32, window_size[1]), 0, 0),
         .scale = zm.f32x4(window_scale[0], window_scale[1], 0, 0),
     };
+
+    const scale_factor = scale_factor: {
+        break :scale_factor std.math.max(window_scale[0], window_scale[1]);
+    };
+
+    // Logos
+    const background_logo = try gfx.Texture.loadFromFile(gctx, assets.icon1024_png.path, .{});
+    const fox_logo = try gfx.Texture.loadFromFile(gctx, assets.fox1024_png.path, .{});
+
+    // Cursors
+    const pencil = try gfx.Texture.loadFromFile(
+        gctx,
+        if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path,
+        .{},
+    );
+    const eraser = try gfx.Texture.loadFromFile(
+        gctx,
+        if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path,
+        .{},
+    );
 
     state = try allocator.create(PixiState);
     state.* = .{
