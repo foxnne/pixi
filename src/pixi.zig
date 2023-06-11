@@ -126,16 +126,8 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
     const fox_logo = try gfx.Texture.loadFromFile(gctx, assets.fox1024_png.path, .{});
 
     // Cursors
-    const pencil = try gfx.Texture.loadFromFile(
-        gctx,
-        if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path,
-        .{},
-    );
-    const eraser = try gfx.Texture.loadFromFile(
-        gctx,
-        if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path,
-        .{},
-    );
+    const pencil = try gfx.Texture.loadFromFile(gctx, if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
+    const eraser = try gfx.Texture.loadFromFile(gctx, if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
 
     state = try allocator.create(PixiState);
     state.* = .{
