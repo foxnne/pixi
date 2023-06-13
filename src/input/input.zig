@@ -6,165 +6,8 @@ const pixi = @import("root");
 
 pub const callbacks = @import("callbacks.zig");
 
-pub const Keys = enum(usize) {
-    primary_modifier,
-    secondary_modifier,
-    alternate,
-    undo_redo,
-    save,
-    pencil,
-    eraser,
-    pointer,
-    animation,
-    layers,
-    sprites,
-    plot,
-};
-
 pub const Controls = struct {
     mouse: Mouse = .{},
-
-    /// Holds all rebindable keys.
-    keys: [12]Key = [_]Key{
-        .{
-            .name = "Primary Modifier",
-            .primary = zglfw.Key.left_control,
-            .secondary = zglfw.Key.left_super,
-            .default_primary = zglfw.Key.left_control,
-            .default_secondary = zglfw.Key.left_super,
-        },
-        .{
-            .name = "Secondary Modifier",
-            .primary = zglfw.Key.left_shift,
-            .secondary = zglfw.Key.right_shift,
-            .default_primary = zglfw.Key.left_shift,
-            .default_secondary = zglfw.Key.right_shift,
-        },
-        .{
-            .name = "Alternate",
-            .primary = zglfw.Key.left_alt,
-            .secondary = zglfw.Key.right_alt,
-            .default_primary = zglfw.Key.left_alt,
-            .default_secondary = zglfw.Key.right_alt,
-        },
-        .{
-            .name = "Undo Redo",
-            .primary = zglfw.Key.z,
-            .secondary = zglfw.Key.unknown,
-            .default_primary = zglfw.Key.z,
-            .default_secondary = zglfw.Key.unknown,
-        },
-        .{
-            .name = "Save",
-            .primary = zglfw.Key.s,
-            .secondary = zglfw.Key.unknown,
-            .default_primary = zglfw.Key.s,
-            .default_secondary = zglfw.Key.unknown,
-        },
-        .{
-            .name = "Pencil",
-            .primary = zglfw.Key.d,
-            .secondary = zglfw.Key.unknown,
-            .default_primary = zglfw.Key.d,
-            .default_secondary = zglfw.Key.unknown,
-        },
-        .{
-            .name = "Eraser",
-            .primary = zglfw.Key.e,
-            .secondary = zglfw.Key.unknown,
-            .default_primary = zglfw.Key.e,
-            .default_secondary = zglfw.Key.unknown,
-        },
-        .{
-            .name = "Pointer",
-            .primary = zglfw.Key.escape,
-            .secondary = zglfw.Key.unknown,
-            .default_primary = zglfw.Key.escape,
-            .default_secondary = zglfw.Key.unknown,
-        },
-        .{
-            .name = "Animation",
-            .primary = zglfw.Key.a,
-            .secondary = zglfw.Key.unknown,
-            .default_primary = zglfw.Key.a,
-            .default_secondary = zglfw.Key.unknown,
-        },
-        .{
-            .name = "Layers",
-            .primary = zglfw.Key.l,
-            .secondary = zglfw.Key.unknown,
-            .default_primary = zglfw.Key.l,
-            .default_secondary = zglfw.Key.unknown,
-        },
-        .{
-            .name = "Animation",
-            .primary = zglfw.Key.s,
-            .secondary = zglfw.Key.unknown,
-            .default_primary = zglfw.Key.s,
-            .default_secondary = zglfw.Key.unknown,
-        },
-        .{
-            .name = "Plot",
-            .primary = zglfw.Key.p,
-            .secondary = zglfw.Key.unknown,
-            .default_primary = zglfw.Key.p,
-            .default_secondary = zglfw.Key.unknown,
-        },
-    },
-
-    pub fn key(self: Controls, k: Keys) Key {
-        return self.keys[@enumToInt(k)];
-    }
-
-    pub fn zoom(self: Controls) bool {
-        return if (pixi.state.settings.input_scheme == .trackpad) self.key(Keys.primary_modifier).state else !self.key(Keys.primary_modifier).state;
-    }
-
-    pub fn sample(self: Controls) bool {
-        return self.key(Keys.alternate).state or self.mouse.secondary.state;
-    }
-
-    pub fn undo(self: Controls) bool {
-        return self.key(Keys.undo_redo).pressed() and self.key(Keys.primary_modifier).down() and self.key(Keys.secondary_modifier).up();
-    }
-
-    pub fn redo(self: Controls) bool {
-        return self.key(Keys.undo_redo).pressed() and self.key(Keys.primary_modifier).down() and self.key(Keys.secondary_modifier).down();
-    }
-
-    pub fn save(self: Controls) bool {
-        return self.key(Keys.save).pressed() and self.key(Keys.primary_modifier).down();
-    }
-};
-
-pub const Key = struct {
-    name: [:0]const u8,
-    primary: zglfw.Key = zglfw.Key.unknown,
-    secondary: zglfw.Key = zglfw.Key.unknown,
-    default_primary: zglfw.Key = zglfw.Key.unknown,
-    default_secondary: zglfw.Key = zglfw.Key.unknown,
-    state: bool = false,
-    previous_state: bool = false,
-
-    /// Returns true the frame the key was pressed.
-    pub fn pressed(self: Key) bool {
-        return (self.state == true and self.state != self.previous_state);
-    }
-
-    /// Returns true while the key is pressed down.
-    pub fn down(self: Key) bool {
-        return self.state == true;
-    }
-
-    /// Returns true the frame the key was released.
-    pub fn released(self: Key) bool {
-        return (self.state == false and self.state != self.previous_state);
-    }
-
-    /// Returns true while the key is released.
-    pub fn up(self: Key) bool {
-        return self.state == false;
-    }
 };
 
 pub const MouseButton = struct {
@@ -235,45 +78,32 @@ pub const Mouse = struct {
     }
 };
 
-pub fn process() void {
+pub fn process() !void {
     if (!pixi.state.popups.anyPopupOpen()) {
-        if (pixi.state.controls.key(.pencil).pressed()) {
-            pixi.state.tools.set(.pencil);
-            pixi.state.sidebar = .tools;
-        }
-
-        if (pixi.state.controls.key(.eraser).pressed()) {
-            pixi.state.tools.set(.eraser);
-            pixi.state.sidebar = .tools;
-        }
-
-        if (pixi.state.controls.key(.pointer).pressed())
-            pixi.state.tools.set(.pointer);
-
-        if (pixi.state.controls.key(.animation).pressed()) {
-            pixi.state.tools.set(.animation);
-            pixi.state.sidebar = .animations;
-        }
-
-        if (pixi.state.controls.key(.layers).pressed()) {
-            pixi.state.sidebar = .layers;
-        }
-
-        if (pixi.state.controls.key(.sprites).pressed() and pixi.state.controls.key(.primary_modifier).up())
-            pixi.state.sidebar = .sprites;
-
-        if (pixi.state.controls.key(.plot).pressed() and pixi.state.controls.key(.primary_modifier).down())
-            pixi.state.popups.export_to_png = true;
-
         if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-            if (pixi.state.controls.undo())
-                file.undo() catch unreachable;
+            if (pixi.state.hotkeys.hotkey(.{ .proc = .save })) |hotkey| {
+                if (hotkey.pressed())
+                    try file.saveAsync();
+            }
 
-            if (pixi.state.controls.redo())
-                file.redo() catch unreachable;
+            if (pixi.state.hotkeys.hotkey(.{ .proc = .undo })) |hotkey| {
+                if (hotkey.pressed())
+                    try file.undo();
+            }
 
-            if (pixi.state.controls.save()) {
-                file.saveAsync() catch unreachable;
+            if (pixi.state.hotkeys.hotkey(.{ .proc = .redo })) |hotkey| {
+                if (hotkey.pressed())
+                    try file.redo();
+            }
+        }
+
+        for (pixi.state.hotkeys.hotkeys) |hotkey| {
+            if (hotkey.pressed()) {
+                switch (hotkey.action) {
+                    .tool => |tool| pixi.state.tools.set(tool),
+                    .sidebar => |sidebar| pixi.state.sidebar = sidebar,
+                    else => {},
+                }
             }
         }
     }

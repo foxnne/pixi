@@ -47,38 +47,27 @@ pub fn draw() void {
                 }
             }
 
-            // if (zgui.beginMenu("Export as .png", true)) {
-            //     if (zgui.menuItem("Selected Sprite...", .{})) {
-            //         if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-            //             if (nfd.saveFileDialog(
-            //                 "png",
-            //                 null,
-            //             ) catch unreachable) |path| {
-            //                 var sprite_image = file.spriteToImage(file.selected_sprite_index) catch unreachable;
-            //                 var rescaled_image = sprite_image.resize(sprite_image.width * 16, sprite_image.height * 16);
-
-            //                 const path_name = zgui.formatZ("{s}", .{path});
-            //                 rescaled_image.writeToFile(path_name, .png) catch unreachable;
-
-            //                 sprite_image.deinit();
-            //                 rescaled_image.deinit();
-            //                 nfd.freePath(path);
-            //             }
-            //         }
-            //     }
-            //     if (zgui.menuItem("Selected Animation...", .{})) {}
-            //     if (zgui.menuItem("Selected Layer...", .{})) {}
-            //     if (zgui.menuItem("All Layers...", .{})) {}
-            //     if (zgui.menuItem("Entire Canvas...", .{})) {}
-            //     zgui.endMenu();
-            // }
-
             zgui.popStyleColor(.{ .count = 1 });
             zgui.endMenu();
         }
         if (zgui.beginMenu("Edit", true)) {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
             zgui.popStyleColor(.{ .count = 1 });
+
+            if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                if (zgui.menuItem("Undo", .{
+                    .shortcut = "Cmd+Z",
+                    .enabled = file.history.undo_stack.items.len > 0,
+                }))
+                    file.undo() catch unreachable;
+
+                if (zgui.menuItem("Redo", .{
+                    .shortcut = "Cmd+Shft+Z",
+                    .enabled = file.history.redo_stack.items.len > 0,
+                }))
+                    file.redo() catch unreachable;
+            }
+
             zgui.endMenu();
         }
         if (zgui.beginMenu("Tools", true)) {

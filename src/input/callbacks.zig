@@ -45,13 +45,6 @@ pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Ac
     }
 }
 
-pub fn key(_: *zglfw.Window, glfw_key: zglfw.Key, _: i32, action: zglfw.Action, _: zglfw.Mods) callconv(.C) void {
-    for (&pixi.state.controls.keys) |*k| {
-        if (k.primary == glfw_key or k.secondary == glfw_key) {
-            k.state = switch (action) {
-                .release => false,
-                else => true,
-            };
-        }
-    }
+pub fn key(_: *zglfw.Window, glfw_key: zglfw.Key, _: i32, action: zglfw.Action, mods: zglfw.Mods) callconv(.C) void {
+    pixi.state.hotkeys.setHotkeyState(glfw_key, mods, action);
 }

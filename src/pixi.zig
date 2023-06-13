@@ -14,6 +14,7 @@ pub const version: []const u8 = "0.0.1";
 pub const Settings = @import("settings.zig");
 pub const Popups = @import("editor/popups/Popups.zig");
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
+pub const Hotkeys = @import("input/Hotkeys.zig");
 
 pub const editor = @import("editor/editor.zig");
 
@@ -45,6 +46,7 @@ pub const PixiState = struct {
     gctx: *zgpu.GraphicsContext,
     settings: Settings = .{},
     controls: input.Controls = .{},
+    hotkeys: Hotkeys,
     window: Window,
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
@@ -129,6 +131,8 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
     const pencil = try gfx.Texture.loadFromFile(gctx, if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
     const eraser = try gfx.Texture.loadFromFile(gctx, if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
 
+    const hotkeys = try Hotkeys.initDefault(allocator);
+
     state = try allocator.create(PixiState);
     state.* = .{
         .allocator = allocator,
@@ -141,12 +145,14 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
             .pencil = pencil,
             .eraser = eraser,
         },
+        .hotkeys = hotkeys,
     };
 
     return state;
 }
 
 fn deinit(allocator: std.mem.Allocator) void {
+    allocator.free(state.hotkeys.hotkeys);
     state.background_logo.deinit(state.gctx);
     state.fox_logo.deinit(state.gctx);
     state.cursors.deinit(state.gctx);
@@ -161,7 +167,7 @@ fn deinit(allocator: std.mem.Allocator) void {
 fn update() void {
     zgui.backend.newFrame(state.gctx.swapchain_descriptor.width, state.gctx.swapchain_descriptor.height);
 
-    input.process();
+    input.process() catch unreachable;
 
     if (window.shouldClose()) {
         var should_close = true;
@@ -183,10 +189,6 @@ fn update() void {
 
 fn draw() void {
     editor.draw();
-
-    for (&state.controls.keys) |*k| {
-        k.previous_state = k.state;
-    }
 
     state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
     state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;

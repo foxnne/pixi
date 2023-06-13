@@ -73,7 +73,10 @@ pub const Pixi = struct {
     }
 
     pub fn processSampleTool(file: *Pixi, canvas: Canvas) void {
-        if (!pixi.state.controls.sample()) return;
+        const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = pixi.state.controls.mouse.secondary.state;
+
+        if (!sample_key and !sample_button) return;
 
         var mouse_position = pixi.state.controls.mouse.position.toSlice();
         var camera = switch (canvas) {
@@ -268,66 +271,68 @@ pub const Pixi = struct {
                 pixi.state.popups.animation_start = tile_index;
 
             if (pixi.state.controls.mouse.primary.released()) {
-                if (pixi.state.controls.key(.primary_modifier).down()) {
-                    var valid: bool = true;
-                    var i: usize = pixi.state.popups.animation_start;
-                    while (i < pixi.state.popups.animation_start + pixi.state.popups.animation_length) : (i += 1) {
-                        if (file.getAnimationIndexFromSpriteIndex(i)) |_| {
-                            valid = false;
-                            break;
-                        }
-                    }
-                    if (valid) {
-                        // Create new animation
-                        pixi.state.popups.animation_name = [_:0]u8{0} ** 128;
-                        const new_name = "New_Animation";
-                        @memcpy(pixi.state.popups.animation_name[0..new_name.len], new_name);
-                        pixi.state.popups.animation_state = .create;
-                        pixi.state.popups.animation_fps = pixi.state.popups.animation_length;
-                        pixi.state.popups.animation = true;
-                    }
-                } else {
-                    if (file.animations.items.len > 0) {
-                        var animation = &file.animations.items[file.selected_animation_index];
+                if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |primary| {
+                    if (primary.down()) {
                         var valid: bool = true;
                         var i: usize = pixi.state.popups.animation_start;
                         while (i < pixi.state.popups.animation_start + pixi.state.popups.animation_length) : (i += 1) {
-                            if (file.getAnimationIndexFromSpriteIndex(i)) |match_index| {
-                                if (match_index != file.selected_animation_index) {
-                                    valid = false;
-                                    break;
-                                }
+                            if (file.getAnimationIndexFromSpriteIndex(i)) |_| {
+                                valid = false;
+                                break;
                             }
                         }
                         if (valid) {
-                            // Edit existing animation
-                            var change: History.Change = .{ .animation = .{
-                                .index = file.selected_animation_index,
-                                .name = [_:0]u8{0} ** 128,
-                                .fps = animation.fps,
-                                .start = animation.start,
-                                .length = animation.length,
-                            } };
-                            @memcpy(change.animation.name[0..animation.name.len], animation.name);
-
-                            var sprite_index = animation.start;
-                            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{sprite_index}) catch unreachable;
+                            // Create new animation
+                            pixi.state.popups.animation_name = [_:0]u8{0} ** 128;
+                            const new_name = "New_Animation";
+                            @memcpy(pixi.state.popups.animation_name[0..new_name.len], new_name);
+                            pixi.state.popups.animation_state = .create;
+                            pixi.state.popups.animation_fps = pixi.state.popups.animation_length;
+                            pixi.state.popups.animation = true;
+                        }
+                    } else {
+                        if (file.animations.items.len > 0) {
+                            var animation = &file.animations.items[file.selected_animation_index];
+                            var valid: bool = true;
+                            var i: usize = pixi.state.popups.animation_start;
+                            while (i < pixi.state.popups.animation_start + pixi.state.popups.animation_length) : (i += 1) {
+                                if (file.getAnimationIndexFromSpriteIndex(i)) |match_index| {
+                                    if (match_index != file.selected_animation_index) {
+                                        valid = false;
+                                        break;
+                                    }
+                                }
                             }
+                            if (valid) {
+                                // Edit existing animation
+                                var change: History.Change = .{ .animation = .{
+                                    .index = file.selected_animation_index,
+                                    .name = [_:0]u8{0} ** 128,
+                                    .fps = animation.fps,
+                                    .start = animation.start,
+                                    .length = animation.length,
+                                } };
+                                @memcpy(change.animation.name[0..animation.name.len], animation.name);
 
-                            animation.start = pixi.state.popups.animation_start;
-                            animation.length = pixi.state.popups.animation_length;
+                                var sprite_index = animation.start;
+                                while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
+                                    pixi.state.allocator.free(file.sprites.items[sprite_index].name);
+                                    file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{sprite_index}) catch unreachable;
+                                }
 
-                            sprite_index = animation.start;
-                            var animation_index: usize = 0;
-                            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name, animation_index }) catch unreachable;
-                                animation_index += 1;
+                                animation.start = pixi.state.popups.animation_start;
+                                animation.length = pixi.state.popups.animation_length;
+
+                                sprite_index = animation.start;
+                                var animation_index: usize = 0;
+                                while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
+                                    pixi.state.allocator.free(file.sprites.items[sprite_index].name);
+                                    file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name, animation_index }) catch unreachable;
+                                    animation_index += 1;
+                                }
+
+                                file.history.append(change) catch unreachable;
                             }
-
-                            file.history.append(change) catch unreachable;
                         }
                     }
                 }
@@ -659,7 +664,9 @@ pub const Pixi = struct {
         const selection = self.selected_sprites.items.len > 0;
         const selected_sprite_index = self.spriteSelectionIndex(selected_sprite);
         const contains = selected_sprite_index != null;
-        if (pixi.state.controls.key(.primary_modifier).down()) {
+        const primary_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| hotkey.down() else false;
+        const secondary_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hotkey| hotkey.down() else false;
+        if (primary_key) {
             if (!contains) {
                 self.selected_sprites.append(selected_sprite) catch unreachable;
             } else {
@@ -667,7 +674,7 @@ pub const Pixi = struct {
                     _ = self.selected_sprites.swapRemove(i);
                 }
             }
-        } else if (pixi.state.controls.key(.secondary_modifier).down()) {
+        } else if (secondary_key) {
             if (selection) {
                 const last = self.selected_sprites.getLast();
                 if (selected_sprite > last) {
