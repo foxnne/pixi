@@ -27,3 +27,7 @@ pub const pencil32_png = struct {
   pub const path = "assets/cursors/pencil32.png";
 };
 
+pub const undertale_hex = struct {
+  pub const path = "assets/palettes/undertale.hex";
+};
+

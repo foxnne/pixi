@@ -60,7 +60,7 @@ pub const PixiState = struct {
     should_close: bool = false,
     fonts: Fonts = .{},
     cursors: Cursors,
-    colors: Colors = .{},
+    colors: Colors,
 };
 
 pub const Sidebar = enum {
@@ -111,6 +111,18 @@ pub const Tools = struct {
 pub const Colors = struct {
     primary: [4]u8 = .{ 255, 255, 255, 255 },
     secondary: [4]u8 = .{ 0, 0, 0, 255 },
+    palettes: std.ArrayList(storage.Internal.Palette),
+
+    pub fn load() !Colors {
+        var palettes = std.ArrayList(storage.Internal.Palette).init(state.allocator);
+        try palettes.append(try storage.Internal.Palette.loadFromFile(assets.undertale_hex.path));
+        return .{
+            .palettes = palettes,
+        };
+        // return .{ .palettes = .{
+        //     try storage.Internal.Palette.loadFromFile(assets.undertale_hex.path),
+        // } };
+    }
 };
 
 fn init(allocator: std.mem.Allocator) !*PixiState {
@@ -151,6 +163,7 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
             .pencil = pencil,
             .eraser = eraser,
         },
+        .colors = try Colors.load(),
         .hotkeys = hotkeys,
     };
 
