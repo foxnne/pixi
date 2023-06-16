@@ -16,11 +16,11 @@ pub fn draw() void {
         if (zgui.beginMenu("File", true)) {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
             if (zgui.menuItem("Open Folder...", .{
-                .shortcut = "Cmd+F",
+                .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "",
             })) {
-                const folder = nfd.openFolderDialog(null) catch unreachable;
-                if (folder) |path| {
-                    pixi.editor.setProjectFolder(path);
+                if (nfd.openFolderDialog(null) catch unreachable) |folder| {
+                    pixi.editor.setProjectFolder(folder);
+                    nfd.freePath(folder);
                 }
             }
             if (zgui.beginMenu("Recents", true)) {
@@ -32,14 +32,14 @@ pub fn draw() void {
             const file = pixi.editor.getFile(pixi.state.open_file_index);
 
             if (zgui.menuItem("Export as .png...", .{
-                .shortcut = "Cmd+P",
+                .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .export_png })) |hotkey| hotkey.shortcut else "",
                 .enabled = file != null,
             })) {
                 pixi.state.popups.export_to_png = true;
             }
 
             if (zgui.menuItem("Save", .{
-                .shortcut = "Cmd+S",
+                .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .save })) |hotkey| hotkey.shortcut else "",
                 .enabled = file != null and file.?.dirty(),
             })) {
                 if (file) |f| {
@@ -56,13 +56,13 @@ pub fn draw() void {
 
             if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                 if (zgui.menuItem("Undo", .{
-                    .shortcut = "Cmd+Z",
+                    .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .undo })) |hotkey| hotkey.shortcut else "",
                     .enabled = file.history.undo_stack.items.len > 0,
                 }))
                     file.undo() catch unreachable;
 
                 if (zgui.menuItem("Redo", .{
-                    .shortcut = "Cmd+Shft+Z",
+                    .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .redo })) |hotkey| hotkey.shortcut else "",
                     .enabled = file.history.redo_stack.items.len > 0,
                 }))
                     file.redo() catch unreachable;

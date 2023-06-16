@@ -60,6 +60,7 @@ pub const PixiState = struct {
     should_close: bool = false,
     fonts: Fonts = .{},
     cursors: Cursors,
+    colors: Colors = .{},
 };
 
 pub const Sidebar = enum {
@@ -105,6 +106,11 @@ pub const Tools = struct {
             tools.current = tool;
         }
     }
+};
+
+pub const Colors = struct {
+    primary: [4]u8 = .{ 255, 255, 255, 255 },
+    secondary: [4]u8 = .{ 0, 0, 0, 255 },
 };
 
 fn init(allocator: std.mem.Allocator) !*PixiState {

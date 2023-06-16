@@ -12,7 +12,6 @@ pub const Pixi = struct {
     height: u32,
     tile_width: u32,
     tile_height: u32,
-    tools: Tools = .{},
     layers: std.ArrayList(Layer),
     deleted_layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
@@ -121,7 +120,7 @@ pub const Pixi = struct {
                 pixi.state.tools.set(.eraser);
             } else {
                 pixi.state.tools.set(.pencil);
-                file.tools.primary_color = color;
+                pixi.state.colors.primary = color;
             }
 
             if (layer_index) |index| {
@@ -174,7 +173,7 @@ pub const Pixi = struct {
 
         if (pixi.state.controls.mouse.primary.down()) {
             const color = switch (pixi.state.tools.current) {
-                .pencil => file.tools.primary_color,
+                .pencil => pixi.state.colors.primary,
                 .eraser => [_]u8{ 0, 0, 0, 0 },
                 else => unreachable,
             };
@@ -226,7 +225,7 @@ pub const Pixi = struct {
             if (pixel_coords_opt) |pixel_coord| {
                 const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
                 switch (pixi.state.tools.current) {
-                    .pencil => file.temporary_layer.setPixel(pixel, file.tools.primary_color, true),
+                    .pencil => file.temporary_layer.setPixel(pixel, pixi.state.colors.primary, true),
                     .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
                     else => unreachable,
                 }
@@ -746,11 +745,6 @@ pub const Pixi = struct {
 
         return sprite_image;
     }
-
-    pub const Tools = struct {
-        primary_color: [4]u8 = .{ 255, 255, 255, 255 },
-        secondary_color: [4]u8 = .{ 0, 0, 0, 255 },
-    };
 };
 
 pub const Layer = struct {

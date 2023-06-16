@@ -3,6 +3,7 @@ const zm = @import("zmath");
 const zglfw = @import("zglfw");
 const math = @import("../math/math.zig");
 const pixi = @import("root");
+const nfd = @import("nfd");
 
 pub const callbacks = @import("callbacks.zig");
 
@@ -80,31 +81,6 @@ pub const Mouse = struct {
 
 pub fn process() !void {
     if (!pixi.state.popups.anyPopupOpen()) {
-        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-            if (pixi.state.hotkeys.hotkey(.{ .proc = .save })) |hotkey| {
-                if (hotkey.pressed())
-                    try file.saveAsync();
-            }
-
-            if (pixi.state.hotkeys.hotkey(.{ .proc = .undo })) |hotkey| {
-                if (hotkey.pressed())
-                    try file.undo();
-            }
-
-            if (pixi.state.hotkeys.hotkey(.{ .proc = .redo })) |hotkey| {
-                if (hotkey.pressed())
-                    try file.redo();
-            }
-        }
-
-        for (pixi.state.hotkeys.hotkeys) |hotkey| {
-            if (hotkey.pressed()) {
-                switch (hotkey.action) {
-                    .tool => |tool| pixi.state.tools.set(tool),
-                    .sidebar => |sidebar| pixi.state.sidebar = sidebar,
-                    else => {},
-                }
-            }
-        }
+        try pixi.state.hotkeys.process();
     }
 }

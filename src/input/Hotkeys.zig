@@ -3,6 +3,7 @@ const zm = @import("zmath");
 const zglfw = @import("zglfw");
 const math = @import("../math/math.zig");
 const pixi = @import("root");
+const nfd = @import("nfd");
 
 const builtin = @import("builtin");
 
@@ -20,6 +21,8 @@ pub const Proc = enum {
     secondary,
     sample,
     zoom,
+    folder,
+    export_png,
 };
 
 pub const Action = union(enum) {
@@ -31,6 +34,7 @@ pub const Action = union(enum) {
 hotkeys: []Hotkey,
 
 pub const Hotkey = struct {
+    shortcut: [:0]const u8 = undefined,
     key: zglfw.Key,
     mods: zglfw.Mods,
     action: Action,
@@ -55,6 +59,22 @@ pub const Hotkey = struct {
     /// Returns true while the key is released.
     pub fn up(self: Hotkey) bool {
         return self.state == false;
+    }
+
+    pub fn createShortcut(self: *Hotkey, allocator: std.mem.Allocator) !void {
+        const os = builtin.target.os.tag;
+        const super = switch (os) {
+            .macos => "cmd",
+            .windows => "win",
+            else => "super",
+        };
+        const ctrl = "ctrl";
+        const shift = "shift";
+        const alt = "alt";
+
+        self.shortcut = try std.fmt.allocPrintZ(allocator, "{s}+{s}+{s}+{s}+{s}", .{
+            super, ctrl, shift, alt, @tagName(self.key),
+        });
     }
 };
 
@@ -99,14 +119,60 @@ pub fn setHotkeyState(self: *Self, k: zglfw.Key, mods: zglfw.Mods, action: zglfw
     }
 }
 
+pub fn process(self: *Self) !void {
+    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+        if (self.hotkey(.{ .proc = .save })) |hk| {
+            if (hk.pressed())
+                try file.saveAsync();
+        }
+
+        if (self.hotkey(.{ .proc = .undo })) |hk| {
+            if (hk.pressed())
+                try file.undo();
+        }
+
+        if (self.hotkey(.{ .proc = .redo })) |hk| {
+            if (hk.pressed())
+                try file.redo();
+        }
+
+        if (self.hotkey(.{ .proc = .export_png })) |hk| {
+            if (hk.pressed())
+                pixi.state.popups.export_to_png = true;
+        }
+    }
+
+    if (self.hotkey(.{ .proc = .folder })) |hk| {
+        if (hk.pressed()) {
+            if (try nfd.openFolderDialog(null)) |folder| {
+                pixi.editor.setProjectFolder(folder);
+                nfd.freePath(folder);
+            }
+        }
+    }
+
+    for (self.hotkeys) |hk| {
+        if (hk.pressed()) {
+            switch (hk.action) {
+                .tool => |tool| pixi.state.tools.set(tool),
+                .sidebar => |sidebar| pixi.state.sidebar = sidebar,
+                else => {},
+            }
+        }
+    }
+}
+
 pub fn initDefault(allocator: std.mem.Allocator) !Self {
     var hotkeys = std.ArrayList(Hotkey).init(allocator);
 
-    const windows = builtin.target.os.tag == .windows;
+    const os = builtin.target.os.tag;
+    const windows = os == .windows;
+    const macos = os == .macos;
 
     { // Primary/secondary
         // Primary
         try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl" else if (macos) "cmd" else "super",
             .key = if (windows) zglfw.Key.left_control else zglfw.Key.left_super,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.primary },
@@ -114,6 +180,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Secondary
         try hotkeys.append(.{
+            .shortcut = "shift",
             .key = zglfw.Key.left_shift,
             .mods = .{ .shift = true },
             .action = .{ .proc = Proc.secondary },
@@ -123,6 +190,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
     { // Procs
         // Save
         try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+s" else if (macos) "cmd+s" else "super+s",
             .key = zglfw.Key.s,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.save },
@@ -130,6 +198,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Save all
         try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+shift+s" else if (macos) "cmd+shift+s" else "super+shift+s",
             .key = zglfw.Key.s,
             .mods = .{ .control = windows, .super = !windows, .shift = true },
             .action = .{ .proc = Proc.save_all },
@@ -137,6 +206,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Undo
         try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+z" else if (macos) "cmd+z" else "super+z",
             .key = zglfw.Key.z,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.undo },
@@ -144,6 +214,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Redo
         try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+shift+z" else if (macos) "cmd+shift+z" else "super+shift+z",
             .key = zglfw.Key.z,
             .mods = .{ .control = windows, .super = !windows, .shift = true },
             .action = .{ .proc = Proc.redo },
@@ -161,6 +232,22 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .key = zglfw.Key.left_alt,
             .mods = .{},
             .action = .{ .proc = Proc.sample },
+        });
+
+        // Open folder
+        try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+f" else if (macos) "cmd+f" else "super+f",
+            .key = zglfw.Key.f,
+            .mods = .{ .control = windows, .super = !windows },
+            .action = .{ .proc = Proc.folder },
+        });
+
+        // Export png
+        try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+p" else if (macos) "cmd+p" else "super+p",
+            .key = zglfw.Key.p,
+            .mods = .{ .control = windows, .super = !windows },
+            .action = .{ .proc = Proc.export_png },
         });
     }
 
