@@ -330,6 +330,7 @@ pub const Camera = struct {
 
     pub fn processPanZoom(camera: *Camera) void {
         var zoom_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
+        if (pixi.state.settings.input_scheme != .trackpad) zoom_key = true;
 
         // Handle controls while canvas is hovered
         if (zgui.isWindowHovered(.{})) {
