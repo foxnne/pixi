@@ -102,6 +102,14 @@ pub fn draw() void {
         {
             if (pixi.state.colors.palettes.items.len > 0) {
                 const palette = pixi.state.colors.palettes.items[pixi.state.colors.selected_palette_index];
+                if (zgui.beginCombo("Palette", .{ .preview_value = palette.name, .flags = .{ .height_largest = true } })) {
+                    defer zgui.endCombo();
+                    for (pixi.state.colors.palettes.items, 0..) |p, i| {
+                        if (zgui.selectable(p.name, .{ .selected = i == pixi.state.colors.selected_palette_index })) {
+                            pixi.state.colors.selected_palette_index = i;
+                        }
+                    }
+                }
                 for (palette.colors, 0..) |color, i| {
                     const c: [4]f32 = .{
                         @intToFloat(f32, color[0]) / 255.0,
@@ -109,9 +117,13 @@ pub fn draw() void {
                         @intToFloat(f32, color[2]) / 255.0,
                         @intToFloat(f32, color[3]) / 255.0,
                     };
+                    zgui.pushIntId(@intCast(i32, i));
                     if (zgui.colorButton(palette.name, .{
                         .col = c,
-                    })) {}
+                    })) {
+                        pixi.state.colors.primary = color;
+                    }
+                    zgui.popId();
                     if (@mod(i + 1, 5) > 0 and i != palette.colors.len - 1)
                         zgui.sameLine(.{});
                 }
