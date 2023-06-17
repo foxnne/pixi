@@ -93,6 +93,30 @@ pub fn draw() void {
                 }
             }
         }
+
+        zgui.spacing();
+        zgui.spacing();
+        zgui.text("Palette", .{});
+        zgui.separator();
+
+        {
+            if (pixi.state.colors.palettes.items.len > 0) {
+                const palette = pixi.state.colors.palettes.items[pixi.state.colors.selected_palette_index];
+                for (palette.colors, 0..) |color, i| {
+                    const c: [4]f32 = .{
+                        @intToFloat(f32, color[0]) / 255.0,
+                        @intToFloat(f32, color[1]) / 255.0,
+                        @intToFloat(f32, color[2]) / 255.0,
+                        @intToFloat(f32, color[3]) / 255.0,
+                    };
+                    if (zgui.colorButton(palette.name, .{
+                        .col = c,
+                    })) {}
+                    if (@mod(i + 1, 5) > 0 and i != palette.colors.len - 1)
+                        zgui.sameLine(.{});
+                }
+            }
+        }
     }
 }
 

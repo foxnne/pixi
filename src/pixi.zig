@@ -112,16 +112,34 @@ pub const Colors = struct {
     primary: [4]u8 = .{ 255, 255, 255, 255 },
     secondary: [4]u8 = .{ 0, 0, 0, 255 },
     palettes: std.ArrayList(storage.Internal.Palette),
+    selected_palette_index: usize = 0,
 
     pub fn load() !Colors {
         var palettes = std.ArrayList(storage.Internal.Palette).init(state.allocator);
-        try palettes.append(try storage.Internal.Palette.loadFromFile(assets.undertale_hex.path));
+        var dir = std.fs.cwd().openIterableDir(assets.palettes, .{ .access_sub_paths = false }) catch unreachable;
+        defer dir.close();
+        var iter = dir.iterate();
+        while (iter.next() catch unreachable) |entry| {
+            if (entry.kind == .file) {
+                const ext = std.fs.path.extension(entry.name);
+                if (std.mem.eql(u8, ext, ".hex")) {
+                    const abs_path = try std.fs.path.joinZ(state.allocator, &.{ assets.palettes, entry.name });
+                    defer state.allocator.free(abs_path);
+                    try palettes.append(try storage.Internal.Palette.loadFromFile(abs_path));
+                }
+            }
+        }
         return .{
             .palettes = palettes,
         };
-        // return .{ .palettes = .{
-        //     try storage.Internal.Palette.loadFromFile(assets.undertale_hex.path),
-        // } };
+    }
+
+    pub fn deinit(self: *Colors) void {
+        for (self.palettes.items) |*palette| {
+            state.allocator.free(palette.name);
+            state.allocator.free(palette.colors);
+        }
+        self.palettes.deinit();
     }
 };
 
@@ -175,6 +193,7 @@ fn deinit(allocator: std.mem.Allocator) void {
     state.background_logo.deinit(state.gctx);
     state.fox_logo.deinit(state.gctx);
     state.cursors.deinit(state.gctx);
+    state.colors.deinit();
     editor.deinit();
     zgui.backend.deinit();
     zgui.deinit();

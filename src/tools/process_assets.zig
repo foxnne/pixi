@@ -49,6 +49,9 @@ pub const ProcessAssetsStep = struct {
                 // Add root assets location as const.
                 try assets_writer.print("pub const root = \"{s}/\";\n\n", .{root});
 
+                // Add palettes location as const.
+                try assets_writer.print("pub const palettes = \"{s}/{s}/\";\n\n", .{ root, "palettes" });
+
                 // Iterate all files
                 for (files) |file| {
                     const ext = std.fs.path.extension(file);

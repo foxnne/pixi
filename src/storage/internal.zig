@@ -807,11 +807,13 @@ pub const Palette = struct {
         const ext = std.fs.path.extension(file);
         if (std.mem.eql(u8, ext, ".hex")) {
             var contents = try std.fs.cwd().openFile(file, .{});
+            defer contents.close();
 
             while (try contents.reader().readUntilDelimiterOrEofAlloc(pixi.state.allocator, '\n', 20000)) |line| {
-                const color_u32 = try std.fmt.parseInt(u32, line, 16);
+                const color_u32 = try std.fmt.parseInt(u32, line[0 .. line.len - 1], 16);
                 const color_packed: PackedColor = @bitCast(PackedColor, color_u32);
-                try colors.append(.{ color_packed.r, color_packed.g, color_packed.b, color_packed.a });
+                try colors.append(.{ color_packed.b, color_packed.g, color_packed.r, color_packed.a });
+                pixi.state.allocator.free(line);
             }
         } else {
             return error.WrongFileType;

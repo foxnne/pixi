@@ -3,6 +3,8 @@ const std = @import("std");
 
 pub const root = "assets/";
 
+pub const palettes = "assets/palettes/";
+
 pub const icon1024_png = struct {
   pub const path = "assets/icon1024.png";
 };
