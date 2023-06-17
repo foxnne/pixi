@@ -11,7 +11,7 @@ pub fn draw() void {
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.style.foreground.toSlice() });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.style.foreground.toSlice() });
     defer zgui.popStyleColor(.{ .count = 3 });
-    if (zgui.beginChild("Tools", .{})) {
+    if (zgui.beginChild("Tools", .{ .h = zgui.getWindowHeight() / 4.0 })) {
         defer zgui.endChild();
 
         const style = zgui.getStyle();
@@ -93,40 +93,45 @@ pub fn draw() void {
                 }
             }
         }
+    }
+    zgui.spacing();
+    zgui.spacing();
+    zgui.text("Palette", .{});
+    zgui.sameLine(.{});
+    if (zgui.smallButton(pixi.fa.sign_in_alt)) {
+        pixi.state.colors.deinit();
+        pixi.state.colors = pixi.Colors.load() catch unreachable;
+    }
+    zgui.separator();
 
-        zgui.spacing();
-        zgui.spacing();
-        zgui.text("Palette", .{});
-        zgui.separator();
-
-        {
-            if (pixi.state.colors.palettes.items.len > 0) {
-                const palette = pixi.state.colors.palettes.items[pixi.state.colors.selected_palette_index];
-                if (zgui.beginCombo("Palette", .{ .preview_value = palette.name, .flags = .{ .height_largest = true } })) {
-                    defer zgui.endCombo();
-                    for (pixi.state.colors.palettes.items, 0..) |p, i| {
-                        if (zgui.selectable(p.name, .{ .selected = i == pixi.state.colors.selected_palette_index })) {
-                            pixi.state.colors.selected_palette_index = i;
-                        }
-                    }
+    if (pixi.state.colors.palettes.items.len > 0) {
+        const palette = pixi.state.colors.palettes.items[pixi.state.colors.selected_palette_index];
+        if (zgui.beginCombo("Palette", .{ .preview_value = palette.name, .flags = .{ .height_largest = true } })) {
+            defer zgui.endCombo();
+            for (pixi.state.colors.palettes.items, 0..) |p, i| {
+                if (zgui.selectable(p.name, .{ .selected = i == pixi.state.colors.selected_palette_index })) {
+                    pixi.state.colors.selected_palette_index = i;
                 }
-                for (palette.colors, 0..) |color, i| {
-                    const c: [4]f32 = .{
-                        @intToFloat(f32, color[0]) / 255.0,
-                        @intToFloat(f32, color[1]) / 255.0,
-                        @intToFloat(f32, color[2]) / 255.0,
-                        @intToFloat(f32, color[3]) / 255.0,
-                    };
-                    zgui.pushIntId(@intCast(i32, i));
-                    if (zgui.colorButton(palette.name, .{
-                        .col = c,
-                    })) {
-                        pixi.state.colors.primary = color;
-                    }
-                    zgui.popId();
-                    if (@mod(i + 1, 5) > 0 and i != palette.colors.len - 1)
-                        zgui.sameLine(.{});
+            }
+        }
+        if (zgui.beginChild("PaletteColors", .{})) {
+            defer zgui.endChild();
+            for (palette.colors, 0..) |color, i| {
+                const c: [4]f32 = .{
+                    @intToFloat(f32, color[0]) / 255.0,
+                    @intToFloat(f32, color[1]) / 255.0,
+                    @intToFloat(f32, color[2]) / 255.0,
+                    @intToFloat(f32, color[3]) / 255.0,
+                };
+                zgui.pushIntId(@intCast(i32, i));
+                if (zgui.colorButton(palette.name, .{
+                    .col = c,
+                })) {
+                    pixi.state.colors.primary = color;
                 }
+                zgui.popId();
+                if (@mod(i + 1, 5) > 0 and i != palette.colors.len - 1)
+                    zgui.sameLine(.{});
             }
         }
     }
