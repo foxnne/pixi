@@ -15,6 +15,8 @@
 
 <img width="1392" alt="Screenshot 2022-11-12 at 11 56 09 PM" src="https://user-images.githubusercontent.com/49629865/201539574-7e9ac010-e440-4ae6-95d6-cfd66bfefb0f.png">
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R5R4LL2PJ)
+
 
 ## Features planned for 0.1
 - [x] Typical pixel art operations. (draw, erase, color select)
