@@ -258,28 +258,6 @@ fn contextMenuFolder(folder: [:0]const u8) void {
     }
 
     zgui.separator();
-
-    // if (zgui.menuItem("Rename...", .{})) {
-    //     pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-    //     pixi.state.popups.rename_old_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-    //     std.mem.copy(u8, pixi.state.popups.rename_path[0..], folder);
-    //     std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], folder);
-    //     pixi.state.popups.rename = true;
-    //     pixi.state.popups.rename_state = .rename;
-    // }
-
-    // if (zgui.menuItem("Duplicate...", .{})) {
-    //     pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-    //     pixi.state.popups.rename_old_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-    //     std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], folder);
-
-    //     const new_base_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}", .{ folder, "_copy" }) catch unreachable;
-    //     defer pixi.state.allocator.free(new_base_name);
-    //     std.mem.copy(u8, pixi.state.popups.rename_path[0..], new_base_name);
-
-    //     pixi.state.popups.rename = true;
-    //     pixi.state.popups.rename_state = .duplicate;
-    // }
 }
 
 fn contextMenuFile(file: [:0]const u8) void {

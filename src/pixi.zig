@@ -228,6 +228,10 @@ fn update() void {
 fn draw() void {
     editor.draw();
 
+    for (state.hotkeys.hotkeys) |*hotkey| {
+        hotkey.previous_state = hotkey.state;
+    }
+
     state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
     state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;
     state.controls.mouse.previous_position = state.controls.mouse.position;
