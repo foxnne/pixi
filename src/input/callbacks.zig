@@ -30,6 +30,7 @@ pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Ac
                     pixi.state.controls.mouse.clicked_position = pixi.state.controls.mouse.position;
                 }
             },
+            else => {},
         }
     }
 
@@ -41,6 +42,7 @@ pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Ac
             .repeat, .press => {
                 pixi.state.controls.mouse.secondary.state = true;
             },
+            else => {},
         }
     }
 }

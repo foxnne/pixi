@@ -376,19 +376,19 @@ pub const Camera = struct {
 
                 zgui.resetMouseDragDelta(.middle);
             }
-            camera.zoom_wait_timer = std.math.min(camera.zoom_wait_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_wait_time);
+            camera.zoom_wait_timer = @min(camera.zoom_wait_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_wait_time);
         }
 
         // Round to nearest pixel perfect zoom step when zoom key is released
         switch (pixi.state.settings.input_scheme) {
             .trackpad => {
                 if (!zoom_key) {
-                    camera.zoom_timer = std.math.min(camera.zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
+                    camera.zoom_timer = @min(camera.zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
                 }
             },
             .mouse => {
                 if (pixi.state.controls.mouse.scroll_x == null and pixi.state.controls.mouse.scroll_y == null and camera.zoom_wait_timer >= pixi.state.settings.zoom_wait_time) {
-                    camera.zoom_timer = std.math.min(camera.zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
+                    camera.zoom_timer = @min(camera.zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
                 }
             },
         }
@@ -459,7 +459,7 @@ pub const Camera = struct {
         defer zgui.popStyleVar(.{ .count = 3 });
         // Draw current zoom tooltip
         if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
-            camera.zoom_tooltip_timer = std.math.min(camera.zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
+            camera.zoom_tooltip_timer = @min(camera.zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
             camera.drawZoomTooltip(zoom);
         } else if (zoom_key and pixi.state.settings.input_scheme == .trackpad) {
             camera.zoom_tooltip_timer = 0.0;

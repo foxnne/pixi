@@ -4,7 +4,7 @@
 // named parameters and Zig style text formatting.
 //
 //--------------------------------------------------------------------------------------------------
-pub const version = @import("std").SemanticVersion{ .major = 0, .minor = 9, .patch = 6 };
+pub const version = @import("std").SemanticVersion{ .major = 1, .minor = 89, .patch = 6 };
 
 pub const plot = @import("plot.zig");
 pub const backend = switch (@import("zgui_options").backend) {
@@ -189,7 +189,13 @@ pub const io = struct {
         config: ?FontConfig,
         ranges: ?[*]const Wchar,
     ) Font {
-        return zguiIoAddFontFromMemoryWithConfig(fontdata.ptr, @intCast(i32, fontdata.len), size_pixels, if (config) |c| &c else null, ranges);
+        return zguiIoAddFontFromMemoryWithConfig(
+            fontdata.ptr,
+            @intCast(i32, fontdata.len),
+            size_pixels,
+            if (config) |c| &c else null,
+            ranges,
+        );
     }
     extern fn zguiIoAddFontFromMemoryWithConfig(
         font_data: *const anyopaque,
@@ -3039,6 +3045,16 @@ extern fn zguiColorConvertRGBtoHSV(r: f32, g: f32, b: f32, out_h: *f32, out_s: *
 extern fn zguiColorConvertHSVtoRGB(h: f32, s: f32, v: f32, out_r: *f32, out_g: *f32, out_b: *f32) void;
 //--------------------------------------------------------------------------------------------------
 //
+// Inputs Utilities: Keyboard
+//
+//--------------------------------------------------------------------------------------------------
+pub fn isKeyDown(key: Key) bool {
+    return zguiIsKeyDown(key);
+}
+
+extern fn zguiIsKeyDown(key: Key) bool;
+//--------------------------------------------------------------------------------------------------
+//
 // Helpers
 //
 //--------------------------------------------------------------------------------------------------
@@ -3067,7 +3083,14 @@ pub fn typeToDataTypeEnum(comptime T: type) DataType {
         u64 => .U64,
         f32 => .F32,
         f64 => .F64,
-        else => @compileError("Only fundamental scalar types allowed"),
+        usize => switch (@sizeOf(usize)) {
+            1 => .U8,
+            2 => .U16,
+            4 => .U32,
+            8 => .U64,
+            else => @compileError("Unsupported usize length"),
+        },
+        else => @compileError("Only fundamental scalar types allowed: " ++ @typeName(T)),
     };
 }
 //--------------------------------------------------------------------------------------------------

@@ -15,13 +15,13 @@ pub fn draw() void {
 
         zgui.setNextItemWidth(pixi.state.settings.explorer_width * pixi.state.window.scale[0] * 0.5);
         if (zgui.beginCombo("Scheme", .{ .preview_value = @tagName(pixi.state.settings.input_scheme) })) {
-            inline for (@typeInfo(pixi.Settings.InputScheme).Enum.fields, 0..) |f, i| {
-                if (zgui.selectable(f.name[0.. :0], .{})) {
-                    pixi.state.settings.input_scheme = @intToEnum(pixi.Settings.InputScheme, i);
-                    // TODO: Mark settings as dirty to save on close
-                }
+            defer zgui.endCombo();
+            if (zgui.selectable("mouse", .{})) {
+                pixi.state.settings.input_scheme = .mouse;
             }
-            zgui.endCombo();
+            if (zgui.selectable("trackpad", .{})) {
+                pixi.state.settings.input_scheme = .trackpad;
+            }
         }
 
         zgui.setNextItemWidth(pixi.state.settings.explorer_width * pixi.state.window.scale[0] * 0.3);

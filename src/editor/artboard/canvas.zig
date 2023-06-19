@@ -15,7 +15,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     // Handle zooming, panning and extents
     {
         var sprite_camera: pixi.gfx.Camera = .{
-            .zoom = std.math.min(window_width / file_width, window_height / file_height),
+            .zoom = @min(window_width / file_width, window_height / file_height),
         };
         sprite_camera.setNearestZoomFloor();
         if (!file.camera.zoom_initialized) {
@@ -23,7 +23,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             file.camera.zoom = sprite_camera.zoom;
         }
         sprite_camera.setNearestZoomFloor();
-        const min_zoom = std.math.min(sprite_camera.zoom, 1.0);
+        const min_zoom = @min(sprite_camera.zoom, 1.0);
 
         file.camera.processPanZoom();
 

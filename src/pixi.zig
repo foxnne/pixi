@@ -156,7 +156,7 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
     };
 
     const scale_factor = scale_factor: {
-        break :scale_factor std.math.max(window_scale[0], window_scale[1]);
+        break :scale_factor @max(window_scale[0], window_scale[1]);
     };
 
     // Logos
@@ -307,7 +307,7 @@ pub fn main() !void {
 
     const scale_factor = scale_factor: {
         const scale = window.getContentScale();
-        break :scale_factor std.math.max(scale[0], scale[1]);
+        break :scale_factor @max(scale[0], scale[1]);
     };
 
     zgui.init(allocator);
