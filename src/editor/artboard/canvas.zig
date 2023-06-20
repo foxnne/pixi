@@ -125,10 +125,20 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const position = .{ pixel_coord[0] + canvas_center_offset[0] + 0.2, pixel_coord[1] + canvas_center_offset[1] + 0.25 };
                     file.camera.drawText("{d}", .{pixi.state.colors.height}, position, 0xFFFFFFFF);
 
-                    var x: u32 = 0;
-                    while (x < file.width) : (x += 1) {
-                        var y: u32 = 0;
-                        while (y < file.height) : (y += 1) {
+                    const min: [2]u32 = .{
+                        @intCast(u32, @max(@intCast(i32, temp_x) - 10, 0)),
+                        @intCast(u32, @max(@intCast(i32, temp_y) - 10, 0)),
+                    };
+
+                    const max: [2]u32 = .{
+                        @intCast(u32, @min(temp_x + 10, file.width)),
+                        @intCast(u32, @min(temp_y + 10, file.height)),
+                    };
+
+                    var x: u32 = min[0];
+                    while (x < max[0]) : (x += 1) {
+                        var y: u32 = min[1];
+                        while (y < max[1]) : (y += 1) {
                             const pixel = .{ @intCast(usize, x), @intCast(usize, y) };
                             const pixel_color = file.heightmap_layer.?.getPixel(pixel);
                             if (pixel_color[3] != 0 and (pixel[0] != temp_x or pixel[1] != temp_y)) {
