@@ -166,8 +166,10 @@ pub fn openFile(path: [:0]const u8) !bool {
             .ignore_unknown_fields = true,
         };
 
-        const external = std.json.parseFromSlice(pixi.storage.External.Pixi, pixi.state.allocator, content, options) catch unreachable;
-        defer std.json.parseFree(pixi.storage.External.Pixi, pixi.state.allocator, external);
+        var parsed = std.json.parseFromSlice(pixi.storage.External.Pixi, pixi.state.allocator, content, options) catch unreachable;
+        defer parsed.deinit();
+
+        var external = parsed.value;
 
         var internal: pixi.storage.Internal.Pixi = .{
             .path = try pixi.state.allocator.dupeZ(u8, path),

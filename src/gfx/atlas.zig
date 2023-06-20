@@ -52,9 +52,10 @@ pub const Atlas = struct {
         errdefer allocator.free(read);
 
         const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-        const atlas = try std.json.parseFromSlice(Atlas, allocator, read, options);
+        const parsed = try std.json.parseFromSlice(Atlas, allocator, read, options);
+        defer parsed.deinit();
 
-        return atlas;
+        return parsed.value;
     }
 
     /// returns sprite by name
