@@ -94,6 +94,7 @@ pub const Tool = enum {
     pencil,
     eraser,
     animation,
+    heightmap,
 };
 
 pub const Tools = struct {
@@ -102,6 +103,14 @@ pub const Tools = struct {
 
     pub fn set(tools: *Tools, tool: Tool) void {
         if (tools.current != tool) {
+            if (tool == .heightmap) {
+                if (editor.getFile(state.open_file_index)) |file| {
+                    if (file.heightmap_layer == null) {
+                        state.popups.heightmap = true;
+                        return;
+                    }
+                } else return;
+            }
             tools.previous = tools.current;
             tools.current = tool;
         }
@@ -111,6 +120,7 @@ pub const Tools = struct {
 pub const Colors = struct {
     primary: [4]u8 = .{ 255, 255, 255, 255 },
     secondary: [4]u8 = .{ 0, 0, 0, 255 },
+    height: u8 = 0,
     palettes: std.ArrayList(storage.Internal.Palette),
     selected_palette_index: usize = 0,
 

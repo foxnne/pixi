@@ -14,6 +14,7 @@ pub const Pixi = struct {
     tile_height: u32,
     layers: std.ArrayList(Layer),
     deleted_layers: std.ArrayList(Layer),
+    deleted_heightmap_layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
     deleted_animations: std.ArrayList(Animation),
@@ -31,6 +32,7 @@ pub const Pixi = struct {
     background_texture_handle: zgpu.TextureHandle,
     background_texture_view_handle: zgpu.TextureViewHandle,
     temporary_layer: Layer,
+    heightmap_layer: ?Layer = null,
     history: History,
     buffers: Buffers,
     counter: usize = 0,
@@ -134,12 +136,12 @@ pub const Pixi = struct {
 
     pub fn processStrokeTool(file: *Pixi, canvas: Canvas) void {
         if (switch (pixi.state.tools.current) {
-            .pencil, .eraser => false,
+            .pencil, .eraser, .heightmap => false,
             else => true,
         }) return;
 
         switch (pixi.state.tools.current) {
-            .pencil => file.camera.drawCursor(pixi.state.cursors.pencil.view_handle, pixi.state.cursors.pencil.image.width, pixi.state.cursors.pencil.image.height, 0xFFFFFFFF),
+            .pencil, .heightmap => file.camera.drawCursor(pixi.state.cursors.pencil.view_handle, pixi.state.cursors.pencil.image.width, pixi.state.cursors.pencil.image.height, 0xFFFFFFFF),
             .eraser => file.camera.drawCursor(pixi.state.cursors.eraser.view_handle, pixi.state.cursors.eraser.image.width, pixi.state.cursors.eraser.image.height, 0xFFFFFFFF),
             else => {},
         }
@@ -148,7 +150,7 @@ pub const Pixi = struct {
         const mouse_position = pixi.state.controls.mouse.position.toSlice();
         const previous_mouse_position = pixi.state.controls.mouse.previous_position.toSlice();
 
-        var layer: pixi.storage.Internal.Layer = file.layers.items[file.selected_layer_index];
+        var layer: pixi.storage.Internal.Layer = if (pixi.state.tools.current == .heightmap) file.heightmap_layer.? else file.layers.items[file.selected_layer_index];
 
         const camera = switch (canvas) {
             .primary => file.camera,
@@ -175,6 +177,7 @@ pub const Pixi = struct {
             const color = switch (pixi.state.tools.current) {
                 .pencil => pixi.state.colors.primary,
                 .eraser => [_]u8{ 0, 0, 0, 0 },
+                .heightmap => [_]u8{ pixi.state.colors.height, 0, 0, 255 },
                 else => unreachable,
             };
 
@@ -227,6 +230,9 @@ pub const Pixi = struct {
                 switch (pixi.state.tools.current) {
                     .pencil => file.temporary_layer.setPixel(pixel, pixi.state.colors.primary, true),
                     .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
+                    .heightmap => {
+                        file.temporary_layer.setPixel(pixel, .{ pixi.state.colors.height, 0, 0, 255 }, true);
+                    },
                     else => unreachable,
                 }
             }
@@ -751,7 +757,6 @@ pub const Layer = struct {
     name: [:0]const u8,
     texture: pixi.gfx.Texture,
     visible: bool = true,
-    active: bool = false,
     id: usize = 0,
 
     pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {

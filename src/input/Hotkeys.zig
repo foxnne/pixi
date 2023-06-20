@@ -23,6 +23,8 @@ pub const Proc = enum {
     zoom,
     folder,
     export_png,
+    size_up,
+    size_down,
 };
 
 pub const Action = union(enum) {
@@ -61,21 +63,21 @@ pub const Hotkey = struct {
         return self.state == false;
     }
 
-    pub fn createShortcut(self: *Hotkey, allocator: std.mem.Allocator) !void {
-        const os = builtin.target.os.tag;
-        const super = switch (os) {
-            .macos => "cmd",
-            .windows => "win",
-            else => "super",
-        };
-        const ctrl = "ctrl";
-        const shift = "shift";
-        const alt = "alt";
+    // pub fn createShortcut(self: *Hotkey, allocator: std.mem.Allocator) !void {
+    //     const os = builtin.target.os.tag;
+    //     const super = switch (os) {
+    //         .macos => "cmd",
+    //         .windows => "win",
+    //         else => "super",
+    //     };
+    //     const ctrl = "ctrl";
+    //     const shift = "shift";
+    //     const alt = "alt";
 
-        self.shortcut = try std.fmt.allocPrintZ(allocator, "{s}+{s}+{s}+{s}+{s}", .{
-            super, ctrl, shift, alt, @tagName(self.key),
-        });
-    }
+    //     self.shortcut = try std.fmt.allocPrintZ(allocator, "{s}+{s}+{s}+{s}+{s}", .{
+    //         super, ctrl, shift, alt, @tagName(self.key),
+    //     });
+    // }
 };
 
 pub fn hotkey(self: Self, action: Action) ?*Hotkey {
@@ -139,6 +141,24 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .export_png })) |hk| {
             if (hk.pressed())
                 pixi.state.popups.export_to_png = true;
+        }
+
+        if (self.hotkey(.{ .proc = .size_up })) |hk| {
+            if (hk.pressed()) {
+                if (pixi.state.tools.current == .heightmap) {
+                    if (pixi.state.colors.height < 255)
+                        pixi.state.colors.height += 1;
+                }
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .size_down })) |hk| {
+            if (hk.pressed()) {
+                if (pixi.state.tools.current == .heightmap) {
+                    if (pixi.state.colors.height > 0)
+                        pixi.state.colors.height -= 1;
+                }
+            }
         }
     }
 
@@ -248,6 +268,22 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .key = zglfw.Key.p,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.export_png },
+        });
+
+        // Size up
+        try hotkeys.append(.{
+            .shortcut = "]",
+            .key = zglfw.Key.right_bracket,
+            .mods = .{},
+            .action = .{ .proc = Proc.size_up },
+        });
+
+        // Size down
+        try hotkeys.append(.{
+            .shortcut = "[",
+            .key = zglfw.Key.left_bracket,
+            .mods = .{},
+            .action = .{ .proc = Proc.size_down },
         });
     }
 

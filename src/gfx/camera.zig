@@ -91,6 +91,18 @@ pub const Camera = struct {
         });
     }
 
+    pub fn drawText(camera: Camera, comptime fmt: []const u8, args: anytype, position: [2]f32, color: u32) void {
+        const window_position = zgui.getWindowPos();
+        const mat = camera.matrix();
+
+        var pos = mat.transformVec2(position);
+        pos[0] += window_position[0];
+        pos[1] += window_position[1];
+
+        const draw_list = zgui.getWindowDrawList();
+        draw_list.addText(pos, color, fmt, args);
+    }
+
     pub fn drawRect(camera: Camera, rect: [4]f32, thickness: f32, color: u32) void {
         const rect_min_max = camera.getRectMinMax(rect);
 
@@ -100,6 +112,17 @@ pub const Camera = struct {
             .pmax = rect_min_max[1],
             .col = color,
             .thickness = thickness,
+        });
+    }
+
+    pub fn drawRectFilled(camera: Camera, rect: [4]f32, color: u32) void {
+        const rect_min_max = camera.getRectMinMax(rect);
+
+        const draw_list = zgui.getWindowDrawList();
+        draw_list.addRectFilled(.{
+            .pmin = rect_min_max[0],
+            .pmax = rect_min_max[1],
+            .col = color,
         });
     }
 

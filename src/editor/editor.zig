@@ -19,6 +19,7 @@ pub const popup_file_confirm_close = @import("popups/file_confirm_close.zig");
 pub const popup_layer_setup = @import("popups/layer_setup.zig");
 pub const popup_export_to_png = @import("popups/export_png.zig");
 pub const popup_animation = @import("popups/animation.zig");
+pub const popup_heightmap = @import("popups/heightmap.zig");
 
 pub fn draw() void {
     sidebar.draw();
@@ -32,6 +33,7 @@ pub fn draw() void {
     popup_layer_setup.draw();
     popup_export_to_png.draw();
     popup_animation.draw();
+    popup_heightmap.draw();
 }
 
 pub fn setProjectFolder(path: [:0]const u8) void {
@@ -68,6 +70,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .tile_height = @intCast(u32, pixi.state.popups.file_setup_tile_size[1]),
         .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
         .deleted_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
+        .deleted_heightmap_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
         .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
         .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
         .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
@@ -174,6 +177,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             .tile_height = external.tileHeight,
             .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
             .deleted_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
+            .deleted_heightmap_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
             .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
             .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
@@ -300,21 +304,33 @@ pub fn closeFile(index: usize) !void {
 
 pub fn rawCloseFile(index: usize) !void {
     pixi.state.open_file_index = 0;
-    var file = pixi.state.open_files.swapRemove(index);
+    var file: pixi.storage.Internal.Pixi = pixi.state.open_files.swapRemove(index);
     file.history.deinit();
     file.buffers.deinit();
     file.background_image.deinit();
+    pixi.state.gctx.releaseResource(file.background_texture_handle);
+    pixi.state.gctx.releaseResource(file.background_texture_view_handle);
     file.temporary_layer.texture.deinit(pixi.state.gctx);
+    if (file.heightmap_layer) |*layer| {
+        layer.texture.deinit(pixi.state.gctx);
+        pixi.state.gctx.releaseResource(layer.texture.handle);
+        pixi.state.gctx.releaseResource(layer.texture.view_handle);
+    }
+    for (file.deleted_heightmap_layers.items) |*layer| {
+        layer.texture.deinit(pixi.state.gctx);
+        pixi.state.gctx.releaseResource(layer.texture.handle);
+        pixi.state.gctx.releaseResource(layer.texture.view_handle);
+    }
     for (file.layers.items) |*layer| {
         layer.texture.deinit(pixi.state.gctx);
-        pixi.state.gctx.releaseResource(file.background_texture_handle);
-        pixi.state.gctx.releaseResource(file.background_texture_view_handle);
+        pixi.state.gctx.releaseResource(layer.texture.handle);
+        pixi.state.gctx.releaseResource(layer.texture.view_handle);
         pixi.state.allocator.free(layer.name);
     }
     for (file.deleted_layers.items) |*layer| {
         layer.texture.deinit(pixi.state.gctx);
-        pixi.state.gctx.releaseResource(file.background_texture_handle);
-        pixi.state.gctx.releaseResource(file.background_texture_view_handle);
+        pixi.state.gctx.releaseResource(layer.texture.handle);
+        pixi.state.gctx.releaseResource(layer.texture.view_handle);
         pixi.state.allocator.free(layer.name);
     }
     for (file.sprites.items) |*sprite| {
@@ -328,6 +344,7 @@ pub fn rawCloseFile(index: usize) !void {
     }
     file.layers.deinit();
     file.deleted_layers.deinit();
+    file.deleted_heightmap_layers.deinit();
     file.sprites.deinit();
     file.selected_sprites.deinit();
     file.animations.deinit();

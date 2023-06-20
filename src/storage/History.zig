@@ -13,6 +13,7 @@ pub const ChangeType = enum {
     layers_order,
     layer_restore_delete,
     layer_name,
+    heightmap_restore_delete,
 };
 
 pub const Change = union(ChangeType) {
@@ -53,6 +54,9 @@ pub const Change = union(ChangeType) {
         index: usize,
         name: [128:0]u8,
     };
+    pub const HeightmapRestoreDelete = struct {
+        action: RestoreDelete,
+    };
 
     pixels: Pixels,
     origins: Origins,
@@ -61,6 +65,7 @@ pub const Change = union(ChangeType) {
     layers_order: LayersOrder,
     layer_restore_delete: LayerRestoreDelete,
     layer_name: LayerName,
+    heightmap_restore_delete: HeightmapRestoreDelete,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -187,6 +192,9 @@ pub fn append(self: *History, change: Change) !void {
                     equal = false;
                 },
                 .layer_name => {
+                    equal = false;
+                },
+                .heightmap_restore_delete => {
                     equal = false;
                 },
             }
@@ -357,6 +365,23 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
 
                     if (file.selected_animation_index == animation_restore_delete.index)
                         file.selected_animation_index = 0;
+                },
+            }
+        },
+        .heightmap_restore_delete => |*heightmap_restore_delete| {
+            const a = heightmap_restore_delete.action;
+            switch (a) {
+                .restore => {
+                    file.heightmap_layer = file.deleted_heightmap_layers.pop();
+                    heightmap_restore_delete.action = .delete;
+                },
+                .delete => {
+                    try file.deleted_heightmap_layers.append(file.heightmap_layer.?);
+                    file.heightmap_layer = null;
+                    heightmap_restore_delete.action = .restore;
+                    if (pixi.state.tools.current == .heightmap) {
+                        pixi.state.tools.set(.pointer);
+                    }
                 },
             }
         },

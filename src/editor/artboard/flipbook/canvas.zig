@@ -135,6 +135,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
             }
 
+            if (pixi.state.tools.current == .heightmap) {
+                file.flipbook_camera.drawRectFilled(dst_rect, 0x50FFFFFF);
+            }
+
             if (i == file.selected_sprite_index)
                 file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
 

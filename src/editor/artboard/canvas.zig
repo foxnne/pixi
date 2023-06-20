@@ -99,11 +99,48 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
     }
 
+    if (pixi.state.tools.current == .heightmap) {
+        file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x50FFFFFF);
+        file.camera.drawLayer(file.heightmap_layer.?, canvas_center_offset);
+    }
+
     // Draw the temporary layer
     file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
 
     // Draw grid
     file.camera.drawGrid(canvas_center_offset, file_width, file_height, @floatToInt(usize, file_width / tile_width), @floatToInt(usize, file_height / tile_height), pixi.state.style.text_secondary.toU32());
+
+    // Draw height in pixels if currently editing heightmap and zoom is sufficient
+    {
+        if (pixi.state.tools.current == .heightmap) {
+            if (file.camera.zoom >= 30.0) {
+                if (file.camera.pixelCoordinates(.{
+                    .texture_position = canvas_center_offset,
+                    .position = pixi.state.controls.mouse.position.toSlice(),
+                    .width = file.width,
+                    .height = file.height,
+                })) |pixel_coord| {
+                    const temp_x = @floatToInt(usize, pixel_coord[0]);
+                    const temp_y = @floatToInt(usize, pixel_coord[1]);
+                    const position = .{ pixel_coord[0] + canvas_center_offset[0] + 0.2, pixel_coord[1] + canvas_center_offset[1] + 0.25 };
+                    file.camera.drawText("{d}", .{pixi.state.colors.height}, position, 0xFFFFFFFF);
+
+                    var x: u32 = 0;
+                    while (x < file.width) : (x += 1) {
+                        var y: u32 = 0;
+                        while (y < file.height) : (y += 1) {
+                            const pixel = .{ @intCast(usize, x), @intCast(usize, y) };
+                            const pixel_color = file.heightmap_layer.?.getPixel(pixel);
+                            if (pixel_color[3] != 0 and (pixel[0] != temp_x or pixel[1] != temp_y)) {
+                                const pixel_position = .{ canvas_center_offset[0] + @intToFloat(f32, x) + 0.2, canvas_center_offset[1] + @intToFloat(f32, y) + 0.25 };
+                                file.camera.drawText("{d}", .{pixel_color[0]}, pixel_position, 0xFFFFFFFF);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Draw box around selected sprite or origin selection if on sprites tab, as well as animation start and end
     {

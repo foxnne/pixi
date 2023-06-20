@@ -41,6 +41,8 @@ animation_start: usize = 0,
 animation_length: usize = 0,
 animation_name: [128:0]u8 = undefined,
 animation_fps: usize = 0,
+// Heightmap
+heightmap: bool = false,
 // About
 about: bool = false,
 

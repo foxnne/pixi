@@ -30,6 +30,11 @@ pub fn draw() void {
             zgui.sameLine(.{});
             drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
         }
+        {
+            zgui.setCursorPosX(style.item_spacing[0]);
+            drawTool(pixi.fa.text_height, button_width, button_height, .heightmap);
+        }
+
         zgui.spacing();
         zgui.spacing();
         zgui.text("Colors", .{});
@@ -165,6 +170,7 @@ pub fn drawTooltip(tool: pixi.Tool) void {
                 .pencil => "Pencil",
                 .eraser => "Eraser",
                 .animation => "Animation",
+                .heightmap => "Heightmap",
             };
 
             zgui.text("{s}", .{text});
