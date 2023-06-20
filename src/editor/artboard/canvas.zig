@@ -126,13 +126,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     file.camera.drawText("{d}", .{pixi.state.colors.height}, position, 0xFFFFFFFF);
 
                     const min: [2]u32 = .{
-                        @intCast(u32, @max(@intCast(i32, temp_x) - 10, 0)),
-                        @intCast(u32, @max(@intCast(i32, temp_y) - 10, 0)),
+                        @intCast(u32, @max(@intCast(i32, temp_x) - 5, 0)),
+                        @intCast(u32, @max(@intCast(i32, temp_y) - 5, 0)),
                     };
 
                     const max: [2]u32 = .{
-                        @intCast(u32, @min(temp_x + 10, file.width)),
-                        @intCast(u32, @min(temp_y + 10, file.height)),
+                        @intCast(u32, @min(temp_x + 5, file.width)),
+                        @intCast(u32, @min(temp_y + 5, file.height)),
                     };
 
                     var x: u32 = min[0];
