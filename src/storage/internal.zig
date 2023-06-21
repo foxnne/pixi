@@ -205,9 +205,30 @@ pub const Pixi = struct {
                             const p = .{ @floatToInt(usize, p_coord[0]), @floatToInt(usize, p_coord[1]) };
                             const index = layer.getPixelIndex(p);
                             const value = layer.getPixel(p);
-                            if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
-                                file.buffers.stroke.append(index, value) catch unreachable;
-                            layer.setPixel(p, color, false);
+                            if (pixi.state.tools.current == .heightmap) {
+                                var valid: bool = false;
+                                for (file.layers.items) |l| {
+                                    if (l.getPixel(p)[3] != 0) {
+                                        valid = true;
+                                        break;
+                                    }
+                                }
+                                if (valid) {
+                                    if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
+                                        file.buffers.stroke.append(index, value) catch unreachable;
+                                    layer.setPixel(p, color, false);
+                                }
+                            } else {
+                                if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
+                                    file.buffers.stroke.append(index, value) catch unreachable;
+                                layer.setPixel(p, color, false);
+
+                                if (color[3] == 0) {
+                                    if (file.heightmap_layer) |*l| {
+                                        l.setPixel(p, .{ 0, 0, 0, 0 }, true);
+                                    }
+                                }
+                            }
                         }
                         layer.texture.update(pixi.state.gctx);
                         pixi.state.allocator.free(pixel_coords);
@@ -219,9 +240,29 @@ pub const Pixi = struct {
 
                     const index = layer.getPixelIndex(pixel);
                     const value = layer.getPixel(pixel);
-                    file.buffers.stroke.append(index, value) catch unreachable;
 
-                    layer.setPixel(pixel, color, true);
+                    if (pixi.state.tools.current == .heightmap) {
+                        var valid: bool = false;
+                        for (file.layers.items) |l| {
+                            if (l.getPixel(pixel)[3] != 0) {
+                                valid = true;
+                                break;
+                            }
+                        }
+                        if (valid) {
+                            file.buffers.stroke.append(index, value) catch unreachable;
+                            layer.setPixel(pixel, color, false);
+                        }
+                    } else {
+                        file.buffers.stroke.append(index, value) catch unreachable;
+                        layer.setPixel(pixel, color, false);
+
+                        if (color[3] == 0) {
+                            if (file.heightmap_layer) |*l| {
+                                l.setPixel(pixel, .{ 0, 0, 0, 0 }, true);
+                            }
+                        }
+                    }
                 }
             }
         } else { // Not actively drawing, but hovering over canvas
