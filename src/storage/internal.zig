@@ -239,7 +239,8 @@ pub const Pixi = struct {
 
             // Submit the stroke change buffer
             if (file.buffers.stroke.indices.items.len > 0 and pixi.state.controls.mouse.primary.released()) {
-                const change = file.buffers.stroke.toChange(file.selected_layer_index) catch unreachable;
+                const layer_index: i32 = if (pixi.state.tools.current == .heightmap) -1 else @intCast(i32, file.selected_layer_index);
+                const change = file.buffers.stroke.toChange(layer_index) catch unreachable;
                 file.history.append(change) catch unreachable;
             }
         }
@@ -400,6 +401,13 @@ pub const Pixi = struct {
             _ = zip.zip_entry_close(z);
 
             for (self.layers.items) |layer| {
+                const layer_name = zgui.formatZ("{s}.png", .{layer.name});
+                _ = zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name));
+                try layer.texture.image.writeToFn(write, z, .png);
+                _ = zip.zip_entry_close(z);
+            }
+
+            if (self.heightmap_layer) |layer| {
                 const layer_name = zgui.formatZ("{s}.png", .{layer.name});
                 _ = zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name));
                 try layer.texture.image.writeToFn(write, z, .png);

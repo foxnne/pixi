@@ -27,7 +27,7 @@ pub const Stroke = struct {
         try stroke.values.appendSlice(values);
     }
 
-    pub fn toChange(stroke: *Stroke, layer: usize) !History.Change {
+    pub fn toChange(stroke: *Stroke, layer: i32) !History.Change {
         return .{ .pixels = .{
             .layer = layer,
             .indices = try stroke.indices.toOwnedSlice(),

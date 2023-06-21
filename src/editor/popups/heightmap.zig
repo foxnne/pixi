@@ -47,7 +47,7 @@ pub fn draw() void {
             zgui.sameLine(.{});
             if (zgui.button("Create", .{ .w = half_width })) {
                 file.heightmap_layer = .{
-                    .name = "Heightmap",
+                    .name = pixi.state.allocator.dupeZ(u8, "heightmap") catch unreachable,
                     .texture = pixi.gfx.Texture.createEmpty(pixi.state.gctx, file.width, file.height, .{}) catch unreachable,
                     .id = file.id(),
                 };

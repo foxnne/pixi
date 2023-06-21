@@ -22,6 +22,7 @@ pub fn draw() void {
 
         const color_width = window_size[0] / 2.2;
 
+        // Row 1
         {
             zgui.setCursorPosX(style.item_spacing[0]);
             drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
@@ -30,9 +31,11 @@ pub fn draw() void {
             zgui.sameLine(.{});
             drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
         }
+
+        // Row 2
         {
             zgui.setCursorPosX(style.item_spacing[0]);
-            drawTool(pixi.fa.text_height, button_width, button_height, .heightmap);
+            drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
         }
 
         zgui.spacing();
@@ -40,8 +43,17 @@ pub fn draw() void {
         zgui.text("Colors", .{});
         zgui.separator();
 
-        {
-            var primary: [4]f32 = .{
+        if (pixi.state.tools.current == .heightmap) {
+            var height: i32 = @intCast(i32, pixi.state.colors.height);
+            if (zgui.sliderInt("Height", .{
+                .v = &height,
+                .min = 0,
+                .max = 255,
+            })) {
+                pixi.state.colors.height = @intCast(u8, std.math.clamp(height, 0, 255));
+            }
+        } else {
+            var primary: [4]f32 = if (pixi.state.tools.current == .heightmap) .{} else .{
                 @intToFloat(f32, pixi.state.colors.primary[0]) / 255.0,
                 @intToFloat(f32, pixi.state.colors.primary[1]) / 255.0,
                 @intToFloat(f32, pixi.state.colors.primary[2]) / 255.0,

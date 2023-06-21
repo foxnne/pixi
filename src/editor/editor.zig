@@ -224,6 +224,28 @@ pub fn openFile(path: [:0]const u8) !bool {
             }
         }
 
+        const heightmap_image_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{"heightmap"});
+        defer pixi.state.allocator.free(heightmap_image_name);
+
+        if (zip.zip_entry_open(pixi_file, heightmap_image_name.ptr) == 0) {
+            var img_buf: ?*anyopaque = null;
+            var img_len: usize = 0;
+
+            _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
+            defer _ = zip.zip_entry_close(pixi_file);
+
+            if (img_buf) |data| {
+                var new_layer: pixi.storage.Internal.Layer = .{
+                    .name = try pixi.state.allocator.dupeZ(u8, "heightmap"),
+                    .texture = undefined,
+                };
+
+                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @ptrCast([*]u8, data)[0..img_len], .{});
+                new_layer.id = internal.id();
+                internal.heightmap_layer = new_layer;
+            }
+        }
+
         for (external.sprites, 0..) |sprite, i| {
             try internal.sprites.append(.{
                 .name = try pixi.state.allocator.dupeZ(u8, sprite.name),
@@ -317,11 +339,13 @@ pub fn rawCloseFile(index: usize) !void {
         layer.texture.deinit(pixi.state.gctx);
         pixi.state.gctx.releaseResource(layer.texture.handle);
         pixi.state.gctx.releaseResource(layer.texture.view_handle);
+        pixi.state.allocator.free(layer.name);
     }
     for (file.deleted_heightmap_layers.items) |*layer| {
         layer.texture.deinit(pixi.state.gctx);
         pixi.state.gctx.releaseResource(layer.texture.handle);
         pixi.state.gctx.releaseResource(layer.texture.view_handle);
+        pixi.state.allocator.free(layer.name);
     }
     for (file.layers.items) |*layer| {
         layer.texture.deinit(pixi.state.gctx);
