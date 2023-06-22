@@ -273,6 +273,11 @@ pub fn openFile(path: [:0]const u8) !bool {
 
 pub fn setActiveFile(index: usize) void {
     if (index >= pixi.state.open_files.items.len) return;
+    const file = &pixi.state.open_files.items[index];
+    if (file.heightmap_layer == null) {
+        if (pixi.state.tools.current == .heightmap)
+            pixi.state.tools.current = .pointer;
+    }
     pixi.state.open_file_index = index;
 }
 
