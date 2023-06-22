@@ -62,6 +62,18 @@
             }
         },
         {
+            "label": "Build and Run Project (release-safe)",
+            "type": "shell",
+            "command": "zig build run -Doptimize=ReleaseSafe",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "clear": true
+            }
+        },
+        {
             "label": "Test Project",
             "type": "shell",
             "command": "zig build test",
