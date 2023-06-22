@@ -255,7 +255,7 @@ pub const Pixi = struct {
                         }
                     } else {
                         file.buffers.stroke.append(index, value) catch unreachable;
-                        layer.setPixel(pixel, color, false);
+                        layer.setPixel(pixel, color, true);
 
                         if (color[3] == 0) {
                             if (file.heightmap_layer) |*l| {
