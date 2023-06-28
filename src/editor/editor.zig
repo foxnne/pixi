@@ -175,8 +175,8 @@ pub fn openFile(path: [:0]const u8) !bool {
             .path = try pixi.state.allocator.dupeZ(u8, path),
             .width = external.width,
             .height = external.height,
-            .tile_width = external.tileWidth,
-            .tile_height = external.tileHeight,
+            .tile_width = external.tile_width,
+            .tile_height = external.tile_height,
             .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
             .deleted_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
             .deleted_heightmap_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
@@ -184,7 +184,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
             .deleted_animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
-            .flipbook_camera = .{ .position = .{ -@intToFloat(f32, external.tileWidth) / 2.0, 0.0 } },
+            .flipbook_camera = .{ .position = .{ -@intToFloat(f32, external.tile_width) / 2.0, 0.0 } },
             .background_image = undefined,
             .background_texture_handle = undefined,
             .background_texture_view_handle = undefined,
@@ -196,7 +196,7 @@ pub fn openFile(path: [:0]const u8) !bool {
         try internal.createBackground();
 
         internal.temporary_layer = .{
-            .name = "Temporary",
+            .name = "temporary",
             .texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, internal.width, internal.height, .{}),
             .visible = true,
         };
@@ -250,8 +250,8 @@ pub fn openFile(path: [:0]const u8) !bool {
             try internal.sprites.append(.{
                 .name = try pixi.state.allocator.dupeZ(u8, sprite.name),
                 .index = i,
-                .origin_x = sprite.origin_x,
-                .origin_y = sprite.origin_y,
+                .origin_x = @intToFloat(f32, sprite.origin[0]),
+                .origin_y = @intToFloat(f32, sprite.origin[1]),
             });
         }
 

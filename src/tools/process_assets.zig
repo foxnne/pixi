@@ -3,7 +3,7 @@ const path = std.fs.path;
 const Builder = std.build.Builder;
 const Step = std.build.Step;
 
-const Atlas = @import("../gfx/atlas.zig").Atlas;
+const Atlas = @import("../storage/external.zig").Atlas;
 
 pub const ProcessAssetsStep = struct {
     step: Step,
@@ -114,9 +114,12 @@ pub const ProcessAssetsStep = struct {
                                 _ = std.mem.replace(u8, animation_name, ".", "_", animation_name);
 
                                 try animations_writer.print("pub var {s} = [_]usize {{\n", .{animation_name});
-                                for (animation.indexes) |index| {
-                                    var sprite_name = try self.builder.allocator.alloc(u8, atlas.sprites[index].name.len);
-                                    _ = std.mem.replace(u8, atlas.sprites[index].name, " ", "_", sprite_name);
+
+                                var animation_index = animation.start;
+
+                                while (animation_index < animation.start + animation.length) : (animation_index += 1) {
+                                    var sprite_name = try self.builder.allocator.alloc(u8, atlas.sprites[animation_index].name.len);
+                                    _ = std.mem.replace(u8, atlas.sprites[animation_index].name, " ", "_", sprite_name);
                                     _ = std.mem.replace(u8, sprite_name, ".", "_", sprite_name);
 
                                     try animations_writer.print("    assets.{s}_atlas.{s},\n", .{ name, sprite_name });

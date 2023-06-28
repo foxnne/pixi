@@ -5,9 +5,6 @@ const zstbi = @import("zstbi");
 
 pub const utils = @import("utils.zig");
 
-pub const Animation = @import("animation.zig").Animation;
-pub const Atlas = @import("atlas.zig").Atlas;
-pub const Sprite = @import("sprite.zig").Sprite;
 pub const Quad = @import("quad.zig").Quad;
 pub const Batcher = @import("batcher.zig").Batcher;
 pub const Texture = @import("texture.zig").Texture;
