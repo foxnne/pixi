@@ -387,28 +387,35 @@ pub const Pixi = struct {
         }
     }
 
-    pub fn toExternal(self: Pixi, allocator: std.mem.Allocator) !storage.External.Pixi {
+    pub fn external(self: Pixi, allocator: std.mem.Allocator) !storage.External.Pixi {
         var layers = try allocator.alloc(storage.External.Layer, self.layers.items.len);
         var sprites = try allocator.alloc(storage.External.Sprite, self.sprites.items.len);
+        var animations = try allocator.alloc(storage.External.Animation, self.animations.items.len);
 
         for (layers, 0..) |*layer, i| {
-            layer.name = self.layers.items[i].name;
+            layer.name = try allocator.dupeZ(u8, self.layers.items[i].name);
         }
 
         for (sprites, 0..) |*sprite, i| {
-            sprite.name = self.sprites.items[i].name;
-            sprite.origin_x = self.sprites.items[i].origin_x;
-            sprite.origin_y = self.sprites.items[i].origin_y;
+            sprite.name = try allocator.dupeZ(u8, self.sprites.items[i].name);
+            sprite.origin = .{ @floatToInt(u32, @round(self.sprites.items[i].origin_x)), @floatToInt(u32, @round(self.sprites.items[i].origin_y)) };
+        }
+
+        for (animations, 0..) |*animation, i| {
+            animation.name = try allocator.dupeZ(u8, self.animations.items[i].name);
+            animation.fps = self.animations.items[i].fps;
+            animation.start = self.animations.items[i].start;
+            animation.length = self.animations.items[i].length;
         }
 
         return .{
             .width = self.width,
             .height = self.height,
-            .tileWidth = self.tile_width,
-            .tileHeight = self.tile_height,
+            .tile_width = self.tile_width,
+            .tile_height = self.tile_height,
             .layers = layers,
             .sprites = sprites,
-            .animations = self.animations.items,
+            .animations = animations,
         };
     }
 
@@ -424,7 +431,8 @@ pub const Pixi = struct {
         if (self.saving) return;
         self.saving = true;
         self.history.bookmark = 0;
-        var external = try self.toExternal(pixi.state.allocator);
+        var ext = try self.external(pixi.state.allocator);
+        defer ext.deinit(pixi.state.allocator);
         var zip_file = zip.zip_open(self.path, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
         if (zip_file) |z| {
@@ -432,7 +440,7 @@ pub const Pixi = struct {
             const out_stream = json.writer();
             const options = std.json.StringifyOptions{ .whitespace = .{} };
 
-            try std.json.stringify(external, options, out_stream);
+            try std.json.stringify(ext, options, out_stream);
 
             var json_output = try json.toOwnedSlice();
             defer pixi.state.allocator.free(json_output);
@@ -457,9 +465,6 @@ pub const Pixi = struct {
 
             zip.zip_close(z);
         }
-
-        pixi.state.allocator.free(external.layers);
-        pixi.state.allocator.free(external.sprites);
         self.saving = false;
     }
 
