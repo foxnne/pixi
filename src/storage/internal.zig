@@ -105,33 +105,42 @@ pub const Pixi = struct {
         if (pixel_coord_opt) |pixel_coord| {
             const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
-            var color: [4]u8 = .{ 0, 0, 0, 0 };
+            if (pixi.state.tools.current != .heightmap) {
+                var color: [4]u8 = .{ 0, 0, 0, 0 };
 
-            var layer_index: ?usize = null;
-            // Go through all layers until we hit an opaque pixel
-            for (file.layers.items, 0..) |layer, i| {
-                const p = layer.getPixel(pixel);
-                if (p[3] > 0) {
-                    color = p;
-                    layer_index = i;
-                    if (pixi.state.settings.eyedropper_auto_switch_layer)
-                        file.selected_layer_index = i;
-                    break;
-                } else continue;
-            }
+                var layer_index: ?usize = null;
+                // Go through all layers until we hit an opaque pixel
+                for (file.layers.items, 0..) |layer, i| {
+                    const p = layer.getPixel(pixel);
+                    if (p[3] > 0) {
+                        color = p;
+                        layer_index = i;
+                        if (pixi.state.settings.eyedropper_auto_switch_layer)
+                            file.selected_layer_index = i;
+                        break;
+                    } else continue;
+                }
 
-            if (color[3] == 0) {
-                pixi.state.tools.set(.eraser);
+                if (color[3] == 0) {
+                    pixi.state.tools.set(.eraser);
+                } else {
+                    pixi.state.tools.set(.pencil);
+                    pixi.state.colors.primary = color;
+                }
+
+                if (layer_index) |index| {
+                    camera.drawLayerTooltip(index);
+                    camera.drawColorTooltip(color);
+                } else {
+                    camera.drawColorTooltip(color);
+                }
             } else {
-                pixi.state.tools.set(.pencil);
-                pixi.state.colors.primary = color;
-            }
-
-            if (layer_index) |index| {
-                camera.drawLayerTooltip(index);
-                camera.drawColorTooltip(color);
-            } else {
-                camera.drawColorTooltip(color);
+                if (file.heightmap_layer) |layer| {
+                    const p = layer.getPixel(pixel);
+                    if (p[3] > 0) {
+                        pixi.state.colors.height = p[0];
+                    }
+                }
             }
         }
     }
