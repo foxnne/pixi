@@ -16,6 +16,8 @@ pub const Popups = @import("editor/popups/Popups.zig");
 pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
 pub const Hotkeys = @import("input/Hotkeys.zig");
 
+pub const Packer = @import("tools/Packer.zig");
+
 pub const editor = @import("editor/editor.zig");
 
 pub const assets = @import("assets.zig");
@@ -54,6 +56,11 @@ pub const PixiState = struct {
     background_logo: gfx.Texture,
     fox_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
+    pack_open_files: std.ArrayList(storage.Internal.Pixi),
+    pack_files: PackFiles = .project,
+    test_texture: ?gfx.Texture = null,
+    packer: Packer,
+    atlas: ?storage.Internal.Atlas = null,
     open_file_index: usize = 0,
     tools: Tools = .{},
     popups: Popups = .{},
@@ -69,6 +76,7 @@ pub const Sidebar = enum {
     layers,
     sprites,
     animations,
+    pack,
     settings,
 };
 
@@ -153,10 +161,17 @@ pub const Colors = struct {
     }
 };
 
+pub const PackFiles = enum {
+    project,
+    all_open,
+    single_open,
+};
+
 fn init(allocator: std.mem.Allocator) !*PixiState {
     const gctx = try zgpu.GraphicsContext.create(allocator, window);
 
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
+    var pack_open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
@@ -179,6 +194,8 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
 
     const hotkeys = try Hotkeys.initDefault(allocator);
 
+    const packer = Packer.init(allocator);
+
     state = try allocator.create(PixiState);
     state.* = .{
         .allocator = allocator,
@@ -187,12 +204,14 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
         .background_logo = background_logo,
         .fox_logo = fox_logo,
         .open_files = open_files,
+        .pack_open_files = pack_open_files,
         .cursors = .{
             .pencil = pencil,
             .eraser = eraser,
         },
         .colors = try Colors.load(),
         .hotkeys = hotkeys,
+        .packer = packer,
     };
 
     return state;

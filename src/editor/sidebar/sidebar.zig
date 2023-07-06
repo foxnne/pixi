@@ -38,6 +38,7 @@ pub fn draw() void {
         drawOption(.layers, pixi.fa.layer_group);
         drawOption(.sprites, pixi.fa.th);
         drawOption(.animations, pixi.fa.play_circle);
+        drawOption(.pack, pixi.fa.box_open);
         drawOption(.settings, pixi.fa.cog);
     }
 

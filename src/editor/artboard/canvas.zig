@@ -59,6 +59,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
+            if (pixi.state.test_texture) |*texture| {
+                file.camera.drawTexture(texture.view_handle, texture.image.width, texture.image.height, .{ x, y }, 0xffffffff);
+                file.camera.drawRect(.{ x, y, @intToFloat(f32, texture.image.width), @intToFloat(f32, texture.image.height) }, 1, 0xFFFFFFFF);
+            }
+
             file.processSampleTool(.primary);
             file.processStrokeTool(.primary);
             file.processAnimationTool();

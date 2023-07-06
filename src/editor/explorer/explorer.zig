@@ -8,6 +8,7 @@ pub const tools = @import("tools.zig");
 pub const layers = @import("layers.zig");
 pub const sprites = @import("sprites.zig");
 pub const animations = @import("animations.zig");
+pub const pack = @import("pack.zig");
 pub const settings = @import("settings.zig");
 
 pub fn draw() void {
@@ -84,6 +85,14 @@ pub fn draw() void {
                 }
                 zgui.separator();
                 animations.draw();
+            },
+            .pack => {
+                if (zgui.beginMenuBar()) {
+                    zgui.text("Pack", .{});
+                    zgui.endMenuBar();
+                }
+                zgui.separator();
+                pack.draw();
             },
             .settings => {
                 if (zgui.beginMenuBar()) {

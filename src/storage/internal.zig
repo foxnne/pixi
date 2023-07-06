@@ -6,6 +6,8 @@ const storage = @import("storage.zig");
 const zip = @import("zip");
 const zgui = @import("zgui");
 
+const external = @import("external.zig");
+
 pub const Pixi = struct {
     path: [:0]const u8,
     width: u32,
@@ -883,4 +885,10 @@ pub const Palette = struct {
             .colors = try colors.toOwnedSlice(),
         };
     }
+};
+
+pub const Atlas = struct {
+    diffusemap: pixi.gfx.Texture,
+    heightmap: ?pixi.gfx.Texture,
+    external: external.Atlas,
 };
