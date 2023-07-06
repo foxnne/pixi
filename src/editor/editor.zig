@@ -64,10 +64,10 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 
     var internal: pixi.storage.Internal.Pixi = .{
         .path = try pixi.state.allocator.dupeZ(u8, path),
-        .width = @intCast(u32, pixi.state.popups.file_setup_tiles[0] * pixi.state.popups.file_setup_tile_size[0]),
-        .height = @intCast(u32, pixi.state.popups.file_setup_tiles[1] * pixi.state.popups.file_setup_tile_size[1]),
-        .tile_width = @intCast(u32, pixi.state.popups.file_setup_tile_size[0]),
-        .tile_height = @intCast(u32, pixi.state.popups.file_setup_tile_size[1]),
+        .width = @as(u32, @intCast(pixi.state.popups.file_setup_tiles[0] * pixi.state.popups.file_setup_tile_size[0])),
+        .height = @as(u32, @intCast(pixi.state.popups.file_setup_tiles[1] * pixi.state.popups.file_setup_tile_size[1])),
+        .tile_width = @as(u32, @intCast(pixi.state.popups.file_setup_tile_size[0])),
+        .tile_height = @as(u32, @intCast(pixi.state.popups.file_setup_tile_size[1])),
         .layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
         .deleted_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
         .deleted_heightmap_layers = std.ArrayList(pixi.storage.Internal.Layer).init(pixi.state.allocator),
@@ -75,7 +75,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
         .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
         .deleted_animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
-        .flipbook_camera = .{ .position = .{ -@intToFloat(f32, pixi.state.popups.file_setup_tile_size[0]) / 2.0, 0.0 } },
+        .flipbook_camera = .{ .position = .{ -@as(f32, @floatFromInt(pixi.state.popups.file_setup_tile_size[0])) / 2.0, 0.0 } },
         .background_image = undefined,
         .background_texture_handle = undefined,
         .background_texture_view_handle = undefined,
@@ -107,7 +107,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 
     // Create sprites for all tiles.
     {
-        const tiles = @intCast(usize, pixi.state.popups.file_setup_tiles[0] * pixi.state.popups.file_setup_tiles[1]);
+        const tiles = @as(usize, @intCast(pixi.state.popups.file_setup_tiles[0] * pixi.state.popups.file_setup_tiles[1]));
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
             var sprite: pixi.storage.Internal.Sprite = .{
@@ -159,7 +159,7 @@ pub fn openFile(path: [:0]const u8) !bool {
         _ = zip.zip_entry_read(pixi_file, &buf, &size);
         _ = zip.zip_entry_close(pixi_file);
 
-        var content: []const u8 = @ptrCast([*]const u8, buf)[0..size];
+        var content: []const u8 = @as([*]const u8, @ptrCast(buf))[0..size];
 
         const options = std.json.ParseOptions{
             .duplicate_field_behavior = .use_first,
@@ -184,7 +184,7 @@ pub fn openFile(path: [:0]const u8) !bool {
             .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
             .deleted_animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
-            .flipbook_camera = .{ .position = .{ -@intToFloat(f32, external.tile_width) / 2.0, 0.0 } },
+            .flipbook_camera = .{ .position = .{ -@as(f32, @floatFromInt(external.tile_width)) / 2.0, 0.0 } },
             .background_image = undefined,
             .background_texture_handle = undefined,
             .background_texture_view_handle = undefined,
@@ -218,7 +218,7 @@ pub fn openFile(path: [:0]const u8) !bool {
                     .texture = undefined,
                 };
 
-                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @ptrCast([*]u8, data)[0..img_len], .{});
+                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @as([*]u8, @ptrCast(data))[0..img_len], .{});
                 new_layer.id = internal.id();
                 try internal.layers.append(new_layer);
             }
@@ -240,7 +240,7 @@ pub fn openFile(path: [:0]const u8) !bool {
                     .texture = undefined,
                 };
 
-                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @ptrCast([*]u8, data)[0..img_len], .{});
+                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @as([*]u8, @ptrCast(data))[0..img_len], .{});
                 new_layer.id = internal.id();
                 internal.heightmap_layer = new_layer;
             }
@@ -250,8 +250,8 @@ pub fn openFile(path: [:0]const u8) !bool {
             try internal.sprites.append(.{
                 .name = try pixi.state.allocator.dupeZ(u8, sprite.name),
                 .index = i,
-                .origin_x = @intToFloat(f32, sprite.origin[0]),
-                .origin_y = @intToFloat(f32, sprite.origin[1]),
+                .origin_x = @as(f32, @floatFromInt(sprite.origin[0])),
+                .origin_y = @as(f32, @floatFromInt(sprite.origin[1])),
             });
         }
 

@@ -22,5 +22,5 @@ pub fn readZ(allocator: std.mem.Allocator, filename: []const u8) ![:0]u8 {
     _ = try file.read(buffer[0..file_size]);
     buffer[file_size] = 0;
 
-    return buffer[0..file_size: 0];
+    return buffer[0..file_size :0];
 }

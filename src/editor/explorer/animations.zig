@@ -33,10 +33,9 @@ pub fn draw() void {
             { // Draw tools for animation editing
                 zgui.setCursorPosX(style.item_spacing[0]);
                 tools.drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
-                
+
                 zgui.sameLine(.{});
                 tools.drawTool("[]", button_width, button_height, .animation);
-                
             }
         }
 

@@ -110,7 +110,7 @@ pub fn setHotkeyState(self: *Self, k: zglfw.Key, mods: zglfw.Mods, action: zglfw
                     else => true,
                 };
             }
-            if (@bitCast(i32, hk.mods) == @bitCast(i32, mods)) {
+            if (@as(i32, @bitCast(hk.mods)) == @as(i32, @bitCast(mods))) {
                 hk.previous_state = hk.state;
                 hk.state = switch (action) {
                     .release => false,

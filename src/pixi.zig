@@ -176,7 +176,7 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
     const window_size = window.getSize();
     const window_scale = window.getContentScale();
     const state_window: Window = .{
-        .size = zm.f32x4(@intToFloat(f32, window_size[0]), @intToFloat(f32, window_size[1]), 0, 0),
+        .size = zm.f32x4(@as(f32, @floatFromInt(window_size[0])), @as(f32, @floatFromInt(window_size[1])), 0, 0),
         .scale = zm.f32x4(window_scale[0], window_scale[1], 0, 0),
     };
 
@@ -289,11 +289,11 @@ fn draw() void {
         const window_size = state.gctx.window.getSize();
         const window_scale = state.gctx.window.getContentScale();
         state.window = .{
-            .size = zm.f32x4(@intToFloat(f32, window_size[0]), @intToFloat(f32, window_size[1]), 0, 0),
+            .size = zm.f32x4(@as(f32, @floatFromInt(window_size[0])), @as(f32, @floatFromInt(window_size[1])), 0, 0),
             .scale = zm.f32x4(window_scale[0], window_scale[1], 0, 0),
         };
-        state.settings.initial_window_width = @intCast(u32, window_size[0]);
-        state.settings.initial_window_height = @intCast(u32, window_size[1]);
+        state.settings.initial_window_width = @as(u32, @intCast(window_size[0]));
+        state.settings.initial_window_height = @as(u32, @intCast(window_size[1]));
     }
 }
 
@@ -349,7 +349,7 @@ pub fn main() !void {
     state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-    zgui.backend.initWithConfig(window, state.gctx.device, @enumToInt(zgpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
+    zgui.backend.initWithConfig(window, state.gctx.device, @intFromEnum(zgpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
 
     // Base style
     state.style.set();

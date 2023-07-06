@@ -38,13 +38,13 @@ pub const Camera = struct {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], width, height });
 
         const draw_list = zgui.getWindowDrawList();
-        const tile_width = width / @intToFloat(f32, columns);
-        const tile_height = height / @intToFloat(f32, rows);
+        const tile_width = width / @as(f32, @floatFromInt(columns));
+        const tile_height = height / @as(f32, @floatFromInt(rows));
 
         var i: usize = 0;
         while (i < columns + 1) : (i += 1) {
-            const p1: [2]f32 = .{ rect_min_max[0][0] + @intToFloat(f32, i) * tile_width * camera.zoom, rect_min_max[0][1] };
-            const p2: [2]f32 = .{ rect_min_max[0][0] + @intToFloat(f32, i) * tile_width * camera.zoom, rect_min_max[0][1] + height * camera.zoom };
+            const p1: [2]f32 = .{ rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, rect_min_max[0][1] };
+            const p2: [2]f32 = .{ rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, rect_min_max[0][1] + height * camera.zoom };
             draw_list.addLine(.{
                 .p1 = p1,
                 .p2 = p2,
@@ -55,8 +55,8 @@ pub const Camera = struct {
 
         i = 0;
         while (i < rows + 1) : (i += 1) {
-            const p1: [2]f32 = .{ rect_min_max[0][0], rect_min_max[0][1] + @intToFloat(f32, i) * tile_height * camera.zoom };
-            const p2: [2]f32 = .{ rect_min_max[0][0] + width * camera.zoom, rect_min_max[0][1] + @intToFloat(f32, i) * tile_height * camera.zoom };
+            const p1: [2]f32 = .{ rect_min_max[0][0], rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
+            const p2: [2]f32 = .{ rect_min_max[0][0] + width * camera.zoom, rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
             draw_list.addLine(.{
                 .p1 = p1,
                 .p2 = p2,
@@ -175,7 +175,7 @@ pub const Camera = struct {
     }
 
     pub fn drawTexture(camera: Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, position: [2]f32, color: u32) void {
-        const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @intToFloat(f32, width), @intToFloat(f32, height) });
+        const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(width)), @as(f32, @floatFromInt(height)) });
 
         const draw_list = zgui.getWindowDrawList();
         if (pixi.state.gctx.lookupResource(texture)) |texture_id| {
@@ -194,15 +194,15 @@ pub const Camera = struct {
         const draw_list = zgui.getForegroundDrawList();
         if (pixi.state.gctx.lookupResource(texture)) |texture_id| {
             draw_list.addImage(texture_id, .{
-                .pmin = .{ position[0], position[1] - @intToFloat(f32, height) },
-                .pmax = .{ position[0] + @intToFloat(f32, width), position[1] },
+                .pmin = .{ position[0], position[1] - @as(f32, @floatFromInt(height)) },
+                .pmax = .{ position[0] + @as(f32, @floatFromInt(width)), position[1] },
                 .col = color,
             });
         }
     }
 
     pub fn drawLayer(camera: Camera, layer: pixi.storage.Internal.Layer, position: [2]f32) void {
-        const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @intToFloat(f32, layer.texture.image.width), @intToFloat(f32, layer.texture.image.height) });
+        const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(layer.texture.image.width)), @as(f32, @floatFromInt(layer.texture.image.height)) });
 
         const draw_list = zgui.getWindowDrawList();
         if (pixi.state.gctx.lookupResource(layer.texture.view_handle)) |texture_id| {
@@ -217,8 +217,8 @@ pub const Camera = struct {
     pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
         const rect_min_max = camera.getRectMinMax(dst_rect);
 
-        const inv_w = 1.0 / @intToFloat(f32, layer.texture.image.width);
-        const inv_h = 1.0 / @intToFloat(f32, layer.texture.image.height);
+        const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.image.height));
 
         const uvmin: [2]f32 = .{ src_rect[0] * inv_w, src_rect[1] * inv_h };
         const uvmax: [2]f32 = .{ (src_rect[0] + src_rect[2]) * inv_w, (src_rect[1] + src_rect[3]) * inv_h };
@@ -304,8 +304,8 @@ pub const Camera = struct {
         tl[0] += screen_position[0];
         tl[1] += screen_position[1];
         var br = options.texture_position;
-        br[0] += @intToFloat(f32, options.width);
-        br[1] += @intToFloat(f32, options.height);
+        br[0] += @as(f32, @floatFromInt(options.width));
+        br[1] += @as(f32, @floatFromInt(options.height));
         br = camera.matrix().transformVec2(br);
         br[0] += screen_position[0];
         br[1] += screen_position[1];
@@ -329,10 +329,10 @@ pub const Camera = struct {
 
     pub fn flipbookPixelCoordinates(camera: Camera, file: *pixi.storage.Internal.Pixi, options: FlipbookPixelCoordinatesOptions) ?[2]f32 {
         const i = file.selected_sprite_index;
-        const tile_width = @intToFloat(f32, file.tile_width);
-        const tile_height = @intToFloat(f32, file.tile_height);
-        const sprite_scale = std.math.clamp(0.5 / @fabs(@intToFloat(f32, i) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
-        var dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + @intToFloat(f32, i) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
+        const tile_width = @as(f32, @floatFromInt(file.tile_width));
+        const tile_height = @as(f32, @floatFromInt(file.tile_height));
+        const sprite_scale = std.math.clamp(0.5 / @fabs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
+        var dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + @as(f32, @floatFromInt(i)) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
         var dst_y: f32 = options.sprite_position[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
         var dst_width: f32 = tile_width * sprite_scale;
         var dst_height: f32 = tile_height * sprite_scale;
@@ -341,8 +341,8 @@ pub const Camera = struct {
 
         if (options.position[0] > rect_min_max[0][0] and options.position[0] < rect_min_max[1][0] and options.position[1] < rect_min_max[1][1] and options.position[1] > rect_min_max[0][1]) {
             const tiles_wide = @divExact(file.width, file.tile_width);
-            const column = @intToFloat(f32, @mod(@intCast(u32, i), tiles_wide));
-            const row = @intToFloat(f32, @divTrunc(@intCast(u32, i), tiles_wide));
+            const column = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(i)), tiles_wide)));
+            const row = @as(f32, @floatFromInt(@divTrunc(@as(u32, @intCast(i)), tiles_wide)));
 
             var pixel_pos: [2]f32 = .{ 0.0, 0.0 };
             pixel_pos[0] = @divTrunc(options.position[0] - rect_min_max[0][0], camera.zoom) + (column * tile_width);
@@ -371,7 +371,7 @@ pub const Camera = struct {
                     switch (pixi.state.settings.input_scheme) {
                         .trackpad => {
                             const nearest_zoom_index = camera.nearestZoomIndex();
-                            const t = @intToFloat(f32, nearest_zoom_index) / @intToFloat(f32, pixi.state.settings.zoom_steps.len - 1);
+                            const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(pixi.state.settings.zoom_steps.len - 1));
                             const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t);
                             const zoom_delta = y * sensitivity;
 
@@ -456,10 +456,10 @@ pub const Camera = struct {
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();
             const col: [4]f32 = .{
-                @intToFloat(f32, color[0]) / 255.0,
-                @intToFloat(f32, color[1]) / 255.0,
-                @intToFloat(f32, color[2]) / 255.0,
-                @intToFloat(f32, color[3]) / 255.0,
+                @as(f32, @floatFromInt(color[0])) / 255.0,
+                @as(f32, @floatFromInt(color[1])) / 255.0,
+                @as(f32, @floatFromInt(color[2])) / 255.0,
+                @as(f32, @floatFromInt(color[3])) / 255.0,
             };
             _ = zgui.colorButton("Eyedropper", .{
                 .col = col,

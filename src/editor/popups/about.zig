@@ -32,8 +32,8 @@ pub fn draw() void {
         defer zgui.endPopup();
         zgui.spacing();
 
-        const w = @intToFloat(f32, pixi.state.fox_logo.image.width / 4) * pixi.state.window.scale[0];
-        const h = @intToFloat(f32, pixi.state.fox_logo.image.height / 4) * pixi.state.window.scale[1];
+        const w = @as(f32, @floatFromInt(pixi.state.fox_logo.image.width / 4)) * pixi.state.window.scale[0];
+        const h = @as(f32, @floatFromInt(pixi.state.fox_logo.image.height / 4)) * pixi.state.window.scale[1];
         const window_position = zgui.getWindowPos();
         const center: [2]f32 = .{ zgui.getWindowWidth() / 2.0, zgui.getWindowHeight() / 2.0 };
         zgui.setCursorPosX(center[0] - w / 2.0);

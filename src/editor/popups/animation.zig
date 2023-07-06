@@ -58,13 +58,13 @@ pub fn draw() void {
 
             zgui.spacing();
             if (pixi.state.popups.animation_state == .create) {
-                var fps = @intCast(i32, pixi.state.popups.animation_fps);
+                var fps = @as(i32, @intCast(pixi.state.popups.animation_fps));
                 if (zgui.sliderInt("FPS", .{
                     .v = &fps,
                     .min = 1,
                     .max = 60,
                 })) {
-                    pixi.state.popups.animation_fps = @intCast(usize, fps);
+                    pixi.state.popups.animation_fps = @as(usize, @intCast(fps));
                 }
                 zgui.spacing();
             }

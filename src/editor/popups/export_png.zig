@@ -77,7 +77,7 @@ pub fn draw() void {
             defer zgui.endCombo();
             var i: usize = 0;
             while (i < 5) : (i += 1) {
-                const current = @intToEnum(pixi.Popups.ExportToPngState, i);
+                const current = @as(pixi.Popups.ExportToPngState, @enumFromInt(i));
                 const current_plot_name = switch (current) {
                     .selected_sprite => "Selected Sprite",
                     .selected_animation => "Selected Animation",
@@ -98,7 +98,7 @@ pub fn draw() void {
 
         switch (pixi.state.popups.export_to_png_state) {
             .selected_sprite, .selected_animation => {
-                image_scale = @intCast(i32, pixi.state.popups.export_to_png_scale);
+                image_scale = @as(i32, @intCast(pixi.state.popups.export_to_png_scale));
 
                 zgui.text("Select an export scale:", .{});
                 if (zgui.sliderInt("Image Scale", .{
@@ -106,7 +106,7 @@ pub fn draw() void {
                     .min = 1,
                     .max = 16,
                 })) {
-                    pixi.state.popups.export_to_png_scale = @intCast(u32, image_scale);
+                    pixi.state.popups.export_to_png_scale = @as(u32, @intCast(image_scale));
                 }
             },
             else => {
@@ -290,13 +290,13 @@ pub fn draw() void {
                         if (nfd.saveFileDialog("png", null) catch unreachable) |path| {
                             var dest_image = zstbi.Image.createEmpty(file.width, file.height, 4, .{}) catch unreachable;
                             defer dest_image.deinit();
-                            var dest_pixels = @ptrCast([*][4]u8, dest_image.data.ptr)[0 .. dest_image.data.len / 4];
+                            var dest_pixels = @as([*][4]u8, @ptrCast(dest_image.data.ptr))[0 .. dest_image.data.len / 4];
 
                             var i: usize = file.layers.items.len;
                             while (i > 0) {
                                 i -= 1;
                                 const src_image = file.layers.items[i].texture.image;
-                                const src_pixels = @ptrCast([*][4]u8, src_image.data.ptr)[0 .. src_image.data.len / 4];
+                                const src_pixels = @as([*][4]u8, @ptrCast(src_image.data.ptr))[0 .. src_image.data.len / 4];
                                 for (src_pixels, 0..) |src, j| {
                                     if (src[3] != 0) dest_pixels[j] = src;
                                 }

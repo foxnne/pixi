@@ -29,8 +29,8 @@ pub fn draw() void {
                 const first_sprite = file.sprites.items[file.selected_sprites.items[0]];
                 var origin_x: f32 = first_sprite.origin_x;
                 var origin_y: f32 = first_sprite.origin_y;
-                const tile_width = @intToFloat(f32, file.tile_width);
-                const tile_height = @intToFloat(f32, file.tile_height);
+                const tile_width = @as(f32, @floatFromInt(file.tile_width));
+                const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
                 for (file.selected_sprites.items) |selected_index| {
                     const sprite = file.sprites.items[selected_index];

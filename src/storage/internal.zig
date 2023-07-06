@@ -59,12 +59,12 @@ pub const Pixi = struct {
 
     pub fn canvasCenterOffset(self: *Pixi, canvas: Canvas) [2]f32 {
         const width = switch (canvas) {
-            .primary => @intToFloat(f32, self.width),
-            .flipbook => @intToFloat(f32, self.tile_width),
+            .primary => @as(f32, @floatFromInt(self.width)),
+            .flipbook => @as(f32, @floatFromInt(self.tile_width)),
         };
         const height = switch (canvas) {
-            .primary => @intToFloat(f32, self.height),
-            .flipbook => @intToFloat(f32, self.tile_height),
+            .primary => @as(f32, @floatFromInt(self.height)),
+            .flipbook => @as(f32, @floatFromInt(self.tile_height)),
         };
 
         return .{ -width / 2.0, -height / 2.0 };
@@ -103,7 +103,7 @@ pub const Pixi = struct {
         };
 
         if (pixel_coord_opt) |pixel_coord| {
-            const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
+            const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
             var color: [4]u8 = .{ 0, 0, 0, 0 };
 
@@ -204,7 +204,7 @@ pub const Pixi = struct {
                     if (prev_pixel_coords_opt) |prev_pixel_coord| {
                         const pixel_coords = pixi.algorithms.brezenham.process(prev_pixel_coord, pixel_coord) catch unreachable;
                         for (pixel_coords) |p_coord| {
-                            const p = .{ @floatToInt(usize, p_coord[0]), @floatToInt(usize, p_coord[1]) };
+                            const p = .{ @as(usize, @intFromFloat(p_coord[0])), @as(usize, @intFromFloat(p_coord[1])) };
                             const index = layer.getPixelIndex(p);
                             const value = layer.getPixel(p);
                             if (pixi.state.tools.current == .heightmap) {
@@ -238,7 +238,7 @@ pub const Pixi = struct {
                 }
             } else if (pixi.state.controls.mouse.primary.pressed()) {
                 if (pixel_coords_opt) |pixel_coord| {
-                    const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
+                    const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
                     const index = layer.getPixelIndex(pixel);
                     const value = layer.getPixel(pixel);
@@ -269,7 +269,7 @@ pub const Pixi = struct {
             }
         } else { // Not actively drawing, but hovering over canvas
             if (pixel_coords_opt) |pixel_coord| {
-                const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
+                const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
                 switch (pixi.state.tools.current) {
                     .pencil => file.temporary_layer.setPixel(pixel, pixi.state.colors.primary, true),
                     .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
@@ -282,7 +282,7 @@ pub const Pixi = struct {
 
             // Submit the stroke change buffer
             if (file.buffers.stroke.indices.items.len > 0 and pixi.state.controls.mouse.primary.released()) {
-                const layer_index: i32 = if (pixi.state.tools.current == .heightmap) -1 else @intCast(i32, file.selected_layer_index);
+                const layer_index: i32 = if (pixi.state.tools.current == .heightmap) -1 else @as(i32, @intCast(file.selected_layer_index));
                 const change = file.buffers.stroke.toChange(layer_index) catch unreachable;
                 file.history.append(change) catch unreachable;
             }
@@ -301,12 +301,12 @@ pub const Pixi = struct {
             .width = file.width,
             .height = file.height,
         })) |pixel_coord| {
-            const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
+            const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
-            var tile_column = @divTrunc(pixel[0], @intCast(usize, file.tile_width));
-            var tile_row = @divTrunc(pixel[1], @intCast(usize, file.tile_height));
+            var tile_column = @divTrunc(pixel[0], @as(usize, @intCast(file.tile_width)));
+            var tile_row = @divTrunc(pixel[1], @as(usize, @intCast(file.tile_height)));
 
-            var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
+            var tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
             var tile_index = tile_column + tile_row * tiles_wide;
 
             if (tile_index >= pixi.state.popups.animation_start) {
@@ -400,7 +400,7 @@ pub const Pixi = struct {
 
         for (sprites, 0..) |*sprite, i| {
             sprite.name = try allocator.dupeZ(u8, self.sprites.items[i].name);
-            sprite.origin = .{ @floatToInt(u32, @round(self.sprites.items[i].origin_x)), @floatToInt(u32, @round(self.sprites.items[i].origin_y)) };
+            sprite.origin = .{ @as(u32, @intFromFloat(@round(self.sprites.items[i].origin_x))), @as(u32, @intFromFloat(@round(self.sprites.items[i].origin_y))) };
         }
 
         for (animations, 0..) |*animation, i| {
@@ -422,10 +422,10 @@ pub const Pixi = struct {
     }
 
     fn write(context: ?*anyopaque, data: ?*anyopaque, size: c_int) callconv(.C) void {
-        const zip_file = @ptrCast(?*zip.struct_zip_t, context);
+        const zip_file = @as(?*zip.struct_zip_t, @ptrCast(context));
 
         if (zip_file) |z| {
-            _ = zip.zip_entry_write(z, data, @intCast(usize, size));
+            _ = zip.zip_entry_write(z, data, @as(usize, @intCast(size)));
         }
     }
 
@@ -453,14 +453,14 @@ pub const Pixi = struct {
 
             for (self.layers.items) |layer| {
                 const layer_name = zgui.formatZ("{s}.png", .{layer.name});
-                _ = zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name));
+                _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
                 try layer.texture.image.writeToFn(write, z, .png);
                 _ = zip.zip_entry_close(z);
             }
 
             if (self.heightmap_layer) |layer| {
                 const layer_name = zgui.formatZ("{s}.png", .{layer.name});
-                _ = zip.zip_entry_open(z, @ptrCast([*c]const u8, layer_name));
+                _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
                 try layer.texture.image.writeToFn(write, z, .png);
                 _ = zip.zip_entry_close(z);
             }
@@ -504,7 +504,7 @@ pub const Pixi = struct {
         // Set background image data to checkerboard
         {
             var i: usize = 0;
-            while (i < @intCast(usize, self.tile_width * 2 * self.tile_height * 2 * 4)) : (i += 4) {
+            while (i < @as(usize, @intCast(self.tile_width * 2 * self.tile_height * 2 * 4))) : (i += 4) {
                 const r = i;
                 const g = i + 1;
                 const b = i + 2;
@@ -707,13 +707,13 @@ pub const Pixi = struct {
     }
 
     pub fn flipbookScrollFromSpriteIndex(self: Pixi, index: usize) f32 {
-        return -@intToFloat(f32, index * self.tile_width) * 1.1;
+        return -@as(f32, @floatFromInt(index * self.tile_width)) * 1.1;
     }
 
     pub fn pixelCoordinatesFromIndex(self: Pixi, index: usize) ?[2]f32 {
         if (index > self.sprites.items.len - 1) return null;
-        const x = @intToFloat(f32, @mod(@intCast(u32, index), self.width));
-        const y = @intToFloat(f32, @divTrunc(@intCast(u32, index), self.width));
+        const x = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(index)), self.width)));
+        const y = @as(f32, @floatFromInt(@divTrunc(@as(u32, @intCast(index)), self.width)));
         return .{ x, y };
     }
 
@@ -771,8 +771,8 @@ pub const Pixi = struct {
 
         const tiles_wide = @divExact(file.width, file.tile_width);
 
-        const column = @mod(@intCast(u32, sprite_index), tiles_wide);
-        const row = @divTrunc(@intCast(u32, sprite_index), tiles_wide);
+        const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
+        const row = @divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide);
 
         const src_x = column * file.tile_width;
         const src_y = row * file.tile_height;
@@ -787,16 +787,16 @@ pub const Pixi = struct {
 
             const first_index = layer.getPixelIndex(.{ src_x, src_y });
 
-            var src_pixels = @ptrCast([*][4]u8, layer.texture.image.data.ptr)[0 .. layer.texture.image.data.len / 4];
-            var dest_pixels = @ptrCast([*][4]u8, sprite_image.data.ptr)[0 .. sprite_image.data.len / 4];
+            var src_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+            var dest_pixels = @as([*][4]u8, @ptrCast(sprite_image.data.ptr))[0 .. sprite_image.data.len / 4];
 
             var r: usize = 0;
-            while (r < @intCast(usize, file.tile_height)) : (r += 1) {
-                const p_src = first_index + (r * @intCast(usize, file.width));
-                const src = src_pixels[p_src .. p_src + @intCast(usize, file.tile_width)];
+            while (r < @as(usize, @intCast(file.tile_height))) : (r += 1) {
+                const p_src = first_index + (r * @as(usize, @intCast(file.width)));
+                const src = src_pixels[p_src .. p_src + @as(usize, @intCast(file.tile_width))];
 
-                const p_dest = r * @intCast(usize, file.tile_width);
-                const dest = dest_pixels[p_dest .. p_dest + @intCast(usize, file.tile_width)];
+                const p_dest = r * @as(usize, @intCast(file.tile_width));
+                const dest = dest_pixels[p_dest .. p_dest + @as(usize, @intCast(file.tile_width))];
 
                 for (src, 0..) |pixel, pixel_i| {
                     if (pixel[3] != 0)
@@ -816,25 +816,25 @@ pub const Layer = struct {
     id: usize = 0,
 
     pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {
-        return pixel[0] + pixel[1] * @intCast(usize, self.texture.image.width);
+        return pixel[0] + pixel[1] * @as(usize, @intCast(self.texture.image.width));
     }
 
     pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
         const index = self.getPixelIndex(pixel);
-        const pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
+        const pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
         return pixels[index];
     }
 
     pub fn setPixel(self: *Layer, pixel: [2]usize, color: [4]u8, update: bool) void {
         const index = self.getPixelIndex(pixel);
-        var pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
+        var pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
         pixels[index] = color;
         if (update)
             self.texture.update(pixi.state.gctx);
     }
 
     pub fn clear(self: *Layer, update: bool) void {
-        var pixels = @ptrCast([*][4]u8, self.texture.image.data.ptr)[0 .. self.texture.image.data.len / 4];
+        var pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
         for (pixels) |*pixel| {
             pixel.* = .{ 0, 0, 0, 0 };
         }
@@ -872,7 +872,7 @@ pub const Palette = struct {
 
             while (try contents.reader().readUntilDelimiterOrEofAlloc(pixi.state.allocator, '\n', 20000)) |line| {
                 const color_u32 = try std.fmt.parseInt(u32, line[0 .. line.len - 1], 16);
-                const color_packed: PackedColor = @bitCast(PackedColor, color_u32);
+                const color_packed: PackedColor = @as(PackedColor, @bitCast(color_u32));
                 try colors.append(.{ color_packed.b, color_packed.g, color_packed.r, 255 });
                 pixi.state.allocator.free(line);
             }

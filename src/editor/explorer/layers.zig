@@ -109,7 +109,7 @@ pub fn draw() void {
                 }
 
                 if (zgui.isItemActive() and !zgui.isItemHovered(.{}) and zgui.isAnyItemHovered()) {
-                    const i_next = @intCast(usize, std.math.clamp(@intCast(i32, i) + (if (zgui.getMouseDragDelta(.left, .{})[1] < 0.0) @as(i32, 1) else @as(i32, -1)), 0, std.math.maxInt(i32)));
+                    const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (zgui.getMouseDragDelta(.left, .{})[1] < 0.0) @as(i32, 1) else @as(i32, -1)), 0, std.math.maxInt(i32))));
                     if (i_next >= 0.0 and i_next < file.layers.items.len) {
                         var change = History.Change.create(pixi.state.allocator, .layers_order, file.layers.items.len) catch unreachable;
                         for (file.layers.items, 0..) |l, layer_i| {

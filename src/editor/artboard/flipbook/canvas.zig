@@ -4,8 +4,8 @@ const pixi = @import("root");
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_height = zgui.getWindowHeight();
-    const tile_width = @intToFloat(f32, file.tile_width);
-    const tile_height = @intToFloat(f32, file.tile_height);
+    const tile_width = @as(f32, @floatFromInt(file.tile_width));
+    const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
     const canvas_center_offset: [2]f32 = .{
         -tile_width / 2.0,
@@ -60,7 +60,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     if (file.selected_animation_state == .play) {
         const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
         file.selected_animation_elapsed += pixi.state.gctx.stats.delta_time;
-        if (file.selected_animation_elapsed > 1.0 / @intToFloat(f32, animation.fps)) {
+        if (file.selected_animation_elapsed > 1.0 / @as(f32, @floatFromInt(animation.fps))) {
             file.selected_animation_elapsed = 0.0;
 
             if (file.selected_sprite_index + 1 >= animation.start + animation.length or file.selected_sprite_index < animation.start) {
@@ -78,9 +78,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const window_width = zgui.getWindowWidth();
 
             const progress_start: [2]f32 = .{ window_position[0], window_position[1] + 2 };
-            const animation_length = @intToFloat(f32, animation.length) / @intToFloat(f32, animation.fps);
+            const animation_length = @as(f32, @floatFromInt(animation.length)) / @as(f32, @floatFromInt(animation.fps));
             const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@intToFloat(f32, current_frame) / @intToFloat(f32, animation.length)) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
+            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
 
             const draw_list = zgui.getWindowDrawList();
             draw_list.addLine(.{
@@ -95,15 +95,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     // Draw all sprites sequentially
     const tiles_wide = @divExact(file.width, file.tile_width);
     for (file.sprites.items, 0..) |_, i| {
-        const column = @intToFloat(f32, @mod(@intCast(u32, i), tiles_wide));
-        const row = @intToFloat(f32, @divTrunc(@intCast(u32, i), tiles_wide));
+        const column = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(i)), tiles_wide)));
+        const row = @as(f32, @floatFromInt(@divTrunc(@as(u32, @intCast(i)), tiles_wide)));
 
         const src_x = column * tile_width;
         const src_y = row * tile_height;
 
-        const sprite_scale = std.math.clamp(0.5 / @fabs(@intToFloat(f32, i) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
+        const sprite_scale = std.math.clamp(0.5 / @fabs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
         const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
-        var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + @intToFloat(f32, i) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
+        var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + @as(f32, @floatFromInt(i)) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
         var dst_y: f32 = canvas_center_offset[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
         var dst_width: f32 = tile_width * sprite_scale;
         var dst_height: f32 = tile_height * sprite_scale;
@@ -176,9 +176,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const window_width = zgui.getWindowWidth();
 
             const progress_start: [2]f32 = .{ window_position[0], window_position[1] + 2 };
-            const animation_length = @intToFloat(f32, animation.length) / @intToFloat(f32, animation.fps);
+            const animation_length = @as(f32, @floatFromInt(animation.length)) / @as(f32, @floatFromInt(animation.fps));
             const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@intToFloat(f32, current_frame) / @intToFloat(f32, animation.length)) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
+            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
 
             const draw_list = zgui.getWindowDrawList();
             draw_list.addLine(.{

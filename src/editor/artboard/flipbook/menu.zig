@@ -59,7 +59,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
 
             { // FPS Selection
                 zgui.setNextItemWidth(100 * pixi.state.window.scale[0]);
-                var fps = @intCast(i32, animation.fps);
+                var fps = @as(i32, @intCast(animation.fps));
                 var changed: bool = false;
                 if (zgui.sliderInt("FPS", .{
                     .v = &fps,
@@ -83,7 +83,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
                 }
 
                 if (changed) {
-                    animation.fps = @intCast(usize, fps);
+                    animation.fps = @as(usize, @intCast(fps));
                 }
             }
         }

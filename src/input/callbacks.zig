@@ -8,13 +8,13 @@ const zgui = @import("zgui");
 pub fn cursor(_: *zglfw.Window, x: f64, y: f64) callconv(.C) void {
     pixi.state.controls.mouse.previous_position.x = pixi.state.controls.mouse.position.x;
     pixi.state.controls.mouse.previous_position.y = pixi.state.controls.mouse.position.y;
-    pixi.state.controls.mouse.position.x = @floatCast(f32, x);
-    pixi.state.controls.mouse.position.y = @floatCast(f32, y);
+    pixi.state.controls.mouse.position.x = @as(f32, @floatCast(x));
+    pixi.state.controls.mouse.position.y = @as(f32, @floatCast(y));
 }
 
 pub fn scroll(_: *zglfw.Window, x: f64, y: f64) callconv(.C) void {
-    pixi.state.controls.mouse.scroll_x = @floatCast(f32, x);
-    pixi.state.controls.mouse.scroll_y = @floatCast(f32, y);
+    pixi.state.controls.mouse.scroll_x = @as(f32, @floatCast(x));
+    pixi.state.controls.mouse.scroll_y = @as(f32, @floatCast(y));
 }
 
 pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Action, _: zglfw.Mods) callconv(.C) void {
@@ -30,7 +30,6 @@ pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Ac
                     pixi.state.controls.mouse.clicked_position = pixi.state.controls.mouse.position;
                 }
             },
-            else => {},
         }
     }
 
@@ -42,7 +41,6 @@ pub fn button(_: *zglfw.Window, glfw_button: zglfw.MouseButton, action: zglfw.Ac
             .repeat, .press => {
                 pixi.state.controls.mouse.secondary.state = true;
             },
-            else => {},
         }
     }
 }

@@ -18,7 +18,7 @@ pub fn lerp(a: f32, b: f32, t: f32) f32 {
 }
 
 pub fn ease(a: f32, b: f32, t: f32, ease_type: EaseType) f32 {
-    return switch(ease_type) {
+    return switch (ease_type) {
         .linear => lerp(a, b, t),
         .ease_in => lerp(a, b, square(t)),
         .ease_out => lerp(a, b, flip(square(flip(t)))),

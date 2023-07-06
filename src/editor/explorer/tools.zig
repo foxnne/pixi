@@ -44,27 +44,27 @@ pub fn draw() void {
         zgui.separator();
 
         if (pixi.state.tools.current == .heightmap) {
-            var height: i32 = @intCast(i32, pixi.state.colors.height);
+            var height: i32 = @as(i32, @intCast(pixi.state.colors.height));
             if (zgui.sliderInt("Height", .{
                 .v = &height,
                 .min = 0,
                 .max = 255,
             })) {
-                pixi.state.colors.height = @intCast(u8, std.math.clamp(height, 0, 255));
+                pixi.state.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
             }
         } else {
             var primary: [4]f32 = if (pixi.state.tools.current == .heightmap) .{} else .{
-                @intToFloat(f32, pixi.state.colors.primary[0]) / 255.0,
-                @intToFloat(f32, pixi.state.colors.primary[1]) / 255.0,
-                @intToFloat(f32, pixi.state.colors.primary[2]) / 255.0,
-                @intToFloat(f32, pixi.state.colors.primary[3]) / 255.0,
+                @as(f32, @floatFromInt(pixi.state.colors.primary[0])) / 255.0,
+                @as(f32, @floatFromInt(pixi.state.colors.primary[1])) / 255.0,
+                @as(f32, @floatFromInt(pixi.state.colors.primary[2])) / 255.0,
+                @as(f32, @floatFromInt(pixi.state.colors.primary[3])) / 255.0,
             };
 
             var secondary: [4]f32 = .{
-                @intToFloat(f32, pixi.state.colors.secondary[0]) / 255.0,
-                @intToFloat(f32, pixi.state.colors.secondary[1]) / 255.0,
-                @intToFloat(f32, pixi.state.colors.secondary[2]) / 255.0,
-                @intToFloat(f32, pixi.state.colors.secondary[3]) / 255.0,
+                @as(f32, @floatFromInt(pixi.state.colors.secondary[0])) / 255.0,
+                @as(f32, @floatFromInt(pixi.state.colors.secondary[1])) / 255.0,
+                @as(f32, @floatFromInt(pixi.state.colors.secondary[2])) / 255.0,
+                @as(f32, @floatFromInt(pixi.state.colors.secondary[3])) / 255.0,
             };
 
             if (zgui.colorButton("Primary", .{
@@ -80,10 +80,10 @@ pub fn draw() void {
                 defer zgui.endPopup();
                 if (zgui.colorPicker4("Primary", .{ .col = &primary })) {
                     pixi.state.colors.primary = .{
-                        @floatToInt(u8, primary[0] * 255.0),
-                        @floatToInt(u8, primary[1] * 255.0),
-                        @floatToInt(u8, primary[2] * 255.0),
-                        @floatToInt(u8, primary[3] * 255.0),
+                        @as(u8, @intFromFloat(primary[0] * 255.0)),
+                        @as(u8, @intFromFloat(primary[1] * 255.0)),
+                        @as(u8, @intFromFloat(primary[2] * 255.0)),
+                        @as(u8, @intFromFloat(primary[3] * 255.0)),
                     };
                 }
             }
@@ -102,10 +102,10 @@ pub fn draw() void {
                 defer zgui.endPopup();
                 if (zgui.colorPicker4("Secondary", .{ .col = &secondary })) {
                     pixi.state.colors.secondary = .{
-                        @floatToInt(u8, secondary[0] * 255.0),
-                        @floatToInt(u8, secondary[1] * 255.0),
-                        @floatToInt(u8, secondary[2] * 255.0),
-                        @floatToInt(u8, secondary[3] * 255.0),
+                        @as(u8, @intFromFloat(secondary[0] * 255.0)),
+                        @as(u8, @intFromFloat(secondary[1] * 255.0)),
+                        @as(u8, @intFromFloat(secondary[2] * 255.0)),
+                        @as(u8, @intFromFloat(secondary[3] * 255.0)),
                     };
                 }
             }
@@ -135,12 +135,12 @@ pub fn draw() void {
             defer zgui.endChild();
             for (palette.colors, 0..) |color, i| {
                 const c: [4]f32 = .{
-                    @intToFloat(f32, color[0]) / 255.0,
-                    @intToFloat(f32, color[1]) / 255.0,
-                    @intToFloat(f32, color[2]) / 255.0,
-                    @intToFloat(f32, color[3]) / 255.0,
+                    @as(f32, @floatFromInt(color[0])) / 255.0,
+                    @as(f32, @floatFromInt(color[1])) / 255.0,
+                    @as(f32, @floatFromInt(color[2])) / 255.0,
+                    @as(f32, @floatFromInt(color[3])) / 255.0,
                 };
-                zgui.pushIntId(@intCast(i32, i));
+                zgui.pushIntId(@as(i32, @intCast(i)));
                 if (zgui.colorButton(palette.name, .{
                     .col = c,
                 })) {

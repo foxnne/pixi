@@ -226,16 +226,16 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
 
     switch (change) {
         .pixels => |*pixels| {
-            var layer = if (pixels.layer < 0) &file.heightmap_layer.? else &file.layers.items[@intCast(usize, pixels.layer)];
+            var layer = if (pixels.layer < 0) &file.heightmap_layer.? else &file.layers.items[@as(usize, @intCast(pixels.layer))];
             for (pixels.indices, 0..) |pixel_index, i| {
                 const color: [4]u8 = pixels.values[i];
-                var current_pixels = @ptrCast([*][4]u8, layer.texture.image.data.ptr)[0 .. layer.texture.image.data.len / 4];
+                var current_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
                 pixels.values[i] = current_pixels[pixel_index];
                 current_pixels[pixel_index] = color;
                 if (color[3] == 0 and pixels.layer >= 0) {
                     // Erasing a pixel on a layer, we also need to erase the heightmap
                     if (file.heightmap_layer) |heightmap_layer| {
-                        var heightmap_pixels = @ptrCast([*][4]u8, heightmap_layer.texture.image.data.ptr)[0 .. heightmap_layer.texture.image.data.len / 4];
+                        var heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.image.data.ptr))[0 .. heightmap_layer.texture.image.data.len / 4];
                         heightmap_pixels[pixel_index] = color;
                     }
                 }

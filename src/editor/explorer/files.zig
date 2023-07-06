@@ -38,7 +38,7 @@ pub fn draw() void {
             })) {
                 zgui.separator();
 
-                if (zgui.beginChild("OpenFiles", .{ .h = @intToFloat(f32, @min(file_count + 1, 6)) * (zgui.getTextLineHeight() + 6.0 * pixi.state.window.scale[0]) })) {
+                if (zgui.beginChild("OpenFiles", .{ .h = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (zgui.getTextLineHeight() + 6.0 * pixi.state.window.scale[0]) })) {
                     zgui.spacing();
 
                     var hovered: bool = false;

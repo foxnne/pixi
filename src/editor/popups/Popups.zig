@@ -71,10 +71,10 @@ pub fn fileSetupSlice(popups: *Popups, path: [:0]const u8) void {
 
     if (editor.getFileIndex(path)) |index| {
         if (editor.getFile(index)) |file| {
-            popups.file_setup_tile_size = .{ @intCast(i32, file.tile_width), @intCast(i32, file.tile_height) };
-            popups.file_setup_tiles = .{ @intCast(i32, @divExact(file.width, file.tile_width)), @intCast(i32, @divExact(file.height, file.tile_height)) };
-            popups.file_setup_width = @intCast(i32, file.width);
-            popups.file_setup_height = @intCast(i32, file.height);
+            popups.file_setup_tile_size = .{ @as(i32, @intCast(file.tile_width)), @as(i32, @intCast(file.tile_height)) };
+            popups.file_setup_tiles = .{ @as(i32, @intCast(@divExact(file.width, file.tile_width))), @as(i32, @intCast(@divExact(file.height, file.tile_height))) };
+            popups.file_setup_width = @as(i32, @intCast(file.width));
+            popups.file_setup_height = @as(i32, @intCast(file.height));
         }
     }
 }
@@ -94,8 +94,8 @@ pub fn fileSetupImportPng(popups: *Popups, new_file_path: [:0]const u8, png_path
 
     if (std.mem.eql(u8, std.fs.path.extension(png_path), ".png")) {
         const png_info = zstbi.Image.info(png_path);
-        popups.file_setup_width = @intCast(i32, png_info.width);
-        popups.file_setup_height = @intCast(i32, png_info.height);
+        popups.file_setup_width = @as(i32, @intCast(png_info.width));
+        popups.file_setup_height = @as(i32, @intCast(png_info.height));
         popups.file_setup_tile_size = .{ popups.file_setup_width, popups.file_setup_height };
         popups.file_setup_tiles = .{ 1, 1 };
     }

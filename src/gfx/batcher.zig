@@ -42,12 +42,12 @@ pub const Batcher = struct {
         // Arrange index buffer for quads
         var i: usize = 0;
         while (i < max_quads) : (i += 1) {
-            indices[i * 2 * 3 + 0] = @intCast(u32, i * 4 + 0);
-            indices[i * 2 * 3 + 1] = @intCast(u32, i * 4 + 1);
-            indices[i * 2 * 3 + 2] = @intCast(u32, i * 4 + 3);
-            indices[i * 2 * 3 + 3] = @intCast(u32, i * 4 + 1);
-            indices[i * 2 * 3 + 4] = @intCast(u32, i * 4 + 2);
-            indices[i * 2 * 3 + 5] = @intCast(u32, i * 4 + 3);
+            indices[i * 2 * 3 + 0] = @as(u32, @intCast(i * 4 + 0));
+            indices[i * 2 * 3 + 1] = @as(u32, @intCast(i * 4 + 1));
+            indices[i * 2 * 3 + 2] = @as(u32, @intCast(i * 4 + 3));
+            indices[i * 2 * 3 + 3] = @as(u32, @intCast(i * 4 + 1));
+            indices[i * 2 * 3 + 4] = @as(u32, @intCast(i * 4 + 2));
+            indices[i * 2 * 3 + 5] = @as(u32, @intCast(i * 4 + 3));
         }
 
         const vertex_buffer_handle = gctx.createBuffer(.{
@@ -95,12 +95,12 @@ pub const Batcher = struct {
         // Arrange index buffer for quads
         var i: usize = 0;
         while (i < max_quads) : (i += 1) {
-            self.indices[i * 2 * 3 + 0] = @intCast(u32, i * 4 + 0);
-            self.indices[i * 2 * 3 + 1] = @intCast(u32, i * 4 + 1);
-            self.indices[i * 2 * 3 + 2] = @intCast(u32, i * 4 + 3);
-            self.indices[i * 2 * 3 + 3] = @intCast(u32, i * 4 + 1);
-            self.indices[i * 2 * 3 + 4] = @intCast(u32, i * 4 + 2);
-            self.indices[i * 2 * 3 + 5] = @intCast(u32, i * 4 + 3);
+            self.indices[i * 2 * 3 + 0] = @as(u32, @intCast(i * 4 + 0));
+            self.indices[i * 2 * 3 + 1] = @as(u32, @intCast(i * 4 + 1));
+            self.indices[i * 2 * 3 + 2] = @as(u32, @intCast(i * 4 + 3));
+            self.indices[i * 2 * 3 + 3] = @as(u32, @intCast(i * 4 + 1));
+            self.indices[i * 2 * 3 + 4] = @as(u32, @intCast(i * 4 + 2));
+            self.indices[i * 2 * 3 + 5] = @as(u32, @intCast(i * 4 + 3));
         }
 
         std.log.warn("[{s}] Batcher buffers resized, previous size: {d} - new size: {d}", .{ pixi.name, self.quad_count, max_quads });
@@ -142,8 +142,8 @@ pub const Batcher = struct {
 
     /// Appends a quad at the passed position set to the size needed to render the target texture.
     pub fn texture(self: *Batcher, position: zm.F32x4, t: gfx.Texture, options: TextureOptions) !void {
-        const width = @intToFloat(f32, t.width);
-        const height = @intToFloat(f32, t.height);
+        const width = @as(f32, @floatFromInt(t.width));
+        const height = @as(f32, @floatFromInt(t.height));
         const pos = zm.trunc(position);
 
         var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
@@ -199,14 +199,14 @@ pub const Batcher = struct {
 
     /// Appends a quad to the batcher set to the size needed to render the target sprite from the target texture.
     pub fn sprite(self: *Batcher, position: zm.F32x4, t: gfx.Texture, s: gfx.Sprite, options: SpriteOptions) !void {
-        const x = @intToFloat(f32, s.source.x);
-        const y = @intToFloat(f32, s.source.y);
-        const width = @intToFloat(f32, s.source.width);
-        const height = @intToFloat(f32, s.source.height);
-        const o_x = @intToFloat(f32, s.origin.x);
-        const o_y = @intToFloat(f32, s.origin.y);
-        const tex_width = @intToFloat(f32, t.width);
-        const tex_height = @intToFloat(f32, t.height);
+        const x = @as(f32, @floatFromInt(s.source.x));
+        const y = @as(f32, @floatFromInt(s.source.y));
+        const width = @as(f32, @floatFromInt(s.source.width));
+        const height = @as(f32, @floatFromInt(s.source.height));
+        const o_x = @as(f32, @floatFromInt(s.origin.x));
+        const o_y = @as(f32, @floatFromInt(s.origin.y));
+        const tex_width = @as(f32, @floatFromInt(t.width));
+        const tex_height = @as(f32, @floatFromInt(t.height));
 
         const origin_x = if (options.flip_x) o_x - width else -o_x;
         const origin_y = if (options.flip_y) -o_y else o_y - height;
@@ -325,7 +325,7 @@ pub const Batcher = struct {
             }
 
             // Draw only the quads appended this cycle
-            pass.drawIndexed(@intCast(u32, quad_count * 6), @intCast(u32, quad_count), @intCast(u32, self.start_count * 6), 0, 0);
+            pass.drawIndexed(@as(u32, @intCast(quad_count * 6)), @as(u32, @intCast(quad_count)), @as(u32, @intCast(self.start_count * 6)), 0, 0);
         }
     }
 

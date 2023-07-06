@@ -69,17 +69,17 @@ pub fn clearAndFree(self: *Packer) void {
 pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
     for (file.layers.items, 0..) |*layer, layer_index| {
         _ = layer_index;
-        const layer_width = @intCast(usize, layer.texture.image.width);
+        const layer_width = @as(usize, @intCast(layer.texture.image.width));
         for (file.sprites.items, 0..) |sprite, sprite_index| {
             const tiles_wide = @divExact(file.width, file.tile_width);
 
-            const column = @mod(@intCast(u32, sprite_index), tiles_wide);
-            const row = @divTrunc(@intCast(u32, sprite_index), tiles_wide);
+            const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
+            const row = @divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide);
 
             const src_x = column * file.tile_width;
             const src_y = row * file.tile_height;
 
-            const src_rect: [4]usize = .{ @intCast(usize, src_x), @intCast(usize, src_y), @intCast(usize, file.tile_width), @intCast(usize, file.tile_height) };
+            const src_rect: [4]usize = .{ @as(usize, @intCast(src_x)), @as(usize, @intCast(src_y)), @as(usize, @intCast(file.tile_width)), @as(usize, @intCast(file.tile_height)) };
 
             if (reduce(layer, src_rect)) |reduced_rect| {
                 const reduced_src_x = reduced_rect[0];
@@ -88,7 +88,7 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                 const reduced_src_height = reduced_rect[3];
 
                 const offset = .{ reduced_src_x - src_x, reduced_src_y - src_y };
-                const src_pixels = @ptrCast([*][4]u8, layer.texture.image.data.ptr)[0 .. layer.texture.image.data.len / 4];
+                const src_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
 
                 // Allocate pixels for reduced image
                 var image: Image = .{
@@ -111,16 +111,16 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                 try self.sprites.append(.{
                     .name = try std.fmt.allocPrintZ(self.allocator, "{s}_{s}", .{ sprite.name, layer.name }),
                     .diffuse_image = image,
-                    .origin = .{ @floatToInt(i32, sprite.origin_x) - @intCast(i32, offset[0]), @floatToInt(i32, sprite.origin_y) - @intCast(i32, offset[1]) },
+                    .origin = .{ @as(i32, @intFromFloat(sprite.origin_x)) - @as(i32, @intCast(offset[0])), @as(i32, @intFromFloat(sprite.origin_y)) - @as(i32, @intCast(offset[1])) },
                 });
 
-                try self.frames.append(.{ .id = self.id(), .w = @intCast(c_ushort, image.width), .h = @intCast(c_ushort, image.height) });
+                try self.frames.append(.{ .id = self.id(), .w = @as(c_ushort, @intCast(image.width)), .h = @as(c_ushort, @intCast(image.height)) });
             }
         }
     }
     var test_image = self.sprites.items[0].diffuse_image;
-    var test_texture: pixi.gfx.Texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, @intCast(u32, test_image.width), @intCast(u32, test_image.height), .{});
-    var test_image_pixels = @ptrCast([*]u8, test_image.pixels.ptr)[0..test_texture.image.data.len];
+    var test_texture: pixi.gfx.Texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, @as(u32, @intCast(test_image.width)), @as(u32, @intCast(test_image.height)), .{});
+    var test_image_pixels = @as([*]u8, @ptrCast(test_image.pixels.ptr))[0..test_texture.image.data.len];
     @memcpy(test_texture.image.data, test_image_pixels);
     test_texture.update(pixi.state.gctx);
     pixi.state.test_texture = test_texture;
@@ -144,8 +144,8 @@ pub fn testPack(self: *Packer) !void {
 /// Takes a layer and a src rect and reduces the rect removing all fully transparent pixels
 /// If the src rect doesn't contain any opaque pixels, returns null
 pub fn reduce(layer: *pixi.storage.Internal.Layer, src: [4]usize) ?[4]usize {
-    const pixels = @ptrCast([*][4]u8, layer.texture.image.data.ptr)[0 .. layer.texture.image.data.len / 4];
-    const layer_width = @intCast(usize, layer.texture.image.width);
+    const pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+    const layer_width = @as(usize, @intCast(layer.texture.image.width));
 
     const src_x = src[0];
     const src_y = src[1];
@@ -245,9 +245,9 @@ pub fn packRects(self: *Packer) !?[2]u16 {
 
     for (texture_sizes) |tex_size| {
         zstbi.stbrp_init_target(&ctx, tex_size[0], tex_size[1], &nodes, node_count);
-        zstbi.stbrp_setup_heuristic(&ctx, @intCast(c_int, @enumToInt(zstbi.Heuristic.skyline_default)));
-        if (zstbi.stbrp_pack_rects(&ctx, self.frames.items.ptr, @intCast(c_int, self.frames.items.len)) == 1) {
-            return .{ @intCast(u16, tex_size[0]), @intCast(u16, tex_size[1]) };
+        zstbi.stbrp_setup_heuristic(&ctx, @as(c_int, @intCast(@intFromEnum(zstbi.Heuristic.skyline_default))));
+        if (zstbi.stbrp_pack_rects(&ctx, self.frames.items.ptr, @as(c_int, @intCast(self.frames.items.len))) == 1) {
+            return .{ @as(u16, @intCast(tex_size[0])), @as(u16, @intCast(tex_size[1])) };
         }
         // zstbi.initTarget(&ctx, tex_size[0], tex_size[1], &nodes);
         // zstbi.setupHeuristic(&ctx, zstbi.Heuristic.skyline_bl_sort_height);

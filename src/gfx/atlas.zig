@@ -16,8 +16,8 @@ pub const Atlas = struct {
             .sprites = try allocator.alloc(Sprite, count),
         };
 
-        var sprite_width = @divExact(@floatToInt(i32, width), columns);
-        var sprite_height = @divExact(@floatToInt(i32, height), rows);
+        var sprite_width = @divExact(@as(i32, @intFromFloat(width)), columns);
+        var sprite_height = @divExact(@as(i32, @intFromFloat(height)), rows);
 
         var r: i32 = 0;
         while (r < rows) : (r += 1) {

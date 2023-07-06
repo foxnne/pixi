@@ -5,10 +5,10 @@ const zgui = @import("zgui");
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_width = zgui.getWindowWidth();
     const window_height = zgui.getWindowHeight();
-    const file_width = @intToFloat(f32, file.width);
-    const file_height = @intToFloat(f32, file.height);
-    const tile_width = @intToFloat(f32, file.tile_width);
-    const tile_height = @intToFloat(f32, file.tile_height);
+    const file_width = @as(f32, @floatFromInt(file.width));
+    const file_height = @as(f32, @floatFromInt(file.height));
+    const tile_width = @as(f32, @floatFromInt(file.tile_width));
+    const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
     const canvas_center_offset = file.canvasCenterOffset(.primary);
 
@@ -49,19 +49,19 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             .width = file.width,
             .height = file.height,
         })) |pixel_coord| {
-            const pixel = .{ @floatToInt(usize, pixel_coord[0]), @floatToInt(usize, pixel_coord[1]) };
+            const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
-            var tile_column = @divTrunc(pixel[0], @intCast(usize, file.tile_width));
-            var tile_row = @divTrunc(pixel[1], @intCast(usize, file.tile_height));
+            var tile_column = @divTrunc(pixel[0], @as(usize, @intCast(file.tile_width)));
+            var tile_row = @divTrunc(pixel[1], @as(usize, @intCast(file.tile_height)));
 
-            const x = @intToFloat(f32, tile_column) * tile_width + canvas_center_offset[0];
-            const y = @intToFloat(f32, tile_row) * tile_height + canvas_center_offset[1];
+            const x = @as(f32, @floatFromInt(tile_column)) * tile_width + canvas_center_offset[0];
+            const y = @as(f32, @floatFromInt(tile_row)) * tile_height + canvas_center_offset[1];
 
             file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
             if (pixi.state.test_texture) |*texture| {
                 file.camera.drawTexture(texture.view_handle, texture.image.width, texture.image.height, .{ x, y }, 0xffffffff);
-                file.camera.drawRect(.{ x, y, @intToFloat(f32, texture.image.width), @intToFloat(f32, texture.image.height) }, 1, 0xFFFFFFFF);
+                file.camera.drawRect(.{ x, y, @as(f32, @floatFromInt(texture.image.width)), @as(f32, @floatFromInt(texture.image.height)) }, 1, 0xFFFFFFFF);
             }
 
             file.processSampleTool(.primary);
@@ -69,7 +69,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             file.processAnimationTool();
 
             if (pixi.state.controls.mouse.primary.pressed()) {
-                var tiles_wide = @divExact(@intCast(usize, file.width), @intCast(usize, file.tile_width));
+                var tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
                 var tile_index = tile_column + tile_row * tiles_wide;
 
                 if (pixi.state.sidebar == .sprites) {
@@ -113,7 +113,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
 
     // Draw grid
-    file.camera.drawGrid(canvas_center_offset, file_width, file_height, @floatToInt(usize, file_width / tile_width), @floatToInt(usize, file_height / tile_height), pixi.state.style.text_secondary.toU32());
+    file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.style.text_secondary.toU32());
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient
     {
@@ -125,29 +125,29 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     .width = file.width,
                     .height = file.height,
                 })) |pixel_coord| {
-                    const temp_x = @floatToInt(usize, pixel_coord[0]);
-                    const temp_y = @floatToInt(usize, pixel_coord[1]);
+                    const temp_x = @as(usize, @intFromFloat(pixel_coord[0]));
+                    const temp_y = @as(usize, @intFromFloat(pixel_coord[1]));
                     const position = .{ pixel_coord[0] + canvas_center_offset[0] + 0.2, pixel_coord[1] + canvas_center_offset[1] + 0.25 };
                     file.camera.drawText("{d}", .{pixi.state.colors.height}, position, 0xFFFFFFFF);
 
                     const min: [2]u32 = .{
-                        @intCast(u32, @max(@intCast(i32, temp_x) - 5, 0)),
-                        @intCast(u32, @max(@intCast(i32, temp_y) - 5, 0)),
+                        @as(u32, @intCast(@max(@as(i32, @intCast(temp_x)) - 5, 0))),
+                        @as(u32, @intCast(@max(@as(i32, @intCast(temp_y)) - 5, 0))),
                     };
 
                     const max: [2]u32 = .{
-                        @intCast(u32, @min(temp_x + 5, file.width)),
-                        @intCast(u32, @min(temp_y + 5, file.height)),
+                        @as(u32, @intCast(@min(temp_x + 5, file.width))),
+                        @as(u32, @intCast(@min(temp_y + 5, file.height))),
                     };
 
                     var x: u32 = min[0];
                     while (x < max[0]) : (x += 1) {
                         var y: u32 = min[1];
                         while (y < max[1]) : (y += 1) {
-                            const pixel = .{ @intCast(usize, x), @intCast(usize, y) };
+                            const pixel = .{ @as(usize, @intCast(x)), @as(usize, @intCast(y)) };
                             const pixel_color = file.heightmap_layer.?.getPixel(pixel);
                             if (pixel_color[3] != 0 and (pixel[0] != temp_x or pixel[1] != temp_y)) {
-                                const pixel_position = .{ canvas_center_offset[0] + @intToFloat(f32, x) + 0.2, canvas_center_offset[1] + @intToFloat(f32, y) + 0.25 };
+                                const pixel_position = .{ canvas_center_offset[0] + @as(f32, @floatFromInt(x)) + 0.2, canvas_center_offset[1] + @as(f32, @floatFromInt(y)) + 0.25 };
                                 file.camera.drawText("{d}", .{pixel_color[0]}, pixel_position, 0xFFFFFFFF);
                             }
                         }
@@ -164,10 +164,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (pixi.state.sidebar == .sprites) {
             if (file.selected_sprites.items.len > 0) {
                 for (file.selected_sprites.items) |sprite_index| {
-                    const column = @mod(@intCast(u32, sprite_index), tiles_wide);
-                    const row = @divTrunc(@intCast(u32, sprite_index), tiles_wide);
-                    const x = @intToFloat(f32, column) * tile_width + canvas_center_offset[0];
-                    const y = @intToFloat(f32, row) * tile_height + canvas_center_offset[1];
+                    const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
+                    const row = @divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide);
+                    const x = @as(f32, @floatFromInt(column)) * tile_width + canvas_center_offset[0];
+                    const y = @as(f32, @floatFromInt(row)) * tile_height + canvas_center_offset[1];
                     const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
                     file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());
@@ -189,10 +189,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
         } else {
-            const column = @mod(@intCast(u32, file.selected_sprite_index), tiles_wide);
-            const row = @divTrunc(@intCast(u32, file.selected_sprite_index), tiles_wide);
-            const x = @intToFloat(f32, column) * tile_width + canvas_center_offset[0];
-            const y = @intToFloat(f32, row) * tile_height + canvas_center_offset[1];
+            const column = @mod(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
+            const row = @divTrunc(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
+            const x = @as(f32, @floatFromInt(column)) * tile_width + canvas_center_offset[0];
+            const y = @as(f32, @floatFromInt(row)) * tile_height + canvas_center_offset[1];
             const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
             file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());
@@ -200,16 +200,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         if (pixi.state.popups.animation_length > 0 and pixi.state.tools.current == .animation) {
             if (pixi.state.controls.mouse.primary.down() or pixi.state.popups.animation) {
-                const start_column = @mod(@intCast(u32, pixi.state.popups.animation_start), tiles_wide);
-                const start_row = @divTrunc(@intCast(u32, pixi.state.popups.animation_start), tiles_wide);
-                const start_x = @intToFloat(f32, start_column) * tile_width + canvas_center_offset[0];
-                const start_y = @intToFloat(f32, start_row) * tile_height + canvas_center_offset[1];
+                const start_column = @mod(@as(u32, @intCast(pixi.state.popups.animation_start)), tiles_wide);
+                const start_row = @divTrunc(@as(u32, @intCast(pixi.state.popups.animation_start)), tiles_wide);
+                const start_x = @as(f32, @floatFromInt(start_column)) * tile_width + canvas_center_offset[0];
+                const start_y = @as(f32, @floatFromInt(start_row)) * tile_height + canvas_center_offset[1];
                 const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
 
-                const end_column = @mod(@intCast(u32, pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1), tiles_wide);
-                const end_row = @divTrunc(@intCast(u32, pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1), tiles_wide);
-                const end_x = @intToFloat(f32, end_column) * tile_width + canvas_center_offset[0];
-                const end_y = @intToFloat(f32, end_row) * tile_height + canvas_center_offset[1];
+                const end_column = @mod(@as(u32, @intCast(pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1)), tiles_wide);
+                const end_row = @divTrunc(@as(u32, @intCast(pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1)), tiles_wide);
+                const end_x = @as(f32, @floatFromInt(end_column)) * tile_width + canvas_center_offset[0];
+                const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                 const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
                 file.camera.drawAnimationRect(start_rect, end_rect, 6.0, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
@@ -219,16 +219,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (file.animations.items.len > 0) {
             if (pixi.state.tools.current == .animation) {
                 for (file.animations.items, 0..) |animation, i| {
-                    const start_column = @mod(@intCast(u32, animation.start), tiles_wide);
-                    const start_row = @divTrunc(@intCast(u32, animation.start), tiles_wide);
-                    const start_x = @intToFloat(f32, start_column) * tile_width + canvas_center_offset[0];
-                    const start_y = @intToFloat(f32, start_row) * tile_height + canvas_center_offset[1];
+                    const start_column = @mod(@as(u32, @intCast(animation.start)), tiles_wide);
+                    const start_row = @divTrunc(@as(u32, @intCast(animation.start)), tiles_wide);
+                    const start_x = @as(f32, @floatFromInt(start_column)) * tile_width + canvas_center_offset[0];
+                    const start_y = @as(f32, @floatFromInt(start_row)) * tile_height + canvas_center_offset[1];
                     const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
 
-                    const end_column = @mod(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
-                    const end_row = @divTrunc(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
-                    const end_x = @intToFloat(f32, end_column) * tile_width + canvas_center_offset[0];
-                    const end_y = @intToFloat(f32, end_row) * tile_height + canvas_center_offset[1];
+                    const end_column = @mod(@as(u32, @intCast(animation.start + animation.length - 1)), tiles_wide);
+                    const end_row = @divTrunc(@as(u32, @intCast(animation.start + animation.length - 1)), tiles_wide);
+                    const end_x = @as(f32, @floatFromInt(end_column)) * tile_width + canvas_center_offset[0];
+                    const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
                     const thickness: f32 = if (i == file.selected_animation_index and (!pixi.state.controls.mouse.primary.down() and !pixi.state.popups.animation)) 4.0 else 2.0;
@@ -237,16 +237,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             } else {
                 const animation = file.animations.items[file.selected_animation_index];
 
-                const start_column = @mod(@intCast(u32, animation.start), tiles_wide);
-                const start_row = @divTrunc(@intCast(u32, animation.start), tiles_wide);
-                const start_x = @intToFloat(f32, start_column) * tile_width + canvas_center_offset[0];
-                const start_y = @intToFloat(f32, start_row) * tile_height + canvas_center_offset[1];
+                const start_column = @mod(@as(u32, @intCast(animation.start)), tiles_wide);
+                const start_row = @divTrunc(@as(u32, @intCast(animation.start)), tiles_wide);
+                const start_x = @as(f32, @floatFromInt(start_column)) * tile_width + canvas_center_offset[0];
+                const start_y = @as(f32, @floatFromInt(start_row)) * tile_height + canvas_center_offset[1];
                 const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
 
-                const end_column = @mod(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
-                const end_row = @divTrunc(@intCast(u32, animation.start + animation.length - 1), tiles_wide);
-                const end_x = @intToFloat(f32, end_column) * tile_width + canvas_center_offset[0];
-                const end_y = @intToFloat(f32, end_row) * tile_height + canvas_center_offset[1];
+                const end_column = @mod(@as(u32, @intCast(animation.start + animation.length - 1)), tiles_wide);
+                const end_row = @divTrunc(@as(u32, @intCast(animation.start + animation.length - 1)), tiles_wide);
+                const end_x = @as(f32, @floatFromInt(end_column)) * tile_width + canvas_center_offset[0];
+                const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                 const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
                 file.camera.drawAnimationRect(start_rect, end_rect, 4.0, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
