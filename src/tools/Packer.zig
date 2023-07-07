@@ -58,7 +58,7 @@ pub fn deinit(self: *Packer) void {
 }
 
 pub fn clearAndFree(self: *Packer) void {
-    for (self.sprites) |*sprite| {
+    for (self.sprites.items) |*sprite| {
         sprite.deinit(self.allocator);
     }
     self.frames.clearAndFree();
@@ -136,14 +136,14 @@ pub fn packAndClear(self: *Packer) !void {
         }
         atlas_texture.update(pixi.state.gctx);
 
-        if (pixi.state.atlas) |*atlas| {
-            atlas.diffusemap.deinit(pixi.state.gctx);
-            atlas.diffusemap = atlas_texture;
+        if (pixi.state.atlas.diffusemap) |*diffusemap| {
+            diffusemap.deinit(pixi.state.gctx);
+            pixi.state.atlas.diffusemap = atlas_texture;
         } else {
-            pixi.state.atlas = .{
-                .diffusemap = atlas_texture,
-            };
+            pixi.state.atlas.diffusemap = atlas_texture;
         }
+
+        self.clearAndFree();
     }
 }
 

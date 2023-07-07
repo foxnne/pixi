@@ -7,6 +7,7 @@ const nfd = @import("nfd");
 pub const menu = @import("menu.zig");
 pub const rulers = @import("rulers.zig");
 pub const canvas = @import("canvas.zig");
+pub const canvas_pack = @import("canvas_pack.zig");
 
 pub const flipbook = @import("flipbook/flipbook.zig");
 pub const infobar = @import("infobar/infobar.zig");
@@ -149,6 +150,8 @@ pub fn draw() void {
                         }
                     }
                 }
+            } else if (pixi.state.sidebar == .pack) {
+                canvas_pack.draw();
             } else {
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.background.toSlice() });

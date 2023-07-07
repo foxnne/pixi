@@ -106,12 +106,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.style.text_secondary.toU32());
     } else {
         // Draw the packed atlas texture
-        if (pixi.state.atlas) |atlas| {
-            const width: f32 = @floatFromInt(atlas.diffusemap.image.width);
-            const height: f32 = @floatFromInt(atlas.diffusemap.image.height);
+        if (pixi.state.atlas.diffusemap) |diffusemap| {
+            const width: f32 = @floatFromInt(diffusemap.image.width);
+            const height: f32 = @floatFromInt(diffusemap.image.height);
 
             const center_offset: [2]f32 = .{ -width / 2.0, -height / 2.0 };
-            file.camera.drawTexture(atlas.diffusemap.view_handle, atlas.diffusemap.image.width, atlas.diffusemap.image.height, center_offset, 0xFFFFFFFF);
+            file.camera.drawTexture(diffusemap.view_handle, diffusemap.image.width, diffusemap.image.height, center_offset, 0xFFFFFFFF);
             file.camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, pixi.state.style.text_secondary.toU32());
         }
     }

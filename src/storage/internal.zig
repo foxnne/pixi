@@ -897,7 +897,7 @@ pub const Palette = struct {
 };
 
 pub const Atlas = struct {
-    diffusemap: pixi.gfx.Texture,
+    diffusemap: ?pixi.gfx.Texture = null,
     heightmap: ?pixi.gfx.Texture = null,
     external: external.Atlas = undefined,
 };
