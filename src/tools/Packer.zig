@@ -67,8 +67,9 @@ pub fn clearAndFree(self: *Packer) void {
 }
 
 pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
-    for (file.layers.items, 0..) |*layer, layer_index| {
-        _ = layer_index;
+    for (file.layers.items) |*layer| {
+        if (!layer.visible) continue;
+
         const layer_width = @as(usize, @intCast(layer.texture.image.width));
         for (file.sprites.items, 0..) |sprite, sprite_index| {
             const tiles_wide = @divExact(file.width, file.tile_width);
@@ -168,8 +169,6 @@ pub fn reduce(layer: *pixi.storage.Internal.Layer, src: [4]usize) ?[4]usize {
             const row = pixels[start .. start + src_width];
             for (row) |pixel| {
                 if (pixel[3] != 0) {
-                    // if (top > src_y)
-                    //     top -= 1;
                     break :top;
                 }
             }
@@ -183,7 +182,7 @@ pub fn reduce(layer: *pixi.storage.Internal.Layer, src: [4]usize) ?[4]usize {
             const row = pixels[start .. start + src_width];
             for (row) |pixel| {
                 if (pixel[3] != 0) {
-                    if (bottom < src_y + src_height)
+                    if (bottom < src_y + src_height - 1)
                         bottom += 1;
                     break :bottom;
                 }
@@ -200,8 +199,6 @@ pub fn reduce(layer: *pixi.storage.Internal.Layer, src: [4]usize) ?[4]usize {
             var y = bottom;
             while (y > top) : (y -= 1) {
                 if (pixels[left + y * layer_width][3] != 0) {
-                    // if (left > src_x)
-                    //     left -= 1;
                     break :left;
                 }
             }

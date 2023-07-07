@@ -138,17 +138,9 @@ pub fn importPng(path: [:0]const u8, new_file_path: [:0]const u8) !bool {
     return try newFile(new_file_path, path);
 }
 
-/// Returns true if a new file was opened.
-pub fn openFile(path: [:0]const u8) !bool {
+pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
-        return false;
-
-    for (pixi.state.open_files.items, 0..) |file, i| {
-        if (std.mem.eql(u8, file.path, path)) {
-            setActiveFile(i);
-            return false;
-        }
-    }
+        return null;
 
     if (zip.zip_open(path.ptr, 0, 'r')) |pixi_file| {
         defer zip.zip_close(pixi_file);
@@ -263,8 +255,25 @@ pub fn openFile(path: [:0]const u8) !bool {
                 .fps = animation.fps,
             });
         }
+        return internal;
+    }
+    return error.FailedToOpenFile;
+}
 
-        try pixi.state.open_files.insert(0, internal);
+/// Returns true if a new file was opened.
+pub fn openFile(path: [:0]const u8) !bool {
+    if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
+        return false;
+
+    for (pixi.state.open_files.items, 0..) |file, i| {
+        if (std.mem.eql(u8, file.path, path)) {
+            setActiveFile(i);
+            return false;
+        }
+    }
+
+    if (try loadFile(path)) |file| {
+        try pixi.state.open_files.insert(0, file);
         setActiveFile(0);
         return true;
     }
