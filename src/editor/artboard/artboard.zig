@@ -42,7 +42,7 @@ pub fn draw() void {
     })) {
         menu.draw();
         const window_height = zgui.getContentRegionAvail()[1];
-        const artboard_height = if (pixi.state.open_files.items.len > 0) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
+        const artboard_height = if (pixi.state.open_files.items.len > 0 and pixi.state.sidebar != .pack) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
 
         const artboard_mouse_ratio = (pixi.state.controls.mouse.position.y - zgui.getCursorScreenPos()[1]) / window_height;
 
@@ -187,35 +187,37 @@ pub fn draw() void {
         }
         zgui.endChild();
 
-        if (pixi.state.open_files.items.len > 0) {
-            const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.state.window.scale[1];
-            zgui.separator();
+        if (pixi.state.sidebar != .pack) {
+            if (pixi.state.open_files.items.len > 0) {
+                const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.state.window.scale[1];
+                zgui.separator();
 
-            if (zgui.beginChild("Flipbook", .{
-                .w = 0.0,
-                .h = flipbook_height,
-                .border = false,
-                .flags = .{
-                    .menu_bar = if (pixi.editor.getFile(pixi.state.open_file_index)) |_| true else false,
-                },
-            })) {
-                if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                    flipbook.menu.draw(file, artboard_mouse_ratio);
+                if (zgui.beginChild("Flipbook", .{
+                    .w = 0.0,
+                    .h = flipbook_height,
+                    .border = false,
+                    .flags = .{
+                        .menu_bar = if (pixi.editor.getFile(pixi.state.open_file_index)) |_| true else false,
+                    },
+                })) {
+                    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                        flipbook.menu.draw(file, artboard_mouse_ratio);
 
-                    if (zgui.beginChild("FlipbookCanvas", .{})) {
-                        flipbook.canvas.draw(file);
+                        if (zgui.beginChild("FlipbookCanvas", .{})) {
+                            flipbook.canvas.draw(file);
+                        }
+                        zgui.endChild();
+                    }
+                }
+                zgui.endChild();
+                if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
+                    defer zgui.popStyleColor(.{ .count = 1 });
+                    if (zgui.beginChild("InfoBar", .{})) {
+                        infobar.draw();
                     }
                     zgui.endChild();
                 }
-            }
-            zgui.endChild();
-            if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
-                defer zgui.popStyleColor(.{ .count = 1 });
-                if (zgui.beginChild("InfoBar", .{})) {
-                    infobar.draw();
-                }
-                zgui.endChild();
             }
         }
     }
