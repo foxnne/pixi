@@ -91,7 +91,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     }
 
     // Draw all layers in reverse order
-    if (pixi.state.sidebar != .pack) {
+    {
         var i: usize = file.layers.items.len;
         while (i > 0) {
             i -= 1;
@@ -104,21 +104,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.style.text_secondary.toU32());
-    } else {
-        // Draw the packed atlas texture
-        if (pixi.state.atlas.diffusemap) |diffusemap| {
-            const width: f32 = @floatFromInt(diffusemap.image.width);
-            const height: f32 = @floatFromInt(diffusemap.image.height);
-
-            const center_offset: [2]f32 = .{ -width / 2.0, -height / 2.0 };
-            file.camera.drawTexture(diffusemap.view_handle, diffusemap.image.width, diffusemap.image.height, center_offset, 0xFFFFFFFF);
-            file.camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, pixi.state.style.text_secondary.toU32());
-        }
     }
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient
     {
-        if (pixi.state.tools.current == .heightmap and pixi.state.sidebar != .pack) {
+        if (pixi.state.tools.current == .heightmap) {
             if (file.camera.zoom >= 30.0) {
                 if (file.camera.pixelCoordinates(.{
                     .texture_position = canvas_center_offset,
@@ -189,7 +179,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     );
                 }
             }
-        } else if (pixi.state.sidebar != .pack) {
+        } else {
             const column = @mod(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const row = @divTrunc(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const x = @as(f32, @floatFromInt(column)) * tile_width + canvas_center_offset[0];

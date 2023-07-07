@@ -54,7 +54,9 @@ pub fn draw() void {
             .border = false,
             .flags = .{},
         })) {
-            if (pixi.state.open_files.items.len > 0) {
+            if (pixi.state.sidebar == .pack) {
+                canvas_pack.draw();
+            } else if (pixi.state.open_files.items.len > 0) {
                 if (zgui.beginTabBar("Files", .{
                     .reorderable = true,
                     .auto_select_new_tabs = true,
@@ -150,8 +152,6 @@ pub fn draw() void {
                         }
                     }
                 }
-            } else if (pixi.state.sidebar == .pack) {
-                canvas_pack.draw();
             } else {
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.background.toSlice() });
