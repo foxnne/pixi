@@ -58,7 +58,7 @@ pub fn draw() void {
         if (zgui.button("Pack", .{ .w = window_size[0] })) {
             if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                 pixi.state.packer.append(file) catch unreachable;
-                _ = pixi.state.packer.testPack() catch unreachable;
+                pixi.state.packer.packAndClear() catch unreachable;
             }
         }
         if (pixi.state.pack_files == .project and pixi.state.project_folder == null) {

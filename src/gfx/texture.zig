@@ -140,6 +140,32 @@ pub const Texture = struct {
         };
     }
 
+    pub fn blit(self: *Texture, src_pixels: [][4]u8, dst_rect: [4]u32) void {
+        const x = @as(usize, @intCast(dst_rect[0]));
+        const y = @as(usize, @intCast(dst_rect[1]));
+        const width = @as(usize, @intCast(dst_rect[2]));
+        const height = @as(usize, @intCast(dst_rect[3]));
+
+        const tex_width = @as(usize, @intCast(self.image.width));
+
+        var yy = y;
+        var h = height;
+
+        var dst_pixels = @as([*][4]u8, @ptrCast(self.image.data.ptr))[0 .. self.image.data.len / 4];
+
+        var data = dst_pixels[x + yy * tex_width .. x + yy * tex_width + width];
+        var src_y: usize = 0;
+        while (h > 0) : (h -= 1) {
+            const src_row = src_pixels[src_y * width .. (src_y * width) + width];
+            @memcpy(data, src_row);
+
+            // next row and move our slice to it as well
+            src_y += 1;
+            yy += 1;
+            data = dst_pixels[x + yy * tex_width .. x + yy * tex_width + width];
+        }
+    }
+
     pub fn update(texture: *Texture, gctx: *zgpu.GraphicsContext) void {
         gctx.queue.writeTexture(
             .{ .texture = gctx.lookupResource(texture.handle).? },

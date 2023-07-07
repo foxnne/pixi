@@ -57,12 +57,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const x = @as(f32, @floatFromInt(tile_column)) * tile_width + canvas_center_offset[0];
             const y = @as(f32, @floatFromInt(tile_row)) * tile_height + canvas_center_offset[1];
 
-            file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
-
-            if (pixi.state.test_texture) |*texture| {
-                file.camera.drawTexture(texture.view_handle, texture.image.width, texture.image.height, .{ x, y }, 0xffffffff);
-                file.camera.drawRect(.{ x, y, @as(f32, @floatFromInt(texture.image.width)), @as(f32, @floatFromInt(texture.image.height)) }, 1, 0xFFFFFFFF);
-            }
+            if (pixi.state.sidebar != .pack)
+                file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
             file.processSampleTool(.primary);
             file.processStrokeTool(.primary);
@@ -95,29 +91,34 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     }
 
     // Draw all layers in reverse order
-    {
+    if (pixi.state.sidebar != .pack) {
         var i: usize = file.layers.items.len;
         while (i > 0) {
             i -= 1;
             if (!file.layers.items[i].visible) continue;
             file.camera.drawLayer(file.layers.items[i], canvas_center_offset);
         }
+
+        // Draw the temporary layer
+        file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
+
+        // Draw grid
+        file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.style.text_secondary.toU32());
+    } else {
+        // Draw the packed atlas texture
+        if (pixi.state.atlas) |atlas| {
+            const width: f32 = @floatFromInt(atlas.diffusemap.image.width);
+            const height: f32 = @floatFromInt(atlas.diffusemap.image.height);
+
+            const center_offset: [2]f32 = .{ -width / 2.0, -height / 2.0 };
+            file.camera.drawTexture(atlas.diffusemap.view_handle, atlas.diffusemap.image.width, atlas.diffusemap.image.height, center_offset, 0xFFFFFFFF);
+            file.camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, pixi.state.style.text_secondary.toU32());
+        }
     }
-
-    if (pixi.state.tools.current == .heightmap) {
-        file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x50FFFFFF);
-        file.camera.drawLayer(file.heightmap_layer.?, canvas_center_offset);
-    }
-
-    // Draw the temporary layer
-    file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
-
-    // Draw grid
-    file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.style.text_secondary.toU32());
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient
     {
-        if (pixi.state.tools.current == .heightmap) {
+        if (pixi.state.tools.current == .heightmap and pixi.state.sidebar != .pack) {
             if (file.camera.zoom >= 30.0) {
                 if (file.camera.pixelCoordinates(.{
                     .texture_position = canvas_center_offset,
@@ -131,13 +132,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     file.camera.drawText("{d}", .{pixi.state.colors.height}, position, 0xFFFFFFFF);
 
                     const min: [2]u32 = .{
-                        @as(u32, @intCast(@max(@as(i32, @intCast(temp_x)) - 5, 0))),
-                        @as(u32, @intCast(@max(@as(i32, @intCast(temp_y)) - 5, 0))),
+                        @intCast(@max(@as(i32, @intCast(temp_x)) - 5, 0)),
+                        @intCast(@max(@as(i32, @intCast(temp_y)) - 5, 0)),
                     };
 
                     const max: [2]u32 = .{
-                        @as(u32, @intCast(@min(temp_x + 5, file.width))),
-                        @as(u32, @intCast(@min(temp_y + 5, file.height))),
+                        @intCast(@min(temp_x + 5, file.width)),
+                        @intCast(@min(temp_y + 5, file.height)),
                     };
 
                     var x: u32 = min[0];
@@ -188,7 +189,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     );
                 }
             }
-        } else {
+        } else if (pixi.state.sidebar != .pack) {
             const column = @mod(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const row = @divTrunc(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const x = @as(f32, @floatFromInt(column)) * tile_width + canvas_center_offset[0];
@@ -234,7 +235,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const thickness: f32 = if (i == file.selected_animation_index and (!pixi.state.controls.mouse.primary.down() and !pixi.state.popups.animation)) 4.0 else 2.0;
                     file.camera.drawAnimationRect(start_rect, end_rect, thickness, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
                 }
-            } else {
+            } else if (pixi.state.sidebar != .pack) {
                 const animation = file.animations.items[file.selected_animation_index];
 
                 const start_column = @mod(@as(u32, @intCast(animation.start)), tiles_wide);

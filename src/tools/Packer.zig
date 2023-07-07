@@ -29,22 +29,22 @@ pub const Sprite = struct {
     }
 };
 
-frames: std.ArrayList(zstbi.stbrp_rect),
+frames: std.ArrayList(zstbi.Rect),
 sprites: std.ArrayList(Sprite),
 animations: std.ArrayList(pixi.storage.External.Animation),
-id_counter: c_int = 0,
+id_counter: u32 = 0,
 allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) Packer {
     return .{
         .sprites = std.ArrayList(Sprite).init(allocator),
-        .frames = std.ArrayList(zstbi.stbrp_rect).init(allocator),
+        .frames = std.ArrayList(zstbi.Rect).init(allocator),
         .animations = std.ArrayList(pixi.storage.External.Animation).init(allocator),
         .allocator = allocator,
     };
 }
 
-pub fn id(self: *Packer) c_int {
+pub fn id(self: *Packer) u32 {
     const i = self.id_counter;
     self.id_counter += 1;
     return i;
@@ -128,16 +128,21 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
 
 pub fn packAndClear(self: *Packer) !void {
     if (try self.packRects()) |size| {
-        std.log.debug("Size!: {any}", .{size});
-    }
-}
+        var atlas_texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, size[0], size[1], .{});
 
-pub fn testPack(self: *Packer) !void {
-    var test_rects = std.ArrayList(zstbi.stbrp_rect).init(self.allocator);
-    try test_rects.append(.{ .id = 1, .w = 32, .h = 32 });
-    try test_rects.append(.{ .id = 2, .w = 32, .h = 32 });
-    if (try self.packRects()) |size| {
-        std.log.debug("Size: {any}", .{size});
+        for (self.frames.items, self.sprites.items) |frame, sprite| {
+            atlas_texture.blit(sprite.diffuse_image.pixels, frame.slice());
+        }
+        atlas_texture.update(pixi.state.gctx);
+
+        if (pixi.state.atlas) |*atlas| {
+            atlas.diffusemap.deinit(pixi.state.gctx);
+            atlas.diffusemap = atlas_texture;
+        } else {
+            pixi.state.atlas = .{
+                .diffusemap = atlas_texture,
+            };
+        }
     }
 }
 
@@ -231,9 +236,9 @@ pub fn reduce(layer: *pixi.storage.Internal.Layer, src: [4]usize) ?[4]usize {
 pub fn packRects(self: *Packer) !?[2]u16 {
     if (self.frames.items.len == 0) return null;
 
-    var ctx: zstbi.stbrp_context = undefined;
+    var ctx: zstbi.Context = undefined;
     const node_count = 4096 * 2;
-    var nodes: [node_count]zstbi.stbrp_node = undefined;
+    var nodes: [node_count]zstbi.Node = undefined;
 
     const texture_sizes = [_][2]u32{
         [_]u32{ 256, 256 },   [_]u32{ 512, 256 },   [_]u32{ 256, 512 },
@@ -244,16 +249,11 @@ pub fn packRects(self: *Packer) !?[2]u16 {
     };
 
     for (texture_sizes) |tex_size| {
-        zstbi.stbrp_init_target(&ctx, tex_size[0], tex_size[1], &nodes, node_count);
-        zstbi.stbrp_setup_heuristic(&ctx, @as(c_int, @intCast(@intFromEnum(zstbi.Heuristic.skyline_default))));
-        if (zstbi.stbrp_pack_rects(&ctx, self.frames.items.ptr, @as(c_int, @intCast(self.frames.items.len))) == 1) {
+        zstbi.initTarget(&ctx, tex_size[0], tex_size[1], &nodes);
+        zstbi.setupHeuristic(&ctx, zstbi.Heuristic.skyline_bl_sort_height);
+        if (zstbi.packRects(&ctx, self.frames.items) == 1) {
             return .{ @as(u16, @intCast(tex_size[0])), @as(u16, @intCast(tex_size[1])) };
         }
-        // zstbi.initTarget(&ctx, tex_size[0], tex_size[1], &nodes);
-        // zstbi.setupHeuristic(&ctx, zstbi.Heuristic.skyline_bl_sort_height);
-        // if (zstbi.packRects(&ctx, frames) == 1) {
-        //     return .{ @intCast(u16, tex_size[0]), @intCast(u16, tex_size[1]) };
-        // }
     }
 
     return null;

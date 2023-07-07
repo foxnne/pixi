@@ -348,6 +348,15 @@ pub const Rect = extern struct {
     x: u16 = 0,
     y: u16 = 0,
     was_packed: i32 = 0,
+
+    pub fn slice(self: Rect) [4]u32 {
+        return .{
+            @intCast(self.x),
+            @intCast(self.y),
+            @intCast(self.w),
+            @intCast(self.h),
+        };
+    }
 };
 
 pub const Node = extern struct {
@@ -374,49 +383,22 @@ pub const Heuristic = enum(u32) {
     skyline_bf_sort_height,
 };
 
-pub const stbrp_context = extern struct {
-    width: c_int,
-    height: c_int,
-    @"align": c_int,
-    init_mode: c_int,
-    heuristic: c_int,
-    num_nodes: c_int,
-    active_head: [*c]stbrp_node,
-    free_head: [*c]stbrp_node,
-    extra: [2]stbrp_node,
-};
+pub fn initTarget(context: *Context, width: u32, height: u32, nodes: []Node) void {
+    stbrp_init_target(context, width, height, nodes.ptr, nodes.len);
+}
 
-pub const stbrp_node = extern struct {
-    x: c_ushort,
-    y: c_ushort,
-    next: [*c]stbrp_node,
-};
+pub fn packRects(context: *Context, rects: []Rect) usize {
+    return @as(usize, @intCast(stbrp_pack_rects(context, rects.ptr, rects.len)));
+}
 
-pub const stbrp_rect = extern struct {
-    id: c_int,
-    w: c_ushort,
-    h: c_ushort,
-    x: c_ushort = 0,
-    y: c_ushort = 0,
-    was_packed: c_int = 0,
-};
+pub fn setupHeuristic(context: *Context, heuristic: Heuristic) void {
+    stbrp_setup_heuristic(context, @as(u32, @intCast(@intFromEnum(heuristic))));
+}
 
-// pub fn initTarget(context: *Context, width: u32, height: u32, nodes: []Node) void {
-//     stbrp_init_target(context, @intCast(c_int, width), @intCast(c_int, height), nodes.ptr, @intCast(c_int, nodes.len));
-// }
-
-// pub fn packRects(context: *Context, rects: []Rect) !usize {
-//     return @intCast(usize, stbrp_pack_rects(context, rects.ptr, @intCast(c_int, rects.len)));
-// }
-
-// pub fn setupHeuristic(context: *Context, heuristic: Heuristic) void {
-//     stbrp_setup_heuristic(context, @intCast(c_int, @enumToInt(heuristic)));
-// }
-
-pub extern fn stbrp_init_target(context: [*c]stbrp_context, width: u32, height: u32, nodes: [*c]stbrp_node, num_nodes: u32) void;
-pub extern fn stbrp_pack_rects(context: [*c]stbrp_context, rects: [*c]stbrp_rect, num_rects: c_int) c_int;
-pub extern fn stbrp_setup_allow_out_of_mem(context: [*c]stbrp_context, allow_out_of_mem: c_int) void;
-pub extern fn stbrp_setup_heuristic(context: [*c]stbrp_context, heuristic: c_int) void;
+pub extern fn stbrp_init_target(context: [*c]Context, width: u32, height: u32, nodes: [*c]Node, num_nodes: usize) void;
+pub extern fn stbrp_pack_rects(context: [*c]Context, rects: [*c]Rect, num_rects: usize) usize;
+pub extern fn stbrp_setup_allow_out_of_mem(context: [*c]Context, allow_out_of_mem: u32) void;
+pub extern fn stbrp_setup_heuristic(context: [*c]Context, heuristic: u32) void;
 
 /// `pub fn setHdrToLdrScale(scale: f32) void`
 pub const setHdrToLdrScale = stbi_hdr_to_ldr_scale;

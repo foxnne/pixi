@@ -58,13 +58,13 @@ pub const Pixi = struct {
     }
 
     pub fn canvasCenterOffset(self: *Pixi, canvas: Canvas) [2]f32 {
-        const width = switch (canvas) {
-            .primary => @as(f32, @floatFromInt(self.width)),
-            .flipbook => @as(f32, @floatFromInt(self.tile_width)),
+        const width: f32 = switch (canvas) {
+            .primary => @floatFromInt(self.width),
+            .flipbook => @floatFromInt(self.tile_width),
         };
-        const height = switch (canvas) {
-            .primary => @as(f32, @floatFromInt(self.height)),
-            .flipbook => @as(f32, @floatFromInt(self.tile_height)),
+        const height: f32 = switch (canvas) {
+            .primary => @floatFromInt(self.height),
+            .flipbook => @floatFromInt(self.tile_height),
         };
 
         return .{ -width / 2.0, -height / 2.0 };
@@ -898,6 +898,6 @@ pub const Palette = struct {
 
 pub const Atlas = struct {
     diffusemap: pixi.gfx.Texture,
-    heightmap: ?pixi.gfx.Texture,
-    external: external.Atlas,
+    heightmap: ?pixi.gfx.Texture = null,
+    external: external.Atlas = undefined,
 };
