@@ -55,7 +55,29 @@ pub fn draw() void {
             .flags = .{},
         })) {
             if (pixi.state.sidebar == .pack) {
-                canvas_pack.draw();
+                if (zgui.beginTabBar("PackedTextures", .{
+                    .reorderable = true,
+                    .auto_select_new_tabs = false,
+                    .no_close_with_middle_mouse_button = true,
+                })) {
+                    defer zgui.endTabBar();
+
+                    if (zgui.beginTabItem("Atlas.Diffusemap", .{
+                        .p_open = null,
+                        .flags = .{},
+                    })) {
+                        defer zgui.endTabItem();
+                        canvas_pack.draw();
+                    }
+
+                    if (zgui.beginTabItem("Atlas.Heightmap", .{
+                        .p_open = null,
+                        .flags = .{},
+                    })) {
+                        defer zgui.endTabItem();
+                        //canvas_pack.draw();
+                    }
+                }
             } else if (pixi.state.open_files.items.len > 0) {
                 if (zgui.beginTabBar("Files", .{
                     .reorderable = true,

@@ -99,11 +99,18 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             file.camera.drawLayer(file.layers.items[i], canvas_center_offset);
         }
 
-        // Draw the temporary layer
-        file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
-
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.style.text_secondary.toU32());
+
+        if (pixi.state.tools.current == .heightmap) {
+            file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
+            if (file.heightmap_layer) |layer| {
+                file.camera.drawLayer(layer, canvas_center_offset);
+            }
+        }
+
+        // Draw the temporary layer
+        file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
     }
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient
@@ -179,7 +186,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     );
                 }
             }
-        } else {
+        } else if (pixi.state.sidebar != .pack) {
             const column = @mod(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const row = @divTrunc(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const x = @as(f32, @floatFromInt(column)) * tile_width + canvas_center_offset[0];

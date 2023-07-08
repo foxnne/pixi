@@ -115,7 +115,7 @@ pub fn draw() void {
     zgui.spacing();
     zgui.text("Palette", .{});
     zgui.sameLine(.{});
-    if (zgui.smallButton(pixi.fa.sign_in_alt)) {
+    if (zgui.smallButton(pixi.fa.retweet)) {
         pixi.state.colors.deinit();
         pixi.state.colors = pixi.Colors.load() catch unreachable;
     }
