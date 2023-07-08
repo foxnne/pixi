@@ -337,12 +337,17 @@ pub fn closeFile(index: usize) !void {
             return;
         }
     }
+
     try rawCloseFile(index);
 }
 
 pub fn rawCloseFile(index: usize) !void {
     pixi.state.open_file_index = 0;
     var file: pixi.storage.Internal.Pixi = pixi.state.open_files.swapRemove(index);
+    deinitFile(&file);
+}
+
+pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
     file.history.deinit();
     file.buffers.deinit();
     file.background_image.deinit();
@@ -393,11 +398,22 @@ pub fn rawCloseFile(index: usize) !void {
 }
 
 pub fn deinit() void {
-    if (pixi.state.project_folder) |folder| {
-        pixi.state.allocator.free(folder);
+    pixi.state.packer.deinit();
+
+    if (pixi.state.atlas.diffusemap) |*diffusemap| {
+        diffusemap.deinit(pixi.state.gctx);
     }
+
     for (pixi.state.open_files.items) |_| {
         try closeFile(0);
     }
+    for (pixi.state.pack_open_files.items) |*file| {
+        deinitFile(file);
+    }
+    pixi.state.pack_open_files.deinit();
     pixi.state.open_files.deinit();
+
+    if (pixi.state.project_folder) |folder| {
+        pixi.state.allocator.free(folder);
+    }
 }

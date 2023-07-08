@@ -119,12 +119,6 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
             }
         }
     }
-    var test_image = self.sprites.items[0].diffuse_image;
-    var test_texture: pixi.gfx.Texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, @as(u32, @intCast(test_image.width)), @as(u32, @intCast(test_image.height)), .{});
-    var test_image_pixels = @as([*]u8, @ptrCast(test_image.pixels.ptr))[0..test_texture.image.data.len];
-    @memcpy(test_texture.image.data, test_image_pixels);
-    test_texture.update(pixi.state.gctx);
-    pixi.state.test_texture = test_texture;
 }
 
 pub fn packAndClear(self: *Packer) !void {
