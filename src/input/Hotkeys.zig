@@ -320,6 +320,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{},
             .action = .{ .tool = Tool.animation },
         });
+
+        // Heightmap
+        try hotkeys.append(.{
+            .shortcut = "h",
+            .key = zglfw.Key.h,
+            .mods = .{},
+            .action = .{ .tool = Tool.heightmap },
+        });
     }
 
     { // Sidebars

@@ -185,7 +185,11 @@ pub fn drawTooltip(tool: pixi.Tool) void {
                 .heightmap => "Heightmap",
             };
 
-            zgui.text("{s}", .{text});
+            if (pixi.state.hotkeys.hotkey(.{ .tool = tool })) |hotkey| {
+                zgui.text("{s} ({s})", .{ text, hotkey.shortcut });
+            } else {
+                zgui.text("{s}", .{text});
+            }
         }
     }
 }
