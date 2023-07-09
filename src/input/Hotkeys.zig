@@ -291,6 +291,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Pointer
         try hotkeys.append(.{
+            .shortcut = "esc",
             .key = zglfw.Key.escape,
             .mods = .{},
             .action = .{ .tool = Tool.pointer },
@@ -298,6 +299,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Pencil
         try hotkeys.append(.{
+            .shortcut = "d",
             .key = zglfw.Key.d,
             .mods = .{},
             .action = .{ .tool = Tool.pencil },
@@ -305,6 +307,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Eraser
         try hotkeys.append(.{
+            .shortcut = "e",
             .key = zglfw.Key.e,
             .mods = .{},
             .action = .{ .tool = Tool.eraser },
@@ -312,6 +315,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Animation
         try hotkeys.append(.{
+            .shortcut = "a",
             .key = zglfw.Key.a,
             .mods = .{},
             .action = .{ .tool = Tool.animation },
@@ -321,6 +325,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
     { // Sidebars
         // Explorer
         try hotkeys.append(.{
+            .shortcut = "f",
             .key = zglfw.Key.f,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.files },
@@ -328,18 +333,15 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Tools
         try hotkeys.append(.{
-            .key = zglfw.Key.d,
-            .mods = .{},
-            .action = .{ .sidebar = Sidebar.tools },
-        });
-        try hotkeys.append(.{
-            .key = zglfw.Key.e,
+            .shortcut = "t",
+            .key = zglfw.Key.t,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.tools },
         });
 
         // Layers
         try hotkeys.append(.{
+            .shortcut = "l",
             .key = zglfw.Key.l,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.layers },
@@ -347,6 +349,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Sprites
         try hotkeys.append(.{
+            .shortcut = "s",
             .key = zglfw.Key.s,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.sprites },
@@ -354,9 +357,18 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Animations
         try hotkeys.append(.{
+            .shortcut = "a",
             .key = zglfw.Key.a,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.animations },
+        });
+
+        // Pack
+        try hotkeys.append(.{
+            .shortcut = "p",
+            .key = zglfw.Key.p,
+            .mods = .{},
+            .action = .{ .sidebar = Sidebar.pack },
         });
     }
 
