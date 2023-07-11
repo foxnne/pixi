@@ -16,13 +16,15 @@ pub const Image = struct {
 
 pub const Sprite = struct {
     name: [:0]const u8,
-    diffuse_image: Image,
+    diffuse_image: ?Image = null,
     heightmap_image: ?Image = null,
-    origin: [2]i32,
+    origin: [2]i32 = .{ 0, 0 },
 
     pub fn deinit(self: *Sprite, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
-        self.diffuse_image.deinit(allocator);
+        if (self.diffuse_image) |*image| {
+            image.deinit(allocator);
+        }
         if (self.heightmap_image) |*image| {
             image.deinit(allocator);
         }
@@ -33,13 +35,20 @@ frames: std.ArrayList(zstbi.Rect),
 sprites: std.ArrayList(Sprite),
 animations: std.ArrayList(pixi.storage.External.Animation),
 id_counter: u32 = 0,
+placeholder: Image,
 allocator: std.mem.Allocator,
 
-pub fn init(allocator: std.mem.Allocator) Packer {
+pub fn init(allocator: std.mem.Allocator) !Packer {
+    var pixels: [][4]u8 = try allocator.alloc([4]u8, 4);
+    for (pixels) |*pixel| {
+        pixel[3] = 0;
+    }
+
     return .{
         .sprites = std.ArrayList(Sprite).init(allocator),
         .frames = std.ArrayList(zstbi.Rect).init(allocator),
         .animations = std.ArrayList(pixi.storage.External.Animation).init(allocator),
+        .placeholder = .{ .width = 2, .height = 2, .pixels = pixels },
         .allocator = allocator,
     };
 }
@@ -51,6 +60,7 @@ pub fn id(self: *Packer) u32 {
 }
 
 pub fn deinit(self: *Packer) void {
+    self.allocator.free(self.placeholder.pixels);
     self.clearAndFree();
     self.sprites.deinit();
     self.frames.deinit();
@@ -60,6 +70,9 @@ pub fn deinit(self: *Packer) void {
 pub fn clearAndFree(self: *Packer) void {
     for (self.sprites.items) |*sprite| {
         sprite.deinit(self.allocator);
+    }
+    for (self.animations.items) |*animation| {
+        self.allocator.free(animation.name);
     }
     self.frames.clearAndFree();
     self.sprites.clearAndFree();
@@ -116,6 +129,35 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                 });
 
                 try self.frames.append(.{ .id = self.id(), .w = @as(c_ushort, @intCast(image.width)), .h = @as(c_ushort, @intCast(image.height)) });
+            } else {
+                for (file.animations.items) |animation| {
+                    if (sprite_index >= animation.start and sprite_index < animation.start + animation.length) {
+                        // Sprite contains no pixels but is part of an animation
+                        // To preserve the animation, add a blank pixel to the sprites list
+                        try self.sprites.append(.{
+                            .name = try std.fmt.allocPrintZ(self.allocator, "{s}_{s}", .{ sprite.name, layer.name }),
+                            .diffuse_image = null,
+                            .origin = .{ 0, 0 },
+                        });
+
+                        try self.frames.append(.{
+                            .id = self.id(),
+                            .w = 2,
+                            .h = 2,
+                        });
+                    }
+                }
+            }
+
+            for (file.animations.items) |animation| {
+                if (sprite_index == animation.start) {
+                    try self.animations.append(.{
+                        .name = try std.fmt.allocPrintZ(self.allocator, "{s}_{s}", .{ animation.name, layer.name }),
+                        .start = self.sprites.items.len - 1,
+                        .length = animation.length,
+                        .fps = animation.fps,
+                    });
+                }
             }
         }
     }
@@ -126,9 +168,43 @@ pub fn packAndClear(self: *Packer) !void {
         var atlas_texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, size[0], size[1], .{});
 
         for (self.frames.items, self.sprites.items) |frame, sprite| {
-            atlas_texture.blit(sprite.diffuse_image.pixels, frame.slice());
+            if (sprite.diffuse_image) |image|
+                atlas_texture.blit(image.pixels, frame.slice());
         }
         atlas_texture.update(pixi.state.gctx);
+
+        var atlas: pixi.storage.External.Atlas = .{
+            .sprites = try self.allocator.alloc(pixi.storage.External.Sprite, self.sprites.items.len),
+            .animations = try self.allocator.alloc(pixi.storage.External.Animation, self.animations.items.len),
+        };
+
+        for (atlas.sprites, self.sprites.items, self.frames.items) |*dst, src, src_rect| {
+            dst.name = try self.allocator.dupeZ(u8, src.name);
+            dst.source = .{ src_rect.x, src_rect.y, src_rect.w, src_rect.h };
+            dst.origin = src.origin;
+        }
+
+        for (atlas.animations, self.animations.items) |*dst, src| {
+            dst.name = try self.allocator.dupeZ(u8, src.name);
+            dst.fps = src.fps;
+            dst.length = src.length;
+            dst.start = src.start;
+        }
+
+        if (pixi.state.atlas.external) |*old_atlas| {
+            for (old_atlas.sprites) |sprite| {
+                self.allocator.free(sprite.name);
+            }
+            for (old_atlas.animations) |animation| {
+                self.allocator.free(animation.name);
+            }
+            self.allocator.free(old_atlas.sprites);
+            self.allocator.free(old_atlas.animations);
+
+            pixi.state.atlas.external = atlas;
+        } else {
+            pixi.state.atlas.external = atlas;
+        }
 
         if (pixi.state.atlas.diffusemap) |*diffusemap| {
             diffusemap.deinit(pixi.state.gctx);

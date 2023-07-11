@@ -138,6 +138,10 @@ pub fn importPng(path: [:0]const u8, new_file_path: [:0]const u8) !bool {
     return try newFile(new_file_path, path);
 }
 
+// pub fn loadFileNoOpenAsync (path: [:0]const) !void {
+
+// }
+
 pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return null;
@@ -200,20 +204,19 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;
 
-            _ = zip.zip_entry_open(pixi_file, layer_image_name.ptr);
-            _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
-            defer _ = zip.zip_entry_close(pixi_file);
+            if (zip.zip_entry_open(pixi_file, layer_image_name.ptr) == 0) {
+                _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
 
-            if (img_buf) |data| {
-                var new_layer: pixi.storage.Internal.Layer = .{
-                    .name = try pixi.state.allocator.dupeZ(u8, layer.name),
-                    .texture = undefined,
-                };
-
-                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @as([*]u8, @ptrCast(data))[0..img_len], .{});
-                new_layer.id = internal.id();
-                try internal.layers.append(new_layer);
+                if (img_buf) |data| {
+                    var new_layer: pixi.storage.Internal.Layer = .{
+                        .name = try pixi.state.allocator.dupeZ(u8, layer.name),
+                        .texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @as([*]u8, @ptrCast(data))[0..img_len], .{}),
+                        .id = internal.id(),
+                    };
+                    try internal.layers.append(new_layer);
+                }
             }
+            _ = zip.zip_entry_close(pixi_file);
         }
 
         const heightmap_image_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{"heightmap"});
@@ -224,7 +227,6 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
             var img_len: usize = 0;
 
             _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
-            defer _ = zip.zip_entry_close(pixi_file);
 
             if (img_buf) |data| {
                 var new_layer: pixi.storage.Internal.Layer = .{
@@ -237,6 +239,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                 internal.heightmap_layer = new_layer;
             }
         }
+        _ = zip.zip_entry_close(pixi_file);
 
         for (external.sprites, 0..) |sprite, i| {
             try internal.sprites.append(.{
@@ -398,12 +401,6 @@ pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
 }
 
 pub fn deinit() void {
-    pixi.state.packer.deinit();
-
-    if (pixi.state.atlas.diffusemap) |*diffusemap| {
-        diffusemap.deinit(pixi.state.gctx);
-    }
-
     for (pixi.state.open_files.items) |_| {
         try closeFile(0);
     }

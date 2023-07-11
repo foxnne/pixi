@@ -88,6 +88,15 @@ pub fn draw() void {
             defer zgui.popStyleColor(.{ .count = 1 });
             zgui.textWrapped("Select a project folder to pack.", .{});
         }
+
+        if (pixi.state.atlas.external) |atlas| {
+            zgui.text("Atlas Details", .{});
+            zgui.text("Sprites: {d}", .{atlas.sprites.len});
+            zgui.text("Animations: {d}", .{atlas.animations.len});
+        }
+        if (pixi.state.atlas.diffusemap) |diffusemap| {
+            zgui.text("Atlas size: {d}x{d}", .{ diffusemap.image.width, diffusemap.image.height });
+        }
     }
 }
 

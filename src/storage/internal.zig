@@ -409,7 +409,7 @@ pub const Pixi = struct {
 
         for (sprites, 0..) |*sprite, i| {
             sprite.name = try allocator.dupeZ(u8, self.sprites.items[i].name);
-            sprite.origin = .{ @as(u32, @intFromFloat(@round(self.sprites.items[i].origin_x))), @as(u32, @intFromFloat(@round(self.sprites.items[i].origin_y))) };
+            sprite.origin = .{ @intFromFloat(@round(self.sprites.items[i].origin_x)), @intFromFloat(@round(self.sprites.items[i].origin_y)) };
         }
 
         for (animations, 0..) |*animation, i| {
@@ -899,5 +899,5 @@ pub const Palette = struct {
 pub const Atlas = struct {
     diffusemap: ?pixi.gfx.Texture = null,
     heightmap: ?pixi.gfx.Texture = null,
-    external: external.Atlas = undefined,
+    external: ?external.Atlas = undefined,
 };

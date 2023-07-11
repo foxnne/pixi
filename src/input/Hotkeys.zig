@@ -62,22 +62,6 @@ pub const Hotkey = struct {
     pub fn up(self: Hotkey) bool {
         return self.state == false;
     }
-
-    // pub fn createShortcut(self: *Hotkey, allocator: std.mem.Allocator) !void {
-    //     const os = builtin.target.os.tag;
-    //     const super = switch (os) {
-    //         .macos => "cmd",
-    //         .windows => "win",
-    //         else => "super",
-    //     };
-    //     const ctrl = "ctrl";
-    //     const shift = "shift";
-    //     const alt = "alt";
-
-    //     self.shortcut = try std.fmt.allocPrintZ(allocator, "{s}+{s}+{s}+{s}+{s}", .{
-    //         super, ctrl, shift, alt, @tagName(self.key),
-    //     });
-    // }
 };
 
 pub fn hotkey(self: Self, action: Action) ?*Hotkey {

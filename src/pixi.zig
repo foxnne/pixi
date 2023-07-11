@@ -195,7 +195,7 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
 
     const hotkeys = try Hotkeys.initDefault(allocator);
 
-    const packer = Packer.init(allocator);
+    const packer = try Packer.init(allocator);
 
     state = try allocator.create(PixiState);
     state.* = .{
@@ -224,6 +224,21 @@ fn deinit(allocator: std.mem.Allocator) void {
     state.fox_logo.deinit(state.gctx);
     state.cursors.deinit(state.gctx);
     state.colors.deinit();
+    state.packer.deinit();
+    if (state.atlas.external) |*atlas| {
+        for (atlas.sprites) |sprite| {
+            state.allocator.free(sprite.name);
+        }
+
+        for (atlas.animations) |animation| {
+            state.allocator.free(animation.name);
+        }
+
+        state.allocator.free(atlas.sprites);
+        state.allocator.free(atlas.animations);
+    }
+    if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit(state.gctx);
+    if (state.atlas.heightmap) |*heightmap| heightmap.deinit(state.gctx);
     editor.deinit();
     zgui.backend.deinit();
     zgui.deinit();

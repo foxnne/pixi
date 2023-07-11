@@ -57,7 +57,7 @@ pub const OldSprite = struct {
 pub const Sprite = struct {
     name: [:0]const u8,
     source: [4]u32,
-    origin: [2]u32,
+    origin: [2]i32,
 };
 
 pub const Animation = storage.Internal.Animation;

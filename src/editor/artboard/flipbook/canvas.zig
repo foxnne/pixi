@@ -7,10 +7,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
-    const canvas_center_offset: [2]f32 = .{
-        -tile_width / 2.0,
-        -tile_height / 2.0,
-    };
+    const canvas_center_offset = file.canvasCenterOffset(.flipbook);
 
     // Progress flipbook scroll request
     if (file.flipbook_scroll_request) |*request| {
