@@ -879,7 +879,7 @@ pub const Palette = struct {
             var contents = try std.fs.cwd().openFile(file, .{});
             defer contents.close();
 
-            while (try contents.reader().readUntilDelimiterOrEofAlloc(pixi.state.allocator, '\n', 20000)) |line| {
+            while (try contents.reader().readUntilDelimiterOrEofAlloc(pixi.state.allocator, '\n', 200000)) |line| {
                 const color_u32 = try std.fmt.parseInt(u32, line[0 .. line.len - 1], 16);
                 const color_packed: PackedColor = @as(PackedColor, @bitCast(color_u32));
                 try colors.append(.{ color_packed.b, color_packed.g, color_packed.r, 255 });
@@ -900,4 +900,30 @@ pub const Atlas = struct {
     diffusemap: ?pixi.gfx.Texture = null,
     heightmap: ?pixi.gfx.Texture = null,
     external: ?external.Atlas = undefined,
+
+    pub fn save(self: Atlas, path: [:0]const u8) !void {
+        if (self.external) |atlas| {
+            const atlas_ext = ".atlas";
+
+            const output_path = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}", .{ path, atlas_ext });
+            defer pixi.state.allocator.free(output_path);
+
+            var handle = try std.fs.cwd().createFile(output_path, .{});
+            defer handle.close();
+
+            const out_stream = handle.writer();
+            const options = std.json.StringifyOptions{ .whitespace = .{} };
+
+            try std.json.stringify(atlas, options, out_stream);
+        }
+
+        if (self.diffusemap) |diffusemap| {
+            const png_ext = ".png";
+
+            const output_path = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}", .{ path, png_ext });
+            defer pixi.state.allocator.free(output_path);
+
+            try diffusemap.image.writeToFile(output_path, .png);
+        }
+    }
 };

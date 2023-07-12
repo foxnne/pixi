@@ -138,9 +138,9 @@ pub fn importPng(path: [:0]const u8, new_file_path: [:0]const u8) !bool {
     return try newFile(new_file_path, path);
 }
 
-// pub fn loadFileNoOpenAsync (path: [:0]const) !void {
-
-// }
+pub fn loadFileAsync(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
+    _ = path;
+}
 
 pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))

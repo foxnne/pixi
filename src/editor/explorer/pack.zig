@@ -1,5 +1,6 @@
 const std = @import("std");
 const zgui = @import("zgui");
+const nfd = @import("nfd");
 const pixi = @import("root");
 
 pub fn draw() void {
@@ -83,6 +84,7 @@ pub fn draw() void {
         }
         if (!packable)
             zgui.endDisabled();
+
         if (pixi.state.pack_files == .project and pixi.state.project_folder == null) {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
             defer zgui.popStyleColor(.{ .count = 1 });
@@ -93,9 +95,15 @@ pub fn draw() void {
             zgui.text("Atlas Details", .{});
             zgui.text("Sprites: {d}", .{atlas.sprites.len});
             zgui.text("Animations: {d}", .{atlas.animations.len});
-        }
-        if (pixi.state.atlas.diffusemap) |diffusemap| {
-            zgui.text("Atlas size: {d}x{d}", .{ diffusemap.image.width, diffusemap.image.height });
+            if (pixi.state.atlas.diffusemap) |diffusemap| {
+                zgui.text("Atlas size: {d}x{d}", .{ diffusemap.image.width, diffusemap.image.height });
+            }
+
+            if (zgui.button("Export", .{ .w = window_size[0] })) {
+                if (nfd.saveFileDialog(null, null) catch unreachable) |path| {
+                    pixi.state.atlas.save(path) catch unreachable;
+                }
+            }
         }
     }
 }
