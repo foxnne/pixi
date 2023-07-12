@@ -36,6 +36,7 @@ sprites: std.ArrayList(Sprite),
 animations: std.ArrayList(pixi.storage.External.Animation),
 id_counter: u32 = 0,
 placeholder: Image,
+contains_height: bool = false,
 allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) !Packer {
@@ -77,6 +78,7 @@ pub fn clearAndFree(self: *Packer) void {
     self.frames.clearAndFree();
     self.sprites.clearAndFree();
     self.animations.clearAndFree();
+    self.contains_height = false;
 }
 
 pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
@@ -111,6 +113,7 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                     .pixels = try pixi.state.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
                 };
 
+                var contains_height: bool = false;
                 var heightmap_image: ?Image = if (file.heightmap_layer != null) .{
                     .width = reduced_src_width,
                     .height = reduced_src_height,
@@ -118,7 +121,6 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                 } else null;
 
                 @memset(image.pixels, .{ 0, 0, 0, 0 });
-
                 if (heightmap_image) |*img| {
                     @memset(img.pixels, .{ 0, 0, 0, 0 });
                 }
@@ -143,10 +145,19 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                                         dst_pixel[1] = heightmap_src_pixel[1];
                                         dst_pixel[2] = heightmap_src_pixel[2];
                                         dst_pixel[3] = heightmap_src_pixel[3];
+                                        self.contains_height = true;
+                                        contains_height = true;
                                     }
                                 }
                             }
                         }
+                    }
+                }
+
+                if (!contains_height) {
+                    if (heightmap_image) |img| {
+                        pixi.state.allocator.free(img.pixels);
+                        heightmap_image = null;
                     }
                 }
 
@@ -202,13 +213,33 @@ pub fn packAndClear(self: *Packer) !void {
         }
         atlas_texture.update(pixi.state.gctx);
 
-        var atlas_texture_h = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, size[0], size[1], .{});
-
-        for (self.frames.items, self.sprites.items) |frame, sprite| {
-            if (sprite.heightmap_image) |image|
-                atlas_texture_h.blit(image.pixels, frame.slice());
+        if (pixi.state.atlas.diffusemap) |*diffusemap| {
+            diffusemap.deinit(pixi.state.gctx);
+            pixi.state.atlas.diffusemap = atlas_texture;
+        } else {
+            pixi.state.atlas.diffusemap = atlas_texture;
         }
-        atlas_texture_h.update(pixi.state.gctx);
+
+        if (self.contains_height) {
+            var atlas_texture_h = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, size[0], size[1], .{});
+
+            for (self.frames.items, self.sprites.items) |frame, sprite| {
+                if (sprite.heightmap_image) |image|
+                    atlas_texture_h.blit(image.pixels, frame.slice());
+            }
+            atlas_texture_h.update(pixi.state.gctx);
+
+            if (pixi.state.atlas.heightmap) |*heightmap| {
+                heightmap.deinit(pixi.state.gctx);
+                pixi.state.atlas.heightmap = atlas_texture_h;
+            } else {
+                pixi.state.atlas.heightmap = atlas_texture_h;
+            }
+        } else {
+            if (pixi.state.atlas.heightmap) |*heightmap| {
+                heightmap.deinit(pixi.state.gctx);
+            }
+        }
 
         var atlas: pixi.storage.External.Atlas = .{
             .sprites = try self.allocator.alloc(pixi.storage.External.Sprite, self.sprites.items.len),
@@ -241,20 +272,6 @@ pub fn packAndClear(self: *Packer) !void {
             pixi.state.atlas.external = atlas;
         } else {
             pixi.state.atlas.external = atlas;
-        }
-
-        if (pixi.state.atlas.diffusemap) |*diffusemap| {
-            diffusemap.deinit(pixi.state.gctx);
-            pixi.state.atlas.diffusemap = atlas_texture;
-        } else {
-            pixi.state.atlas.diffusemap = atlas_texture;
-        }
-
-        if (pixi.state.atlas.heightmap) |*heightmap| {
-            heightmap.deinit(pixi.state.gctx);
-            pixi.state.atlas.heightmap = atlas_texture_h;
-        } else {
-            pixi.state.atlas.heightmap = atlas_texture_h;
         }
 
         self.clearAndFree();
