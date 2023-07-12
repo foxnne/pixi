@@ -262,7 +262,7 @@ pub const Pixi = struct {
                         }
                         if (valid) {
                             file.buffers.stroke.append(index, value) catch unreachable;
-                            layer.setPixel(pixel, color, false);
+                            layer.setPixel(pixel, color, true);
                         }
                     } else {
                         file.buffers.stroke.append(index, value) catch unreachable;

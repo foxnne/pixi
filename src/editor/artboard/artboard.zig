@@ -67,7 +67,7 @@ pub fn draw() void {
                         .flags = .{},
                     })) {
                         defer zgui.endTabItem();
-                        canvas_pack.draw();
+                        canvas_pack.draw(.diffusemap);
                     }
 
                     if (zgui.beginTabItem("Atlas.Heightmap", .{
@@ -75,7 +75,7 @@ pub fn draw() void {
                         .flags = .{},
                     })) {
                         defer zgui.endTabItem();
-                        //canvas_pack.draw();
+                        canvas_pack.draw(.heightmap);
                     }
                 }
             } else if (pixi.state.open_files.items.len > 0) {

@@ -2,12 +2,20 @@ const std = @import("std");
 const pixi = @import("root");
 const zgui = @import("zgui");
 
-pub fn draw() void {
-    if (pixi.state.atlas.diffusemap) |diffusemap| {
+pub const PackTexture = enum {
+    diffusemap,
+    heightmap,
+};
+
+pub fn draw(mode: PackTexture) void {
+    if (switch (mode) {
+        .diffusemap => pixi.state.atlas.diffusemap,
+        .heightmap => pixi.state.atlas.heightmap,
+    }) |texture| {
         const window_width = zgui.getWindowWidth();
         const window_height = zgui.getWindowHeight();
-        const file_width = @as(f32, @floatFromInt(diffusemap.image.width));
-        const file_height = @as(f32, @floatFromInt(diffusemap.image.height));
+        const file_width = @as(f32, @floatFromInt(texture.image.width));
+        const file_height = @as(f32, @floatFromInt(texture.image.height));
 
         var camera = &pixi.state.pack_camera;
 
@@ -42,11 +50,11 @@ pub fn draw() void {
 
         // Draw the packed atlas texture
         {
-            const width: f32 = @floatFromInt(diffusemap.image.width);
-            const height: f32 = @floatFromInt(diffusemap.image.height);
+            const width: f32 = @floatFromInt(texture.image.width);
+            const height: f32 = @floatFromInt(texture.image.height);
 
             const center_offset: [2]f32 = .{ -width / 2.0, -height / 2.0 };
-            camera.drawTexture(diffusemap.view_handle, diffusemap.image.width, diffusemap.image.height, center_offset, 0xFFFFFFFF);
+            camera.drawTexture(texture.view_handle, texture.image.width, texture.image.height, center_offset, 0xFFFFFFFF);
             camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, pixi.state.style.text_secondary.toU32());
         }
     }

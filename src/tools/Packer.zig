@@ -111,6 +111,18 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                     .pixels = try pixi.state.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
                 };
 
+                var heightmap_image: ?Image = if (file.heightmap_layer != null) .{
+                    .width = reduced_src_width,
+                    .height = reduced_src_height,
+                    .pixels = try pixi.state.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
+                } else null;
+
+                @memset(image.pixels, .{ 0, 0, 0, 0 });
+
+                if (heightmap_image) |*img| {
+                    @memset(img.pixels, .{ 0, 0, 0, 0 });
+                }
+
                 // Copy pixels to image
                 {
                     var y: usize = reduced_src_y;
@@ -119,12 +131,29 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                         const src = src_pixels[start .. start + reduced_src_width];
                         const dst = image.pixels[(y - reduced_src_y) * image.width .. (y - reduced_src_y) * image.width + image.width];
                         @memcpy(dst, src);
+
+                        if (heightmap_image) |heightmap_out| {
+                            if (file.heightmap_layer) |heightmap_layer| {
+                                const heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.image.data.ptr))[0 .. heightmap_layer.texture.image.data.len / 4];
+                                const heightmap_src = heightmap_pixels[start .. start + reduced_src_width];
+                                const heightmap_dst = heightmap_out.pixels[(y - reduced_src_y) * heightmap_out.width .. (y - reduced_src_y) * heightmap_out.width + heightmap_out.width];
+                                for (src, heightmap_src, heightmap_dst) |src_pixel, heightmap_src_pixel, *dst_pixel| {
+                                    if (src_pixel[3] != 0 and heightmap_src_pixel[3] != 0) {
+                                        dst_pixel[0] = heightmap_src_pixel[0];
+                                        dst_pixel[1] = heightmap_src_pixel[1];
+                                        dst_pixel[2] = heightmap_src_pixel[2];
+                                        dst_pixel[3] = heightmap_src_pixel[3];
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
                 try self.sprites.append(.{
                     .name = try std.fmt.allocPrintZ(self.allocator, "{s}_{s}", .{ sprite.name, layer.name }),
                     .diffuse_image = image,
+                    .heightmap_image = heightmap_image,
                     .origin = .{ @as(i32, @intFromFloat(sprite.origin_x)) - @as(i32, @intCast(offset[0])), @as(i32, @intFromFloat(sprite.origin_y)) - @as(i32, @intCast(offset[1])) },
                 });
 
@@ -173,6 +202,14 @@ pub fn packAndClear(self: *Packer) !void {
         }
         atlas_texture.update(pixi.state.gctx);
 
+        var atlas_texture_h = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, size[0], size[1], .{});
+
+        for (self.frames.items, self.sprites.items) |frame, sprite| {
+            if (sprite.heightmap_image) |image|
+                atlas_texture_h.blit(image.pixels, frame.slice());
+        }
+        atlas_texture_h.update(pixi.state.gctx);
+
         var atlas: pixi.storage.External.Atlas = .{
             .sprites = try self.allocator.alloc(pixi.storage.External.Sprite, self.sprites.items.len),
             .animations = try self.allocator.alloc(pixi.storage.External.Animation, self.animations.items.len),
@@ -211,6 +248,13 @@ pub fn packAndClear(self: *Packer) !void {
             pixi.state.atlas.diffusemap = atlas_texture;
         } else {
             pixi.state.atlas.diffusemap = atlas_texture;
+        }
+
+        if (pixi.state.atlas.heightmap) |*heightmap| {
+            heightmap.deinit(pixi.state.gctx);
+            pixi.state.atlas.heightmap = atlas_texture_h;
+        } else {
+            pixi.state.atlas.heightmap = atlas_texture_h;
         }
 
         self.clearAndFree();
