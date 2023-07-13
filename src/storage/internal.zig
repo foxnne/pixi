@@ -925,5 +925,14 @@ pub const Atlas = struct {
 
             try diffusemap.image.writeToFile(output_path, .png);
         }
+
+        if (self.heightmap) |heightmap| {
+            const png_ext = ".png";
+
+            const output_path = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}_h{s}", .{ path, png_ext });
+            defer pixi.state.allocator.free(output_path);
+
+            try heightmap.image.writeToFile(output_path, .png);
+        }
     }
 };
