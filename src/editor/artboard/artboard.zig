@@ -100,12 +100,12 @@ pub fn draw() void {
                             .p_open = &open,
                             .flags = .{
                                 .set_selected = pixi.state.open_file_index == i,
-                                .unsaved_document = file.dirty(),
+                                .unsaved_document = file.dirty() or file.saving,
                             },
                         })) {
                             zgui.endTabItem();
                         }
-                        if (!open) {
+                        if (!open and !file.saving) {
                             pixi.editor.closeFile(i) catch unreachable;
                         }
 
