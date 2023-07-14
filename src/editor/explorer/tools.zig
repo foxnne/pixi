@@ -36,6 +36,8 @@ pub fn draw() void {
         {
             zgui.setCursorPosX(style.item_spacing[0]);
             drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
+            zgui.sameLine(.{});
+            drawTool(pixi.fa.fill_drip, button_width, button_height, .bucket);
         }
 
         zgui.spacing();
@@ -183,6 +185,7 @@ pub fn drawTooltip(tool: pixi.Tool) void {
                 .eraser => "Eraser",
                 .animation => "Animation",
                 .heightmap => "Heightmap",
+                .bucket => "Bucket",
             };
 
             if (pixi.state.hotkeys.hotkey(.{ .tool = tool })) |hotkey| {

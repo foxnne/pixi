@@ -150,7 +150,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.style.text.toU32());
 
                     file.processSampleTool(.flipbook);
-                    file.processStrokeTool(.flipbook);
+                    file.processStrokeTool(.flipbook) catch unreachable;
+                    file.processFillTool(.flipbook) catch unreachable;
                 }
             } else {
                 if (i != file.selected_sprite_index) {

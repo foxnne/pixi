@@ -145,7 +145,7 @@ pub const Pixi = struct {
         }
     }
 
-    pub fn processStrokeTool(file: *Pixi, canvas: Canvas) void {
+    pub fn processStrokeTool(file: *Pixi, canvas: Canvas) !void {
         if (switch (pixi.state.tools.current) {
             .pencil, .eraser, .heightmap => false,
             else => true,
@@ -211,7 +211,7 @@ pub const Pixi = struct {
                     };
 
                     if (prev_pixel_coords_opt) |prev_pixel_coord| {
-                        const pixel_coords = pixi.algorithms.brezenham.process(prev_pixel_coord, pixel_coord) catch unreachable;
+                        const pixel_coords = try pixi.algorithms.brezenham.process(prev_pixel_coord, pixel_coord);
                         for (pixel_coords) |p_coord| {
                             const p = .{ @as(usize, @intFromFloat(p_coord[0])), @as(usize, @intFromFloat(p_coord[1])) };
                             const index = layer.getPixelIndex(p);
@@ -226,12 +226,12 @@ pub const Pixi = struct {
                                 }
                                 if (valid) {
                                     if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
-                                        file.buffers.stroke.append(index, value) catch unreachable;
+                                        try file.buffers.stroke.append(index, value);
                                     layer.setPixel(p, color, false);
                                 }
                             } else {
                                 if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
-                                    file.buffers.stroke.append(index, value) catch unreachable;
+                                    try file.buffers.stroke.append(index, value);
                                 layer.setPixel(p, color, false);
 
                                 if (color[3] == 0) {
@@ -261,11 +261,11 @@ pub const Pixi = struct {
                             }
                         }
                         if (valid) {
-                            file.buffers.stroke.append(index, value) catch unreachable;
+                            try file.buffers.stroke.append(index, value);
                             layer.setPixel(pixel, color, true);
                         }
                     } else {
-                        file.buffers.stroke.append(index, value) catch unreachable;
+                        try file.buffers.stroke.append(index, value);
                         layer.setPixel(pixel, color, true);
 
                         if (color[3] == 0) {
@@ -292,13 +292,13 @@ pub const Pixi = struct {
             // Submit the stroke change buffer
             if (file.buffers.stroke.indices.items.len > 0 and pixi.state.controls.mouse.primary.released()) {
                 const layer_index: i32 = if (pixi.state.tools.current == .heightmap) -1 else @as(i32, @intCast(file.selected_layer_index));
-                const change = file.buffers.stroke.toChange(layer_index) catch unreachable;
-                file.history.append(change) catch unreachable;
+                const change = try file.buffers.stroke.toChange(layer_index);
+                try file.history.append(change);
             }
         }
     }
 
-    pub fn processAnimationTool(file: *Pixi) void {
+    pub fn processAnimationTool(file: *Pixi) !void {
         if (pixi.state.sidebar != .animations or pixi.state.tools.current != .animation) return;
 
         const canvas_center_offset = canvasCenterOffset(file, .primary);
@@ -310,7 +310,7 @@ pub const Pixi = struct {
             .width = file.width,
             .height = file.height,
         })) |pixel_coord| {
-            const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
+            const pixel: [2]usize = .{ @intFromFloat(pixel_coord[0]), @intFromFloat(pixel_coord[1]) };
 
             var tile_column = @divTrunc(pixel[0], @as(usize, @intCast(file.tile_width)));
             var tile_row = @divTrunc(pixel[1], @as(usize, @intCast(file.tile_height)));
@@ -389,10 +389,67 @@ pub const Pixi = struct {
                                     animation_index += 1;
                                 }
 
-                                file.history.append(change) catch unreachable;
+                                try file.history.append(change);
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    pub fn processFillTool(file: *Pixi, canvas: Canvas) !void {
+        if (switch (pixi.state.tools.current) {
+            .bucket => false,
+            else => true,
+        }) return;
+
+        const canvas_center_offset = canvasCenterOffset(file, canvas);
+        const mouse_position = pixi.state.controls.mouse.position.toSlice();
+
+        var layer: pixi.storage.Internal.Layer = file.layers.items[file.selected_layer_index];
+
+        const camera = switch (canvas) {
+            .primary => file.camera,
+            .flipbook => file.flipbook_camera,
+        };
+
+        const pixel_coords_opt = switch (canvas) {
+            .primary => camera.pixelCoordinates(.{
+                .texture_position = canvas_center_offset,
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            }),
+
+            .flipbook => camera.flipbookPixelCoordinates(file, .{
+                .sprite_position = canvas_center_offset,
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            }),
+        };
+
+        if (pixi.state.controls.mouse.primary.pressed()) {
+            if (pixel_coords_opt) |pixel_coord| {
+                var pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
+
+                const index = layer.getPixelIndex(pixel);
+                var pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+
+                const old_color = pixels[index];
+                for (pixels, 0..) |color, i| {
+                    if (std.mem.eql(u8, &color, &old_color)) {
+                        try file.buffers.stroke.append(i, old_color);
+                        pixels[i] = pixi.state.colors.primary;
+                    }
+                }
+
+                layer.texture.update(pixi.state.gctx);
+
+                if (file.buffers.stroke.indices.items.len > 0) {
+                    const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
+                    try file.history.append(change);
                 }
             }
         }

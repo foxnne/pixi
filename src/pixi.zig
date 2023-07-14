@@ -104,6 +104,7 @@ pub const Tool = enum {
     eraser,
     animation,
     heightmap,
+    bucket,
 };
 
 pub const Tools = struct {

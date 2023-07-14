@@ -61,8 +61,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
             file.processSampleTool(.primary);
-            file.processStrokeTool(.primary);
-            file.processAnimationTool();
+            file.processStrokeTool(.primary) catch unreachable;
+            file.processFillTool(.primary) catch unreachable;
+            file.processAnimationTool() catch unreachable;
 
             if (pixi.state.controls.mouse.primary.pressed()) {
                 var tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
