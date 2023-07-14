@@ -312,6 +312,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{},
             .action = .{ .tool = Tool.heightmap },
         });
+
+        // Bucket
+        try hotkeys.append(.{
+            .shortcut = "b",
+            .key = zglfw.Key.b,
+            .mods = .{},
+            .action = .{ .tool = Tool.bucket },
+        });
     }
 
     { // Sidebars
