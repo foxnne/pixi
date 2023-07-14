@@ -111,6 +111,8 @@ pub const Pixi = struct {
                 var layer_index: ?usize = null;
                 // Go through all layers until we hit an opaque pixel
                 for (file.layers.items, 0..) |layer, i| {
+                    if (!layer.visible) continue;
+
                     const p = layer.getPixel(pixel);
                     if (p[3] > 0) {
                         color = p;
