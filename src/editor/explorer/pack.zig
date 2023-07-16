@@ -57,6 +57,12 @@ pub fn draw() void {
         var packable: bool = true;
         if (pixi.state.pack_files == .project and pixi.state.project_folder == null) packable = false;
         if (pixi.state.pack_files == .all_open and pixi.state.open_files.items.len <= 1) packable = false;
+        if (pixi.editor.saving()) {
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+            defer zgui.popStyleColor(.{ .count = 1 });
+            zgui.textWrapped("Please wait until all files are done saving.", .{});
+            packable = false;
+        }
 
         if (!packable)
             zgui.beginDisabled(.{});
