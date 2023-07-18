@@ -1,7 +1,5 @@
 const std = @import("std");
-// const zglfw = @import("zglfw");
-// const zgpu = @import("zgpu");
-// const wgpu = zgpu.wgpu;
+
 const zgui = @import("zgui");
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
@@ -42,12 +40,12 @@ test {
 }
 
 pub var state: *PixiState = undefined;
-pub var window: *zglfw.Window = undefined;
+pub var window: *mach.Window = undefined;
 
 /// Holds the global game state.
 pub const PixiState = struct {
     allocator: std.mem.Allocator,
-    gctx: *zgpu.GraphicsContext,
+    gctx: *mach.GraphicsContext,
     settings: Settings = .{},
     controls: input.Controls = .{},
     hotkeys: Hotkeys,
@@ -94,7 +92,7 @@ pub const Cursors = struct {
     pencil: gfx.Texture,
     eraser: gfx.Texture,
 
-    pub fn deinit(cursors: *Cursors, gctx: *zgpu.GraphicsContext) void {
+    pub fn deinit(cursors: *Cursors, gctx: *mach.gpu.GraphicsContext) void {
         cursors.pencil.deinit(gctx);
         cursors.eraser.deinit(gctx);
     }
@@ -172,7 +170,7 @@ pub const PackFiles = enum {
 };
 
 fn init(allocator: std.mem.Allocator) !*PixiState {
-    const gctx = try zgpu.GraphicsContext.create(allocator, window);
+    const gctx = try mach.GraphicsContext.create(allocator, window);
 
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
     var pack_open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
@@ -293,8 +291,8 @@ fn draw() void {
 
         // Gui pass.
         {
-            const pass = zgpu.beginRenderPassSimple(encoder, .load, swapchain_texv, null, null, null);
-            defer zgpu.endReleasePass(pass);
+            const pass = mach.beginRenderPassSimple(encoder, .load, swapchain_texv, null, null, null);
+            defer mach.endReleasePass(pass);
             zgui.backend.draw(pass);
         }
 
@@ -324,14 +322,14 @@ pub fn main() !void {
         std.os.chdir(path) catch {};
     }
 
-    try zglfw.init();
-    defer zglfw.terminate();
+    try mach.glfw.init();
+    defer mach.glfw.terminate();
 
     // TODO: Load settings.json if available
     const settings: Settings = .{};
 
     // Create window
-    window = try zglfw.Window.create(settings.initial_window_width, settings.initial_window_height, name, null);
+    window = try mach.glfw.Window.create(settings.initial_window_width, settings.initial_window_height, name, null);
     defer window.destroy();
     window.setSizeLimits(400, 400, -1, -1);
 
@@ -368,13 +366,13 @@ pub fn main() !void {
     state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-    zgui.backend.initWithConfig(window, state.gctx.device, @intFromEnum(zgpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
+    zgui.backend.initWithConfig(window, state.gctx.device, @intFromEnum(mach.gpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
 
     // Base style
     state.style.set();
 
     while (!state.should_close or editor.saving()) {
-        zglfw.pollEvents();
+        mach.glfw.pollEvents();
         update();
         draw();
     }
