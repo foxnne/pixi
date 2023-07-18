@@ -540,10 +540,11 @@ static void ImGui_ImplWGPU_CreateFontsTexture()
     // (Bilinear sampling is required by default. Set 'io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines' or 'style.AntiAliasedLinesUseTex = false' to allow point/nearest sampling)
     {
         const WGPUFilterMode filter_mode = g_config.texture_filter_mode == 1 ? WGPUFilterMode_Linear : WGPUFilterMode_Nearest;
+        const WGPUMipmapFilterMode mipmap_filter_mode = g_config.texture_filter_mode == 1 ? WGPUMipmapFilterMode_Linear : WGPUMipmapFilterMode_Nearest;
         WGPUSamplerDescriptor sampler_desc = {};
         sampler_desc.minFilter = filter_mode;
         sampler_desc.magFilter = filter_mode;
-        sampler_desc.mipmapFilter = filter_mode;
+        sampler_desc.mipmapFilter = mipmap_filter_mode;
         sampler_desc.addressModeU = WGPUAddressMode_Repeat;
         sampler_desc.addressModeV = WGPUAddressMode_Repeat;
         sampler_desc.addressModeW = WGPUAddressMode_Repeat;

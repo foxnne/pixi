@@ -6,3 +6,12 @@
 [submodule "src/deps/nfd-zig"]
 	path = src/deps/nfd-zig
 	url = https://github.com/foxnne/nfd-zig.git
+[submodule "src/deps/mach-core"]
+	path = src/deps/mach-core
+	url = https://github.com/hexops/mach-core
+[submodule "src/deps/mach-gpu"]
+	path = src/deps/mach-gpu
+	url = https://github.com/hexops/mach-gpu
+[submodule "src/deps/mach-gpu-dawn"]
+	path = src/deps/mach-gpu-dawn
+	url = https://github.com/hexops/mach-gpu-dawn
