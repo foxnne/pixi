@@ -22,7 +22,6 @@ pub const name: [:0]const u8 = "Pixi";
 pub const version: []const u8 = "0.0.1";
 pub const Settings = @import("settings.zig");
 pub const Popups = @import("editor/popups/Popups.zig");
-pub const Window = struct { size: zm.F32x4, scale: zm.F32x4 };
 pub const Hotkeys = @import("input/Hotkeys.zig");
 
 pub const Packer = @import("tools/Packer.zig");
@@ -179,7 +178,9 @@ pub const PackFiles = enum {
 };
 
 pub fn init(app: *App) !void {
-    try app.core.init(gpa.allocator(), .{});
+    try app.core.init(gpa.allocator(), .{
+        .title = name,
+    });
     application = app;
 
     const allocator = gpa.allocator();
@@ -199,8 +200,8 @@ pub fn init(app: *App) !void {
         @floatFromInt(descriptor.width / window_size.width),
         @floatFromInt(descriptor.height / window_size.height),
     };
-    const scale_factor = content_scale[1];
 
+    const scale_factor = content_scale[1];
     // Cursors
     const pencil = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
     const eraser = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
@@ -218,20 +219,7 @@ pub fn init(app: *App) !void {
 
     const pipeline_descriptor = gpu.RenderPipeline.Descriptor{ .fragment = &createFragmentState(fs_module, &.{color_target}), .vertex = createVertexState(vs_module) };
 
-    zgui.init(allocator);
-    zgui.mach_backend.init(&app.core, app.core.device(), app.core.descriptor().format, .{});
-    // zgui.io.setIniFilename(assets.root ++ "imgui.ini");
-    // _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
-    // var config = zgui.FontConfig.init();
-    // config.merge_mode = true;
-    // const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
-    // state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    // state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    // state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
-    // state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-
     state = try gpa.allocator().create(PixiState);
-    state.style.set();
 
     state.* = .{
         .allocator = allocator,
@@ -253,10 +241,31 @@ pub fn init(app: *App) !void {
         .timer = try mach.Timer.start(),
         .pipeline = app.core.device().createRenderPipeline(&pipeline_descriptor),
     };
+
+    zgui.init(allocator);
+    zgui.mach_backend.init(&app.core, app.core.device(), app.core.descriptor().format, .{});
+    zgui.io.setIniFilename(assets.root ++ "imgui.ini");
+    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
+    var config = zgui.FontConfig.init();
+    config.merge_mode = true;
+    const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
+    state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
+    state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
+    state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
+    state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
+
+    state.style.set();
 }
 
 pub fn update(app: *App) !bool {
+    zgui.mach_backend.newFrame();
     state.delta_time = app.timer.lap();
+    const descriptor = app.core.descriptor();
+    const window_size = app.core.size();
+    content_scale = .{
+        @floatFromInt(descriptor.width / window_size.width),
+        @floatFromInt(descriptor.height / window_size.height),
+    };
 
     var iter = app.core.pollEvents();
     while (iter.next()) |event| {
@@ -275,16 +284,6 @@ pub fn update(app: *App) !bool {
         }
         zgui.mach_backend.passEvent(event);
     }
-
-    const descriptor = app.core.descriptor();
-
-    zgui.mach_backend.newFrame();
-
-    const window_size = app.core.size();
-    content_scale = .{
-        @floatFromInt(descriptor.width / window_size.width),
-        @floatFromInt(descriptor.height / window_size.height),
-    };
 
     input.process() catch unreachable;
 
@@ -310,7 +309,7 @@ pub fn update(app: *App) !bool {
                 const color_attachment = gpu.RenderPassColorAttachment{
                     .view = back_buffer_view,
                     .clear_value = std.mem.zeroes(gpu.Color),
-                    .load_op = .clear,
+                    .load_op = .load,
                     .store_op = .store,
                 };
 

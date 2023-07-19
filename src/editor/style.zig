@@ -54,7 +54,7 @@ pub fn set(self: @This()) void {
     style.scrollbar_size = 12;
     style.frame_padding = .{ 4.0, 4.0 };
     style.frame_border_size = 1.0;
-    //style.scaleAllSizes(@max(pixi.content_scale[0], pixi.content_scale[1]));
+    style.scaleAllSizes(@max(pixi.content_scale[0], pixi.content_scale[1]));
     style.setColor(zgui.StyleCol.window_bg, bg);
     style.setColor(zgui.StyleCol.border, fg);
     style.setColor(zgui.StyleCol.menu_bar_bg, fg);

@@ -8,10 +8,10 @@ explorer_width: f32 = 200,
 flipbook_height: f32 = 0.3,
 
 /// Font size set when loading the editor.
-font_size: f32 = 13,
+font_size: f32 = 13.0,
 
 /// Height of the infobar.
-info_bar_height: f32 = 24,
+info_bar_height: f32 = 24.0,
 
 /// When a new window is opened, describes the height of the window.
 initial_window_height: u32 = 720,
