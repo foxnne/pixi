@@ -13,6 +13,7 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
 core: mach.Core,
 timer: mach.Timer,
+pipeline: *mach.gpu.RenderPipeline,
 
 // TODO: Add build instructions to readme, and note requires xcode for nativefiledialogs to build.
 // TODO: Nativefiledialogs requires xcode appkit frameworks.
@@ -208,17 +209,26 @@ pub fn init(app: *App) !void {
 
     const packer = try Packer.init(allocator);
 
+    const vs_module = app.core.device().createShaderModuleWGSL("vert.wgsl", shaders.default_vs);
+    const fs_module = app.core.device().createShaderModuleWGSL("frag.wgsl", shaders.default_fs);
+    defer fs_module.release();
+    defer vs_module.release();
+
+    const color_target = createColorTargetState(app.core.descriptor().format);
+
+    const pipeline_descriptor = gpu.RenderPipeline.Descriptor{ .fragment = &createFragmentState(fs_module, &.{color_target}), .vertex = createVertexState(vs_module) };
+
     zgui.init(allocator);
-    zgui.mach_backend.init(&app.core, app.core.device(), .rgba8_unorm, .{});
-    zgui.io.setIniFilename(assets.root ++ "imgui.ini");
-    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
-    var config = zgui.FontConfig.init();
-    config.merge_mode = true;
-    const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
-    state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
-    state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
+    zgui.mach_backend.init(&app.core, app.core.device(), app.core.descriptor().format, .{});
+    // zgui.io.setIniFilename(assets.root ++ "imgui.ini");
+    // _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
+    // var config = zgui.FontConfig.init();
+    // config.merge_mode = true;
+    // const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
+    // state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
+    // state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
+    // state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
+    // state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
 
     state = try gpa.allocator().create(PixiState);
     state.style.set();
@@ -241,6 +251,7 @@ pub fn init(app: *App) !void {
     app.* = .{
         .core = app.core,
         .timer = try mach.Timer.start(),
+        .pipeline = app.core.device().createRenderPipeline(&pipeline_descriptor),
     };
 }
 
@@ -253,12 +264,20 @@ pub fn update(app: *App) !bool {
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
             },
+            .key_repeat => |key_repeat| {
+                state.hotkeys.setHotkeyState(key_repeat.key, key_repeat.mods, .repeat);
+            },
+            .key_release => |key_release| {
+                state.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
+            },
             .close => return true,
             else => {},
         }
+        zgui.mach_backend.passEvent(event);
     }
 
     const descriptor = app.core.descriptor();
+
     zgui.mach_backend.newFrame();
 
     const window_size = app.core.size();
@@ -299,8 +318,11 @@ pub fn update(app: *App) !bool {
                     .color_attachments = &.{color_attachment},
                 });
                 const pass = encoder.beginRenderPass(&render_pass_info);
-                defer pass.end();
+
+                pass.setPipeline(app.pipeline);
                 zgui.mach_backend.draw(pass);
+                pass.end();
+                pass.release();
             }
 
             break :commands encoder.finish(null);
@@ -339,4 +361,30 @@ pub fn deinit(_: *App) void {
     zgui.deinit();
     zstbi.deinit();
     state.allocator.destroy(state);
+}
+
+fn createVertexState(vs_module: *gpu.ShaderModule) gpu.VertexState {
+    return gpu.VertexState{
+        .module = vs_module,
+        .entry_point = "main",
+    };
+}
+
+fn createFragmentState(fs_module: *gpu.ShaderModule, targets: []const gpu.ColorTargetState) gpu.FragmentState {
+    return gpu.FragmentState.init(.{
+        .module = fs_module,
+        .entry_point = "main",
+        .targets = targets,
+    });
+}
+
+fn createColorTargetState(format: gpu.Texture.Format) gpu.ColorTargetState {
+    const blend = gpu.BlendState{};
+    const color_target = gpu.ColorTargetState{
+        .format = format,
+        .blend = &blend,
+        .write_mask = gpu.ColorWriteMaskFlags.all,
+    };
+
+    return color_target;
 }
