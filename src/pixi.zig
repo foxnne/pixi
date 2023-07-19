@@ -1,10 +1,17 @@
 const std = @import("std");
 
-const zgui = @import("zgui");
+const mach = @import("core");
+const gpu = mach.gpu;
+
+const zgui = @import("zgui").MachImgui(mach);
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
 
-const mach = @import("mach");
+pub const App = @This();
+
+core: mach.Core,
+pipeline: *gpu.RenderPipeline,
+queue: *gpu.Queue,
 
 // TODO: Add build instructions to readme, and note requires xcode for nativefiledialogs to build.
 // TODO: Nativefiledialogs requires xcode appkit frameworks.
@@ -39,13 +46,12 @@ test {
     _ = input;
 }
 
+pub var application: *App = undefined;
 pub var state: *PixiState = undefined;
-pub var window: *mach.Window = undefined;
 
 /// Holds the global game state.
 pub const PixiState = struct {
-    allocator: std.mem.Allocator,
-    gctx: *mach.GraphicsContext,
+    allocator: std.mem.Allocator = undefined,
     settings: Settings = .{},
     controls: input.Controls = .{},
     hotkeys: Hotkeys,
@@ -92,9 +98,9 @@ pub const Cursors = struct {
     pencil: gfx.Texture,
     eraser: gfx.Texture,
 
-    pub fn deinit(cursors: *Cursors, gctx: *mach.gpu.GraphicsContext) void {
-        cursors.pencil.deinit(gctx);
-        cursors.eraser.deinit(gctx);
+    pub fn deinit(cursors: *Cursors) void {
+        cursors.pencil.deinit();
+        cursors.eraser.deinit();
     }
 };
 
@@ -169,39 +175,41 @@ pub const PackFiles = enum {
     single_open,
 };
 
-fn init(allocator: std.mem.Allocator) !*PixiState {
-    const gctx = try mach.GraphicsContext.create(allocator, window);
+pub fn init(app: *App) !void {
+    try app.core.init(state.allocator, .{});
+    application = app;
 
-    var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
-    var pack_open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
-
-    const window_size = window.getSize();
-    const window_scale = window.getContentScale();
-    const state_window: Window = .{
-        .size = zm.f32x4(@as(f32, @floatFromInt(window_size[0])), @as(f32, @floatFromInt(window_size[1])), 0, 0),
-        .scale = zm.f32x4(window_scale[0], window_scale[1], 0, 0),
-    };
-
-    const scale_factor = scale_factor: {
-        break :scale_factor @max(window_scale[0], window_scale[1]);
-    };
+    var open_files = std.ArrayList(storage.Internal.Pixi).init(state.allocator);
+    var pack_open_files = std.ArrayList(storage.Internal.Pixi).init(state.allocator);
 
     // Logos
-    const background_logo = try gfx.Texture.loadFromFile(gctx, assets.icon1024_png.path, .{});
-    const fox_logo = try gfx.Texture.loadFromFile(gctx, assets.fox1024_png.path, .{});
+    const background_logo = try gfx.Texture.loadFromFile(app.core, assets.icon1024_png.path, .{});
+    const fox_logo = try gfx.Texture.loadFromFile(app.core, assets.fox1024_png.path, .{});
 
     // Cursors
-    const pencil = try gfx.Texture.loadFromFile(gctx, if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
-    const eraser = try gfx.Texture.loadFromFile(gctx, if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
+    const pencil = try gfx.Texture.loadFromFile(app.core, if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
+    const eraser = try gfx.Texture.loadFromFile(app.core, if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
 
-    const hotkeys = try Hotkeys.initDefault(allocator);
+    const hotkeys = try Hotkeys.initDefault(state.allocator);
 
-    const packer = try Packer.init(allocator);
+    const packer = try Packer.init(state.allocator);
 
-    state = try allocator.create(PixiState);
+    zgui.init(allocator);
+    zgui.io.setIniFilename(assets.root ++ "imgui.ini");
+    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
+    var config = zgui.FontConfig.init();
+    config.merge_mode = true;
+    const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
+    state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
+    state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
+    state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
+    state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
+    zgui.backend.initWithConfig(window, state.gctx.device, @intFromEnum(gpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
+
+    state = try state.allocator.create(PixiState);
+    state.style.set();
+
     state.* = .{
-        .allocator = allocator,
-        .gctx = gctx,
         .window = state_window,
         .background_logo = background_logo,
         .fox_logo = fox_logo,
@@ -215,12 +223,10 @@ fn init(allocator: std.mem.Allocator) !*PixiState {
         .hotkeys = hotkeys,
         .packer = packer,
     };
-
-    return state;
 }
 
-fn deinit(allocator: std.mem.Allocator) void {
-    allocator.free(state.hotkeys.hotkeys);
+pub fn deinit(_: *App) void {
+    state.allocator.free(state.hotkeys.hotkeys);
     state.background_logo.deinit(state.gctx);
     state.fox_logo.deinit(state.gctx);
     state.cursors.deinit(state.gctx);
@@ -244,31 +250,32 @@ fn deinit(allocator: std.mem.Allocator) void {
     zgui.backend.deinit();
     zgui.deinit();
     zstbi.deinit();
-    state.gctx.destroy(allocator);
-    allocator.destroy(state);
+    state.gctx.destroy(state.allocator);
+    state.allocator.destroy(state);
 }
 
-fn update() void {
-    zgui.backend.newFrame(state.gctx.swapchain_descriptor.width, state.gctx.swapchain_descriptor.height);
+pub fn update(app: *App) !bool {
+    const descriptor = app.core.descriptor();
+    zgui.backend.newFrame(descriptor.width, descriptor.height);
 
     input.process() catch unreachable;
 
-    if (window.shouldClose()) {
-        var should_close = true;
-        for (state.open_files.items) |file| {
-            if (file.dirty()) {
-                should_close = false;
-            }
-        }
+    // if (window.shouldClose()) {
+    //     var should_close = true;
+    //     for (state.open_files.items) |file| {
+    //         if (file.dirty()) {
+    //             should_close = false;
+    //         }
+    //     }
 
-        if (!should_close) {
-            state.popups.file_confirm_close = true;
-            state.popups.file_confirm_close_state = .all;
-            state.popups.file_confirm_close_exit = true;
-        }
-        state.should_close = should_close;
-        window.setShouldClose(should_close);
-    }
+    //     if (!should_close) {
+    //         state.popups.file_confirm_close = true;
+    //         state.popups.file_confirm_close_state = .all;
+    //         state.popups.file_confirm_close_exit = true;
+    //     }
+    //     state.should_close = should_close;
+    //     window.setShouldClose(should_close);
+    // }
 }
 
 fn draw() void {
@@ -356,24 +363,12 @@ pub fn main() !void {
         break :scale_factor @max(scale[0], scale[1]);
     };
 
-    zgui.init(allocator);
-    zgui.io.setIniFilename(assets.root ++ "imgui.ini");
-    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
-    var config = zgui.FontConfig.init();
-    config.merge_mode = true;
-    const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
-    state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
-    state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-    zgui.backend.initWithConfig(window, state.gctx.device, @intFromEnum(mach.gpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
-
     // Base style
     state.style.set();
 
-    while (!state.should_close or editor.saving()) {
-        mach.glfw.pollEvents();
-        update();
-        draw();
-    }
+    // while (!state.should_close or editor.saving()) {
+    //     mach.glfw.pollEvents();
+    //     update();
+    //     draw();
+    // }
 }

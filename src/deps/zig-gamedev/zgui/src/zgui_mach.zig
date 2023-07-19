@@ -1,5 +1,5 @@
 const std = @import("std");
-const zgui = @import("zgui.zig");
+const zgui = @import("gui.zig");
 
 pub const c = @cImport({
     @cInclude("imgui_c_keys.h");
@@ -56,12 +56,12 @@ pub fn MachBackend(comptime mach: anytype) type {
         }
 
         pub fn init(core: *mach.Core, wgpu_device: *const anyopaque, rt_format: TextureFormat, cfg: Config) void {
-            if (!ImGui_ImplWGPU_Init(wgpu_device, 1, @enumToInt(rt_format), &cfg)) {
+            if (!ImGui_ImplWGPU_Init(wgpu_device, 1, @intFromEnum(rt_format), &cfg)) {
                 unreachable;
             }
 
             const size = core.size();
-            zgui.io.setDisplaySize(@intToFloat(f32, size.width), @intToFloat(f32, size.height));
+            zgui.io.setDisplaySize(@as(f32, @floatFromInt(size.width)), @as(f32, @floatFromInt(size.height)));
         }
 
         pub fn deinit() void {
@@ -109,7 +109,7 @@ pub fn MachBackend(comptime mach: anytype) type {
                     ImGui_ImplMach_CharCallback(event.char_input.codepoint);
                 },
                 .framebuffer_resize => |ev| {
-                    zgui.io.setDisplaySize(@intToFloat(f32, ev.width), @intToFloat(f32, ev.height));
+                    zgui.io.setDisplaySize(@as(f32, @floatFromInt(ev.width)), @as(f32, @floatFromInt(ev.height)));
                 },
                 else => {},
             }

@@ -1,6 +1,6 @@
 const std = @import("std");
 const zstbi = @import("zstbi");
-const pixi = @import("root");
+const pixi = @import("../pixi.zig");
 
 const Packer = @This();
 

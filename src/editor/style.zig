@@ -1,7 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const zgui = @import("zgui");
-const pixi = @import("root");
+const mach = @import("core");
+const pixi = @import("../pixi.zig");
 const Color = pixi.math.Color;
 
 background: Color = Color.initBytes(30, 31, 39, 255),

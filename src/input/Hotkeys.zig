@@ -1,9 +1,13 @@
 const std = @import("std");
 const zm = @import("zmath");
-const zglfw = @import("zglfw");
+//const zglfw = @import("zglfw");
 const math = @import("../math/math.zig");
-const pixi = @import("root");
+const pixi = @import("../pixi.zig");
 const nfd = @import("nfd");
+const mach = @import("core");
+
+const Key = mach.Core.Key;
+const Mods = mach.Core.KeyMods;
 
 const builtin = @import("builtin");
 
@@ -37,8 +41,8 @@ hotkeys: []Hotkey,
 
 pub const Hotkey = struct {
     shortcut: [:0]const u8 = undefined,
-    key: zglfw.Key,
-    mods: zglfw.Mods,
+    key: mach.Core.Key,
+    mods: Mods,
     action: Action,
     state: bool = false,
     previous_state: bool = false,
@@ -84,7 +88,7 @@ pub fn hotkey(self: Self, action: Action) ?*Hotkey {
     return null;
 }
 
-pub fn setHotkeyState(self: *Self, k: zglfw.Key, mods: zglfw.Mods, action: zglfw.Action) void {
+pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, action: mach.Core.Action) void {
     for (self.hotkeys) |*hk| {
         if (hk.key == k) {
             if (action == .release) {
@@ -177,7 +181,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Primary
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl" else if (macos) "cmd" else "super",
-            .key = if (windows) zglfw.Key.left_control else zglfw.Key.left_super,
+            .key = if (windows) Key.left_control else Key.left_super,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.primary },
         });
@@ -185,7 +189,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Secondary
         try hotkeys.append(.{
             .shortcut = "shift",
-            .key = zglfw.Key.left_shift,
+            .key = Key.left_shift,
             .mods = .{ .shift = true },
             .action = .{ .proc = Proc.secondary },
         });
@@ -195,7 +199,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Save
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+s" else if (macos) "cmd+s" else "super+s",
-            .key = zglfw.Key.s,
+            .key = Key.s,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.save },
         });
@@ -203,7 +207,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Save all
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+shift+s" else if (macos) "cmd+shift+s" else "super+shift+s",
-            .key = zglfw.Key.s,
+            .key = Key.s,
             .mods = .{ .control = windows, .super = !windows, .shift = true },
             .action = .{ .proc = Proc.save_all },
         });
@@ -211,7 +215,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Undo
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+z" else if (macos) "cmd+z" else "super+z",
-            .key = zglfw.Key.z,
+            .key = Key.z,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.undo },
         });
@@ -219,21 +223,21 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Redo
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+shift+z" else if (macos) "cmd+shift+z" else "super+shift+z",
-            .key = zglfw.Key.z,
+            .key = Key.z,
             .mods = .{ .control = windows, .super = !windows, .shift = true },
             .action = .{ .proc = Proc.redo },
         });
 
         // Zoom
         try hotkeys.append(.{
-            .key = if (windows) zglfw.Key.left_control else zglfw.Key.left_super,
+            .key = if (windows) Key.left_control else Key.left_super,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.zoom },
         });
 
         // Sample
         try hotkeys.append(.{
-            .key = zglfw.Key.left_alt,
+            .key = Key.left_alt,
             .mods = .{},
             .action = .{ .proc = Proc.sample },
         });
@@ -241,7 +245,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Open folder
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+f" else if (macos) "cmd+f" else "super+f",
-            .key = zglfw.Key.f,
+            .key = Key.f,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.folder },
         });
@@ -249,7 +253,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Export png
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+p" else if (macos) "cmd+p" else "super+p",
-            .key = zglfw.Key.p,
+            .key = Key.p,
             .mods = .{ .control = windows, .super = !windows },
             .action = .{ .proc = Proc.export_png },
         });
@@ -257,7 +261,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Size up
         try hotkeys.append(.{
             .shortcut = "]",
-            .key = zglfw.Key.right_bracket,
+            .key = Key.right_bracket,
             .mods = .{},
             .action = .{ .proc = Proc.size_up },
         });
@@ -265,7 +269,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Size down
         try hotkeys.append(.{
             .shortcut = "[",
-            .key = zglfw.Key.left_bracket,
+            .key = Key.left_bracket,
             .mods = .{},
             .action = .{ .proc = Proc.size_down },
         });
@@ -276,7 +280,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Pointer
         try hotkeys.append(.{
             .shortcut = "esc",
-            .key = zglfw.Key.escape,
+            .key = Key.escape,
             .mods = .{},
             .action = .{ .tool = Tool.pointer },
         });
@@ -284,7 +288,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Pencil
         try hotkeys.append(.{
             .shortcut = "d",
-            .key = zglfw.Key.d,
+            .key = Key.d,
             .mods = .{},
             .action = .{ .tool = Tool.pencil },
         });
@@ -292,7 +296,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Eraser
         try hotkeys.append(.{
             .shortcut = "e",
-            .key = zglfw.Key.e,
+            .key = Key.e,
             .mods = .{},
             .action = .{ .tool = Tool.eraser },
         });
@@ -300,7 +304,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Animation
         try hotkeys.append(.{
             .shortcut = "a",
-            .key = zglfw.Key.a,
+            .key = Key.a,
             .mods = .{},
             .action = .{ .tool = Tool.animation },
         });
@@ -308,7 +312,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Heightmap
         try hotkeys.append(.{
             .shortcut = "h",
-            .key = zglfw.Key.h,
+            .key = Key.h,
             .mods = .{},
             .action = .{ .tool = Tool.heightmap },
         });
@@ -316,7 +320,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Bucket
         try hotkeys.append(.{
             .shortcut = "b",
-            .key = zglfw.Key.b,
+            .key = Key.b,
             .mods = .{},
             .action = .{ .tool = Tool.bucket },
         });
@@ -326,7 +330,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Explorer
         try hotkeys.append(.{
             .shortcut = "f",
-            .key = zglfw.Key.f,
+            .key = Key.f,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.files },
         });
@@ -334,7 +338,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Tools
         try hotkeys.append(.{
             .shortcut = "t",
-            .key = zglfw.Key.t,
+            .key = Key.t,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.tools },
         });
@@ -342,7 +346,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Layers
         try hotkeys.append(.{
             .shortcut = "l",
-            .key = zglfw.Key.l,
+            .key = Key.l,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.layers },
         });
@@ -350,7 +354,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Sprites
         try hotkeys.append(.{
             .shortcut = "s",
-            .key = zglfw.Key.s,
+            .key = Key.s,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.sprites },
         });
@@ -358,7 +362,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Animations
         try hotkeys.append(.{
             .shortcut = "a",
-            .key = zglfw.Key.a,
+            .key = Key.a,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.animations },
         });
@@ -366,7 +370,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Pack
         try hotkeys.append(.{
             .shortcut = "p",
-            .key = zglfw.Key.p,
+            .key = Key.p,
             .mods = .{},
             .action = .{ .sidebar = Sidebar.pack },
         });

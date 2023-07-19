@@ -1,10 +1,11 @@
 const std = @import("std");
-const pixi = @import("root");
-const zgpu = @import("zgpu");
+const pixi = @import("../pixi.zig");
 const zstbi = @import("zstbi");
 const storage = @import("storage.zig");
 const zip = @import("zip");
 const zgui = @import("zgui");
+const mach = @import("core");
+const gpu = mach.gpu;
 
 const external = @import("external.zig");
 
@@ -30,9 +31,7 @@ pub const Pixi = struct {
     selected_animation_index: usize = 0,
     selected_animation_state: AnimationState = .pause,
     selected_animation_elapsed: f32 = 0.0,
-    background_image: zstbi.Image,
-    background_texture_handle: zgpu.TextureHandle,
-    background_texture_view_handle: zgpu.TextureViewHandle,
+    background: pixi.gfx.Texture,
     temporary_layer: Layer,
     heightmap_layer: ?Layer = null,
     history: History,
@@ -568,7 +567,7 @@ pub const Pixi = struct {
     }
 
     pub fn createBackground(self: *Pixi) !void {
-        self.background_image = try zstbi.Image.createEmpty(self.tile_width * 2, self.tile_height * 2, 4, .{});
+        const image = try zstbi.Image.createEmpty(self.tile_width * 2, self.tile_height * 2, 4, .{});
         // Set background image data to checkerboard
         {
             var i: usize = 0;
@@ -592,26 +591,7 @@ pub const Pixi = struct {
                 }
             }
         }
-        self.background_texture_handle = pixi.state.gctx.createTexture(.{
-            .usage = .{ .texture_binding = true, .copy_dst = true },
-            .size = .{
-                .width = self.tile_width * 2,
-                .height = self.tile_height * 2,
-                .depth_or_array_layers = 1,
-            },
-            .format = zgpu.imageInfoToTextureFormat(4, 1, false),
-        });
-        self.background_texture_view_handle = pixi.state.gctx.createTextureView(self.background_texture_handle, .{});
-        pixi.state.gctx.queue.writeTexture(
-            .{ .texture = pixi.state.gctx.lookupResource(self.background_texture_handle).? },
-            .{
-                .bytes_per_row = self.background_image.bytes_per_row,
-                .rows_per_image = self.background_image.height,
-            },
-            .{ .width = self.background_image.width, .height = self.background_image.height },
-            u8,
-            self.background_image.data,
-        );
+        self.background = pixi.gfx.Texture.create(pixi.application.core.device(), image, .{});
     }
 
     pub fn createLayer(self: *Pixi, name: [:0]const u8) !void {
