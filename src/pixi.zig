@@ -9,10 +9,10 @@ const zm = @import("zmath");
 
 pub const App = @This();
 
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+
 core: mach.Core,
 timer: mach.Timer,
-pipeline: *gpu.RenderPipeline,
-queue: *gpu.Queue,
 
 // TODO: Add build instructions to readme, and note requires xcode for nativefiledialogs to build.
 // TODO: Nativefiledialogs requires xcode appkit frameworks.
@@ -178,27 +178,38 @@ pub const PackFiles = enum {
 };
 
 pub fn init(app: *App) !void {
-    try app.core.init(state.allocator, .{});
+    try app.core.init(gpa.allocator(), .{});
     application = app;
 
-    var open_files = std.ArrayList(storage.Internal.Pixi).init(state.allocator);
-    var pack_open_files = std.ArrayList(storage.Internal.Pixi).init(state.allocator);
+    const allocator = gpa.allocator();
+
+    zstbi.init(allocator);
+
+    var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
+    var pack_open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
     // Logos
     const background_logo = try gfx.Texture.loadFromFile(app.core.device(), assets.icon1024_png.path, .{});
     const fox_logo = try gfx.Texture.loadFromFile(app.core.device(), assets.fox1024_png.path, .{});
 
-    const scale_factor = 2;
+    const descriptor = app.core.descriptor();
+    const window_size = app.core.size();
+    content_scale = .{
+        @floatFromInt(descriptor.width / window_size.width),
+        @floatFromInt(descriptor.height / window_size.height),
+    };
+    const scale_factor = content_scale[1];
 
     // Cursors
     const pencil = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
     const eraser = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
 
-    const hotkeys = try Hotkeys.initDefault(state.allocator);
+    const hotkeys = try Hotkeys.initDefault(allocator);
 
-    const packer = try Packer.init(state.allocator);
+    const packer = try Packer.init(allocator);
 
-    zgui.init(state.allocator);
+    zgui.init(allocator);
+    zgui.mach_backend.init(&app.core, app.core.device(), .rgba8_unorm, .{});
     zgui.io.setIniFilename(assets.root ++ "imgui.ini");
     _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
     var config = zgui.FontConfig.init();
@@ -208,12 +219,12 @@ pub fn init(app: *App) !void {
     state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-    zgui.mach_backend.init(&app.core, app.core.device(), .rgba8_unorm, .{});
 
-    state = try state.allocator.create(PixiState);
+    state = try gpa.allocator().create(PixiState);
     state.style.set();
 
     state.* = .{
+        .allocator = allocator,
         .background_logo = background_logo,
         .fox_logo = fox_logo,
         .open_files = open_files,
@@ -227,7 +238,10 @@ pub fn init(app: *App) !void {
         .packer = packer,
     };
 
-    app.timer = try mach.Timer.start();
+    app.* = .{
+        .core = app.core,
+        .timer = try mach.Timer.start(),
+    };
 }
 
 pub fn update(app: *App) !bool {
@@ -245,7 +259,7 @@ pub fn update(app: *App) !bool {
     }
 
     const descriptor = app.core.descriptor();
-    zgui.backend.newFrame(descriptor.width, descriptor.height);
+    zgui.mach_backend.newFrame();
 
     const window_size = app.core.size();
     content_scale = .{
@@ -286,31 +300,15 @@ pub fn update(app: *App) !bool {
                 });
                 const pass = encoder.beginRenderPass(&render_pass_info);
                 defer pass.end();
-                zgui.backend.draw(pass);
-
-                // const pass = mach.beginRenderPassSimple(encoder, .load, back_buffer_view, null, null, null);
-                // defer mach.endReleasePass(pass);
-                // zgui.backend.draw(pass);
+                zgui.mach_backend.draw(pass);
             }
 
             break :commands encoder.finish(null);
         };
         defer zgui_commands.release();
 
-        //state.gctx.submit(&.{zgui_commands});
-
         app.core.device().getQueue().submit(&.{zgui_commands});
         app.core.swapChain().present();
-
-        // if (state.gctx.present() == .swap_chain_resized) {
-        //     state.window = .{
-        //         .size = zm.f32x4(@as(f32, @floatFromInt(window_size[0])), @as(f32, @floatFromInt(window_size[1])), 0, 0),
-        //         .scale = zm.f32x4(content_scale[0], content_scale[1], 0, 0),
-        //     };
-        //     state.settings.initial_window_width = @as(u32, @intCast(window_size[0]));
-        //     state.settings.initial_window_height = @as(u32, @intCast(window_size[1]));
-        // }
-
     }
     return false;
 }
@@ -337,7 +335,7 @@ pub fn deinit(_: *App) void {
     if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
     if (state.atlas.heightmap) |*heightmap| heightmap.deinit();
     editor.deinit();
-    zgui.backend.deinit();
+    zgui.mach_backend.deinit();
     zgui.deinit();
     zstbi.deinit();
     state.allocator.destroy(state);
