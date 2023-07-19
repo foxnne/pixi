@@ -203,13 +203,12 @@ pub const Camera = struct {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(layer.texture.image.width)), @as(f32, @floatFromInt(layer.texture.image.height)) });
 
         const draw_list = zgui.getWindowDrawList();
-        if (pixi.state.gctx.lookupResource(layer.texture.view_handle)) |texture_id| {
-            draw_list.addImage(texture_id, .{
-                .pmin = rect_min_max[0],
-                .pmax = rect_min_max[1],
-                .col = 0xFFFFFFFF,
-            });
-        }
+
+        draw_list.addImage(layer.texture.view_handle, .{
+            .pmin = rect_min_max[0],
+            .pmax = rect_min_max[1],
+            .col = 0xFFFFFFFF,
+        });
     }
 
     pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
@@ -222,15 +221,14 @@ pub const Camera = struct {
         const uvmax: [2]f32 = .{ (src_rect[0] + src_rect[2]) * inv_w, (src_rect[1] + src_rect[3]) * inv_h };
 
         const draw_list = zgui.getWindowDrawList();
-        if (pixi.state.gctx.lookupResource(layer.texture.view_handle)) |texture_id| {
-            draw_list.addImage(texture_id, .{
-                .pmin = rect_min_max[0],
-                .pmax = rect_min_max[1],
-                .uvmin = uvmin,
-                .uvmax = uvmax,
-                .col = 0xFFFFFFFF,
-            });
-        }
+
+        draw_list.addImage(layer.texture.view_handle, .{
+            .pmin = rect_min_max[0],
+            .pmax = rect_min_max[1],
+            .uvmin = uvmin,
+            .uvmax = uvmax,
+            .col = 0xFFFFFFFF,
+        });
     }
 
     pub fn nearestZoomIndex(camera: Camera) usize {

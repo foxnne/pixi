@@ -446,7 +446,7 @@ pub const Pixi = struct {
                     }
                 }
 
-                layer.texture.update(pixi.state.gctx);
+                layer.texture.update(pixi.application.core.device());
 
                 if (file.buffers.stroke.indices.items.len > 0) {
                     const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));

@@ -14,7 +14,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     if (file.flipbook_scroll_request) |*request| {
         if (request.elapsed < 1.0) {
             file.selected_animation_state = .pause;
-            request.elapsed += pixi.state.gctx.stats.delta_time * 2.0;
+            request.elapsed += pixi.state.delta_time * 2.0;
             file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed, .ease_out);
         } else {
             file.flipbook_scroll = request.to;
@@ -57,7 +57,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     // Handle playing animations and locking the current extents
     if (file.selected_animation_state == .play) {
         const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
-        file.selected_animation_elapsed += pixi.state.gctx.stats.delta_time;
+        file.selected_animation_elapsed += pixi.state.delta_time;
         if (file.selected_animation_elapsed > 1.0 / @as(f32, @floatFromInt(animation.fps))) {
             file.selected_animation_elapsed = 0.0;
 
@@ -117,7 +117,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (sprite_scale >= 1.0) {
             // TODO: Make background texture opacity available through settings.
             // Draw background
-            file.flipbook_camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
+            file.flipbook_camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
             file.selected_sprite_index = i;
             if (!file.setAnimationFromSpriteIndex()) {
                 file.selected_animation_state = .pause;

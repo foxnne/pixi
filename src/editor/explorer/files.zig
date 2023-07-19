@@ -1,6 +1,7 @@
 const std = @import("std");
-const zgui = @import("zgui");
-const pixi = @import("root");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
@@ -66,7 +67,7 @@ pub fn draw() void {
 
                         if (zgui.isItemHovered(.{})) {
                             hovered = true;
-                            hover_timer += pixi.state.gctx.stats.delta_time;
+                            hover_timer += pixi.state.delta_time;
 
                             if (hover_timer >= 1.0) {
                                 if (zgui.beginTooltip()) {
