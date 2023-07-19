@@ -11,7 +11,7 @@ pub fn draw() void {
         zgui.separator();
         zgui.spacing();
         if (zgui.beginChild("Sprite", .{
-            .h = pixi.state.settings.sprite_edit_height * pixi.state.window.scale[1],
+            .h = pixi.state.settings.sprite_edit_height * pixi.content_scale[1],
         })) {
             defer zgui.endChild();
 
@@ -95,7 +95,7 @@ pub fn draw() void {
         zgui.separator();
         zgui.spacing();
 
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
         defer zgui.popStyleVar(.{ .count = 1 });
         if (zgui.beginChild("Sprites", .{})) {
             defer zgui.endChild();

@@ -5,13 +5,13 @@ const tools = @import("tools.zig");
 
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
         defer zgui.popStyleVar(.{ .count = 1 });
         zgui.spacing();
         zgui.text("Tools", .{});
         zgui.separator();
         zgui.spacing();
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 8.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.8 } });
         defer zgui.popStyleVar(.{ .count = 2 });
 
@@ -20,7 +20,7 @@ pub fn draw() void {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.style.foreground.toSlice() });
         defer zgui.popStyleColor(.{ .count = 3 });
         if (zgui.beginChild("AnimationTools", .{
-            .h = pixi.state.settings.animation_edit_height * pixi.state.window.scale[1],
+            .h = pixi.state.settings.animation_edit_height * pixi.content_scale[1],
         })) {
             defer zgui.endChild();
 
@@ -47,10 +47,10 @@ pub fn draw() void {
         if (zgui.beginChild("Animations", .{})) {
             defer zgui.endChild();
 
-            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
-            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
-            zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.state.window.scale[0] });
-            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
+            zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.content_scale[0] });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
             defer zgui.popStyleVar(.{ .count = 4 });
             for (file.animations.items, 0..) |animation, animation_index| {
                 const header_color = if (file.selected_animation_index == animation_index) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice();

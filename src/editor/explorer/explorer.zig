@@ -1,6 +1,7 @@
 const std = @import("std");
-const zgui = @import("zgui");
-const pixi = @import("root");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 const nfd = @import("nfd");
 
 pub const files = @import("files.zig");
@@ -17,13 +18,13 @@ pub fn draw() void {
     defer zgui.popStyleVar(.{ .count = 1 });
     defer zgui.popStyleColor(.{ .count = 1 });
     zgui.setNextWindowPos(.{
-        .x = pixi.state.settings.sidebar_width * pixi.state.window.scale[0],
+        .x = pixi.state.settings.sidebar_width * pixi.content_scale[0],
         .y = 0,
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = pixi.state.settings.explorer_width * pixi.state.window.scale[0],
-        .h = pixi.state.window.size[1] * pixi.state.window.scale[1],
+        .w = pixi.state.settings.explorer_width * pixi.content_scale[0],
+        .h = zgui.getWindowSize()[1] * pixi.content_scale[1],
     });
 
     if (zgui.begin("Explorer", .{
@@ -37,8 +38,8 @@ pub fn draw() void {
         },
     })) {
         // Push explorer style changes.
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 8.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 8.0 * pixi.content_scale[1] } });
         defer zgui.popStyleVar(.{ .count = 2 });
 
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.background.toSlice() });

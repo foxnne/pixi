@@ -37,22 +37,26 @@ pub const Texture = struct {
     }
 
     pub fn create(device: *gpu.Device, image: zstbi.Image, options: Texture.SamplerOptions) Texture {
-        const image_size = gpu.Extent3D{ .width = image.width, .height = image.height };
+        const image_size = .{ .width = image.width, .height = image.height };
 
-        const texture = device.createTexture(.{
+        const texture_descriptor = .{
             .size = image_size,
             .format = .rgba8_unorm,
             .usage = .{
                 .texture_binding = true,
                 .copy_dst = true,
             },
-        });
+        };
 
-        const view = texture.createView(.{
+        const texture = device.createTexture(&texture_descriptor);
+
+        const view_descriptor = .{
             .format = .rgba8_unorm,
             .dimension = .dimension_2d,
             .array_layer_count = 1,
-        });
+        };
+
+        const view = texture.createView(&view_descriptor);
 
         const queue = device.getQueue();
 
@@ -63,13 +67,15 @@ pub const Texture = struct {
 
         queue.writeTexture(&.{ .texture = texture }, &data_layout, &image_size, image.data);
 
-        const sampler = device.createSampler(.{
+        const sampler_descriptor = .{
             .address_mode_u = options.address_mode,
             .address_mode_v = options.address_mode,
             .address_mode_w = options.address_mode,
             .mag_filter = options.filter,
             .min_filter = options.filter,
-        });
+        };
+
+        const sampler = device.createSampler(&sampler_descriptor);
 
         return Texture{
             .handle = texture,
@@ -105,16 +111,16 @@ pub const Texture = struct {
         }
     }
 
-    pub fn update(texture: *Texture, device: *mach.device) void {
+    pub fn update(texture: *Texture, device: *gpu.Device) void {
         const image_size = gpu.Extent3D{ .width = texture.image.width, .height = texture.image.height };
-        const queue = device.device().getQueue();
+        const queue = device.getQueue();
 
         const data_layout = gpu.Texture.DataLayout{
             .bytes_per_row = texture.image.width * 4,
             .rows_per_image = texture.image.height,
         };
 
-        queue.writeTexture(&.{ .texture = texture }, &data_layout, &image_size, texture.image.data);
+        queue.writeTexture(&.{ .texture = texture.handle }, &data_layout, &image_size, texture.image.data);
     }
 
     pub fn deinit(texture: *Texture) void {

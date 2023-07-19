@@ -16,6 +16,12 @@ const Self = @This();
 pub const Tool = pixi.Tool;
 pub const Sidebar = pixi.Sidebar;
 
+pub const KeyState = enum {
+    press,
+    repeat,
+    release,
+};
+
 pub const Proc = enum {
     save,
     save_all,
@@ -88,19 +94,19 @@ pub fn hotkey(self: Self, action: Action) ?*Hotkey {
     return null;
 }
 
-pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, action: mach.Core.Action) void {
+pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
     for (self.hotkeys) |*hk| {
         if (hk.key == k) {
-            if (action == .release) {
+            if (state == .release) {
                 hk.previous_state = hk.state;
-                hk.state = switch (action) {
+                hk.state = switch (state) {
                     .release => false,
                     else => true,
                 };
             }
-            if (@as(i32, @bitCast(hk.mods)) == @as(i32, @bitCast(mods))) {
+            if (@as(u8, @bitCast(hk.mods)) == @as(u8, @bitCast(mods))) {
                 hk.previous_state = hk.state;
-                hk.state = switch (action) {
+                hk.state = switch (state) {
                     .release => false,
                     else => true,
                 };
@@ -182,7 +188,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl" else if (macos) "cmd" else "super",
             .key = if (windows) Key.left_control else Key.left_super,
-            .mods = .{ .control = windows, .super = !windows },
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.primary },
         });
 
@@ -190,7 +203,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "shift",
             .key = Key.left_shift,
-            .mods = .{ .shift = true },
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.secondary },
         });
     }
@@ -200,7 +220,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+s" else if (macos) "cmd+s" else "super+s",
             .key = Key.s,
-            .mods = .{ .control = windows, .super = !windows },
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.save },
         });
 
@@ -208,7 +235,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+shift+s" else if (macos) "cmd+shift+s" else "super+shift+s",
             .key = Key.s,
-            .mods = .{ .control = windows, .super = !windows, .shift = true },
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.save_all },
         });
 
@@ -216,7 +250,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+z" else if (macos) "cmd+z" else "super+z",
             .key = Key.z,
-            .mods = .{ .control = windows, .super = !windows },
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.undo },
         });
 
@@ -224,21 +265,42 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+shift+z" else if (macos) "cmd+shift+z" else "super+shift+z",
             .key = Key.z,
-            .mods = .{ .control = windows, .super = !windows, .shift = true },
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.redo },
         });
 
         // Zoom
         try hotkeys.append(.{
             .key = if (windows) Key.left_control else Key.left_super,
-            .mods = .{ .control = windows, .super = !windows },
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.zoom },
         });
 
         // Sample
         try hotkeys.append(.{
             .key = Key.left_alt,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.sample },
         });
 
@@ -246,7 +308,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+f" else if (macos) "cmd+f" else "super+f",
             .key = Key.f,
-            .mods = .{ .control = windows, .super = !windows },
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.folder },
         });
 
@@ -254,7 +323,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+p" else if (macos) "cmd+p" else "super+p",
             .key = Key.p,
-            .mods = .{ .control = windows, .super = !windows },
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.export_png },
         });
 
@@ -262,7 +338,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "]",
             .key = Key.right_bracket,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.size_up },
         });
 
@@ -270,7 +353,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "[",
             .key = Key.left_bracket,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.size_down },
         });
     }
@@ -281,7 +371,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "esc",
             .key = Key.escape,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.pointer },
         });
 
@@ -289,7 +386,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "d",
             .key = Key.d,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.pencil },
         });
 
@@ -297,7 +401,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "e",
             .key = Key.e,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.eraser },
         });
 
@@ -305,7 +416,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "a",
             .key = Key.a,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.animation },
         });
 
@@ -313,7 +431,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "h",
             .key = Key.h,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.heightmap },
         });
 
@@ -321,7 +446,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "b",
             .key = Key.b,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.bucket },
         });
     }
@@ -331,7 +463,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "f",
             .key = Key.f,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.files },
         });
 
@@ -339,7 +478,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "t",
             .key = Key.t,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.tools },
         });
 
@@ -347,7 +493,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "l",
             .key = Key.l,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.layers },
         });
 
@@ -355,7 +508,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "s",
             .key = Key.s,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.sprites },
         });
 
@@ -363,7 +523,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "a",
             .key = Key.a,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.animations },
         });
 
@@ -371,7 +538,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "p",
             .key = Key.p,
-            .mods = .{},
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.pack },
         });
     }

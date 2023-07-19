@@ -10,6 +10,7 @@ const zm = @import("zmath");
 pub const App = @This();
 
 core: mach.Core,
+timer: mach.Timer,
 pipeline: *gpu.RenderPipeline,
 queue: *gpu.Queue,
 
@@ -48,6 +49,7 @@ test {
 
 pub var application: *App = undefined;
 pub var state: *PixiState = undefined;
+pub var content_scale: [2]f32 = undefined;
 
 /// Holds the global game state.
 pub const PixiState = struct {
@@ -55,7 +57,6 @@ pub const PixiState = struct {
     settings: Settings = .{},
     controls: input.Controls = .{},
     hotkeys: Hotkeys,
-    window: Window,
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
@@ -75,6 +76,7 @@ pub const PixiState = struct {
     fonts: Fonts = .{},
     cursors: Cursors,
     colors: Colors,
+    delta_time: f32 = 0.0,
 };
 
 pub const Sidebar = enum {
@@ -183,18 +185,20 @@ pub fn init(app: *App) !void {
     var pack_open_files = std.ArrayList(storage.Internal.Pixi).init(state.allocator);
 
     // Logos
-    const background_logo = try gfx.Texture.loadFromFile(app.core, assets.icon1024_png.path, .{});
-    const fox_logo = try gfx.Texture.loadFromFile(app.core, assets.fox1024_png.path, .{});
+    const background_logo = try gfx.Texture.loadFromFile(app.core.device(), assets.icon1024_png.path, .{});
+    const fox_logo = try gfx.Texture.loadFromFile(app.core.device(), assets.fox1024_png.path, .{});
+
+    const scale_factor = 2;
 
     // Cursors
-    const pencil = try gfx.Texture.loadFromFile(app.core, if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
-    const eraser = try gfx.Texture.loadFromFile(app.core, if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
+    const pencil = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
+    const eraser = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
 
     const hotkeys = try Hotkeys.initDefault(state.allocator);
 
     const packer = try Packer.init(state.allocator);
 
-    zgui.init(allocator);
+    zgui.init(state.allocator);
     zgui.io.setIniFilename(assets.root ++ "imgui.ini");
     _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
     var config = zgui.FontConfig.init();
@@ -204,13 +208,12 @@ pub fn init(app: *App) !void {
     state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-    zgui.backend.initWithConfig(window, state.gctx.device, @intFromEnum(gpu.GraphicsContext.swapchain_format), .{ .texture_filter_mode = .nearest });
+    zgui.mach_backend.init(&app.core, app.core.device(), .rgba8_unorm, .{});
 
     state = try state.allocator.create(PixiState);
     state.style.set();
 
     state.* = .{
-        .window = state_window,
         .background_logo = background_logo,
         .fox_logo = fox_logo,
         .open_files = open_files,
@@ -223,13 +226,100 @@ pub fn init(app: *App) !void {
         .hotkeys = hotkeys,
         .packer = packer,
     };
+
+    app.timer = try mach.Timer.start();
+}
+
+pub fn update(app: *App) !bool {
+    state.delta_time = app.timer.lap();
+
+    var iter = app.core.pollEvents();
+    while (iter.next()) |event| {
+        switch (event) {
+            .key_press => |key_press| {
+                state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
+            },
+            .close => return true,
+            else => {},
+        }
+    }
+
+    const descriptor = app.core.descriptor();
+    zgui.backend.newFrame(descriptor.width, descriptor.height);
+
+    const window_size = app.core.size();
+    content_scale = .{
+        @floatFromInt(descriptor.width / window_size.width),
+        @floatFromInt(descriptor.height / window_size.height),
+    };
+
+    input.process() catch unreachable;
+
+    editor.draw();
+
+    for (state.hotkeys.hotkeys) |*hotkey| {
+        hotkey.previous_state = hotkey.state;
+    }
+
+    state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
+    state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;
+    state.controls.mouse.previous_position = state.controls.mouse.position;
+
+    if (app.core.swapChain().getCurrentTextureView()) |back_buffer_view| {
+        defer back_buffer_view.release();
+
+        const zgui_commands = commands: {
+            const encoder = app.core.device().createCommandEncoder(null);
+            defer encoder.release();
+
+            // Gui pass.
+            {
+                const color_attachment = gpu.RenderPassColorAttachment{
+                    .view = back_buffer_view,
+                    .clear_value = std.mem.zeroes(gpu.Color),
+                    .load_op = .clear,
+                    .store_op = .store,
+                };
+
+                const render_pass_info = gpu.RenderPassDescriptor.init(.{
+                    .color_attachments = &.{color_attachment},
+                });
+                const pass = encoder.beginRenderPass(&render_pass_info);
+                defer pass.end();
+                zgui.backend.draw(pass);
+
+                // const pass = mach.beginRenderPassSimple(encoder, .load, back_buffer_view, null, null, null);
+                // defer mach.endReleasePass(pass);
+                // zgui.backend.draw(pass);
+            }
+
+            break :commands encoder.finish(null);
+        };
+        defer zgui_commands.release();
+
+        //state.gctx.submit(&.{zgui_commands});
+
+        app.core.device().getQueue().submit(&.{zgui_commands});
+        app.core.swapChain().present();
+
+        // if (state.gctx.present() == .swap_chain_resized) {
+        //     state.window = .{
+        //         .size = zm.f32x4(@as(f32, @floatFromInt(window_size[0])), @as(f32, @floatFromInt(window_size[1])), 0, 0),
+        //         .scale = zm.f32x4(content_scale[0], content_scale[1], 0, 0),
+        //     };
+        //     state.settings.initial_window_width = @as(u32, @intCast(window_size[0]));
+        //     state.settings.initial_window_height = @as(u32, @intCast(window_size[1]));
+        // }
+
+    }
+    return false;
 }
 
 pub fn deinit(_: *App) void {
     state.allocator.free(state.hotkeys.hotkeys);
-    state.background_logo.deinit(state.gctx);
-    state.fox_logo.deinit(state.gctx);
-    state.cursors.deinit(state.gctx);
+    state.background_logo.deinit();
+    state.fox_logo.deinit();
+    state.cursors.deinit();
     state.colors.deinit();
     state.packer.deinit();
     if (state.atlas.external) |*atlas| {
@@ -244,131 +334,11 @@ pub fn deinit(_: *App) void {
         state.allocator.free(atlas.sprites);
         state.allocator.free(atlas.animations);
     }
-    if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit(state.gctx);
-    if (state.atlas.heightmap) |*heightmap| heightmap.deinit(state.gctx);
+    if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
+    if (state.atlas.heightmap) |*heightmap| heightmap.deinit();
     editor.deinit();
     zgui.backend.deinit();
     zgui.deinit();
     zstbi.deinit();
-    state.gctx.destroy(state.allocator);
     state.allocator.destroy(state);
-}
-
-pub fn update(app: *App) !bool {
-    const descriptor = app.core.descriptor();
-    zgui.backend.newFrame(descriptor.width, descriptor.height);
-
-    input.process() catch unreachable;
-
-    // if (window.shouldClose()) {
-    //     var should_close = true;
-    //     for (state.open_files.items) |file| {
-    //         if (file.dirty()) {
-    //             should_close = false;
-    //         }
-    //     }
-
-    //     if (!should_close) {
-    //         state.popups.file_confirm_close = true;
-    //         state.popups.file_confirm_close_state = .all;
-    //         state.popups.file_confirm_close_exit = true;
-    //     }
-    //     state.should_close = should_close;
-    //     window.setShouldClose(should_close);
-    // }
-}
-
-fn draw() void {
-    editor.draw();
-
-    for (state.hotkeys.hotkeys) |*hotkey| {
-        hotkey.previous_state = hotkey.state;
-    }
-
-    state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
-    state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;
-    state.controls.mouse.previous_position = state.controls.mouse.position;
-
-    const swapchain_texv = state.gctx.swapchain.getCurrentTextureView();
-    defer swapchain_texv.release();
-
-    const zgui_commands = commands: {
-        const encoder = state.gctx.device.createCommandEncoder(null);
-        defer encoder.release();
-
-        // Gui pass.
-        {
-            const pass = mach.beginRenderPassSimple(encoder, .load, swapchain_texv, null, null, null);
-            defer mach.endReleasePass(pass);
-            zgui.backend.draw(pass);
-        }
-
-        break :commands encoder.finish(null);
-    };
-    defer zgui_commands.release();
-
-    state.gctx.submit(&.{zgui_commands});
-
-    if (state.gctx.present() == .swap_chain_resized) {
-        const window_size = state.gctx.window.getSize();
-        const window_scale = state.gctx.window.getContentScale();
-        state.window = .{
-            .size = zm.f32x4(@as(f32, @floatFromInt(window_size[0])), @as(f32, @floatFromInt(window_size[1])), 0, 0),
-            .scale = zm.f32x4(window_scale[0], window_scale[1], 0, 0),
-        };
-        state.settings.initial_window_width = @as(u32, @intCast(window_size[0]));
-        state.settings.initial_window_height = @as(u32, @intCast(window_size[1]));
-    }
-}
-
-pub fn main() !void {
-    // Change current working directory to where the executable is located.
-    {
-        var buffer: [1024]u8 = undefined;
-        const path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
-        std.os.chdir(path) catch {};
-    }
-
-    try mach.glfw.init();
-    defer mach.glfw.terminate();
-
-    // TODO: Load settings.json if available
-    const settings: Settings = .{};
-
-    // Create window
-    window = try mach.glfw.Window.create(settings.initial_window_width, settings.initial_window_height, name, null);
-    defer window.destroy();
-    window.setSizeLimits(400, 400, -1, -1);
-
-    // Set callbacks
-    window.setCursorPosCallback(input.callbacks.cursor);
-    window.setScrollCallback(input.callbacks.scroll);
-    window.setKeyCallback(input.callbacks.key);
-    window.setMouseButtonCallback(input.callbacks.button);
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    const allocator = gpa.allocator();
-
-    zstbi.init(allocator);
-
-    state = try init(allocator);
-    defer deinit(allocator);
-
-    state.settings = settings;
-
-    const scale_factor = scale_factor: {
-        const scale = window.getContentScale();
-        break :scale_factor @max(scale[0], scale[1]);
-    };
-
-    // Base style
-    state.style.set();
-
-    // while (!state.should_close or editor.saving()) {
-    //     mach.glfw.pollEvents();
-    //     update();
-    //     draw();
-    // }
 }

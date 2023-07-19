@@ -1,6 +1,7 @@
 const std = @import("std");
-const zgui = @import("zgui");
-const pixi = @import("root");
+const pixi = @import("../../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_height = zgui.getWindowHeight();

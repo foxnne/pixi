@@ -1,13 +1,14 @@
 const std = @import("std");
-const zgui = @import("zgui");
-const pixi = @import("root");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 const settings = pixi.settings;
 const zstbi = @import("zstbi");
 const nfd = @import("nfd");
 
 pub fn draw() void {
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 6.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 6.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
     defer zgui.popStyleVar(.{ .count = 2 });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = pixi.state.style.foreground.toSlice() });

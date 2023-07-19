@@ -1,6 +1,7 @@
 const std = @import("std");
-const pixi = @import("root");
-const zgui = @import("zgui");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_width = zgui.getWindowWidth();
@@ -58,7 +59,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const y = @as(f32, @floatFromInt(tile_row)) * tile_height + canvas_center_offset[1];
 
             if (pixi.state.sidebar != .pack)
-                file.camera.drawTexture(file.background_texture_view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
+                file.camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
             file.processSampleTool(.primary);
             file.processStrokeTool(.primary) catch unreachable;

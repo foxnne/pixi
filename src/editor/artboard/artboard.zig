@@ -1,6 +1,7 @@
 const std = @import("std");
-const zgui = @import("zgui");
-const pixi = @import("root");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 const editor = pixi.editor;
 const nfd = @import("nfd");
 
@@ -18,13 +19,13 @@ pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     defer zgui.popStyleVar(.{ .count = 1 });
     zgui.setNextWindowPos(.{
-        .x = (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width) * pixi.state.window.scale[0],
+        .x = (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width) * pixi.content_scale[0],
         .y = 0,
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = (pixi.state.window.size[0] - pixi.state.settings.explorer_width - pixi.state.settings.sidebar_width) * pixi.state.window.scale[0],
-        .h = pixi.state.window.size[1] * pixi.state.window.scale[1] + 5.0,
+        .w = (zgui.getWindowSize()[0] - pixi.state.settings.explorer_width - pixi.state.settings.sidebar_width) * pixi.content_scale[0],
+        .h = zgui.getWindowSize()[1] * pixi.content_scale[1] + 5.0,
     });
 
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 0.0, 0.0 } });
@@ -115,10 +116,10 @@ pub fn draw() void {
 
                         if (zgui.isItemHovered(.{})) {
                             hovered = true;
-                            path_hover_timer += pixi.state.gctx.stats.delta_time;
+                            path_hover_timer += pixi.state.delta_time;
 
                             if (path_hover_timer >= 1.0) {
-                                zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+                                zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
                                 defer zgui.popStyleVar(.{ .count = 1 });
                                 if (zgui.beginTooltip()) {
                                     defer zgui.endTooltip();
@@ -181,13 +182,13 @@ pub fn draw() void {
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
                 defer zgui.popStyleColor(.{ .count = 4 });
                 { // Draw semi-transparent logo
-                    const w = @as(f32, @floatFromInt((pixi.state.background_logo.image.width) / 4)) * pixi.state.window.scale[0];
-                    const h = @as(f32, @floatFromInt((pixi.state.background_logo.image.height) / 4)) * pixi.state.window.scale[1];
+                    const w = @as(f32, @floatFromInt((pixi.state.background_logo.image.width) / 4)) * pixi.content_scale[0];
+                    const h = @as(f32, @floatFromInt((pixi.state.background_logo.image.height) / 4)) * pixi.content_scale[1];
                     const center: [2]f32 = .{ zgui.getWindowWidth() / 2.0, zgui.getWindowHeight() / 2.0 };
 
                     zgui.setCursorPosX(center[0] - w / 2.0);
                     zgui.setCursorPosY(center[1] - h / 2.0);
-                    zgui.image(pixi.state.gctx.lookupResource(pixi.state.background_logo.view_handle).?, .{
+                    zgui.image(pixi.state.background_logo.view_handle, .{
                         .w = w,
                         .h = h,
                         .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
@@ -211,7 +212,7 @@ pub fn draw() void {
 
         if (pixi.state.sidebar != .pack) {
             if (pixi.state.open_files.items.len > 0) {
-                const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.state.window.scale[1];
+                const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.content_scale[1];
                 zgui.separator();
 
                 if (zgui.beginChild("Flipbook", .{

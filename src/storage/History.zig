@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("root");
+const pixi = @import("../pixi.zig");
 const zgui = @import("zgui");
 const History = @This();
 
@@ -247,7 +247,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                 pixi.state.tools.current = .pencil;
             }
 
-            layer.texture.update(pixi.state.gctx);
+            layer.texture.update(pixi.application.core.device());
             if (pixi.state.sidebar == .sprites)
                 pixi.state.sidebar = .tools;
         },

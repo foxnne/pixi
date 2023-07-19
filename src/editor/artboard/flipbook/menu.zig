@@ -1,13 +1,13 @@
 const std = @import("std");
-const zgui = @import("zgui");
-const pixi = @import("root");
-const filebrowser = @import("filebrowser");
+const pixi = @import("../../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 const nfd = @import("nfd");
 
 const History = pixi.storage.Internal.Pixi.History;
 
 pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
     defer zgui.popStyleVar(.{ .count = 1 });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = pixi.state.style.foreground.toSlice() });
@@ -30,7 +30,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
             var animation = &file.animations.items[file.selected_animation_index];
 
             { // Animation Selection
-                zgui.setNextItemWidth(zgui.calcTextSize(animation.name, .{})[0] + 40 * pixi.state.window.scale[0]);
+                zgui.setNextItemWidth(zgui.calcTextSize(animation.name, .{})[0] + 40 * pixi.content_scale[0]);
                 if (zgui.beginCombo("Animation  ", .{ .preview_value = animation.name, .flags = .{ .height_largest = true } })) {
                     defer zgui.endCombo();
                     for (file.animations.items, 0..) |a, i| {
@@ -46,7 +46,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
                 const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
                 const frame = zgui.formatZ("{d}/{d}", .{ current_frame + 1, animation.length });
 
-                zgui.setNextItemWidth(zgui.calcTextSize(frame, .{})[0] + 40 * pixi.state.window.scale[0]);
+                zgui.setNextItemWidth(zgui.calcTextSize(frame, .{})[0] + 40 * pixi.content_scale[0]);
                 if (zgui.beginCombo("Frame  ", .{ .preview_value = frame })) {
                     defer zgui.endCombo();
                     for (0..animation.length) |i| {
@@ -58,7 +58,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
             }
 
             { // FPS Selection
-                zgui.setNextItemWidth(100 * pixi.state.window.scale[0]);
+                zgui.setNextItemWidth(100 * pixi.content_scale[0]);
                 var fps = @as(i32, @intCast(animation.fps));
                 var changed: bool = false;
                 if (zgui.sliderInt("FPS", .{
@@ -90,7 +90,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
 
         _ = zgui.invisibleButton("FlipbookGrip", .{
             .w = -1.0,
-            .h = 12 * pixi.state.window.scale[1],
+            .h = 12 * pixi.content_scale[1],
         });
 
         if (zgui.isItemHovered(.{})) {

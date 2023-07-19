@@ -3,8 +3,8 @@ const pixi = @import("../pixi.zig");
 const zstbi = @import("zstbi");
 const storage = @import("storage.zig");
 const zip = @import("zip");
-const zgui = @import("zgui");
 const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 const gpu = mach.gpu;
 
 const external = @import("external.zig");
@@ -242,7 +242,7 @@ pub const Pixi = struct {
                                 }
                             }
                         }
-                        layer.texture.update(pixi.state.gctx);
+                        layer.texture.update(pixi.application.core.device());
                         pixi.state.allocator.free(pixel_coords);
                     }
                 }
@@ -567,7 +567,7 @@ pub const Pixi = struct {
     }
 
     pub fn createBackground(self: *Pixi) !void {
-        const image = try zstbi.Image.createEmpty(self.tile_width * 2, self.tile_height * 2, 4, .{});
+        var image = try zstbi.Image.createEmpty(self.tile_width * 2, self.tile_height * 2, 4, .{});
         // Set background image data to checkerboard
         {
             var i: usize = 0;
@@ -579,15 +579,15 @@ pub const Pixi = struct {
                 const primary = pixi.state.style.checkerboard_primary.bytes();
                 const secondary = pixi.state.style.checkerboard_secondary.bytes();
                 if (i % 3 == 0) {
-                    self.background_image.data[r] = primary[0];
-                    self.background_image.data[g] = primary[1];
-                    self.background_image.data[b] = primary[2];
-                    self.background_image.data[a] = primary[3];
+                    image.data[r] = primary[0];
+                    image.data[g] = primary[1];
+                    image.data[b] = primary[2];
+                    image.data[a] = primary[3];
                 } else {
-                    self.background_image.data[r] = secondary[0];
-                    self.background_image.data[g] = secondary[1];
-                    self.background_image.data[b] = secondary[2];
-                    self.background_image.data[a] = secondary[3];
+                    image.data[r] = secondary[0];
+                    image.data[g] = secondary[1];
+                    image.data[b] = secondary[2];
+                    image.data[a] = secondary[3];
                 }
             }
         }
@@ -597,7 +597,7 @@ pub const Pixi = struct {
     pub fn createLayer(self: *Pixi, name: [:0]const u8) !void {
         try self.layers.insert(0, .{
             .name = try pixi.state.allocator.dupeZ(u8, name),
-            .texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, self.width, self.height, .{}),
+            .texture = try pixi.gfx.Texture.createEmpty(pixi.application.core.device(), self.width, self.height, .{}),
             .visible = true,
             .id = self.id(),
         });
@@ -620,9 +620,9 @@ pub const Pixi = struct {
 
     pub fn duplicateLayer(self: *Pixi, name: [:0]const u8, src_index: usize) !void {
         const src = self.layers.items[src_index];
-        var texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, self.width, self.height, .{});
+        var texture = try pixi.gfx.Texture.createEmpty(pixi.application.core.device(), self.width, self.height, .{});
         @memcpy(texture.image.data, src.texture.image.data);
-        texture.update(pixi.state.gctx);
+        texture.update(pixi.application.core.device());
         try self.layers.insert(0, .{
             .name = try pixi.state.allocator.dupeZ(u8, name),
             .texture = texture,
@@ -878,7 +878,7 @@ pub const Layer = struct {
         var pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
         pixels[index] = color;
         if (update)
-            self.texture.update(pixi.state.gctx);
+            self.texture.update(pixi.application.core.device());
     }
 
     pub fn clear(self: *Layer, update: bool) void {
@@ -887,7 +887,7 @@ pub const Layer = struct {
             pixel.* = .{ 0, 0, 0, 0 };
         }
         if (update)
-            self.texture.update(pixi.state.gctx);
+            self.texture.update(pixi.application.core.device());
     }
 };
 

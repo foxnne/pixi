@@ -205,39 +205,39 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
 
 pub fn packAndClear(self: *Packer) !void {
     if (try self.packRects()) |size| {
-        var atlas_texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, size[0], size[1], .{});
+        var atlas_texture = try pixi.gfx.Texture.createEmpty(pixi.application.core.device(), size[0], size[1], .{});
 
         for (self.frames.items, self.sprites.items) |frame, sprite| {
             if (sprite.diffuse_image) |image|
                 atlas_texture.blit(image.pixels, frame.slice());
         }
-        atlas_texture.update(pixi.state.gctx);
+        atlas_texture.update(pixi.application.core.device());
 
         if (pixi.state.atlas.diffusemap) |*diffusemap| {
-            diffusemap.deinit(pixi.state.gctx);
+            diffusemap.deinit();
             pixi.state.atlas.diffusemap = atlas_texture;
         } else {
             pixi.state.atlas.diffusemap = atlas_texture;
         }
 
         if (self.contains_height) {
-            var atlas_texture_h = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, size[0], size[1], .{});
+            var atlas_texture_h = try pixi.gfx.Texture.createEmpty(pixi.application.core.device(), size[0], size[1], .{});
 
             for (self.frames.items, self.sprites.items) |frame, sprite| {
                 if (sprite.heightmap_image) |image|
                     atlas_texture_h.blit(image.pixels, frame.slice());
             }
-            atlas_texture_h.update(pixi.state.gctx);
+            atlas_texture_h.update(pixi.application.core.device());
 
             if (pixi.state.atlas.heightmap) |*heightmap| {
-                heightmap.deinit(pixi.state.gctx);
+                heightmap.deinit();
                 pixi.state.atlas.heightmap = atlas_texture_h;
             } else {
                 pixi.state.atlas.heightmap = atlas_texture_h;
             }
         } else {
             if (pixi.state.atlas.heightmap) |*heightmap| {
-                heightmap.deinit(pixi.state.gctx);
+                heightmap.deinit();
             }
         }
 

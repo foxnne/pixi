@@ -1,6 +1,7 @@
 const std = @import("std");
-const pixi = @import("root");
-const zgui = @import("zgui");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
@@ -8,10 +9,10 @@ pub fn draw() void {
             zgui.openPopup("Heightmap", .{});
         } else return;
 
-        const popup_width = 350 * pixi.state.window.scale[0];
-        const popup_height = 115 * pixi.state.window.scale[1];
+        const popup_width = 350 * pixi.content_scale[0];
+        const popup_height = 115 * pixi.content_scale[1];
 
-        const window_size = pixi.state.window.size * pixi.state.window.scale;
+        const window_size = zgui.getWindowSize();
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         zgui.setNextWindowPos(.{
@@ -35,7 +36,7 @@ pub fn draw() void {
 
             const style = zgui.getStyle();
             const spacing = style.item_spacing[0];
-            const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing) / 2.0;
+            const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
             zgui.textWrapped("There currently is no heightmap layer, would you like to create a heightmap layer?", .{});
 
@@ -48,7 +49,7 @@ pub fn draw() void {
             if (zgui.button("Create", .{ .w = half_width })) {
                 file.heightmap_layer = .{
                     .name = pixi.state.allocator.dupeZ(u8, "heightmap") catch unreachable,
-                    .texture = pixi.gfx.Texture.createEmpty(pixi.state.gctx, file.width, file.height, .{}) catch unreachable,
+                    .texture = pixi.gfx.Texture.createEmpty(pixi.application.core.device(), file.width, file.height, .{}) catch unreachable,
                     .id = file.id(),
                 };
                 file.history.append(.{ .heightmap_restore_delete = .{ .action = .delete } }) catch unreachable;
