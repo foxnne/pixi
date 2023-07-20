@@ -197,8 +197,10 @@ pub fn init(app: *App) !void {
     const descriptor = app.core.descriptor();
     const window_size = app.core.size();
     content_scale = .{
-        @floatFromInt(descriptor.width / window_size.width),
-        @floatFromInt(descriptor.height / window_size.height),
+        // type inference doesn't like this, but the important part is to make sure we're dividing
+        // as floats not integers.
+        @as(f32, @floatFromInt(descriptor.width)) / @as(f32, @floatFromInt(window_size.width)),
+        @as(f32, @floatFromInt(descriptor.height)) / @as(f32, @floatFromInt(window_size.height)),
     };
 
     const scale_factor = content_scale[1];
