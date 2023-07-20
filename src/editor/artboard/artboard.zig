@@ -24,7 +24,7 @@ pub fn draw() void {
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = (pixi.framebuffer_size[0] - (pixi.state.settings.explorer_width * pixi.content_scale[0] + pixi.state.settings.sidebar_width * pixi.content_scale[0])),
+        .w = pixi.framebuffer_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width) * pixi.content_scale[0]),
         .h = pixi.framebuffer_size[1] + 5.0,
     });
 

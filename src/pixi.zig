@@ -61,7 +61,7 @@ pub const PixiState = struct {
     hotkeys: Hotkeys,
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
-    project_folder: ?[:0]const u8 = null,
+    project_folder: ?[:0]const u8 = "/Users/foxnne/dev/proj/aftersun/assets",
     background_logo: gfx.Texture,
     fox_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
@@ -182,6 +182,7 @@ pub const PackFiles = enum {
 pub fn init(app: *App) !void {
     try app.core.init(gpa.allocator(), .{
         .title = name,
+        .size = .{ .width = 1400, .height = 800 },
     });
     application = app;
 
@@ -287,6 +288,36 @@ pub fn update(app: *App) !bool {
             },
             .key_release => |key_release| {
                 state.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
+            },
+            .mouse_scroll => |mouse_scroll| {
+                state.controls.mouse.scroll_x = mouse_scroll.xoffset;
+                state.controls.mouse.scroll_y = mouse_scroll.yoffset;
+            },
+            .mouse_motion => |mouse_motion| {
+                state.controls.mouse.position = .{ .x = @floatCast(mouse_motion.pos.x * content_scale[0]), .y = @floatCast(mouse_motion.pos.y * content_scale[1]) };
+            },
+            .mouse_press => |mouse_press| {
+                switch (mouse_press.button) {
+                    .left => {
+                        state.controls.mouse.primary.state = true;
+                        state.controls.mouse.clicked_position = .{ .x = @floatCast(mouse_press.pos.x * content_scale[0]), .y = @floatCast(mouse_press.pos.y * content_scale[1]) };
+                    },
+                    .right => {
+                        state.controls.mouse.secondary.state = true;
+                    },
+                    else => {},
+                }
+            },
+            .mouse_release => |mouse_release| {
+                switch (mouse_release.button) {
+                    .left => {
+                        state.controls.mouse.primary.state = false;
+                    },
+                    .right => {
+                        state.controls.mouse.secondary.state = false;
+                    },
+                    else => {},
+                }
             },
             .close => return true,
             else => {},
