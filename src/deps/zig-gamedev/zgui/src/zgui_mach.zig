@@ -92,13 +92,13 @@ pub fn MachBackend(comptime mach: anytype) type {
             switch (event) {
                 .mouse_motion => {
                     const pos = event.mouse_motion.pos;
-                    ImGui_ImplMach_CursorPosCallback(pos.x*content_scale[0], pos.y*content_scale[1]);
+                    ImGui_ImplMach_CursorPosCallback(pos.x * content_scale[0], pos.y * content_scale[1]);
                 },
-                .mouse_press => {
-                    ImGui_ImplMach_MouseButtonCallback(0, 1, 0);
+                .mouse_press => |mouse_press| {
+                    ImGui_ImplMach_MouseButtonCallback(@intFromEnum(mouse_press.button), 1, 0);
                 },
-                .mouse_release => {
-                    ImGui_ImplMach_MouseButtonCallback(0, 0, 0);
+                .mouse_release => |mouse_release| {
+                    ImGui_ImplMach_MouseButtonCallback(@intFromEnum(mouse_release.button), 0, 0);
                 },
                 .mouse_scroll => {
                     const offsets = event.mouse_scroll;

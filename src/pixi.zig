@@ -13,10 +13,6 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
 core: mach.Core,
 timer: mach.Timer,
-pipeline: *mach.gpu.RenderPipeline,
-
-// TODO: Add build instructions to readme, and note requires xcode for nativefiledialogs to build.
-// TODO: Nativefiledialogs requires xcode appkit frameworks.
 
 pub const name: [:0]const u8 = "Pixi";
 pub const version: []const u8 = "0.0.1";
@@ -217,15 +213,6 @@ pub fn init(app: *App) !void {
 
     const packer = try Packer.init(allocator);
 
-    const vs_module = app.core.device().createShaderModuleWGSL("vert.wgsl", shaders.default_vs);
-    const fs_module = app.core.device().createShaderModuleWGSL("frag.wgsl", shaders.default_fs);
-    defer fs_module.release();
-    defer vs_module.release();
-
-    const color_target = createColorTargetState(app.core.descriptor().format);
-
-    const pipeline_descriptor = gpu.RenderPipeline.Descriptor{ .fragment = &createFragmentState(fs_module, &.{color_target}), .vertex = createVertexState(vs_module) };
-
     state = try gpa.allocator().create(PixiState);
 
     state.* = .{
@@ -246,7 +233,6 @@ pub fn init(app: *App) !void {
     app.* = .{
         .core = app.core,
         .timer = try mach.Timer.start(),
-        .pipeline = app.core.device().createRenderPipeline(&pipeline_descriptor),
     };
 
     zgui.init(allocator);
@@ -260,7 +246,6 @@ pub fn init(app: *App) !void {
     state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-
     state.style.set();
 }
 
@@ -329,6 +314,8 @@ pub fn update(app: *App) !bool {
 
     editor.draw();
 
+    zgui.showDemoWindow(null);
+
     for (state.hotkeys.hotkeys) |*hotkey| {
         hotkey.previous_state = hotkey.state;
     }
@@ -358,7 +345,6 @@ pub fn update(app: *App) !bool {
                 });
                 const pass = encoder.beginRenderPass(&render_pass_info);
 
-                pass.setPipeline(app.pipeline);
                 zgui.mach_backend.draw(pass);
                 pass.end();
                 pass.release();
