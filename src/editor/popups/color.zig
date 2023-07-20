@@ -10,7 +10,7 @@ pub fn draw() void {
     const popup_width = 450 * pixi.content_scale[0];
     const popup_height = 450 * pixi.content_scale[1];
 
-    const window_size = zgui.getWindowSize() * pixi.content_scale;
+    const window_size = zgui.getWindowSize() * pixi.content_scale * pixi.content_scale;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     zgui.setNextWindowPos(.{

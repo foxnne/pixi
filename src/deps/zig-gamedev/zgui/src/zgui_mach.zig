@@ -7,6 +7,10 @@ pub const c = @cImport({
 
 pub fn MachBackend(comptime mach: anytype) type {
     return struct {
+        var core: *mach.Core = undefined;
+        var last_width: u32 = 0;
+        var last_height: u32 = 0;
+
         const TextureFormat = mach.gpu.Texture.Format;
         pub fn machKeyToImgui(key: mach.Core.Key) u32 {
             return switch (key) {
@@ -55,13 +59,11 @@ pub fn MachBackend(comptime mach: anytype) type {
             };
         }
 
-        pub fn init(core: *mach.Core, wgpu_device: *const anyopaque, rt_format: TextureFormat, cfg: Config) void {
+        pub fn init(core2: *mach.Core, wgpu_device: *const anyopaque, rt_format: TextureFormat, cfg: Config) void {
             if (!ImGui_ImplWGPU_Init(wgpu_device, 1, @intFromEnum(rt_format), &cfg)) {
                 unreachable;
             }
-
-            const size = core.size();
-            zgui.io.setDisplaySize(@as(f32, @floatFromInt(size.width)), @as(f32, @floatFromInt(size.height)));
+            core = core2;
         }
 
         pub fn deinit() void {
@@ -69,6 +71,13 @@ pub fn MachBackend(comptime mach: anytype) type {
         }
 
         pub fn newFrame() void {
+            const desc = core.descriptor();
+            if (desc.width != last_width or desc.height != last_height) {
+                last_width = desc.width;
+                last_height = desc.height;
+                zgui.io.setDisplaySize(@as(f32, @floatFromInt(desc.width)), @as(f32, @floatFromInt(desc.height)));
+            }
+
             ImGui_ImplWGPU_NewFrame();
 
             zgui.newFrame();
@@ -79,11 +88,11 @@ pub fn MachBackend(comptime mach: anytype) type {
             ImGui_ImplWGPU_RenderDrawData(zgui.getDrawData(), wgpu_render_pass);
         }
 
-        pub fn passEvent(event: mach.Core.Event) void {
+        pub fn passEvent(event: mach.Core.Event, content_scale: [2]f32) void {
             switch (event) {
                 .mouse_motion => {
                     const pos = event.mouse_motion.pos;
-                    ImGui_ImplMach_CursorPosCallback(pos.x, pos.y);
+                    ImGui_ImplMach_CursorPosCallback(pos.x*content_scale[0], pos.y*content_scale[1]);
                 },
                 .mouse_press => {
                     ImGui_ImplMach_MouseButtonCallback(0, 1, 0);
@@ -107,9 +116,6 @@ pub fn MachBackend(comptime mach: anytype) type {
                 },
                 .char_input => {
                     ImGui_ImplMach_CharCallback(event.char_input.codepoint);
-                },
-                .framebuffer_resize => |ev| {
-                    zgui.io.setDisplaySize(@as(f32, @floatFromInt(ev.width)), @as(f32, @floatFromInt(ev.height)));
                 },
                 else => {},
             }

@@ -24,8 +24,8 @@ pub fn draw() void {
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = (zgui.getWindowSize()[0] - pixi.state.settings.explorer_width - pixi.state.settings.sidebar_width) * pixi.content_scale[0],
-        .h = zgui.getWindowSize()[1] * pixi.content_scale[1] + 5.0,
+        .w = ((zgui.getWindowSize()[0]*pixi.content_scale[0]) - pixi.state.settings.explorer_width - pixi.state.settings.sidebar_width) * pixi.content_scale[0],
+        .h = (zgui.getWindowSize()[1]*pixi.content_scale[1]) * pixi.content_scale[1] + 5.0,
     });
 
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 0.0, 0.0 } });
