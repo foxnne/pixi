@@ -284,7 +284,7 @@ pub fn update(app: *App) !bool {
             .close => return true,
             else => {},
         }
-        zgui.mach_backend.passEvent(event);
+        zgui.mach_backend.passEvent(event, content_scale);
     }
 
     input.process() catch unreachable;

@@ -88,11 +88,11 @@ pub fn MachBackend(comptime mach: anytype) type {
             ImGui_ImplWGPU_RenderDrawData(zgui.getDrawData(), wgpu_render_pass);
         }
 
-        pub fn passEvent(event: mach.Core.Event) void {
+        pub fn passEvent(event: mach.Core.Event, content_scale: [2]f32) void {
             switch (event) {
                 .mouse_motion => {
                     const pos = event.mouse_motion.pos;
-                    ImGui_ImplMach_CursorPosCallback(pos.x, pos.y);
+                    ImGui_ImplMach_CursorPosCallback(pos.x*content_scale[0], pos.y*content_scale[1]);
                 },
                 .mouse_press => {
                     ImGui_ImplMach_MouseButtonCallback(0, 1, 0);
