@@ -314,8 +314,6 @@ pub fn update(app: *App) !bool {
 
     editor.draw();
 
-    zgui.showDemoWindow(null);
-
     for (state.hotkeys.hotkeys) |*hotkey| {
         hotkey.previous_state = hotkey.state;
     }
