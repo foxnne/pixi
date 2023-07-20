@@ -15,6 +15,8 @@ pub const Camera = struct {
 
     pub fn matrix(self: Camera) Matrix3x2 {
         var window_size = zgui.getWindowSize();
+        window_size[0] *= pixi.content_scale[0];
+        window_size[1] *= pixi.content_scale[1];
         var window_half_size: [2]f32 = .{ @trunc(window_size[0] * 0.5), @trunc(window_size[1] * 0.5) };
 
         var transform = Matrix3x2.identity;

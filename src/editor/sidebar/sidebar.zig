@@ -12,7 +12,8 @@ pub fn draw() void {
     });
     zgui.setNextWindowSize(.{
         .w = pixi.state.settings.sidebar_width * pixi.content_scale[0],
-        .h = zgui.getWindowSize()[1] * pixi.content_scale[1],
+        // SLIMSAG
+        .h = zgui.getWindowSize()[1] * pixi.content_scale[1] * pixi.content_scale[1],
     });
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.5 } });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
