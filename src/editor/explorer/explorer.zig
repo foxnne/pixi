@@ -23,9 +23,8 @@ pub fn draw() void {
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        // SLIMSAG
         .w = pixi.state.settings.explorer_width * pixi.content_scale[0],
-        .h = zgui.getWindowSize()[1] * pixi.content_scale[1] * pixi.content_scale[1],
+        .h = pixi.framebuffer_size[1],
     });
 
     if (zgui.begin("Explorer", .{

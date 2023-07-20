@@ -50,6 +50,8 @@ test {
 pub var application: *App = undefined;
 pub var state: *PixiState = undefined;
 pub var content_scale: [2]f32 = undefined;
+pub var window_size: [2]f32 = undefined;
+pub var framebuffer_size: [2]f32 = undefined;
 
 /// Holds the global game state.
 pub const PixiState = struct {
@@ -183,6 +185,18 @@ pub fn init(app: *App) !void {
     });
     application = app;
 
+    const descriptor = app.core.descriptor();
+    window_size = .{ @floatFromInt(app.core.size().width), @floatFromInt(app.core.size().height) };
+    framebuffer_size = .{ @floatFromInt(descriptor.width), @floatFromInt(descriptor.height) };
+    content_scale = .{
+        // type inference doesn't like this, but the important part is to make sure we're dividing
+        // as floats not integers.
+        framebuffer_size[0] / window_size[0],
+        framebuffer_size[1] / window_size[1],
+    };
+
+    const scale_factor = content_scale[1];
+
     const allocator = gpa.allocator();
 
     zstbi.init(allocator);
@@ -194,16 +208,6 @@ pub fn init(app: *App) !void {
     const background_logo = try gfx.Texture.loadFromFile(app.core.device(), assets.icon1024_png.path, .{});
     const fox_logo = try gfx.Texture.loadFromFile(app.core.device(), assets.fox1024_png.path, .{});
 
-    const descriptor = app.core.descriptor();
-    const window_size = app.core.size();
-    content_scale = .{
-        // type inference doesn't like this, but the important part is to make sure we're dividing
-        // as floats not integers.
-        @as(f32, @floatFromInt(descriptor.width)) / @as(f32, @floatFromInt(window_size.width)),
-        @as(f32, @floatFromInt(descriptor.height)) / @as(f32, @floatFromInt(window_size.height)),
-    };
-
-    const scale_factor = content_scale[1];
     // Cursors
     const pencil = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
     const eraser = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
@@ -263,10 +267,13 @@ pub fn update(app: *App) !bool {
     zgui.mach_backend.newFrame();
     state.delta_time = app.timer.lap();
     const descriptor = app.core.descriptor();
-    const window_size = app.core.size();
+    window_size = .{ @floatFromInt(app.core.size().width), @floatFromInt(app.core.size().height) };
+    framebuffer_size = .{ @floatFromInt(descriptor.width), @floatFromInt(descriptor.height) };
     content_scale = .{
-        @floatFromInt(descriptor.width / window_size.width),
-        @floatFromInt(descriptor.height / window_size.height),
+        // type inference doesn't like this, but the important part is to make sure we're dividing
+        // as floats not integers.
+        framebuffer_size[0] / window_size[0],
+        framebuffer_size[1] / window_size[1],
     };
 
     var iter = app.core.pollEvents();
