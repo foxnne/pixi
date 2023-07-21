@@ -57,7 +57,7 @@ pub const PixiState = struct {
     hotkeys: Hotkeys,
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
-    project_folder: ?[:0]const u8 = "/Users/foxnne/dev/proj/aftersun/assets",
+    project_folder: ?[:0]const u8 = null,
     background_logo: gfx.Texture,
     fox_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
@@ -304,7 +304,21 @@ pub fn update(app: *App) !bool {
                     else => {},
                 }
             },
-            .close => return true,
+            .close => {
+                var should_close = true;
+                for (state.open_files.items) |file| {
+                    if (file.dirty()) {
+                        should_close = false;
+                    }
+                }
+
+                if (!should_close and !state.popups.file_confirm_close_exit) {
+                    state.popups.file_confirm_close = true;
+                    state.popups.file_confirm_close_state = .all;
+                    state.popups.file_confirm_close_exit = true;
+                }
+                state.should_close = should_close;
+            },
             else => {},
         }
         zgui.mach_backend.passEvent(event, content_scale);
@@ -355,6 +369,10 @@ pub fn update(app: *App) !bool {
         app.core.device().getQueue().submit(&.{zgui_commands});
         app.core.swapChain().present();
     }
+
+    if (state.should_close and !editor.saving())
+        return true;
+
     return false;
 }
 
