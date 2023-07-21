@@ -7,7 +7,8 @@
 # 
 **Pixi** is an cross-platform open-source pixel art editor and animation editor written in [Zig](https://github.com/ziglang/zig).
 
-#### Pixi is currently undergoing a full rewrite, and will hopefully be a more useful and less buggy program soon.
+![pixi_explanatory_workflow](https://github.com/foxnne/pixi/assets/49629865/51e16f4d-634e-461d-ba5e-41cc4fa8229e)
+
 
 <img width="1392" alt="Screen Shot 2022-10-18 at 12 56 53 AM" src="https://user-images.githubusercontent.com/49629865/196347392-f645c7c7-4887-4c6b-af26-b7c69af188ff.png">
 
@@ -25,7 +26,7 @@
 - [x] Set sprite origins for drawing sprites easily in game frameworks.
 - [x] Import and slice existing .png spritesheets.
 - [x] Intuitive and customizeable user interface.
-- [ ] Sprite packing
+- [x] Sprite packing
 
 ## User Interface
 - The user interface is driven by [Dear Imgui](https://github.com/ocornut/imgui) which should be familiar to many.
