@@ -64,6 +64,7 @@ pub fn MachBackend(comptime mach: anytype) type {
                 unreachable;
             }
             core = core2;
+            ImGui_ImplMach_Init();
         }
 
         pub fn deinit() void {
@@ -81,6 +82,23 @@ pub fn MachBackend(comptime mach: anytype) type {
             ImGui_ImplWGPU_NewFrame();
 
             zgui.newFrame();
+
+            // const cursor = zgui.getMouseCursor();
+            // switch (cursor) {
+            //     .none => core.setCursorMode(.hidden),
+            //     .arrow => core.setCursorMode(.normal),
+            //     .text_input => core.setCursorShape(.ibeam),
+            //     .resize_all => core.setCursorShape(.resize_all),
+            //     .resize_ns => core.setCursorShape(.resize_ns),
+            //     .resize_ew => core.setCursorShape(.resize_ew),
+            //     .resize_nesw => core.setCursorShape(.resize_nesw),
+            //     .resize_nwse => core.setCursorShape(.resize_nwse),
+            //     .hand => core.setCursorShape(.pointing_hand),
+            //     .not_allowed => core.setCursorShape(.not_allowed),
+            //     .count => {},
+            // }
+            core.setCursorMode(.normal);
+            core.setCursorShape(.arrow);
         }
 
         pub fn draw(wgpu_render_pass: *const anyopaque) void {
@@ -135,6 +153,7 @@ extern fn ImGui_ImplWGPU_NewFrame() void;
 extern fn ImGui_ImplWGPU_RenderDrawData(draw_data: *const anyopaque, pass_encoder: *const anyopaque) void;
 
 // Input events
+extern fn ImGui_ImplMach_Init() void;
 extern fn ImGui_ImplMach_CursorPosCallback(x: f64, y: f64) void;
 extern fn ImGui_ImplMach_MouseButtonCallback(button: u32, action: u32, mods: u32) void;
 extern fn ImGui_ImplMach_MouseScrollCallback(xoffset: f64, yoffset: f64) void;

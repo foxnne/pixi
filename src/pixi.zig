@@ -369,7 +369,6 @@ pub fn update(app: *App) !bool {
         app.core.device().getQueue().submit(&.{zgui_commands});
         app.core.swapChain().present();
     }
-
     if (state.should_close and !editor.saving())
         return true;
 

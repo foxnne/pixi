@@ -94,11 +94,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
         });
 
         if (zgui.isItemHovered(.{})) {
+            pixi.application.core.setCursorShape(.resize_ns);
             zgui.setMouseCursor(.resize_ns);
         }
 
         if (zgui.isItemActive()) {
             zgui.setMouseCursor(.resize_ns);
+            pixi.application.core.setCursorShape(.resize_ns);
             pixi.state.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
         }
     }

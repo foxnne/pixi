@@ -188,6 +188,8 @@ pub const Camera = struct {
 
     pub fn drawCursor(_: Camera, texture: *gpu.TextureView, width: u32, height: u32, color: u32) void {
         zgui.setMouseCursor(.none);
+        if (pixi.application.core.cursorMode() == .normal)
+            pixi.application.core.setCursorMode(.hidden);
         var position = pixi.state.controls.mouse.position.toSlice();
 
         const draw_list = zgui.getForegroundDrawList();

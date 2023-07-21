@@ -17,6 +17,7 @@ extern "C" {
 	void ImGui_ImplMach_MouseScrollCallback(double xoffset, double yoffset);
 	void ImGui_ImplMach_KeyCallback(int key, int scancode, int action, int mods);
 	void ImGui_ImplMach_CharCallback(unsigned int c);
+    void ImGui_ImplMach_Init(void);
 }
 
 void ImGui_ImplMach_CursorPosCallback(double x, double y) {
@@ -45,4 +46,9 @@ void ImGui_ImplMach_KeyCallback(int key, int scancode, int action, int mods) {
 void ImGui_ImplMach_CharCallback(unsigned int c) {
     ImGuiIO& io = ImGui::GetIO();
     io.AddInputCharacter(c);
+}
+
+void ImGui_ImplMach_Init() {
+    ImGuiIO& io = ImGui::GetIO();
+    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
 }
