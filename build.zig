@@ -56,20 +56,13 @@ pub fn build(b: *std.Build) !void {
         },
         .optimize = optimize,
     });
-    try app.link(.{});
 
-    const compile_step = b.step("pixi", "Compile pixi");
-    compile_step.dependOn(&app.getInstallStep().?.step);
+    const install_step = b.step("pixi", "Install pixi");
+    install_step.dependOn(&app.install.step);
+    b.getInstallStep().dependOn(install_step);
 
-    app.install();
-
-    const run_cmd = b.addRunArtifact(app.step);
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+    const run_step = b.step("run", "Run pixi");
+    run_step.dependOn(&app.run.step);
 
     const unit_tests = b.addTest(.{
         .root_source_file = .{ .path = "src/main.zig" },
@@ -81,10 +74,10 @@ pub fn build(b: *std.Build) !void {
     test_step.dependOn(&run_unit_tests.step);
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
-    zstbi_pkg.link(app.step);
-    zgui_pkg.link(app.step);
-    app.step.linkLibrary(nfd_lib);
-    zip.link(app.step);
+    zstbi_pkg.link(app.compile);
+    zgui_pkg.link(app.compile);
+    app.compile.linkLibrary(nfd_lib);
+    zip.link(app.compile);
 
     const assets = ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");
     const process_assets_step = b.step("process-assets", "generates struct for all assets");
@@ -95,7 +88,7 @@ pub fn build(b: *std.Build) !void {
         .install_dir = .{ .custom = "" },
         .install_subdir = "bin/" ++ content_dir,
     });
-    app.step.step.dependOn(&install_content_step.step);
+    app.compile.step.dependOn(&install_content_step.step);
 }
 
 inline fn thisDir() []const u8 {
