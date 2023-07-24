@@ -155,7 +155,6 @@ pub fn process(self: *Self) !void {
             }
         }
     }
-
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
             if (try nfd.openFolderDialog(null)) |folder| {

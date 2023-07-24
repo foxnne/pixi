@@ -6,6 +6,7 @@ const gpu = mach.gpu;
 const zgui = @import("zgui").MachImgui(mach);
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
+const nfd = @import("nfd");
 
 pub const App = @This();
 
@@ -249,6 +250,38 @@ pub fn init(app: *App) !void {
     state.style.set();
 }
 
+pub fn updateMainThread(_: *App) !bool {
+    input.process() catch unreachable;
+
+    state.popups.user_path = switch (state.popups.user_state) {
+        .none => state.popups.user_path,
+        .file => if (try nfd.openFileDialog(if (state.popups.user_filter) |filter| blk: {
+            break :blk filter;
+        } else null, null)) |path| blk: {
+            state.popups.user_state = .none;
+            break :blk path;
+        } else blk: {
+            state.popups.user_state = .none;
+            break :blk null;
+        },
+        .folder => if (try nfd.openFolderDialog(null)) |path| blk: {
+            state.popups.user_state = .none;
+            break :blk path;
+        } else blk: {
+            state.popups.user_state = .none;
+            break :blk null;
+        },
+        .save => if (try nfd.saveFileDialog(if (state.popups.user_filter) |filter| filter else null, null)) |path| blk: {
+            state.popups.user_state = .none;
+            break :blk path;
+        } else blk: {
+            state.popups.user_state = .none;
+            break :blk null;
+        },
+    };
+    return false;
+}
+
 pub fn update(app: *App) !bool {
     zgui.mach_backend.newFrame();
     state.delta_time = app.timer.lap();
@@ -324,17 +357,7 @@ pub fn update(app: *App) !bool {
         zgui.mach_backend.passEvent(event, content_scale);
     }
 
-    input.process() catch unreachable;
-
     editor.draw();
-
-    for (state.hotkeys.hotkeys) |*hotkey| {
-        hotkey.previous_state = hotkey.state;
-    }
-
-    state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
-    state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;
-    state.controls.mouse.previous_position = state.controls.mouse.position;
 
     if (app.core.swapChain().getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
@@ -369,6 +392,14 @@ pub fn update(app: *App) !bool {
         app.core.device().getQueue().submit(&.{zgui_commands});
         app.core.swapChain().present();
     }
+
+    for (state.hotkeys.hotkeys) |*hotkey| {
+        hotkey.previous_state = hotkey.state;
+    }
+
+    state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
+    state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;
+    state.controls.mouse.previous_position = state.controls.mouse.position;
     if (state.should_close and !editor.saving())
         return true;
 

@@ -199,10 +199,15 @@ pub fn draw() void {
                     const size = zgui.calcTextSize(text, .{});
                     zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
                     if (zgui.button(text, .{})) {
-                        const folder = nfd.openFolderDialog(null) catch unreachable;
-                        if (folder) |path| {
-                            defer nfd.freePath(path);
+                        pixi.state.popups.user_state = .folder;
+                        pixi.state.popups.user_path_type = .project;
+                    }
+                    if (pixi.state.popups.user_path_type == .project) {
+                        if (pixi.state.popups.user_path) |path| {
                             pixi.editor.setProjectFolder(path);
+                            nfd.freePath(path);
+                            pixi.state.popups.user_path = null;
+                            pixi.state.popups.user_path_type = .none;
                         }
                     }
                 }

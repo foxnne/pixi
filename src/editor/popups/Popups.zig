@@ -45,12 +45,28 @@ animation_fps: usize = 0,
 heightmap: bool = false,
 // About
 about: bool = false,
+// User
+user_state: UserState = .none,
+user_filter: ?[:0]const u8 = null,
+user_path: ?[:0]const u8 = null,
+user_path_type: UserPathType = .none,
 
 pub const SetupState = enum { none, new, slice, import_png };
 pub const RenameState = enum { none, rename, duplicate };
 pub const ExportToPngState = enum { selected_sprite, selected_animation, selected_layer, all_layers, full_image };
 pub const CloseState = enum { none, one, all };
 pub const AnimationState = enum { none, create, edit };
+pub const UserState = enum { none, file, folder, save };
+pub const UserPathType = enum {
+    none,
+    project,
+    export_sprite,
+    export_animation,
+    export_layer,
+    export_all_layers,
+    export_full_image,
+    new_png,
+};
 
 pub fn anyPopupOpen(popups: *Popups) bool {
     return popups.rename or popups.file_setup or popups.file_confirm_close or popups.layer_setup or popups.export_to_png or popups.animation;
