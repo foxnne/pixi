@@ -107,8 +107,17 @@ pub fn draw() void {
             }
 
             if (zgui.button("Export", .{ .w = window_size[0] })) {
-                if (nfd.saveFileDialog(null, null) catch unreachable) |path| {
+                pixi.state.popups.user_filter = null;
+                pixi.state.popups.user_state = .save;
+                pixi.state.popups.user_path_type = .export_atlas;
+            }
+
+            if (pixi.state.popups.user_path_type == .export_atlas) {
+                if (pixi.state.popups.user_path) |path| {
                     pixi.state.atlas.save(path) catch unreachable;
+                    defer nfd.freePath(path);
+                    pixi.state.popups.user_path = null;
+                    pixi.state.popups.user_path_type = .none;
                 }
             }
         }

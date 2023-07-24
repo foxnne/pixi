@@ -66,6 +66,7 @@ pub const UserPathType = enum {
     export_all_layers,
     export_full_image,
     new_png,
+    export_atlas,
 };
 
 pub fn anyPopupOpen(popups: *Popups) bool {
