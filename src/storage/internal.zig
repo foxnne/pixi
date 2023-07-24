@@ -76,11 +76,11 @@ pub const Pixi = struct {
 
     pub fn processSampleTool(file: *Pixi, canvas: Canvas) void {
         const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-        const sample_button = pixi.state.controls.mouse.secondary.state;
+        const sample_button = if (pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
 
         if (!sample_key and !sample_button) return;
 
-        var mouse_position = pixi.state.controls.mouse.position.toSlice();
+        var mouse_position = pixi.state.mouse.position;
         var camera = switch (canvas) {
             .primary => file.camera,
             .flipbook => file.flipbook_camera,
@@ -159,8 +159,8 @@ pub const Pixi = struct {
         }
 
         const canvas_center_offset = canvasCenterOffset(file, canvas);
-        const mouse_position = pixi.state.controls.mouse.position.toSlice();
-        const previous_mouse_position = pixi.state.controls.mouse.previous_position.toSlice();
+        const mouse_position = pixi.state.mouse.position;
+        const previous_mouse_position = pixi.state.mouse.previous_position;
 
         var layer: pixi.storage.Internal.Layer = if (pixi.state.tools.current == .heightmap) file.heightmap_layer.? else file.layers.items[file.selected_layer_index];
 
@@ -185,7 +185,7 @@ pub const Pixi = struct {
             }),
         };
 
-        if (pixi.state.controls.mouse.primary.down()) {
+        if (if (pixi.state.mouse.button(.primary)) |primary| primary.down() else false) {
             const color = switch (pixi.state.tools.current) {
                 .pencil => pixi.state.colors.primary,
                 .eraser => [_]u8{ 0, 0, 0, 0 },
@@ -193,7 +193,7 @@ pub const Pixi = struct {
                 else => unreachable,
             };
 
-            if (pixi.state.controls.mouse.dragging()) {
+            if (!std.mem.eql(f32, &pixi.state.mouse.position, &pixi.state.mouse.previous_position)) {
                 if (pixel_coords_opt) |pixel_coord| {
                     const prev_pixel_coords_opt = switch (canvas) {
                         .primary => camera.pixelCoordinates(.{
@@ -246,7 +246,7 @@ pub const Pixi = struct {
                         pixi.state.allocator.free(pixel_coords);
                     }
                 }
-            } else if (pixi.state.controls.mouse.primary.pressed()) {
+            } else if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false) {
                 if (pixel_coords_opt) |pixel_coord| {
                     const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
@@ -291,7 +291,7 @@ pub const Pixi = struct {
             }
 
             // Submit the stroke change buffer
-            if (file.buffers.stroke.indices.items.len > 0 and pixi.state.controls.mouse.primary.released()) {
+            if (file.buffers.stroke.indices.items.len > 0 and if (pixi.state.mouse.button(.primary)) |primary| primary.released() else false) {
                 const layer_index: i32 = if (pixi.state.tools.current == .heightmap) -1 else @as(i32, @intCast(file.selected_layer_index));
                 const change = try file.buffers.stroke.toChange(layer_index);
                 try file.history.append(change);
@@ -303,7 +303,7 @@ pub const Pixi = struct {
         if (pixi.state.sidebar != .animations or pixi.state.tools.current != .animation) return;
 
         const canvas_center_offset = canvasCenterOffset(file, .primary);
-        const mouse_position = pixi.state.controls.mouse.position.toSlice();
+        const mouse_position = pixi.state.mouse.position;
 
         if (file.camera.pixelCoordinates(.{
             .texture_position = canvas_center_offset,
@@ -326,10 +326,10 @@ pub const Pixi = struct {
                 pixi.state.popups.animation_length = 1;
             }
 
-            if (pixi.state.controls.mouse.primary.pressed())
+            if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false)
                 pixi.state.popups.animation_start = tile_index;
 
-            if (pixi.state.controls.mouse.primary.released()) {
+            if (if (pixi.state.mouse.button(.primary)) |primary| primary.released() else false) {
                 if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |primary| {
                     if (primary.down()) {
                         var valid: bool = true;
@@ -406,7 +406,7 @@ pub const Pixi = struct {
         }) return;
 
         const canvas_center_offset = canvasCenterOffset(file, canvas);
-        const mouse_position = pixi.state.controls.mouse.position.toSlice();
+        const mouse_position = pixi.state.mouse.position;
 
         var layer: pixi.storage.Internal.Layer = file.layers.items[file.selected_layer_index];
 
@@ -431,7 +431,7 @@ pub const Pixi = struct {
             }),
         };
 
-        if (pixi.state.controls.mouse.primary.pressed()) {
+        if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false) {
             if (pixel_coords_opt) |pixel_coord| {
                 var pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 

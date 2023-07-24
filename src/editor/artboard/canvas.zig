@@ -40,7 +40,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     file.temporary_layer.clear(true);
 
     if (zgui.isWindowHovered(.{})) {
-        var mouse_position = pixi.state.controls.mouse.position.toSlice();
+        var mouse_position = pixi.state.mouse.position;
 
         file.camera.processZoomTooltip(file.camera.zoom);
 
@@ -66,27 +66,31 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             file.processFillTool(.primary) catch unreachable;
             file.processAnimationTool() catch unreachable;
 
-            if (pixi.state.controls.mouse.primary.pressed()) {
-                var tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
-                var tile_index = tile_column + tile_row * tiles_wide;
+            if (pixi.state.mouse.button(.primary)) |primary| {
+                if (primary.pressed()) {
+                    var tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
+                    var tile_index = tile_column + tile_row * tiles_wide;
 
-                if (pixi.state.sidebar == .sprites) {
-                    file.makeSpriteSelection(tile_index);
-                } else if (pixi.state.tools.current != .animation) {
-                    // Ensure we only set the request state on the first set.
-                    if (file.flipbook_scroll_request) |*request| {
-                        request.elapsed = 0.0;
-                        request.from = file.flipbook_scroll;
-                        request.to = file.flipbookScrollFromSpriteIndex(tile_index);
-                    } else {
-                        file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
+                    if (pixi.state.sidebar == .sprites) {
+                        file.makeSpriteSelection(tile_index);
+                    } else if (pixi.state.tools.current != .animation) {
+                        // Ensure we only set the request state on the first set.
+                        if (file.flipbook_scroll_request) |*request| {
+                            request.elapsed = 0.0;
+                            request.from = file.flipbook_scroll;
+                            request.to = file.flipbookScrollFromSpriteIndex(tile_index);
+                        } else {
+                            file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
+                        }
                     }
                 }
             }
         } else {
-            if (pixi.state.controls.mouse.primary.released()) {
-                if (pixi.state.sidebar == .sprites) {
-                    file.selected_sprites.clearAndFree();
+            if (pixi.state.mouse.button(.primary)) |primary| {
+                if (primary.released()) {
+                    if (pixi.state.sidebar == .sprites) {
+                        file.selected_sprites.clearAndFree();
+                    }
                 }
             }
         }
@@ -121,7 +125,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (file.camera.zoom >= 30.0) {
                 if (file.camera.pixelCoordinates(.{
                     .texture_position = canvas_center_offset,
-                    .position = pixi.state.controls.mouse.position.toSlice(),
+                    .position = pixi.state.mouse.position,
                     .width = file.width,
                     .height = file.height,
                 })) |pixel_coord| {
@@ -199,20 +203,22 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
 
         if (pixi.state.popups.animation_length > 0 and pixi.state.tools.current == .animation) {
-            if (pixi.state.controls.mouse.primary.down() or pixi.state.popups.animation) {
-                const start_column = @mod(@as(u32, @intCast(pixi.state.popups.animation_start)), tiles_wide);
-                const start_row = @divTrunc(@as(u32, @intCast(pixi.state.popups.animation_start)), tiles_wide);
-                const start_x = @as(f32, @floatFromInt(start_column)) * tile_width + canvas_center_offset[0];
-                const start_y = @as(f32, @floatFromInt(start_row)) * tile_height + canvas_center_offset[1];
-                const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
+            if (pixi.state.mouse.button(.primary)) |primary| {
+                if (primary.down() or pixi.state.popups.animation) {
+                    const start_column = @mod(@as(u32, @intCast(pixi.state.popups.animation_start)), tiles_wide);
+                    const start_row = @divTrunc(@as(u32, @intCast(pixi.state.popups.animation_start)), tiles_wide);
+                    const start_x = @as(f32, @floatFromInt(start_column)) * tile_width + canvas_center_offset[0];
+                    const start_y = @as(f32, @floatFromInt(start_row)) * tile_height + canvas_center_offset[1];
+                    const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
 
-                const end_column = @mod(@as(u32, @intCast(pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1)), tiles_wide);
-                const end_row = @divTrunc(@as(u32, @intCast(pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1)), tiles_wide);
-                const end_x = @as(f32, @floatFromInt(end_column)) * tile_width + canvas_center_offset[0];
-                const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
-                const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
+                    const end_column = @mod(@as(u32, @intCast(pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1)), tiles_wide);
+                    const end_row = @divTrunc(@as(u32, @intCast(pixi.state.popups.animation_start + pixi.state.popups.animation_length - 1)), tiles_wide);
+                    const end_x = @as(f32, @floatFromInt(end_column)) * tile_width + canvas_center_offset[0];
+                    const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
+                    const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-                file.camera.drawAnimationRect(start_rect, end_rect, 6.0, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
+                    file.camera.drawAnimationRect(start_rect, end_rect, 6.0, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
+                }
             }
         }
 
@@ -231,7 +237,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-                    const thickness: f32 = if (i == file.selected_animation_index and (!pixi.state.controls.mouse.primary.down() and !pixi.state.popups.animation)) 4.0 else 2.0;
+                    const thickness: f32 = if (i == file.selected_animation_index and (if (pixi.state.mouse.button(.primary)) |primary| primary.up() else false and !pixi.state.popups.animation)) 4.0 else 2.0;
                     file.camera.drawAnimationRect(start_rect, end_rect, thickness, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
                 }
             } else if (pixi.state.sidebar != .pack) {

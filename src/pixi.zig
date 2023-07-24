@@ -19,8 +19,6 @@ pub const name: [:0]const u8 = "Pixi";
 pub const version: []const u8 = "0.0.1";
 pub const Settings = @import("settings.zig");
 pub const Popups = @import("editor/popups/Popups.zig");
-pub const Hotkeys = @import("input/Hotkeys.zig");
-
 pub const Packer = @import("tools/Packer.zig");
 
 pub const editor = @import("editor/editor.zig");
@@ -54,8 +52,8 @@ pub var framebuffer_size: [2]f32 = undefined;
 pub const PixiState = struct {
     allocator: std.mem.Allocator = undefined,
     settings: Settings = .{},
-    controls: input.Controls = .{},
-    hotkeys: Hotkeys,
+    hotkeys: input.Hotkeys,
+    mouse: input.Mouse,
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
@@ -210,7 +208,8 @@ pub fn init(app: *App) !void {
     const pencil = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
     const eraser = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
 
-    const hotkeys = try Hotkeys.initDefault(allocator);
+    const hotkeys = try input.Hotkeys.initDefault(allocator);
+    const mouse = try input.Mouse.initDefault(allocator);
 
     const packer = try Packer.init(allocator);
 
@@ -228,6 +227,7 @@ pub fn init(app: *App) !void {
         },
         .colors = try Colors.load(),
         .hotkeys = hotkeys,
+        .mouse = mouse,
         .packer = packer,
     };
 
@@ -251,8 +251,6 @@ pub fn init(app: *App) !void {
 }
 
 pub fn updateMainThread(_: *App) !bool {
-    input.process() catch unreachable;
-
     state.popups.user_path = switch (state.popups.user_state) {
         .none => state.popups.user_path,
         .file => if (try nfd.openFileDialog(if (state.popups.user_filter) |filter| blk: {
@@ -308,34 +306,17 @@ pub fn update(app: *App) !bool {
                 state.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
             },
             .mouse_scroll => |mouse_scroll| {
-                state.controls.mouse.scroll_x = mouse_scroll.xoffset;
-                state.controls.mouse.scroll_y = mouse_scroll.yoffset;
+                state.mouse.scroll_x = mouse_scroll.xoffset;
+                state.mouse.scroll_y = mouse_scroll.yoffset;
             },
             .mouse_motion => |mouse_motion| {
-                state.controls.mouse.position = .{ .x = @floatCast(mouse_motion.pos.x * content_scale[0]), .y = @floatCast(mouse_motion.pos.y * content_scale[1]) };
+                state.mouse.position = .{ @floatCast(mouse_motion.pos.x * content_scale[0]), @floatCast(mouse_motion.pos.y * content_scale[1]) };
             },
             .mouse_press => |mouse_press| {
-                switch (mouse_press.button) {
-                    .left => {
-                        state.controls.mouse.primary.state = true;
-                        state.controls.mouse.clicked_position = .{ .x = @floatCast(mouse_press.pos.x * content_scale[0]), .y = @floatCast(mouse_press.pos.y * content_scale[1]) };
-                    },
-                    .right => {
-                        state.controls.mouse.secondary.state = true;
-                    },
-                    else => {},
-                }
+                state.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press);
             },
             .mouse_release => |mouse_release| {
-                switch (mouse_release.button) {
-                    .left => {
-                        state.controls.mouse.primary.state = false;
-                    },
-                    .right => {
-                        state.controls.mouse.secondary.state = false;
-                    },
-                    else => {},
-                }
+                state.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release);
             },
             .close => {
                 var should_close = true;
@@ -356,6 +337,8 @@ pub fn update(app: *App) !bool {
         }
         zgui.mach_backend.passEvent(event, content_scale);
     }
+
+    try input.process();
 
     editor.draw();
 
@@ -397,9 +380,12 @@ pub fn update(app: *App) !bool {
         hotkey.previous_state = hotkey.state;
     }
 
-    state.controls.mouse.primary.previous_state = state.controls.mouse.primary.state;
-    state.controls.mouse.secondary.previous_state = state.controls.mouse.secondary.state;
-    state.controls.mouse.previous_position = state.controls.mouse.position;
+    for (state.mouse.buttons) |*button| {
+        button.previous_state = button.state;
+    }
+
+    state.mouse.previous_position = state.mouse.position;
+
     if (state.should_close and !editor.saving())
         return true;
 

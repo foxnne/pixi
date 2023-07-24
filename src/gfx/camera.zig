@@ -190,7 +190,7 @@ pub const Camera = struct {
         zgui.setMouseCursor(.none);
         if (pixi.application.core.cursorMode() == .normal)
             pixi.application.core.setCursorMode(.hidden);
-        var position = pixi.state.controls.mouse.position.toSlice();
+        var position = pixi.state.mouse.position;
 
         const draw_list = zgui.getForegroundDrawList();
 
@@ -259,7 +259,7 @@ pub const Camera = struct {
     }
 
     pub fn isHovered(camera: Camera, rect: [4]f32) bool {
-        const mouse_position: [2]f32 = .{ pixi.state.controls.mouse.position.x, pixi.state.controls.mouse.position.y };
+        const mouse_position = pixi.state.mouse.position;
         return camera.isContained(rect, mouse_position);
     }
 
@@ -355,13 +355,13 @@ pub const Camera = struct {
 
         // Handle controls while canvas is hovered
         if (zgui.isWindowHovered(.{})) {
-            if (pixi.state.controls.mouse.scroll_x) |x| {
+            if (pixi.state.mouse.scroll_x) |x| {
                 if (!zoom_key and camera.zoom_timer >= pixi.state.settings.zoom_time) {
                     camera.position[0] -= x * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
                 }
-                pixi.state.controls.mouse.scroll_x = null;
+                pixi.state.mouse.scroll_x = null;
             }
-            if (pixi.state.controls.mouse.scroll_y) |y| {
+            if (pixi.state.mouse.scroll_y) |y| {
                 if (zoom_key) {
                     camera.zoom_timer = 0.0;
                     camera.zoom_wait_timer = 0.0;
@@ -388,7 +388,7 @@ pub const Camera = struct {
                 } else if (camera.zoom_timer >= pixi.state.settings.zoom_time) {
                     camera.position[1] -= y * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
                 }
-                pixi.state.controls.mouse.scroll_y = null;
+                pixi.state.mouse.scroll_y = null;
             }
             const mouse_drag_delta = zgui.getMouseDragDelta(.middle, .{ .lock_threshold = 0.0 });
             if (mouse_drag_delta[0] != 0.0 or mouse_drag_delta[1] != 0.0) {
@@ -408,7 +408,7 @@ pub const Camera = struct {
                 }
             },
             .mouse => {
-                if (pixi.state.controls.mouse.scroll_x == null and pixi.state.controls.mouse.scroll_y == null and camera.zoom_wait_timer >= pixi.state.settings.zoom_wait_time) {
+                if (pixi.state.mouse.scroll_x == null and pixi.state.mouse.scroll_y == null and camera.zoom_wait_timer >= pixi.state.settings.zoom_wait_time) {
                     camera.zoom_timer = @min(camera.zoom_timer + pixi.state.delta_time, pixi.state.settings.zoom_time);
                 }
             },

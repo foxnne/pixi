@@ -1,6 +1,5 @@
 const std = @import("std");
 const zm = @import("zmath");
-//const zglfw = @import("zglfw");
 const math = @import("../math/math.zig");
 const pixi = @import("../pixi.zig");
 const nfd = @import("nfd");
@@ -74,7 +73,7 @@ pub const Hotkey = struct {
     }
 };
 
-pub fn hotkey(self: Self, action: Action) ?*Hotkey {
+pub fn hotkey(self: *Self, action: Action) ?*Hotkey {
     for (self.hotkeys) |*hk| {
         const key_tag = std.meta.activeTag(hk.action);
         if (key_tag == std.meta.activeTag(action)) {
@@ -103,8 +102,7 @@ pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
                     .release => false,
                     else => true,
                 };
-            }
-            if (@as(u8, @bitCast(hk.mods)) == @as(u8, @bitCast(mods))) {
+            } else if (@as(u8, @bitCast(hk.mods)) == @as(u8, @bitCast(mods))) {
                 hk.previous_state = hk.state;
                 hk.state = switch (state) {
                     .release => false,
@@ -157,10 +155,8 @@ pub fn process(self: *Self) !void {
     }
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
-            if (try nfd.openFolderDialog(null)) |folder| {
-                pixi.editor.setProjectFolder(folder);
-                nfd.freePath(folder);
-            }
+            pixi.state.popups.user_state = .folder;
+            pixi.state.popups.user_path_type = .project;
         }
     }
 

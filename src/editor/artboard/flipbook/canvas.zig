@@ -144,7 +144,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (file.flipbook_camera.isHovered(dst_rect) and !zgui.isAnyItemHovered()) {
                 if (i != file.selected_sprite_index) {
                     file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.style.text.toU32());
-                    if (pixi.state.controls.mouse.primary.pressed() and file.selected_sprite_index != i) {
+                    if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != i) {
                         file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
                     }
                 } else {
