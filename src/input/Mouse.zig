@@ -18,7 +18,7 @@ pub const ButtonState = enum {
 
 pub const Button = struct {
     button: MouseButton,
-    mods: ?Mods,
+    mods: ?Mods = null,
     action: Action,
     state: bool = false,
     previous_state: bool = false,
@@ -98,19 +98,16 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
     {
         try buttons.append(.{
             .button = MouseButton.left,
-            .mods = null,
             .action = Action.primary,
         });
 
         try buttons.append(.{
             .button = MouseButton.right,
-            .mods = null,
             .action = Action.secondary,
         });
 
         try buttons.append(.{
             .button = MouseButton.right,
-            .mods = null,
             .action = Action.sample,
         });
     }

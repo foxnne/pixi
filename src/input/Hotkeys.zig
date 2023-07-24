@@ -47,7 +47,7 @@ hotkeys: []Hotkey,
 pub const Hotkey = struct {
     shortcut: [:0]const u8 = undefined,
     key: mach.Core.Key,
-    mods: Mods,
+    mods: ?Mods = null,
     action: Action,
     state: bool = false,
     previous_state: bool = false,
@@ -96,18 +96,20 @@ pub fn hotkey(self: *Self, action: Action) ?*Hotkey {
 pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
     for (self.hotkeys) |*hk| {
         if (hk.key == k) {
-            if (state == .release) {
+            if (state == .release or hk.mods == null) {
                 hk.previous_state = hk.state;
                 hk.state = switch (state) {
                     .release => false,
                     else => true,
                 };
-            } else if (@as(u8, @bitCast(hk.mods)) == @as(u8, @bitCast(mods))) {
-                hk.previous_state = hk.state;
-                hk.state = switch (state) {
-                    .release => false,
-                    else => true,
-                };
+            } else if (hk.mods) |md| {
+                if (@as(u8, @bitCast(md)) == @as(u8, @bitCast(mods))) {
+                    hk.previous_state = hk.state;
+                    hk.state = switch (state) {
+                        .release => false,
+                        else => true,
+                    };
+                }
             }
         }
     }
@@ -333,14 +335,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "]",
             .key = Key.right_bracket,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .proc = Proc.size_up },
         });
 
@@ -348,14 +342,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "[",
             .key = Key.left_bracket,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .proc = Proc.size_down },
         });
     }
@@ -366,14 +352,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "esc",
             .key = Key.escape,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .tool = Tool.pointer },
         });
 
@@ -381,14 +359,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "d",
             .key = Key.d,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .tool = Tool.pencil },
         });
 
@@ -396,14 +366,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "e",
             .key = Key.e,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .tool = Tool.eraser },
         });
 
@@ -411,14 +373,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "a",
             .key = Key.a,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .tool = Tool.animation },
         });
 
@@ -426,14 +380,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "h",
             .key = Key.h,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .tool = Tool.heightmap },
         });
 
@@ -441,14 +387,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "b",
             .key = Key.b,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .tool = Tool.bucket },
         });
     }
@@ -458,14 +396,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "f",
             .key = Key.f,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .sidebar = Sidebar.files },
         });
 
@@ -473,14 +403,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "t",
             .key = Key.t,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .sidebar = Sidebar.tools },
         });
 
@@ -488,14 +410,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "l",
             .key = Key.l,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .sidebar = Sidebar.layers },
         });
 
@@ -503,14 +417,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "s",
             .key = Key.s,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .sidebar = Sidebar.sprites },
         });
 
@@ -518,14 +424,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "a",
             .key = Key.a,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .sidebar = Sidebar.animations },
         });
 
@@ -533,14 +431,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "p",
             .key = Key.p,
-            .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
-            },
             .action = .{ .sidebar = Sidebar.pack },
         });
     }
