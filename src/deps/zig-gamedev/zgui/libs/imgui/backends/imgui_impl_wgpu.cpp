@@ -42,6 +42,7 @@ struct Config
 {
     unsigned int pipeline_multisample_count;
     unsigned int texture_filter_mode;
+    WGPUTextureFormat depth_stencil_format;
 };
 bool ImGui_ImplWGPU_Init(WGPUDevice device, int num_frames_in_flight, WGPUTextureFormat rt_format, const Config* config);
 void ImGui_ImplWGPU_Shutdown(void);
@@ -540,10 +541,11 @@ static void ImGui_ImplWGPU_CreateFontsTexture()
     // (Bilinear sampling is required by default. Set 'io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines' or 'style.AntiAliasedLinesUseTex = false' to allow point/nearest sampling)
     {
         const WGPUFilterMode filter_mode = g_config.texture_filter_mode == 1 ? WGPUFilterMode_Linear : WGPUFilterMode_Nearest;
+        const WGPUMipmapFilterMode mipmap_filter_mode = g_config.texture_filter_mode == 1 ? WGPUMipmapFilterMode_Linear : WGPUMipmapFilterMode_Nearest;
         WGPUSamplerDescriptor sampler_desc = {};
         sampler_desc.minFilter = filter_mode;
         sampler_desc.magFilter = filter_mode;
-        sampler_desc.mipmapFilter = filter_mode;
+        sampler_desc.mipmapFilter = mipmap_filter_mode;
         sampler_desc.addressModeU = WGPUAddressMode_Repeat;
         sampler_desc.addressModeV = WGPUAddressMode_Repeat;
         sampler_desc.addressModeW = WGPUAddressMode_Repeat;
@@ -636,12 +638,14 @@ bool ImGui_ImplWGPU_CreateDeviceObjects(void)
 
     // Create depth-stencil State
     WGPUDepthStencilState depth_stencil_state = {};
-    depth_stencil_state.depthBias = 0;
-    depth_stencil_state.depthBiasClamp = 0;
-    depth_stencil_state.depthBiasSlopeScale = 0;
+    depth_stencil_state.format = g_config.depth_stencil_format;
+    depth_stencil_state.depthWriteEnabled = false;
+    depth_stencil_state.depthCompare = WGPUCompareFunction_Always;
+    depth_stencil_state.stencilFront.compare = WGPUCompareFunction_Always;
+    depth_stencil_state.stencilBack.compare = WGPUCompareFunction_Always;
 
     // Configure disabled depth-stencil state
-    graphics_pipeline_desc.depthStencil = nullptr;
+    graphics_pipeline_desc.depthStencil = g_config.depth_stencil_format == WGPUTextureFormat_Undefined  ? nullptr :  &depth_stencil_state;
 
     g_pipelineState = wgpuDeviceCreateRenderPipeline(g_wgpuDevice, &graphics_pipeline_desc);
 

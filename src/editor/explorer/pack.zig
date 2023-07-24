@@ -1,10 +1,11 @@
 const std = @import("std");
-const zgui = @import("zgui");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 const nfd = @import("nfd");
-const pixi = @import("root");
 
 pub fn draw() void {
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 6.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 6.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
     defer zgui.popStyleVar(.{ .count = 1 });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.highlight_secondary.toSlice() });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.highlight_secondary.toSlice() });
@@ -106,8 +107,17 @@ pub fn draw() void {
             }
 
             if (zgui.button("Export", .{ .w = window_size[0] })) {
-                if (nfd.saveFileDialog(null, null) catch unreachable) |path| {
+                pixi.state.popups.user_filter = null;
+                pixi.state.popups.user_state = .save;
+                pixi.state.popups.user_path_type = .export_atlas;
+            }
+
+            if (pixi.state.popups.user_path_type == .export_atlas) {
+                if (pixi.state.popups.user_path) |path| {
                     pixi.state.atlas.save(path) catch unreachable;
+                    defer nfd.freePath(path);
+                    pixi.state.popups.user_path = null;
+                    pixi.state.popups.user_path_type = .none;
                 }
             }
         }

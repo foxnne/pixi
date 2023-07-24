@@ -1,16 +1,17 @@
 const std = @import("std");
-const pixi = @import("root");
-const zgui = @import("zgui");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 
 pub fn draw() void {
     if (pixi.state.popups.file_confirm_close) {
         zgui.openPopup("Confirm close...", .{});
     } else return;
 
-    const popup_width = 350 * pixi.state.window.scale[0];
-    const popup_height = if (pixi.state.popups.file_confirm_close_state == .one) 120 * pixi.state.window.scale[1] else 250 * pixi.state.window.scale[1];
+    const popup_width = 350 * pixi.content_scale[0];
+    const popup_height = if (pixi.state.popups.file_confirm_close_state == .one) 120 * pixi.content_scale[1] else 250 * pixi.content_scale[1];
 
-    const window_size = pixi.state.window.size * pixi.state.window.scale;
+    var window_size = pixi.framebuffer_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     zgui.setNextWindowPos(.{
@@ -34,8 +35,8 @@ pub fn draw() void {
 
         const style = zgui.getStyle();
         const spacing = style.item_spacing[0];
-        const full_width = popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - zgui.calcTextSize("Name", .{})[0];
-        const third_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing * 2.0) / 3.0;
+        const full_width = popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - zgui.calcTextSize("Name", .{})[0];
+        const third_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing * 2.0) / 3.0;
 
         switch (pixi.state.popups.file_confirm_close_state) {
             .one => {
@@ -47,7 +48,7 @@ pub fn draw() void {
             .all => {
                 zgui.textWrapped("The following files have unsaved changes, are you sure you want to close?", .{});
                 zgui.spacing();
-                if (zgui.beginChild("OpenFileArea", .{ .h = 120 * pixi.state.window.scale[1] })) {
+                if (zgui.beginChild("OpenFileArea", .{ .h = 120 * pixi.content_scale[1] })) {
                     defer zgui.endChild();
                     for (pixi.state.open_files.items) |file| {
                         const base_name = std.fs.path.basename(file.path);

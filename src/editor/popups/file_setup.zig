@@ -1,16 +1,17 @@
 const std = @import("std");
-const pixi = @import("root");
-const zgui = @import("zgui");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 
 pub fn draw() void {
     if (pixi.state.popups.file_setup) {
         zgui.openPopup("File Setup...", .{});
     } else return;
 
-    const popup_width = 350 * pixi.state.window.scale[0];
-    const popup_height = 300 * pixi.state.window.scale[1];
+    const popup_width = 350 * pixi.content_scale[0];
+    const popup_height = 300 * pixi.content_scale[1];
 
-    const window_size = pixi.state.window.size * pixi.state.window.scale;
+    var window_size = pixi.framebuffer_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     zgui.setNextWindowPos(.{
@@ -33,7 +34,7 @@ pub fn draw() void {
 
         const style = zgui.getStyle();
 
-        const full_width = popup_width - (style.frame_padding[0] * 3 * pixi.state.window.scale[0]) - zgui.calcTextSize("Tile Height", .{})[0];
+        const full_width = popup_width - (style.frame_padding[0] * 3 * pixi.content_scale[0]) - zgui.calcTextSize("Tile Height", .{})[0];
         const base_name = std.fs.path.basename(&pixi.state.popups.file_setup_path);
         const base_name_index = if (std.mem.indexOf(u8, pixi.state.popups.file_setup_path[0..], base_name)) |index| index else 0;
 
@@ -117,8 +118,8 @@ pub fn draw() void {
             zgui.textColored(pixi.state.style.highlight_primary.toSlice(), " " ++ pixi.fa.check, .{});
         }
 
-        const spacing = 5.0 * pixi.state.window.scale[0];
-        const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing) / 2.0;
+        const spacing = 5.0 * pixi.content_scale[0];
+        const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
         if (zgui.button("Cancel", .{ .w = half_width })) {
             pixi.state.popups.fileSetupClose();
         }

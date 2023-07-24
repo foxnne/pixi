@@ -1,6 +1,7 @@
 const std = @import("std");
-const zgui = @import("zgui");
-const pixi = @import("root");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
@@ -28,7 +29,7 @@ pub var hover_timer: f32 = 0.0;
 pub fn draw() void {
     if (pixi.state.project_folder) |path| {
         const folder = std.fs.path.basename(path);
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 5.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
 
         // Open files
         const file_count = pixi.state.open_files.items.len;
@@ -38,7 +39,7 @@ pub fn draw() void {
             })) {
                 zgui.separator();
 
-                if (zgui.beginChild("OpenFiles", .{ .h = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (zgui.getTextLineHeight() + 6.0 * pixi.state.window.scale[0]) })) {
+                if (zgui.beginChild("OpenFiles", .{ .h = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (zgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]) })) {
                     zgui.spacing();
 
                     var hovered: bool = false;
@@ -52,10 +53,10 @@ pub fn draw() void {
                             pixi.editor.setActiveFile(i);
                         }
 
-                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
-                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
-                        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.state.window.scale[0] });
-                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
+                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });
+                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
+                        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.content_scale[0] });
+                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
                         zgui.pushStrId(file.path);
                         if (zgui.beginPopupContextItem()) {
                             contextMenuFile(file.path);
@@ -66,7 +67,7 @@ pub fn draw() void {
 
                         if (zgui.isItemHovered(.{})) {
                             hovered = true;
-                            hover_timer += pixi.state.gctx.stats.delta_time;
+                            hover_timer += pixi.state.delta_time;
 
                             if (hover_timer >= 1.0) {
                                 if (zgui.beginTooltip()) {
@@ -91,10 +92,10 @@ pub fn draw() void {
                 .default_open = true,
             },
         })) {
-            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
-            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
-            zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.state.window.scale[0] });
-            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
+            zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.content_scale[0] });
+            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
             zgui.pushStrId(path);
             if (zgui.beginPopupContextItem()) {
                 contextMenuFolder(path);
@@ -134,10 +135,10 @@ pub fn draw() void {
 }
 
 pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) void {
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.state.window.scale[0], 2.0 * pixi.state.window.scale[1] } });
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 6.0 * pixi.state.window.scale[1] } });
-    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.state.window.scale[0] });
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.state.window.scale[0], 10.0 * pixi.state.window.scale[1] } });
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
+    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.content_scale[0] });
+    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
     defer zgui.popStyleVar(.{ .count = 4 });
 
     const recursor = struct {
@@ -244,13 +245,18 @@ fn contextMenuFolder(folder: [:0]const u8) void {
         pixi.state.popups.fileSetupNew(new_file_path);
     }
     if (zgui.menuItem("New File from PNG...", .{})) {
-        const png_path = nfd.openFileDialog("png", null) catch unreachable;
+        pixi.state.popups.user_filter = "png";
+        pixi.state.popups.user_state = .file;
+    }
 
-        if (png_path) |path| {
+    if (pixi.state.popups.user_path_type == .new_png) {
+        if (pixi.state.popups.user_path) |path| {
             defer nfd.freePath(path);
             var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{path[0 .. path.len - 4]}) catch unreachable;
             defer pixi.state.allocator.free(new_file_path);
             pixi.state.popups.fileSetupImportPng(new_file_path, path);
+            pixi.state.popups.user_path_type = .none;
+            pixi.state.popups.user_path = null;
         }
     }
     if (zgui.menuItem("New Folder...", .{})) {

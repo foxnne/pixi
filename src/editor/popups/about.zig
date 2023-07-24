@@ -1,16 +1,17 @@
 const std = @import("std");
-const pixi = @import("root");
-const zgui = @import("zgui");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 
 pub fn draw() void {
     if (pixi.state.popups.about) {
         zgui.openPopup("About", .{});
     } else return;
 
-    const popup_width = 450 * pixi.state.window.scale[0];
-    const popup_height = 450 * pixi.state.window.scale[1];
+    const popup_width = 450 * pixi.content_scale[0];
+    const popup_height = 450 * pixi.content_scale[1];
 
-    const window_size = pixi.state.window.size * pixi.state.window.scale;
+    var window_size = pixi.framebuffer_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     zgui.setNextWindowPos(.{
@@ -32,8 +33,8 @@ pub fn draw() void {
         defer zgui.endPopup();
         zgui.spacing();
 
-        const w = @as(f32, @floatFromInt(pixi.state.fox_logo.image.width / 4)) * pixi.state.window.scale[0];
-        const h = @as(f32, @floatFromInt(pixi.state.fox_logo.image.height / 4)) * pixi.state.window.scale[1];
+        const w = @as(f32, @floatFromInt(pixi.state.fox_logo.image.width / 4)) * pixi.content_scale[0];
+        const h = @as(f32, @floatFromInt(pixi.state.fox_logo.image.height / 4)) * pixi.content_scale[1];
         const window_position = zgui.getWindowPos();
         const center: [2]f32 = .{ zgui.getWindowWidth() / 2.0, zgui.getWindowHeight() / 2.0 };
         zgui.setCursorPosX(center[0] - w / 2.0);
@@ -44,7 +45,7 @@ pub fn draw() void {
             .r = w / 2.5,
             .col = pixi.state.style.foreground.toU32(),
         });
-        zgui.image(pixi.state.gctx.lookupResource(pixi.state.fox_logo.view_handle).?, .{
+        zgui.image(pixi.state.fox_logo.view_handle, .{
             .w = w,
             .h = h,
         });

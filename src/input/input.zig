@@ -1,9 +1,9 @@
 const std = @import("std");
 const zm = @import("zmath");
-const zglfw = @import("zglfw");
 const math = @import("../math/math.zig");
-const pixi = @import("root");
+const pixi = @import("../pixi.zig");
 const nfd = @import("nfd");
+const mach = @import("core");
 
 pub const callbacks = @import("callbacks.zig");
 
@@ -13,7 +13,7 @@ pub const Controls = struct {
 
 pub const MouseButton = struct {
     name: [:0]const u8,
-    button: zglfw.MouseButton,
+    button: mach.Core.MouseButton,
     state: bool = false,
     previous_state: bool = false,
 
@@ -65,8 +65,8 @@ pub const MouseCursor = enum {
 };
 
 pub const Mouse = struct {
-    primary: MouseButton = .{ .name = "Primary", .button = zglfw.MouseButton.left },
-    secondary: MouseButton = .{ .name = "Secondary", .button = zglfw.MouseButton.right },
+    primary: MouseButton = .{ .name = "Primary", .button = mach.Core.MouseButton.left },
+    secondary: MouseButton = .{ .name = "Secondary", .button = mach.Core.MouseButton.right },
     position: MousePosition = .{},
     previous_position: MousePosition = .{},
     clicked_position: MousePosition = .{},

@@ -1,12 +1,20 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const zgpu = @import("src/deps/zig-gamedev/zgpu/build.zig");
 const zmath = @import("src/deps/zig-gamedev/zmath/build.zig");
-const zpool = @import("src/deps/zig-gamedev/zpool/build.zig");
-const zglfw = @import("src/deps/zig-gamedev/zglfw/build.zig");
 const zstbi = @import("src/deps/zig-gamedev/zstbi/build.zig");
 const zgui = @import("src/deps/zig-gamedev/zgui/build.zig");
+
+const glfw = @import("mach_glfw");
+const gpu_dawn = @import("src/deps/mach-gpu-dawn/build.zig");
+const gpu = @import("src/deps/mach-gpu/build.zig").Sdk(.{
+    .gpu_dawn = gpu_dawn,
+});
+pub const core = @import("src/deps/mach-core/build.zig").Sdk(.{
+    .gpu = gpu,
+    .gpu_dawn = gpu_dawn,
+    .glfw = glfw,
+});
 
 const nfd = @import("src/deps/nfd-zig/build.zig");
 const zip = @import("src/deps/zip/build.zig");
@@ -14,7 +22,6 @@ const zip = @import("src/deps/zip/build.zig");
 const content_dir = "assets/";
 
 const src_path = "src/pixi.zig";
-const name = @import("src/pixi.zig").name;
 
 const ProcessAssetsStep = @import("src/tools/process_assets.zig").ProcessAssetsStep;
 
@@ -22,97 +29,55 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    ensureTarget(target) catch return;
-    ensureGit(b.allocator) catch return;
-    ensureGitLfs(b.allocator, "install") catch return;
-    ensureGitLfs(b.allocator, "pull") catch return;
-
-    // Fetch the latest Dawn/WebGPU binaries.
-    {
-        var child = std.ChildProcess.init(&.{ "git", "submodule", "update", "--init", "--remote" }, b.allocator);
-        child.cwd = thisDir();
-        child.stderr = std.io.getStdErr();
-        child.stdout = std.io.getStdOut();
-        _ = child.spawnAndWait() catch {
-            std.log.err("Failed to fetch git submodule. Please try to re-clone.", .{});
-            return;
-        };
-    }
-    ensureGitLfsContent("/src/deps/zig-gamedev/zgpu/libs/dawn/x86_64-windows-gnu/dawn.lib") catch return;
-
-    var exe = b.addExecutable(.{
-        .name = name,
-        .root_source_file = .{ .path = src_path },
-        .optimize = optimize,
-        .target = target,
-    });
-
-    exe.want_lto = false;
-    if (exe.optimize == .ReleaseFast) {
-        exe.strip = true;
-        if (target.isWindows()) {
-            exe.subsystem = .Windows;
-        } else {
-            exe.subsystem = .Posix;
-        }
-    }
-    b.default_step.dependOn(&exe.step);
-
     const zstbi_pkg = zstbi.package(b, target, optimize, .{});
     const zmath_pkg = zmath.package(b, target, optimize, .{});
-    const zglfw_pkg = zglfw.package(b, target, optimize, .{});
-    const zpool_pkg = zpool.package(b, target, optimize, .{});
-    const zgpu_pkg = zgpu.package(b, target, optimize, .{
-        .options = .{ .uniforms_buffer_size = 4 * 1024 * 1024 },
-        .deps = .{ .zpool = zpool_pkg.zpool, .zglfw = zglfw_pkg.zglfw },
-    });
-    const zgui_pkg = zgui.package(b, target, optimize, .{
+
+    const zgui_pkg = zgui.Package(.{
+        .gpu_dawn = core.gpu_dawn,
+    }).build(b, target, optimize, .{
         .options = .{
-            .backend = .glfw_wgpu,
+            .backend = .mach,
         },
-    });
+        .gpu_dawn_options = .{},
+    }) catch unreachable;
+
     const zip_pkg = zip.package(b, .{});
 
-    const run_cmd = b.addRunArtifact(exe);
-    const run_step = b.step("run", b.fmt("run {s}", .{name}));
-    run_cmd.step.dependOn(b.getInstallStep());
-    run_step.dependOn(&run_cmd.step);
-    exe.addModule("zstbi", zstbi_pkg.zstbi);
-    exe.addModule("zmath", zmath_pkg.zmath);
-    exe.addModule("zpool", zpool_pkg.zpool);
-    exe.addModule("zglfw", zglfw_pkg.zglfw);
-    exe.addModule("zgpu", zgpu_pkg.zgpu);
-    exe.addModule("zgui", zgui_pkg.zgui);
-    exe.addModule("nfd", nfd.getModule(b));
-    exe.addModule("zip", zip_pkg.module);
+    const app = try core.App.init(b, .{
+        .name = "pixi",
+        .src = src_path,
+        .target = target,
+        .deps = &[_]std.build.ModuleDependency{
+            .{ .name = "zstbi", .module = zstbi_pkg.zstbi },
+            .{ .name = "zmath", .module = zmath_pkg.zmath },
+            .{ .name = "zgui", .module = zgui_pkg.zgui },
+            .{ .name = "nfd", .module = nfd.getModule(b) },
+            .{ .name = "zip", .module = zip_pkg.module },
+        },
+        .optimize = optimize,
+    });
 
-    const nfd_lib = nfd.makeLib(b, target, optimize);
+    const install_step = b.step("pixi", "Install pixi");
+    install_step.dependOn(&app.install.step);
+    b.getInstallStep().dependOn(install_step);
 
-    zgpu_pkg.link(exe);
-    zglfw_pkg.link(exe);
-    zstbi_pkg.link(exe);
-    zgui_pkg.link(exe);
-    exe.linkLibrary(nfd_lib);
-    zip.link(exe);
+    const run_step = b.step("run", "Run pixi");
+    run_step.dependOn(&app.run.step);
 
-    const tests = b.step("test", "Run all tests");
-    const pixi_tests = b.addTest(.{
-        .root_source_file = .{ .path = thisDir() ++ "src/pixi.zig" },
+    const unit_tests = b.addTest(.{
+        .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
-    pixi_tests.addModule("zstbi", zstbi_pkg.zstbi);
-    pixi_tests.addModule("zmath", zmath_pkg.zmath);
-    pixi_tests.addModule("zpool", zpool_pkg.zpool);
-    pixi_tests.addModule("zglfw", zglfw_pkg.zglfw);
-    pixi_tests.addModule("zgui", zgui_pkg.zgui);
-    pixi_tests.addModule("zgpu", zgpu_pkg.zgpu);
+    const run_unit_tests = b.addRunArtifact(unit_tests);
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_unit_tests.step);
 
-    zgpu_pkg.link(pixi_tests);
-    zglfw_pkg.link(pixi_tests);
-    zstbi_pkg.link(pixi_tests);
-    zgui_pkg.link(pixi_tests);
-    tests.dependOn(&pixi_tests.step);
+    const nfd_lib = nfd.makeLib(b, target, optimize);
+    zstbi_pkg.link(app.compile);
+    zgui_pkg.link(app.compile);
+    app.compile.linkLibrary(nfd_lib);
+    zip.link(app.compile);
 
     const assets = ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");
     const process_assets_step = b.step("process-assets", "generates struct for all assets");
@@ -123,146 +88,134 @@ pub fn build(b: *std.Build) !void {
         .install_dir = .{ .custom = "" },
         .install_subdir = "bin/" ++ content_dir,
     });
-    exe.step.dependOn(&install_content_step.step);
-    b.installArtifact(exe);
+    app.compile.step.dependOn(&install_content_step.step);
 }
 
 inline fn thisDir() []const u8 {
     return comptime std.fs.path.dirname(@src().file) orelse ".";
 }
 
-fn ensureTarget(cross: std.zig.CrossTarget) !void {
-    const target = (std.zig.system.NativeTargetInfo.detect(cross) catch unreachable).target;
+fn glfwLink(b: *std.Build, step: *std.build.CompileStep) void {
+    const glfw_dep = b.dependency("mach_glfw", .{
+        .target = step.target,
+        .optimize = step.optimize,
+    });
+    step.linkLibrary(glfw_dep.artifact("mach-glfw"));
+    step.addModule("glfw", glfw_dep.module("mach-glfw"));
 
-    const supported = switch (target.os.tag) {
-        .windows => target.cpu.arch.isX86() and target.abi.isGnu(),
-        .linux => (target.cpu.arch.isX86() or target.cpu.arch.isAARCH64()) and target.abi.isGnu(),
-        .macos => blk: {
-            if (!target.cpu.arch.isX86() and !target.cpu.arch.isAARCH64()) break :blk false;
-
-            // If min. target macOS version is lesser than the min version we have available, then
-            // our Dawn binary is incompatible with the target.
-            if (target.os.version_range.semver.min.order(
-                .{ .major = 12, .minor = 0, .patch = 0 },
-            ) == .lt) break :blk false;
-            break :blk true;
-        },
-        else => false,
-    };
-    if (!supported) {
-        std.log.err("\n" ++
-            \\---------------------------------------------------------------------------
-            \\
-            \\Unsupported build target. Dawn/WebGPU binary for this target is not available.
-            \\
-            \\Following targets are supported:
-            \\
-            \\x86_64-windows-gnu
-            \\x86_64-linux-gnu
-            \\x86_64-macos.12-none
-            \\aarch64-linux-gnu
-            \\aarch64-macos.12-none
-            \\
-            \\---------------------------------------------------------------------------
-            \\
-        , .{});
-        return error.TargetNotSupported;
-    }
+    // TODO(build-system): Zig package manager currently can't handle transitive deps like this, so we need to use
+    // these explicitly here:
+    @import("glfw").addPaths(step);
+    if (step.target.toTarget().isDarwin()) xcode_frameworks.addPaths(b, step);
+    step.linkLibrary(b.dependency("vulkan_headers", .{
+        .target = step.target,
+        .optimize = step.optimize,
+    }).artifact("vulkan-headers"));
+    step.linkLibrary(b.dependency("x11_headers", .{
+        .target = step.target,
+        .optimize = step.optimize,
+    }).artifact("x11-headers"));
+    step.linkLibrary(b.dependency("wayland_headers", .{
+        .target = step.target,
+        .optimize = step.optimize,
+    }).artifact("wayland-headers"));
 }
 
-fn ensureGit(allocator: std.mem.Allocator) !void {
-    const printErrorMsg = (struct {
-        fn impl() void {
-            std.log.err("\n" ++
-                \\---------------------------------------------------------------------------
-                \\
-                \\'git version' failed. Is Git not installed?
-                \\
-                \\---------------------------------------------------------------------------
-                \\
-            , .{});
-        }
-    }).impl;
-    const argv = &[_][]const u8{ "git", "version" };
-    const result = std.ChildProcess.exec(.{
-        .allocator = allocator,
-        .argv = argv,
-        .cwd = ".",
-    }) catch { // e.g. FileNotFound
-        printErrorMsg();
-        return error.GitNotFound;
+fn sdkPath(comptime suffix: []const u8) []const u8 {
+    if (suffix[0] != '/') @compileError("suffix must be an absolute path");
+    return comptime blk: {
+        const root_dir = std.fs.path.dirname(@src().file) orelse ".";
+        break :blk root_dir ++ suffix;
     };
-    defer {
+}
+
+const xcode_frameworks = struct {
+    pub fn addPaths(b: *std.Build, step: *std.build.CompileStep) void {
+        // branch: mach
+        xEnsureGitRepoCloned(b.allocator, "https://github.com/hexops/xcode-frameworks", "723aa55e9752c8c6c25d3413722b5fe13d72ac4f", xSdkPath("/zig-cache/xcode_frameworks")) catch |err| @panic(@errorName(err));
+
+        step.addFrameworkPath(xSdkPath("/zig-cache/xcode_frameworks/Frameworks"));
+        step.addSystemIncludePath(xSdkPath("/zig-cache/xcode_frameworks/include"));
+        step.addLibraryPath(xSdkPath("/zig-cache/xcode_frameworks/lib"));
+    }
+
+    fn xEnsureGitRepoCloned(allocator: std.mem.Allocator, clone_url: []const u8, revision: []const u8, dir: []const u8) !void {
+        if (xIsEnvVarTruthy(allocator, "NO_ENSURE_SUBMODULES") or xIsEnvVarTruthy(allocator, "NO_ENSURE_GIT")) {
+            return;
+        }
+
+        xEnsureGit(allocator);
+
+        if (std.fs.openDirAbsolute(dir, .{})) |_| {
+            const current_revision = try xGetCurrentGitRevision(allocator, dir);
+            if (!std.mem.eql(u8, current_revision, revision)) {
+                // Reset to the desired revision
+                xExec(allocator, &[_][]const u8{ "git", "fetch" }, dir) catch |err| std.debug.print("warning: failed to 'git fetch' in {s}: {s}\n", .{ dir, @errorName(err) });
+                try xExec(allocator, &[_][]const u8{ "git", "checkout", "--quiet", "--force", revision }, dir);
+                try xExec(allocator, &[_][]const u8{ "git", "submodule", "update", "--init", "--recursive" }, dir);
+            }
+            return;
+        } else |err| return switch (err) {
+            error.FileNotFound => {
+                std.log.info("cloning required dependency..\ngit clone {s} {s}..\n", .{ clone_url, dir });
+
+                try xExec(allocator, &[_][]const u8{ "git", "clone", "-c", "core.longpaths=true", clone_url, dir }, ".");
+                try xExec(allocator, &[_][]const u8{ "git", "checkout", "--quiet", "--force", revision }, dir);
+                try xExec(allocator, &[_][]const u8{ "git", "submodule", "update", "--init", "--recursive" }, dir);
+                return;
+            },
+            else => err,
+        };
+    }
+
+    fn xExec(allocator: std.mem.Allocator, argv: []const []const u8, cwd: []const u8) !void {
+        var child = std.ChildProcess.init(argv, allocator);
+        child.cwd = cwd;
+        _ = try child.spawnAndWait();
+    }
+
+    fn xGetCurrentGitRevision(allocator: std.mem.Allocator, cwd: []const u8) ![]const u8 {
+        const result = try std.ChildProcess.exec(.{ .allocator = allocator, .argv = &.{ "git", "rev-parse", "HEAD" }, .cwd = cwd });
         allocator.free(result.stderr);
-        allocator.free(result.stdout);
+        if (result.stdout.len > 0) return result.stdout[0 .. result.stdout.len - 1]; // trim newline
+        return result.stdout;
     }
-    if (result.term.Exited != 0) {
-        printErrorMsg();
-        return error.GitNotFound;
-    }
-}
 
-fn ensureGitLfs(allocator: std.mem.Allocator, cmd: []const u8) !void {
-    const printNoGitLfs = (struct {
-        fn impl() void {
-            std.log.err("\n" ++
-                \\---------------------------------------------------------------------------
-                \\
-                \\Please install Git LFS (Large File Support) extension and run 'zig build' again.
-                \\
-                \\For more info about Git LFS see: https://git-lfs.github.com/
-                \\
-                \\---------------------------------------------------------------------------
-                \\
-            , .{});
+    fn xEnsureGit(allocator: std.mem.Allocator) void {
+        const argv = &[_][]const u8{ "git", "--version" };
+        const result = std.ChildProcess.exec(.{
+            .allocator = allocator,
+            .argv = argv,
+            .cwd = ".",
+        }) catch { // e.g. FileNotFound
+            std.log.err("mach: error: 'git --version' failed. Is git not installed?", .{});
+            std.process.exit(1);
+        };
+        defer {
+            allocator.free(result.stderr);
+            allocator.free(result.stdout);
         }
-    }).impl;
-    const argv = &[_][]const u8{ "git", "lfs", cmd };
-    const result = std.ChildProcess.exec(.{
-        .allocator = allocator,
-        .argv = argv,
-        .cwd = ".",
-    }) catch { // e.g. FileNotFound
-        printNoGitLfs();
-        return error.GitLfsNotFound;
-    };
-    defer {
-        allocator.free(result.stderr);
-        allocator.free(result.stdout);
-    }
-    if (result.term.Exited != 0) {
-        printNoGitLfs();
-        return error.GitLfsNotFound;
-    }
-}
-
-fn ensureGitLfsContent(comptime file_path: []const u8) !void {
-    const printNoGitLfsContent = (struct {
-        fn impl() void {
-            std.log.err("\n" ++
-                \\---------------------------------------------------------------------------
-                \\
-                \\Something went wrong, Git LFS content has not been downloaded.
-                \\
-                \\Please try to re-clone the repo and build again.
-                \\
-                \\---------------------------------------------------------------------------
-                \\
-            , .{});
+        if (result.term.Exited != 0) {
+            std.log.err("mach: error: 'git --version' failed. Is git not installed?", .{});
+            std.process.exit(1);
         }
-    }).impl;
-    const file = std.fs.openFileAbsolute(thisDir() ++ file_path, .{}) catch {
-        printNoGitLfsContent();
-        return error.GitLfsNoContent;
-    };
-    defer file.close();
-
-    const size = file.getEndPos() catch {
-        printNoGitLfsContent();
-        return error.GitLfsNoContent;
-    };
-    if (size <= 1024) {
-        printNoGitLfsContent();
-        return error.GitLfsNoContent;
     }
-}
+
+    fn xIsEnvVarTruthy(allocator: std.mem.Allocator, name: []const u8) bool {
+        if (std.process.getEnvVarOwned(allocator, name)) |truthy| {
+            defer allocator.free(truthy);
+            if (std.mem.eql(u8, truthy, "true")) return true;
+            return false;
+        } else |_| {
+            return false;
+        }
+    }
+
+    fn xSdkPath(comptime suffix: []const u8) []const u8 {
+        if (suffix[0] != '/') @compileError("suffix must be an absolute path");
+        return comptime blk: {
+            const root_dir = std.fs.path.dirname(@src().file) orelse ".";
+            break :blk root_dir ++ suffix;
+        };
+    }
+};

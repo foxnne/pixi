@@ -1,6 +1,7 @@
 const std = @import("std");
-const pixi = @import("root");
-const zgui = @import("zgui");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 
 const History = pixi.storage.Internal.Pixi.History;
 
@@ -16,10 +17,10 @@ pub fn draw() void {
             zgui.openPopup(dialog_name, .{});
         } else return;
 
-        const popup_width = 350 * pixi.state.window.scale[0];
-        const popup_height = 115 * pixi.state.window.scale[1];
+        const popup_width = 350 * pixi.content_scale[0];
+        const popup_height = 115 * pixi.content_scale[1];
 
-        const window_size = pixi.state.window.size * pixi.state.window.scale;
+        var window_size = pixi.framebuffer_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         zgui.setNextWindowPos(.{
@@ -43,8 +44,8 @@ pub fn draw() void {
 
             const style = zgui.getStyle();
             const spacing = style.item_spacing[0];
-            const full_width = popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - zgui.calcTextSize("Name", .{})[0];
-            const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.state.window.scale[0]) - spacing) / 2.0;
+            const full_width = popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - zgui.calcTextSize("Name", .{})[0];
+            const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
             zgui.pushItemWidth(full_width);
             var enter = zgui.inputText("Name", .{

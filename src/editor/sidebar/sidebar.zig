@@ -1,5 +1,6 @@
-const zgui = @import("zgui");
-const pixi = @import("root");
+const pixi = @import("../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
@@ -10,8 +11,8 @@ pub fn draw() void {
         .cond = .always,
     });
     zgui.setNextWindowSize(.{
-        .w = pixi.state.settings.sidebar_width * pixi.state.window.scale[0],
-        .h = pixi.state.window.size[1] * pixi.state.window.scale[1],
+        .w = pixi.state.settings.sidebar_width * pixi.content_scale[0],
+        .h = pixi.framebuffer_size[1],
     });
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.5 } });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
@@ -47,8 +48,8 @@ pub fn draw() void {
 
 fn drawOption(option: pixi.Sidebar, icon: [:0]const u8) void {
     const position = zgui.getCursorPos();
-    const selectable_width = (pixi.state.settings.sidebar_width - 8) * pixi.state.window.scale[0];
-    const selectable_height = (pixi.state.settings.sidebar_width - 8) * pixi.state.window.scale[1];
+    const selectable_width = (pixi.state.settings.sidebar_width - 8) * pixi.content_scale[0];
+    const selectable_height = (pixi.state.settings.sidebar_width - 8) * pixi.content_scale[1];
     zgui.dummy(.{
         .w = selectable_width,
         .h = selectable_height,

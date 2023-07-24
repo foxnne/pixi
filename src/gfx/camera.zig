@@ -1,9 +1,9 @@
 const std = @import("std");
 const zm = @import("zmath");
-const zgpu = @import("zgpu");
-const zglfw = @import("zglfw");
-const zgui = @import("zgui");
-const pixi = @import("root");
+const pixi = @import("../pixi.zig");
+const mach = @import("core");
+const gpu = mach.gpu;
+const zgui = @import("zgui").MachImgui(mach);
 
 pub const Camera = struct {
     position: [2]f32 = .{ 0.0, 0.0 },
@@ -174,44 +174,43 @@ pub const Camera = struct {
         });
     }
 
-    pub fn drawTexture(camera: Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, position: [2]f32, color: u32) void {
+    pub fn drawTexture(camera: Camera, texture: *gpu.TextureView, width: u32, height: u32, position: [2]f32, color: u32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(width)), @as(f32, @floatFromInt(height)) });
 
         const draw_list = zgui.getWindowDrawList();
-        if (pixi.state.gctx.lookupResource(texture)) |texture_id| {
-            draw_list.addImage(texture_id, .{
-                .pmin = rect_min_max[0],
-                .pmax = rect_min_max[1],
-                .col = color,
-            });
-        }
+
+        draw_list.addImage(texture, .{
+            .pmin = rect_min_max[0],
+            .pmax = rect_min_max[1],
+            .col = color,
+        });
     }
 
-    pub fn drawCursor(_: Camera, texture: zgpu.TextureViewHandle, width: u32, height: u32, color: u32) void {
+    pub fn drawCursor(_: Camera, texture: *gpu.TextureView, width: u32, height: u32, color: u32) void {
         zgui.setMouseCursor(.none);
+        if (pixi.application.core.cursorMode() == .normal)
+            pixi.application.core.setCursorMode(.hidden);
         var position = pixi.state.controls.mouse.position.toSlice();
 
         const draw_list = zgui.getForegroundDrawList();
-        if (pixi.state.gctx.lookupResource(texture)) |texture_id| {
-            draw_list.addImage(texture_id, .{
-                .pmin = .{ position[0], position[1] - @as(f32, @floatFromInt(height)) },
-                .pmax = .{ position[0] + @as(f32, @floatFromInt(width)), position[1] },
-                .col = color,
-            });
-        }
+
+        draw_list.addImage(texture, .{
+            .pmin = .{ position[0], position[1] - @as(f32, @floatFromInt(height)) },
+            .pmax = .{ position[0] + @as(f32, @floatFromInt(width)), position[1] },
+            .col = color,
+        });
     }
 
     pub fn drawLayer(camera: Camera, layer: pixi.storage.Internal.Layer, position: [2]f32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(layer.texture.image.width)), @as(f32, @floatFromInt(layer.texture.image.height)) });
 
         const draw_list = zgui.getWindowDrawList();
-        if (pixi.state.gctx.lookupResource(layer.texture.view_handle)) |texture_id| {
-            draw_list.addImage(texture_id, .{
-                .pmin = rect_min_max[0],
-                .pmax = rect_min_max[1],
-                .col = 0xFFFFFFFF,
-            });
-        }
+
+        draw_list.addImage(layer.texture.view_handle, .{
+            .pmin = rect_min_max[0],
+            .pmax = rect_min_max[1],
+            .col = 0xFFFFFFFF,
+        });
     }
 
     pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
@@ -224,15 +223,14 @@ pub const Camera = struct {
         const uvmax: [2]f32 = .{ (src_rect[0] + src_rect[2]) * inv_w, (src_rect[1] + src_rect[3]) * inv_h };
 
         const draw_list = zgui.getWindowDrawList();
-        if (pixi.state.gctx.lookupResource(layer.texture.view_handle)) |texture_id| {
-            draw_list.addImage(texture_id, .{
-                .pmin = rect_min_max[0],
-                .pmax = rect_min_max[1],
-                .uvmin = uvmin,
-                .uvmax = uvmax,
-                .col = 0xFFFFFFFF,
-            });
-        }
+
+        draw_list.addImage(layer.texture.view_handle, .{
+            .pmin = rect_min_max[0],
+            .pmax = rect_min_max[1],
+            .uvmin = uvmin,
+            .uvmax = uvmax,
+            .col = 0xFFFFFFFF,
+        });
     }
 
     pub fn nearestZoomIndex(camera: Camera) usize {
@@ -399,19 +397,19 @@ pub const Camera = struct {
 
                 zgui.resetMouseDragDelta(.middle);
             }
-            camera.zoom_wait_timer = @min(camera.zoom_wait_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_wait_time);
+            camera.zoom_wait_timer = @min(camera.zoom_wait_timer + pixi.state.delta_time, pixi.state.settings.zoom_wait_time);
         }
 
         // Round to nearest pixel perfect zoom step when zoom key is released
         switch (pixi.state.settings.input_scheme) {
             .trackpad => {
                 if (!zoom_key) {
-                    camera.zoom_timer = @min(camera.zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
+                    camera.zoom_timer = @min(camera.zoom_timer + pixi.state.delta_time, pixi.state.settings.zoom_time);
                 }
             },
             .mouse => {
                 if (pixi.state.controls.mouse.scroll_x == null and pixi.state.controls.mouse.scroll_y == null and camera.zoom_wait_timer >= pixi.state.settings.zoom_wait_time) {
-                    camera.zoom_timer = @min(camera.zoom_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_time);
+                    camera.zoom_timer = @min(camera.zoom_timer + pixi.state.delta_time, pixi.state.settings.zoom_time);
                 }
             },
         }
@@ -425,9 +423,9 @@ pub const Camera = struct {
     }
 
     pub fn drawLayerTooltip(camera: Camera, layer_index: usize) void {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] } });
-        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.state.window.scale[0] });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
+        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.content_scale[0] });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
         defer zgui.popStyleVar(.{ .count = 3 });
         _ = camera;
         if (zgui.beginTooltip()) {
@@ -448,9 +446,9 @@ pub const Camera = struct {
     }
 
     pub fn drawColorTooltip(camera: Camera, color: [4]u8) void {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] } });
-        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.state.window.scale[0] });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
+        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.content_scale[0] });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
         defer zgui.popStyleVar(.{ .count = 3 });
         _ = camera;
         if (zgui.beginTooltip()) {
@@ -463,8 +461,8 @@ pub const Camera = struct {
             };
             _ = zgui.colorButton("Eyedropper", .{
                 .col = col,
-                .w = pixi.state.settings.eyedropper_preview_size * pixi.state.window.scale[0],
-                .h = pixi.state.settings.eyedropper_preview_size * pixi.state.window.scale[1],
+                .w = pixi.state.settings.eyedropper_preview_size * pixi.content_scale[0],
+                .h = pixi.state.settings.eyedropper_preview_size * pixi.content_scale[1],
             });
             zgui.text("R: {d}", .{color[0]});
             zgui.text("G: {d}", .{color[1]});
@@ -476,13 +474,13 @@ pub const Camera = struct {
     pub fn processZoomTooltip(camera: *Camera, zoom: f32) void {
         var zoom_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
 
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.state.window.scale[0], 8.0 * pixi.state.window.scale[1] } });
-        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.state.window.scale[0] });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.state.window.scale[0], 4.0 * pixi.state.window.scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
+        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.content_scale[0] });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
         defer zgui.popStyleVar(.{ .count = 3 });
         // Draw current zoom tooltip
         if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
-            camera.zoom_tooltip_timer = @min(camera.zoom_tooltip_timer + pixi.state.gctx.stats.delta_time, pixi.state.settings.zoom_tooltip_time);
+            camera.zoom_tooltip_timer = @min(camera.zoom_tooltip_timer + pixi.state.delta_time, pixi.state.settings.zoom_tooltip_time);
             camera.drawZoomTooltip(zoom);
         } else if (zoom_key and pixi.state.settings.input_scheme == .trackpad) {
             camera.zoom_tooltip_timer = 0.0;

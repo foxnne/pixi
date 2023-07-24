@@ -1,9 +1,13 @@
 const std = @import("std");
 const zm = @import("zmath");
-const zglfw = @import("zglfw");
+//const zglfw = @import("zglfw");
 const math = @import("../math/math.zig");
-const pixi = @import("root");
+const pixi = @import("../pixi.zig");
 const nfd = @import("nfd");
+const mach = @import("core");
+
+const Key = mach.Core.Key;
+const Mods = mach.Core.KeyMods;
 
 const builtin = @import("builtin");
 
@@ -11,6 +15,12 @@ const Self = @This();
 
 pub const Tool = pixi.Tool;
 pub const Sidebar = pixi.Sidebar;
+
+pub const KeyState = enum {
+    press,
+    repeat,
+    release,
+};
 
 pub const Proc = enum {
     save,
@@ -37,8 +47,8 @@ hotkeys: []Hotkey,
 
 pub const Hotkey = struct {
     shortcut: [:0]const u8 = undefined,
-    key: zglfw.Key,
-    mods: zglfw.Mods,
+    key: mach.Core.Key,
+    mods: Mods,
     action: Action,
     state: bool = false,
     previous_state: bool = false,
@@ -84,19 +94,19 @@ pub fn hotkey(self: Self, action: Action) ?*Hotkey {
     return null;
 }
 
-pub fn setHotkeyState(self: *Self, k: zglfw.Key, mods: zglfw.Mods, action: zglfw.Action) void {
+pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
     for (self.hotkeys) |*hk| {
         if (hk.key == k) {
-            if (action == .release) {
+            if (state == .release) {
                 hk.previous_state = hk.state;
-                hk.state = switch (action) {
+                hk.state = switch (state) {
                     .release => false,
                     else => true,
                 };
             }
-            if (@as(i32, @bitCast(hk.mods)) == @as(i32, @bitCast(mods))) {
+            if (@as(u8, @bitCast(hk.mods)) == @as(u8, @bitCast(mods))) {
                 hk.previous_state = hk.state;
-                hk.state = switch (action) {
+                hk.state = switch (state) {
                     .release => false,
                     else => true,
                 };
@@ -145,7 +155,6 @@ pub fn process(self: *Self) !void {
             }
         }
     }
-
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
             if (try nfd.openFolderDialog(null)) |folder| {
@@ -177,16 +186,30 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Primary
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl" else if (macos) "cmd" else "super",
-            .key = if (windows) zglfw.Key.left_control else zglfw.Key.left_super,
-            .mods = .{ .control = windows, .super = !windows },
+            .key = if (windows) Key.left_control else Key.left_super,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.primary },
         });
 
         // Secondary
         try hotkeys.append(.{
             .shortcut = "shift",
-            .key = zglfw.Key.left_shift,
-            .mods = .{ .shift = true },
+            .key = Key.left_shift,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.secondary },
         });
     }
@@ -195,78 +218,148 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Save
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+s" else if (macos) "cmd+s" else "super+s",
-            .key = zglfw.Key.s,
-            .mods = .{ .control = windows, .super = !windows },
+            .key = Key.s,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.save },
         });
 
         // Save all
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+shift+s" else if (macos) "cmd+shift+s" else "super+shift+s",
-            .key = zglfw.Key.s,
-            .mods = .{ .control = windows, .super = !windows, .shift = true },
+            .key = Key.s,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.save_all },
         });
 
         // Undo
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+z" else if (macos) "cmd+z" else "super+z",
-            .key = zglfw.Key.z,
-            .mods = .{ .control = windows, .super = !windows },
+            .key = Key.z,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.undo },
         });
 
         // Redo
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+shift+z" else if (macos) "cmd+shift+z" else "super+shift+z",
-            .key = zglfw.Key.z,
-            .mods = .{ .control = windows, .super = !windows, .shift = true },
+            .key = Key.z,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.redo },
         });
 
         // Zoom
         try hotkeys.append(.{
-            .key = if (windows) zglfw.Key.left_control else zglfw.Key.left_super,
-            .mods = .{ .control = windows, .super = !windows },
+            .key = if (windows) Key.left_control else Key.left_super,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.zoom },
         });
 
         // Sample
         try hotkeys.append(.{
-            .key = zglfw.Key.left_alt,
-            .mods = .{},
+            .key = Key.left_alt,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.sample },
         });
 
         // Open folder
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+f" else if (macos) "cmd+f" else "super+f",
-            .key = zglfw.Key.f,
-            .mods = .{ .control = windows, .super = !windows },
+            .key = Key.f,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.folder },
         });
 
         // Export png
         try hotkeys.append(.{
             .shortcut = if (windows) "ctrl+p" else if (macos) "cmd+p" else "super+p",
-            .key = zglfw.Key.p,
-            .mods = .{ .control = windows, .super = !windows },
+            .key = Key.p,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.export_png },
         });
 
         // Size up
         try hotkeys.append(.{
             .shortcut = "]",
-            .key = zglfw.Key.right_bracket,
-            .mods = .{},
+            .key = Key.right_bracket,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.size_up },
         });
 
         // Size down
         try hotkeys.append(.{
             .shortcut = "[",
-            .key = zglfw.Key.left_bracket,
-            .mods = .{},
+            .key = Key.left_bracket,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .proc = Proc.size_down },
         });
     }
@@ -276,48 +369,90 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Pointer
         try hotkeys.append(.{
             .shortcut = "esc",
-            .key = zglfw.Key.escape,
-            .mods = .{},
+            .key = Key.escape,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.pointer },
         });
 
         // Pencil
         try hotkeys.append(.{
             .shortcut = "d",
-            .key = zglfw.Key.d,
-            .mods = .{},
+            .key = Key.d,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.pencil },
         });
 
         // Eraser
         try hotkeys.append(.{
             .shortcut = "e",
-            .key = zglfw.Key.e,
-            .mods = .{},
+            .key = Key.e,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.eraser },
         });
 
         // Animation
         try hotkeys.append(.{
             .shortcut = "a",
-            .key = zglfw.Key.a,
-            .mods = .{},
+            .key = Key.a,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.animation },
         });
 
         // Heightmap
         try hotkeys.append(.{
             .shortcut = "h",
-            .key = zglfw.Key.h,
-            .mods = .{},
+            .key = Key.h,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.heightmap },
         });
 
         // Bucket
         try hotkeys.append(.{
             .shortcut = "b",
-            .key = zglfw.Key.b,
-            .mods = .{},
+            .key = Key.b,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .tool = Tool.bucket },
         });
     }
@@ -326,48 +461,90 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         // Explorer
         try hotkeys.append(.{
             .shortcut = "f",
-            .key = zglfw.Key.f,
-            .mods = .{},
+            .key = Key.f,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.files },
         });
 
         // Tools
         try hotkeys.append(.{
             .shortcut = "t",
-            .key = zglfw.Key.t,
-            .mods = .{},
+            .key = Key.t,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.tools },
         });
 
         // Layers
         try hotkeys.append(.{
             .shortcut = "l",
-            .key = zglfw.Key.l,
-            .mods = .{},
+            .key = Key.l,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.layers },
         });
 
         // Sprites
         try hotkeys.append(.{
             .shortcut = "s",
-            .key = zglfw.Key.s,
-            .mods = .{},
+            .key = Key.s,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.sprites },
         });
 
         // Animations
         try hotkeys.append(.{
             .shortcut = "a",
-            .key = zglfw.Key.a,
-            .mods = .{},
+            .key = Key.a,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.animations },
         });
 
         // Pack
         try hotkeys.append(.{
             .shortcut = "p",
-            .key = zglfw.Key.p,
-            .mods = .{},
+            .key = Key.p,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
             .action = .{ .sidebar = Sidebar.pack },
         });
     }

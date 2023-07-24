@@ -1,9 +1,10 @@
 const std = @import("std");
-const pixi = @import("root");
+const pixi = @import("../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
-const zgui = @import("zgui");
 const nfd = @import("nfd");
 
 pub const Style = @import("style.zig");
@@ -76,9 +77,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
         .deleted_animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
         .flipbook_camera = .{ .position = .{ -@as(f32, @floatFromInt(pixi.state.popups.file_setup_tile_size[0])) / 2.0, 0.0 } },
-        .background_image = undefined,
-        .background_texture_handle = undefined,
-        .background_texture_view_handle = undefined,
+        .background = undefined,
         .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
         .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
         .temporary_layer = undefined,
@@ -88,7 +87,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 
     internal.temporary_layer = .{
         .name = "Temporary",
-        .texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, internal.width, internal.height, .{}),
+        .texture = try pixi.gfx.Texture.createEmpty(pixi.application.core.device(), internal.width, internal.height, .{}),
     };
 
     var new_layer: pixi.storage.Internal.Layer = .{
@@ -98,9 +97,9 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     };
 
     if (import_path) |import| {
-        new_layer.texture = try pixi.gfx.Texture.loadFromFile(pixi.state.gctx, import, .{});
+        new_layer.texture = try pixi.gfx.Texture.loadFromFile(pixi.application.core.device(), import, .{});
     } else {
-        new_layer.texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, internal.width, internal.height, .{});
+        new_layer.texture = try pixi.gfx.Texture.createEmpty(pixi.application.core.device(), internal.width, internal.height, .{});
     }
 
     try internal.layers.append(new_layer);
@@ -181,9 +180,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
             .deleted_animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
             .flipbook_camera = .{ .position = .{ -@as(f32, @floatFromInt(external.tile_width)) / 2.0, 0.0 } },
-            .background_image = undefined,
-            .background_texture_handle = undefined,
-            .background_texture_view_handle = undefined,
+            .background = undefined,
             .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
             .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
             .temporary_layer = undefined,
@@ -193,7 +190,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
 
         internal.temporary_layer = .{
             .name = "temporary",
-            .texture = try pixi.gfx.Texture.createEmpty(pixi.state.gctx, internal.width, internal.height, .{}),
+            .texture = try pixi.gfx.Texture.createEmpty(pixi.application.core.device(), internal.width, internal.height, .{}),
             .visible = true,
         };
 
@@ -210,7 +207,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                 if (img_buf) |data| {
                     var new_layer: pixi.storage.Internal.Layer = .{
                         .name = try pixi.state.allocator.dupeZ(u8, layer.name),
-                        .texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @as([*]u8, @ptrCast(data))[0..img_len], .{}),
+                        .texture = try pixi.gfx.Texture.loadFromMemory(pixi.application.core.device(), @as([*]u8, @ptrCast(data))[0..img_len], .{}),
                         .id = internal.id(),
                     };
                     try internal.layers.append(new_layer);
@@ -234,7 +231,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                     .texture = undefined,
                 };
 
-                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.state.gctx, @as([*]u8, @ptrCast(data))[0..img_len], .{});
+                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(pixi.application.core.device(), @as([*]u8, @ptrCast(data))[0..img_len], .{});
                 new_layer.id = internal.id();
                 internal.heightmap_layer = new_layer;
             }
@@ -353,32 +350,22 @@ pub fn rawCloseFile(index: usize) !void {
 pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
     file.history.deinit();
     file.buffers.deinit();
-    file.background_image.deinit();
-    pixi.state.gctx.releaseResource(file.background_texture_handle);
-    pixi.state.gctx.releaseResource(file.background_texture_view_handle);
-    file.temporary_layer.texture.deinit(pixi.state.gctx);
+    file.background.deinit();
+    file.temporary_layer.texture.deinit();
     if (file.heightmap_layer) |*layer| {
-        layer.texture.deinit(pixi.state.gctx);
-        pixi.state.gctx.releaseResource(layer.texture.handle);
-        pixi.state.gctx.releaseResource(layer.texture.view_handle);
+        layer.texture.deinit();
         pixi.state.allocator.free(layer.name);
     }
     for (file.deleted_heightmap_layers.items) |*layer| {
-        layer.texture.deinit(pixi.state.gctx);
-        pixi.state.gctx.releaseResource(layer.texture.handle);
-        pixi.state.gctx.releaseResource(layer.texture.view_handle);
+        layer.texture.deinit();
         pixi.state.allocator.free(layer.name);
     }
     for (file.layers.items) |*layer| {
-        layer.texture.deinit(pixi.state.gctx);
-        pixi.state.gctx.releaseResource(layer.texture.handle);
-        pixi.state.gctx.releaseResource(layer.texture.view_handle);
+        layer.texture.deinit();
         pixi.state.allocator.free(layer.name);
     }
     for (file.deleted_layers.items) |*layer| {
-        layer.texture.deinit(pixi.state.gctx);
-        pixi.state.gctx.releaseResource(layer.texture.handle);
-        pixi.state.gctx.releaseResource(layer.texture.view_handle);
+        layer.texture.deinit();
         pixi.state.allocator.free(layer.name);
     }
     for (file.sprites.items) |*sprite| {

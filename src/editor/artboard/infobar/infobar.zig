@@ -1,6 +1,7 @@
 const std = @import("std");
-const zgui = @import("zgui");
-const pixi = @import("root");
+const pixi = @import("../../../pixi.zig");
+const mach = @import("core");
+const zgui = @import("zgui").MachImgui(mach);
 
 const spacer: [:0]const u8 = "    ";
 
@@ -8,14 +9,14 @@ pub fn draw() void {
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.background.toSlice() });
     defer zgui.popStyleColor(.{ .count = 1 });
 
-    const h = zgui.getTextLineHeightWithSpacing() + 6.0 * pixi.state.window.scale[1];
+    const h = zgui.getTextLineHeightWithSpacing() + 6.0 * pixi.content_scale[1];
     const y = (zgui.getContentRegionAvail()[1] - h) / 2;
-    const spacing: f32 = 3.0 * pixi.state.window.scale[0];
+    const spacing: f32 = 3.0 * pixi.content_scale[0];
     zgui.setCursorPosY(y);
-    zgui.setCursorPosX(5.0 * pixi.state.window.scale[0]);
+    zgui.setCursorPosX(5.0 * pixi.content_scale[0]);
 
     if (pixi.state.project_folder) |path| {
-        zgui.setCursorPosY(y + 2.0 * pixi.state.window.scale[1]);
+        zgui.setCursorPosY(y + 2.0 * pixi.content_scale[1]);
         zgui.textColored(pixi.state.style.foreground.toSlice(), "{s}", .{pixi.fa.folder_open});
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
