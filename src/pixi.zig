@@ -57,6 +57,7 @@ pub const PixiState = struct {
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
+    previous_atlas_export: ?[:0]const u8 = null,
     background_logo: gfx.Texture,
     fox_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
@@ -410,6 +411,9 @@ pub fn deinit(_: *App) void {
 
         state.allocator.free(atlas.sprites);
         state.allocator.free(atlas.animations);
+    }
+    if (state.previous_atlas_export) |path| {
+        state.allocator.free(path);
     }
     if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
     if (state.atlas.heightmap) |*heightmap| heightmap.deinit();

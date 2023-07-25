@@ -114,10 +114,17 @@ pub fn draw() void {
 
             if (pixi.state.popups.user_path_type == .export_atlas) {
                 if (pixi.state.popups.user_path) |path| {
+                    pixi.state.previous_atlas_export = pixi.state.allocator.dupeZ(u8, path) catch unreachable;
                     pixi.state.atlas.save(path) catch unreachable;
                     defer nfd.freePath(path);
                     pixi.state.popups.user_path = null;
                     pixi.state.popups.user_path_type = .none;
+                }
+            }
+
+            if (pixi.state.previous_atlas_export) |path| {
+                if (zgui.button("Repeat Last Export", .{ .w = window_size[0] })) {
+                    pixi.state.atlas.save(path) catch unreachable;
                 }
             }
         }
