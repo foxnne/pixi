@@ -143,33 +143,43 @@ pub fn draw() void {
                         pixi.state.popups.user_path_type = .export_sprite;
                         pixi.state.popups.user_state = .folder;
                     } else {
-                        pixi.state.popups.user_filter = "pixi";
+                        pixi.state.popups.user_filter = "png";
                         pixi.state.popups.user_path_type = .export_sprite;
                         pixi.state.popups.user_state = .save;
                     }
                 },
                 .selected_animation => {
-                    pixi.state.popups.user_filter = "pixi";
-                    pixi.state.popups.user_path_type = .export_animation;
-                    pixi.state.popups.user_state = .save;
+                    if (pixi.state.popups.export_to_png_preserve_names) {
+                        pixi.state.popups.user_path_type = .export_animation;
+                        pixi.state.popups.user_state = .folder;
+                    } else {
+                        pixi.state.popups.user_filter = "png";
+                        pixi.state.popups.user_path_type = .export_animation;
+                        pixi.state.popups.user_state = .save;
+                    }
                 },
                 .selected_layer => {
-                    pixi.state.popups.user_filter = "pixi";
-                    pixi.state.popups.user_path_type = .export_layer;
-                    pixi.state.popups.user_state = .save;
+                    if (pixi.state.popups.export_to_png_preserve_names) {
+                        pixi.state.popups.user_path_type = .export_layer;
+                        pixi.state.popups.user_state = .folder;
+                    } else {
+                        pixi.state.popups.user_filter = "png";
+                        pixi.state.popups.user_path_type = .export_layer;
+                        pixi.state.popups.user_state = .save;
+                    }
                 },
                 .all_layers => {
                     if (pixi.state.popups.export_to_png_preserve_names) {
                         pixi.state.popups.user_path_type = .export_all_layers;
                         pixi.state.popups.user_state = .folder;
                     } else {
-                        pixi.state.popups.user_filter = "pixi";
+                        pixi.state.popups.user_filter = "png";
                         pixi.state.popups.user_path_type = .export_all_layers;
                         pixi.state.popups.user_state = .save;
                     }
                 },
                 .full_image => {
-                    pixi.state.popups.user_filter = "pixi";
+                    pixi.state.popups.user_filter = "png";
                     pixi.state.popups.user_path_type = .export_full_image;
                     pixi.state.popups.user_state = .save;
                 },
