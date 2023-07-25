@@ -34,6 +34,7 @@ pub const Proc = enum {
     export_png,
     size_up,
     size_down,
+    playpause,
 };
 
 pub const Action = union(enum) {
@@ -152,6 +153,15 @@ pub fn process(self: *Self) !void {
                     if (pixi.state.colors.height > 0)
                         pixi.state.colors.height -= 1;
                 }
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .playpause })) |hk| {
+            if (hk.pressed()) {
+                file.selected_animation_state = switch (file.selected_animation_state) {
+                    .pause => .play,
+                    .play => .pause,
+                };
             }
         }
     }
@@ -343,6 +353,13 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .shortcut = "[",
             .key = Key.left_bracket,
             .action = .{ .proc = Proc.size_down },
+        });
+
+        // Play/Pause
+        try hotkeys.append(.{
+            .shortcut = "space",
+            .key = Key.space,
+            .action = .{ .proc = Proc.playpause },
         });
     }
 
