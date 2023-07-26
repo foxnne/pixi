@@ -151,9 +151,8 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                             }
                         } else {
                             if (try pixi.editor.loadFile(abs_path)) |file| {
-                                try pixi.state.pack_open_files.append(file);
-
-                                try pixi.state.packer.append(&pixi.state.pack_open_files.items[pixi.state.pack_open_files.items.len - 1]);
+                                try pixi.state.packer.open_files.append(file);
+                                try pixi.state.packer.append(&pixi.state.packer.open_files.items[pixi.state.packer.open_files.items.len - 1]);
                             }
                         }
                     }

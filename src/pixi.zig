@@ -61,7 +61,6 @@ pub const PixiState = struct {
     background_logo: gfx.Texture,
     fox_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
-    pack_open_files: std.ArrayList(storage.Internal.Pixi),
     pack_files: PackFiles = .project,
     pack_camera: gfx.Camera = .{},
     test_texture: ?gfx.Texture = null,
@@ -199,7 +198,6 @@ pub fn init(app: *App) !void {
     zstbi.init(allocator);
 
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
-    var pack_open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
     // Logos
     const background_logo = try gfx.Texture.loadFromFile(app.core.device(), assets.icon1024_png.path, .{});
@@ -221,7 +219,6 @@ pub fn init(app: *App) !void {
         .background_logo = background_logo,
         .fox_logo = fox_logo,
         .open_files = open_files,
-        .pack_open_files = pack_open_files,
         .cursors = .{
             .pencil = pencil,
             .eraser = eraser,

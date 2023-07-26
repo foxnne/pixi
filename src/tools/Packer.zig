@@ -37,6 +37,7 @@ animations: std.ArrayList(pixi.storage.External.Animation),
 id_counter: u32 = 0,
 placeholder: Image,
 contains_height: bool = false,
+open_files: std.ArrayList(pixi.storage.Internal.Pixi),
 allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) !Packer {
@@ -49,6 +50,7 @@ pub fn init(allocator: std.mem.Allocator) !Packer {
         .sprites = std.ArrayList(Sprite).init(allocator),
         .frames = std.ArrayList(zstbi.Rect).init(allocator),
         .animations = std.ArrayList(pixi.storage.External.Animation).init(allocator),
+        .open_files = std.ArrayList(pixi.storage.Internal.Pixi).init(allocator),
         .placeholder = .{ .width = 2, .height = 2, .pixels = pixels },
         .allocator = allocator,
     };
@@ -79,6 +81,11 @@ pub fn clearAndFree(self: *Packer) void {
     self.sprites.clearAndFree();
     self.animations.clearAndFree();
     self.contains_height = false;
+
+    for (self.open_files.items) |*file| {
+        pixi.editor.deinitFile(file);
+    }
+    self.open_files.clearAndFree();
 }
 
 pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {

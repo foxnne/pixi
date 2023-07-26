@@ -391,10 +391,6 @@ pub fn deinit() void {
     for (pixi.state.open_files.items) |_| {
         try closeFile(0);
     }
-    for (pixi.state.pack_open_files.items) |*file| {
-        deinitFile(file);
-    }
-    pixi.state.pack_open_files.deinit();
     pixi.state.open_files.deinit();
 
     if (pixi.state.project_folder) |folder| {
