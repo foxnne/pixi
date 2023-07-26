@@ -76,19 +76,16 @@ pub const Hotkey = struct {
 
 pub fn hotkey(self: *Self, action: Action) ?*Hotkey {
     for (self.hotkeys) |*hk| {
-        const key_tag = std.meta.activeTag(hk.action);
-        if (key_tag == std.meta.activeTag(action)) {
-            switch (hk.action) {
-                .tool => |tool| {
-                    if (tool == action.tool) return hk;
-                },
-                .sidebar => |sidebar| {
-                    if (sidebar == action.sidebar) return hk;
-                },
-                .proc => |proc| {
-                    if (proc == action.proc) return hk;
-                },
-            }
+        switch (hk.action) {
+            .tool => |tool| {
+                if (tool == action.tool) return hk;
+            },
+            .sidebar => |sidebar| {
+                if (sidebar == action.sidebar) return hk;
+            },
+            .proc => |proc| {
+                if (proc == action.proc) return hk;
+            },
         }
     }
     return null;
