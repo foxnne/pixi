@@ -48,6 +48,9 @@ pub var content_scale: [2]f32 = undefined;
 pub var window_size: [2]f32 = undefined;
 pub var framebuffer_size: [2]f32 = undefined;
 
+pub const Colors = @import("Colors.zig");
+pub const Cursors = @import("Cursors.zig");
+
 /// Holds the global game state.
 pub const PixiState = struct {
     allocator: std.mem.Allocator = undefined,
@@ -93,16 +96,6 @@ pub const Fonts = struct {
     fa_small_solid: zgui.Font = undefined,
 };
 
-pub const Cursors = struct {
-    pencil: gfx.Texture,
-    eraser: gfx.Texture,
-
-    pub fn deinit(cursors: *Cursors) void {
-        cursors.pencil.deinit();
-        cursors.eraser.deinit();
-    }
-};
-
 pub const Tool = enum {
     pointer,
     pencil,
@@ -129,42 +122,6 @@ pub const Tools = struct {
             tools.previous = tools.current;
             tools.current = tool;
         }
-    }
-};
-
-pub const Colors = struct {
-    primary: [4]u8 = .{ 255, 255, 255, 255 },
-    secondary: [4]u8 = .{ 0, 0, 0, 255 },
-    height: u8 = 0,
-    palettes: std.ArrayList(storage.Internal.Palette),
-    selected_palette_index: usize = 0,
-
-    pub fn load() !Colors {
-        var palettes = std.ArrayList(storage.Internal.Palette).init(state.allocator);
-        var dir = std.fs.cwd().openIterableDir(assets.palettes, .{ .access_sub_paths = false }) catch unreachable;
-        defer dir.close();
-        var iter = dir.iterate();
-        while (iter.next() catch unreachable) |entry| {
-            if (entry.kind == .file) {
-                const ext = std.fs.path.extension(entry.name);
-                if (std.mem.eql(u8, ext, ".hex")) {
-                    const abs_path = try std.fs.path.joinZ(state.allocator, &.{ assets.palettes, entry.name });
-                    defer state.allocator.free(abs_path);
-                    try palettes.append(try storage.Internal.Palette.loadFromFile(abs_path));
-                }
-            }
-        }
-        return .{
-            .palettes = palettes,
-        };
-    }
-
-    pub fn deinit(self: *Colors) void {
-        for (self.palettes.items) |*palette| {
-            state.allocator.free(palette.name);
-            state.allocator.free(palette.colors);
-        }
-        self.palettes.deinit();
     }
 };
 
