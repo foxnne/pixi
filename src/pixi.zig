@@ -61,7 +61,7 @@ pub const PixiState = struct {
     background_logo: gfx.Texture,
     fox_logo: gfx.Texture,
     open_files: std.ArrayList(storage.Internal.Pixi),
-    pack_files: PackFiles = .project,
+    pack_target: PackTarget = .project,
     pack_camera: gfx.Camera = .{},
     test_texture: ?gfx.Texture = null,
     packer: Packer,
@@ -168,7 +168,7 @@ pub const Colors = struct {
     }
 };
 
-pub const PackFiles = enum {
+pub const PackTarget = enum {
     project,
     all_open,
     single_open,
