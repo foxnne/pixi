@@ -210,21 +210,21 @@ pub fn updateMainThread(_: *App) !bool {
         .none => state.popups.user_path,
         .file => if (try nfd.openFileDialog(if (state.popups.user_filter) |filter| blk: {
             break :blk filter;
-        } else null, null)) |path| blk: {
+        } else null, state.project_folder)) |path| blk: {
             state.popups.user_state = .none;
             break :blk path;
         } else blk: {
             state.popups.user_state = .none;
             break :blk null;
         },
-        .folder => if (try nfd.openFolderDialog(null)) |path| blk: {
+        .folder => if (try nfd.openFolderDialog(state.project_folder)) |path| blk: {
             state.popups.user_state = .none;
             break :blk path;
         } else blk: {
             state.popups.user_state = .none;
             break :blk null;
         },
-        .save => if (try nfd.saveFileDialog(if (state.popups.user_filter) |filter| filter else null, null)) |path| blk: {
+        .save => if (try nfd.saveFileDialog(if (state.popups.user_filter) |filter| filter else null, state.project_folder)) |path| blk: {
             state.popups.user_state = .none;
             break :blk path;
         } else blk: {
