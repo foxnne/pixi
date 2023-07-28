@@ -33,7 +33,13 @@ pub fn draw() void {
             }
 
             if (zgui.beginMenu("Recents", true)) {
-                zgui.endMenu();
+                defer zgui.endMenu();
+
+                for (pixi.state.recents.folders.items) |folder| {
+                    if (zgui.menuItem(folder, .{})) {
+                        pixi.editor.setProjectFolder(folder);
+                    }
+                }
             }
 
             zgui.separator();

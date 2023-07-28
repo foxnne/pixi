@@ -50,6 +50,7 @@ pub var framebuffer_size: [2]f32 = undefined;
 
 pub const Colors = @import("Colors.zig");
 pub const Cursors = @import("Cursors.zig");
+pub const Recents = @import("Recents.zig");
 
 /// Holds the global game state.
 pub const PixiState = struct {
@@ -60,6 +61,7 @@ pub const PixiState = struct {
     sidebar: Sidebar = .files,
     style: editor.Style = .{},
     project_folder: ?[:0]const u8 = null,
+    recents: Recents,
     previous_atlas_export: ?[:0]const u8 = null,
     background_logo: gfx.Texture,
     fox_logo: gfx.Texture,
@@ -168,6 +170,7 @@ pub fn init(app: *App) !void {
     const mouse = try input.Mouse.initDefault(allocator);
 
     const packer = try Packer.init(allocator);
+    const recents = try Recents.init(allocator);
 
     state = try gpa.allocator().create(PixiState);
 
@@ -184,6 +187,7 @@ pub fn init(app: *App) !void {
         .hotkeys = hotkeys,
         .mouse = mouse,
         .packer = packer,
+        .recents = recents,
     };
 
     app.* = .{
@@ -193,7 +197,7 @@ pub fn init(app: *App) !void {
 
     zgui.init(allocator);
     zgui.mach_backend.init(&app.core, app.core.device(), app.core.descriptor().format, .{});
-    zgui.io.setIniFilename(assets.root ++ "imgui.ini");
+    zgui.io.setIniFilename("imgui.ini");
     _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
     var config = zgui.FontConfig.init();
     config.merge_mode = true;
@@ -354,6 +358,7 @@ pub fn deinit(_: *App) void {
     state.cursors.deinit();
     state.colors.deinit();
     state.packer.deinit();
+    state.recents.deinit();
     if (state.atlas.external) |*atlas| {
         for (atlas.sprites) |sprite| {
             state.allocator.free(sprite.name);
