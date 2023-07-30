@@ -82,23 +82,6 @@ pub fn MachBackend(comptime mach: anytype) type {
             ImGui_ImplWGPU_NewFrame();
 
             zgui.newFrame();
-
-            // const cursor = zgui.getMouseCursor();
-            // switch (cursor) {
-            //     .none => core.setCursorMode(.hidden),
-            //     .arrow => core.setCursorMode(.normal),
-            //     .text_input => core.setCursorShape(.ibeam),
-            //     .resize_all => core.setCursorShape(.resize_all),
-            //     .resize_ns => core.setCursorShape(.resize_ns),
-            //     .resize_ew => core.setCursorShape(.resize_ew),
-            //     .resize_nesw => core.setCursorShape(.resize_nesw),
-            //     .resize_nwse => core.setCursorShape(.resize_nwse),
-            //     .hand => core.setCursorShape(.pointing_hand),
-            //     .not_allowed => core.setCursorShape(.not_allowed),
-            //     .count => {},
-            // }
-            core.setCursorMode(.normal);
-            core.setCursorShape(.arrow);
         }
 
         pub fn draw(wgpu_render_pass: *const anyopaque) void {

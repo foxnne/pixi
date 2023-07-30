@@ -254,6 +254,7 @@ pub fn update(app: *App) !bool {
 
     var iter = app.core.pollEvents();
     while (iter.next()) |event| {
+        state.cursors.current = .arrow;
         switch (event) {
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
@@ -300,6 +301,7 @@ pub fn update(app: *App) !bool {
     try input.process();
 
     editor.draw();
+    state.cursors.update();
 
     if (app.core.swapChain().getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();

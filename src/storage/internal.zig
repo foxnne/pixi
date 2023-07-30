@@ -153,8 +153,14 @@ pub const Pixi = struct {
         }) return;
 
         switch (pixi.state.tools.current) {
-            .pencil, .heightmap => file.camera.drawCursor(pixi.state.cursors.pencil.view_handle, pixi.state.cursors.pencil.image.width, pixi.state.cursors.pencil.image.height, 0xFFFFFFFF),
-            .eraser => file.camera.drawCursor(pixi.state.cursors.eraser.view_handle, pixi.state.cursors.eraser.image.width, pixi.state.cursors.eraser.image.height, 0xFFFFFFFF),
+            .pencil, .heightmap => {
+                file.camera.drawCursor(pixi.state.cursors.pencil.view_handle, pixi.state.cursors.pencil.image.width, pixi.state.cursors.pencil.image.height, 0xFFFFFFFF);
+                pixi.state.cursors.current = .pencil;
+            },
+            .eraser => {
+                file.camera.drawCursor(pixi.state.cursors.eraser.view_handle, pixi.state.cursors.eraser.image.width, pixi.state.cursors.eraser.image.height, 0xFFFFFFFF);
+                pixi.state.cursors.current = .eraser;
+            },
             else => {},
         }
 
