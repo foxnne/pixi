@@ -127,10 +127,32 @@ pub fn draw() void {
         }
     } else {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
-        defer zgui.popStyleColor(.{ .count = 2 });
-
         zgui.textWrapped("Open a folder to begin editing.", .{});
+        zgui.popStyleColor(.{ .count = 1 });
+
+        if (pixi.state.recents.folders.items.len > 0) {
+            zgui.spacing();
+            zgui.text("Recents", .{});
+            zgui.separator();
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+            defer zgui.popStyleColor(.{ .count = 1 });
+            if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0], .h = 0.0 })) {
+                defer zgui.endChild();
+
+                for (pixi.state.recents.folders.items) |folder| {
+                    var label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.folder, std.fs.path.basename(folder) }) catch unreachable;
+                    defer pixi.state.allocator.free(label);
+
+                    if (zgui.selectable(label, .{})) {
+                        pixi.editor.setProjectFolder(folder);
+                    }
+                    zgui.sameLine(.{});
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+                    zgui.text("  {s}", .{folder});
+                    zgui.popStyleColor(.{ .count = 1 });
+                }
+            }
+        }
     }
 }
 
