@@ -42,10 +42,8 @@ pub fn setProjectFolder(path: [:0]const u8) void {
         pixi.state.allocator.free(folder);
     }
     pixi.state.project_folder = pixi.state.allocator.dupeZ(u8, path) catch unreachable;
-    if (!pixi.state.recents.containsFolder(path)) {
-        pixi.state.recents.folders.append(pixi.state.allocator.dupeZ(u8, path) catch unreachable) catch unreachable;
-        pixi.state.recents.save() catch unreachable;
-    }
+    pixi.state.recents.appendFolder(pixi.state.allocator.dupeZ(u8, path) catch unreachable) catch unreachable;
+    pixi.state.recents.save() catch unreachable;
     pixi.state.sidebar = .files;
 }
 

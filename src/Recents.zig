@@ -36,24 +36,42 @@ pub fn init(allocator: std.mem.Allocator) !Self {
     return .{ .folders = folders, .exports = exports };
 }
 
-pub fn containsFolder(self: *Self, path: [:0]const u8) bool {
-    if (self.folders.items.len == 0) return false;
+pub fn indexOfFolder(self: *Self, path: [:0]const u8) ?usize {
+    if (self.folders.items.len == 0) return null;
 
-    for (self.folders.items) |folder| {
+    for (self.folders.items, 0..) |folder, i| {
         if (std.mem.eql(u8, folder, path))
-            return true;
+            return i;
     }
-    return false;
+    return null;
 }
 
-pub fn containsExport(self: *Self, path: [:0]const u8) bool {
-    if (self.exports.items.len == 0) return false;
+pub fn indexOfExport(self: *Self, path: [:0]const u8) ?usize {
+    if (self.exports.items.len == 0) return null;
 
-    for (self.folders.exports) |exp| {
+    for (self.exports.items, 0..) |exp, i| {
         if (std.mem.eql(u8, exp, path))
-            return true;
+            return i;
     }
-    return false;
+    return null;
+}
+
+pub fn appendFolder(self: *Self, path: [:0]const u8) !void {
+    if (self.indexOfFolder(path)) |index| {
+        const folder = self.folders.swapRemove(index);
+        try self.folders.append(folder);
+    } else {
+        try self.folders.append(path);
+    }
+}
+
+pub fn appendExport(self: *Self, path: [:0]const u8) !void {
+    if (self.indexOfExport(path)) |index| {
+        const exp = self.exports.swapRemove(index);
+        try self.exports.append(exp);
+    } else {
+        try self.exports.append(path);
+    }
 }
 
 pub fn save(self: *Self) !void {

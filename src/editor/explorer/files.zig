@@ -139,7 +139,10 @@ pub fn draw() void {
             if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0], .h = 0.0 })) {
                 defer zgui.endChild();
 
-                for (pixi.state.recents.folders.items) |folder| {
+                var i: usize = pixi.state.recents.folders.items.len;
+                while (i > 0) {
+                    i -= 1;
+                    const folder = pixi.state.recents.folders.items[i];
                     var label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.folder, std.fs.path.basename(folder) }) catch unreachable;
                     defer pixi.state.allocator.free(label);
 

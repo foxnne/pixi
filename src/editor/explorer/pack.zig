@@ -114,7 +114,7 @@ pub fn draw() void {
 
             if (pixi.state.popups.user_path_type == .export_atlas) {
                 if (pixi.state.popups.user_path) |path| {
-                    pixi.state.previous_atlas_export = pixi.state.allocator.dupeZ(u8, path) catch unreachable;
+                    pixi.state.recents.appendExport(pixi.state.allocator.dupeZ(u8, path) catch unreachable) catch unreachable;
                     pixi.state.atlas.save(path) catch unreachable;
                     defer nfd.freePath(path);
                     pixi.state.popups.user_path = null;
@@ -122,9 +122,9 @@ pub fn draw() void {
                 }
             }
 
-            if (pixi.state.previous_atlas_export) |path| {
+            if (pixi.state.recents.exports.items.len > 0) {
                 if (zgui.button("Repeat Last Export", .{ .w = window_size[0] })) {
-                    pixi.state.atlas.save(path) catch unreachable;
+                    pixi.state.atlas.save(pixi.state.recents.exports.getLast()) catch unreachable;
                 }
             }
         }
