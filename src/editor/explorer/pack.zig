@@ -115,6 +115,7 @@ pub fn draw() void {
             if (pixi.state.popups.user_path_type == .export_atlas) {
                 if (pixi.state.popups.user_path) |path| {
                     pixi.state.recents.appendExport(pixi.state.allocator.dupeZ(u8, path) catch unreachable) catch unreachable;
+                    pixi.state.recents.save() catch unreachable;
                     pixi.state.atlas.save(path) catch unreachable;
                     defer nfd.freePath(path);
                     pixi.state.popups.user_path = null;
@@ -125,6 +126,33 @@ pub fn draw() void {
             if (pixi.state.recents.exports.items.len > 0) {
                 if (zgui.button("Repeat Last Export", .{ .w = window_size[0] })) {
                     pixi.state.atlas.save(pixi.state.recents.exports.getLast()) catch unreachable;
+                }
+                zgui.textWrapped("{s}", .{pixi.state.recents.exports.getLast()});
+
+                zgui.spacing();
+                zgui.text("Recents", .{});
+                zgui.separator();
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+                defer zgui.popStyleColor(.{ .count = 1 });
+                if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0], .h = 0.0 })) {
+                    defer zgui.endChild();
+
+                    var i: usize = pixi.state.recents.exports.items.len;
+                    while (i > 0) {
+                        i -= 1;
+                        const exp = pixi.state.recents.exports.items[i];
+                        var label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.file_download, std.fs.path.basename(exp) }) catch unreachable;
+                        defer pixi.state.allocator.free(label);
+
+                        if (zgui.selectable(label, .{})) {
+                            const exp_out = pixi.state.recents.exports.swapRemove(i);
+                            pixi.state.recents.appendExport(exp_out) catch unreachable;
+                        }
+                        zgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
+                        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+                        zgui.text("{s}", .{exp});
+                        zgui.popStyleColor(.{ .count = 1 });
+                    }
                 }
             }
         }

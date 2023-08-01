@@ -149,9 +149,9 @@ pub fn draw() void {
                     if (zgui.selectable(label, .{})) {
                         pixi.editor.setProjectFolder(folder);
                     }
-                    zgui.sameLine(.{});
+                    zgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
-                    zgui.text("  {s}", .{folder});
+                    zgui.text("{s}", .{folder});
                     zgui.popStyleColor(.{ .count = 1 });
                 }
             }
