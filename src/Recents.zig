@@ -61,6 +61,11 @@ pub fn appendFolder(self: *Self, path: [:0]const u8) !void {
         const folder = self.folders.swapRemove(index);
         try self.folders.append(folder);
     } else {
+        if (self.folders.items.len >= pixi.state.settings.max_recents) {
+            const folder = self.folders.swapRemove(0);
+            pixi.state.allocator.free(folder);
+        }
+
         try self.folders.append(path);
     }
 }
@@ -70,6 +75,10 @@ pub fn appendExport(self: *Self, path: [:0]const u8) !void {
         const exp = self.exports.swapRemove(index);
         try self.exports.append(exp);
     } else {
+        if (self.exports.items.len >= pixi.state.settings.max_recents) {
+            const exp = self.folders.swapRemove(0);
+            pixi.state.allocator.free(exp);
+        }
         try self.exports.append(path);
     }
 }
