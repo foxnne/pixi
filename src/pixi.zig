@@ -206,7 +206,7 @@ pub fn init(app: *App) !void {
     state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-    state.style.set();
+    state.style.init();
 }
 
 pub fn updateMainThread(_: *App) !bool {
@@ -300,7 +300,9 @@ pub fn update(app: *App) !bool {
 
     try input.process();
 
+    state.style.set();
     editor.draw();
+    state.style.unset();
     state.cursors.update();
 
     if (app.core.swapChain().getCurrentTextureView()) |back_buffer_view| {

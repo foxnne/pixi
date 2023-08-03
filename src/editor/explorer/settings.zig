@@ -67,4 +67,23 @@ pub fn draw() void {
             .v = &pixi.state.settings.show_rulers,
         });
     }
+
+    if (zgui.collapsingHeader(zgui.formatZ("{s}  {s}", .{ pixi.fa.paint_roller, "Style" }), .{})) {
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 3.0 * pixi.content_scale[0], 3.0 * pixi.content_scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 4.0 * pixi.content_scale[1], 4.0 * pixi.content_scale[1] } });
+        defer zgui.popStyleVar(.{ .count = 2 });
+
+        zgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
+        _ = pixi.editor.Style.styleColorEdit("Background", .{ .col = &pixi.state.style.background });
+        _ = pixi.editor.Style.styleColorEdit("Foreground", .{ .col = &pixi.state.style.foreground });
+        _ = pixi.editor.Style.styleColorEdit("Text", .{ .col = &pixi.state.style.text });
+        _ = pixi.editor.Style.styleColorEdit("Secondary Text", .{ .col = &pixi.state.style.text_secondary });
+        _ = pixi.editor.Style.styleColorEdit("Background Text", .{ .col = &pixi.state.style.text_background });
+        _ = pixi.editor.Style.styleColorEdit("Primary Highlight", .{ .col = &pixi.state.style.highlight_primary });
+        _ = pixi.editor.Style.styleColorEdit("Secondary Hightlight", .{ .col = &pixi.state.style.highlight_secondary });
+        _ = pixi.editor.Style.styleColorEdit("Primary Hover", .{ .col = &pixi.state.style.hover_primary });
+        _ = pixi.editor.Style.styleColorEdit("Secondary Hover", .{ .col = &pixi.state.style.hover_secondary });
+
+        zgui.popItemWidth();
+    }
 }

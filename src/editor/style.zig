@@ -27,7 +27,7 @@ checkerboard_secondary: Color = Color.initBytes(55, 55, 55, 255),
 
 modal_dim: Color = Color.initBytes(0, 0, 0, 48),
 
-pub fn set(self: @This()) void {
+pub fn init(self: @This()) void {
     const bg = self.background.toSlice();
     const fg = self.foreground.toSlice();
     const text = self.text.toSlice();
@@ -80,4 +80,67 @@ pub fn set(self: @This()) void {
     style.setColor(zgui.StyleCol.button_hovered, hover_secondary);
     style.setColor(zgui.StyleCol.button_active, highlight_secondary);
     style.setColor(zgui.StyleCol.modal_window_dim_bg, modal_dim);
+}
+
+pub fn set(self: *@This()) void {
+    const bg = self.background.toSlice();
+    const fg = self.foreground.toSlice();
+    const text = self.text.toSlice();
+    const highlight_primary = self.highlight_primary.toSlice();
+    const hover_primary = self.hover_primary.toSlice();
+    const highlight_secondary = self.highlight_secondary.toSlice();
+    const hover_secondary = self.hover_secondary.toSlice();
+    const modal_dim = self.modal_dim.toSlice();
+
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = bg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.border, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.menu_bar_bg, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.title_bg, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.title_bg_active, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab, .c = bg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_unfocused, .c = bg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_unfocused_active, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_active, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_hovered, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = bg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = text });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.resize_grip, .c = highlight_primary });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.scrollbar_grab_active, .c = highlight_primary });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.scrollbar_grab_hovered, .c = hover_primary });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.scrollbar_bg, .c = bg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.scrollbar_grab, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = highlight_secondary });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = hover_secondary });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = highlight_secondary });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = fg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = hover_secondary });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = highlight_secondary });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.modal_window_dim_bg, .c = modal_dim });
+}
+
+pub fn unset(self: @This()) void {
+    _ = self;
+    zgui.popStyleColor(.{ .count = 25 });
+}
+
+pub const StyleColorButton = struct {
+    col: *Color,
+    flags: zgui.ColorEditFlags = .{},
+    w: f32 = 0.0,
+    h: f32 = 0.0,
+};
+
+pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
+    var c = args.col.toSlice();
+    if (zgui.colorEdit4(desc_id, .{
+        .col = &c,
+    })) {
+        args.col.value[0] = c[0];
+        args.col.value[1] = c[1];
+        args.col.value[2] = c[2];
+        args.col.value[3] = c[3];
+        return true;
+    }
+    return false;
 }
