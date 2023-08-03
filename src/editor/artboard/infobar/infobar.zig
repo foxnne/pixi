@@ -6,7 +6,7 @@ const zgui = @import("zgui").MachImgui(mach);
 const spacer: [:0]const u8 = "    ";
 
 pub fn draw() void {
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.background.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
     defer zgui.popStyleColor(.{ .count = 1 });
 
     const h = zgui.getTextLineHeightWithSpacing() + 6.0 * pixi.content_scale[1];
