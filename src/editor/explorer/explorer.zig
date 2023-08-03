@@ -33,7 +33,7 @@ pub fn draw() void {
             .no_resize = true,
             .no_move = true,
             .no_collapse = true,
-            .horizontal_scrollbar = true,
+            .horizontal_scrollbar = false,
             .menu_bar = true,
         },
     })) {
@@ -134,5 +134,31 @@ pub fn draw() void {
         }
     }
 
+    zgui.setCursorPosY(0.0);
+    zgui.setCursorPosX(zgui.getWindowWidth() - 12.0 * pixi.content_scale[0]);
+
+    _ = zgui.invisibleButton(pixi.fa.grip_vertical, .{
+        .w = 12.0 * pixi.content_scale[0],
+        .h = -1.0,
+    });
+
+    if (zgui.isItemHovered(.{})) {
+        pixi.state.cursors.current = .resize_ew;
+    }
+
+    if (zgui.isItemActive()) {
+        const prev = pixi.state.mouse.previous_position;
+        const cur = pixi.state.mouse.position;
+
+        const diff = cur[0] - prev[0];
+
+        pixi.state.cursors.current = .resize_ew;
+        pixi.state.settings.explorer_width = std.math.clamp(pixi.state.settings.explorer_width + diff / pixi.content_scale[0], 200, 500);
+    }
     zgui.end();
+
+    zgui.setNextWindowSize(.{
+        .w = pixi.state.settings.explorer_width * pixi.content_scale[0] - pixi.state.settings.explorer_grip,
+        .h = pixi.framebuffer_size[1],
+    });
 }

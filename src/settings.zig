@@ -2,7 +2,10 @@ const builtin = @import("builtin");
 const pixi = @import("root");
 
 /// Width of the explorer bar.
-explorer_width: f32 = 200,
+explorer_width: f32 = 200.0,
+
+/// Width of the explorer grip.
+explorer_grip: f32 = 12.0,
 
 /// Height of the flipbook window.
 flipbook_height: f32 = 0.3,

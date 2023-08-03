@@ -90,7 +90,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
 
         _ = zgui.invisibleButton("FlipbookGrip", .{
             .w = -1.0,
-            .h = 12 * pixi.content_scale[1],
+            .h = 12.0 * pixi.content_scale[1],
         });
 
         if (zgui.isItemHovered(.{})) {

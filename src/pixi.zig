@@ -310,12 +310,19 @@ pub fn update(app: *App) !bool {
             const encoder = app.core.device().createCommandEncoder(null);
             defer encoder.release();
 
+            const background: gpu.Color = .{
+                .r = @floatCast(state.style.foreground.value[0]),
+                .g = @floatCast(state.style.foreground.value[1]),
+                .b = @floatCast(state.style.foreground.value[2]),
+                .a = 1.0,
+            };
+
             // Gui pass.
             {
                 const color_attachment = gpu.RenderPassColorAttachment{
                     .view = back_buffer_view,
-                    .clear_value = std.mem.zeroes(gpu.Color),
-                    .load_op = .load,
+                    .clear_value = background,
+                    .load_op = .clear,
                     .store_op = .store,
                 };
 
