@@ -123,7 +123,7 @@ pub fn draw() void {
                                 defer zgui.popStyleVar(.{ .count = 1 });
                                 if (zgui.beginTooltip()) {
                                     defer zgui.endTooltip();
-                                    zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                                    zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{s}", .{file.path});
                                 }
                             }
                         }
@@ -176,10 +176,10 @@ pub fn draw() void {
                     }
                 }
             } else {
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.background.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.background.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.background.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.foreground.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
                 defer zgui.popStyleColor(.{ .count = 4 });
                 { // Draw semi-transparent logo
                     const w = @as(f32, @floatFromInt((pixi.state.background_logo.image.width) / 4)) * pixi.content_scale[0];
@@ -239,7 +239,7 @@ pub fn draw() void {
                 }
                 zgui.endChild();
                 if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.style.highlight_primary.toSlice() });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.theme.highlight_primary.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 1 });
                     if (zgui.beginChild("InfoBar", .{})) {
                         infobar.draw();

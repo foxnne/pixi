@@ -51,6 +51,7 @@ pub var framebuffer_size: [2]f32 = undefined;
 pub const Colors = @import("Colors.zig");
 pub const Cursors = @import("Cursors.zig");
 pub const Recents = @import("Recents.zig");
+pub const Themes = @import("Themes.zig");
 
 /// Holds the global game state.
 pub const PixiState = struct {
@@ -59,7 +60,7 @@ pub const PixiState = struct {
     hotkeys: input.Hotkeys,
     mouse: input.Mouse,
     sidebar: Sidebar = .files,
-    style: editor.Style = .{},
+    theme: editor.Theme = .{},
     project_folder: ?[:0]const u8 = null,
     recents: Recents,
     previous_atlas_export: ?[:0]const u8 = null,
@@ -78,6 +79,7 @@ pub const PixiState = struct {
     fonts: Fonts = .{},
     cursors: Cursors,
     colors: Colors,
+    themes: Themes,
     delta_time: f32 = 0.0,
 };
 
@@ -184,6 +186,7 @@ pub fn init(app: *App) !void {
             .eraser = eraser,
         },
         .colors = try Colors.load(),
+        .themes = try Themes.load(),
         .hotkeys = hotkeys,
         .mouse = mouse,
         .packer = packer,
@@ -206,7 +209,9 @@ pub fn init(app: *App) !void {
     state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-    state.style.init();
+    if (state.themes.themes.items.len > 0)
+        state.theme = state.themes.themes.items[0];
+    state.theme.init();
 }
 
 pub fn updateMainThread(_: *App) !bool {
@@ -300,9 +305,9 @@ pub fn update(app: *App) !bool {
 
     try input.process();
 
-    state.style.set();
+    state.theme.set();
     editor.draw();
-    state.style.unset();
+    state.theme.unset();
     state.cursors.update();
 
     if (app.core.swapChain().getCurrentTextureView()) |back_buffer_view| {
@@ -313,9 +318,9 @@ pub fn update(app: *App) !bool {
             defer encoder.release();
 
             const background: gpu.Color = .{
-                .r = @floatCast(state.style.foreground.value[0]),
-                .g = @floatCast(state.style.foreground.value[1]),
-                .b = @floatCast(state.style.foreground.value[2]),
+                .r = @floatCast(state.theme.foreground.value[0]),
+                .g = @floatCast(state.theme.foreground.value[1]),
+                .b = @floatCast(state.theme.foreground.value[2]),
                 .a = 1.0,
             };
 

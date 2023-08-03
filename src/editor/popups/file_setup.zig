@@ -113,9 +113,9 @@ pub fn draw() void {
         zgui.spacing();
 
         if (!sizes_match) {
-            zgui.textColored(pixi.state.style.text_red.toSlice(), "Tile sizes and count do not match image size! {d}x{d}", .{ combined_size[0], combined_size[1] });
+            zgui.textColored(pixi.state.theme.text_red.toSlice(), "Tile sizes and count do not match image size! {d}x{d}", .{ combined_size[0], combined_size[1] });
         } else {
-            zgui.textColored(pixi.state.style.highlight_primary.toSlice(), " " ++ pixi.fa.check, .{});
+            zgui.textColored(pixi.state.theme.highlight_primary.toSlice(), " " ++ pixi.fa.check, .{});
         }
 
         const spacing = 5.0 * pixi.content_scale[0];

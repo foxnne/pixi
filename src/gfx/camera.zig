@@ -436,9 +436,9 @@ pub const Camera = struct {
         _ = camera;
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();
-            zgui.textColored(pixi.state.style.text.toSlice(), "{s} ", .{pixi.fa.search});
+            zgui.textColored(pixi.state.theme.text.toSlice(), "{s} ", .{pixi.fa.search});
             zgui.sameLine(.{});
-            zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{d:0.1}", .{zoom});
+            zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{d:0.1}", .{zoom});
         }
     }
 

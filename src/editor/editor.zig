@@ -7,7 +7,7 @@ const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
 const nfd = @import("nfd");
 
-pub const Style = @import("style.zig");
+pub const Theme = @import("theme.zig");
 
 pub const sidebar = @import("sidebar/sidebar.zig");
 pub const explorer = @import("explorer/explorer.zig");

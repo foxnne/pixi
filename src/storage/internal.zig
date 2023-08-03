@@ -582,8 +582,8 @@ pub const Pixi = struct {
                 const g = i + 1;
                 const b = i + 2;
                 const a = i + 3;
-                const primary = pixi.state.style.checkerboard_primary.bytes();
-                const secondary = pixi.state.style.checkerboard_secondary.bytes();
+                const primary = pixi.state.theme.checkerboard_primary.bytes();
+                const secondary = pixi.state.theme.checkerboard_secondary.bytes();
                 if (i % 3 == 0) {
                     image.data[r] = primary[0];
                     image.data[g] = primary[1];

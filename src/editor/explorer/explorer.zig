@@ -14,7 +14,7 @@ pub const settings = @import("settings.zig");
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = pixi.state.style.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = pixi.state.theme.foreground.toSlice() });
     defer zgui.popStyleVar(.{ .count = 1 });
     defer zgui.popStyleColor(.{ .count = 1 });
     zgui.setNextWindowPos(.{
@@ -42,8 +42,8 @@ pub fn draw() void {
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 8.0 * pixi.content_scale[1] } });
         defer zgui.popStyleVar(.{ .count = 2 });
 
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.background.toSlice() });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.theme.background.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.theme.foreground.toSlice() });
         defer zgui.popStyleColor(.{ .count = 2 });
 
         switch (pixi.state.sidebar) {
@@ -52,7 +52,7 @@ pub fn draw() void {
                     zgui.text("Explorer", .{});
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .files })) |hotkey| {
                         zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.style.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
                     }
                     zgui.endMenuBar();
                 }
@@ -64,7 +64,7 @@ pub fn draw() void {
                     zgui.text("Tools", .{});
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .tools })) |hotkey| {
                         zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.style.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
                     }
                     zgui.endMenuBar();
                 }
@@ -76,7 +76,7 @@ pub fn draw() void {
                     zgui.text("Layers", .{});
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .layers })) |hotkey| {
                         zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.style.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
                     }
                     zgui.endMenuBar();
                 }
@@ -88,7 +88,7 @@ pub fn draw() void {
                     zgui.text("Sprites", .{});
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .sprites })) |hotkey| {
                         zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.style.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
                     }
                     zgui.endMenuBar();
                 }
@@ -100,7 +100,7 @@ pub fn draw() void {
                     zgui.text("Animations", .{});
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .animations })) |hotkey| {
                         zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.style.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
                     }
                     zgui.endMenuBar();
                 }
@@ -112,7 +112,7 @@ pub fn draw() void {
                     zgui.text("Pack", .{});
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
                         zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.style.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
                     }
                     zgui.endMenuBar();
                 }
@@ -124,7 +124,7 @@ pub fn draw() void {
                     zgui.text("Settings", .{});
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .settings })) |hotkey| {
                         zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.style.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
                     }
                     zgui.endMenuBar();
                 }

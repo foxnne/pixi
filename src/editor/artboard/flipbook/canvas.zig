@@ -84,7 +84,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             draw_list.addLine(.{
                 .p1 = progress_start,
                 .p2 = progress_end,
-                .col = pixi.state.style.highlight_primary.toU32(),
+                .col = pixi.state.theme.highlight_primary.toU32(),
                 .thickness = 3.0,
             });
         }
@@ -143,12 +143,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             if (file.flipbook_camera.isHovered(dst_rect) and !zgui.isAnyItemHovered()) {
                 if (i != file.selected_sprite_index) {
-                    file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.style.text.toU32());
+                    file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.theme.text.toU32());
                     if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != i) {
                         file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
                     }
                 } else {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.style.text.toU32());
+                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
 
                     file.processSampleTool(.flipbook);
                     file.processStrokeTool(.flipbook) catch unreachable;
@@ -156,9 +156,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             } else {
                 if (i != file.selected_sprite_index) {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.style.text_secondary.toU32());
+                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text_secondary.toU32());
                 } else {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.style.text.toU32());
+                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
                 }
             }
         }
@@ -183,7 +183,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             draw_list.addLine(.{
                 .p1 = progress_start,
                 .p2 = progress_end,
-                .col = pixi.state.style.text_background.toU32(),
+                .col = pixi.state.theme.text_background.toU32(),
                 .thickness = 3.0,
             });
         }

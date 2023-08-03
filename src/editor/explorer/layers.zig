@@ -9,9 +9,9 @@ pub fn draw() void {
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
         defer zgui.popStyleVar(.{ .count = 1 });
 
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.foreground.toSlice() });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.foreground.toSlice() });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.foreground.toSlice() });
         defer zgui.popStyleColor(.{ .count = 3 });
 
         zgui.pushFont(pixi.state.fonts.fa_small_regular);
@@ -24,9 +24,9 @@ pub fn draw() void {
         if (file.heightmap_layer != null) {
             zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 6.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
             defer zgui.popStyleVar(.{ .count = 1 });
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.highlight_secondary.toSlice() });
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.highlight_secondary.toSlice() });
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.hover_secondary.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.highlight_secondary.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.highlight_secondary.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.hover_secondary.toSlice() });
             defer zgui.popStyleColor(.{ .count = 3 });
             if (zgui.button("Delete Heightmap Layer", .{})) {
                 file.deleted_heightmap_layers.append(file.heightmap_layer.?) catch unreachable;
@@ -57,7 +57,7 @@ pub fn draw() void {
 
                 zgui.pushStyleColor4f(.{
                     .idx = zgui.StyleCol.text,
-                    .c = if (i == file.selected_layer_index) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice(),
+                    .c = if (i == file.selected_layer_index) pixi.state.theme.text.toSlice() else pixi.state.theme.text_secondary.toSlice(),
                 });
                 defer zgui.popStyleColor(.{ .count = 1 });
 
@@ -99,8 +99,8 @@ pub fn draw() void {
                         pixi.state.popups.layer_setup_state = .duplicate;
                         pixi.state.popups.layer_setup = true;
                     }
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.foreground.toSlice() });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_red.toSlice() });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.theme.foreground.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 2 });
 
                     zgui.separator();

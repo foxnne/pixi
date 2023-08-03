@@ -45,7 +45,7 @@ pub fn draw() void {
                     var hovered: bool = false;
 
                     for (pixi.state.open_files.items, 0..) |file, i| {
-                        zgui.textColored(pixi.state.style.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
+                        zgui.textColored(pixi.state.theme.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
                         zgui.sameLine(.{});
                         const name = std.fs.path.basename(file.path);
                         const label = zgui.formatZ("{s}", .{name});
@@ -72,7 +72,7 @@ pub fn draw() void {
                             if (hover_timer >= 1.0) {
                                 if (zgui.beginTooltip()) {
                                     defer zgui.endTooltip();
-                                    zgui.textColored(pixi.state.style.text_secondary.toSlice(), "{s}", .{file.path});
+                                    zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{s}", .{file.path});
                                 }
                             }
                         }
@@ -126,7 +126,7 @@ pub fn draw() void {
             pixi.state.project_folder = null;
         }
     } else {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
         zgui.textWrapped("Open a folder to begin editing.", .{});
         zgui.popStyleColor(.{ .count = 1 });
 
@@ -134,7 +134,7 @@ pub fn draw() void {
             zgui.spacing();
             zgui.text("Recents", .{});
             zgui.separator();
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
             defer zgui.popStyleColor(.{ .count = 1 });
             if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0], .h = 0.0 })) {
                 defer zgui.endChild();
@@ -150,7 +150,7 @@ pub fn draw() void {
                         pixi.editor.setProjectFolder(folder);
                     }
                     zgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
                     zgui.text("{s}", .{folder});
                     zgui.popStyleColor(.{ .count = 1 });
                 }
@@ -188,19 +188,19 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     };
 
                     const icon_color = switch (ext) {
-                        .pixi, .zig => pixi.state.style.text_orange.toSlice(),
-                        .png, .psd => pixi.state.style.text_blue.toSlice(),
-                        .jpg => pixi.state.style.highlight_primary.toSlice(),
-                        .pdf => pixi.state.style.text_red.toSlice(),
-                        .json, .atlas => pixi.state.style.text_yellow.toSlice(),
-                        .txt, .zip, ._7z, .tar => pixi.state.style.text_background.toSlice(),
-                        else => pixi.state.style.text_background.toSlice(),
+                        .pixi, .zig => pixi.state.theme.text_orange.toSlice(),
+                        .png, .psd => pixi.state.theme.text_blue.toSlice(),
+                        .jpg => pixi.state.theme.highlight_primary.toSlice(),
+                        .pdf => pixi.state.theme.text_red.toSlice(),
+                        .json, .atlas => pixi.state.theme.text_yellow.toSlice(),
+                        .txt, .zip, ._7z, .tar => pixi.state.theme.text_background.toSlice(),
+                        else => pixi.state.theme.text_background.toSlice(),
                     };
 
                     const text_color = switch (ext) {
-                        .pixi => pixi.state.style.text.toSlice(),
-                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => pixi.state.style.text_secondary.toSlice(),
-                        else => pixi.state.style.text_background.toSlice(),
+                        .pixi => pixi.state.theme.text.toSlice(),
+                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => pixi.state.theme.text_secondary.toSlice(),
+                        else => pixi.state.theme.text_background.toSlice(),
                     };
 
                     zgui.textColored(icon_color, " {s} ", .{icon});
@@ -228,7 +228,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     const abs_path = std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
                     defer alloc.free(abs_path);
                     const folder = zgui.formatZ("{s}  {s}", .{ pixi.fa.folder, entry.name });
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 1 });
 
                     if (zgui.treeNode(folder)) {
@@ -261,8 +261,8 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 }
 
 fn contextMenuFolder(folder: [:0]const u8) void {
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.foreground.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.theme.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
     defer zgui.popStyleColor(.{ .count = 2 });
     if (zgui.menuItem("New File...", .{})) {
         const new_file_path = std.fs.path.joinZ(pixi.state.allocator, &[_][]const u8{ folder, "New_file.pixi" }) catch unreachable;
@@ -292,8 +292,8 @@ fn contextMenuFolder(folder: [:0]const u8) void {
 }
 
 fn contextMenuFile(file: [:0]const u8) void {
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.style.foreground.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.theme.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
 
     const ext = extension(file);
 
@@ -341,7 +341,7 @@ fn contextMenuFile(file: [:0]const u8) void {
         }
     }
     zgui.separator();
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_red.toSlice() });
     if (zgui.menuItem("Delete", .{})) {
         std.fs.deleteFileAbsolute(file) catch unreachable;
         if (pixi.editor.getFileIndex(file)) |index| {

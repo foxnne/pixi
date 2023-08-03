@@ -17,13 +17,13 @@ pub fn draw() void {
             defer zgui.endChild();
 
             if (!selection) {
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
                 defer zgui.popStyleColor(.{ .count = 1 });
                 zgui.textWrapped("Make a selection to begin editing sprite origins.", .{});
             } else {
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.background.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.background.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.background.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.foreground.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.background.toSlice() });
                 defer zgui.popStyleColor(.{ .count = 3 });
                 var x_same: bool = true;
                 var y_same: bool = true;
@@ -104,7 +104,7 @@ pub fn draw() void {
             for (file.sprites.items) |sprite| {
                 const selected_sprite_index = file.spriteSelectionIndex(sprite.index);
                 const contains = selected_sprite_index != null;
-                const color = if (contains) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice();
+                const color = if (contains) pixi.state.theme.text.toSlice() else pixi.state.theme.text_secondary.toSlice();
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = color });
                 defer zgui.popStyleColor(.{ .count = 1 });
                 if (zgui.selectable(zgui.formatZ("{s} - Index: {d}", .{ sprite.name, sprite.index }), .{ .selected = contains })) {

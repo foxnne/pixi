@@ -26,18 +26,18 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         while (i < @as(usize, @intCast(tiles_wide))) : (i += 1) {
             const offset = .{ (@as(f32, @floatFromInt(i)) * tile_width) * file.camera.zoom, 0.0 };
             if (tile_width * file.camera.zoom > text_size[0] * 4.0)
-                draw_list.addText(.{ tl[0] + offset[0] + (tile_width / 2.0 * file.camera.zoom) - (text_size[0] / 2.0), tl[1] + 4.0 * pixi.content_scale[1] }, pixi.state.style.text_secondary.toU32(), "{d}", .{i});
+                draw_list.addText(.{ tl[0] + offset[0] + (tile_width / 2.0 * file.camera.zoom) - (text_size[0] / 2.0), tl[1] + 4.0 * pixi.content_scale[1] }, pixi.state.theme.text_secondary.toU32(), "{d}", .{i});
             draw_list.addLine(.{
                 .p1 = .{ tl[0] + offset[0], tl[1] + line_length / 2.0 },
                 .p2 = .{ tl[0] + offset[0], tl[1] + line_length / 2.0 + line_length },
-                .col = pixi.state.style.text_secondary.toU32(),
+                .col = pixi.state.theme.text_secondary.toU32(),
                 .thickness = 1.0,
             });
         }
         draw_list.addLine(.{
             .p1 = .{ tl[0] + file_width * file.camera.zoom, tl[1] + line_length / 2.0 },
             .p2 = .{ tl[0] + file_width * file.camera.zoom, tl[1] + line_length / 2.0 + line_length },
-            .col = pixi.state.style.text_secondary.toU32(),
+            .col = pixi.state.theme.text_secondary.toU32(),
             .thickness = 1.0,
         });
         zgui.endChild();
@@ -54,18 +54,18 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const offset = .{ 0.0, @as(f32, @floatFromInt(i)) * tile_height * file.camera.zoom };
 
             if (tile_height * file.camera.zoom > text_size[0] * 4.0)
-                draw_list.addText(.{ tl[0], tl[1] + offset[1] + (tile_height / 2.0 * file.camera.zoom) - (text_size[1] / 2.0) }, pixi.state.style.text_secondary.toU32(), "{d}", .{i});
+                draw_list.addText(.{ tl[0], tl[1] + offset[1] + (tile_height / 2.0 * file.camera.zoom) - (text_size[1] / 2.0) }, pixi.state.theme.text_secondary.toU32(), "{d}", .{i});
             draw_list.addLine(.{
                 .p1 = .{ tl[0], tl[1] + offset[1] },
                 .p2 = .{ tl[0] + zgui.getWindowWidth() / 2.0, tl[1] + offset[1] },
-                .col = pixi.state.style.text_secondary.toU32(),
+                .col = pixi.state.theme.text_secondary.toU32(),
                 .thickness = 1.0,
             });
         }
         draw_list.addLine(.{
             .p1 = .{ tl[0], tl[1] + file_height * file.camera.zoom },
             .p2 = .{ tl[0] + zgui.getWindowWidth() / 2.0, tl[1] + file_height * file.camera.zoom },
-            .col = pixi.state.style.text_secondary.toU32(),
+            .col = pixi.state.theme.text_secondary.toU32(),
             .thickness = 1.0,
         });
         zgui.endChild();

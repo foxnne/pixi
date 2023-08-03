@@ -8,9 +8,9 @@ pub fn draw() void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.8 } });
     defer zgui.popStyleVar(.{ .count = 2 });
 
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.style.foreground.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.style.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.theme.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.theme.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.theme.foreground.toSlice() });
     defer zgui.popStyleColor(.{ .count = 3 });
     if (zgui.beginChild("Tools", .{ .h = zgui.getWindowHeight() / 4.0 })) {
         defer zgui.endChild();
@@ -160,9 +160,9 @@ pub fn draw() void {
 pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tool) void {
     const selected = pixi.state.tools.current == tool;
     if (selected) {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
     } else {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
     }
     defer zgui.popStyleColor(.{ .count = 1 });
     if (zgui.selectable(label, .{

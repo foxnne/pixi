@@ -11,10 +11,10 @@ selected_palette_index: usize = 0,
 
 pub fn load() !Self {
     var palettes = std.ArrayList(pixi.storage.Internal.Palette).init(pixi.state.allocator);
-    var dir = std.fs.cwd().openIterableDir(pixi.assets.palettes, .{ .access_sub_paths = false }) catch unreachable;
+    var dir = try std.fs.cwd().openIterableDir(pixi.assets.palettes, .{ .access_sub_paths = false });
     defer dir.close();
     var iter = dir.iterate();
-    while (iter.next() catch unreachable) |entry| {
+    while (try iter.next()) |entry| {
         if (entry.kind == .file) {
             const ext = std.fs.path.extension(entry.name);
             if (std.mem.eql(u8, ext, ".hex")) {

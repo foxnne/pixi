@@ -9,9 +9,9 @@ const History = pixi.storage.Internal.Pixi.History;
 pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
     defer zgui.popStyleVar(.{ .count = 1 });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = pixi.state.style.foreground.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = pixi.state.theme.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.foreground.toSlice() });
     defer zgui.popStyleColor(.{ .count = 3 });
     if (zgui.beginMenuBar()) {
         defer zgui.endMenuBar();
@@ -23,8 +23,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
                 };
             }
 
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg_hovered, .c = pixi.state.style.background.toSlice() });
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg, .c = pixi.state.style.background.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg_hovered, .c = pixi.state.theme.background.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg, .c = pixi.state.theme.background.toSlice() });
             defer zgui.popStyleColor(.{ .count = 2 });
 
             var animation = &file.animations.items[file.selected_animation_index];

@@ -16,9 +16,9 @@ pub fn draw() void {
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.8 } });
         defer zgui.popStyleVar(.{ .count = 2 });
 
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.style.foreground.toSlice() });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.style.foreground.toSlice() });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.style.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.theme.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.theme.foreground.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.theme.foreground.toSlice() });
         defer zgui.popStyleColor(.{ .count = 3 });
         if (zgui.beginChild("AnimationTools", .{
             .h = pixi.state.settings.animation_edit_height * pixi.content_scale[1],
@@ -54,7 +54,7 @@ pub fn draw() void {
             zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
             defer zgui.popStyleVar(.{ .count = 4 });
             for (file.animations.items, 0..) |animation, animation_index| {
-                const header_color = if (file.selected_animation_index == animation_index) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice();
+                const header_color = if (file.selected_animation_index == animation_index) pixi.state.theme.text.toSlice() else pixi.state.theme.text_secondary.toSlice();
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = header_color });
                 defer zgui.popStyleColor(.{ .count = 1 });
                 if (zgui.treeNode(zgui.formatZ(" {s}  {s}", .{ pixi.fa.film, animation.name }))) {
@@ -62,13 +62,13 @@ pub fn draw() void {
                     contextMenu(animation_index, file);
                     zgui.popId();
 
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
                     defer zgui.popStyleColor(.{ .count = 1 });
                     var i: usize = animation.start;
                     while (i < animation.start + animation.length) : (i += 1) {
                         for (file.sprites.items) |sprite| {
                             if (i == sprite.index) {
-                                const color = if (file.selected_sprite_index == sprite.index) pixi.state.style.text.toSlice() else pixi.state.style.text_secondary.toSlice();
+                                const color = if (file.selected_sprite_index == sprite.index) pixi.state.theme.text.toSlice() else pixi.state.theme.text_secondary.toSlice();
                                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = color });
                                 defer zgui.popStyleColor(.{ .count = 1 });
 
@@ -103,7 +103,7 @@ fn contextMenu(animation_index: usize, file: *pixi.storage.Internal.Pixi) void {
             pixi.state.popups.animation = true;
         }
 
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_red.toSlice() });
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_red.toSlice() });
         defer zgui.popStyleColor(.{ .count = 1 });
         if (zgui.menuItem("Delete", .{})) {
             file.deleteAnimation(animation_index) catch unreachable;

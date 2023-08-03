@@ -106,7 +106,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
 
         // Draw grid
-        file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.style.text_secondary.toU32());
+        file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
 
         if (pixi.state.tools.current == .heightmap) {
             file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
@@ -174,20 +174,20 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const y = @as(f32, @floatFromInt(row)) * tile_height + canvas_center_offset[1];
                     const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
-                    file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());
+                    file.camera.drawRect(rect, 3.0, pixi.state.theme.text.toU32());
 
                     // Draw the origin
                     const sprite: pixi.storage.Internal.Sprite = file.sprites.items[sprite_index];
                     file.camera.drawLine(
                         .{ x + sprite.origin_x, y },
                         .{ x + sprite.origin_x, y + tile_height },
-                        pixi.state.style.text_red.toU32(),
+                        pixi.state.theme.text_red.toU32(),
                         2.0,
                     );
                     file.camera.drawLine(
                         .{ x, y + sprite.origin_y },
                         .{ x + tile_width, y + sprite.origin_y },
-                        pixi.state.style.text_red.toU32(),
+                        pixi.state.theme.text_red.toU32(),
                         2.0,
                     );
                 }
@@ -199,7 +199,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const y = @as(f32, @floatFromInt(row)) * tile_height + canvas_center_offset[1];
             const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
-            file.camera.drawRect(rect, 3.0, pixi.state.style.text.toU32());
+            file.camera.drawRect(rect, 3.0, pixi.state.theme.text.toU32());
         }
 
         if (pixi.state.popups.animation_length > 0 and pixi.state.tools.current == .animation) {
@@ -217,7 +217,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-                    file.camera.drawAnimationRect(start_rect, end_rect, 6.0, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
+                    file.camera.drawAnimationRect(start_rect, end_rect, 6.0, pixi.state.theme.highlight_primary.toU32(), pixi.state.theme.text_red.toU32());
                 }
             }
         }
@@ -238,7 +238,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
                     const thickness: f32 = if (i == file.selected_animation_index and (if (pixi.state.mouse.button(.primary)) |primary| primary.up() else false and !pixi.state.popups.animation)) 4.0 else 2.0;
-                    file.camera.drawAnimationRect(start_rect, end_rect, thickness, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
+                    file.camera.drawAnimationRect(start_rect, end_rect, thickness, pixi.state.theme.highlight_primary.toU32(), pixi.state.theme.text_red.toU32());
                 }
             } else if (pixi.state.sidebar != .pack) {
                 const animation = file.animations.items[file.selected_animation_index];
@@ -255,7 +255,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                 const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-                file.camera.drawAnimationRect(start_rect, end_rect, 4.0, pixi.state.style.highlight_primary.toU32(), pixi.state.style.text_red.toU32());
+                file.camera.drawAnimationRect(start_rect, end_rect, 4.0, pixi.state.theme.highlight_primary.toU32(), pixi.state.theme.text_red.toU32());
             }
         }
     }

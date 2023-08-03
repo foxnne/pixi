@@ -43,7 +43,7 @@ pub fn draw() void {
         draw_list.addCircleFilled(.{
             .p = .{ window_position[0] + center[0], window_position[1] + center[1] },
             .r = w / 2.5,
-            .col = pixi.state.style.foreground.toU32(),
+            .col = pixi.state.theme.foreground.toU32(),
         });
         zgui.image(pixi.state.fox_logo.view_handle, .{
             .w = w,

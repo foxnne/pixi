@@ -5,6 +5,10 @@ const mach = @import("core");
 const pixi = @import("../pixi.zig");
 const Color = pixi.math.Color;
 
+const Self = @This();
+
+name: [:0]const u8 = "pixi_dark.json",
+
 background: Color = Color.initBytes(30, 31, 39, 255),
 foreground: Color = Color.initBytes(42, 44, 54, 255),
 text: Color = Color.initBytes(230, 175, 137, 255),
@@ -27,7 +31,7 @@ checkerboard_secondary: Color = Color.initBytes(55, 55, 55, 255),
 
 modal_dim: Color = Color.initBytes(0, 0, 0, 48),
 
-pub fn init(self: @This()) void {
+pub fn init(self: Self) void {
     const bg = self.background.toSlice();
     const fg = self.foreground.toSlice();
     const text = self.text.toSlice();
@@ -82,7 +86,7 @@ pub fn init(self: @This()) void {
     style.setColor(zgui.StyleCol.modal_window_dim_bg, modal_dim);
 }
 
-pub fn set(self: *@This()) void {
+pub fn set(self: *Self) void {
     const bg = self.background.toSlice();
     const fg = self.foreground.toSlice();
     const text = self.text.toSlice();
@@ -119,7 +123,40 @@ pub fn set(self: *@This()) void {
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.modal_window_dim_bg, .c = modal_dim });
 }
 
-pub fn unset(self: @This()) void {
+pub fn loadFromFile(file: [:0]const u8) !Self {
+    const base_name = std.fs.path.basename(file);
+    const ext = std.fs.path.extension(file);
+    if (std.mem.eql(u8, ext, ".json")) {
+        var read_opt: ?[]const u8 = pixi.fs.read(pixi.state.allocator, file) catch null;
+        if (read_opt) |read| {
+            defer pixi.state.allocator.free(read);
+
+            const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
+            const parsed = try std.json.parseFromSlice(Self, pixi.state.allocator, read, options);
+            defer parsed.deinit();
+
+            var out = parsed.value;
+            out.name = try pixi.state.allocator.dupeZ(u8, base_name);
+            return out;
+        }
+    }
+    return error.FailedToLoad;
+}
+
+pub fn save(self: Self) !void {
+    const name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}", .{ pixi.assets.themes, self.name });
+    defer pixi.state.allocator.free(name);
+
+    var handle = try std.fs.cwd().createFile(name, .{});
+    defer handle.close();
+
+    const out_stream = handle.writer();
+    const options = std.json.StringifyOptions{ .whitespace = .{} };
+
+    try std.json.stringify(self, options, out_stream);
+}
+
+pub fn unset(self: Self) void {
     _ = self;
     zgui.popStyleColor(.{ .count = 25 });
 }
@@ -133,9 +170,9 @@ pub const StyleColorButton = struct {
 
 pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
     var c = args.col.toSlice();
-    if (zgui.colorEdit4(desc_id, .{
-        .col = &c,
-    })) {
+    if (zgui.colorEdit4(desc_id, .{ .col = &c, .flags = .{
+        .input_rgb = false,
+    } })) {
         args.col.value[0] = c[0];
         args.col.value[1] = c[1];
         args.col.value[2] = c[2];

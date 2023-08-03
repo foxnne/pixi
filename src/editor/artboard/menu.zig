@@ -10,13 +10,13 @@ pub fn draw() void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 6.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
     defer zgui.popStyleVar(.{ .count = 2 });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = pixi.state.style.foreground.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = pixi.state.theme.foreground.toSlice() });
     defer zgui.popStyleColor(.{ .count = 2 });
     if (zgui.beginMenuBar()) {
         defer zgui.endMenuBar();
         if (zgui.beginMenu("File", true)) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
             if (zgui.menuItem("Open Folder...", .{
                 .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "",
             })) {
@@ -66,7 +66,7 @@ pub fn draw() void {
             zgui.endMenu();
         }
         if (zgui.beginMenu("Edit", true)) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
             zgui.popStyleColor(.{ .count = 1 });
 
             if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
@@ -86,7 +86,7 @@ pub fn draw() void {
             zgui.endMenu();
         }
         if (zgui.beginMenu("Tools", true)) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
             zgui.popStyleColor(.{ .count = 1 });
             zgui.endMenu();
         }

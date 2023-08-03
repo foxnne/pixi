@@ -95,7 +95,10 @@
             "label": "Process Assets",
             "type": "shell",
             "command": "zig build process-assets",
-            "group": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
             "presentation": {
                 "clear": true
             }

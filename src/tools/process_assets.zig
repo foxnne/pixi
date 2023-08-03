@@ -52,6 +52,9 @@ pub const ProcessAssetsStep = struct {
                 // Add palettes location as const.
                 try assets_writer.print("pub const palettes = \"{s}/{s}/\";\n\n", .{ root, "palettes" });
 
+                // Add themes location as const.
+                try assets_writer.print("pub const themes = \"{s}/{s}/\";\n\n", .{ root, "themes" });
+
                 // Iterate all files
                 for (files) |file| {
                     const ext = std.fs.path.extension(file);

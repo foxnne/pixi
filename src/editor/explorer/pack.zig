@@ -7,9 +7,9 @@ const nfd = @import("nfd");
 pub fn draw() void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 6.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
     defer zgui.popStyleVar(.{ .count = 1 });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.style.highlight_secondary.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.style.highlight_secondary.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.style.hover_secondary.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.highlight_secondary.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.highlight_secondary.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.hover_secondary.toSlice() });
     defer zgui.popStyleColor(.{ .count = 3 });
 
     const window_size = zgui.getContentRegionAvail();
@@ -59,7 +59,7 @@ pub fn draw() void {
         if (pixi.state.pack_target == .project and pixi.state.project_folder == null) packable = false;
         if (pixi.state.pack_target == .all_open and pixi.state.open_files.items.len <= 1) packable = false;
         if (pixi.editor.saving()) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
             defer zgui.popStyleColor(.{ .count = 1 });
             zgui.textWrapped("Please wait until all files are done saving.", .{});
             packable = false;
@@ -93,7 +93,7 @@ pub fn draw() void {
             zgui.endDisabled();
 
         if (pixi.state.pack_target == .project and pixi.state.project_folder == null) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
             defer zgui.popStyleColor(.{ .count = 1 });
             zgui.textWrapped("Select a project folder to pack.", .{});
         }
@@ -132,7 +132,7 @@ pub fn draw() void {
                 zgui.spacing();
                 zgui.text("Recents", .{});
                 zgui.separator();
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_secondary.toSlice() });
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
                 defer zgui.popStyleColor(.{ .count = 1 });
                 if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0], .h = 0.0 })) {
                     defer zgui.endChild();
@@ -149,7 +149,7 @@ pub fn draw() void {
                             pixi.state.recents.appendExport(exp_out) catch unreachable;
                         }
                         zgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
-                        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.style.text_background.toSlice() });
+                        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
                         zgui.text("{s}", .{exp});
                         zgui.popStyleColor(.{ .count = 1 });
                     }
