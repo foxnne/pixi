@@ -78,11 +78,7 @@ pub fn draw() void {
 
         if (zgui.beginCombo("Theme", .{ .preview_value = pixi.state.theme.name })) {
             defer zgui.endCombo();
-            for (pixi.state.themes.themes.items) |theme| {
-                if (zgui.selectable(theme.name, .{})) {
-                    pixi.state.theme = theme;
-                }
-            }
+            searchThemes() catch unreachable;
         }
         zgui.separator();
 
@@ -98,14 +94,33 @@ pub fn draw() void {
         _ = pixi.editor.Theme.styleColorEdit("Secondary Hover", .{ .col = &pixi.state.theme.hover_secondary });
 
         zgui.separator();
-        if (zgui.button("Save", .{})) {
+        if (zgui.button("Save", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0] })) {
             pixi.state.theme.save() catch unreachable;
-            pixi.state.themes.deinit();
-            pixi.state.themes = pixi.Themes.load() catch unreachable;
         }
-        zgui.sameLine(.{});
-        if (zgui.button("Save As...", .{})) {}
+        if (zgui.button("Save As...", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0] })) {}
 
         zgui.popItemWidth();
+    }
+}
+
+fn searchThemes() !void {
+    var dir_opt = std.fs.cwd().openIterableDir(pixi.assets.themes, .{ .access_sub_paths = false }) catch null;
+    if (dir_opt) |*dir| {
+        defer dir.close();
+        var iter = dir.iterate();
+        while (try iter.next()) |entry| {
+            if (entry.kind == .file) {
+                const ext = std.fs.path.extension(entry.name);
+                if (std.mem.eql(u8, ext, ".json")) {
+                    const label = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name});
+                    defer pixi.state.allocator.free(label);
+                    if (zgui.selectable(label, .{})) {
+                        const abs_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ pixi.assets.themes, entry.name });
+                        defer pixi.state.allocator.free(abs_path);
+                        pixi.state.theme = try pixi.editor.Theme.loadFromFile(abs_path);
+                    }
+                }
+            }
+        }
     }
 }

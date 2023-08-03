@@ -170,14 +170,19 @@ pub const StyleColorButton = struct {
 
 pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
     var c = args.col.toSlice();
-    if (zgui.colorEdit4(desc_id, .{ .col = &c, .flags = .{
-        .input_rgb = false,
-    } })) {
-        args.col.value[0] = c[0];
-        args.col.value[1] = c[1];
-        args.col.value[2] = c[2];
-        args.col.value[3] = c[3];
+    if (zgui.colorButton(desc_id, .{ .col = c })) {
         return true;
     }
+    if (zgui.beginPopupContextItem()) {
+        defer zgui.endPopup();
+        if (zgui.colorPicker4(desc_id, .{ .col = &c })) {
+            args.col.value[0] = c[0];
+            args.col.value[1] = c[1];
+            args.col.value[2] = c[2];
+            args.col.value[3] = c[3];
+        }
+    }
+    zgui.sameLine(.{});
+    zgui.text("{s}", .{desc_id});
     return false;
 }

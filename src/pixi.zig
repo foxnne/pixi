@@ -51,7 +51,6 @@ pub var framebuffer_size: [2]f32 = undefined;
 pub const Colors = @import("Colors.zig");
 pub const Cursors = @import("Cursors.zig");
 pub const Recents = @import("Recents.zig");
-pub const Themes = @import("Themes.zig");
 
 /// Holds the global game state.
 pub const PixiState = struct {
@@ -69,7 +68,6 @@ pub const PixiState = struct {
     open_files: std.ArrayList(storage.Internal.Pixi),
     pack_target: PackTarget = .project,
     pack_camera: gfx.Camera = .{},
-    test_texture: ?gfx.Texture = null,
     packer: Packer,
     atlas: storage.Internal.Atlas = .{},
     open_file_index: usize = 0,
@@ -79,7 +77,6 @@ pub const PixiState = struct {
     fonts: Fonts = .{},
     cursors: Cursors,
     colors: Colors,
-    themes: Themes,
     delta_time: f32 = 0.0,
 };
 
@@ -186,7 +183,6 @@ pub fn init(app: *App) !void {
             .eraser = eraser,
         },
         .colors = try Colors.load(),
-        .themes = try Themes.load(),
         .hotkeys = hotkeys,
         .mouse = mouse,
         .packer = packer,
@@ -209,8 +205,6 @@ pub fn init(app: *App) !void {
     state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
-    if (state.themes.themes.items.len > 0)
-        state.theme = state.themes.themes.items[0];
     state.theme.init();
 }
 
