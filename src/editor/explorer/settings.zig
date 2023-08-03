@@ -83,6 +83,7 @@ pub fn draw() void {
         zgui.separator();
 
         zgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
+
         _ = pixi.editor.Theme.styleColorEdit("Background", .{ .col = &pixi.state.theme.background });
         _ = pixi.editor.Theme.styleColorEdit("Foreground", .{ .col = &pixi.state.theme.foreground });
         _ = pixi.editor.Theme.styleColorEdit("Text", .{ .col = &pixi.state.theme.text });

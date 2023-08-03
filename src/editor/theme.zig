@@ -175,12 +175,14 @@ pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
     }
     if (zgui.beginPopupContextItem()) {
         defer zgui.endPopup();
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = .{ 1.0, 1.0, 1.0, 1.0 } });
         if (zgui.colorPicker4(desc_id, .{ .col = &c })) {
             args.col.value[0] = c[0];
             args.col.value[1] = c[1];
             args.col.value[2] = c[2];
             args.col.value[3] = c[3];
         }
+        zgui.popStyleColor(.{ .count = 1 });
     }
     zgui.sameLine(.{});
     zgui.text("{s}", .{desc_id});
