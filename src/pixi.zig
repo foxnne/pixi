@@ -207,32 +207,20 @@ pub fn init(app: *App) !void {
 }
 
 pub fn updateMainThread(_: *App) !bool {
-    state.popups.user_path = switch (state.popups.user_state) {
-        .none => state.popups.user_path,
-        .file => if (try nfd.openFileDialog(if (state.popups.user_filter) |filter| blk: {
-            break :blk filter;
-        } else null, state.project_folder)) |path| blk: {
-            state.popups.user_state = .none;
-            break :blk path;
-        } else blk: {
-            state.popups.user_state = .none;
-            break :blk null;
-        },
-        .folder => if (try nfd.openFolderDialog(state.project_folder)) |path| blk: {
-            state.popups.user_state = .none;
-            break :blk path;
-        } else blk: {
-            state.popups.user_state = .none;
-            break :blk null;
-        },
-        .save => if (try nfd.saveFileDialog(if (state.popups.user_filter) |filter| filter else null, state.project_folder)) |path| blk: {
-            state.popups.user_state = .none;
-            break :blk path;
-        } else blk: {
-            state.popups.user_state = .none;
-            break :blk null;
-        },
-    };
+    if (state.popups.file_dialog_request) |request| {
+        if (switch (request.state) {
+            .file => try nfd.openFileDialog(request.filter, state.project_folder),
+            .folder => try nfd.openFolderDialog(state.project_folder),
+            .save => try nfd.saveFileDialog(request.filter, state.project_folder),
+        }) |path| {
+            state.popups.file_dialog_response = .{
+                .path = path,
+                .type = request.type,
+            };
+        }
+        state.popups.file_dialog_request = null;
+    }
+
     return false;
 }
 

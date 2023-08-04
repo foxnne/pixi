@@ -270,18 +270,21 @@ fn contextMenuFolder(folder: [:0]const u8) void {
         pixi.state.popups.fileSetupNew(new_file_path);
     }
     if (zgui.menuItem("New File from PNG...", .{})) {
-        pixi.state.popups.user_filter = "png";
-        pixi.state.popups.user_state = .file;
+        pixi.state.popups.file_dialog_request = .{
+            .state = .file,
+            .type = .new_png,
+            .filter = "png",
+        };
     }
 
-    if (pixi.state.popups.user_path_type == .new_png) {
-        if (pixi.state.popups.user_path) |path| {
-            defer nfd.freePath(path);
-            var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{path[0 .. path.len - 4]}) catch unreachable;
+    if (pixi.state.popups.file_dialog_response) |response| {
+        if (response.type == .new_png) {
+            var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{response.path[0 .. response.path.len - 4]}) catch unreachable;
             defer pixi.state.allocator.free(new_file_path);
-            pixi.state.popups.fileSetupImportPng(new_file_path, path);
-            pixi.state.popups.user_path_type = .none;
-            pixi.state.popups.user_path = null;
+            pixi.state.popups.fileSetupImportPng(new_file_path, response.path);
+
+            nfd.freePath(response.path);
+            pixi.state.popups.file_dialog_response = null;
         }
     }
     if (zgui.menuItem("New Folder...", .{})) {

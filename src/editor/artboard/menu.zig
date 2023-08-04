@@ -20,15 +20,16 @@ pub fn draw() void {
             if (zgui.menuItem("Open Folder...", .{
                 .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "",
             })) {
-                pixi.state.popups.user_state = .folder;
-                pixi.state.popups.user_path_type = .project;
+                pixi.state.popups.file_dialog_request = .{
+                    .state = .folder,
+                    .type = .project,
+                };
             }
-            if (pixi.state.popups.user_path_type == .project) {
-                if (pixi.state.popups.user_path) |path| {
-                    pixi.editor.setProjectFolder(path);
-                    nfd.freePath(path);
-                    pixi.state.popups.user_path = null;
-                    pixi.state.popups.user_path_type = .none;
+            if (pixi.state.popups.file_dialog_response) |response| {
+                if (response.type == .project) {
+                    pixi.editor.setProjectFolder(response.path);
+                    nfd.freePath(response.path);
+                    pixi.state.popups.file_dialog_response = null;
                 }
             }
 

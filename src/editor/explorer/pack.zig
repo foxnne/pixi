@@ -107,19 +107,19 @@ pub fn draw() void {
             }
 
             if (zgui.button("Export", .{ .w = window_size[0] })) {
-                pixi.state.popups.user_filter = null;
-                pixi.state.popups.user_state = .save;
-                pixi.state.popups.user_path_type = .export_atlas;
+                pixi.state.popups.file_dialog_request = .{
+                    .state = .save,
+                    .type = .export_atlas,
+                };
             }
 
-            if (pixi.state.popups.user_path_type == .export_atlas) {
-                if (pixi.state.popups.user_path) |path| {
-                    pixi.state.recents.appendExport(pixi.state.allocator.dupeZ(u8, path) catch unreachable) catch unreachable;
+            if (pixi.state.popups.file_dialog_response) |response| {
+                if (response.type == .export_atlas) {
+                    pixi.state.recents.appendExport(pixi.state.allocator.dupeZ(u8, response.path) catch unreachable) catch unreachable;
                     pixi.state.recents.save() catch unreachable;
-                    pixi.state.atlas.save(path) catch unreachable;
-                    defer nfd.freePath(path);
-                    pixi.state.popups.user_path = null;
-                    pixi.state.popups.user_path_type = .none;
+                    pixi.state.atlas.save(response.path) catch unreachable;
+                    nfd.freePath(response.path);
+                    pixi.state.popups.file_dialog_request = null;
                 }
             }
 

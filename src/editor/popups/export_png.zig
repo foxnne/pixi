@@ -39,29 +39,6 @@ pub fn draw() void {
         const content = zgui.getContentRegionAvail();
         const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
-        // if (zgui.radioButton("Selected Sprite", .{ .active = pixi.state.popups.export_to_png_state == .selected_sprite })) {
-        //     pixi.state.popups.export_to_png_state = .selected_sprite;
-        // }
-        // var disabled = true;
-        // if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-        //     if (file.animations.items.len > 0)
-        //         disabled = false;
-        // }
-        // if (disabled) zgui.beginDisabled(.{});
-        // if (zgui.radioButton("Selected Animation", .{ .active = pixi.state.popups.export_to_png_state == .selected_animation })) {
-        //     pixi.state.popups.export_to_png_state = .selected_animation;
-        // }
-        // if (disabled) zgui.endDisabled();
-        // if (zgui.radioButton("Selected Layer", .{ .active = pixi.state.popups.export_to_png_state == .selected_layer })) {
-        //     pixi.state.popups.export_to_png_state = .selected_layer;
-        // }
-        // if (zgui.radioButton("All Layers", .{ .active = pixi.state.popups.export_to_png_state == .all_layers })) {
-        //     pixi.state.popups.export_to_png_state = .all_layers;
-        // }
-        // if (zgui.radioButton("Full Image", .{ .active = pixi.state.popups.export_to_png_state == .full_image })) {
-        //     pixi.state.popups.export_to_png_state = .full_image;
-        // }
-
         const plot_name = switch (pixi.state.popups.export_to_png_state) {
             .selected_sprite => "Selected Sprite",
             .selected_animation => "Selected Animation",
@@ -140,63 +117,81 @@ pub fn draw() void {
             switch (pixi.state.popups.export_to_png_state) {
                 .selected_sprite => {
                     if (pixi.state.popups.export_to_png_preserve_names) {
-                        pixi.state.popups.user_path_type = .export_sprite;
-                        pixi.state.popups.user_state = .folder;
+                        pixi.state.popups.file_dialog_request = .{
+                            .state = .folder,
+                            .type = .export_sprite,
+                        };
                     } else {
-                        pixi.state.popups.user_filter = "png";
-                        pixi.state.popups.user_path_type = .export_sprite;
-                        pixi.state.popups.user_state = .save;
+                        pixi.state.popups.file_dialog_request = .{
+                            .state = .save,
+                            .type = .export_sprite,
+                            .filter = "png",
+                        };
                     }
                 },
                 .selected_animation => {
                     if (pixi.state.popups.export_to_png_preserve_names) {
-                        pixi.state.popups.user_path_type = .export_animation;
-                        pixi.state.popups.user_state = .folder;
+                        pixi.state.popups.file_dialog_request = .{
+                            .state = .folder,
+                            .type = .export_animation,
+                        };
                     } else {
-                        pixi.state.popups.user_filter = "png";
-                        pixi.state.popups.user_path_type = .export_animation;
-                        pixi.state.popups.user_state = .save;
+                        pixi.state.popups.file_dialog_request = .{
+                            .state = .save,
+                            .type = .export_animation,
+                            .filter = "png",
+                        };
                     }
                 },
                 .selected_layer => {
                     if (pixi.state.popups.export_to_png_preserve_names) {
-                        pixi.state.popups.user_path_type = .export_layer;
-                        pixi.state.popups.user_state = .folder;
+                        pixi.state.popups.file_dialog_request = .{
+                            .state = .folder,
+                            .type = .export_layer,
+                        };
                     } else {
-                        pixi.state.popups.user_filter = "png";
-                        pixi.state.popups.user_path_type = .export_layer;
-                        pixi.state.popups.user_state = .save;
+                        pixi.state.popups.file_dialog_request = .{
+                            .state = .save,
+                            .type = .export_layer,
+                            .filter = "png",
+                        };
                     }
                 },
                 .all_layers => {
                     if (pixi.state.popups.export_to_png_preserve_names) {
-                        pixi.state.popups.user_path_type = .export_all_layers;
-                        pixi.state.popups.user_state = .folder;
+                        pixi.state.popups.file_dialog_request = .{
+                            .state = .folder,
+                            .type = .export_all_layers,
+                        };
                     } else {
-                        pixi.state.popups.user_filter = "png";
-                        pixi.state.popups.user_path_type = .export_all_layers;
-                        pixi.state.popups.user_state = .save;
+                        pixi.state.popups.file_dialog_request = .{
+                            .state = .save,
+                            .type = .export_all_layers,
+                            .filter = "png",
+                        };
                     }
                 },
                 .full_image => {
-                    pixi.state.popups.user_filter = "png";
-                    pixi.state.popups.user_path_type = .export_full_image;
-                    pixi.state.popups.user_state = .save;
+                    pixi.state.popups.file_dialog_request = .{
+                        .state = .save,
+                        .type = .export_full_image,
+                        .filter = "png",
+                    };
                 },
             }
         }
 
         if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-            if (pixi.state.popups.user_path) |path| {
-                switch (pixi.state.popups.user_path_type) {
+            if (pixi.state.popups.file_dialog_response) |response| {
+                switch (response.type) {
                     .export_sprite => {
-                        const ext = std.fs.path.extension(path);
+                        const ext = std.fs.path.extension(response.path);
                         var full_path: [:0]const u8 = undefined;
                         if (std.mem.eql(u8, ext, ".png")) {
-                            full_path = path;
+                            full_path = response.path;
                         } else {
                             const name = file.sprites.items[file.selected_sprite_index].name;
-                            full_path = zgui.formatZ("{s}{c}{s}.png", .{ path, std.fs.path.sep, name });
+                            full_path = zgui.formatZ("{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
                         }
 
                         var sprite_image = file.spriteToImage(file.selected_sprite_index) catch unreachable;
@@ -218,7 +213,7 @@ pub fn draw() void {
                         var i: usize = animation.start;
                         while (i < animation.start + animation.length) : (i += 1) {
                             if (pixi.state.popups.export_to_png_preserve_names) {
-                                const folder = path;
+                                const folder = response.path;
                                 const name = file.sprites.items[i].name;
                                 const full_path = zgui.formatZ("{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
 
@@ -234,9 +229,9 @@ pub fn draw() void {
                                 }
                                 pixi.state.popups.export_to_png = false;
                             } else {
-                                const base_name = std.fs.path.basename(path);
-                                if (std.mem.indexOf(u8, path, base_name)) |folder_index| {
-                                    const folder = path[0..folder_index];
+                                const base_name = std.fs.path.basename(response.path);
+                                if (std.mem.indexOf(u8, response.path, base_name)) |folder_index| {
+                                    const folder = response.path[0..folder_index];
                                     const ext = std.fs.path.extension(base_name);
 
                                     if (std.mem.eql(u8, ext, ".png")) {
@@ -263,13 +258,13 @@ pub fn draw() void {
                     },
 
                     .export_layer => {
-                        const ext = std.fs.path.extension(path);
+                        const ext = std.fs.path.extension(response.path);
                         var full_path: [:0]const u8 = undefined;
                         if (std.mem.eql(u8, ext, ".png")) {
-                            full_path = path;
+                            full_path = response.path;
                         } else {
                             const name = file.layers.items[file.selected_layer_index].name;
-                            full_path = zgui.formatZ("{s}{c}{s}.png", .{ path, std.fs.path.sep, name });
+                            full_path = zgui.formatZ("{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
                         }
 
                         file.layers.items[file.selected_layer_index].texture.image.writeToFile(full_path, .png) catch unreachable;
@@ -280,15 +275,15 @@ pub fn draw() void {
                         var i: usize = 0;
                         while (i < file.layers.items.len) : (i += 1) {
                             if (pixi.state.popups.export_to_png_preserve_names) {
-                                const folder = path;
+                                const folder = response.path;
                                 const name = file.layers.items[i].name;
                                 const full_path = zgui.formatZ("{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
                                 file.layers.items[i].texture.image.writeToFile(full_path, .png) catch unreachable;
                                 pixi.state.popups.export_to_png = false;
                             } else {
-                                const base_name = std.fs.path.basename(path);
-                                if (std.mem.indexOf(u8, path, base_name)) |folder_index| {
-                                    const folder = path[0..folder_index];
+                                const base_name = std.fs.path.basename(response.path);
+                                if (std.mem.indexOf(u8, response.path, base_name)) |folder_index| {
+                                    const folder = response.path[0..folder_index];
                                     const ext = std.fs.path.extension(base_name);
 
                                     if (std.mem.eql(u8, ext, ".png")) {
@@ -319,17 +314,16 @@ pub fn draw() void {
                                 if (src[3] != 0) dest_pixels[j] = src;
                             }
                         }
-                        dest_image.writeToFile(path, .png) catch unreachable;
+                        dest_image.writeToFile(response.path, .png) catch unreachable;
                         pixi.state.popups.export_to_png = false;
                     },
                     else => {},
                 }
 
-                switch (pixi.state.popups.user_path_type) {
+                switch (response.type) {
                     .export_sprite, .export_animation, .export_layer, .export_all_layers, .export_full_image => {
-                        nfd.freePath(path);
-                        pixi.state.popups.user_path = null;
-                        pixi.state.popups.user_path_type = .none;
+                        nfd.freePath(response.path);
+                        pixi.state.popups.file_dialog_response = null;
                     },
                     else => {},
                 }

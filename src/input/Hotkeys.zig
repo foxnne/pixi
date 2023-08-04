@@ -167,8 +167,10 @@ pub fn process(self: *Self) !void {
     }
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
-            pixi.state.popups.user_state = .folder;
-            pixi.state.popups.user_path_type = .project;
+            pixi.state.popups.file_dialog_request = .{
+                .state = .folder,
+                .type = .project,
+            };
         }
     }
 
