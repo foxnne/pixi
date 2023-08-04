@@ -157,12 +157,12 @@ pub fn init(app: *App) !void {
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
     // Logos
-    const background_logo = try gfx.Texture.loadFromFile(core.device, assets.icon1024_png.path, .{});
-    const fox_logo = try gfx.Texture.loadFromFile(core.device, assets.fox1024_png.path, .{});
+    const background_logo = try gfx.Texture.loadFromFile(assets.icon1024_png.path, .{});
+    const fox_logo = try gfx.Texture.loadFromFile(assets.fox1024_png.path, .{});
 
     // Cursors
-    const pencil = try gfx.Texture.loadFromFile(core.device, if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
-    const eraser = try gfx.Texture.loadFromFile(core.device, if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
+    const pencil = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
+    const eraser = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
 
     const hotkeys = try input.Hotkeys.initDefault(allocator);
     const mouse = try input.Mouse.initDefault(allocator);

@@ -89,7 +89,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 
     internal.temporary_layer = .{
         .name = "Temporary",
-        .texture = try pixi.gfx.Texture.createEmpty(core.device, internal.width, internal.height, .{}),
+        .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
     };
 
     var new_layer: pixi.storage.Internal.Layer = .{
@@ -99,9 +99,9 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     };
 
     if (import_path) |import| {
-        new_layer.texture = try pixi.gfx.Texture.loadFromFile(core.device, import, .{});
+        new_layer.texture = try pixi.gfx.Texture.loadFromFile(import, .{});
     } else {
-        new_layer.texture = try pixi.gfx.Texture.createEmpty(core.device, internal.width, internal.height, .{});
+        new_layer.texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
     }
 
     try internal.layers.append(new_layer);
@@ -192,7 +192,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
 
         internal.temporary_layer = .{
             .name = "temporary",
-            .texture = try pixi.gfx.Texture.createEmpty(core.device, internal.width, internal.height, .{}),
+            .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
             .visible = true,
         };
 
@@ -209,7 +209,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                 if (img_buf) |data| {
                     var new_layer: pixi.storage.Internal.Layer = .{
                         .name = try pixi.state.allocator.dupeZ(u8, layer.name),
-                        .texture = try pixi.gfx.Texture.loadFromMemory(core.device, @as([*]u8, @ptrCast(data))[0..img_len], .{}),
+                        .texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
                         .id = internal.id(),
                     };
                     try internal.layers.append(new_layer);
@@ -233,7 +233,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                     .texture = undefined,
                 };
 
-                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(core.device, @as([*]u8, @ptrCast(data))[0..img_len], .{});
+                new_layer.texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{});
                 new_layer.id = internal.id();
                 internal.heightmap_layer = new_layer;
             }

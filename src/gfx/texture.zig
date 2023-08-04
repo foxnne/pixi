@@ -21,22 +21,22 @@ pub const Texture = struct {
         filter: gpu.FilterMode = .nearest,
     };
 
-    pub fn createEmpty(device: *gpu.Device, width: u32, height: u32, options: Texture.SamplerOptions) !Texture {
+    pub fn createEmpty(width: u32, height: u32, options: Texture.SamplerOptions) !Texture {
         var image = try zstbi.Image.createEmpty(width, height, 4, .{});
-        return create(device, image, options);
+        return create(image, options);
     }
 
-    pub fn loadFromFile(device: *gpu.Device, file: [:0]const u8, options: Texture.SamplerOptions) !Texture {
+    pub fn loadFromFile(file: [:0]const u8, options: Texture.SamplerOptions) !Texture {
         var image = try zstbi.Image.loadFromFile(file, 4);
-        return create(device, image, options);
+        return create(image, options);
     }
 
-    pub fn loadFromMemory(device: *gpu.Device, data: []const u8, options: Texture.SamplerOptions) !Texture {
+    pub fn loadFromMemory(data: []const u8, options: Texture.SamplerOptions) !Texture {
         var image = try zstbi.Image.loadFromMemory(data, 0);
-        return create(device, image, options);
+        return create(image, options);
     }
 
-    pub fn create(device: *gpu.Device, image: zstbi.Image, options: Texture.SamplerOptions) Texture {
+    pub fn create(image: zstbi.Image, options: Texture.SamplerOptions) Texture {
         const image_size = .{ .width = image.width, .height = image.height };
 
         const texture_descriptor = .{
@@ -48,7 +48,7 @@ pub const Texture = struct {
             },
         };
 
-        const texture = device.createTexture(&texture_descriptor);
+        const texture = core.device.createTexture(&texture_descriptor);
 
         const view_descriptor = .{
             .format = .rgba8_unorm,
@@ -58,7 +58,7 @@ pub const Texture = struct {
 
         const view = texture.createView(&view_descriptor);
 
-        const queue = device.getQueue();
+        const queue = core.device.getQueue();
 
         const data_layout = gpu.Texture.DataLayout{
             .bytes_per_row = image.width * 4,
@@ -75,7 +75,7 @@ pub const Texture = struct {
             .min_filter = options.filter,
         };
 
-        const sampler = device.createSampler(&sampler_descriptor);
+        const sampler = core.device.createSampler(&sampler_descriptor);
 
         return Texture{
             .handle = texture,

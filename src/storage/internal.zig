@@ -597,13 +597,13 @@ pub const Pixi = struct {
                 }
             }
         }
-        self.background = pixi.gfx.Texture.create(core.device, image, .{});
+        self.background = pixi.gfx.Texture.create(image, .{});
     }
 
     pub fn createLayer(self: *Pixi, name: [:0]const u8) !void {
         try self.layers.insert(0, .{
             .name = try pixi.state.allocator.dupeZ(u8, name),
-            .texture = try pixi.gfx.Texture.createEmpty(core.device, self.width, self.height, .{}),
+            .texture = try pixi.gfx.Texture.createEmpty(self.width, self.height, .{}),
             .visible = true,
             .id = self.id(),
         });
@@ -626,7 +626,7 @@ pub const Pixi = struct {
 
     pub fn duplicateLayer(self: *Pixi, name: [:0]const u8, src_index: usize) !void {
         const src = self.layers.items[src_index];
-        var texture = try pixi.gfx.Texture.createEmpty(core.device, self.width, self.height, .{});
+        var texture = try pixi.gfx.Texture.createEmpty(self.width, self.height, .{});
         @memcpy(texture.image.data, src.texture.image.data);
         texture.update(core.device);
         try self.layers.insert(0, .{

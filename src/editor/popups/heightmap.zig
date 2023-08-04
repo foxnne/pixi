@@ -49,7 +49,7 @@ pub fn draw() void {
             if (zgui.button("Create", .{ .w = half_width })) {
                 file.heightmap_layer = .{
                     .name = pixi.state.allocator.dupeZ(u8, "heightmap") catch unreachable,
-                    .texture = pixi.gfx.Texture.createEmpty(core.device, file.width, file.height, .{}) catch unreachable,
+                    .texture = pixi.gfx.Texture.createEmpty(file.width, file.height, .{}) catch unreachable,
                     .id = file.id(),
                 };
                 file.history.append(.{ .heightmap_restore_delete = .{ .action = .delete } }) catch unreachable;

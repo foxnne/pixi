@@ -2,14 +2,6 @@
     .name = "pixi",
     .version = "0.0.1",
     .dependencies = .{
-        // .mach_core_example_assets = .{
-        //     .url = "https://pkg.machengine.org/mach-core-example-assets/61ee3f4e76b14ce282b50f9b0e138e017e0d3803.tar.gz",
-        //     .hash = "1220457bb44ac9df1f80a27408bec84b63a558697684937d148dbfdbdea6838c714b",
-        // },
-        // .mach_model3d = .{
-        //     .url = "https://pkg.machengine.org/mach-model3d/8eb8e450ea76a04a301722307dd603bad3b101ab.tar.gz",
-        //     .hash = "12204e84b80020f5f6dda35ce58f9047ed15a3b91e50c4820d60c8de742fedb26e63",
-        // },
         .mach_sysjs = .{
             .url = "https://pkg.machengine.org/mach-sysjs/3981ad542c0f25158f0ee828ca414720f9c7ce29.tar.gz",
             .hash = "1220316bef3193b1054139e5c67e3aabcd2cdc2fe9a12318e7ff5656130591aab701",
