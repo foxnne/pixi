@@ -64,11 +64,13 @@ pub const UserPathType = enum {
     export_full_image,
     new_png,
     export_atlas,
+    export_theme,
 };
 
 pub const FileDialogRequest = struct {
     state: UserState,
     type: UserPathType,
+    initial: ?[:0]const u8 = null,
     filter: ?[:0]const u8 = null,
 };
 

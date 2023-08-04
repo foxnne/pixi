@@ -208,10 +208,12 @@ pub fn init(app: *App) !void {
 
 pub fn updateMainThread(_: *App) !bool {
     if (state.popups.file_dialog_request) |request| {
+        const initial = if (request.initial) |initial| initial else state.project_folder;
+
         if (switch (request.state) {
-            .file => try nfd.openFileDialog(request.filter, state.project_folder),
-            .folder => try nfd.openFolderDialog(state.project_folder),
-            .save => try nfd.saveFileDialog(request.filter, state.project_folder),
+            .file => try nfd.openFileDialog(request.filter, initial),
+            .folder => try nfd.openFolderDialog(initial),
+            .save => try nfd.saveFileDialog(request.filter, initial),
         }) |path| {
             state.popups.file_dialog_response = .{
                 .path = path,

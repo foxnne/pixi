@@ -143,11 +143,8 @@ pub fn loadFromFile(file: [:0]const u8) !Self {
     return error.FailedToLoad;
 }
 
-pub fn save(self: Self) !void {
-    const name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}", .{ pixi.assets.themes, self.name });
-    defer pixi.state.allocator.free(name);
-
-    var handle = try std.fs.cwd().createFile(name, .{});
+pub fn save(self: Self, path: [:0]const u8) !void {
+    var handle = try std.fs.cwd().createFile(path, .{});
     defer handle.close();
 
     const out_stream = handle.writer();

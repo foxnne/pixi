@@ -2,6 +2,7 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("core");
 const zgui = @import("zgui").MachImgui(core);
+const nfd = @import("nfd");
 
 pub fn draw() void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 8.0 * pixi.content_scale[1], 8.0 * pixi.content_scale[1] } });
@@ -95,10 +96,22 @@ pub fn draw() void {
         _ = pixi.editor.Theme.styleColorEdit("Secondary Hover", .{ .col = &pixi.state.theme.hover_secondary });
 
         zgui.separator();
-        if (zgui.button("Save", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0] })) {
-            pixi.state.theme.save() catch unreachable;
+        if (zgui.button("Save As...", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0] })) {
+            pixi.state.popups.file_dialog_request = .{
+                .state = .save,
+                .type = .export_theme,
+                .filter = "json",
+                .initial = pixi.assets.themes,
+            };
         }
-        if (zgui.button("Save As...", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0] })) {}
+
+        if (pixi.state.popups.file_dialog_response) |response| {
+            if (response.type == .export_theme) {
+                pixi.state.theme.save(response.path) catch unreachable;
+            }
+            nfd.freePath(response.path);
+            pixi.state.popups.file_dialog_response = null;
+        }
 
         zgui.popItemWidth();
     }
