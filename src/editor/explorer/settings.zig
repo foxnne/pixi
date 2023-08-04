@@ -1,7 +1,7 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
-const mach = @import("core");
-const zgui = @import("zgui").MachImgui(mach);
+const core = @import("core");
+const zgui = @import("zgui").MachImgui(core);
 
 pub fn draw() void {
     zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 8.0 * pixi.content_scale[1], 8.0 * pixi.content_scale[1] } });

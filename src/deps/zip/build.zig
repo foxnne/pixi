@@ -16,9 +16,9 @@ pub fn package(b: *std.Build, _: struct {}) Package {
 
 pub fn link(exe: *std.Build.CompileStep) void {
     exe.linkLibC();
-    exe.addIncludePath(thisDir() ++ "/src");
+    exe.addIncludePath(.{ .path = thisDir() ++ "/src" });
     const c_flags = [_][]const u8{ "-std=c99", "-fno-sanitize=undefined" };
-    exe.addCSourceFile(thisDir() ++ "/src/zip.c", &c_flags);
+    exe.addCSourceFile(.{ .file = .{ .path = thisDir() ++ "/src/zip.c" }, .flags = &c_flags });
 }
 
 inline fn thisDir() []const u8 {

@@ -1,9 +1,9 @@
 const std = @import("std");
 const zm = @import("zmath");
 const pixi = @import("../pixi.zig");
-const mach = @import("core");
-const gpu = mach.gpu;
-const zgui = @import("zgui").MachImgui(mach);
+const core = @import("core");
+const gpu = core.gpu;
+const zgui = @import("zgui").MachImgui(core);
 
 pub const Camera = struct {
     position: [2]f32 = .{ 0.0, 0.0 },

@@ -2,12 +2,12 @@ const std = @import("std");
 const zm = @import("zmath");
 const math = @import("../math/math.zig");
 const pixi = @import("../pixi.zig");
-const mach = @import("core");
+const core = @import("core");
 
 const builtin = @import("builtin");
 
-const Mods = mach.Core.KeyMods;
-const MouseButton = mach.Core.MouseButton;
+const Mods = core.KeyMods;
+const MouseButton = core.MouseButton;
 
 const Self = @This();
 

@@ -3,9 +3,9 @@ const pixi = @import("../pixi.zig");
 const zstbi = @import("zstbi");
 const storage = @import("storage.zig");
 const zip = @import("zip");
-const mach = @import("core");
-const zgui = @import("zgui").MachImgui(mach);
-const gpu = mach.gpu;
+const core = @import("core");
+const zgui = @import("zgui").MachImgui(core);
+const gpu = core.gpu;
 
 const external = @import("external.zig");
 
@@ -248,7 +248,7 @@ pub const Pixi = struct {
                                 }
                             }
                         }
-                        layer.texture.update(pixi.application.core.device());
+                        layer.texture.update(core.device);
                         pixi.state.allocator.free(pixel_coords);
                     }
                 }
@@ -452,7 +452,7 @@ pub const Pixi = struct {
                     }
                 }
 
-                layer.texture.update(pixi.application.core.device());
+                layer.texture.update(core.device);
 
                 if (file.buffers.stroke.indices.items.len > 0) {
                     const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
@@ -513,7 +513,7 @@ pub const Pixi = struct {
         if (zip_file) |z| {
             var json = std.ArrayList(u8).init(pixi.state.allocator);
             const out_stream = json.writer();
-            const options = std.json.StringifyOptions{ .whitespace = .{} };
+            const options = std.json.StringifyOptions{};
 
             try std.json.stringify(ext, options, out_stream);
 
@@ -597,13 +597,13 @@ pub const Pixi = struct {
                 }
             }
         }
-        self.background = pixi.gfx.Texture.create(pixi.application.core.device(), image, .{});
+        self.background = pixi.gfx.Texture.create(core.device, image, .{});
     }
 
     pub fn createLayer(self: *Pixi, name: [:0]const u8) !void {
         try self.layers.insert(0, .{
             .name = try pixi.state.allocator.dupeZ(u8, name),
-            .texture = try pixi.gfx.Texture.createEmpty(pixi.application.core.device(), self.width, self.height, .{}),
+            .texture = try pixi.gfx.Texture.createEmpty(core.device, self.width, self.height, .{}),
             .visible = true,
             .id = self.id(),
         });
@@ -626,9 +626,9 @@ pub const Pixi = struct {
 
     pub fn duplicateLayer(self: *Pixi, name: [:0]const u8, src_index: usize) !void {
         const src = self.layers.items[src_index];
-        var texture = try pixi.gfx.Texture.createEmpty(pixi.application.core.device(), self.width, self.height, .{});
+        var texture = try pixi.gfx.Texture.createEmpty(core.device, self.width, self.height, .{});
         @memcpy(texture.image.data, src.texture.image.data);
-        texture.update(pixi.application.core.device());
+        texture.update(core.device);
         try self.layers.insert(0, .{
             .name = try pixi.state.allocator.dupeZ(u8, name),
             .texture = texture,
@@ -884,7 +884,7 @@ pub const Layer = struct {
         var pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
         pixels[index] = color;
         if (update)
-            self.texture.update(pixi.application.core.device());
+            self.texture.update(core.device);
     }
 
     pub fn clear(self: *Layer, update: bool) void {
@@ -893,7 +893,7 @@ pub const Layer = struct {
             pixel.* = .{ 0, 0, 0, 0 };
         }
         if (update)
-            self.texture.update(pixi.application.core.device());
+            self.texture.update(core.device);
     }
 };
 
@@ -957,7 +957,7 @@ pub const Atlas = struct {
             defer handle.close();
 
             const out_stream = handle.writer();
-            const options = std.json.StringifyOptions{ .whitespace = .{} };
+            const options = std.json.StringifyOptions{};
 
             try std.json.stringify(atlas, options, out_stream);
         }

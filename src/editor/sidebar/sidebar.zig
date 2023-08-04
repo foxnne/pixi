@@ -1,6 +1,6 @@
 const pixi = @import("../../pixi.zig");
-const mach = @import("core");
-const zgui = @import("zgui").MachImgui(mach);
+const core = @import("core");
+const zgui = @import("zgui").MachImgui(core);
 
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });

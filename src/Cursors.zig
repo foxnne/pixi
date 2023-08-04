@@ -1,4 +1,5 @@
 const pixi = @import("root");
+const core = @import("core");
 
 const Self = @This();
 
@@ -9,19 +10,19 @@ eraser: pixi.gfx.Texture,
 pub fn update(self: Self) void {
     switch (self.current) {
         .arrow => {
-            pixi.application.core.setCursorMode(.normal);
-            pixi.application.core.setCursorShape(.arrow);
+            core.setCursorMode(.normal);
+            core.setCursorShape(.arrow);
         },
         .resize_ns => {
-            pixi.application.core.setCursorMode(.normal);
-            pixi.application.core.setCursorShape(.resize_ns);
+            core.setCursorMode(.normal);
+            core.setCursorShape(.resize_ns);
         },
         .resize_ew => {
-            pixi.application.core.setCursorMode(.normal);
-            pixi.application.core.setCursorShape(.resize_ew);
+            core.setCursorMode(.normal);
+            core.setCursorShape(.resize_ew);
         },
         else => {
-            pixi.application.core.setCursorMode(.hidden);
+            core.setCursorMode(.hidden);
         },
     }
 }

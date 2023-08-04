@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const zgui = @import("zgui").MachImgui(mach);
-const mach = @import("core");
+const zgui = @import("zgui").MachImgui(core);
+const core = @import("core");
 const pixi = @import("../pixi.zig");
 const Color = pixi.math.Color;
 
@@ -151,7 +151,7 @@ pub fn save(self: Self) !void {
     defer handle.close();
 
     const out_stream = handle.writer();
-    const options = std.json.StringifyOptions{ .whitespace = .{} };
+    const options = std.json.StringifyOptions{};
 
     try std.json.stringify(self, options, out_stream);
 }

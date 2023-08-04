@@ -5,14 +5,13 @@ pub const c = @cImport({
     @cInclude("imgui_c_keys.h");
 });
 
-pub fn MachBackend(comptime mach: anytype) type {
+pub fn MachBackend(comptime core: anytype) type {
     return struct {
-        var core: *mach.Core = undefined;
         var last_width: u32 = 0;
         var last_height: u32 = 0;
 
-        const TextureFormat = mach.gpu.Texture.Format;
-        pub fn machKeyToImgui(key: mach.Core.Key) u32 {
+        const TextureFormat = core.gpu.Texture.Format;
+        pub fn machKeyToImgui(key: core.Key) u32 {
             return switch (key) {
                 .tab => c.ImGuiKey_Tab,
                 .backspace => c.ImGuiKey_Backspace,
@@ -59,11 +58,11 @@ pub fn MachBackend(comptime mach: anytype) type {
             };
         }
 
-        pub fn init(core2: *mach.Core, wgpu_device: *const anyopaque, rt_format: TextureFormat, cfg: Config) void {
+        pub fn init(wgpu_device: *const anyopaque, rt_format: TextureFormat, cfg: Config) void {
             if (!ImGui_ImplWGPU_Init(wgpu_device, 1, @intFromEnum(rt_format), &cfg)) {
                 unreachable;
             }
-            core = core2;
+
             ImGui_ImplMach_Init();
         }
 
@@ -72,7 +71,7 @@ pub fn MachBackend(comptime mach: anytype) type {
         }
 
         pub fn newFrame() void {
-            const desc = core.descriptor();
+            const desc = core.descriptor;
             if (desc.width != last_width or desc.height != last_height) {
                 last_width = desc.width;
                 last_height = desc.height;
@@ -89,7 +88,7 @@ pub fn MachBackend(comptime mach: anytype) type {
             ImGui_ImplWGPU_RenderDrawData(zgui.getDrawData(), wgpu_render_pass);
         }
 
-        pub fn passEvent(event: mach.Core.Event, content_scale: [2]f32) void {
+        pub fn passEvent(event: core.Event, content_scale: [2]f32) void {
             switch (event) {
                 .mouse_motion => {
                     const pos = event.mouse_motion.pos;

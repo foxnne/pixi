@@ -1,7 +1,7 @@
 const std = @import("std");
 const pixi = @import("../../../pixi.zig");
-const mach = @import("core");
-const zgui = @import("zgui").MachImgui(mach);
+const core = @import("core");
+const zgui = @import("zgui").MachImgui(core);
 
 const spacer: [:0]const u8 = "    ";
 

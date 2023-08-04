@@ -2,45 +2,45 @@
     .name = "pixi",
     .version = "0.0.1",
     .dependencies = .{
-        .mach_core_example_assets = .{
-            .url = "https://github.com/hexops/mach-core-example-assets/archive/d51d4b0bea534db58c33645469a3039e75b3c5ef.tar.gz",
-            .hash = "12209a0863da4c889a391109c6b37c7d5bdae6386896da238daed60d7d124531fc3c",
-        },
-        .mach_model3d = .{
-            .url = "https://github.com/hexops/mach-model3d/archive/c00491828969237f200a43e318e8b7d460e2c82a.tar.gz",
-            .hash = "1220b32d2a485161f0cee533ac2ab0baab2eeff34dee8bb519f976a30f34fda8e3a7",
-        },
+        // .mach_core_example_assets = .{
+        //     .url = "https://pkg.machengine.org/mach-core-example-assets/61ee3f4e76b14ce282b50f9b0e138e017e0d3803.tar.gz",
+        //     .hash = "1220457bb44ac9df1f80a27408bec84b63a558697684937d148dbfdbdea6838c714b",
+        // },
+        // .mach_model3d = .{
+        //     .url = "https://pkg.machengine.org/mach-model3d/8eb8e450ea76a04a301722307dd603bad3b101ab.tar.gz",
+        //     .hash = "12204e84b80020f5f6dda35ce58f9047ed15a3b91e50c4820d60c8de742fedb26e63",
+        // },
         .mach_sysjs = .{
-            .url = "https://github.com/hexops/mach-sysjs/archive/b71eb0531f337fcca5a2b245f595355260109a34.tar.gz",
-            .hash = "12208b30f1d9c229d1e64483354610207c9aa06350a46558560b818d597800ed86e0",
+            .url = "https://pkg.machengine.org/mach-sysjs/3981ad542c0f25158f0ee828ca414720f9c7ce29.tar.gz",
+            .hash = "1220316bef3193b1054139e5c67e3aabcd2cdc2fe9a12318e7ff5656130591aab701",
         },
         .mach_gamemode = .{
-            .url = "https://github.com/hexops/mach-gamemode/archive/6e71d19d7eecbf0230e5c445dbe9281e45393245.tar.gz",
-            .hash = "1220ff812193615e03375a342a7c8a52f368eab219bceab3039de1915f9c945f2a66",
+            .url = "https://pkg.machengine.org/mach-gamemode/8316c7f5109aad73c155c9213960fcab5fa9a5b7.tar.gz",
+            .hash = "12207a06b7aa2293699fb0a3331da92e8e302fc28866681ea3d1a78813b4d1cbbe1a",
         },
         .mach_glfw = .{
-            .url = "https://github.com/hexops/mach-glfw/archive/1b516bae925110d120bd6353a87fcca22eae8131.tar.gz",
-            .hash = "12200748b2fb192a567d63dacbbd471fb44a7291d2670e36326c4305b0de59cdc711",
+            .url = "https://pkg.machengine.org/mach-glfw/3b07e1a91da5641fb4e22e0aa55bd86f44d3b3ef.tar.gz",
+            .hash = "1220f608a585bffc3911165792d554ad18eac11dd94ebe9262f791e8219542d60cc6",
         },
         .glfw = .{
-            .url = "https://github.com/hexops/glfw/archive/06bd1276fb05c8bc999e104cf21c76788386f263.tar.gz",
-            .hash = "1220c4155e5e573bc39731e6e459cff44fb4a9c5fcf9087b5890a03cc349587d36ab",
+            .url = "https://pkg.machengine.org/glfw/9cdc810bae1bd89fa7273000f21f7fd17c886a9d.tar.gz",
+            .hash = "1220c3ecdec5413142a7ee7ec07ca0d86e4455550145ccf398835fa8bcf8be3df169",
         },
         .direct3d_headers = .{
-            .url = "https://github.com/hexops/direct3d-headers/archive/773dce3f079eecdccc7c71d1318a0741649d568b.tar.gz",
-            .hash = "12200d2155216c5eb5f111282cd355b5433cad6a68fd040294e695149cba329f7c12",
+            .url = "https://pkg.machengine.org/direct3d-headers/0da8bd6ffb495999d54309cd88a73275203f5041.tar.gz",
+            .hash = "12208468fa54ffe7978fcdeecca1ef1c7b01a0b5ee8ef2f4ca50ceb61997c87eacb3",
         },
         .vulkan_headers = .{
-            .url = "https://github.com/hexops/vulkan-headers/archive/e1b061ff624531e82a7daea5dbd56c07e08bf0be.tar.gz",
-            .hash = "12204967f9d07fda3af6a21d6ab71fb832da2186176c530a7a14aa96043537399e6b",
+            .url = "https://pkg.machengine.org/vulkan-headers/778dc5815d2901fc7ac82288c207428e8a74201e.tar.gz",
+            .hash = "12205b5d6d1281995d0d402d2675c8989f2b096035f7216fe039e1a20dd7cf67c447",
         },
         .wayland_headers = .{
-            .url = "https://github.com/hexops/wayland-headers/archive/7bf46f3d60edab2171643ff85770c392ef62704d.tar.gz",
-            .hash = "1220689912c40c0880b094f748199c490810d4fa4c58ce1ef9058ce97f46ee28496a",
+            .url = "https://pkg.machengine.org/wayland-headers/762824d2032838f7990e9732c5de3e4e0c5bdcba.tar.gz",
+            .hash = "122027a722996a93dbb25a433941a573241070ae664b6285fa413358759552f04c02",
         },
         .x11_headers = .{
-            .url = "https://github.com/hexops/x11-headers/archive/99af89c7bfdc7db503f3a7003571f8e81bcd09f3.tar.gz",
-            .hash = "1220e6bd3186841c1da38d862d52ba88dec9633d24f409eda27627321937419a0ddb",
+            .url = "https://pkg.machengine.org/x11-headers/4b87851e213eaf001d4a0e1ce2cf96ddbc93caed.tar.gz",
+            .hash = "1220c3da8f10e4e48347ce4e20b42403decbca4026dc84b6c90a91ecae0377e6d4da",
         },
     },
 }

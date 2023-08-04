@@ -88,7 +88,7 @@ pub fn save(self: *Self) !void {
     defer handle.close();
 
     const out_stream = handle.writer();
-    const options = std.json.StringifyOptions{ .whitespace = .{} };
+    const options = std.json.StringifyOptions{};
 
     try std.json.stringify(RecentsJson{ .folders = self.folders.items, .exports = self.exports.items }, options, out_stream);
 }

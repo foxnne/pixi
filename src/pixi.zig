@@ -1,9 +1,9 @@
 const std = @import("std");
 
-const mach = @import("core");
-const gpu = mach.gpu;
+const core = @import("core");
+const gpu = core.gpu;
 
-const zgui = @import("zgui").MachImgui(mach);
+const zgui = @import("zgui").MachImgui(core);
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
 const nfd = @import("nfd");
@@ -12,8 +12,7 @@ pub const App = @This();
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
-core: mach.Core,
-timer: mach.Timer,
+timer: core.Timer,
 
 pub const name: [:0]const u8 = "Pixi";
 pub const version: []const u8 = "0.0.1";
@@ -133,14 +132,14 @@ pub const PackTarget = enum {
 };
 
 pub fn init(app: *App) !void {
-    try app.core.init(gpa.allocator(), .{
+    try core.init(.{
         .title = name,
         .size = .{ .width = 1400, .height = 800 },
     });
     application = app;
 
-    const descriptor = app.core.descriptor();
-    window_size = .{ @floatFromInt(app.core.size().width), @floatFromInt(app.core.size().height) };
+    const descriptor = core.descriptor;
+    window_size = .{ @floatFromInt(core.size().width), @floatFromInt(core.size().height) };
     framebuffer_size = .{ @floatFromInt(descriptor.width), @floatFromInt(descriptor.height) };
     content_scale = .{
         // type inference doesn't like this, but the important part is to make sure we're dividing
@@ -158,12 +157,12 @@ pub fn init(app: *App) !void {
     var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
     // Logos
-    const background_logo = try gfx.Texture.loadFromFile(app.core.device(), assets.icon1024_png.path, .{});
-    const fox_logo = try gfx.Texture.loadFromFile(app.core.device(), assets.fox1024_png.path, .{});
+    const background_logo = try gfx.Texture.loadFromFile(core.device, assets.icon1024_png.path, .{});
+    const fox_logo = try gfx.Texture.loadFromFile(core.device, assets.fox1024_png.path, .{});
 
     // Cursors
-    const pencil = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
-    const eraser = try gfx.Texture.loadFromFile(app.core.device(), if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
+    const pencil = try gfx.Texture.loadFromFile(core.device, if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
+    const eraser = try gfx.Texture.loadFromFile(core.device, if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
 
     const hotkeys = try input.Hotkeys.initDefault(allocator);
     const mouse = try input.Mouse.initDefault(allocator);
@@ -190,12 +189,11 @@ pub fn init(app: *App) !void {
     };
 
     app.* = .{
-        .core = app.core,
-        .timer = try mach.Timer.start(),
+        .timer = try core.Timer.start(),
     };
 
     zgui.init(allocator);
-    zgui.mach_backend.init(&app.core, app.core.device(), app.core.descriptor().format, .{});
+    zgui.mach_backend.init(core.device, core.descriptor.format, .{});
     zgui.io.setIniFilename("imgui.ini");
     _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
     var config = zgui.FontConfig.init();
@@ -241,8 +239,8 @@ pub fn updateMainThread(_: *App) !bool {
 pub fn update(app: *App) !bool {
     zgui.mach_backend.newFrame();
     state.delta_time = app.timer.lap();
-    const descriptor = app.core.descriptor();
-    window_size = .{ @floatFromInt(app.core.size().width), @floatFromInt(app.core.size().height) };
+    const descriptor = core.descriptor;
+    window_size = .{ @floatFromInt(core.size().width), @floatFromInt(core.size().height) };
     framebuffer_size = .{ @floatFromInt(descriptor.width), @floatFromInt(descriptor.height) };
     content_scale = .{
         // type inference doesn't like this, but the important part is to make sure we're dividing
@@ -251,7 +249,7 @@ pub fn update(app: *App) !bool {
         framebuffer_size[1] / window_size[1],
     };
 
-    var iter = app.core.pollEvents();
+    var iter = core.pollEvents();
     while (iter.next()) |event| {
         state.cursors.current = .arrow;
         switch (event) {
@@ -304,11 +302,11 @@ pub fn update(app: *App) !bool {
     state.theme.unset();
     state.cursors.update();
 
-    if (app.core.swapChain().getCurrentTextureView()) |back_buffer_view| {
+    if (core.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
         const zgui_commands = commands: {
-            const encoder = app.core.device().createCommandEncoder(null);
+            const encoder = core.device.createCommandEncoder(null);
             defer encoder.release();
 
             const background: gpu.Color = .{
@@ -341,8 +339,8 @@ pub fn update(app: *App) !bool {
         };
         defer zgui_commands.release();
 
-        app.core.device().getQueue().submit(&.{zgui_commands});
-        app.core.swapChain().present();
+        core.queue.submit(&.{zgui_commands});
+        core.swap_chain.present();
     }
 
     for (state.hotkeys.hotkeys) |*hotkey| {
