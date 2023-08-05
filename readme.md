@@ -38,7 +38,7 @@
     - Possibly .pyxel and .asesprite import
     - Export to .zig to directly use in Zig frameworks
     - .gif support
-- Palettes
+- [x] Palettes
 - Tiles 
 - Possibly much more
 
@@ -47,7 +47,7 @@
 - Download the latest Zig master from [here](https://ziglang.org/download/) and add to PATH.
 - Clone pixi.
 - Build.
-    - ```git clone https://github.com/foxnne/pixi.git --recursive```
+    - ```git clone https://github.com/foxnne/pixi.git```
     - ```cd pixi```
     - ```zig build run```
 
