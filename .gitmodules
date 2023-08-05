@@ -1,4 +1,0 @@
-
-[submodule "src/deps/nfd-zig"]
-	path = src/deps/nfd-zig
-	url = https://github.com/foxnne/nfd-zig.git
