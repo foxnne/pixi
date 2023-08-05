@@ -5,16 +5,8 @@ const zmath = @import("src/deps/zig-gamedev/zmath/build.zig");
 const zstbi = @import("src/deps/zig-gamedev/zstbi/build.zig");
 const zgui = @import("src/deps/zig-gamedev/zgui/build.zig");
 
-const glfw = @import("mach_glfw");
-const gpu_dawn = @import("src/deps/mach-gpu-dawn/build.zig");
-const gpu = @import("src/deps/mach-gpu/build.zig").Sdk(.{
-    .gpu_dawn = gpu_dawn,
-});
-pub const core = @import("src/deps/mach-core/build.zig").Sdk(.{
-    .gpu = gpu,
-    .gpu_dawn = gpu_dawn,
-    .glfw = glfw,
-});
+const mach_core = @import("mach_core");
+const mach_gpu_dawn = @import("mach_gpu_dawn");
 
 const nfd = @import("src/deps/nfd-zig/build.zig");
 const zip = @import("src/deps/zip/build.zig");
@@ -33,7 +25,7 @@ pub fn build(b: *std.Build) !void {
     const zmath_pkg = zmath.package(b, target, optimize, .{});
 
     const zgui_pkg = zgui.Package(.{
-        .gpu_dawn = core.gpu_dawn,
+        .gpu_dawn = mach_gpu_dawn,
     }).build(b, target, optimize, .{
         .options = .{
             .backend = .mach,
@@ -43,7 +35,8 @@ pub fn build(b: *std.Build) !void {
 
     const zip_pkg = zip.package(b, .{});
 
-    const app = try core.App.init(b, .{
+    mach_core.mach_glfw_import_path = "mach_core.mach_gpu.mach_gpu_dawn.mach_glfw";
+    const app = try mach_core.App.init(b, .{
         .name = "pixi",
         .src = src_path,
         .target = target,
