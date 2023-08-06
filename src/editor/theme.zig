@@ -71,6 +71,8 @@ pub fn init(self: Self) void {
     style.setColor(zgui.StyleCol.tab_active, fg);
     style.setColor(zgui.StyleCol.tab_hovered, fg);
     style.setColor(zgui.StyleCol.popup_bg, bg);
+    style.setColor(zgui.StyleCol.frame_bg, bg);
+    style.setColor(zgui.StyleCol.frame_bg_hovered, bg);
     style.setColor(zgui.StyleCol.text, text);
     style.setColor(zgui.StyleCol.resize_grip, highlight_primary);
     style.setColor(zgui.StyleCol.scrollbar_grab_active, highlight_primary);
@@ -108,6 +110,8 @@ pub fn set(self: *Self) void {
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_active, .c = fg });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_hovered, .c = fg });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = bg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg, .c = bg });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg_hovered, .c = bg });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = text });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.resize_grip, .c = highlight_primary });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.scrollbar_grab_active, .c = highlight_primary });
@@ -155,7 +159,7 @@ pub fn save(self: Self, path: [:0]const u8) !void {
 
 pub fn unset(self: Self) void {
     _ = self;
-    zgui.popStyleColor(.{ .count = 25 });
+    zgui.popStyleColor(.{ .count = 27 });
 }
 
 pub const StyleColorButton = struct {
