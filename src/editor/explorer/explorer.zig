@@ -156,9 +156,4 @@ pub fn draw() void {
         pixi.state.settings.explorer_width = std.math.clamp(pixi.state.settings.explorer_width + diff / pixi.content_scale[0], 200, 500);
     }
     zgui.end();
-
-    zgui.setNextWindowSize(.{
-        .w = pixi.state.settings.explorer_width * pixi.content_scale[0] - pixi.state.settings.explorer_grip,
-        .h = pixi.framebuffer_size[1],
-    });
 }

@@ -41,7 +41,6 @@ test {
     _ = input;
 }
 
-pub var application: *App = undefined;
 pub var state: *PixiState = undefined;
 pub var content_scale: [2]f32 = undefined;
 pub var window_size: [2]f32 = undefined;
@@ -108,7 +107,6 @@ pub fn init(app: *App) !void {
         .title = name,
         .size = .{ .width = 1400, .height = 800 },
     });
-    application = app;
 
     const descriptor = core.descriptor;
     window_size = .{ @floatFromInt(core.size().width), @floatFromInt(core.size().height) };
