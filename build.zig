@@ -65,6 +65,12 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
+    app.compile.addModule("zstbi", zstbi_pkg.zstbi);
+    app.compile.addModule("zgui", zgui_pkg.zgui);
+    app.compile.addModule("zmath", zmath_pkg.zmath);
+    app.compile.addModule("nfd", nfd.getModule(b));
+    app.compile.addModule("zip", zip_pkg.module);
+
     const nfd_lib = nfd.makeLib(b, target, optimize);
     zstbi_pkg.link(app.compile);
     zgui_pkg.link(app.compile);
