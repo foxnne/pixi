@@ -379,6 +379,7 @@ pub fn deinit(_: *App) void {
     zgui.deinit();
     zstbi.deinit();
     state.allocator.destroy(state);
+    core.deinit();
 }
 
 fn createVertexState(vs_module: *gpu.ShaderModule) gpu.VertexState {

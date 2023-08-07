@@ -12,7 +12,6 @@ const nfd = @import("src/deps/nfd-zig/build.zig");
 const zip = @import("src/deps/zip/build.zig");
 
 const content_dir = "assets/";
-
 const src_path = "src/pixi.zig";
 
 const ProcessAssetsStep = @import("src/tools/process_assets.zig").ProcessAssetsStep;

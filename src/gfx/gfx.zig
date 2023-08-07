@@ -3,8 +3,6 @@ const zm = @import("zmath");
 const game = @import("game");
 const zstbi = @import("zstbi");
 
-pub const utils = @import("utils.zig");
-
 pub const Quad = @import("quad.zig").Quad;
 pub const Batcher = @import("batcher.zig").Batcher;
 pub const Texture = @import("texture.zig").Texture;
