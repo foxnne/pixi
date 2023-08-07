@@ -11,7 +11,7 @@ pub const canvas = @import("canvas.zig");
 pub const canvas_pack = @import("canvas_pack.zig");
 
 pub const flipbook = @import("flipbook/flipbook.zig");
-pub const infobar = @import("infobar/infobar.zig");
+pub const infobar = @import("infobar.zig");
 
 pub var path_hover_timer: f32 = 0.0;
 

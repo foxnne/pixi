@@ -50,6 +50,7 @@ pub var framebuffer_size: [2]f32 = undefined;
 pub const Colors = @import("Colors.zig");
 pub const Cursors = @import("Cursors.zig");
 pub const Recents = @import("Recents.zig");
+pub const Tools = @import("Tools.zig");
 
 /// Holds the global game state.
 pub const PixiState = struct {
@@ -94,35 +95,6 @@ pub const Fonts = struct {
     fa_standard_solid: zgui.Font = undefined,
     fa_small_regular: zgui.Font = undefined,
     fa_small_solid: zgui.Font = undefined,
-};
-
-pub const Tool = enum {
-    pointer,
-    pencil,
-    eraser,
-    animation,
-    heightmap,
-    bucket,
-};
-
-pub const Tools = struct {
-    current: Tool = .pointer,
-    previous: Tool = .pointer,
-
-    pub fn set(tools: *Tools, tool: Tool) void {
-        if (tools.current != tool) {
-            if (tool == .heightmap) {
-                if (editor.getFile(state.open_file_index)) |file| {
-                    if (file.heightmap_layer == null) {
-                        state.popups.heightmap = true;
-                        return;
-                    }
-                } else return;
-            }
-            tools.previous = tools.current;
-            tools.current = tool;
-        }
-    }
 };
 
 pub const PackTarget = enum {
@@ -380,30 +352,4 @@ pub fn deinit(_: *App) void {
     zstbi.deinit();
     state.allocator.destroy(state);
     core.deinit();
-}
-
-fn createVertexState(vs_module: *gpu.ShaderModule) gpu.VertexState {
-    return gpu.VertexState{
-        .module = vs_module,
-        .entry_point = "main",
-    };
-}
-
-fn createFragmentState(fs_module: *gpu.ShaderModule, targets: []const gpu.ColorTargetState) gpu.FragmentState {
-    return gpu.FragmentState.init(.{
-        .module = fs_module,
-        .entry_point = "main",
-        .targets = targets,
-    });
-}
-
-fn createColorTargetState(format: gpu.Texture.Format) gpu.ColorTargetState {
-    const blend = gpu.BlendState{};
-    const color_target = gpu.ColorTargetState{
-        .format = format,
-        .blend = &blend,
-        .write_mask = gpu.ColorWriteMaskFlags.all,
-    };
-
-    return color_target;
 }

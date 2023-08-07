@@ -157,7 +157,7 @@ pub fn draw() void {
     }
 }
 
-pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tool) void {
+pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tools.Tool) void {
     const selected = pixi.state.tools.current == tool;
     if (selected) {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
@@ -175,7 +175,7 @@ pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tool) void {
     drawTooltip(tool);
 }
 
-pub fn drawTooltip(tool: pixi.Tool) void {
+pub fn drawTooltip(tool: pixi.Tools.Tool) void {
     if (zgui.isItemHovered(.{})) {
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();

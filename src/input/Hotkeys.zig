@@ -1,7 +1,7 @@
 const std = @import("std");
 const zm = @import("zmath");
 const math = @import("../math/math.zig");
-const pixi = @import("../pixi.zig");
+const pixi = @import("root");
 const nfd = @import("nfd");
 const core = @import("core");
 
@@ -12,7 +12,7 @@ const builtin = @import("builtin");
 
 const Self = @This();
 
-pub const Tool = pixi.Tool;
+pub const Tool = pixi.Tools.Tool;
 pub const Sidebar = pixi.Sidebar;
 
 pub const KeyState = enum {
@@ -119,8 +119,9 @@ pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
 pub fn process(self: *Self) !void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         if (self.hotkey(.{ .proc = .save })) |hk| {
-            if (hk.pressed())
+            if (hk.pressed()) {
                 try file.saveAsync();
+            }
         }
 
         if (self.hotkey(.{ .proc = .undo })) |hk| {

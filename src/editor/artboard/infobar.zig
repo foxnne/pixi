@@ -1,12 +1,12 @@
 const std = @import("std");
-const pixi = @import("../../../pixi.zig");
+const pixi = @import("../../pixi.zig");
 const core = @import("core");
 const zgui = @import("zgui").MachImgui(core);
 
 const spacer: [:0]const u8 = "    ";
 
 pub fn draw() void {
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
+    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.foreground.toSlice() });
     defer zgui.popStyleColor(.{ .count = 1 });
 
     const h = zgui.getTextLineHeightWithSpacing() + 6.0 * pixi.content_scale[1];
@@ -43,5 +43,17 @@ pub fn draw() void {
         zgui.setCursorPosY(y);
         zgui.sameLine(.{ .spacing = spacing });
         zgui.text("{d}px by {d}px", .{ file.tile_width, file.tile_height });
+
+        zgui.sameLine(.{});
+        zgui.text(spacer, .{});
+        zgui.sameLine(.{});
+    }
+
+    if (pixi.editor.saving()) {
+        zgui.setCursorPosY(y + spacing);
+        zgui.textColored(pixi.state.theme.foreground.toSlice(), "{s} ", .{pixi.fa.save});
+        zgui.setCursorPosY(y);
+        zgui.sameLine(.{ .spacing = spacing });
+        zgui.text("Saving!...", .{});
     }
 }
