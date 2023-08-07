@@ -149,6 +149,20 @@ pub fn draw() void {
                     if (zgui.selectable(label, .{})) {
                         pixi.editor.setProjectFolder(folder);
                     }
+                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });
+                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
+                    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.content_scale[0] });
+                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
+                    defer zgui.popStyleVar(.{ .count = 4 });
+                    if (zgui.beginPopupContextItem()) {
+                        defer zgui.endPopup();
+                        if (zgui.menuItem("Remove", .{})) {
+                            const item = pixi.state.recents.folders.orderedRemove(i);
+                            pixi.state.allocator.free(item);
+                            pixi.state.recents.save() catch unreachable;
+                        }
+                    }
+
                     zgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
                     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
                     zgui.text("{s}", .{folder});
