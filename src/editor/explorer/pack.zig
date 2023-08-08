@@ -134,7 +134,9 @@ pub fn draw() void {
                 zgui.separator();
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
                 defer zgui.popStyleColor(.{ .count = 1 });
-                if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0], .h = 0.0 })) {
+                if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0], .h = 0.0, .flags = .{
+                    .horizontal_scrollbar = true,
+                } })) {
                     defer zgui.endChild();
 
                     var i: usize = pixi.state.recents.exports.items.len;
