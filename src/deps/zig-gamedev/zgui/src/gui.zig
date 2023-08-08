@@ -4,14 +4,14 @@
 // named parameters and Zig style text formatting.
 //
 //--------------------------------------------------------------------------------------------------
-pub const version = @import("std").SemanticVersion{ .major = 1, .minor = 89, .patch = 6 };
+pub const version = @import("std").SemanticVersion{ .major = 1, .minor = 89, .patch = 8 };
 
 pub const plot = @import("plot.zig");
-pub const backend = switch (@import("zgui_options").backend) {
-    .glfw_wgpu, .mach => @import("backend_glfw_wgpu.zig"),
-    .win32_dx12 => .{}, // TODO:
-    .no_backend => .{},
-};
+// pub const backend = switch (@import("zgui_options").backend) {
+//     .glfw_wgpu, .mach => @import("backend_glfw_wgpu.zig"),
+//     .win32_dx12 => .{}, // TODO:
+//     .no_backend => .{},
+// };
 //--------------------------------------------------------------------------------------------------
 const std = @import("std");
 const assert = std.debug.assert;
@@ -709,7 +709,12 @@ pub const HoveredFlags = packed struct(u32) {
     allow_when_overlapped: bool = false,
     allow_when_disabled: bool = false,
     no_nav_override: bool = false,
-    _padding: u21 = 0,
+    stationary: bool = false,
+    delay_none: bool = false,
+    delay_short: bool = false,
+    delay_normal: bool = false,
+    no_shared_delay: bool = false,
+    _padding: u16 = 0,
 
     pub const rect_only = HoveredFlags{
         .allow_when_blocked_by_popup = true,

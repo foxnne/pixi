@@ -13,8 +13,6 @@ pub const canvas_pack = @import("canvas_pack.zig");
 pub const flipbook = @import("flipbook/flipbook.zig");
 pub const infobar = @import("infobar.zig");
 
-pub var path_hover_timer: f32 = 0.0;
-
 pub fn draw() void {
     zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
     defer zgui.popStyleVar(.{ .count = 1 });
@@ -86,7 +84,6 @@ pub fn draw() void {
                 })) {
                     defer zgui.endTabBar();
 
-                    var hovered: bool = false;
                     for (pixi.state.open_files.items, 0..) |file, i| {
                         var open: bool = true;
 
@@ -114,22 +111,15 @@ pub fn draw() void {
                             pixi.editor.setActiveFile(i);
                         }
 
-                        if (zgui.isItemHovered(.{})) {
-                            hovered = true;
-                            path_hover_timer += pixi.state.delta_time;
-
-                            if (path_hover_timer >= 1.0) {
-                                zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
-                                defer zgui.popStyleVar(.{ .count = 1 });
-                                if (zgui.beginTooltip()) {
-                                    defer zgui.endTooltip();
-                                    zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{s}", .{file.path});
-                                }
+                        if (zgui.isItemHovered(.{ .delay_short = true })) {
+                            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
+                            defer zgui.popStyleVar(.{ .count = 1 });
+                            if (zgui.beginTooltip()) {
+                                defer zgui.endTooltip();
+                                zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{s}", .{file.path});
                             }
                         }
                     }
-
-                    if (!hovered) path_hover_timer = 0.0;
 
                     // Add ruler child windows to build layout, but wait to draw to them until camera has been updated.
                     if (pixi.state.settings.show_rulers) {

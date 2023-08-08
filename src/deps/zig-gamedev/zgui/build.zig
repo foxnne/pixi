@@ -63,6 +63,7 @@ pub fn Package(comptime deps: anytype) type {
 
             zgui_c_cpp.addIncludePath(.{ .path = thisDir() ++ "/libs" });
             zgui_c_cpp.addIncludePath(.{ .path = thisDir() ++ "/libs/imgui" });
+            zgui_c_cpp.addIncludePath(.{ .path = thisDir() ++ "/libs/imgui/backends" });
 
             zgui_c_cpp.linkLibC();
             zgui_c_cpp.linkLibCpp();
@@ -115,6 +116,7 @@ pub fn Package(comptime deps: anytype) type {
             exe.addIncludePath(.{ .path = thisDir() ++ "/src" });
             exe.addIncludePath(.{ .path = thisDir() ++ "/libs" });
             exe.addIncludePath(.{ .path = thisDir() ++ "/libs/imgui" });
+            exe.addIncludePath(.{ .path = thisDir() ++ "/libs/imgui/backends" });
         }
     };
 }

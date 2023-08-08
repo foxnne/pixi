@@ -1298,7 +1298,6 @@ ZGUI_API void zguiIoAddCharacterEvent(int c) {
     ImGui::GetIO().AddInputCharacter(c);
 }
 
-
 ZGUI_API bool zguiIsItemHovered(ImGuiHoveredFlags flags) {
     return ImGui::IsItemHovered(flags);
 }

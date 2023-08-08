@@ -24,8 +24,6 @@ pub const Extension = enum {
     tar,
 };
 
-pub var hover_timer: f32 = 0.0;
-
 pub fn draw() void {
     if (pixi.state.project_folder) |path| {
         const folder = std.fs.path.basename(path);
@@ -41,8 +39,6 @@ pub fn draw() void {
 
                 if (zgui.beginChild("OpenFiles", .{ .h = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (zgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]) })) {
                     zgui.spacing();
-
-                    var hovered: bool = false;
 
                     for (pixi.state.open_files.items, 0..) |file, i| {
                         zgui.textColored(pixi.state.theme.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
@@ -65,20 +61,13 @@ pub fn draw() void {
                         zgui.popId();
                         zgui.popStyleVar(.{ .count = 4 });
 
-                        if (zgui.isItemHovered(.{})) {
-                            hovered = true;
-                            hover_timer += pixi.state.delta_time;
-
-                            if (hover_timer >= 1.0) {
-                                if (zgui.beginTooltip()) {
-                                    defer zgui.endTooltip();
-                                    zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{s}", .{file.path});
-                                }
+                        if (zgui.isItemHovered(.{ .delay_short = true })) {
+                            if (zgui.beginTooltip()) {
+                                defer zgui.endTooltip();
+                                zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{s}", .{file.path});
                             }
                         }
                     }
-
-                    if (!hovered) hover_timer = 0.0;
                 }
                 defer zgui.endChild();
             }

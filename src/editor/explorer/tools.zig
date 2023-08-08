@@ -176,7 +176,7 @@ pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tools.Tool) void
 }
 
 pub fn drawTooltip(tool: pixi.Tools.Tool) void {
-    if (zgui.isItemHovered(.{})) {
+    if (zgui.isItemHovered(.{ .delay_short = true })) {
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();
 
