@@ -21,6 +21,7 @@ pub fn draw() void {
         zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.theme.foreground.toSlice() });
         defer zgui.popStyleColor(.{ .count = 3 });
         if (zgui.beginChild("AnimationTools", .{
+            .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
             .h = pixi.state.settings.animation_edit_height * pixi.content_scale[1],
         })) {
             defer zgui.endChild();
@@ -45,7 +46,7 @@ pub fn draw() void {
         zgui.separator();
         zgui.spacing();
 
-        if (zgui.beginChild("Animations", .{})) {
+        if (zgui.beginChild("Animations", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] })) {
             defer zgui.endChild();
 
             zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });

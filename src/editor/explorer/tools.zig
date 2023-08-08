@@ -12,7 +12,10 @@ pub fn draw() void {
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.theme.foreground.toSlice() });
     zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.theme.foreground.toSlice() });
     defer zgui.popStyleColor(.{ .count = 3 });
-    if (zgui.beginChild("Tools", .{ .h = zgui.getWindowHeight() / 4.0 })) {
+    if (zgui.beginChild("Tools", .{
+        .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+        .h = zgui.getWindowHeight() / 4.0,
+    })) {
         defer zgui.endChild();
 
         const style = zgui.getStyle();
@@ -134,7 +137,7 @@ pub fn draw() void {
                 }
             }
         }
-        if (zgui.beginChild("PaletteColors", .{})) {
+        if (zgui.beginChild("PaletteColors", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] })) {
             defer zgui.endChild();
             for (palette.colors, 0..) |color, i| {
                 const c: [4]f32 = .{

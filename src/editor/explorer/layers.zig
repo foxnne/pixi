@@ -47,7 +47,7 @@ pub fn draw() void {
         zgui.separator();
         zgui.spacing();
 
-        if (zgui.beginChild("LayersChild", .{})) {
+        if (zgui.beginChild("LayersChild", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] })) {
             defer zgui.endChild();
 
             var i: usize = file.layers.items.len;

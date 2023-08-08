@@ -37,7 +37,10 @@ pub fn draw() void {
             })) {
                 zgui.separator();
 
-                if (zgui.beginChild("OpenFiles", .{ .h = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (zgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]) })) {
+                if (zgui.beginChild("OpenFiles", .{
+                    .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+                    .h = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (zgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]),
+                })) {
                     zgui.spacing();
 
                     for (pixi.state.open_files.items, 0..) |file, i| {
@@ -96,7 +99,7 @@ pub fn draw() void {
             zgui.separator();
             zgui.spacing();
 
-            if (zgui.beginChild("FileTree", .{ .flags = .{
+            if (zgui.beginChild("FileTree", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .flags = .{
                 .horizontal_scrollbar = true,
             } })) {
                 zgui.spacing();
@@ -125,7 +128,7 @@ pub fn draw() void {
             zgui.separator();
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
             defer zgui.popStyleColor(.{ .count = 1 });
-            if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - 10.0 * pixi.content_scale[0], .h = 0.0, .flags = .{
+            if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .h = 0.0, .flags = .{
                 .horizontal_scrollbar = true,
             } })) {
                 defer zgui.endChild();
