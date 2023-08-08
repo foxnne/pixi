@@ -262,6 +262,17 @@ pub fn update(app: *App) !bool {
     state.theme.unset();
     state.cursors.update();
 
+    if (editor.getFile(state.open_file_index)) |file| {
+        @memcpy(core.title[0 .. name.len + 3], name ++ " - ");
+        const base_name = std.fs.path.basename(file.path);
+        @memcpy(core.title[name.len + 3 .. base_name.len + name.len + 3], base_name);
+        core.setTitle(&core.title);
+    } else {
+        @memset(core.title[0..], 0);
+        @memcpy(core.title[0..name.len], name);
+        core.setTitle(&core.title);
+    }
+
     if (core.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
