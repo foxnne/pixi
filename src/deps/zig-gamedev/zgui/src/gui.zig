@@ -838,6 +838,10 @@ pub const Style = extern struct {
 
     colors: [@typeInfo(StyleCol).Enum.fields.len][4]f32,
 
+    hover_stationary_delay: f32,
+    hover_delay_short: f32,
+    hover_delay_normal: f32,
+
     /// `pub fn init() Style`
     pub const init = zguiStyle_Init;
     extern fn zguiStyle_Init() Style;

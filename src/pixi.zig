@@ -104,7 +104,9 @@ pub const PackTarget = enum {
 };
 
 pub fn init(app: *App) !void {
-    state = try gpa.allocator().create(PixiState);
+    const allocator = gpa.allocator();
+
+    state = try allocator.create(PixiState);
     state.* = .{};
 
     try core.init(.{
@@ -123,8 +125,6 @@ pub fn init(app: *App) !void {
     };
 
     const scale_factor = content_scale[1];
-
-    const allocator = gpa.allocator();
 
     zstbi.init(allocator);
 
