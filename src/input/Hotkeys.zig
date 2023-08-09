@@ -1,7 +1,7 @@
 const std = @import("std");
 const zm = @import("zmath");
 const math = @import("../math/math.zig");
-const pixi = @import("root");
+const pixi = @import("../pixi.zig");
 const nfd = @import("nfd");
 const core = @import("core");
 
@@ -21,7 +21,7 @@ pub const KeyState = enum {
     release,
 };
 
-pub const Proc = enum {
+pub const Proc = enum(u32) {
     save,
     save_all,
     undo,

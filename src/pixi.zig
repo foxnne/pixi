@@ -80,7 +80,7 @@ pub const PixiState = struct {
     delta_time: f32 = 0.0,
 };
 
-pub const Sidebar = enum {
+pub const Sidebar = enum(u32) {
     files,
     tools,
     layers,

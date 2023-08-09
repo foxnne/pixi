@@ -3,7 +3,7 @@ const pixi = @import("pixi.zig");
 
 const Self = @This();
 
-pub const Tool = enum {
+pub const Tool = enum(u32) {
     pointer,
     pencil,
     eraser,
