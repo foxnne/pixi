@@ -352,6 +352,7 @@ pub const Camera = struct {
 
         // Handle controls while canvas is hovered
         if (zgui.isWindowHovered(.{})) {
+            camera.processZoomTooltip();
             if (pixi.state.mouse.scroll_x) |x| {
                 if (!zoom_key and camera.zoom_timer >= pixi.state.settings.zoom_time) {
                     camera.position[0] -= x * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
@@ -433,6 +434,10 @@ pub const Camera = struct {
     }
 
     pub fn drawZoomTooltip(camera: Camera, zoom: f32) void {
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
+        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.content_scale[0] });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
+        defer zgui.popStyleVar(.{ .count = 3 });
         _ = camera;
         if (zgui.beginTooltip()) {
             defer zgui.endTooltip();
@@ -468,24 +473,21 @@ pub const Camera = struct {
         }
     }
 
-    pub fn processZoomTooltip(camera: *Camera, zoom: f32) void {
+    pub fn processZoomTooltip(camera: *Camera) void {
         var zoom_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
+        const zooming = pixi.state.mouse.scroll_y != null and zoom_key;
 
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
-        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.content_scale[0] });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 3 });
         // Draw current zoom tooltip
         if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {
             camera.zoom_tooltip_timer = @min(camera.zoom_tooltip_timer + pixi.state.delta_time, pixi.state.settings.zoom_tooltip_time);
-            camera.drawZoomTooltip(zoom);
-        } else if (zoom_key and pixi.state.settings.input_scheme == .trackpad) {
+            camera.drawZoomTooltip(camera.zoom);
+        } else if (zooming and pixi.state.settings.input_scheme == .trackpad) {
             camera.zoom_tooltip_timer = 0.0;
-            camera.drawZoomTooltip(zoom);
+            camera.drawZoomTooltip(camera.zoom);
         } else if (!zoom_key and pixi.state.settings.input_scheme == .mouse) {
             if (camera.zoom_wait_timer < pixi.state.settings.zoom_wait_time) {
                 camera.zoom_tooltip_timer = 0.0;
-                camera.drawZoomTooltip(zoom);
+                camera.drawZoomTooltip(camera.zoom);
             }
         }
     }

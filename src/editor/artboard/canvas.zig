@@ -42,7 +42,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     if (zgui.isWindowHovered(.{})) {
         var mouse_position = pixi.state.mouse.position;
 
-        file.camera.processZoomTooltip(file.camera.zoom);
+        
 
         if (file.camera.pixelCoordinates(.{
             .texture_position = canvas_center_offset,

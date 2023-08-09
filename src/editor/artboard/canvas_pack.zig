@@ -46,7 +46,7 @@ pub fn draw(mode: PackTexture) void {
         }
 
         if (zgui.isWindowHovered(.{})) {
-            camera.processZoomTooltip(camera.zoom);
+            camera.processZoomTooltip();
         }
 
         // Draw the packed atlas texture

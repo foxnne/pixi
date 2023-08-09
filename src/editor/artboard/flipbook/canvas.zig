@@ -164,9 +164,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
     }
 
-    if (zgui.isWindowHovered(.{}))
-        file.flipbook_camera.processZoomTooltip(file.flipbook_camera.zoom);
-
     if (file.selected_animation_state == .play) {
         const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
         // Draw progress bar
