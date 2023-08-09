@@ -56,27 +56,27 @@ pub const Tools = @import("Tools.zig");
 pub const PixiState = struct {
     allocator: std.mem.Allocator = undefined,
     settings: Settings = .{},
-    hotkeys: input.Hotkeys,
-    mouse: input.Mouse,
+    hotkeys: input.Hotkeys = undefined,
+    mouse: input.Mouse = undefined,
     sidebar: Sidebar = .files,
     theme: editor.Theme = .{},
     project_folder: ?[:0]const u8 = null,
-    recents: Recents,
+    recents: Recents = undefined,
     previous_atlas_export: ?[:0]const u8 = null,
-    background_logo: gfx.Texture,
-    fox_logo: gfx.Texture,
-    open_files: std.ArrayList(storage.Internal.Pixi),
+    background_logo: gfx.Texture = undefined,
+    fox_logo: gfx.Texture = undefined,
+    open_files: std.ArrayList(storage.Internal.Pixi) = undefined,
     pack_target: PackTarget = .project,
     pack_camera: gfx.Camera = .{},
-    packer: Packer,
+    packer: Packer = undefined,
     atlas: storage.Internal.Atlas = .{},
     open_file_index: usize = 0,
     tools: Tools = .{},
     popups: Popups = .{},
     should_close: bool = false,
     fonts: Fonts = .{},
-    cursors: Cursors,
-    colors: Colors,
+    cursors: Cursors = undefined,
+    colors: Colors = undefined,
     delta_time: f32 = 0.0,
 };
 
@@ -104,9 +104,12 @@ pub const PackTarget = enum {
 };
 
 pub fn init(app: *App) !void {
+    state = try gpa.allocator().create(PixiState);
+    state.* = .{};
+
     try core.init(.{
         .title = name,
-        .size = .{ .width = 1400, .height = 800 },
+        .size = .{ .width = state.settings.initial_window_width, .height = state.settings.initial_window_height },
     });
 
     const descriptor = core.descriptor;
@@ -141,23 +144,19 @@ pub fn init(app: *App) !void {
     const packer = try Packer.init(allocator);
     const recents = try Recents.init(allocator);
 
-    state = try gpa.allocator().create(PixiState);
-
-    state.* = .{
-        .allocator = allocator,
-        .background_logo = background_logo,
-        .fox_logo = fox_logo,
-        .open_files = open_files,
-        .cursors = .{
-            .pencil = pencil,
-            .eraser = eraser,
-        },
-        .colors = try Colors.load(),
-        .hotkeys = hotkeys,
-        .mouse = mouse,
-        .packer = packer,
-        .recents = recents,
+    state.allocator = allocator;
+    state.background_logo = background_logo;
+    state.fox_logo = fox_logo;
+    state.open_files = open_files;
+    state.cursors = .{
+        .pencil = pencil,
+        .eraser = eraser,
     };
+    state.colors = try Colors.load();
+    state.hotkeys = hotkeys;
+    state.mouse = mouse;
+    state.packer = packer;
+    state.recents = recents;
 
     app.* = .{
         .timer = try core.Timer.start(),
