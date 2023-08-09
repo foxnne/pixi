@@ -138,7 +138,7 @@ pub fn draw() void {
     zgui.setCursorPosX(zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]);
 
     _ = zgui.invisibleButton(pixi.fa.grip_vertical, .{
-        .w = pixi.state.settings.explorer_grip * pixi.content_scale[0],
+        .w = pixi.state.settings.explorer_grip * pixi.content_scale[0] / 2.0,
         .h = -1.0,
     });
 

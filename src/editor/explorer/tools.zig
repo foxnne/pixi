@@ -14,14 +14,14 @@ pub fn draw() void {
     defer zgui.popStyleColor(.{ .count = 3 });
     if (zgui.beginChild("Tools", .{
         .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
-        .h = zgui.getWindowHeight() / 4.0,
+        .h = -1.0,
     })) {
         defer zgui.endChild();
 
         const style = zgui.getStyle();
         const window_size = zgui.getWindowSize();
 
-        const button_width = window_size[0] / 4.0;
+        const button_width = zgui.getWindowWidth() / 3.6;
         const button_height = button_width / 2.0;
 
         const color_width = window_size[0] / 2.2;
@@ -76,7 +76,7 @@ pub fn draw() void {
             if (zgui.colorButton("Primary", .{
                 .col = primary,
                 .w = color_width,
-                .h = color_width / 2.0,
+                .h = 64 * pixi.content_scale[1],
             })) {
                 const color = pixi.state.colors.primary;
                 pixi.state.colors.primary = pixi.state.colors.secondary;
@@ -98,7 +98,7 @@ pub fn draw() void {
             if (zgui.colorButton("Secondary", .{
                 .col = secondary,
                 .w = color_width,
-                .h = color_width / 2.0,
+                .h = 64 * pixi.content_scale[1],
             })) {
                 const color = pixi.state.colors.primary;
                 pixi.state.colors.primary = pixi.state.colors.secondary;
@@ -116,45 +116,51 @@ pub fn draw() void {
                 }
             }
         }
-    }
-    zgui.spacing();
-    zgui.spacing();
-    zgui.text("Palette", .{});
-    zgui.sameLine(.{});
-    if (zgui.smallButton(pixi.fa.retweet)) {
-        pixi.state.colors.deinit();
-        pixi.state.colors = pixi.Colors.load() catch unreachable;
-    }
-    zgui.separator();
 
-    if (pixi.state.colors.palettes.items.len > 0) {
-        const palette = pixi.state.colors.palettes.items[pixi.state.colors.selected_palette_index];
-        if (zgui.beginCombo("Palette", .{ .preview_value = palette.name, .flags = .{ .height_largest = true } })) {
-            defer zgui.endCombo();
-            for (pixi.state.colors.palettes.items, 0..) |p, i| {
-                if (zgui.selectable(p.name, .{ .selected = i == pixi.state.colors.selected_palette_index })) {
-                    pixi.state.colors.selected_palette_index = i;
+        zgui.spacing();
+        zgui.spacing();
+        zgui.text("Palette", .{});
+        zgui.sameLine(.{});
+        if (zgui.smallButton(pixi.fa.retweet)) {
+            pixi.state.colors.deinit();
+            pixi.state.colors = pixi.Colors.load() catch unreachable;
+        }
+        zgui.separator();
+
+        if (pixi.state.colors.palettes.items.len > 0) {
+            const palette = pixi.state.colors.palettes.items[pixi.state.colors.selected_palette_index];
+            if (zgui.beginCombo("Palette", .{ .preview_value = palette.name, .flags = .{ .height_largest = true } })) {
+                defer zgui.endCombo();
+                for (pixi.state.colors.palettes.items, 0..) |p, i| {
+                    if (zgui.selectable(p.name, .{ .selected = i == pixi.state.colors.selected_palette_index })) {
+                        pixi.state.colors.selected_palette_index = i;
+                    }
                 }
             }
-        }
-        if (zgui.beginChild("PaletteColors", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] })) {
-            defer zgui.endChild();
-            for (palette.colors, 0..) |color, i| {
-                const c: [4]f32 = .{
-                    @as(f32, @floatFromInt(color[0])) / 255.0,
-                    @as(f32, @floatFromInt(color[1])) / 255.0,
-                    @as(f32, @floatFromInt(color[2])) / 255.0,
-                    @as(f32, @floatFromInt(color[3])) / 255.0,
-                };
-                zgui.pushIntId(@as(i32, @intCast(i)));
-                if (zgui.colorButton(palette.name, .{
-                    .col = c,
-                })) {
-                    pixi.state.colors.primary = color;
+            if (zgui.beginChild("PaletteColors", .{})) {
+                defer zgui.endChild();
+                for (palette.colors, 0..) |color, i| {
+                    const c: [4]f32 = .{
+                        @as(f32, @floatFromInt(color[0])) / 255.0,
+                        @as(f32, @floatFromInt(color[1])) / 255.0,
+                        @as(f32, @floatFromInt(color[2])) / 255.0,
+                        @as(f32, @floatFromInt(color[3])) / 255.0,
+                    };
+                    zgui.pushIntId(@as(i32, @intCast(i)));
+                    if (zgui.colorButton(palette.name, .{
+                        .col = c,
+                    })) {
+                        pixi.state.colors.primary = color;
+                    }
+                    zgui.popId();
+
+                    const min_width = 32.0 * pixi.content_scale[0];
+
+                    const columns: usize = @intFromFloat(@floor((zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] - min_width / 2.0) / min_width));
+
+                    if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)
+                        zgui.sameLine(.{});
                 }
-                zgui.popId();
-                if (@mod(i + 1, 5) > 0 and i != palette.colors.len - 1)
-                    zgui.sameLine(.{});
             }
         }
     }
@@ -196,6 +202,16 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
                 zgui.text("{s} ({s})", .{ text, hotkey.shortcut });
             } else {
                 zgui.text("{s}", .{text});
+            }
+
+            switch (tool) {
+                .animation => {
+                    if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| {
+                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut});
+                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut});
+                    }
+                },
+                else => {},
             }
         }
     }

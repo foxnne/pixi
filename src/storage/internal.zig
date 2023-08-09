@@ -484,6 +484,7 @@ pub const Pixi = struct {
         }
 
         return .{
+            .version = pixi.version,
             .width = self.width,
             .height = self.height,
             .tile_width = self.tile_width,

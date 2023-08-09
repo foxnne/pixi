@@ -19,6 +19,7 @@ pub const OldPixi = struct {
 };
 
 pub const Pixi = struct {
+    version: std.SemanticVersion = .{ .major = 0, .minor = 0, .patch = 0 },
     width: u32,
     height: u32,
     tile_width: u32,

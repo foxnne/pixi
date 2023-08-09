@@ -15,7 +15,8 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 timer: core.Timer,
 
 pub const name: [:0]const u8 = "Pixi";
-pub const version: []const u8 = "0.0.1";
+pub const version: std.SemanticVersion = .{ .major = 0, .minor = 1, .patch = 0 };
+
 pub const Settings = @import("settings.zig");
 pub const Popups = @import("editor/popups/Popups.zig");
 pub const Packer = @import("tools/Packer.zig");

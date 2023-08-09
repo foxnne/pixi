@@ -12,7 +12,7 @@ pub fn draw() void {
         zgui.text("Tools", .{});
         zgui.separator();
         zgui.spacing();
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
+        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 8.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
         zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.8 } });
         defer zgui.popStyleVar(.{ .count = 2 });
 

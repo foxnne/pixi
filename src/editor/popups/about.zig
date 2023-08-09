@@ -52,7 +52,7 @@ pub fn draw() void {
 
         centerText("Pixi Editor", .{});
         centerText("https://github.com/foxnne/pixi", .{});
-        centerText("Version: {s}", .{pixi.version});
+        centerText("Version: {any}", .{pixi.version});
     }
 }
 
