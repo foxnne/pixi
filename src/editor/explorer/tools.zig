@@ -155,8 +155,7 @@ pub fn draw() void {
                     zgui.popId();
 
                     const min_width = 32.0 * pixi.content_scale[0];
-
-                    const columns: usize = @intFromFloat(@floor((zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] - min_width / 2.0) / min_width));
+                    const columns: usize = @intFromFloat(@ceil((zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]) / (min_width + style.item_spacing[0])));
 
                     if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)
                         zgui.sameLine(.{});

@@ -135,14 +135,17 @@ pub fn draw() void {
     }
 
     zgui.setCursorPosY(0.0);
-    zgui.setCursorPosX(zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]);
+    zgui.setCursorPosX(zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] + zgui.getStyle().item_spacing[0]);
 
     _ = zgui.invisibleButton(pixi.fa.grip_vertical, .{
         .w = pixi.state.settings.explorer_grip * pixi.content_scale[0] / 2.0,
         .h = -1.0,
     });
 
-    if (zgui.isItemHovered(.{})) {
+    if (zgui.isItemHovered(.{
+        .allow_when_overlapped = true,
+        .allow_when_blocked_by_active_item = true,
+    })) {
         pixi.state.cursors.current = .resize_ew;
     }
 
