@@ -118,8 +118,6 @@ pub fn init(app: *App) !void {
     window_size = .{ @floatFromInt(core.size().width), @floatFromInt(core.size().height) };
     framebuffer_size = .{ @floatFromInt(descriptor.width), @floatFromInt(descriptor.height) };
     content_scale = .{
-        // type inference doesn't like this, but the important part is to make sure we're dividing
-        // as floats not integers.
         framebuffer_size[0] / window_size[0],
         framebuffer_size[1] / window_size[1],
     };
@@ -164,15 +162,20 @@ pub fn init(app: *App) !void {
 
     zgui.init(allocator);
     zgui.mach_backend.init(core.device, core.descriptor.format, .{});
+
     zgui.io.setIniFilename("imgui.ini");
+
     _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
+
     var config = zgui.FontConfig.init();
     config.merge_mode = true;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
+
     state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
     state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
+
     state.theme.init();
 }
 
@@ -199,12 +202,11 @@ pub fn updateMainThread(_: *App) !bool {
 pub fn update(app: *App) !bool {
     zgui.mach_backend.newFrame();
     state.delta_time = app.timer.lap();
+
     const descriptor = core.descriptor;
     window_size = .{ @floatFromInt(core.size().width), @floatFromInt(core.size().height) };
     framebuffer_size = .{ @floatFromInt(descriptor.width), @floatFromInt(descriptor.height) };
     content_scale = .{
-        // type inference doesn't like this, but the important part is to make sure we're dividing
-        // as floats not integers.
         framebuffer_size[0] / window_size[0],
         framebuffer_size[1] / window_size[1],
     };
@@ -258,8 +260,10 @@ pub fn update(app: *App) !bool {
     try input.process();
 
     state.theme.set();
+
     editor.draw();
     state.theme.unset();
+
     state.cursors.update();
 
     if (editor.getFile(state.open_file_index)) |file| {

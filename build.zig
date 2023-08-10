@@ -61,6 +61,13 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+
+    unit_tests.addModule("zstbi", zstbi_pkg.zstbi);
+    unit_tests.addModule("zgui", zgui_pkg.zgui);
+    unit_tests.addModule("zmath", zmath_pkg.zmath);
+    unit_tests.addModule("nfd", nfd.getModule(b));
+    unit_tests.addModule("zip", zip_pkg.module);
+
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
