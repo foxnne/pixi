@@ -154,7 +154,7 @@ pub fn draw() void {
                 zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
                 defer zgui.popStyleColor(.{ .count = 1 });
                 zgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette", .{});
-                zgui.textWrapped("To add new palettes, download a .hex palette from lospec and place it here: {s}/{s}", .{ pixi.state.root_path, pixi.assets.palettes });
+                zgui.textWrapped("To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}/{s}", .{ pixi.state.root_path, pixi.assets.palettes });
             }
         }
     }
