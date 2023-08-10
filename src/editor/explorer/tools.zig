@@ -120,25 +120,15 @@ pub fn draw() void {
         zgui.spacing();
         zgui.spacing();
         zgui.text("Palette", .{});
-        zgui.sameLine(.{});
-        if (zgui.smallButton(pixi.fa.retweet)) {
-            pixi.state.colors.deinit();
-            pixi.state.colors = pixi.Colors.load() catch unreachable;
-        }
         zgui.separator();
 
-        if (pixi.state.colors.palettes.items.len > 0) {
-            const palette = pixi.state.colors.palettes.items[pixi.state.colors.selected_palette_index];
-            if (zgui.beginCombo("Palette", .{ .preview_value = palette.name, .flags = .{ .height_largest = true } })) {
-                defer zgui.endCombo();
-                for (pixi.state.colors.palettes.items, 0..) |p, i| {
-                    if (zgui.selectable(p.name, .{ .selected = i == pixi.state.colors.selected_palette_index })) {
-                        pixi.state.colors.selected_palette_index = i;
-                    }
-                }
-            }
-            if (zgui.beginChild("PaletteColors", .{})) {
-                defer zgui.endChild();
+        if (zgui.beginCombo("Palette", .{ .preview_value = if (pixi.state.colors.palette) |palette| palette.name else "none", .flags = .{ .height_largest = true } })) {
+            defer zgui.endCombo();
+            searchPalettes() catch unreachable;
+        }
+        if (zgui.beginChild("PaletteColors", .{})) {
+            defer zgui.endChild();
+            if (pixi.state.colors.palette) |palette| {
                 for (palette.colors, 0..) |color, i| {
                     const c: [4]f32 = .{
                         @as(f32, @floatFromInt(color[0])) / 255.0,
@@ -160,6 +150,11 @@ pub fn draw() void {
                     if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)
                         zgui.sameLine(.{});
                 }
+            } else {
+                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
+                defer zgui.popStyleColor(.{ .count = 1 });
+                zgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette", .{});
+                zgui.textWrapped("To add new palettes, download a .hex palette from lospec and place it here: {s}/{s}", .{ pixi.state.root_path, pixi.assets.palettes });
             }
         }
     }
@@ -211,6 +206,31 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
                     }
                 },
                 else => {},
+            }
+        }
+    }
+}
+
+fn searchPalettes() !void {
+    var dir_opt = std.fs.cwd().openIterableDir(pixi.assets.palettes, .{ .access_sub_paths = false }) catch null;
+    if (dir_opt) |*dir| {
+        defer dir.close();
+        var iter = dir.iterate();
+        while (try iter.next()) |entry| {
+            if (entry.kind == .file) {
+                const ext = std.fs.path.extension(entry.name);
+                if (std.mem.eql(u8, ext, ".hex")) {
+                    const label = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name});
+                    defer pixi.state.allocator.free(label);
+                    if (zgui.selectable(label, .{})) {
+                        const abs_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ pixi.assets.palettes, entry.name });
+                        defer pixi.state.allocator.free(abs_path);
+                        if (pixi.state.colors.palette) |*palette|
+                            palette.deinit();
+
+                        pixi.state.colors.palette = pixi.storage.Internal.Palette.loadFromFile(abs_path) catch null;
+                    }
+                }
             }
         }
     }

@@ -940,6 +940,11 @@ pub const Palette = struct {
             .colors = try colors.toOwnedSlice(),
         };
     }
+
+    pub fn deinit(self: *Palette) void {
+        pixi.state.allocator.free(self.name);
+        pixi.state.allocator.free(self.colors);
+    }
 };
 
 pub const Atlas = struct {

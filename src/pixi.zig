@@ -10,14 +10,11 @@ const nfd = @import("nfd");
 
 pub const App = @This();
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-
 timer: core.Timer,
 
 pub const name: [:0]const u8 = "Pixi";
 pub const version: std.SemanticVersion = .{ .major = 0, .minor = 1, .patch = 0 };
 
-pub const Settings = @import("settings.zig");
 pub const Popups = @import("editor/popups/Popups.zig");
 pub const Packer = @import("tools/Packer.zig");
 
@@ -32,7 +29,6 @@ pub const math = @import("math/math.zig");
 pub const gfx = @import("gfx/gfx.zig");
 pub const input = @import("input/input.zig");
 pub const storage = @import("storage/storage.zig");
-
 pub const algorithms = @import("algorithms/algorithms.zig");
 
 test {
@@ -47,10 +43,13 @@ pub var content_scale: [2]f32 = undefined;
 pub var window_size: [2]f32 = undefined;
 pub var framebuffer_size: [2]f32 = undefined;
 
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+
 pub const Colors = @import("Colors.zig");
 pub const Cursors = @import("Cursors.zig");
 pub const Recents = @import("Recents.zig");
 pub const Tools = @import("Tools.zig");
+pub const Settings = @import("Settings.zig");
 
 /// Holds the global game state.
 pub const PixiState = struct {
@@ -61,6 +60,7 @@ pub const PixiState = struct {
     sidebar: Sidebar = .files,
     theme: editor.Theme = .{},
     project_folder: ?[:0]const u8 = null,
+    root_path: [:0]const u8 = undefined,
     recents: Recents = undefined,
     previous_atlas_export: ?[:0]const u8 = null,
     background_logo: gfx.Texture = undefined,
@@ -76,7 +76,7 @@ pub const PixiState = struct {
     should_close: bool = false,
     fonts: Fonts = .{},
     cursors: Cursors = undefined,
-    colors: Colors = undefined,
+    colors: Colors = .{},
     delta_time: f32 = 0.0,
 };
 
@@ -106,8 +106,11 @@ pub const PackTarget = enum {
 pub fn init(app: *App) !void {
     const allocator = gpa.allocator();
 
+    var buffer: [1024]u8 = undefined;
+    const root_path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
+
     state = try allocator.create(PixiState);
-    state.* = .{};
+    state.* = .{ .root_path = try allocator.dupeZ(u8, root_path) };
 
     try core.init(.{
         .title = name,
@@ -150,7 +153,6 @@ pub fn init(app: *App) !void {
         .pencil = pencil,
         .eraser = eraser,
     };
-    state.colors = try Colors.load();
     state.hotkeys = hotkeys;
     state.mouse = mouse;
     state.packer = packer;
@@ -339,7 +341,6 @@ pub fn deinit(_: *App) void {
     state.background_logo.deinit();
     state.fox_logo.deinit();
     state.cursors.deinit();
-    state.colors.deinit();
     state.packer.deinit();
     state.recents.deinit();
     if (state.atlas.external) |*atlas| {
@@ -359,10 +360,12 @@ pub fn deinit(_: *App) void {
     }
     if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
     if (state.atlas.heightmap) |*heightmap| heightmap.deinit();
+    if (state.colors.palette) |*palette| palette.deinit();
     editor.deinit();
     zgui.mach_backend.deinit();
     zgui.deinit();
     zstbi.deinit();
+    state.allocator.free(state.root_path);
     state.allocator.destroy(state);
     core.deinit();
 }
