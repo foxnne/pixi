@@ -42,8 +42,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     if (zgui.isWindowHovered(.{})) {
         var mouse_position = pixi.state.mouse.position;
 
-        
-
         if (file.camera.pixelCoordinates(.{
             .texture_position = canvas_center_offset,
             .position = mouse_position,
