@@ -36,15 +36,23 @@ pub fn draw() void {
         const w = @as(f32, @floatFromInt(pixi.state.fox_logo.image.width / 4)) * pixi.content_scale[0];
         const h = @as(f32, @floatFromInt(pixi.state.fox_logo.image.height / 4)) * pixi.content_scale[1];
         const window_position = zgui.getWindowPos();
+        _ = window_position;
         const center: [2]f32 = .{ zgui.getWindowWidth() / 2.0, zgui.getWindowHeight() / 2.0 };
         zgui.setCursorPosX(center[0] - w / 2.0);
         zgui.setCursorPosY(center[1] - h / 2.0);
+        zgui.dummy(.{ .w = w, .h = h });
+
+        const dummy_pos = zgui.getItemRectMin();
+
         const draw_list = zgui.getWindowDrawList();
         draw_list.addCircleFilled(.{
-            .p = .{ window_position[0] + center[0], window_position[1] + center[1] },
+            .p = .{ dummy_pos[0] + w / 2, dummy_pos[1] + w / 2 },
             .r = w / 2.5,
             .col = pixi.state.theme.foreground.toU32(),
         });
+
+        zgui.setCursorPosX(center[0] - w / 2.0);
+        zgui.setCursorPosY(center[1] - h / 2.0);
         zgui.image(pixi.state.fox_logo.view_handle, .{
             .w = w,
             .h = h,
@@ -53,6 +61,38 @@ pub fn draw() void {
         centerText("Pixi Editor", .{});
         centerText("https://github.com/foxnne/pixi", .{});
         centerText("Version: {any}", .{pixi.version});
+
+        zgui.spacing();
+        zgui.spacing();
+        zgui.spacing();
+        zgui.spacing();
+        zgui.spacing();
+        zgui.spacing();
+        centerText("Credits", .{});
+        centerText("__________________", .{});
+        zgui.spacing();
+        zgui.spacing();
+
+        centerText("mach-core", .{});
+        centerText("https://github.com/hexops/mach-core", .{});
+
+        zgui.spacing();
+        zgui.spacing();
+
+        centerText("zig-gamedev", .{});
+        centerText("https://github.com/michal-z/zig-gamedev", .{});
+
+        zgui.spacing();
+        zgui.spacing();
+
+        centerText("zip", .{});
+        centerText("https://github.com/kuba--/zip", .{});
+
+        zgui.spacing();
+        zgui.spacing();
+
+        centerText("nfd-zig", .{});
+        centerText("https://github.com/fabioarnold/nfd-zig", .{});
     }
 }
 
