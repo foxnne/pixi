@@ -206,7 +206,7 @@ pub fn draw() void {
         }
 
         {
-            // Draw a shadow fading from left to right
+            // Draw a shadow fading from bottom to top
             const pos = zgui.getWindowPos();
             const height = zgui.getWindowHeight();
             const width = zgui.getWindowWidth();
