@@ -205,20 +205,22 @@ pub fn draw() void {
             }
         }
 
-        // Draw a shadow fading from left to right
-        const pos = zgui.getWindowPos();
-        const height = zgui.getWindowHeight();
-        const width = zgui.getWindowWidth();
+        {
+            // Draw a shadow fading from left to right
+            const pos = zgui.getWindowPos();
+            const height = zgui.getWindowHeight();
+            const width = zgui.getWindowWidth();
 
-        const draw_list = zgui.getWindowDrawList();
-        draw_list.addRectFilledMultiColor(.{
-            .pmin = .{ pos[0], (pos[1] + height) - 25 * pixi.content_scale[1] },
-            .pmax = .{ pos[0] + width, pos[1] + height },
-            .col_upr_left = 0x0,
-            .col_upr_right = 0x0,
-            .col_bot_left = 0x10000000,
-            .col_bot_right = 0x10000000,
-        });
+            const draw_list = zgui.getWindowDrawList();
+            draw_list.addRectFilledMultiColor(.{
+                .pmin = .{ pos[0], (pos[1] + height) - 18 * pixi.content_scale[1] },
+                .pmax = .{ pos[0] + width, pos[1] + height },
+                .col_upr_left = 0x0,
+                .col_upr_right = 0x0,
+                .col_bot_left = 0x15000000,
+                .col_bot_right = 0x15000000,
+            });
+        }
 
         zgui.endChild();
 
@@ -256,15 +258,22 @@ pub fn draw() void {
             }
         }
 
-        // Draw a shadow fading from left to right
-        draw_list.addRectFilledMultiColor(.{
-            .pmin = pos,
-            .pmax = .{ pos[0] + 25 * pixi.content_scale[0], height + pos[1] },
-            .col_upr_left = 0x10000000,
-            .col_upr_right = 0x0,
-            .col_bot_left = 0x10000000,
-            .col_bot_right = 0x0,
-        });
+        {
+            const pos = zgui.getWindowPos();
+            const height = zgui.getWindowHeight();
+
+            const draw_list = zgui.getWindowDrawList();
+
+            // Draw a shadow fading from left to right
+            draw_list.addRectFilledMultiColor(.{
+                .pmin = pos,
+                .pmax = .{ pos[0] + 18 * pixi.content_scale[0], height + pos[1] },
+                .col_upr_left = 0x15000000,
+                .col_upr_right = 0x0,
+                .col_bot_left = 0x15000000,
+                .col_bot_right = 0x0,
+            });
+        }
     }
     zgui.end();
 }

@@ -9,7 +9,7 @@ const Self = @This();
 
 name: [:0]const u8 = "pixi_dark.json",
 
-background: Color = Color.initBytes(30, 31, 39, 255),
+background: Color = Color.initBytes(39, 40, 47, 255),
 foreground: Color = Color.initBytes(42, 44, 54, 255),
 text: Color = Color.initBytes(230, 175, 137, 255),
 text_secondary: Color = Color.initBytes(138, 138, 147, 255),
