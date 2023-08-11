@@ -27,7 +27,7 @@ highlight_secondary: Color = Color.initBytes(76, 48, 67, 255),
 hover_secondary: Color = Color.initBytes(105, 50, 68, 255),
 
 checkerboard_primary: Color = Color.initBytes(150, 150, 150, 255),
-checkerboard_secondary: Color = Color.initBytes(55, 55, 55, 255),
+checkerboard_secondary: Color = Color.initBytes(100, 100, 100, 255),
 
 modal_dim: Color = Color.initBytes(0, 0, 0, 48),
 
