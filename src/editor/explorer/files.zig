@@ -32,7 +32,7 @@ pub fn draw() void {
         // Open files
         const file_count = pixi.state.open_files.items.len;
         if (file_count > 0) {
-            if (zgui.collapsingHeader(zgui.formatZ("{s}  {s}", .{ pixi.fa.folder_open, "Open Files" }), .{
+            if (zgui.collapsingHeader("Open Files", .{
                 .default_open = true,
             })) {
                 zgui.separator();
@@ -76,9 +76,11 @@ pub fn draw() void {
             }
         }
 
+        const index = if (std.mem.indexOf(u8, path, folder)) |i| i else 0;
+
         // File tree
         var open: bool = true;
-        if (zgui.collapsingHeaderStatePtr(zgui.formatZ("{s}  {s}", .{ pixi.fa.folder_open, folder }), .{
+        if (zgui.collapsingHeaderStatePtr(path[index.. :0], .{
             .pvisible = &open,
             .flags = .{
                 .default_open = true,
