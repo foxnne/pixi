@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) !void {
 
     const zip_pkg = zip.package(b, .{});
 
-    mach_core.mach_glfw_import_path = "mach_core.mach_gpu.mach_gpu_dawn.mach_glfw";
+    mach_core.mach_glfw_import_path = "mach_core.mach_glfw";
     const app = try mach_core.App.init(b, .{
         .name = "pixi",
         .src = src_path,
