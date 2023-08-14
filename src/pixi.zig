@@ -269,6 +269,7 @@ pub fn update(app: *App) !bool {
     state.cursors.update();
 
     if (editor.getFile(state.open_file_index)) |file| {
+        @memset(core.title[0..], 0);
         @memcpy(core.title[0 .. name.len + 3], name ++ " - ");
         const base_name = std.fs.path.basename(file.path);
         @memcpy(core.title[name.len + 3 .. base_name.len + name.len + 3], base_name);
