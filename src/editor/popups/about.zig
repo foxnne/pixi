@@ -62,6 +62,9 @@ pub fn draw() void {
         centerText("https://github.com/foxnne/pixi", .{});
         centerText("Version: {any}", .{pixi.version});
 
+        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
+        defer zgui.popStyleColor(.{ .count = 1 });
+
         zgui.spacing();
         zgui.spacing();
         zgui.spacing();
