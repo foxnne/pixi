@@ -7,6 +7,7 @@ const zgui = @import("src/deps/zig-gamedev/zgui/build.zig");
 
 const mach_core = @import("mach_core");
 const mach_gpu_dawn = @import("mach_gpu_dawn");
+const xcode_frameworks = @import("xcode_frameworks");
 
 const nfd = @import("src/deps/nfd-zig/build.zig");
 const zip = @import("src/deps/zip/build.zig");
@@ -79,9 +80,16 @@ pub fn build(b: *std.Build) !void {
     app.compile.addModule("zip", zip_pkg.module);
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
+    if (nfd_lib.target_info.target.os.tag == .macos) {
+        // MacOS: this must be defined for macOS 13.3 and older.
+        // Critically, this MUST NOT be included as a -D__kernel_ptr_semantics flag. If it is,
+        // then this macro will not be defined even if `defineCMacro` was also called!
+        nfd_lib.defineCMacro("__kernel_ptr_semantics", "");
+        @import("xcode_frameworks").addPaths(b, nfd_lib);
+    }
+    app.compile.linkLibrary(nfd_lib);
     zstbi_pkg.link(app.compile);
     zgui_pkg.link(app.compile);
-    app.compile.linkLibrary(nfd_lib);
     zip.link(app.compile);
 
     const assets = ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");
