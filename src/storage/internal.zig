@@ -651,14 +651,22 @@ pub const Pixi = struct {
         } });
     }
 
-    pub fn createAnimation(self: *Pixi, name: [:0]const u8, fps: usize, start: usize, length: usize) !void {
-        try self.animations.append(.{
+    pub fn createAnimation(self: *Pixi, name: []const u8, fps: usize, start: usize, length: usize) !void {
+        var animation = .{
             .name = try pixi.state.allocator.dupeZ(u8, name),
             .fps = fps,
             .start = start,
             .length = length,
-        });
+        };
+
+        try self.animations.append(animation);
         self.selected_animation_index = self.animations.items.len - 1;
+
+        var i: usize = animation.start;
+        while (i < animation.start + animation.length) : (i += 1) {
+            pixi.state.allocator.free(self.sprites.items[i].name);
+            self.sprites.items[i].name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ name, i - animation.start });
+        }
 
         try self.history.append(.{ .animation_restore_delete = .{
             .index = self.selected_animation_index,
@@ -666,7 +674,7 @@ pub const Pixi = struct {
         } });
     }
 
-    pub fn renameAnimation(self: *Pixi, name: [:0]const u8, index: usize) !void {
+    pub fn renameAnimation(self: *Pixi, name: []const u8, index: usize) !void {
         var animation = &self.animations.items[index];
         var change: History.Change = .{ .animation = .{
             .index = index,
@@ -677,9 +685,19 @@ pub const Pixi = struct {
         } };
         @memcpy(change.animation.name[0..animation.name.len], animation.name);
 
+        std.log.debug("{s}", .{name});
+
         self.selected_animation_index = index;
         pixi.state.allocator.free(animation.name);
         animation.name = try pixi.state.allocator.dupeZ(u8, name);
+
+        var i: usize = animation.start;
+        while (i < animation.start + animation.length) : (i += 1) {
+            pixi.state.allocator.free(self.sprites.items[i].name);
+            self.sprites.items[i].name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ name, i - animation.start });
+
+            std.log.debug("{s}", .{self.sprites.items[i].name});
+        }
 
         try self.history.append(change);
     }

@@ -79,11 +79,19 @@ pub fn draw() void {
                 switch (pixi.state.popups.animation_state) {
                     .create => {
                         const name = std.mem.trimRight(u8, &pixi.state.popups.animation_name, "\u{0}");
-                        file.createAnimation(pixi.state.popups.animation_name[0..name.len :0], pixi.state.popups.animation_fps, pixi.state.popups.animation_start, pixi.state.popups.animation_length) catch unreachable;
+                        if (std.mem.indexOf(u8, name, "\u{0}")) |index| {
+                            file.createAnimation(name[0..index], pixi.state.popups.animation_fps, pixi.state.popups.animation_start, pixi.state.popups.animation_length) catch unreachable;
+                        } else {
+                            file.createAnimation(name, pixi.state.popups.animation_fps, pixi.state.popups.animation_start, pixi.state.popups.animation_length) catch unreachable;
+                        }
                     },
                     .edit => {
                         const name = std.mem.trimRight(u8, &pixi.state.popups.animation_name, "\u{0}");
-                        file.renameAnimation(pixi.state.popups.animation_name[0..name.len :0], pixi.state.popups.animation_index) catch unreachable;
+                        if (std.mem.indexOf(u8, name, "\u{0}")) |index| {
+                            file.renameAnimation(name[0..index], pixi.state.popups.animation_index) catch unreachable;
+                        } else {
+                            file.renameAnimation(name, pixi.state.popups.animation_index) catch unreachable;
+                        }
                     },
                     else => unreachable,
                 }
