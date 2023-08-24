@@ -199,19 +199,27 @@ pub fn process(self: *Self) !void {
         }
 
         if (self.hotkey(.{ .proc = .copy_right })) |hk| {
-            if (hk.pressed()) {}
+            if (hk.pressed()) {
+                try file.copyDirection(.e);
+            }
         }
 
         if (self.hotkey(.{ .proc = .copy_left })) |hk| {
-            if (hk.pressed()) {}
+            if (hk.pressed()) {
+                try file.copyDirection(.w);
+            }
         }
 
         if (self.hotkey(.{ .proc = .copy_up })) |hk| {
-            if (hk.pressed()) {}
+            if (hk.pressed()) {
+                try file.copyDirection(.n);
+            }
         }
 
         if (self.hotkey(.{ .proc = .copy_down })) |hk| {
-            if (hk.pressed()) {}
+            if (hk.pressed()) {
+                try file.copyDirection(.s);
+            }
         }
     }
     if (self.hotkey(.{ .proc = .folder })) |hk| {

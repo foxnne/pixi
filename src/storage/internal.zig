@@ -881,8 +881,8 @@ pub const Pixi = struct {
         return sprite_image;
     }
 
-    pub fn selectDirection(self: *Pixi, direction: pixi.math.Direction) void {
-        if (direction == .none) return;
+    pub fn getSpriteIndexAfterDirection(self: *Pixi, direction: pixi.math.Direction) usize {
+        if (direction == .none) return self.selected_sprite_index;
 
         const current_index = self.selected_sprite_index;
 
@@ -902,8 +902,69 @@ pub const Pixi = struct {
         var future_row = if (y_sum < 0) 0 else if (y_sum >= rows) rows - 1 else y_sum;
 
         const future_index: usize = @intCast(future_column + future_row * rows);
+        return future_index;
+    }
 
-        self.flipbook_scroll_request = .{ .from = self.flipbook_scroll, .to = self.flipbookScrollFromSpriteIndex(future_index), .state = self.selected_animation_state };
+    pub fn selectDirection(self: *Pixi, direction: pixi.math.Direction) void {
+        self.flipbook_scroll_request = .{
+            .from = self.flipbook_scroll,
+            .to = self.flipbookScrollFromSpriteIndex(self.getSpriteIndexAfterDirection(direction)),
+            .state = self.selected_animation_state,
+        };
+    }
+
+    pub fn copyDirection(file: *Pixi, direction: pixi.math.Direction) !void {
+        const src_index = file.selected_sprite_index;
+        const dst_index = file.getSpriteIndexAfterDirection(direction);
+
+        const tiles_wide = @divExact(file.width, file.tile_width);
+
+        const src_col = @mod(@as(u32, @intCast(src_index)), tiles_wide);
+        const src_row = @divTrunc(@as(u32, @intCast(src_index)), tiles_wide);
+
+        const src_x = src_col * file.tile_width;
+        const src_y = src_row * file.tile_height;
+
+        const dst_col = @mod(@as(u32, @intCast(dst_index)), tiles_wide);
+        const dst_row = @divTrunc(@as(u32, @intCast(dst_index)), tiles_wide);
+
+        const dst_x = dst_col * file.tile_width;
+        const dst_y = dst_row * file.tile_height;
+
+        const layer = &file.layers.items[file.selected_layer_index];
+
+        const src_first_index = layer.getPixelIndex(.{ src_x, src_y });
+        const dst_first_index = layer.getPixelIndex(.{ dst_x, dst_y });
+
+        var src_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+
+        var row: usize = 0;
+        while (row < @as(usize, @intCast(file.tile_height))) : (row += 1) {
+            const p_src = src_first_index + (row * @as(usize, @intCast(file.width)));
+            const src = src_pixels[p_src .. p_src + @as(usize, @intCast(file.tile_width))];
+
+            const p_dest = dst_first_index + (row * @as(usize, @intCast(file.width)));
+            const dest = src_pixels[p_dest .. p_dest + @as(usize, @intCast(file.tile_width))];
+
+            for (src, 0..) |pixel, pixel_i| {
+                try file.buffers.stroke.append(pixel_i + p_dest, dest[pixel_i]);
+                dest[pixel_i] = pixel;
+            }
+        }
+
+        layer.texture.update(core.device);
+
+        // Submit the stroke change buffer
+        if (file.buffers.stroke.indices.items.len > 0) {
+            const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
+            try file.history.append(change);
+        }
+
+        file.flipbook_scroll_request = .{
+            .from = file.flipbook_scroll,
+            .to = file.flipbookScrollFromSpriteIndex(dst_index),
+            .state = file.selected_animation_state,
+        };
     }
 };
 
