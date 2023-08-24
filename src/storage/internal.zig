@@ -392,7 +392,7 @@ pub const Pixi = struct {
                                 var animation_index: usize = 0;
                                 while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
                                     pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                                    file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name, animation_index }) catch unreachable;
+                                    file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name[0..], animation_index }) catch unreachable;
                                     animation_index += 1;
                                 }
 

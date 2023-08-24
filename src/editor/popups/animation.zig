@@ -79,6 +79,7 @@ pub fn draw() void {
                 switch (pixi.state.popups.animation_state) {
                     .create => {
                         const name = std.mem.trimRight(u8, &pixi.state.popups.animation_name, "\u{0}");
+
                         if (std.mem.indexOf(u8, name, "\u{0}")) |index| {
                             file.createAnimation(name[0..index], pixi.state.popups.animation_fps, pixi.state.popups.animation_start, pixi.state.popups.animation_length) catch unreachable;
                         } else {
