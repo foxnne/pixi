@@ -55,7 +55,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     }
 
     // Handle playing animations and locking the current extents
-    if (file.selected_animation_state == .play) {
+    if (file.selected_animation_state == .play and file.animations.items.len > 0) {
         const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
         file.selected_animation_elapsed += pixi.state.delta_time;
         if (file.selected_animation_elapsed > 1.0 / @as(f32, @floatFromInt(animation.fps))) {

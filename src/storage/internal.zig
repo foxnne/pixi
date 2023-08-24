@@ -880,6 +880,31 @@ pub const Pixi = struct {
 
         return sprite_image;
     }
+
+    pub fn selectDirection(self: *Pixi, direction: pixi.math.Direction) void {
+        if (direction == .none) return;
+
+        const current_index = self.selected_sprite_index;
+
+        const rows: i32 = @intCast(@divExact(self.width, self.tile_width));
+        const columns: i32 = @intCast(@divExact(self.height, self.tile_height));
+
+        const column = @mod(@as(i32, @intCast(current_index)), rows);
+        const row = @divTrunc(@as(i32, @intCast(current_index)), rows);
+
+        const x_movement: i32 = @intFromFloat(direction.x());
+        const y_movement: i32 = @intFromFloat(-direction.y());
+
+        const x_sum = column + x_movement;
+        const y_sum = row + y_movement;
+
+        var future_column = if (x_sum < 0) 0 else if (x_sum >= columns) columns - 1 else x_sum;
+        var future_row = if (y_sum < 0) 0 else if (y_sum >= rows) rows - 1 else y_sum;
+
+        const future_index: usize = @intCast(future_column + future_row * rows);
+
+        self.flipbook_scroll_request = .{ .from = self.flipbook_scroll, .to = self.flipbookScrollFromSpriteIndex(future_index), .state = self.selected_animation_state };
+    }
 };
 
 pub const Layer = struct {

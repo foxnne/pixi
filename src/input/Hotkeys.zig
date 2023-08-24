@@ -35,6 +35,14 @@ pub const Proc = enum(u32) {
     size_up,
     size_down,
     playpause,
+    select_right,
+    select_left,
+    select_up,
+    select_down,
+    copy_right,
+    copy_left,
+    copy_up,
+    copy_down,
 };
 
 pub const Action = union(enum) {
@@ -164,6 +172,46 @@ pub fn process(self: *Self) !void {
                     .play => .pause,
                 };
             }
+        }
+
+        if (self.hotkey(.{ .proc = .select_right })) |hk| {
+            if (hk.pressed()) {
+                file.selectDirection(.e);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .select_left })) |hk| {
+            if (hk.pressed()) {
+                file.selectDirection(.w);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .select_up })) |hk| {
+            if (hk.pressed()) {
+                file.selectDirection(.n);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .select_down })) |hk| {
+            if (hk.pressed()) {
+                file.selectDirection(.s);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .copy_right })) |hk| {
+            if (hk.pressed()) {}
+        }
+
+        if (self.hotkey(.{ .proc = .copy_left })) |hk| {
+            if (hk.pressed()) {}
+        }
+
+        if (self.hotkey(.{ .proc = .copy_up })) |hk| {
+            if (hk.pressed()) {}
+        }
+
+        if (self.hotkey(.{ .proc = .copy_down })) |hk| {
+            if (hk.pressed()) {}
         }
     }
     if (self.hotkey(.{ .proc = .folder })) |hk| {
@@ -363,6 +411,86 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .shortcut = "space",
             .key = Key.space,
             .action = .{ .proc = Proc.playpause },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = "right arrow",
+            .key = Key.right,
+            .action = .{ .proc = Proc.select_right },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = "left arrow",
+            .key = Key.left,
+            .action = .{ .proc = Proc.select_left },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = "up arrow",
+            .key = Key.up,
+            .action = .{ .proc = Proc.select_up },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = "down arrow",
+            .key = Key.down,
+            .action = .{ .proc = Proc.select_down },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+right arrow" else if (macos) "cmd+right arrow" else "super+right arrow",
+            .key = Key.right,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.copy_right },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+left arrow" else if (macos) "cmd+left arrow" else "super+left arrow",
+            .key = Key.left,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.copy_left },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+up arrow" else if (macos) "cmd+up arrow" else "super+up arrow",
+            .key = Key.up,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.copy_up },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+down arrow" else if (macos) "cmd+down arrow" else "super+down arrow",
+            .key = Key.down,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.copy_down },
         });
     }
 
