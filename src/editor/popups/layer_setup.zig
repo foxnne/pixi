@@ -64,15 +64,27 @@ pub fn draw() void {
                 switch (pixi.state.popups.layer_setup_state) {
                     .none => {
                         const new_name = std.mem.trimRight(u8, pixi.state.popups.layer_setup_name[0..], "\u{0}");
-                        file.createLayer(pixi.state.popups.layer_setup_name[0..new_name.len :0]) catch unreachable;
+                        if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
+                            file.createLayer(pixi.state.popups.layer_setup_name[0..index :0]) catch unreachable;
+                        } else {
+                            file.createLayer(pixi.state.popups.layer_setup_name[0..new_name.len :0]) catch unreachable;
+                        }
                     },
                     .rename => {
                         const new_name = std.mem.trimRight(u8, pixi.state.popups.layer_setup_name[0..], "\u{0}");
-                        file.renameLayer(pixi.state.popups.layer_setup_name[0..new_name.len :0], pixi.state.popups.layer_setup_index) catch unreachable;
+                        if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
+                            file.renameLayer(pixi.state.popups.layer_setup_name[0..index :0], pixi.state.popups.layer_setup_index) catch unreachable;
+                        } else {
+                            file.renameLayer(pixi.state.popups.layer_setup_name[0..new_name.len :0], pixi.state.popups.layer_setup_index) catch unreachable;
+                        }
                     },
                     .duplicate => {
                         const new_name = std.mem.trimRight(u8, pixi.state.popups.layer_setup_name[0.. :0], "\u{0}");
-                        file.duplicateLayer(pixi.state.popups.layer_setup_name[0..new_name.len :0], pixi.state.popups.layer_setup_index) catch unreachable;
+                        if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
+                            file.duplicateLayer(pixi.state.popups.layer_setup_name[0..index :0], pixi.state.popups.layer_setup_index) catch unreachable;
+                        } else {
+                            file.duplicateLayer(pixi.state.popups.layer_setup_name[0..new_name.len :0], pixi.state.popups.layer_setup_index) catch unreachable;
+                        }
                     },
                 }
                 pixi.state.popups.layer_setup_state = .none;
