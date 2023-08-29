@@ -444,11 +444,25 @@ pub const Pixi = struct {
                 const index = layer.getPixelIndex(pixel);
                 var pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
 
+                const tile_width: usize = @intCast(file.tile_width);
+                const tile_height: usize = @intCast(file.tile_height);
+
+                var tile_column = @divTrunc(pixel[0], tile_width);
+                var tile_row = @divTrunc(pixel[1], tile_height);
+
+                var tl_pixel: [2]usize = .{ tile_column * tile_width, tile_row * tile_height };
+
                 const old_color = pixels[index];
-                for (pixels, 0..) |color, i| {
-                    if (std.mem.eql(u8, &color, &old_color)) {
-                        try file.buffers.stroke.append(i, old_color);
-                        pixels[i] = pixi.state.colors.primary;
+                var y: usize = tl_pixel[1];
+                while (y < tl_pixel[1] + tile_height) : (y += 1) {
+                    var x: usize = tl_pixel[0];
+                    while (x < tl_pixel[0] + tile_width) : (x += 1) {
+                        const pixel_index = y * tile_width + x;
+                        const color = pixels[pixel_index];
+                        if (std.mem.eql(u8, &color, &old_color)) {
+                            try file.buffers.stroke.append(pixel_index, old_color);
+                            pixels[pixel_index] = pixi.state.colors.primary;
+                        }
                     }
                 }
 
