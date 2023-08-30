@@ -954,14 +954,14 @@ pub const Pixi = struct {
 
         var row: usize = 0;
         while (row < @as(usize, @intCast(file.tile_height))) : (row += 1) {
-            const p_src = src_first_index + (row * @as(usize, @intCast(file.width)));
-            const src = src_pixels[p_src .. p_src + @as(usize, @intCast(file.tile_width))];
+            const src_i = src_first_index + (row * @as(usize, @intCast(file.width)));
+            const src = src_pixels[src_i .. src_i + @as(usize, @intCast(file.tile_width))];
 
-            const p_dest = dst_first_index + (row * @as(usize, @intCast(file.width)));
-            const dest = src_pixels[p_dest .. p_dest + @as(usize, @intCast(file.tile_width))];
+            const dest_i = dst_first_index + (row * @as(usize, @intCast(file.width)));
+            const dest = src_pixels[dest_i .. dest_i + @as(usize, @intCast(file.tile_width))];
 
             for (src, 0..) |pixel, pixel_i| {
-                try file.buffers.stroke.append(pixel_i + p_dest, dest[pixel_i]);
+                try file.buffers.stroke.append(pixel_i + dest_i, dest[pixel_i]);
                 dest[pixel_i] = pixel;
             }
         }
@@ -979,6 +979,114 @@ pub const Pixi = struct {
             .to = file.flipbookScrollFromSpriteIndex(dst_index),
             .state = file.selected_animation_state,
         };
+    }
+
+    pub fn shiftDirection(file: *Pixi, direction: pixi.math.Direction) !void {
+        const direction_vector = direction.f32x4();
+
+        const tiles_wide = @divExact(file.width, file.tile_width);
+
+        const src_col = @mod(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
+        const src_row = @divTrunc(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
+
+        const one: usize = 1;
+        const zero: usize = 0;
+
+        const src_x: usize = src_col * file.tile_width + switch (direction) {
+            .w => one,
+            else => zero,
+        };
+        const src_y: usize = src_row * file.tile_height + switch (direction) {
+            .n => one,
+            else => zero,
+        };
+        const tile_height: usize = file.tile_height - switch (direction) {
+            .s, .n => one,
+            else => zero,
+        };
+        const tile_width: usize = file.tile_width - switch (direction) {
+            .e, .w => one,
+            else => zero,
+        };
+
+        const dst_x: u32 = @intCast(@as(i32, @intCast(src_x)) + @as(i32, @intFromFloat(direction_vector[0])));
+        const dst_y: u32 = @intCast(@as(i32, @intCast(src_y)) - @as(i32, @intFromFloat(direction_vector[1])));
+
+        const layer = &file.layers.items[file.selected_layer_index];
+
+        const src_first_index = layer.getPixelIndex(.{ src_x, src_y });
+        const dst_first_index = layer.getPixelIndex(.{ dst_x, dst_y });
+
+        var src_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+
+        const forwards: bool = switch (direction) {
+            .e, .s => false,
+            else => true,
+        };
+
+        var row: usize = if (forwards) 0 else tile_height;
+        while (if (forwards) row < tile_height else row > 0) : (if (forwards) {
+            row += 1;
+        } else {
+            row -= 1;
+        }) {
+            const src_i = src_first_index + (row * @as(usize, @intCast(file.width)));
+            const src = src_pixels[src_i .. src_i + tile_width];
+
+            const dest_i = dst_first_index + (row * @as(usize, @intCast(file.width)));
+            const dest = src_pixels[dest_i .. dest_i + tile_width];
+
+            for (src, 0..) |_, pixel_i| {
+                try file.buffers.stroke.append(pixel_i + dest_i, dest[pixel_i]);
+            }
+            switch (direction) {
+                .e => std.mem.copyBackwards([4]u8, dest, src),
+                else => std.mem.copyForwards([4]u8, dest, src),
+            }
+        }
+
+        layer.texture.update(core.device);
+
+        // Submit the stroke change buffer
+        if (file.buffers.stroke.indices.items.len > 0) {
+            const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
+            try file.history.append(change);
+        }
+    }
+
+    pub fn eraseSprite(file: *Pixi, sprite_index: usize) !void {
+        const tiles_wide = @divExact(file.width, file.tile_width);
+
+        const src_col = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
+        const src_row = @divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide);
+
+        const src_x = src_col * file.tile_width;
+        const src_y = src_row * file.tile_height;
+
+        const layer = &file.layers.items[file.selected_layer_index];
+
+        const src_first_index = layer.getPixelIndex(.{ src_x, src_y });
+
+        var src_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+
+        var row: usize = 0;
+        while (row < @as(usize, @intCast(file.tile_height))) : (row += 1) {
+            const p_dest = src_first_index + (row * @as(usize, @intCast(file.width)));
+            const dest = src_pixels[p_dest .. p_dest + @as(usize, @intCast(file.tile_width))];
+
+            for (dest, 0..) |pixel, pixel_i| {
+                try file.buffers.stroke.append(pixel_i + p_dest, pixel);
+                dest[pixel_i] = .{ 0.0, 0.0, 0.0, 0.0 };
+            }
+        }
+
+        layer.texture.update(core.device);
+
+        // Submit the stroke change buffer
+        if (file.buffers.stroke.indices.items.len > 0) {
+            const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
+            try file.history.append(change);
+        }
     }
 };
 

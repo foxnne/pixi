@@ -43,6 +43,11 @@ pub const Proc = enum(u32) {
     copy_left,
     copy_up,
     copy_down,
+    erase_sprite,
+    shift_right,
+    shift_left,
+    shift_up,
+    shift_down,
 };
 
 pub const Action = union(enum) {
@@ -219,6 +224,36 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .copy_down })) |hk| {
             if (hk.pressed()) {
                 try file.copyDirection(.s);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .erase_sprite })) |hk| {
+            if (hk.pressed()) {
+                try file.eraseSprite(file.selected_sprite_index);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .shift_right })) |hk| {
+            if (hk.pressed()) {
+                try file.shiftDirection(.e);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .shift_left })) |hk| {
+            if (hk.pressed()) {
+                try file.shiftDirection(.w);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .shift_up })) |hk| {
+            if (hk.pressed()) {
+                try file.shiftDirection(.n);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .shift_down })) |hk| {
+            if (hk.pressed()) {
+                try file.shiftDirection(.s);
             }
         }
     }
@@ -422,6 +457,12 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
+            .shortcut = "backspace",
+            .key = Key.backspace,
+            .action = .{ .proc = Proc.erase_sprite },
+        });
+
+        try hotkeys.append(.{
             .shortcut = "right arrow",
             .key = Key.right,
             .action = .{ .proc = Proc.select_right },
@@ -499,6 +540,62 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .num_lock = false,
             },
             .action = .{ .proc = Proc.copy_down },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = "shift+right arrow",
+            .key = Key.right,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.shift_right },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = "shift+left arrow",
+            .key = Key.left,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.shift_left },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = "shift+up arrow",
+            .key = Key.up,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.shift_up },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = "shift+down arrow",
+            .key = Key.down,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.shift_down },
         });
     }
 
