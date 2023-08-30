@@ -912,8 +912,8 @@ pub const Pixi = struct {
         const x_sum = column + x_movement;
         const y_sum = row + y_movement;
 
-        var future_column = if (x_sum < 0) 0 else if (x_sum >= columns) columns - 1 else x_sum;
-        var future_row = if (y_sum < 0) 0 else if (y_sum >= rows) rows - 1 else y_sum;
+        var future_column = if (x_sum < 0) columns - 1 else if (x_sum >= columns) 0 else x_sum;
+        var future_row = if (y_sum < 0) rows - 1 else if (y_sum >= rows) 0 else y_sum;
 
         const future_index: usize = @intCast(future_column + future_row * rows);
         return future_index;
