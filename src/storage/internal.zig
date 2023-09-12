@@ -457,7 +457,7 @@ pub const Pixi = struct {
                 while (y < tl_pixel[1] + tile_height) : (y += 1) {
                     var x: usize = tl_pixel[0];
                     while (x < tl_pixel[0] + tile_width) : (x += 1) {
-                        const pixel_index = y * tile_width + x;
+                        const pixel_index = layer.getPixelIndex(.{ x, y });
                         const color = pixels[pixel_index];
                         if (std.mem.eql(u8, &color, &old_color)) {
                             try file.buffers.stroke.append(pixel_index, old_color);
