@@ -35,8 +35,11 @@ pub fn build(b: *std.Build) !void {
 
     const zip_pkg = zip.package(b, .{});
 
-    mach_core.mach_glfw_import_path = "mach_core.mach_glfw";
-    const app = try mach_core.App.init(b, .{
+    const mach_core_dep = b.dependency("mach_core", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const app = try mach_core.App.init(b, mach_core_dep.builder, .{
         .name = "pixi",
         .src = src_path,
         .target = target,
