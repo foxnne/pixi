@@ -119,7 +119,7 @@ pub fn draw() void {
                     pixi.state.recents.save() catch unreachable;
                     pixi.state.atlas.save(response.path) catch unreachable;
                     nfd.freePath(response.path);
-                    pixi.state.popups.file_dialog_request = null;
+                    pixi.state.popups.file_dialog_response = null;
                 }
             }
 
