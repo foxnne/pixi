@@ -112,6 +112,8 @@ pub fn init(app: *App) !void {
     state = try allocator.create(PixiState);
     state.* = .{ .root_path = try allocator.dupeZ(u8, root_path) };
 
+    state.settings = Settings.init(allocator) catch Settings{};
+
     try core.init(.{
         .title = name,
         .size = .{ .width = state.settings.initial_window_width, .height = state.settings.initial_window_height },
@@ -338,6 +340,7 @@ pub fn update(app: *App) !bool {
 }
 
 pub fn deinit(_: *App) void {
+    state.settings.deinit(state.allocator);
     state.allocator.free(state.hotkeys.hotkeys);
     state.background_logo.deinit();
     state.fox_logo.deinit();
@@ -363,6 +366,7 @@ pub fn deinit(_: *App) void {
     if (state.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (state.colors.palette) |*palette| palette.deinit();
     editor.deinit();
+
     zgui.mach_backend.deinit();
     zgui.deinit();
     zstbi.deinit();
