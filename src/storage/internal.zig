@@ -125,7 +125,9 @@ pub const Pixi = struct {
                 if (color[3] == 0) {
                     pixi.state.tools.set(.eraser);
                 } else {
-                    pixi.state.tools.set(.pencil);
+                    if (pixi.state.tools.current == .eraser) {
+                        pixi.state.tools.set(pixi.state.tools.previous);
+                    }
                     pixi.state.colors.primary = color;
                 }
 
