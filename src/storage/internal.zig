@@ -194,12 +194,20 @@ pub const Pixi = struct {
         };
 
         if (if (pixi.state.mouse.button(.primary)) |primary| primary.down() else false) {
-            const color = switch (pixi.state.tools.current) {
+            var color = switch (pixi.state.tools.current) {
                 .pencil => pixi.state.colors.primary,
                 .eraser => [_]u8{ 0, 0, 0, 0 },
                 .heightmap => [_]u8{ pixi.state.colors.height, 0, 0, 255 },
                 else => unreachable,
             };
+
+            if (pixi.state.tools.current == .heightmap) {
+                if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                    if (hk.down()) {
+                        color = .{ 0, 0, 0, 0 };
+                    }
+                }
+            }
 
             if (!std.mem.eql(f32, &pixi.state.mouse.position, &pixi.state.mouse.previous_position)) {
                 if (pixel_coords_opt) |pixel_coord| {
@@ -243,11 +251,12 @@ pub const Pixi = struct {
                                     try file.buffers.stroke.append(index, value);
                                 layer.setPixel(p, color, false);
 
-                                if (color[3] == 0) {
-                                    if (file.heightmap_layer) |*l| {
-                                        l.setPixel(p, .{ 0, 0, 0, 0 }, true);
-                                    }
-                                }
+                                // TODO: Implement a better way to handle heightmap changing when underlying layers change
+                                // if (color[3] == 0) {
+                                //     if (file.heightmap_layer) |*l| {
+                                //         l.setPixel(p, .{ 0, 0, 0, 0 }, true);
+                                //     }
+                                // }
                             }
                         }
                         layer.texture.update(core.device);
