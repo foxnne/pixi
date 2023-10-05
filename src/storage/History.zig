@@ -234,11 +234,12 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                 pixels.values[i] = current_pixels[pixel_index];
                 current_pixels[pixel_index] = color;
                 if (color[3] == 0 and pixels.layer >= 0) {
+                    // TODO: This does all kinds of damage to a heightmap, fix later
                     // Erasing a pixel on a layer, we also need to erase the heightmap
-                    if (file.heightmap_layer) |heightmap_layer| {
-                        var heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.image.data.ptr))[0 .. heightmap_layer.texture.image.data.len / 4];
-                        heightmap_pixels[pixel_index] = color;
-                    }
+                    // if (file.heightmap_layer) |heightmap_layer| {
+                    //     var heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.image.data.ptr))[0 .. heightmap_layer.texture.image.data.len / 4];
+                    //     heightmap_pixels[pixel_index] = color;
+                    // }
                 }
             }
 
