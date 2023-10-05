@@ -39,34 +39,22 @@ pub fn init(a: std.mem.Allocator) !@This() {
 
 ///saves the current settings to a file and deinitializes the memory
 pub fn deinit(self: *@This(), a: std.mem.Allocator) void {
-    //NOTE, this doesn't actually free any memory for the settings struct.
-    //
-    //This is because we need to maintain a copy of std.json.parsed(@This()) in order to properly
-    //Deinitialize the memory via `parsed.deinit()`
-    //
-    //attempting to do `a.free(self)` will result in an error
-    //
-    //Alternatively, we could use an arena allocator to initialize the memory in the Init() method, which will allow use to more easily free it
-    //
-    //Either way, properly freeing this memory will involve changing things outside of the settings file which I will leave the best course of action
-    //a decision for the core maintainers
-
     const path = getSettingsPath(a) catch {
-        std.debug.print("memory allocation error when saving settings", .{});
+        std.debug.print("ERROR: Memory allocation error when saving settings\n", .{});
         return;
     };
     defer a.free(path);
     const stringified = std.json.stringifyAlloc(a, self, .{}) catch {
-        std.debug.print("failed to stringify settings", .{});
+        std.debug.print("ERROR: Failed to stringify settings\n", .{});
         return;
     };
     defer a.free(stringified);
     var file = std.fs.createFileAbsolute(path, .{}) catch {
-        std.debug.print("failed to open settings file", .{});
+        std.debug.print("ERROR: Failed to open settings file \"{s}\"\n", .{path});
         return;
     };
     file.writeAll(stringified) catch {
-        std.debug.print("failed to save settings", .{});
+        std.debug.print("ERROR: Failed to write settings to file \"{s}\"\n", .{path});
         return;
     };
 }

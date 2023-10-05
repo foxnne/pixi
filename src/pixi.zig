@@ -78,6 +78,7 @@ pub const PixiState = struct {
     cursors: Cursors = undefined,
     colors: Colors = .{},
     delta_time: f32 = 0.0,
+    json_allocator: std.heap.ArenaAllocator = undefined,
 };
 
 pub const Sidebar = enum(u32) {
@@ -112,7 +113,8 @@ pub fn init(app: *App) !void {
     state = try allocator.create(PixiState);
     state.* = .{ .root_path = try allocator.dupeZ(u8, root_path) };
 
-    state.settings = Settings.init(allocator) catch Settings{};
+    state.json_allocator = std.heap.ArenaAllocator.init(allocator);
+    state.settings = Settings.init(state.json_allocator.allocator()) catch Settings{};
 
     try core.init(.{
         .title = name,
@@ -340,7 +342,12 @@ pub fn update(app: *App) !bool {
 }
 
 pub fn deinit(_: *App) void {
-    state.settings.deinit(state.allocator);
+    //deinit and save settings
+    state.settings.deinit(state.json_allocator.allocator());
+
+    //free everything allocated by the json_allocator
+    state.json_allocator.deinit();
+
     state.allocator.free(state.hotkeys.hotkeys);
     state.background_logo.deinit();
     state.fox_logo.deinit();
@@ -373,4 +380,7 @@ pub fn deinit(_: *App) void {
     state.allocator.free(state.root_path);
     state.allocator.destroy(state);
     core.deinit();
+
+    //uncomment this line to check for memory leaks on program shutdown, currently there are several
+    //_ = gpa.detectLeaks();
 }
