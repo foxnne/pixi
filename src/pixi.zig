@@ -349,6 +349,7 @@ pub fn deinit(_: *App) void {
     state.json_allocator.deinit();
 
     state.allocator.free(state.hotkeys.hotkeys);
+    state.allocator.free(state.mouse.buttons);
     state.background_logo.deinit();
     state.fox_logo.deinit();
     state.cursors.deinit();
@@ -382,5 +383,5 @@ pub fn deinit(_: *App) void {
     core.deinit();
 
     //uncomment this line to check for memory leaks on program shutdown, currently there are several
-    //_ = gpa.detectLeaks();
+    _ = gpa.detectLeaks();
 }
