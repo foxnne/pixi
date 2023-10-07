@@ -1,7 +1,7 @@
 const std = @import("std");
 const zstbi = @import("zstbi");
 const pixi = @import("../pixi.zig");
-const core = @import("core");
+const core = @import("mach-core");
 
 const Packer = @This();
 

@@ -1,7 +1,7 @@
 const std = @import("std");
 const zm = @import("zmath");
 const pixi = @import("../pixi.zig");
-const core = @import("core");
+const core = @import("mach-core");
 const gpu = core.gpu;
 const zgui = @import("zgui").MachImgui(core);
 

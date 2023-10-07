@@ -3,7 +3,7 @@ const pixi = @import("../pixi.zig");
 const zstbi = @import("zstbi");
 const storage = @import("storage.zig");
 const zip = @import("zip");
-const core = @import("core");
+const core = @import("mach-core");
 const zgui = @import("zgui").MachImgui(core);
 const gpu = core.gpu;
 

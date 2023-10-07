@@ -1,5 +1,5 @@
 const pixi = @import("root");
-const core = @import("core");
+const core = @import("mach-core");
 
 const Self = @This();
 

@@ -86,7 +86,7 @@ pub fn Package(comptime deps: anytype) type {
                 .mach => {
                     zgui_c_cpp.addCSourceFile(.{ .file = .{ .path = thisDir() ++ "/libs/imgui/backends/imgui_impl_wgpu.cpp" }, .flags = cflags });
                     zgui_c_cpp.addCSourceFile(.{ .file = .{ .path = thisDir() ++ "/libs/imgui/imgui_impl_mach.cpp" }, .flags = cflags });
-                    try deps.gpu_dawn.link(b, zgui_c_cpp, args.gpu_dawn_options);
+                    deps.gpu_dawn.link(b, zgui_c_cpp, args.gpu_dawn_options);
                 },
                 .glfw_wgpu => {
                     zgui_c_cpp.addIncludePath(.{ .path = thisDir() ++ "/../zglfw/libs/glfw/include" });
