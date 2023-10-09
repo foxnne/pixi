@@ -59,7 +59,7 @@ pub fn draw() void {
                 pixi.state.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
             }
         } else {
-            var primary: [4]f32 = if (pixi.state.tools.current == .heightmap) .{} else .{
+            var primary: [4]f32 = if (pixi.state.tools.current == .heightmap) .{255,255,255,255} else .{
                 @as(f32, @floatFromInt(pixi.state.colors.primary[0])) / 255.0,
                 @as(f32, @floatFromInt(pixi.state.colors.primary[1])) / 255.0,
                 @as(f32, @floatFromInt(pixi.state.colors.primary[2])) / 255.0,
