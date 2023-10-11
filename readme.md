@@ -7,6 +7,8 @@
 # 
 **Pixi** is an cross-platform open-source pixel art editor and animation editor written in [Zig](https://github.com/ziglang/zig).
 
+Pixi uses mach-core, and follows the same required version of zig, you can find the download [here](https://machengine.org/about/zig-version/).
+
 ![pixi_explanatory_workflow](https://github.com/foxnne/pixi/assets/49629865/51e16f4d-634e-461d-ba5e-41cc4fa8229e)
 
 <img width="1468" alt="Screenshot 2023-08-09 at 1 15 03 AM" src="https://github.com/foxnne/pixi/assets/49629865/eaee91b2-5844-4e2e-a776-867a307cde7f">
@@ -42,7 +44,7 @@
 
 ## Compilation
 - [Linux] Ensure `gtk+3-devel` or similar is installed (for native file dialogs).
-- Download the latest Zig master from [here](https://ziglang.org/download/) and add to PATH.
+- Download the supported nightly version of Zig [here](https://machengine.org/about/zig-version/) and add to PATH.
 - Clone pixi.
 - Build.
     - ```git clone https://github.com/foxnne/pixi.git```
