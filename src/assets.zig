@@ -7,12 +7,12 @@ pub const palettes = "assets/palettes/";
 
 pub const themes = "assets/themes/";
 
-pub const icon1024_png = struct {
-  pub const path = "assets/icon1024.png";
+pub const fox_1024_png = struct {
+  pub const path = "assets/fox_1024.png";
 };
 
-pub const fox1024_png = struct {
-  pub const path = "assets/fox1024.png";
+pub const icon_1024_png = struct {
+  pub const path = "assets/icon_1024.png";
 };
 
 pub const eraser64_png = struct {
