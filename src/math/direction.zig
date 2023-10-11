@@ -23,8 +23,8 @@ pub const Direction = enum(u8) {
             4 => {
                 var d: u8 = 0;
 
-                const absx = @fabs(vx);
-                const absy = @fabs(vy);
+                const absx = @abs(vx);
+                const absy = @abs(vy);
 
                 if (absy < absx * sqrt2) {
                     //x
@@ -40,8 +40,8 @@ pub const Direction = enum(u8) {
             8 => {
                 var d: u8 = 0;
 
-                const absx = @fabs(vx);
-                const absy = @fabs(vy);
+                const absx = @abs(vx);
+                const absy = @abs(vy);
 
                 if (absy < absx * (sqrt2 + 1.0)) {
                     // x

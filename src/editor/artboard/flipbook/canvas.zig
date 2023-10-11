@@ -99,7 +99,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         const src_x = column * tile_width;
         const src_y = row * tile_height;
 
-        const sprite_scale = std.math.clamp(0.5 / @fabs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
+        const sprite_scale = std.math.clamp(0.5 / @abs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
         const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
         var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + @as(f32, @floatFromInt(i)) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
         var dst_y: f32 = canvas_center_offset[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));

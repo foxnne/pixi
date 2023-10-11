@@ -9,7 +9,7 @@ pub fn process(start: [2]f32, end: [2]f32) ![][2]f32 {
     var x2 = end[0];
     var y2 = end[1];
 
-    const steep = @fabs(y2 - y1) > @fabs(x2 - x1);
+    const steep = @abs(y2 - y1) > @abs(x2 - x1);
     if (steep) {
         std.mem.swap(f32, &x1, &y1);
         std.mem.swap(f32, &x2, &y2);
@@ -21,7 +21,7 @@ pub fn process(start: [2]f32, end: [2]f32) ![][2]f32 {
     }
 
     const dx: f32 = x2 - x1;
-    const dy: f32 = @fabs(y2 - y1);
+    const dy: f32 = @abs(y2 - y1);
 
     var err: f32 = dx / 2.0;
     var ystep: i32 = if (y1 < y2) 1 else -1;

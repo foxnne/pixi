@@ -234,8 +234,8 @@ pub const Camera = struct {
         var nearest_zoom_index: usize = 0;
         var nearest_zoom_step: f32 = pixi.state.settings.zoom_steps[nearest_zoom_index];
         for (pixi.state.settings.zoom_steps, 0..) |step, i| {
-            const step_difference = @fabs(camera.zoom - step);
-            const current_difference = @fabs(camera.zoom - nearest_zoom_step);
+            const step_difference = @abs(camera.zoom - step);
+            const current_difference = @abs(camera.zoom - nearest_zoom_step);
             if (step_difference < current_difference) {
                 nearest_zoom_step = step;
                 nearest_zoom_index = i;
@@ -326,7 +326,7 @@ pub const Camera = struct {
         const i = file.selected_sprite_index;
         const tile_width = @as(f32, @floatFromInt(file.tile_width));
         const tile_height = @as(f32, @floatFromInt(file.tile_height));
-        const sprite_scale = std.math.clamp(0.5 / @fabs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
+        const sprite_scale = std.math.clamp(0.5 / @abs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
         var dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + @as(f32, @floatFromInt(i)) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
         var dst_y: f32 = options.sprite_position[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
         var dst_width: f32 = tile_width * sprite_scale;
