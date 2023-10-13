@@ -1,6 +1,6 @@
 
 <p align="center">  
-  <img width="25%" src="assets/Icon1024.png">
+  <img width="25%" src="assets/icon_1024.png">
   <h3 align=center></h3>
 </p>
 
