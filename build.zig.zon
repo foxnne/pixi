@@ -1,54 +1,31 @@
 .{
+    .paths = .{
+        "src",
+        "build.zig",
+        "build.zig.zon",
+        "assets",
+        "contributor.md",
+        "readme.md",
+        "LICENSE",
+    },
     .name = "pixi",
     .version = "0.0.1",
     .dependencies = .{
         .mach_core = .{
-            .url = "https://pkg.machengine.org/mach-core/71ea86090c3095acdbc13bcc45b0666e39b53114.tar.gz",
-            .hash = "12203917ad7153ba955004d3b436ead6fc314de29d21ef0a7fda142025dd631c2709",
+            .url = "https://pkg.machengine.org/mach-core/331ce61cb8c075be6d7c46e49da8ccbd5967d9b7.tar.gz",
+            .hash = "12203bdeb8af9b1da2a521beafb51e3657e1c4f49b058cdd114f607b75dbb95ad306",
         },
-        // .mach_sysjs = .{
-        //     .url = "https://pkg.machengine.org/mach-sysjs/cd011058993f39a3ab473921ff51e0eda5635f99.tar.gz",
-        //     .hash = "1220d2af1939977838949d435b28de637c29407586b8ac87e35241b1b68c0860e98d",
-        // },
-        // .mach_gamemode = .{
-        //     .url = "https://pkg.machengine.org/mach-gamemode/e8cf3b00c1e7ce47c15a0b9a4def8493dd84fef1.tar.gz",
-        //     .hash = "122033b8f9bc8116edb3f2421f78a35d5dd85f71792681633cb6edc883275af2a1e7",
-        // },
-        // .mach_gpu = .{
-        //     .url = "https://pkg.machengine.org/mach-gpu/a86af86591827a2b779cd8eb52835929394912a4.tar.gz",
-        //     .hash = "12208531803f37e906974a4a4bd58b81200ae313f46f62f6384c91a32601b0a07eb6",
-        // },
         .mach_gpu_dawn = .{
-            .url = "https://pkg.machengine.org/mach-gpu-dawn/3690dfbd0b8b64203b83d651ca95b8c0d776019e.tar.gz",
-            .hash = "122037f1ecd3b4b4da9bb1b0507984d1d5286720ca8a39d562c3b6178d6dfdd199e4",
+            .url = "https://pkg.machengine.org/mach-gpu-dawn/ee2fb5066a774238a97ab18dc5620acce538d2e6.tar.gz",
+            .hash = "1220120328740b87b10f373b8b716d5fb7f73b437c770d18cc9012137328f2dd30e2",
         },
-        // .mach_glfw = .{
-        //     .url = "https://pkg.machengine.org/mach-glfw/58a16012c33b047b9468cccb53ecd95835456121.tar.gz",
-        //     .hash = "1220dcf8c006b5bd91bb55c732eac6d95afe16247058f31348e1e2e071dfca7923db",
-        // },
-        // .glfw = .{
-        //     .url = "https://pkg.machengine.org/glfw/bad964824403ba34c935a90013024957dae795aa.tar.gz",
-        //     .hash = "1220fe0763e9722d56d3f93f8740e077fccf338d9697f08239d79a1ee27ae5833e62",
-        // },
         .direct3d_headers = .{
-            .url = "https://pkg.machengine.org/direct3d-headers/4b9e3c969d537ea09a6e512f8251e540ab5bbaca.tar.gz",
-            .hash = "1220f786406f31ae794a8eabf1f7f40c386d93755bfde2f677eb480af559130b499a",
+            .url = "https://pkg.machengine.org/direct3d-headers/9617cfd497fae598610a7b0a4be0b035e7308e93.tar.gz",
+            .hash = "122098cc0b0a39d24aaffcd6d5556e8f31f5dd1a754559ffa468918f2ed6c1ad0a03",
         },
-        // .vulkan_headers = .{
-        //     .url = "https://pkg.machengine.org/vulkan-headers/0212dd8b71531d0cec8378ce8fb1721a0df7420a.tar.gz",
-        //     .hash = "1220a8b642edf8ef522e468cfe9a1803507472461b1041be717294ca484d1361afb0",
-        // },
-        // .wayland_headers = .{
-        //     .url = "https://pkg.machengine.org/wayland-headers/509275fb6222181a97026c884d411bd013da680b.tar.gz",
-        //     .hash = "12202cf6230788d948e5ee2afa26d4f6cc4994ae1bf0c1c832535b920717a1174223",
-        // },
-        // .x11_headers = .{
-        //     .url = "https://pkg.machengine.org/x11-headers/991ad9bf599df04aaa5332e536712a8476838ee3.tar.gz",
-        //     .hash = "12205bd95b9cc9cb08dd6b55f5842d8fae67a12eed01092c54f021060931815f711e",
-        // },
         .xcode_frameworks = .{
-            .url = "https://github.com/hexops/xcode-frameworks-pkg/archive/d486474a6af7fafd89e8314e0bf7eca4709f811b.tar.gz",
-            .hash = "1220293eae4bf67a7c27a18a8133621337cde91a97bc6859a9431b3b2d4217dfb5fb",
+            .url = "https://pkg.machengine.org/xcode-frameworks/e77a5c6809a0d3f62ec549ee56e9d2dc6807cd5b.tar.gz",
+            .hash = "12202044ed9fd69af156b0afde619ffd1d111554c557f57ab670ca9960e76d60d0b8",
         },
     },
 }
