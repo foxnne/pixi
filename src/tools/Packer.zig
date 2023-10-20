@@ -329,7 +329,7 @@ pub fn reduce(layer: *pixi.storage.Internal.Layer, src: [4]usize) ?[4]usize {
         }
     }
 
-    const height = bottom - top;
+    const height = bottom - top + 1;
     if (height == 0)
         return null;
 
