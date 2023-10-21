@@ -108,11 +108,15 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 
     // Create sprites for all tiles.
     {
+        const base_name = std.fs.path.basename(path);
+        const ext = std.fs.path.extension(base_name);
+        const ext_ind = if (std.mem.indexOf(u8, base_name, ext)) |index| index else base_name.len - 1;
+
         const tiles = @as(usize, @intCast(pixi.state.popups.file_setup_tiles[0] * pixi.state.popups.file_setup_tiles[1]));
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
             var sprite: pixi.storage.Internal.Sprite = .{
-                .name = try std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{i}),
+                .name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ base_name[0..ext_ind], i }),
                 .index = i,
             };
             try internal.sprites.append(sprite);
