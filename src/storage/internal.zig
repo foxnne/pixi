@@ -1035,7 +1035,7 @@ pub const Pixi = struct {
             else => true,
         };
 
-        var row: usize = if (forwards) 0 else tile_height;
+        var row: usize = if (forwards) 0 else tile_height - 1;
         while (if (forwards) row < tile_height else row > 0) : (if (forwards) {
             row += 1;
         } else {
