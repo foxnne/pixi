@@ -210,7 +210,7 @@ pub fn process(self: *Self) !void {
             if (hk.pressed()) {
                 file.copy_sprite = .{
                     .index = file.selected_sprite_index,
-                    .layer_id = file.selected_layer_index,
+                    .layer_id = file.layers.items[file.selected_layer_index].id,
                 };
             }
         }
