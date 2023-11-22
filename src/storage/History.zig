@@ -164,6 +164,9 @@ pub fn append(self: *History, change: Change) !void {
                 .pixels => |pixels| {
                     equal = std.mem.eql(usize, pixels.indices, change.pixels.indices);
                     if (equal) {
+                        equal = pixels.layer == change.pixels.layer;
+                    }
+                    if (equal) {
                         for (pixels.values, 0..) |value, i| {
                             equal = std.mem.eql(u8, &value, &change.pixels.values[i]);
                             if (!equal) break;

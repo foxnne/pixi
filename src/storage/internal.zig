@@ -31,6 +31,7 @@ pub const Pixi = struct {
     selected_animation_index: usize = 0,
     selected_animation_state: AnimationState = .pause,
     selected_animation_elapsed: f32 = 0.0,
+    copy_sprite: ?CopySprite = null,
     background: pixi.gfx.Texture,
     temporary_layer: Layer,
     heightmap_layer: ?Layer = null,
@@ -44,6 +45,11 @@ pub const Pixi = struct {
         to: f32,
         elapsed: f32 = 0.0,
         state: AnimationState,
+    };
+
+    pub const CopySprite = struct {
+        index: usize,
+        layer_id: usize,
     };
 
     pub const AnimationState = enum { pause, play };
@@ -941,7 +947,24 @@ pub const Pixi = struct {
     pub fn copyDirection(file: *Pixi, direction: pixi.math.Direction) !void {
         const src_index = file.selected_sprite_index;
         const dst_index = file.getSpriteIndexAfterDirection(direction);
+        const layer_id = file.layers.items[file.selected_layer_index].id;
 
+        try copySprite(file, src_index, dst_index, layer_id);
+
+        file.flipbook_scroll_request = .{
+            .from = file.flipbook_scroll,
+            .to = file.flipbookScrollFromSpriteIndex(dst_index),
+            .state = file.selected_animation_state,
+        };
+    }
+
+    pub fn copySpriteAllLayers(file: *Pixi, src_index: usize, dst_index: usize) !void {
+        for (file.layers.items) |layer| {
+            try copySprite(file, src_index, dst_index, layer.id);
+        }
+    }
+
+    pub fn copySprite(file: *Pixi, src_index: usize, dst_index: usize, layer_id: usize) !void {
         const tiles_wide = @divExact(file.width, file.tile_width);
 
         const src_col = @mod(@as(u32, @intCast(src_index)), tiles_wide);
@@ -956,7 +979,15 @@ pub const Pixi = struct {
         const dst_x = dst_col * file.tile_width;
         const dst_y = dst_row * file.tile_height;
 
-        const layer = &file.layers.items[file.selected_layer_index];
+        var layer_index: usize = file.selected_layer_index;
+
+        for (file.layers.items, 0..) |l, i| {
+            if (l.id == layer_id) {
+                layer_index = i;
+            }
+        }
+
+        const layer = &file.layers.items[layer_index];
 
         const src_first_index = layer.getPixelIndex(.{ src_x, src_y });
         const dst_first_index = layer.getPixelIndex(.{ dst_x, dst_y });
@@ -981,15 +1012,9 @@ pub const Pixi = struct {
 
         // Submit the stroke change buffer
         if (file.buffers.stroke.indices.items.len > 0) {
-            const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
+            const change = try file.buffers.stroke.toChange(@intCast(layer_index));
             try file.history.append(change);
         }
-
-        file.flipbook_scroll_request = .{
-            .from = file.flipbook_scroll,
-            .to = file.flipbookScrollFromSpriteIndex(dst_index),
-            .state = file.selected_animation_state,
-        };
     }
 
     pub fn shiftDirection(file: *Pixi, direction: pixi.math.Direction) !void {

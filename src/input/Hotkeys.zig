@@ -48,6 +48,9 @@ pub const Proc = enum(u32) {
     shift_left,
     shift_up,
     shift_down,
+    copy,
+    paste,
+    paste_all,
 };
 
 pub const Action = union(enum) {
@@ -200,6 +203,31 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .select_down })) |hk| {
             if (hk.pressed()) {
                 file.selectDirection(.s);
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .copy })) |hk| {
+            if (hk.pressed()) {
+                file.copy_sprite = .{
+                    .index = file.selected_sprite_index,
+                    .layer_id = file.selected_layer_index,
+                };
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .paste })) |hk| {
+            if (hk.pressed()) {
+                if (file.copy_sprite) |src| {
+                    try file.copySprite(src.index, file.selected_sprite_index, src.layer_id);
+                }
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .paste_all })) |hk| {
+            if (hk.pressed()) {
+                if (file.copy_sprite) |src| {
+                    try file.copySpriteAllLayers(src.index, file.selected_sprite_index);
+                }
             }
         }
 
@@ -484,6 +512,48 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .shortcut = "down arrow",
             .key = Key.down,
             .action = .{ .proc = Proc.select_down },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+c" else if (macos) "cmd+c" else "super+c",
+            .key = Key.c,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.copy },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+v" else if (macos) "cmd+v" else "super+v",
+            .key = Key.v,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.paste },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = if (windows) "ctrl+shift+v" else if (macos) "cmd+shift+v" else "super+shift+v",
+            .key = Key.v,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.paste_all },
         });
 
         try hotkeys.append(.{
