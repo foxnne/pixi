@@ -58,6 +58,7 @@ pub fn indexOfExport(self: *Self, path: [:0]const u8) ?usize {
 
 pub fn appendFolder(self: *Self, path: [:0]const u8) !void {
     if (self.indexOfFolder(path)) |index| {
+        pixi.state.allocator.free(path);
         const folder = self.folders.swapRemove(index);
         try self.folders.append(folder);
     } else {
