@@ -54,11 +54,11 @@ pub const Settings = @import("Settings.zig");
 /// Holds the global game state.
 pub const PixiState = struct {
     allocator: std.mem.Allocator = undefined,
-    settings: Settings = .{},
+    settings: Settings = undefined,
     hotkeys: input.Hotkeys = undefined,
     mouse: input.Mouse = undefined,
     sidebar: Sidebar = .files,
-    theme: editor.Theme = .{},
+    theme: editor.Theme = undefined,
     project_folder: ?[:0]const u8 = null,
     root_path: [:0]const u8 = undefined,
     recents: Recents = undefined,
@@ -113,8 +113,14 @@ pub fn init(app: *App) !void {
     state = try allocator.create(PixiState);
     state.* = .{ .root_path = try allocator.dupeZ(u8, root_path) };
 
+    state.allocator = allocator;
+
     state.json_allocator = std.heap.ArenaAllocator.init(allocator);
-    state.settings = Settings.init(state.json_allocator.allocator()) catch Settings{};
+    state.settings = try Settings.init(state.json_allocator.allocator());
+    const theme_path = try std.fs.path.joinZ(allocator, &.{ assets.themes, state.settings.theme });
+    defer allocator.free(theme_path);
+
+    state.theme = try editor.Theme.loadFromFile(theme_path);
 
     try core.init(.{
         .title = name,
@@ -347,6 +353,8 @@ pub fn deinit(_: *App) void {
 
     //free everything allocated by the json_allocator
     state.json_allocator.deinit();
+
+    state.allocator.free(state.theme.name);
 
     state.allocator.free(state.hotkeys.hotkeys);
     state.allocator.free(state.mouse.buttons);

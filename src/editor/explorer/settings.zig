@@ -86,7 +86,7 @@ pub fn draw() void {
         defer zgui.popStyleColor(.{ .count = 1 });
 
         zgui.pushItemWidth(zgui.getWindowWidth() * 0.7);
-        if (zgui.beginCombo("Theme", .{ .preview_value = pixi.state.theme.name })) {
+        if (zgui.beginCombo("Theme", .{ .preview_value = pixi.state.settings.theme })) {
             defer zgui.endCombo();
             searchThemes() catch unreachable;
         }
@@ -139,7 +139,10 @@ fn searchThemes() !void {
                     if (zgui.selectable(label, .{})) {
                         const abs_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ pixi.assets.themes, entry.name });
                         defer pixi.state.allocator.free(abs_path);
+                        pixi.state.allocator.free(pixi.state.theme.name);
+                        pixi.state.allocator.free(pixi.state.settings.theme);
                         pixi.state.theme = try pixi.editor.Theme.loadFromFile(abs_path);
+                        pixi.state.settings.theme = pixi.state.theme.name;
                     }
                 }
             }

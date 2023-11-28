@@ -7,7 +7,7 @@ const Color = pixi.math.Color;
 
 const Self = @This();
 
-name: [:0]const u8 = "pixi_dark.json",
+name: [:0]const u8,
 
 background: Color = Color.initBytes(39, 40, 47, 255),
 foreground: Color = Color.initBytes(42, 44, 54, 255),
@@ -32,15 +32,6 @@ checkerboard_secondary: Color = Color.initBytes(100, 100, 100, 255),
 modal_dim: Color = Color.initBytes(0, 0, 0, 48),
 
 pub fn init(self: Self) void {
-    const bg = self.background.toSlice();
-    const fg = self.foreground.toSlice();
-    const text = self.text.toSlice();
-    const highlight_primary = self.highlight_primary.toSlice();
-    const hover_primary = self.hover_primary.toSlice();
-    const highlight_secondary = self.highlight_secondary.toSlice();
-    const hover_secondary = self.hover_secondary.toSlice();
-    const modal_dim = self.modal_dim.toSlice();
-
     var style = zgui.getStyle();
     style.window_border_size = 1.0;
     style.window_rounding = 8.0;
@@ -62,6 +53,16 @@ pub fn init(self: Self) void {
     style.hover_delay_normal = 0.5;
     style.hover_delay_short = 0.25;
     style.scaleAllSizes(@max(pixi.content_scale[0], pixi.content_scale[1]));
+
+    const bg = self.background.toSlice();
+    const fg = self.foreground.toSlice();
+    const text = self.text.toSlice();
+    const highlight_primary = self.highlight_primary.toSlice();
+    const hover_primary = self.hover_primary.toSlice();
+    const highlight_secondary = self.highlight_secondary.toSlice();
+    const hover_secondary = self.hover_secondary.toSlice();
+    const modal_dim = self.modal_dim.toSlice();
+
     style.setColor(zgui.StyleCol.window_bg, bg);
     style.setColor(zgui.StyleCol.border, fg);
     style.setColor(zgui.StyleCol.menu_bar_bg, fg);
@@ -133,6 +134,7 @@ pub fn set(self: *Self) void {
 pub fn loadFromFile(file: [:0]const u8) !Self {
     const base_name = std.fs.path.basename(file);
     const ext = std.fs.path.extension(file);
+
     if (std.mem.eql(u8, ext, ".json")) {
         var read_opt: ?[]const u8 = pixi.fs.read(pixi.state.allocator, file) catch null;
         if (read_opt) |read| {
@@ -147,7 +149,9 @@ pub fn loadFromFile(file: [:0]const u8) !Self {
             return out;
         }
     }
-    return error.FailedToLoad;
+    return Self{
+        .name = try pixi.state.allocator.dupeZ(u8, "pixi_dark.json"),
+    };
 }
 
 pub fn save(self: Self, path: [:0]const u8) !void {

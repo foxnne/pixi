@@ -1,54 +1,59 @@
 const builtin = @import("builtin");
-const pixi = @import("root");
+const pixi = @import("pixi.zig");
 const std = @import("std");
 
-pub const settings_filename = "pixi-settings.json";
+pub const settings_filename = "settings.json";
+
+const Self = @This();
 
 //get the path to the settings file
-fn getSettingsPath(a: std.mem.Allocator) ![]const u8 {
+fn getSettingsPath(allocator: std.mem.Allocator) ![]const u8 {
 
     //get the cwd
-    const cwd = try std.fs.selfExeDirPathAlloc(a);
-    defer a.free(cwd);
-    const path = try std.fmt.allocPrint(a, "{s}/{s}", .{ cwd, settings_filename });
+    const cwd = try std.fs.selfExeDirPathAlloc(allocator);
+    defer allocator.free(cwd);
+    const path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ cwd, settings_filename });
     return path;
 }
 
 ///Reads in default settings or reads from the settings file
-pub fn init(a: std.mem.Allocator) !@This() {
-    const path = try getSettingsPath(a);
-    defer a.free(path);
+pub fn init(allocator: std.mem.Allocator) !Self {
+    const path = try getSettingsPath(allocator);
+    defer allocator.free(path);
 
     //attempt to read the file
     const max_bytes = 10000; //maximum bytes in settings file
-    const settings_string = std.fs.cwd().readFileAlloc(a, path, max_bytes) catch null;
+    const settings_string = std.fs.cwd().readFileAlloc(allocator, path, max_bytes) catch null;
 
     //check if the file was read, and if so, parse it
     if (settings_string) |str| {
-        defer a.free(settings_string.?);
+        defer allocator.free(settings_string.?);
 
-        const parsed_settings = std.json.parseFromSlice(@This(), a, str, .{}) catch null;
+        const parsed_settings = std.json.parseFromSlice(@This(), allocator, str, .{}) catch null;
         if (parsed_settings) |settings| {
-            return settings.value;
+            var s: Self = settings.value;
+            s.theme = try pixi.state.allocator.dupeZ(u8, s.theme);
+            return s;
         }
     }
-
     //return default if parsing failed or file does not exist
-    return @This(){};
+    return @This(){
+        .theme = try allocator.dupeZ(u8, "pixi_dark.json"),
+    };
 }
 
 ///saves the current settings to a file and deinitializes the memory
-pub fn deinit(self: *@This(), a: std.mem.Allocator) void {
-    const path = getSettingsPath(a) catch {
+pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+    const path = getSettingsPath(allocator) catch {
         std.debug.print("ERROR: Memory allocation error when saving settings\n", .{});
         return;
     };
-    defer a.free(path);
-    const stringified = std.json.stringifyAlloc(a, self, .{}) catch {
+    defer allocator.free(path);
+    const stringified = std.json.stringifyAlloc(allocator, self, .{}) catch {
         std.debug.print("ERROR: Failed to stringify settings\n", .{});
         return;
     };
-    defer a.free(stringified);
+    defer allocator.free(stringified);
     var file = std.fs.createFileAbsolute(path, .{}) catch {
         std.debug.print("ERROR: Failed to open settings file \"{s}\"\n", .{path});
         return;
@@ -128,5 +133,8 @@ eyedropper_auto_switch_layer: bool = true,
 
 /// Width and height of the eyedropper preview
 eyedropper_preview_size: f32 = 64.0,
+
+/// Currently applied theme name
+theme: [:0]const u8,
 
 pub const InputScheme = enum { mouse, trackpad };
