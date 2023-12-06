@@ -59,7 +59,7 @@ pub fn draw() void {
                 pixi.state.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
             }
         } else {
-            var primary: [4]f32 = if (pixi.state.tools.current == .heightmap) .{255,255,255,255} else .{
+            var primary: [4]f32 = if (pixi.state.tools.current == .heightmap) .{ 255, 255, 255, 255 } else .{
                 @as(f32, @floatFromInt(pixi.state.colors.primary[0])) / 255.0,
                 @as(f32, @floatFromInt(pixi.state.colors.primary[1])) / 255.0,
                 @as(f32, @floatFromInt(pixi.state.colors.primary[2])) / 255.0,
@@ -122,7 +122,8 @@ pub fn draw() void {
         zgui.text("Palette", .{});
         zgui.separator();
 
-        if (zgui.beginCombo("Palette", .{ .preview_value = if (pixi.state.colors.palette) |palette| palette.name else "none", .flags = .{ .height_largest = true } })) {
+        zgui.setNextItemWidth(-1.0);
+        if (zgui.beginCombo("##PaletteCombo", .{ .preview_value = if (pixi.state.colors.palette) |palette| palette.name else "none", .flags = .{ .height_largest = true } })) {
             defer zgui.endCombo();
             searchPalettes() catch unreachable;
         }
