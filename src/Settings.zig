@@ -32,7 +32,7 @@ pub fn init(allocator: std.mem.Allocator) !Self {
         const parsed_settings = std.json.parseFromSlice(@This(), allocator, str, .{}) catch null;
         if (parsed_settings) |settings| {
             var s: Self = settings.value;
-            s.theme = try pixi.state.allocator.dupeZ(u8, s.theme);
+            s.theme = try allocator.dupeZ(u8, s.theme);
             return s;
         }
     }

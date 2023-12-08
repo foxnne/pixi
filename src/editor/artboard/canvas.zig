@@ -106,7 +106,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
 
-        if (pixi.state.tools.current == .heightmap) {
+        if (file.heightmap_layer_visible) {
             file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
             if (file.heightmap_layer) |layer| {
                 file.camera.drawLayer(layer, canvas_center_offset);
@@ -119,7 +119,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient
     {
-        if (pixi.state.tools.current == .heightmap) {
+        if (file.heightmap_layer_visible) {
             if (file.camera.zoom >= 30.0) {
                 if (file.camera.pixelCoordinates(.{
                     .texture_position = canvas_center_offset,

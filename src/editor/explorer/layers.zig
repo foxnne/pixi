@@ -28,6 +28,7 @@ pub fn draw() void {
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.highlight_secondary.toSlice() });
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.hover_secondary.toSlice() });
             defer zgui.popStyleColor(.{ .count = 3 });
+            if (zgui.checkbox("Edit Heightmap Layer", .{ .v = &file.heightmap_layer_visible })) {}
             if (zgui.button("Delete Heightmap Layer", .{})) {
                 file.deleted_heightmap_layers.append(file.heightmap_layer.?) catch unreachable;
                 file.heightmap_layer = null;

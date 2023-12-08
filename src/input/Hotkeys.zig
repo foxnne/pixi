@@ -51,6 +51,7 @@ pub const Proc = enum(u32) {
     copy,
     paste,
     paste_all,
+    toggle_heightmap,
 };
 
 pub const Action = union(enum) {
@@ -169,6 +170,14 @@ pub fn process(self: *Self) !void {
                 if (pixi.state.tools.current == .heightmap) {
                     if (pixi.state.colors.height > 0)
                         pixi.state.colors.height -= 1;
+                }
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .toggle_heightmap })) |hk| {
+            if (hk.pressed()) {
+                if (file.heightmap_layer != null) {
+                    file.heightmap_layer_visible = !file.heightmap_layer_visible;
                 }
             }
         }
@@ -461,6 +470,13 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .num_lock = false,
             },
             .action = .{ .proc = Proc.export_png },
+        });
+
+        // Toggle heightmap
+        try hotkeys.append(.{
+            .shortcut = "~",
+            .key = Key.grave,
+            .action = .{ .proc = Proc.toggle_heightmap },
         });
 
         // Size up
