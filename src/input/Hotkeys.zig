@@ -158,7 +158,7 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .size_up })) |hk| {
             if (hk.pressed()) {
-                if (pixi.state.tools.current == .heightmap) {
+                if (file.heightmap.visible) {
                     if (pixi.state.colors.height < 255)
                         pixi.state.colors.height += 1;
                 }
@@ -167,7 +167,7 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .size_down })) |hk| {
             if (hk.pressed()) {
-                if (pixi.state.tools.current == .heightmap) {
+                if (file.heightmap.visible) {
                     if (pixi.state.colors.height > 0)
                         pixi.state.colors.height -= 1;
                 }
