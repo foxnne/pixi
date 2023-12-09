@@ -231,14 +231,6 @@ pub const Pixi = struct {
                 else => unreachable,
             };
 
-            // if (pixi.state.tools.current == .heightmap) {
-            //     if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
-            //         if (hk.down()) {
-            //             color = .{ 0, 0, 0, 0 };
-            //         }
-            //     }
-            // }
-
             if (!std.mem.eql(f32, &pixi.state.mouse.position, &pixi.state.mouse.previous_position)) {
                 if (pixel_coords_opt) |pixel_coord| {
                     const prev_pixel_coords_opt = switch (canvas) {
@@ -278,9 +270,9 @@ pub const Pixi = struct {
                                                 if (hk.down()) {
                                                     const pixel_signed: i32 = @intCast(pixel[1]);
                                                     const previous_pixel_signed: i32 = @intCast(previous_pixel[1]);
-                                                    std.log.debug("{d}:{d}", .{ pixel[1], previous_pixel[1] });
                                                     const difference: i32 = pixel_signed - previous_pixel_signed;
-                                                    pixi.state.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(pixi.state.colors.height)) + difference, 0, 255));
+                                                    const sign: i32 = @intFromFloat(std.math.sign((pixi.state.mouse.position[1] - pixi.state.mouse.previous_position[1]) * -1.0));
+                                                    pixi.state.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(pixi.state.colors.height)) + difference * sign, 0, 255));
                                                 }
                                             }
                                         } else {
