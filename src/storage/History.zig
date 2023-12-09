@@ -230,7 +230,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
 
     switch (change) {
         .pixels => |*pixels| {
-            var layer = if (pixels.layer < 0) &file.heightmap_layer.? else &file.layers.items[@as(usize, @intCast(pixels.layer))];
+            var layer = if (pixels.layer < 0) &file.heightmap.layer.? else &file.layers.items[@as(usize, @intCast(pixels.layer))];
             for (pixels.indices, 0..) |pixel_index, i| {
                 const color: [4]u8 = pixels.values[i];
                 var current_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
@@ -239,7 +239,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                 if (color[3] == 0 and pixels.layer >= 0) {
                     // TODO: This does all kinds of damage to a heightmap, fix later
                     // Erasing a pixel on a layer, we also need to erase the heightmap
-                    // if (file.heightmap_layer) |heightmap_layer| {
+                    // if (file.heightmap.layer) |heightmap_layer| {
                     //     var heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.image.data.ptr))[0 .. heightmap_layer.texture.image.data.len / 4];
                     //     heightmap_pixels[pixel_index] = color;
                     // }
@@ -392,12 +392,12 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             const a = heightmap_restore_delete.action;
             switch (a) {
                 .restore => {
-                    file.heightmap_layer = file.deleted_heightmap_layers.pop();
+                    file.heightmap.layer = file.deleted_heightmap_layers.pop();
                     heightmap_restore_delete.action = .delete;
                 },
                 .delete => {
-                    try file.deleted_heightmap_layers.append(file.heightmap_layer.?);
-                    file.heightmap_layer = null;
+                    try file.deleted_heightmap_layers.append(file.heightmap.layer.?);
+                    file.heightmap.layer = null;
                     heightmap_restore_delete.action = .restore;
                     if (pixi.state.tools.current == .heightmap) {
                         pixi.state.tools.set(.pointer);

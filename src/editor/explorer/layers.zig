@@ -21,17 +21,17 @@ pub fn draw() void {
             zgui.popFont();
         }
 
-        if (file.heightmap_layer != null) {
+        if (file.heightmap.layer != null) {
             zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 6.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
             defer zgui.popStyleVar(.{ .count = 1 });
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.highlight_secondary.toSlice() });
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.highlight_secondary.toSlice() });
             zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.hover_secondary.toSlice() });
             defer zgui.popStyleColor(.{ .count = 3 });
-            if (zgui.checkbox("Edit Heightmap Layer", .{ .v = &file.heightmap_layer_visible })) {}
+            if (zgui.checkbox("Edit Heightmap Layer", .{ .v = &file.heightmap.visible })) {}
             if (zgui.button("Delete Heightmap Layer", .{})) {
-                file.deleted_heightmap_layers.append(file.heightmap_layer.?) catch unreachable;
-                file.heightmap_layer = null;
+                file.deleted_heightmap_layers.append(file.heightmap.layer.?) catch unreachable;
+                file.heightmap.layer = null;
                 file.history.append(.{ .heightmap_restore_delete = .{ .action = .restore } }) catch unreachable;
                 if (pixi.state.tools.current == .heightmap)
                     pixi.state.tools.current = .pointer;

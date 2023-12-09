@@ -106,9 +106,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
 
-        if (file.heightmap_layer_visible) {
+        if (file.heightmap.visible) {
             file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
-            if (file.heightmap_layer) |layer| {
+            if (file.heightmap.layer) |layer| {
                 file.camera.drawLayer(layer, canvas_center_offset);
             }
         }
@@ -119,7 +119,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient
     {
-        if (file.heightmap_layer_visible) {
+        if (file.heightmap.visible) {
             if (file.camera.zoom >= 30.0) {
                 if (file.camera.pixelCoordinates(.{
                     .texture_position = canvas_center_offset,
@@ -147,7 +147,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         var y: u32 = min[1];
                         while (y < max[1]) : (y += 1) {
                             const pixel = .{ @as(usize, @intCast(x)), @as(usize, @intCast(y)) };
-                            const pixel_color = file.heightmap_layer.?.getPixel(pixel);
+                            const pixel_color = file.heightmap.layer.?.getPixel(pixel);
                             if (pixel_color[3] != 0 and (pixel[0] != temp_x or pixel[1] != temp_y)) {
                                 const pixel_position = .{ canvas_center_offset[0] + @as(f32, @floatFromInt(x)) + 0.2, canvas_center_offset[1] + @as(f32, @floatFromInt(y)) + 0.25 };
                                 file.camera.drawText("{d}", .{pixel_color[0]}, pixel_position, 0xFFFFFFFF);

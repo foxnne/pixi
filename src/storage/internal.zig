@@ -34,8 +34,7 @@ pub const Pixi = struct {
     copy_sprite: ?CopySprite = null,
     background: pixi.gfx.Texture,
     temporary_layer: Layer,
-    heightmap_layer: ?Layer = null,
-    heightmap_layer_visible: bool = false,
+    heightmap: Heightmap = .{},
     history: History,
     buffers: Buffers,
     counter: usize = 0,
@@ -58,6 +57,28 @@ pub const Pixi = struct {
 
     pub const History = @import("History.zig");
     pub const Buffers = @import("Buffers.zig");
+
+    pub const Heightmap = struct {
+        visible: bool = false,
+        layer: ?Layer = null,
+
+        pub fn enable(self: *Heightmap) void {
+            if (self.layer != null) {
+                self.visible = true;
+            } else {}
+        }
+
+        pub fn disable(self: *Heightmap) void {
+            self.visible = false;
+            if (pixi.state.tools.current == .heightmap) {
+                pixi.state.tools.swap();
+            }
+        }
+
+        pub fn toggle(self: *Heightmap) void {
+            if (self.visible) self.disable() else self.enable();
+        }
+    };
 
     pub fn dirty(self: Pixi) bool {
         return self.history.bookmark != 0;
@@ -111,7 +132,7 @@ pub const Pixi = struct {
         if (pixel_coord_opt) |pixel_coord| {
             const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
-            if (!file.heightmap_layer_visible) {
+            if (!file.heightmap.visible) {
                 var color: [4]u8 = .{ 0, 0, 0, 0 };
 
                 var layer_index: ?usize = null;
@@ -145,7 +166,7 @@ pub const Pixi = struct {
                     camera.drawColorTooltip(color);
                 }
             } else {
-                if (file.heightmap_layer) |layer| {
+                if (file.heightmap.layer) |layer| {
                     const p = layer.getPixel(pixel);
                     if (p[3] > 0) {
                         pixi.state.colors.height = p[0];
@@ -179,7 +200,7 @@ pub const Pixi = struct {
         const mouse_position = pixi.state.mouse.position;
         const previous_mouse_position = pixi.state.mouse.previous_position;
 
-        var layer: pixi.storage.Internal.Layer = if (file.heightmap_layer_visible) if (file.heightmap_layer) |hml| hml else file.layers.items[file.selected_layer_index] else file.layers.items[file.selected_layer_index];
+        var layer: pixi.storage.Internal.Layer = if (file.heightmap.visible) if (file.heightmap.layer) |hml| hml else file.layers.items[file.selected_layer_index] else file.layers.items[file.selected_layer_index];
 
         const camera = switch (canvas) {
             .primary => file.camera,
@@ -204,7 +225,7 @@ pub const Pixi = struct {
 
         if (if (pixi.state.mouse.button(.primary)) |primary| primary.down() else false) {
             var color = switch (pixi.state.tools.current) {
-                .pencil => if (file.heightmap_layer_visible) [_]u8{ pixi.state.colors.height, 0, 0, 255 } else pixi.state.colors.primary,
+                .pencil => if (file.heightmap.visible) [_]u8{ pixi.state.colors.height, 0, 0, 255 } else pixi.state.colors.primary,
                 .eraser => [_]u8{ 0, 0, 0, 0 },
                 .heightmap => [_]u8{ pixi.state.colors.height, 0, 0, 255 },
                 else => unreachable,
@@ -238,24 +259,27 @@ pub const Pixi = struct {
 
                     if (prev_pixel_coords_opt) |prev_pixel_coord| {
                         const pixel_coords = try pixi.algorithms.brezenham.process(prev_pixel_coord, pixel_coord);
-                        var previous_pixel: ?[2]usize = null;
+                        var previous_pixel_opt: ?[2]usize = null;
                         for (pixel_coords) |p_coord| {
                             const pixel = .{ @as(usize, @intFromFloat(p_coord[0])), @as(usize, @intFromFloat(p_coord[1])) };
                             const index = layer.getPixelIndex(pixel);
                             const value = layer.getPixel(pixel);
-                            if (file.heightmap_layer_visible) {
+                            if (file.heightmap.visible) {
                                 if (pixi.state.tools.current == .heightmap) {
                                     const tile_width: usize = @intCast(file.tile_width);
                                     const tile_column = @divTrunc(pixel[0], tile_width);
                                     const min_column = tile_column * tile_width;
                                     const max_column = min_column + tile_width;
 
-                                    defer previous_pixel = pixel;
-                                    if (previous_pixel) |pp| {
-                                        if (pixel[1] != pp[1]) {
+                                    defer previous_pixel_opt = pixel;
+                                    if (previous_pixel_opt) |previous_pixel| {
+                                        if (pixel[1] != previous_pixel[1]) {
                                             if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
                                                 if (hk.down()) {
-                                                    const difference: i32 = @as(i32, @intCast(pixel[1])) - @as(i32, @intCast(pp[1]));
+                                                    const pixel_signed: i32 = @intCast(pixel[1]);
+                                                    const previous_pixel_signed: i32 = @intCast(previous_pixel[1]);
+                                                    std.log.debug("{d}:{d}", .{ pixel[1], previous_pixel[1] });
+                                                    const difference: i32 = pixel_signed - previous_pixel_signed;
                                                     pixi.state.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(pixi.state.colors.height)) + difference, 0, 255));
                                                 }
                                             }
@@ -277,8 +301,9 @@ pub const Pixi = struct {
                                             const current_index: usize = layer.getPixelIndex(current_pixel);
                                             const current_value: [4]u8 = layer.getPixel(current_pixel);
 
-                                            try file.buffers.stroke.append(current_index, current_value);
-                                            layer.setPixel(current_pixel, color, true);
+                                            if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
+                                                try file.buffers.stroke.append(current_index, current_value);
+                                            layer.setPixel(current_pixel, color, false);
                                         } else break;
                                     }
 
@@ -296,8 +321,9 @@ pub const Pixi = struct {
                                             const current_index: usize = layer.getPixelIndex(current_pixel);
                                             const current_value: [4]u8 = layer.getPixel(current_pixel);
 
-                                            try file.buffers.stroke.append(current_index, current_value);
-                                            layer.setPixel(current_pixel, color, true);
+                                            if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
+                                                try file.buffers.stroke.append(current_index, current_value);
+                                            layer.setPixel(current_pixel, color, false);
                                         } else break;
                                     }
                                 } else {
@@ -321,7 +347,7 @@ pub const Pixi = struct {
 
                                 // TODO: Implement a better way to handle heightmap changing when underlying layers change
                                 // if (color[3] == 0) {
-                                //     if (file.heightmap_layer) |*l| {
+                                //     if (file.heightmap.layer) |*l| {
                                 //         l.setPixel(p, .{ 0, 0, 0, 0 }, true);
                                 //     }
                                 // }
@@ -338,7 +364,7 @@ pub const Pixi = struct {
                     const index = layer.getPixelIndex(pixel);
                     const value = layer.getPixel(pixel);
 
-                    if (file.heightmap_layer_visible) {
+                    if (file.heightmap.visible) {
                         if (pixi.state.tools.current == .heightmap) {
                             const tile_width: usize = @intCast(file.tile_width);
 
@@ -360,7 +386,8 @@ pub const Pixi = struct {
                                     const current_index: usize = layer.getPixelIndex(current_pixel);
                                     const current_value: [4]u8 = layer.getPixel(current_pixel);
 
-                                    try file.buffers.stroke.append(current_index, current_value);
+                                    if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
+                                        try file.buffers.stroke.append(current_index, current_value);
                                     layer.setPixel(current_pixel, color, true);
                                 } else break;
                             }
@@ -379,7 +406,8 @@ pub const Pixi = struct {
                                     const current_index: usize = layer.getPixelIndex(current_pixel);
                                     const current_value: [4]u8 = layer.getPixel(current_pixel);
 
-                                    try file.buffers.stroke.append(current_index, current_value);
+                                    if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
+                                        try file.buffers.stroke.append(current_index, current_value);
                                     layer.setPixel(current_pixel, color, true);
                                 } else break;
                             }
@@ -401,7 +429,7 @@ pub const Pixi = struct {
                         layer.setPixel(pixel, color, true);
 
                         if (color[3] == 0) {
-                            if (file.heightmap_layer) |*l| {
+                            if (file.heightmap.layer) |*l| {
                                 l.setPixel(pixel, .{ 0, 0, 0, 0 }, true);
                             }
                         }
@@ -413,7 +441,7 @@ pub const Pixi = struct {
                 const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
                 const heightmap_color: [4]u8 = .{ pixi.state.colors.height, 0, 0, 255 };
                 switch (pixi.state.tools.current) {
-                    .pencil => file.temporary_layer.setPixel(pixel, if (file.heightmap_layer_visible) heightmap_color else pixi.state.colors.primary, true),
+                    .pencil => file.temporary_layer.setPixel(pixel, if (file.heightmap.visible) heightmap_color else pixi.state.colors.primary, true),
                     .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
                     .heightmap => {
                         file.temporary_layer.setPixel(pixel, heightmap_color, true);
@@ -424,7 +452,7 @@ pub const Pixi = struct {
 
             // Submit the stroke change buffer
             if (file.buffers.stroke.indices.items.len > 0 and if (pixi.state.mouse.button(.primary)) |primary| primary.released() else false) {
-                const layer_index: i32 = if (file.heightmap_layer_visible) -1 else @as(i32, @intCast(file.selected_layer_index));
+                const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
                 const change = try file.buffers.stroke.toChange(layer_index);
                 try file.history.append(change);
             }
@@ -672,7 +700,7 @@ pub const Pixi = struct {
                 _ = zip.zip_entry_close(z);
             }
 
-            if (self.heightmap_layer) |layer| {
+            if (self.heightmap.layer) |layer| {
                 const layer_name = zgui.formatZ("{s}.png", .{layer.name});
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
                 try layer.texture.image.writeToFn(write, z, .png);

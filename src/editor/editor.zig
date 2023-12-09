@@ -239,7 +239,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
 
                 new_layer.texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{});
                 new_layer.id = internal.id();
-                internal.heightmap_layer = new_layer;
+                internal.heightmap.layer = new_layer;
             }
         }
         _ = zip.zip_entry_close(pixi_file);
@@ -289,7 +289,7 @@ pub fn openFile(path: [:0]const u8) !bool {
 pub fn setActiveFile(index: usize) void {
     if (index >= pixi.state.open_files.items.len) return;
     const file = &pixi.state.open_files.items[index];
-    if (file.heightmap_layer == null) {
+    if (file.heightmap.layer == null) {
         if (pixi.state.tools.current == .heightmap)
             pixi.state.tools.current = .pointer;
     }
@@ -358,7 +358,7 @@ pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
     file.buffers.deinit();
     file.background.deinit();
     file.temporary_layer.texture.deinit();
-    if (file.heightmap_layer) |*layer| {
+    if (file.heightmap.layer) |*layer| {
         layer.texture.deinit();
         pixi.state.allocator.free(layer.name);
     }

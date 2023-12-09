@@ -122,7 +122,7 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                 };
 
                 var contains_height: bool = false;
-                var heightmap_image: ?Image = if (file.heightmap_layer != null) .{
+                var heightmap_image: ?Image = if (file.heightmap.layer != null) .{
                     .width = reduced_src_width,
                     .height = reduced_src_height,
                     .pixels = try pixi.state.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
@@ -143,7 +143,7 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                         @memcpy(dst, src);
 
                         if (heightmap_image) |heightmap_out| {
-                            if (file.heightmap_layer) |heightmap_layer| {
+                            if (file.heightmap.layer) |heightmap_layer| {
                                 const heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.image.data.ptr))[0 .. heightmap_layer.texture.image.data.len / 4];
                                 const heightmap_src = heightmap_pixels[start .. start + reduced_src_width];
                                 const heightmap_dst = heightmap_out.pixels[(y - reduced_src_y) * heightmap_out.width .. (y - reduced_src_y) * heightmap_out.width + heightmap_out.width];

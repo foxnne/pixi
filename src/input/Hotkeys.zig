@@ -176,9 +176,7 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .toggle_heightmap })) |hk| {
             if (hk.pressed()) {
-                if (file.heightmap_layer != null) {
-                    file.heightmap_layer_visible = !file.heightmap_layer_visible;
-                }
+                file.heightmap.toggle();
             }
         }
 

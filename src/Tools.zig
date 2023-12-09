@@ -17,15 +17,24 @@ previous: Tool = .pointer,
 
 pub fn set(self: *Self, tool: Tool) void {
     if (self.current != tool) {
-        if (tool == .heightmap) {
-            if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                if (file.heightmap_layer == null) {
-                    pixi.state.popups.heightmap = true;
-                    return;
-                }
-            } else return;
+        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+            switch (tool) {
+                .heightmap => {
+                    file.heightmap.enable();
+                },
+                .pointer => {
+                    file.heightmap.disable();
+                },
+                else => {},
+            }
         }
         self.previous = self.current;
         self.current = tool;
     }
+}
+
+pub fn swap(self: *Self) void {
+    const temp = self.current;
+    self.current = self.previous;
+    self.previous = temp;
 }
