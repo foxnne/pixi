@@ -12,8 +12,8 @@
     .version = "0.0.1",
     .dependencies = .{
         .mach_core = .{
-            .url = "https://pkg.machengine.org/mach-core/331ce61cb8c075be6d7c46e49da8ccbd5967d9b7.tar.gz",
-            .hash = "12203bdeb8af9b1da2a521beafb51e3657e1c4f49b058cdd114f607b75dbb95ad306",
+            .url = "https://pkg.machengine.org/mach-core/cce02fb96ca787378289c5855b381f0ca9f3e090.tar.gz",
+            .hash = "122096b39d9266d275b780df4d63b1afe6e9a3726f19766baf74b34af3f092532cd3",
         },
         .mach_gpu_dawn = .{
             .url = "https://pkg.machengine.org/mach-gpu-dawn/ee2fb5066a774238a97ab18dc5620acce538d2e6.tar.gz",
@@ -26,6 +26,18 @@
         .xcode_frameworks = .{
             .url = "https://pkg.machengine.org/xcode-frameworks/e77a5c6809a0d3f62ec549ee56e9d2dc6807cd5b.tar.gz",
             .hash = "12202044ed9fd69af156b0afde619ffd1d111554c557f57ab670ca9960e76d60d0b8",
+        },
+        .mach_sysgpu = .{
+            .url = "https://pkg.machengine.org/mach-sysgpu/ee8abd31daefa617832c590d61c1e1d665a5e55a.tar.gz",
+            .hash = "1220d0bf732d8291b8629ce7e115efb6adef84dcc1218317ee0a89a6f1663153f2a9",
+        },
+        .imgui = .{
+            .url = "https://github.com/ocornut/imgui/archive/refs/tags/v1.89.9-docking.tar.gz",
+            .hash = "12205e93e208aada4c835acdc3e2c1fac95b3ad92b47abe6412ab043f9f13817ad9b",
+        },
+        .freetype = .{
+            .url = "https://pkg.machengine.org/freetype/fa33c2db730c0e888046e863b5550ddc3d24e739.tar.gz",
+            .hash = "12206ed50a939287c717f76547baf24e54301de4500505c19f10965ef559619baf10",
         },
     },
 }

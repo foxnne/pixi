@@ -4,7 +4,7 @@ const zstbi = @import("zstbi");
 const storage = @import("storage.zig");
 const zip = @import("zip");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 const gpu = core.gpu;
 
 const external = @import("external.zig");
@@ -686,14 +686,16 @@ pub const Pixi = struct {
             _ = zip.zip_entry_close(z);
 
             for (self.layers.items) |layer| {
-                const layer_name = zgui.formatZ("{s}.png", .{layer.name});
+                const layer_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});
+                defer pixi.state.allocator.free(layer_name);
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
                 try layer.texture.image.writeToFn(write, z, .png);
                 _ = zip.zip_entry_close(z);
             }
 
             if (self.heightmap.layer) |layer| {
-                const layer_name = zgui.formatZ("{s}.png", .{layer.name});
+                const layer_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});
+                defer pixi.state.allocator.free(layer_name);
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
                 try layer.texture.image.writeToFn(write, z, .png);
                 _ = zip.zip_entry_close(z);

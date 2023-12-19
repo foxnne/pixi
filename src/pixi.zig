@@ -1,14 +1,23 @@
 const std = @import("std");
+const build_options = @import("build-options");
 
 const core = @import("mach-core");
 const gpu = core.gpu;
 
-const zgui = @import("zgui").MachImgui(core);
+//const zgui = @import("zgui").MachImgui(core);
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
 const nfd = @import("nfd");
 
+const imgui = @import("zig-imgui");
+const imgui_mach = imgui.backends.mach;
+
 pub const App = @This();
+
+pub const mach_core_options = core.ComptimeOptions{
+    .use_wgpu = !build_options.use_dusk,
+    .use_dgpu = build_options.use_dusk,
+};
 
 timer: core.Timer,
 
@@ -92,10 +101,10 @@ pub const Sidebar = enum(u32) {
 };
 
 pub const Fonts = struct {
-    fa_standard_regular: zgui.Font = undefined,
-    fa_standard_solid: zgui.Font = undefined,
-    fa_small_regular: zgui.Font = undefined,
-    fa_small_solid: zgui.Font = undefined,
+    fa_standard_regular: *imgui.Font = undefined,
+    fa_standard_solid: *imgui.Font = undefined,
+    fa_small_regular: *imgui.Font = undefined,
+    fa_small_solid: *imgui.Font = undefined,
 };
 
 pub const PackTarget = enum {
@@ -172,21 +181,37 @@ pub fn init(app: *App) !void {
         .timer = try core.Timer.start(),
     };
 
-    zgui.init(allocator);
-    zgui.mach_backend.init(core.device, core.descriptor.format, .{});
+    imgui.setZigAllocator(&state.allocator);
+    _ = imgui.createContext(null);
+    try imgui_mach.init(allocator, core.device, 3, .bgra8_unorm, .undefined);
 
-    zgui.io.setIniFilename("imgui.ini");
+    var io = imgui.getIO();
+    io.config_flags |= imgui.ConfigFlags_NavEnableKeyboard;
+    io.font_global_scale = 1.0 / io.display_framebuffer_scale.y;
+    var cozette_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
+    cozette_config.font_data_owned_by_atlas = false;
+    cozette_config.oversample_h = 2;
+    cozette_config.oversample_v = 1;
+    cozette_config.glyph_max_advance_x = std.math.floatMax(f32);
+    cozette_config.rasterizer_multiply = 1.0;
+    cozette_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
 
-    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
+    _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor, &cozette_config, null);
 
-    var config = zgui.FontConfig.init();
-    config.merge_mode = true;
+    var fa_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
+    fa_config.merge_mode = true;
+    fa_config.font_data_owned_by_atlas = false;
+    fa_config.oversample_h = 2;
+    fa_config.oversample_v = 1;
+    fa_config.glyph_max_advance_x = std.math.floatMax(f32);
+    fa_config.rasterizer_multiply = 1.0;
+    fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
-    state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
+    state.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    state.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    state.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    state.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
     state.theme.init();
 }
@@ -212,7 +237,8 @@ pub fn updateMainThread(_: *App) !bool {
 }
 
 pub fn update(app: *App) !bool {
-    zgui.mach_backend.newFrame();
+    try imgui_mach.newFrame();
+    imgui.newFrame();
     state.delta_time = app.timer.lap();
 
     const descriptor = core.descriptor;
@@ -266,17 +292,22 @@ pub fn update(app: *App) !bool {
             },
             else => {},
         }
-        zgui.mach_backend.passEvent(event, content_scale);
+        //imgui.mach_backend.passEvent(event, content_scale);
+        _ = imgui_mach.processEvent(event);
     }
 
     try input.process();
 
     state.theme.set();
 
-    editor.draw();
+    imgui.showDemoWindow(null);
+
+    //editor.draw();
     state.theme.unset();
 
     state.cursors.update();
+
+    imgui.render();
 
     if (editor.getFile(state.open_file_index)) |file| {
         @memset(core.title[0..], 0);
@@ -293,7 +324,7 @@ pub fn update(app: *App) !bool {
     if (core.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
-        const zgui_commands = commands: {
+        const imgui_commands = commands: {
             const encoder = core.device.createCommandEncoder(null);
             defer encoder.release();
 
@@ -317,17 +348,16 @@ pub fn update(app: *App) !bool {
                     .color_attachments = &.{color_attachment},
                 });
                 const pass = encoder.beginRenderPass(&render_pass_info);
-
-                zgui.mach_backend.draw(pass);
+                imgui_mach.renderDrawData(imgui.getDrawData().?, pass) catch {};
                 pass.end();
                 pass.release();
             }
 
             break :commands encoder.finish(null);
         };
-        defer zgui_commands.release();
+        defer imgui_commands.release();
 
-        core.queue.submit(&.{zgui_commands});
+        core.queue.submit(&.{imgui_commands});
         core.swap_chain.present();
     }
 
@@ -383,8 +413,9 @@ pub fn deinit(_: *App) void {
     if (state.colors.palette) |*palette| palette.deinit();
     editor.deinit();
 
-    zgui.mach_backend.deinit();
-    zgui.deinit();
+    imgui_mach.shutdown();
+    imgui.destroyContext(null);
+
     zstbi.deinit();
     state.allocator.free(state.root_path);
     state.allocator.destroy(state);
