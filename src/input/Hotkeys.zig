@@ -34,7 +34,7 @@ pub const Proc = enum(u32) {
     export_png,
     size_up,
     size_down,
-    playpause,
+    play_pause,
     select_right,
     select_left,
     select_up,
@@ -180,7 +180,7 @@ pub fn process(self: *Self) !void {
             }
         }
 
-        if (self.hotkey(.{ .proc = .playpause })) |hk| {
+        if (self.hotkey(.{ .proc = .play_pause })) |hk| {
             if (hk.pressed()) {
                 file.selected_animation_state = switch (file.selected_animation_state) {
                     .pause => .play,
@@ -472,8 +472,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Toggle heightmap
         try hotkeys.append(.{
-            .shortcut = "~",
-            .key = Key.grave,
+            .shortcut = "tab",
+            .key = Key.tab,
             .action = .{ .proc = Proc.toggle_heightmap },
         });
 
@@ -495,7 +495,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "space",
             .key = Key.space,
-            .action = .{ .proc = Proc.playpause },
+            .action = .{ .proc = Proc.play_pause },
         });
 
         try hotkeys.append(.{
