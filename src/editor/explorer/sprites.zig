@@ -63,7 +63,7 @@ pub fn draw() void {
 
                 const label_origin_y = "Y  " ++ if (y_same) pixi.fa.link else pixi.fa.unlink;
                 var changed_origin_y: bool = false;
-                if (imgui.sliderFloat(label_origin_y, &origin_y, 0.0, tile_height, "%.0f", imgui.SliderFlags_None)) {
+                if (imgui.sliderFloatEx(label_origin_y, &origin_y, 0.0, tile_height, "%.0f", imgui.SliderFlags_None)) {
                     changed_origin_y = true;
                 }
 
@@ -88,7 +88,7 @@ pub fn draw() void {
         imgui.spacing();
 
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
-        defer imgui.popStyleVar(.{ .count = 1 });
+        defer imgui.popStyleVar();
         if (imgui.beginChild("Sprites", .{ .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
 

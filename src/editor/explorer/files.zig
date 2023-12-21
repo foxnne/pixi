@@ -185,8 +185,8 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
             var iter = dir.iterate();
             while (iter.next() catch unreachable) |entry| {
                 if (entry.kind == .file) {
-                    imgui.indent(.{});
-                    defer imgui.unindent(.{});
+                    imgui.indent();
+                    defer imgui.unindent();
                     const ext = extension(entry.name);
                     if (ext == .hidden) continue;
                     const icon = switch (ext) {
@@ -199,13 +199,13 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     };
 
                     const icon_color = switch (ext) {
-                        .pixi, .zig => pixi.state.theme.text_orange.toSlice(),
-                        .png, .psd => pixi.state.theme.text_blue.toSlice(),
-                        .jpg => pixi.state.theme.highlight_primary.toSlice(),
-                        .pdf => pixi.state.theme.text_red.toSlice(),
-                        .json, .atlas => pixi.state.theme.text_yellow.toSlice(),
-                        .txt, .zip, ._7z, .tar => pixi.state.theme.text_background.toSlice(),
-                        else => pixi.state.theme.text_background.toSlice(),
+                        .pixi, .zig => pixi.state.theme.text_orange.toImguiVec4(),
+                        .png, .psd => pixi.state.theme.text_blue.toImguiVec4(),
+                        .jpg => pixi.state.theme.highlight_primary.toImguiVec4(),
+                        .pdf => pixi.state.theme.text_red.toImguiVec4(),
+                        .json, .atlas => pixi.state.theme.text_yellow.toImguiVec4(),
+                        .txt, .zip, ._7z, .tar => pixi.state.theme.text_background.toImguiVec4(),
+                        else => pixi.state.theme.text_background.toImguiVec4(),
                     };
 
                     const text_color = switch (ext) {
@@ -225,7 +225,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 
                     imgui.pushStyleColorImVec4(imgui.Col_Text, text_color);
 
-                    const selectable_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name});
+                    const selectable_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name}) catch unreachable;
                     defer pixi.state.allocator.free(selectable_name);
 
                     if (imgui.selectableEx(

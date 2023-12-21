@@ -80,7 +80,7 @@ pub fn draw() void {
             if (imgui.beginPopupContextItem()) {
                 defer imgui.endPopup();
                 var primary_slice: [4]f32 = .{ primary.x, primary.y, primary.z, primary.w };
-                if (imgui.colorPicker4("Primary", .{ .col = &primary_slice })) {
+                if (imgui.colorPicker4("Primary", &primary, imgui.ColorEditFlags_None, null)) {
                     pixi.state.colors.primary = .{
                         @as(u8, @intFromFloat(primary_slice[0] * 255.0)),
                         @as(u8, @intFromFloat(primary_slice[1] * 255.0)),
@@ -102,7 +102,7 @@ pub fn draw() void {
             if (imgui.beginPopupContextItem()) {
                 defer imgui.endPopup();
                 var secondary_slice: [4]f32 = .{ secondary.x, secondary.y, secondary.z, secondary.w };
-                if (imgui.colorPicker4("Secondary", .{ .col = &secondary_slice })) {
+                if (imgui.colorPicker4("Secondary", &secondary, imgui.ColorEditFlags_None, null)) {
                     pixi.state.colors.secondary = .{
                         @as(u8, @intFromFloat(secondary_slice[0] * 255.0)),
                         @as(u8, @intFromFloat(secondary_slice[1] * 255.0)),
@@ -134,9 +134,7 @@ pub fn draw() void {
                         .w = @as(f32, @floatFromInt(color[3])) / 255.0,
                     };
                     imgui.pushIDInt(@as(c_int, @intCast(i)));
-                    if (imgui.colorButton(palette.name, .{
-                        .col = .{ c.x, c.y, c.z, c.w },
-                    })) {
+                    if (imgui.colorButton(palette.name, .{ c.x, c.y, c.z, c.w }, imgui.ColorEditFlags_None)) {
                         pixi.state.colors.primary = color;
                     }
                     imgui.popId();
@@ -221,7 +219,7 @@ fn searchPalettes() !void {
             if (entry.kind == .file) {
                 const ext = std.fs.path.extension(entry.name);
                 if (std.mem.eql(u8, ext, ".hex")) {
-                    const label = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name});
+                    const label = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name}) catch unreachable;
                     defer pixi.state.allocator.free(label);
                     if (imgui.selectable(label)) {
                         const abs_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ pixi.assets.palettes, entry.name });

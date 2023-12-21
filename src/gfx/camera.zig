@@ -45,7 +45,7 @@ pub const Camera = struct {
             while (i < columns + 1) : (i += 1) {
                 const p1: imgui.Vec2 = .{ .x = rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, .y = rect_min_max[0][1] };
                 const p2: imgui.Vec2 = .{ .x = rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, .y = rect_min_max[0][1] + height * camera.zoom };
-                draw_list.addLine(
+                draw_list.addLineEx(
                     p1,
                     p2,
                     color,
@@ -57,7 +57,7 @@ pub const Camera = struct {
             while (i < rows + 1) : (i += 1) {
                 const p1: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
                 const p2: imgui.Vec2 = .{ .x = rect_min_max[0][0] + width * camera.zoom, .y = rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
-                draw_list.addLine(
+                draw_list.addLineEx(
                     p1,
                     p2,
                     color,
@@ -87,7 +87,7 @@ pub const Camera = struct {
         const p2_vec: imgui.Vec2 = .{ .x = p2[0], .y = p2[0] };
 
         if (imgui.getWindowDrawList()) |draw_list| {
-            draw_list.addLine(
+            draw_list.addLineEx(
                 p1_vec,
                 p2_vec,
                 color,
@@ -120,10 +120,12 @@ pub const Camera = struct {
         const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
 
         if (imgui.getWindowDrawList()) |draw_list|
-            draw_list.addRect(
+            draw_list.addRectEx(
                 min,
                 max,
                 color,
+                0.0,
+                imgui.DrawFlags_None,
                 thickness,
             );
     }
@@ -154,38 +156,38 @@ pub const Camera = struct {
         if (imgui.getWindowDrawList()) |draw_list| {
 
             // Start
-            draw_list.addLine(
+            draw_list.addLineEx(
                 start_min,
                 .{ .x = start_rect_min_max[0][0] + width / 2.0, .y = start_rect_min_max[0][1] },
                 start_color,
                 thickness,
             );
-            draw_list.addLine(
+            draw_list.addLineEx(
                 start_min,
                 .{ .x = start_rect_min_max[0][0], .y = start_rect_min_max[1][1] },
                 start_color,
                 thickness,
             );
-            draw_list.addLine(
+            draw_list.addLineEx(
                 .{ .x = start_rect_min_max[0][0], .y = start_rect_min_max[1][1] },
                 .{ .x = start_rect_min_max[0][0] + width / 2.0, .y = start_rect_min_max[1][1] },
                 start_color,
                 thickness,
             );
             // End
-            draw_list.addLine(
+            draw_list.addLineEx(
                 end_max,
-                .{ end_rect_min_max[1][0] - width / 2.0, end_rect_min_max[1][1] },
+                .{ .x = end_rect_min_max[1][0] - width / 2.0, .y = end_rect_min_max[1][1] },
                 end_color,
                 thickness,
             );
-            draw_list.addLine(
+            draw_list.addLineEx(
                 end_max,
                 .{ .x = end_rect_min_max[1][0], .y = end_rect_min_max[0][1] },
                 end_color,
                 thickness,
             );
-            draw_list.addLine(
+            draw_list.addLineEx(
                 .{ .x = end_rect_min_max[1][0], .y = end_rect_min_max[0][1] },
                 .{ .x = end_rect_min_max[1][0] - width / 2.0, .y = end_rect_min_max[0][1] },
                 end_color,
@@ -255,13 +257,14 @@ pub const Camera = struct {
         const uvmax: imgui.Vec2 = .{ .x = (src_rect[0] + src_rect[2]) * inv_w, .y = (src_rect[1] + src_rect[3]) * inv_h };
 
         if (imgui.getWindowDrawList()) |draw_list|
-            draw_list.addImageEx(layer.texture.view_handle, .{
+            draw_list.addImageEx(
+                layer.texture.view_handle,
                 min,
                 max,
                 uvmin,
                 uvmax,
                 0xFFFFFFFF,
-            });
+            );
     }
 
     pub fn nearestZoomIndex(camera: Camera) usize {
@@ -423,9 +426,9 @@ pub const Camera = struct {
                 pixi.state.mouse.scroll_y = null;
             }
             const mouse_drag_delta = imgui.getMouseDragDelta(imgui.MouseButton_Middle, 0.0);
-            if (mouse_drag_delta[0] != 0.0 or mouse_drag_delta[1] != 0.0) {
-                camera.position[0] -= mouse_drag_delta[0] * (1.0 / camera.zoom);
-                camera.position[1] -= mouse_drag_delta[1] * (1.0 / camera.zoom);
+            if (mouse_drag_delta.x != 0.0 or mouse_drag_delta.y != 0.0) {
+                camera.position[0] -= mouse_drag_delta.x * (1.0 / camera.zoom);
+                camera.position[1] -= mouse_drag_delta.y * (1.0 / camera.zoom);
 
                 imgui.resetMouseDragDeltaEx(imgui.MouseButton_Middle);
             }

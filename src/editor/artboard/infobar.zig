@@ -10,7 +10,7 @@ pub fn draw() void {
     defer imgui.popStyleColor();
 
     const h = imgui.getTextLineHeightWithSpacing() + 6.0 * pixi.content_scale[1];
-    const y = (imgui.getContentRegionAvail()[1] - h) / 2;
+    const y = (imgui.getContentRegionAvail().x - h) / 2;
     const spacing: f32 = 3.0 * pixi.content_scale[0];
     imgui.setCursorPosY(y);
     imgui.setCursorPosX(5.0 * pixi.content_scale[0]);
@@ -20,7 +20,7 @@ pub fn draw() void {
         imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), "%s ", pixi.fa.folder_open);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
-        imgui.text("%s", path);
+        imgui.text(path);
 
         imgui.sameLine();
         imgui.text(spacer);

@@ -28,7 +28,7 @@ pub fn draw() void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
     imgui.pushStyleVar(imgui.StyleVar_TabRounding, 0.0);
     imgui.pushStyleVar(imgui.StyleVar_ChildBorderSize, 1.0);
-    defer imgui.popStyleVar(3);
+    defer imgui.popStyleVarEx(3);
 
     var art_flags: imgui.WindowFlags = 0;
     art_flags |= imgui.WindowFlags_NoTitleBar;
@@ -150,10 +150,7 @@ pub fn draw() void {
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                         if (imgui.beginChild(
                             file.path,
-                            .{
-                                .x = 0.0,
-                                .y = 0.0,
-                            },
+                            .{ .x = 0.0, .y = 0.0 },
                             false,
                             canvas_flags,
                         )) {
@@ -191,8 +188,8 @@ pub fn draw() void {
                 }
                 { // Draw `Open Folder` button
                     const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
-                    const size = imgui.calcTextSize(text, .{});
-                    imgui.setCursorPosX((imgui.getWindowWidth() - size[0]) / 2);
+                    const size = imgui.calcTextSize(text);
+                    imgui.setCursorPosX((imgui.getWindowWidth() - size.x) / 2);
                     if (imgui.button(text)) {
                         pixi.state.popups.file_dialog_request = .{
                             .state = .folder,
@@ -216,15 +213,15 @@ pub fn draw() void {
             const height = imgui.getWindowHeight();
             const width = imgui.getWindowWidth();
 
-            const draw_list = imgui.getWindowDrawList();
-            draw_list.addRectFilledMultiColor(.{
-                .pmin = .{ pos.x, (pos.y + height) - 18 * pixi.content_scale[1] },
-                .pmax = .{ pos.x + width, pos.y + height },
-                .col_upr_left = 0x0,
-                .col_upr_right = 0x0,
-                .col_bot_left = 0x15000000,
-                .col_bot_right = 0x15000000,
-            });
+            if (imgui.getWindowDrawList()) |draw_list|
+                draw_list.addRectFilledMultiColor(
+                    .{ .x = pos.x, .y = (pos.y + height) - 18 * pixi.content_scale[1] },
+                    .{ .x = pos.x + width, .y = pos.y + height },
+                    0x0,
+                    0x0,
+                    0x15000000,
+                    0x15000000,
+                );
         }
 
         imgui.endChild();
@@ -268,17 +265,16 @@ pub fn draw() void {
             const pos = imgui.getWindowPos();
             const height = imgui.getWindowHeight();
 
-            const draw_list = imgui.getWindowDrawList();
-
-            // Draw a shadow fading from left to right
-            draw_list.addRectFilledMultiColor(.{
-                .pmin = pos,
-                .pmax = .{ pos.x + 18 * pixi.content_scale[0], height + pos.x },
-                .col_upr_left = 0x15000000,
-                .col_upr_right = 0x0,
-                .col_bot_left = 0x15000000,
-                .col_bot_right = 0x0,
-            });
+            if (imgui.getWindowDrawList()) |draw_list|
+                // Draw a shadow fading from left to right
+                draw_list.addRectFilledMultiColor(
+                    pos,
+                    .{ .x = pos.x + 18 * pixi.content_scale[0], .y = height + pos.x },
+                    0x15000000,
+                    0x0,
+                    0x15000000,
+                    0x0,
+                );
         }
     }
     imgui.end();

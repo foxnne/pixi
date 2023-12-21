@@ -25,7 +25,7 @@ pub const popup_heightmap = @import("popups/heightmap.zig");
 pub fn draw() void {
     sidebar.draw();
     explorer.draw();
-    //artboard.draw();
+    artboard.draw();
 
     //popup_rename.draw();
     //popup_file_setup.draw();

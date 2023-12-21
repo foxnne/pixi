@@ -107,7 +107,7 @@ pub fn draw() void {
                     imgui.endMenuBar();
                 }
                 imgui.separator();
-                //sprites.draw();
+                sprites.draw();
             },
             .animations => {
                 if (imgui.beginMenuBar()) {

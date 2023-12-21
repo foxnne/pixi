@@ -7,7 +7,7 @@ const imgui = @import("zig-imgui");
 const History = pixi.storage.Internal.Pixi.History;
 
 pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
-    imgui.pushStyleVar2f(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_PopupBg, pixi.state.theme.foreground.toImguiVec4());
@@ -30,7 +30,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
             var animation = &file.animations.items[file.selected_animation_index];
 
             { // Animation Selection
-                imgui.setNextItemWidth(imgui.calcTextSize(animation.name, .{})[0] + 40 * pixi.content_scale[0]);
+                imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * pixi.content_scale[0]);
                 if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                     defer imgui.endCombo();
                     for (file.animations.items, 0..) |a, i| {
@@ -47,7 +47,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
                 const frame = std.fmt.allocPrintZ(pixi.state.allocator, "{d}/{d}", .{ current_frame + 1, animation.length }) catch unreachable;
                 defer pixi.state.allocator.free(frame);
 
-                imgui.setNextItemWidth(imgui.calcTextSize(frame, .{})[0] + 40 * pixi.content_scale[0]);
+                imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40 * pixi.content_scale[0]);
                 if (imgui.beginCombo("Frame  ", frame, imgui.ComboFlags_None)) {
                     defer imgui.endCombo();
                     for (0..animation.length) |i| {
