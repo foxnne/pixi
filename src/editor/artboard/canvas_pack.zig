@@ -1,7 +1,7 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 pub const PackTexture = enum {
     diffusemap,
@@ -13,8 +13,8 @@ pub fn draw(mode: PackTexture) void {
         .diffusemap => pixi.state.atlas.diffusemap,
         .heightmap => pixi.state.atlas.heightmap,
     }) |texture| {
-        const window_width = zgui.getWindowWidth();
-        const window_height = zgui.getWindowHeight();
+        const window_width = imgui.getWindowWidth();
+        const window_height = imgui.getWindowHeight();
         const file_width = @as(f32, @floatFromInt(texture.image.width));
         const file_height = @as(f32, @floatFromInt(texture.image.height));
 
@@ -45,7 +45,7 @@ pub fn draw(mode: PackTexture) void {
             camera.position[1] = std.math.clamp(camera.position[1], -(canvas_center_offset[1] + file_height), canvas_center_offset[1] + file_height);
         }
 
-        if (zgui.isWindowHovered(.{})) {
+        if (imgui.isWindowHovered(.{})) {
             camera.processZoomTooltip();
         }
 

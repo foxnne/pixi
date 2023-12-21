@@ -1,25 +1,23 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
 const settings = pixi.settings;
 const zstbi = @import("zstbi");
 const nfd = @import("nfd");
+const imgui = @import("zig-imgui");
 
 pub fn draw() void {
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 6.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
-    defer zgui.popStyleVar(.{ .count = 2 });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = pixi.state.theme.foreground.toSlice() });
-    defer zgui.popStyleColor(.{ .count = 2 });
-    if (zgui.beginMenuBar()) {
-        defer zgui.endMenuBar();
-        if (zgui.beginMenu("File", true)) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
-            if (zgui.menuItem("Open Folder...", .{
-                .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "",
-            })) {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 6.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+    defer imgui.popStyleVarEx(2);
+    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, pixi.state.theme.foreground.toImguiVec4());
+    defer imgui.popStyleColorEx(2);
+    if (imgui.beginMenuBar()) {
+        defer imgui.endMenuBar();
+        if (imgui.beginMenu("File")) {
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
+            if (imgui.menuItemEx("Open Folder...", if (pixi.state.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "", false, true)) {
                 pixi.state.popups.file_dialog_request = .{
                     .state = .folder,
                     .type = .project,
@@ -33,65 +31,73 @@ pub fn draw() void {
                 }
             }
 
-            if (zgui.beginMenu("Recents", true)) {
-                defer zgui.endMenu();
+            if (imgui.beginMenu("Recents")) {
+                defer imgui.endMenu();
 
                 for (pixi.state.recents.folders.items) |folder| {
-                    if (zgui.menuItem(folder, .{})) {
+                    if (imgui.menuItem(folder)) {
                         pixi.editor.setProjectFolder(folder);
                     }
                 }
             }
 
-            zgui.separator();
+            imgui.separator();
 
             const file = pixi.editor.getFile(pixi.state.open_file_index);
 
-            if (zgui.menuItem("Export as .png...", .{
-                .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .export_png })) |hotkey| hotkey.shortcut else "",
-                .enabled = file != null,
-            })) {
+            if (imgui.menuItemEx(
+                "Export as .png...",
+                if (pixi.state.hotkeys.hotkey(.{ .proc = .export_png })) |hotkey| hotkey.shortcut else "",
+                false,
+                file != null,
+            )) {
                 pixi.state.popups.export_to_png = true;
             }
 
-            if (zgui.menuItem("Save", .{
-                .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .save })) |hotkey| hotkey.shortcut else "",
-                .enabled = file != null and file.?.dirty(),
-            })) {
+            if (imgui.menuItem(
+                "Save",
+                if (pixi.state.hotkeys.hotkey(.{ .proc = .save })) |hotkey| hotkey.shortcut else "",
+                false,
+                file != null and file.?.dirty(),
+            )) {
                 if (file) |f| {
                     f.save() catch unreachable;
                 }
             }
 
-            zgui.popStyleColor(.{ .count = 1 });
-            zgui.endMenu();
+            imgui.popStyleColor();
+            imgui.endMenu();
         }
-        if (zgui.beginMenu("Edit", true)) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
-            zgui.popStyleColor(.{ .count = 1 });
+        if (imgui.beginMenu("Edit")) {
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
+            imgui.popStyleColor();
 
             if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                if (zgui.menuItem("Undo", .{
-                    .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .undo })) |hotkey| hotkey.shortcut else "",
-                    .enabled = file.history.undo_stack.items.len > 0,
-                }))
+                if (imgui.menuItemEx(
+                    "Undo",
+                    if (pixi.state.hotkeys.hotkey(.{ .proc = .undo })) |hotkey| hotkey.shortcut else "",
+                    false,
+                    file.history.undo_stack.items.len > 0,
+                ))
                     file.undo() catch unreachable;
 
-                if (zgui.menuItem("Redo", .{
-                    .shortcut = if (pixi.state.hotkeys.hotkey(.{ .proc = .redo })) |hotkey| hotkey.shortcut else "",
-                    .enabled = file.history.redo_stack.items.len > 0,
-                }))
+                if (imgui.menuItem(
+                    "Redo",
+                    if (pixi.state.hotkeys.hotkey(.{ .proc = .redo })) |hotkey| hotkey.shortcut else "",
+                    false,
+                    file.history.redo_stack.items.len > 0,
+                ))
                     file.redo() catch unreachable;
             }
 
-            zgui.endMenu();
+            imgui.endMenu();
         }
-        if (zgui.beginMenu("Tools", true)) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
-            zgui.popStyleColor(.{ .count = 1 });
-            zgui.endMenu();
+        if (imgui.beginMenu("Tools")) {
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
+            imgui.popStyleColor();
+            imgui.endMenu();
         }
-        if (zgui.menuItem("About", .{})) {
+        if (imgui.menuItem("About")) {
             pixi.state.popups.about = true;
         }
     }

@@ -1,9 +1,9 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
 const editor = pixi.editor;
 const nfd = @import("nfd");
+const imgui = @import("zig-imgui");
 
 pub const menu = @import("menu.zig");
 pub const rulers = @import("rulers.zig");
@@ -14,150 +14,152 @@ pub const flipbook = @import("flipbook/flipbook.zig");
 pub const infobar = @import("infobar.zig");
 
 pub fn draw() void {
-    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
-    defer zgui.popStyleVar(.{ .count = 1 });
-    zgui.setNextWindowPos(.{
-        .x = (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width) * pixi.content_scale[0],
-        .y = 0,
-        .cond = .always,
-    });
-    zgui.setNextWindowSize(.{
-        .w = pixi.framebuffer_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width) * pixi.content_scale[0]),
-        .h = pixi.framebuffer_size[1] + 5.0,
-    });
+    imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
+    defer imgui.popStyleVar();
+    imgui.setNextWindowPos(.{
+        (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width) * pixi.content_scale[0],
+        0.0,
+    }, imgui.Cond_Always);
+    imgui.setNextWindowSize(.{
+        .x = pixi.framebuffer_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width) * pixi.content_scale[0]),
+        .y = pixi.framebuffer_size[1] + 5.0,
+    }, imgui.Cond_None);
 
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 0.0, 0.0 } });
-    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.tab_rounding, .v = 0.0 });
-    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.child_border_size, .v = 1.0 });
-    defer zgui.popStyleVar(.{ .count = 3 });
-    if (zgui.begin("Art", .{
-        .flags = .{
-            .no_title_bar = true,
-            .no_resize = true,
-            .no_move = true,
-            .no_collapse = true,
-            .menu_bar = true,
-        },
-    })) {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ 0.0, 0.0 });
+    imgui.pushStyleVar(imgui.StyleVar_TabRounding, 0.0);
+    imgui.pushStyleVar(imgui.StyleVar_ChildBorderSize, 1.0);
+    defer imgui.popStyleVar(3);
+
+    var art_flags: imgui.WindowFlags = 0;
+    art_flags |= imgui.WindowFlags_NoTitleBar;
+    art_flags |= imgui.WindowFlags_NoResize;
+    art_flags |= imgui.WindowFlags_NoMove;
+    art_flags |= imgui.WindowFlags_NoCollapse;
+    art_flags |= imgui.WindowFlags_MenuBar;
+
+    if (imgui.begin("Art", null, art_flags)) {
         menu.draw();
-        const window_height = zgui.getContentRegionAvail()[1];
+        const window_height = imgui.getContentRegionAvail()[1];
         const artboard_height = if (pixi.state.open_files.items.len > 0 and pixi.state.sidebar != .pack) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
 
-        const artboard_mouse_ratio = (pixi.state.mouse.position[1] - zgui.getCursorScreenPos()[1]) / window_height;
+        const artboard_mouse_ratio = (pixi.state.mouse.position[1] - imgui.getCursorScreenPos()[1]) / window_height;
 
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 0.0, 0.0 } });
-        defer zgui.popStyleVar(.{ .count = 1 });
-        if (zgui.beginChild("Artboard", .{
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 0.0, .y = 0.0 });
+        defer imgui.popStyleVar();
+        if (imgui.beginChild("Artboard", .{
             .w = 0.0,
             .h = artboard_height,
-            .border = false,
-            .flags = .{},
-        })) {
+        }, false, imgui.WindowFlags_ChildWindow)) {
             if (pixi.state.sidebar == .pack) {
-                if (zgui.beginTabBar("PackedTextures", .{
-                    .reorderable = true,
-                    .auto_select_new_tabs = false,
-                    .no_close_with_middle_mouse_button = true,
-                })) {
-                    defer zgui.endTabBar();
+                var packed_textures_flags: imgui.TabBarFlags = 0;
+                packed_textures_flags |= imgui.TabBarFlags_Reorderable;
 
-                    if (zgui.beginTabItem("Atlas.Diffusemap", .{
-                        .p_open = null,
-                        .flags = .{},
-                    })) {
-                        defer zgui.endTabItem();
+                if (imgui.beginTabBar("PackedTextures", packed_textures_flags)) {
+                    defer imgui.endTabBar();
+
+                    if (imgui.beginTabItem(
+                        "Atlas.Diffusemap",
+                        null,
+                        imgui.TabItemFlags_None,
+                    )) {
+                        defer imgui.endTabItem();
                         canvas_pack.draw(.diffusemap);
                     }
 
-                    if (zgui.beginTabItem("Atlas.Heightmap", .{
-                        .p_open = null,
-                        .flags = .{},
-                    })) {
-                        defer zgui.endTabItem();
+                    if (imgui.beginTabItem(
+                        "Atlas.Heightmap",
+                        null,
+                        imgui.TabItemFlags_None,
+                    )) {
+                        defer imgui.endTabItem();
                         canvas_pack.draw(.heightmap);
                     }
                 }
             } else if (pixi.state.open_files.items.len > 0) {
-                if (zgui.beginTabBar("Files", .{
-                    .reorderable = true,
-                    .auto_select_new_tabs = true,
-                })) {
-                    defer zgui.endTabBar();
+                var files_flags: imgui.TabBarFlags = 0;
+                files_flags |= imgui.TabBarFlags_Reorderable;
+                files_flags |= imgui.TabBarFlags_AutoSelectNewTabs;
+
+                if (imgui.beginTabBar("Files", files_flags)) {
+                    defer imgui.endTabBar();
 
                     for (pixi.state.open_files.items, 0..) |file, i| {
                         var open: bool = true;
 
                         const file_name = std.fs.path.basename(file.path);
 
-                        zgui.pushIntId(@as(i32, @intCast(i)));
-                        defer zgui.popId();
+                        imgui.pushIDInt(@as(c_int, @intCast(i)));
+                        defer imgui.popID();
 
-                        const label = zgui.formatZ(" {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name });
+                        const label = std.fmt.allocPrintZ(pixi.state.allocator, " {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name }) catch unreachable;
+                        defer pixi.state.allocator.free(label);
 
-                        if (zgui.beginTabItem(label, .{
-                            .p_open = &open,
-                            .flags = .{
-                                .set_selected = pixi.state.open_file_index == i,
-                                .unsaved_document = file.dirty() or file.saving,
-                            },
-                        })) {
-                            zgui.endTabItem();
+                        var file_tab_flags: imgui.TabItemFlags = 0;
+                        file_tab_flags |= imgui.TabItemFlags_SetSelected;
+                        if (file.dirty() or file.saving)
+                            file_tab_flags |= imgui.TabItemFlags_UnsavedDocument;
+
+                        if (imgui.beginTabItem(
+                            label,
+                            &open,
+                            file_tab_flags,
+                        )) {
+                            imgui.endTabItem();
                         }
                         if (!open and !file.saving) {
                             pixi.editor.closeFile(i) catch unreachable;
                         }
 
-                        if (zgui.isItemClicked(.left)) {
+                        if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
                             pixi.editor.setActiveFile(i);
                         }
 
-                        if (zgui.isItemHovered(.{ .delay_short = true })) {
-                            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
-                            defer zgui.popStyleVar(.{ .count = 1 });
-                            if (zgui.beginTooltip()) {
-                                defer zgui.endTooltip();
-                                zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{s}", .{file.path});
+                        if (imgui.isItemHovered(imgui.HoveredFlags_DelayShort)) {
+                            imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 4.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
+                            defer imgui.popStyleVar();
+                            if (imgui.beginTooltip()) {
+                                defer imgui.endTooltip();
+                                imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), "{s}", file.path);
                             }
                         }
                     }
 
                     // Add ruler child windows to build layout, but wait to draw to them until camera has been updated.
                     if (pixi.state.settings.show_rulers) {
-                        if (zgui.beginChild("TopRuler", .{
-                            .h = zgui.getTextLineHeightWithSpacing() * 1.5,
-                            .border = false,
-                            .flags = .{
-                                .no_scrollbar = true,
-                            },
-                        })) {}
-                        zgui.endChild();
+                        if (imgui.beginChild(
+                            "TopRuler",
+                            .{ .x = 0.0, .y = imgui.getTextLineHeightWithSpacing() * 1.5 },
+                            false,
+                            imgui.WindowFlags_NoScrollbar,
+                        )) {}
+                        imgui.endChild();
 
-                        if (zgui.beginChild("SideRuler", .{
-                            .h = -1.0,
-                            .w = zgui.getTextLineHeightWithSpacing() * 1.5,
-                            .border = false,
-                            .flags = .{
-                                .no_scrollbar = true,
-                            },
-                        })) {}
-                        zgui.endChild();
-                        zgui.sameLine(.{});
+                        if (imgui.beginChild(
+                            "SideRuler",
+                            .{ .x = -1.0, .y = imgui.getTextLineHeightWithSpacing() * 1.5 },
+                            false,
+                            imgui.WindowFlags_NoScrollbar,
+                        )) {}
+                        imgui.endChild();
+                        imgui.sameLine(.{});
                     }
 
-                    var flags: zgui.WindowFlags = .{
-                        .horizontal_scrollbar = true,
-                    };
+                    var canvas_flags: imgui.WindowFlags = 0;
+                    canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
 
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                        if (zgui.beginChild(file.path, .{
-                            .h = 0.0,
-                            .w = 0.0,
-                            .border = false,
-                            .flags = flags,
-                        })) {
+                        if (imgui.beginChild(
+                            file.path,
+                            .{
+                                .h = 0.0,
+                                .w = 0.0,
+                            },
+                            false,
+                            canvas_flags,
+                        )) {
                             canvas.draw(file);
                         }
-                        zgui.endChild();
+                        imgui.endChild();
 
                         // Now add to ruler children windows, since we have updated the camera.
                         if (pixi.state.settings.show_rulers) {
@@ -166,29 +168,32 @@ pub fn draw() void {
                     }
                 }
             } else {
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.background.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.background.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.foreground.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
-                defer zgui.popStyleColor(.{ .count = 4 });
+                imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                defer imgui.popStyleColorEx(4);
                 { // Draw semi-transparent logo
                     const w = @as(f32, @floatFromInt((pixi.state.background_logo.image.width) / 4)) * pixi.content_scale[0];
                     const h = @as(f32, @floatFromInt((pixi.state.background_logo.image.height) / 4)) * pixi.content_scale[1];
-                    const center: [2]f32 = .{ zgui.getWindowWidth() / 2.0, zgui.getWindowHeight() / 2.0 };
+                    const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
 
-                    zgui.setCursorPosX(center[0] - w / 2.0);
-                    zgui.setCursorPosY(center[1] - h / 2.0);
-                    zgui.image(pixi.state.background_logo.view_handle, .{
-                        .w = w,
-                        .h = h,
-                        .tint_col = .{ 1.0, 1.0, 1.0, 0.25 },
-                    });
+                    imgui.setCursorPosX(center[0] - w / 2.0);
+                    imgui.setCursorPosY(center[1] - h / 2.0);
+                    imgui.imageEx(
+                        pixi.state.background_logo.view_handle,
+                        .{ .x = w, .y = h },
+                        .{ .x = 0.0, .y = 0.0 },
+                        .{ .x = 1.0, .y = 1.0 },
+                        .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.25 },
+                        .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
+                    );
                 }
                 { // Draw `Open Folder` button
                     const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
-                    const size = zgui.calcTextSize(text, .{});
-                    zgui.setCursorPosX((zgui.getWindowWidth() - size[0]) / 2);
-                    if (zgui.button(text, .{})) {
+                    const size = imgui.calcTextSize(text, .{});
+                    imgui.setCursorPosX((imgui.getWindowWidth() - size[0]) / 2);
+                    if (imgui.button(text)) {
                         pixi.state.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .project,
@@ -207,14 +212,14 @@ pub fn draw() void {
 
         {
             // Draw a shadow fading from bottom to top
-            const pos = zgui.getWindowPos();
-            const height = zgui.getWindowHeight();
-            const width = zgui.getWindowWidth();
+            const pos = imgui.getWindowPos();
+            const height = imgui.getWindowHeight();
+            const width = imgui.getWindowWidth();
 
-            const draw_list = zgui.getWindowDrawList();
+            const draw_list = imgui.getWindowDrawList();
             draw_list.addRectFilledMultiColor(.{
-                .pmin = .{ pos[0], (pos[1] + height) - 18 * pixi.content_scale[1] },
-                .pmax = .{ pos[0] + width, pos[1] + height },
+                .pmin = .{ pos.x, (pos.y + height) - 18 * pixi.content_scale[1] },
+                .pmax = .{ pos.x + width, pos.y + height },
                 .col_upr_left = 0x0,
                 .col_upr_right = 0x0,
                 .col_bot_left = 0x15000000,
@@ -222,52 +227,53 @@ pub fn draw() void {
             });
         }
 
-        zgui.endChild();
+        imgui.endChild();
 
         if (pixi.state.sidebar != .pack) {
             if (pixi.state.open_files.items.len > 0) {
                 const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.content_scale[1];
-                zgui.separator();
+                imgui.separator();
 
-                if (zgui.beginChild("Flipbook", .{
-                    .w = 0.0,
-                    .h = flipbook_height,
-                    .border = false,
-                    .flags = .{
-                        .menu_bar = if (pixi.editor.getFile(pixi.state.open_file_index)) |_| true else false,
-                    },
-                })) {
+                var flipbook_flags: imgui.WindowFlags = 0;
+                if (pixi.editor.getFile(pixi.state.open_file_index)) |_| {
+                    flipbook_flags |= imgui.WindowFlags_MenuBar;
+                }
+
+                if (imgui.beginChild("Flipbook", .{
+                    .x = 0.0,
+                    .y = flipbook_height,
+                }, false, flipbook_flags)) {
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                         flipbook.menu.draw(file, artboard_mouse_ratio);
 
-                        if (zgui.beginChild("FlipbookCanvas", .{})) {
+                        if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
                             flipbook.canvas.draw(file);
                         }
-                        zgui.endChild();
+                        imgui.endChild();
                     }
                 }
-                zgui.endChild();
+                imgui.endChild();
                 if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.child_bg, .c = pixi.state.theme.highlight_primary.toSlice() });
-                    defer zgui.popStyleColor(.{ .count = 1 });
-                    if (zgui.beginChild("InfoBar", .{})) {
+                    imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.state.theme.highlight_primary.toImguiVec4());
+                    defer imgui.popStyleColor();
+                    if (imgui.beginChild("InfoBar", .{ .x = 0.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
                         infobar.draw();
                     }
-                    zgui.endChild();
+                    imgui.endChild();
                 }
             }
         }
 
         {
-            const pos = zgui.getWindowPos();
-            const height = zgui.getWindowHeight();
+            const pos = imgui.getWindowPos();
+            const height = imgui.getWindowHeight();
 
-            const draw_list = zgui.getWindowDrawList();
+            const draw_list = imgui.getWindowDrawList();
 
             // Draw a shadow fading from left to right
             draw_list.addRectFilledMultiColor(.{
                 .pmin = pos,
-                .pmax = .{ pos[0] + 18 * pixi.content_scale[0], height + pos[1] },
+                .pmax = .{ pos.x + 18 * pixi.content_scale[0], height + pos.x },
                 .col_upr_left = 0x15000000,
                 .col_upr_right = 0x0,
                 .col_bot_left = 0x15000000,
@@ -275,5 +281,5 @@ pub fn draw() void {
             });
         }
     }
-    zgui.end();
+    imgui.end();
 }

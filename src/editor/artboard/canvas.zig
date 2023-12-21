@@ -1,11 +1,11 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
-    const window_width = zgui.getWindowWidth();
-    const window_height = zgui.getWindowHeight();
+    const window_width = imgui.getWindowWidth();
+    const window_height = imgui.getWindowHeight();
     const file_width = @as(f32, @floatFromInt(file.width));
     const file_height = @as(f32, @floatFromInt(file.height));
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -39,7 +39,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     // TODO: Only clear and update if we need to?
     file.temporary_layer.clear(true);
 
-    if (zgui.isWindowHovered(.{})) {
+    if (imgui.isWindowHovered(.{})) {
         var mouse_position = pixi.state.mouse.position;
 
         if (file.camera.pixelCoordinates(.{
