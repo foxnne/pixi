@@ -292,7 +292,6 @@ pub fn update(app: *App) !bool {
             },
             else => {},
         }
-        //imgui.mach_backend.passEvent(event, content_scale);
         _ = imgui_mach.processEvent(event);
     }
 
@@ -300,9 +299,9 @@ pub fn update(app: *App) !bool {
 
     state.theme.set();
 
-    imgui.showDemoWindow(null);
+    //imgui.showDemoWindow(null);
 
-    //editor.draw();
+    editor.draw();
     state.theme.unset();
 
     state.cursors.update();

@@ -95,7 +95,7 @@ pub fn draw() void {
         if (pixi.state.pack_target == .project and pixi.state.project_folder == null) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
-            imgui.textWrapped("Select a project folder to pack.", .{});
+            imgui.textWrapped("Select a project folder to pack.");
         }
 
         if (pixi.state.atlas.external) |atlas| {

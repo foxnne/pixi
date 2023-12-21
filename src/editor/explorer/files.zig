@@ -161,7 +161,7 @@ pub fn draw() void {
 
                     imgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
                     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-                    imgui.text("{s}", .{folder});
+                    imgui.text("%s", folder);
                     imgui.popStyleColor();
                 }
             }
@@ -213,7 +213,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         else => pixi.state.theme.text_background.toImguiVec4(),
                     };
 
-                    imgui.textColored(icon_color, " {s} ", .{icon});
+                    imgui.textColored(icon_color, " %s ", icon);
                     imgui.sameLine(.{});
 
                     const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;

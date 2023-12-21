@@ -37,17 +37,17 @@ pub fn draw() void {
             imgui.spacing();
 
             const style = imgui.getStyle();
-            const spacing = style.item_spacing[0];
-            const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
+            const spacing = style.item_spacing.x;
+            const half_width = (popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
-            imgui.textWrapped("There currently is no heightmap layer, would you like to create a heightmap layer?", .{});
+            imgui.textWrapped("There currently is no heightmap layer, would you like to create a heightmap layer?");
 
             imgui.spacing();
 
             if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
                 pixi.state.popups.heightmap = false;
             }
-            imgui.sameLine(.{});
+            imgui.sameLine();
             if (imgui.buttonEx("Create", .{ .x = half_width, .y = 0.0 })) {
                 file.heightmap.layer = .{
                     .name = pixi.state.allocator.dupeZ(u8, "heightmap") catch unreachable,

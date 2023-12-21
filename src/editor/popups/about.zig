@@ -42,27 +42,30 @@ pub fn draw() void {
         const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
         imgui.setCursorPosX(center[0] - w / 2.0);
         imgui.setCursorPosY(center[1] - h / 2.0);
-        imgui.dummy(.{ .w = w, .h = h });
+        imgui.dummy(.{ .x = w, .y = h });
 
         const dummy_pos = imgui.getItemRectMin();
 
-        const draw_list = imgui.getWindowDrawList();
-        draw_list.addCircleFilled(.{
-            .p = .{ dummy_pos[0] + w / 2, dummy_pos[1] + w / 2 },
-            .r = w / 2.5,
-            .col = pixi.state.theme.foreground.toU32(),
-        });
+        const draw_list_opt = imgui.getWindowDrawList();
+
+        if (draw_list_opt) |draw_list| {
+            draw_list.addCircleFilled(
+                .{ .x = dummy_pos.x + w / 2, .y = dummy_pos.y + w / 2 },
+                w / 2.5,
+                pixi.state.theme.foreground.toU32(),
+                32,
+            );
+        }
 
         imgui.setCursorPosX(center[0] - w / 2.0);
         imgui.setCursorPosY(center[1] - h / 2.0);
         imgui.image(pixi.state.fox_logo.view_handle, .{
-            .w = w,
-            .h = h,
+            .x = w,
+            .y = h,
         });
 
-        centerText("Pixi Editor", .{});
-        centerText("https://github.com/foxnne/pixi", .{});
-        centerText("Version: {any}", .{pixi.version});
+        centerText("Pixi Editor");
+        centerText("https://github.com/foxnne/pixi");
 
         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
         defer imgui.popStyleColor();
@@ -73,44 +76,37 @@ pub fn draw() void {
         imgui.spacing();
         imgui.spacing();
         imgui.spacing();
-        centerText("Credits", .{});
-        centerText("__________________", .{});
+        centerText("Credits");
+        centerText("__________________");
         imgui.spacing();
         imgui.spacing();
 
-        centerText("mach-core", .{});
-        centerText("https://github.com/hexops/mach-core", .{});
-
-        imgui.spacing();
-        imgui.spacing();
-
-        centerText("zig-gamedev", .{});
-        centerText("https://github.com/michal-z/zig-gamedev", .{});
+        centerText("mach-core");
+        centerText("https://github.com/hexops/mach-core");
 
         imgui.spacing();
         imgui.spacing();
 
-        centerText("zip", .{});
-        centerText("https://github.com/kuba--/zip", .{});
+        centerText("zig-gamedev");
+        centerText("https://github.com/michal-z/zig-gamedev");
 
         imgui.spacing();
         imgui.spacing();
 
-        centerText("nfd-zig", .{});
-        centerText("https://github.com/fabioarnold/nfd-zig", .{});
+        centerText("zip");
+        centerText("https://github.com/kuba--/zip");
+
+        imgui.spacing();
+        imgui.spacing();
+
+        centerText("nfd-zig");
+        centerText("https://github.com/fabioarnold/nfd-zig");
     }
 }
 
-fn centerText(comptime text: []const u8, args: anytype) void {
+fn centerText(comptime text: [:0]const u8) void {
     const center = imgui.getWindowWidth() / 2.0;
-    const len = std.fmt.count(text, args);
-    var buffer: std.ArrayList(u8) = std.ArrayList(u8).init(pixi.state.allocator);
-    buffer.resize(len + 64) catch unreachable;
-    defer buffer.clearAndFree();
-    defer buffer.deinit();
-    const full_text = std.fmt.bufPrint(buffer.items, text, args) catch unreachable;
-
-    const text_width = imgui.calcTextSize(full_text).x;
+    const text_width = imgui.calcTextSize(text).x;
     imgui.setCursorPosX(center - text_width / 2.0);
-    imgui.text(text, args);
+    imgui.text(text);
 }

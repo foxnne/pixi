@@ -150,8 +150,8 @@ pub fn draw() void {
             } else {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
                 defer imgui.popStyleColor();
-                imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette", .{});
-                imgui.textWrapped("To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{ pixi.state.root_path, std.fs.path.sep, pixi.assets.palettes });
+                imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette");
+                imgui.textWrapped("To add new palettes, download a .hex palette from lospec.com and place it here: \n %s%c%s", pixi.state.root_path, std.fs.path.sep, pixi.assets.palettes);
             }
         }
     }
@@ -194,8 +194,8 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
             switch (tool) {
                 .animation => {
                     if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| {
-                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut});
-                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut});
+                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "Click and drag with (%s) released to edit the current animation", hotkey.shortcut);
+                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "Click and drag while holding (%s) to create a new animation", hotkey.shortcut);
                     }
                 },
                 else => {},

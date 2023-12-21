@@ -49,8 +49,8 @@ pub fn draw() void {
                 if (imgui.beginMenuBar()) {
                     imgui.text("Explorer");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .files })) |hotkey| {
-                        imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
+                        imgui.sameLine();
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
                     }
                     imgui.endMenuBar();
                 }
@@ -62,7 +62,7 @@ pub fn draw() void {
                     imgui.text("Tools");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .tools })) |hotkey| {
                         imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
                     }
                     imgui.endMenuBar();
                 }
@@ -74,7 +74,7 @@ pub fn draw() void {
                     imgui.text("Layers");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .layers })) |hotkey| {
                         imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "(%s)", hotkey.shortcut);
                     }
                     imgui.endMenuBar();
                 }
@@ -86,7 +86,7 @@ pub fn draw() void {
                     imgui.text("Sprites");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .sprites })) |hotkey| {
                         imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
                     }
                     imgui.endMenuBar();
                 }
@@ -98,7 +98,7 @@ pub fn draw() void {
                     imgui.text("Animations");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .animations })) |hotkey| {
                         imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
                     }
                     imgui.endMenuBar();
                 }
@@ -110,7 +110,7 @@ pub fn draw() void {
                     imgui.text("Pack");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
                         imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
                     }
                     imgui.endMenuBar();
                 }
@@ -122,7 +122,7 @@ pub fn draw() void {
                     imgui.text("Settings");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .settings })) |hotkey| {
                         imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
                     }
                     imgui.endMenuBar();
                 }

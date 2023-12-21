@@ -38,9 +38,9 @@ pub fn draw() void {
         imgui.spacing();
 
         const style = imgui.getStyle();
-        const spacing = style.item_spacing[0];
-        const full_width = popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - imgui.calcTextSize("Name").x;
-        const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
+        const spacing = style.item_spacing.x;
+        const full_width = popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - imgui.calcTextSize("Name").x;
+        const half_width = (popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
         const base_name = std.fs.path.basename(pixi.state.popups.rename_path[0..]);
         var base_index: usize = 0;

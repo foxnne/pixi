@@ -37,9 +37,9 @@ pub fn draw() void {
         defer imgui.endPopup();
 
         const style = imgui.getStyle();
-        const spacing = style.item_spacing[0];
+        const spacing = style.item_spacing.x;
         const content = imgui.getContentRegionAvail();
-        const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
+        const half_width = (popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
         const plot_name = switch (pixi.state.popups.export_to_png_state) {
             .selected_sprite => "Selected Sprite",
@@ -49,9 +49,9 @@ pub fn draw() void {
             .full_image => "Full Flattened Image",
         };
 
-        imgui.pushItemWidth(content[0]);
+        imgui.pushItemWidth(content.x);
 
-        imgui.text("Select an export area:", .{});
+        imgui.text("Select an export area:");
 
         if (imgui.beginCombo("Plot", plot_name, imgui.ComboFlags_None)) {
             defer imgui.endCombo();
@@ -80,7 +80,7 @@ pub fn draw() void {
             .selected_sprite, .selected_animation => {
                 image_scale = @as(i32, @intCast(pixi.state.popups.export_to_png_scale));
 
-                imgui.text("Select an export scale:", .{});
+                imgui.text("Select an export scale:");
                 if (imgui.sliderInt(
                     "Image Scale",
                     &image_scale,
@@ -115,7 +115,7 @@ pub fn draw() void {
         if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
             pixi.state.popups.export_to_png = false;
         }
-        imgui.sameLine(.{});
+        imgui.sameLine();
         if (imgui.buttonEx("Export", .{ .x = half_width, .y = 0.0 })) {
             switch (pixi.state.popups.export_to_png_state) {
                 .selected_sprite => {

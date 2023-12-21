@@ -8,7 +8,7 @@ pub fn draw() void {
         const selection = file.selected_sprites.items.len > 0;
 
         imgui.spacing();
-        imgui.text("Edit", .{});
+        imgui.text("Edit");
         imgui.separator();
         imgui.spacing();
         if (imgui.beginChild("Sprite", .{
@@ -20,7 +20,7 @@ pub fn draw() void {
             if (!selection) {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
                 defer imgui.popStyleColor();
-                imgui.textWrapped("Make a selection to begin editing sprite origins.", .{});
+                imgui.textWrapped("Make a selection to begin editing sprite origins.");
             } else {
                 imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
                 imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
@@ -83,7 +83,7 @@ pub fn draw() void {
         }
 
         imgui.spacing();
-        imgui.text("Sprites", .{});
+        imgui.text("Sprites");
         imgui.separator();
         imgui.spacing();
 

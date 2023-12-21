@@ -19,8 +19,8 @@ pub fn draw() void {
         .y = window_center[1] - popup_height / 2.0,
     }, imgui.Cond_None);
     imgui.setNextWindowSize(.{
-        .w = popup_width,
-        .h = 0.0,
+        .x = popup_width,
+        .y = 0.0,
     }, imgui.Cond_None);
 
     var modal_flags: imgui.WindowFlags = 0;
@@ -108,14 +108,15 @@ pub fn draw() void {
             else => true,
         };
 
-        imgui.text("Image size: {d}x{d}", .{
+        imgui.text(
+            "Image size: %dx%d",
             if (!sizes_match) pixi.state.popups.file_setup_width else combined_size[0],
             if (!sizes_match) pixi.state.popups.file_setup_height else combined_size[1],
-        });
+        );
         imgui.spacing();
 
         if (!sizes_match) {
-            imgui.textColored(pixi.state.theme.text_red.toImguiVec4(), "Tile sizes and count do not match image size! {d}x{d}", .{ combined_size[0], combined_size[1] });
+            imgui.textColored(pixi.state.theme.text_red.toImguiVec4(), "Tile sizes and count do not match image size! %dx%d", combined_size[0], combined_size[1]);
         } else {
             imgui.textColored(pixi.state.theme.highlight_primary.toImguiVec4(), " " ++ pixi.fa.check, .{});
         }

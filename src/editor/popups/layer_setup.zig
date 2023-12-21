@@ -43,9 +43,9 @@ pub fn draw() void {
             imgui.spacing();
 
             const style = imgui.getStyle();
-            const spacing = style.item_spacing[0];
-            const full_width = popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - imgui.calcTextSize("Name").x;
-            const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
+            const spacing = style.item_spacing.x;
+            const full_width = popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - imgui.calcTextSize("Name").x;
+            const half_width = (popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
             imgui.pushItemWidth(full_width);
 
@@ -65,7 +65,7 @@ pub fn draw() void {
             if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
                 pixi.state.popups.layer_setup = false;
             }
-            imgui.sameLine(.{});
+            imgui.sameLine();
             if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
                 switch (pixi.state.popups.layer_setup_state) {
                     .none => {
