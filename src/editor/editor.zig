@@ -29,7 +29,7 @@ pub fn draw() void {
 
     //popup_rename.draw();
     //popup_file_setup.draw();
-    //popup_about.draw();
+    popup_about.draw();
     //popup_file_confirm_close.draw();
     //popup_layer_setup.draw();
     //popup_export_to_png.draw();

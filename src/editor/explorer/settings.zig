@@ -10,121 +10,127 @@ pub fn draw() void {
     imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.highlight_secondary.toImguiVec4());
     defer imgui.popStyleColor();
 
-    imgui.pushItemWidth(imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]);
+    if (imgui.beginChild("SettingsChild", .{
+        .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+        .y = -1.0,
+    }, false, imgui.WindowFlags_ChildWindow)) {
+        defer imgui.endChild();
+        imgui.pushItemWidth(imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]);
 
-    if (imgui.collapsingHeader(pixi.fa.mouse ++ "  Input", imgui.TreeNodeFlags_Framed)) {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
-        defer imgui.popStyleVarEx(2);
+        if (imgui.collapsingHeader(pixi.fa.mouse ++ "  Input", imgui.TreeNodeFlags_Framed)) {
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
+            defer imgui.popStyleVarEx(2);
 
-        imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
-        if (imgui.beginCombo("Scheme", @tagName(pixi.state.settings.input_scheme), imgui.ComboFlags_None)) {
-            defer imgui.endCombo();
-            if (imgui.selectable("mouse")) {
-                pixi.state.settings.input_scheme = .mouse;
+            imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
+            if (imgui.beginCombo("Scheme", @tagName(pixi.state.settings.input_scheme), imgui.ComboFlags_None)) {
+                defer imgui.endCombo();
+                if (imgui.selectable("mouse")) {
+                    pixi.state.settings.input_scheme = .mouse;
+                }
+                if (imgui.selectable("trackpad")) {
+                    pixi.state.settings.input_scheme = .trackpad;
+                }
             }
-            if (imgui.selectable("trackpad")) {
-                pixi.state.settings.input_scheme = .trackpad;
+
+            if (pixi.state.settings.input_scheme == .trackpad) {
+                _ = imgui.sliderFloatEx("Sensitivity", &pixi.state.settings.pan_sensitivity, 1.0, 25.0, "%.0f", imgui.SliderFlags_None);
             }
+            imgui.popItemWidth();
         }
 
-        if (pixi.state.settings.input_scheme == .trackpad) {
-            _ = imgui.sliderFloatEx("Sensitivity", &pixi.state.settings.pan_sensitivity, 1.0, 25.0, "%.0f", imgui.SliderFlags_None);
-        }
-        imgui.popItemWidth();
-    }
+        if (imgui.collapsingHeader(pixi.fa.th_list ++ "  Layout", imgui.TreeNodeFlags_None)) {
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
+            defer imgui.popStyleVarEx(2);
 
-    if (imgui.collapsingHeader(pixi.fa.th_list ++ "  Layout", imgui.TreeNodeFlags_None)) {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
-        defer imgui.popStyleVarEx(2);
+            imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
 
-        imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
+            _ = imgui.sliderFloatEx(
+                "Info Height",
+                &pixi.state.settings.info_bar_height,
+                18,
+                36,
+                "%.0f",
+                imgui.SliderFlags_None,
+            );
 
-        _ = imgui.sliderFloatEx(
-            "Info Height",
-            &pixi.state.settings.info_bar_height,
-            18,
-            36,
-            "%.0f",
-            imgui.SliderFlags_None,
-        );
+            _ = imgui.sliderFloatEx(
+                "Sidebar Width",
+                &pixi.state.settings.sidebar_width,
+                25,
+                75,
+                "%.0f",
+                imgui.SliderFlags_None,
+            );
 
-        _ = imgui.sliderFloatEx(
-            "Sidebar Width",
-            &pixi.state.settings.sidebar_width,
-            25,
-            75,
-            "%.0f",
-            imgui.SliderFlags_None,
-        );
-
-        _ = imgui.checkbox(
-            "Show Rulers",
-            &pixi.state.settings.show_rulers,
-        );
-        imgui.popItemWidth();
-    }
-
-    if (imgui.collapsingHeader(pixi.fa.sliders_h ++ "  Configuration", imgui.TreeNodeFlags_None)) {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
-        defer imgui.popStyleVarEx(2);
-        imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
-
-        _ = imgui.checkbox(
-            "Dropper Auto-switch",
-            &pixi.state.settings.eyedropper_auto_switch_layer,
-        );
-        imgui.popItemWidth();
-    }
-
-    if (imgui.collapsingHeader(pixi.fa.paint_roller ++ "  Style", imgui.TreeNodeFlags_None)) {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
-        defer imgui.popStyleVarEx(2);
-
-        imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.highlight_secondary.toImguiVec4());
-        defer imgui.popStyleColor();
-
-        imgui.pushItemWidth(imgui.getWindowWidth() * 0.7);
-        if (imgui.beginCombo("Theme", pixi.state.settings.theme, imgui.ComboFlags_None)) {
-            defer imgui.endCombo();
-            searchThemes() catch unreachable;
-        }
-        imgui.separator();
-
-        _ = pixi.editor.Theme.styleColorEdit("Background", .{ .col = &pixi.state.theme.background });
-        _ = pixi.editor.Theme.styleColorEdit("Foreground", .{ .col = &pixi.state.theme.foreground });
-        _ = pixi.editor.Theme.styleColorEdit("Text", .{ .col = &pixi.state.theme.text });
-        _ = pixi.editor.Theme.styleColorEdit("Secondary Text", .{ .col = &pixi.state.theme.text_secondary });
-        _ = pixi.editor.Theme.styleColorEdit("Background Text", .{ .col = &pixi.state.theme.text_background });
-        _ = pixi.editor.Theme.styleColorEdit("Primary Highlight", .{ .col = &pixi.state.theme.highlight_primary });
-        _ = pixi.editor.Theme.styleColorEdit("Secondary Highlight", .{ .col = &pixi.state.theme.highlight_secondary });
-        _ = pixi.editor.Theme.styleColorEdit("Primary Hover", .{ .col = &pixi.state.theme.hover_primary });
-        _ = pixi.editor.Theme.styleColorEdit("Secondary Hover", .{ .col = &pixi.state.theme.hover_secondary });
-
-        imgui.separator();
-        if (imgui.buttonEx("Save As...", .{ .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .y = 0.0 })) {
-            pixi.state.popups.file_dialog_request = .{
-                .state = .save,
-                .type = .export_theme,
-                .filter = "json",
-                .initial = pixi.assets.themes,
-            };
+            _ = imgui.checkbox(
+                "Show Rulers",
+                &pixi.state.settings.show_rulers,
+            );
+            imgui.popItemWidth();
         }
 
-        if (pixi.state.popups.file_dialog_response) |response| {
-            if (response.type == .export_theme) {
-                pixi.state.theme.save(response.path) catch unreachable;
+        if (imgui.collapsingHeader(pixi.fa.sliders_h ++ "  Configuration", imgui.TreeNodeFlags_None)) {
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
+            defer imgui.popStyleVarEx(2);
+            imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
+
+            _ = imgui.checkbox(
+                "Dropper Auto-switch",
+                &pixi.state.settings.eyedropper_auto_switch_layer,
+            );
+            imgui.popItemWidth();
+        }
+
+        if (imgui.collapsingHeader(pixi.fa.paint_roller ++ "  Style", imgui.TreeNodeFlags_None)) {
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
+            defer imgui.popStyleVarEx(2);
+
+            imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.highlight_secondary.toImguiVec4());
+            defer imgui.popStyleColor();
+
+            imgui.pushItemWidth(imgui.getWindowWidth() * 0.7);
+            if (imgui.beginCombo("Theme", pixi.state.settings.theme, imgui.ComboFlags_None)) {
+                defer imgui.endCombo();
+                searchThemes() catch unreachable;
             }
-            nfd.freePath(response.path);
-            pixi.state.popups.file_dialog_response = null;
-        }
+            imgui.separator();
 
+            _ = pixi.editor.Theme.styleColorEdit("Background", .{ .col = &pixi.state.theme.background });
+            _ = pixi.editor.Theme.styleColorEdit("Foreground", .{ .col = &pixi.state.theme.foreground });
+            _ = pixi.editor.Theme.styleColorEdit("Text", .{ .col = &pixi.state.theme.text });
+            _ = pixi.editor.Theme.styleColorEdit("Secondary Text", .{ .col = &pixi.state.theme.text_secondary });
+            _ = pixi.editor.Theme.styleColorEdit("Background Text", .{ .col = &pixi.state.theme.text_background });
+            _ = pixi.editor.Theme.styleColorEdit("Primary Highlight", .{ .col = &pixi.state.theme.highlight_primary });
+            _ = pixi.editor.Theme.styleColorEdit("Secondary Highlight", .{ .col = &pixi.state.theme.highlight_secondary });
+            _ = pixi.editor.Theme.styleColorEdit("Primary Hover", .{ .col = &pixi.state.theme.hover_primary });
+            _ = pixi.editor.Theme.styleColorEdit("Secondary Hover", .{ .col = &pixi.state.theme.hover_secondary });
+
+            imgui.separator();
+            if (imgui.buttonEx("Save As...", .{ .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .y = 0.0 })) {
+                pixi.state.popups.file_dialog_request = .{
+                    .state = .save,
+                    .type = .export_theme,
+                    .filter = "json",
+                    .initial = pixi.assets.themes,
+                };
+            }
+
+            if (pixi.state.popups.file_dialog_response) |response| {
+                if (response.type == .export_theme) {
+                    pixi.state.theme.save(response.path) catch unreachable;
+                }
+                nfd.freePath(response.path);
+                pixi.state.popups.file_dialog_response = null;
+            }
+
+            imgui.popItemWidth();
+        }
         imgui.popItemWidth();
     }
-    imgui.popItemWidth();
 }
 
 fn searchThemes() !void {

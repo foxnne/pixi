@@ -248,6 +248,7 @@ pub fn update(app: *App) !bool {
         framebuffer_size[0] / window_size[0],
         framebuffer_size[1] / window_size[1],
     };
+    content_scale = .{ 1.0, 1.0 };
 
     var iter = core.pollEvents();
     while (iter.next()) |event| {
