@@ -1,8 +1,8 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
 const nfd = @import("nfd");
+const imgui = @import("zig-imgui");
 
 pub const files = @import("files.zig");
 pub const tools = @import("tools.zig");
@@ -13,143 +13,141 @@ pub const pack = @import("pack.zig");
 pub const settings = @import("settings.zig");
 
 pub fn draw() void {
-    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = pixi.state.theme.foreground.toSlice() });
-    defer zgui.popStyleVar(.{ .count = 1 });
-    defer zgui.popStyleColor(.{ .count = 1 });
-    zgui.setNextWindowPos(.{
+    imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
+    imgui.pushStyleColorImVec4(imgui.Col_WindowBg, pixi.state.theme.foreground.toImguiVec4());
+    defer imgui.popStyleVar();
+    defer imgui.popStyleColor();
+    imgui.setNextWindowPos(.{
         .x = pixi.state.settings.sidebar_width * pixi.content_scale[0],
         .y = 0,
-        .cond = .always,
-    });
-    zgui.setNextWindowSize(.{
-        .w = pixi.state.settings.explorer_width * pixi.content_scale[0],
-        .h = pixi.framebuffer_size[1],
-    });
+    }, imgui.Cond_Always);
+    imgui.setNextWindowSize(.{
+        .x = pixi.state.settings.explorer_width * pixi.content_scale[0],
+        .y = pixi.framebuffer_size[1],
+    }, imgui.Cond_None);
 
-    if (zgui.begin("Explorer", .{
-        .flags = .{
-            .no_title_bar = true,
-            .no_resize = true,
-            .no_move = true,
-            .no_collapse = true,
-            .horizontal_scrollbar = false,
-            .menu_bar = true,
-        },
-    })) {
+    var explorer_flags: imgui.WindowFlags = 0;
+    explorer_flags |= imgui.WindowFlags_NoTitleBar;
+    explorer_flags |= imgui.WindowFlags_NoResize;
+    explorer_flags |= imgui.WindowFlags_NoMove;
+    explorer_flags |= imgui.WindowFlags_NoCollapse;
+    explorer_flags |= imgui.WindowFlags_HorizontalScrollbar;
+    explorer_flags |= imgui.WindowFlags_MenuBar;
+
+    if (imgui.begin("Explorer", null, explorer_flags)) {
         // Push explorer style changes.
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 0.0, 8.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 2 });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * pixi.content_scale[1] });
+        defer imgui.popStyleVarEx(2);
 
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.theme.background.toSlice() });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.theme.foreground.toSlice() });
-        defer zgui.popStyleColor(.{ .count = 2 });
+        imgui.pushStyleColorImVec4(imgui.Col_Separator, pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.foreground.toImguiVec4());
+        defer imgui.popStyleColorEx(2);
 
         switch (pixi.state.sidebar) {
             .files => {
-                if (zgui.beginMenuBar()) {
-                    zgui.text("Explorer", .{});
+                if (imgui.beginMenuBar()) {
+                    imgui.text("Explorer");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .files })) |hotkey| {
-                        zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        imgui.sameLine(.{});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
                     }
-                    zgui.endMenuBar();
+                    imgui.endMenuBar();
                 }
-                zgui.separator();
+                imgui.separator();
                 files.draw();
             },
             .tools => {
-                if (zgui.beginMenuBar()) {
-                    zgui.text("Tools", .{});
+                if (imgui.beginMenuBar()) {
+                    imgui.text("Tools");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .tools })) |hotkey| {
-                        zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        imgui.sameLine(.{});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
                     }
-                    zgui.endMenuBar();
+                    imgui.endMenuBar();
                 }
-                zgui.separator();
+                imgui.separator();
                 tools.draw();
             },
             .layers => {
-                if (zgui.beginMenuBar()) {
-                    zgui.text("Layers", .{});
+                if (imgui.beginMenuBar()) {
+                    imgui.text("Layers");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .layers })) |hotkey| {
-                        zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        imgui.sameLine(.{});
+                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
                     }
-                    zgui.endMenuBar();
+                    imgui.endMenuBar();
                 }
-                zgui.separator();
+                imgui.separator();
                 layers.draw();
             },
             .sprites => {
-                if (zgui.beginMenuBar()) {
-                    zgui.text("Sprites", .{});
+                if (imgui.beginMenuBar()) {
+                    imgui.text("Sprites");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .sprites })) |hotkey| {
-                        zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        imgui.sameLine(.{});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
                     }
-                    zgui.endMenuBar();
+                    imgui.endMenuBar();
                 }
-                zgui.separator();
+                imgui.separator();
                 sprites.draw();
             },
             .animations => {
-                if (zgui.beginMenuBar()) {
-                    zgui.text("Animations", .{});
+                if (imgui.beginMenuBar()) {
+                    imgui.text("Animations");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .animations })) |hotkey| {
-                        zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        imgui.sameLine(.{});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
                     }
-                    zgui.endMenuBar();
+                    imgui.endMenuBar();
                 }
-                zgui.separator();
+                imgui.separator();
                 animations.draw();
             },
             .pack => {
-                if (zgui.beginMenuBar()) {
-                    zgui.text("Pack", .{});
+                if (imgui.beginMenuBar()) {
+                    imgui.text("Pack");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
-                        zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        imgui.sameLine(.{});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
                     }
-                    zgui.endMenuBar();
+                    imgui.endMenuBar();
                 }
-                zgui.separator();
+                imgui.separator();
                 pack.draw();
             },
             .settings => {
-                if (zgui.beginMenuBar()) {
-                    zgui.text("Settings", .{});
+                if (imgui.beginMenuBar()) {
+                    imgui.text("Settings");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .settings })) |hotkey| {
-                        zgui.sameLine(.{});
-                        zgui.textColored(pixi.state.theme.text_background.toSlice(), "({s})", .{hotkey.shortcut});
+                        imgui.sameLine(.{});
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "({s})", .{hotkey.shortcut});
                     }
-                    zgui.endMenuBar();
+                    imgui.endMenuBar();
                 }
-                zgui.separator();
+                imgui.separator();
                 settings.draw();
             },
         }
     }
 
-    zgui.setCursorPosY(0.0);
-    zgui.setCursorPosX(zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] + zgui.getStyle().item_spacing[0]);
+    imgui.setCursorPosY(0.0);
+    imgui.setCursorPosX(imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] + imgui.getStyle().item_spacing.x);
 
-    _ = zgui.invisibleButton(pixi.fa.grip_vertical, .{
+    _ = imgui.invisibleButton(pixi.fa.grip_vertical, .{
         .w = pixi.state.settings.explorer_grip * pixi.content_scale[0] / 2.0,
         .h = -1.0,
     });
 
-    if (zgui.isItemHovered(.{
+    if (imgui.isItemHovered(.{
         .allow_when_overlapped = true,
         .allow_when_blocked_by_active_item = true,
     })) {
         pixi.state.cursors.current = .resize_ew;
     }
 
-    if (zgui.isItemActive()) {
+    if (imgui.isItemActive()) {
         const prev = pixi.state.mouse.previous_position;
         const cur = pixi.state.mouse.position;
 
@@ -158,5 +156,5 @@ pub fn draw() void {
         pixi.state.cursors.current = .resize_ew;
         pixi.state.settings.explorer_width = std.math.clamp(pixi.state.settings.explorer_width + diff / pixi.content_scale[0], 200, 500);
     }
-    zgui.end();
+    imgui.end();
 }

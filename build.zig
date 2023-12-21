@@ -24,17 +24,8 @@ pub fn build(b: *std.Build) !void {
     const zstbi_pkg = zstbi.package(b, target, optimize, .{});
     const zmath_pkg = zmath.package(b, target, optimize, .{});
 
-    const use_dusk = b.option(bool, "use_dusk", "Use Dusk") orelse true;
+    const use_dusk = b.option(bool, "use_dusk", "Use Dusk") orelse false;
     const use_freetype = b.option(bool, "use_freetype", "Use Freetype") orelse false;
-
-    // const zgui_pkg = zgui.Package(.{
-    //     .gpu_dawn = mach_gpu_dawn,
-    // }).build(b, target, optimize, .{
-    //     .options = .{
-    //         .backend = .mach,
-    //     },
-    //     .gpu_dawn_options = .{},
-    // }) catch unreachable;
 
     const zip_pkg = zip.package(b, .{});
 

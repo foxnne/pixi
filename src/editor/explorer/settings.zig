@@ -1,96 +1,98 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
 const nfd = @import("nfd");
+const imgui = @import("zig-imgui");
 
 pub fn draw() void {
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 6.0 * pixi.content_scale[1], 6.0 * pixi.content_scale[1] } });
-    defer zgui.popStyleVar(.{ .count = 1 });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.theme.highlight_secondary.toSlice() });
-    defer zgui.popStyleColor(.{ .count = 1 });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * pixi.content_scale[1], .x = 6.0 * pixi.content_scale[1] });
+    defer imgui.popStyleVar();
+    imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.highlight_secondary.toImguiVec4());
+    defer imgui.popStyleColor();
 
-    zgui.pushItemWidth(zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]);
-    if (zgui.collapsingHeader(zgui.formatZ("{s}  {s}", .{ pixi.fa.mouse, "Input" }), .{ .framed = true })) {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 3.0 * pixi.content_scale[0], 3.0 * pixi.content_scale[1] } });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 4.0 * pixi.content_scale[1], 4.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 2 });
+    imgui.pushItemWidth(imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]);
 
-        zgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
-        if (zgui.beginCombo("Scheme", .{ .preview_value = @tagName(pixi.state.settings.input_scheme) })) {
-            defer zgui.endCombo();
-            if (zgui.selectable("mouse", .{})) {
+    if (imgui.collapsingHeader(pixi.fa.mouse ++ "  Input", imgui.TreeNodeFlags_Framed)) {
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .x = 3.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .x = 4.0 * pixi.content_scale[1] });
+        defer imgui.popStyleVarEx(2);
+
+        imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
+        if (imgui.beginCombo("Scheme", @tagName(pixi.state.settings.input_scheme), imgui.ComboFlags_None)) {
+            defer imgui.endCombo();
+            if (imgui.selectable("mouse")) {
                 pixi.state.settings.input_scheme = .mouse;
             }
-            if (zgui.selectable("trackpad", .{})) {
+            if (imgui.selectable("trackpad")) {
                 pixi.state.settings.input_scheme = .trackpad;
             }
         }
 
         if (pixi.state.settings.input_scheme == .trackpad) {
-            _ = zgui.sliderFloat("Sensitivity", .{
-                .v = &pixi.state.settings.pan_sensitivity,
-                .min = 1.0,
-                .max = 25.0,
-                .cfmt = "%.0f",
-            });
+            _ = imgui.sliderFloatEx("Sensitivity", &pixi.state.settings.pan_sensitivity, 1.0, 25.0, "%.0f", imgui.SliderFlags_None);
         }
-        zgui.popItemWidth();
+        imgui.popItemWidth();
     }
 
-    if (zgui.collapsingHeader(zgui.formatZ("{s}  {s}", .{ pixi.fa.th_list, "Layout" }), .{})) {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 3.0 * pixi.content_scale[0], 3.0 * pixi.content_scale[1] } });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 4.0 * pixi.content_scale[1], 4.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 2 });
+    if (imgui.collapsingHeader(pixi.fa.th_list ++ "  Layout", imgui.TreeNodeFlags_None)) {
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
+        defer imgui.popStyleVarEx(2);
 
-        zgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
+        imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
 
-        _ = zgui.sliderFloat("Info Height", .{
-            .v = &pixi.state.settings.info_bar_height,
-            .min = 18,
-            .max = 36,
-            .cfmt = "%.0f",
-        });
+        _ = imgui.sliderFloatEx(
+            "Info Height",
+            &pixi.state.settings.info_bar_height,
+            18,
+            36,
+            "%.0f",
+            imgui.SliderFlags_None,
+        );
 
-        _ = zgui.sliderFloat("Sidebar Width", .{
-            .v = &pixi.state.settings.sidebar_width,
-            .min = 25,
-            .max = 75,
-            .cfmt = "%.0f",
-        });
+        _ = imgui.sliderFloatEx(
+            "Sidebar Width",
+            &pixi.state.settings.sidebar_width,
+            25,
+            75,
+            "%.0f",
+            imgui.SliderFlags_None,
+        );
 
-        _ = zgui.checkbox("Show Rulers", .{
-            .v = &pixi.state.settings.show_rulers,
-        });
-        zgui.popItemWidth();
+        _ = imgui.checkbox(
+            "Show Rulers",
+            &pixi.state.settings.show_rulers,
+        );
+        imgui.popItemWidth();
     }
 
-    if (zgui.collapsingHeader(pixi.fa.sliders_h ++ " " ++ "Configuration", .{})) {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 3.0 * pixi.content_scale[0], 3.0 * pixi.content_scale[1] } });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 4.0 * pixi.content_scale[1], 4.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 2 });
-        zgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
+    if (imgui.collapsingHeader(pixi.fa.sliders_h ++ "  Configuration", imgui.TreeNodeFlags_None)) {
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
+        defer imgui.popStyleVarEx(2);
+        imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
 
-        _ = zgui.checkbox("Dropper Auto-switch", .{
-            .v = &pixi.state.settings.eyedropper_auto_switch_layer,
-        });
-        zgui.popItemWidth();
+        _ = imgui.checkbox(
+            "Dropper Auto-switch",
+            &pixi.state.settings.eyedropper_auto_switch_layer,
+        );
+        imgui.popItemWidth();
     }
 
-    if (zgui.collapsingHeader(zgui.formatZ("{s}  {s}", .{ pixi.fa.paint_roller, "Style" }), .{})) {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 3.0 * pixi.content_scale[0], 3.0 * pixi.content_scale[1] } });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 4.0 * pixi.content_scale[1], 4.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 2 });
+    if (imgui.collapsingHeader(pixi.fa.paint_roller ++ "  Style", imgui.TreeNodeFlags_None)) {
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
+        defer imgui.popStyleVarEx(2);
 
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.highlight_secondary.toSlice() });
-        defer zgui.popStyleColor(.{ .count = 1 });
+        imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.highlight_secondary.toImguiVec4());
+        defer imgui.popStyleColor();
 
-        zgui.pushItemWidth(zgui.getWindowWidth() * 0.7);
-        if (zgui.beginCombo("Theme", .{ .preview_value = pixi.state.settings.theme })) {
-            defer zgui.endCombo();
+        imgui.pushItemWidth(imgui.getWindowWidth() * 0.7);
+        if (imgui.beginCombo("Theme", pixi.state.settings.theme)) {
+            defer imgui.endCombo();
             searchThemes() catch unreachable;
         }
-        zgui.separator();
+        imgui.separator();
 
         _ = pixi.editor.Theme.styleColorEdit("Background", .{ .col = &pixi.state.theme.background });
         _ = pixi.editor.Theme.styleColorEdit("Foreground", .{ .col = &pixi.state.theme.foreground });
@@ -102,8 +104,8 @@ pub fn draw() void {
         _ = pixi.editor.Theme.styleColorEdit("Primary Hover", .{ .col = &pixi.state.theme.hover_primary });
         _ = pixi.editor.Theme.styleColorEdit("Secondary Hover", .{ .col = &pixi.state.theme.hover_secondary });
 
-        zgui.separator();
-        if (zgui.button("Save As...", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] })) {
+        imgui.separator();
+        if (imgui.buttonEx("Save As...", .{ .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .y = 0.0 })) {
             pixi.state.popups.file_dialog_request = .{
                 .state = .save,
                 .type = .export_theme,
@@ -120,9 +122,9 @@ pub fn draw() void {
             pixi.state.popups.file_dialog_response = null;
         }
 
-        zgui.popItemWidth();
+        imgui.popItemWidth();
     }
-    zgui.popItemWidth();
+    imgui.popItemWidth();
 }
 
 fn searchThemes() !void {
@@ -136,7 +138,7 @@ fn searchThemes() !void {
                 if (std.mem.eql(u8, ext, ".json")) {
                     const label = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name});
                     defer pixi.state.allocator.free(label);
-                    if (zgui.selectable(label, .{})) {
+                    if (imgui.selectable(label)) {
                         const abs_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ pixi.assets.themes, entry.name });
                         defer pixi.state.allocator.free(abs_path);
                         pixi.state.allocator.free(pixi.state.theme.name);

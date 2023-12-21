@@ -1,11 +1,11 @@
 const std = @import("std");
 const pixi = @import("../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
 const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
 const nfd = @import("nfd");
+const imgui = @import("zig-imgui");
 
 pub const Theme = @import("theme.zig");
 
