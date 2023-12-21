@@ -12,7 +12,7 @@ pub fn draw() void {
         const popup_width = 350 * pixi.content_scale[0];
         const popup_height = 115 * pixi.content_scale[1];
 
-        var window_size = pixi.framebuffer_size;
+        var window_size = pixi.window_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         imgui.setNextWindowPos(.{
