@@ -55,8 +55,8 @@ pub fn draw() void {
 
             var enter = imgui.inputText(
                 "Name",
-                pixi.state.popups.layer_setup_name[0..],
-                pixi.state.popups.layer_setup_name[0..].len,
+                pixi.state.popups.layer_setup_name[0.. :0],
+                pixi.state.popups.layer_setup_name[0.. :0].len,
                 input_text_flags,
             );
 

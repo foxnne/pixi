@@ -2868,7 +2868,7 @@ extern fn ImGui_InputScalarNEx(label: ?[*:0]const u8, data_type: DataType, p_dat
 extern fn ImGui_ColorEdit3(label: ?[*:0]const u8, col: [3]f32, flags: ColorEditFlags) bool;
 extern fn ImGui_ColorEdit4(label: ?[*:0]const u8, col: [4]f32, flags: ColorEditFlags) bool;
 extern fn ImGui_ColorPicker3(label: ?[*:0]const u8, col: [3]f32, flags: ColorEditFlags) bool;
-extern fn ImGui_ColorPicker4(label: ?[*:0]const u8, col: [4]f32, flags: ColorEditFlags, ref_col: ?*const f32) bool;
+extern fn ImGui_ColorPicker4(label: ?[*:0]const u8, col: *Vec4, flags: ColorEditFlags, ref_col: ?*const f32) bool;
 extern fn ImGui_ColorButton(desc_id: ?[*:0]const u8, col: Vec4, flags: ColorEditFlags) bool;
 extern fn ImGui_ColorButtonEx(desc_id: ?[*:0]const u8, col: Vec4, flags: ColorEditFlags, size: Vec2) bool;
 extern fn ImGui_SetColorEditOptions(flags: ColorEditFlags) void;

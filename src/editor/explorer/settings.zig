@@ -5,7 +5,7 @@ const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
 pub fn draw() void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * pixi.content_scale[1], .x = 6.0 * pixi.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * pixi.content_scale[1], .y = 6.0 * pixi.content_scale[1] });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.highlight_secondary.toImguiVec4());
     defer imgui.popStyleColor();
@@ -13,8 +13,8 @@ pub fn draw() void {
     imgui.pushItemWidth(imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]);
 
     if (imgui.collapsingHeader(pixi.fa.mouse ++ "  Input", imgui.TreeNodeFlags_Framed)) {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .x = 3.0 * pixi.content_scale[1] });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .x = 4.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * pixi.content_scale[0], .y = 3.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * pixi.content_scale[1], .y = 4.0 * pixi.content_scale[1] });
         defer imgui.popStyleVarEx(2);
 
         imgui.pushItemWidth(pixi.state.settings.explorer_width * pixi.content_scale[0] * 0.5);
@@ -88,7 +88,7 @@ pub fn draw() void {
         defer imgui.popStyleColor();
 
         imgui.pushItemWidth(imgui.getWindowWidth() * 0.7);
-        if (imgui.beginCombo("Theme", pixi.state.settings.theme)) {
+        if (imgui.beginCombo("Theme", pixi.state.settings.theme, imgui.ComboFlags_None)) {
             defer imgui.endCombo();
             searchThemes() catch unreachable;
         }

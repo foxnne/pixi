@@ -61,7 +61,7 @@ pub fn draw() void {
         if (pixi.editor.saving()) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
-            imgui.textWrapped("Please wait until all files are done saving.", .{});
+            imgui.textWrapped("Please wait until all files are done saving.");
             packable = false;
         }
 
@@ -103,7 +103,7 @@ pub fn draw() void {
             imgui.text("Sprites: {d}", .{atlas.sprites.len});
             imgui.text("Animations: {d}", .{atlas.animations.len});
             if (pixi.state.atlas.diffusemap) |diffusemap| {
-                imgui.text("Atlas size: {d}x{d}", .{ diffusemap.image.width, diffusemap.image.height });
+                imgui.text("Atlas size: %dx%d", diffusemap.image.width, diffusemap.image.height);
             }
 
             if (imgui.buttonEx("Export", .{ .x = window_size.x, .y = 0.0 })) {
@@ -153,7 +153,7 @@ pub fn draw() void {
                         }
                         imgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
                         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-                        imgui.text("{s}", .{exp});
+                        imgui.text(exp);
                         imgui.popStyleColor(.{ .count = 1 });
                     }
                 }

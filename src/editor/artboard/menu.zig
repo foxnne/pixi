@@ -54,7 +54,7 @@ pub fn draw() void {
                 pixi.state.popups.export_to_png = true;
             }
 
-            if (imgui.menuItem(
+            if (imgui.menuItemEx(
                 "Save",
                 if (pixi.state.hotkeys.hotkey(.{ .proc = .save })) |hotkey| hotkey.shortcut else "",
                 false,
@@ -81,7 +81,7 @@ pub fn draw() void {
                 ))
                     file.undo() catch unreachable;
 
-                if (imgui.menuItem(
+                if (imgui.menuItemEx(
                     "Redo",
                     if (pixi.state.hotkeys.hotkey(.{ .proc = .redo })) |hotkey| hotkey.shortcut else "",
                     false,

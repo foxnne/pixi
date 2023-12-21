@@ -17,8 +17,8 @@ pub fn draw() void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
-        (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width) * pixi.content_scale[0],
-        0.0,
+        .x = (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width) * pixi.content_scale[0],
+        .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
         .x = pixi.framebuffer_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width) * pixi.content_scale[0]),
@@ -39,16 +39,16 @@ pub fn draw() void {
 
     if (imgui.begin("Art", null, art_flags)) {
         menu.draw();
-        const window_height = imgui.getContentRegionAvail()[1];
+        const window_height = imgui.getContentRegionAvail().y;
         const artboard_height = if (pixi.state.open_files.items.len > 0 and pixi.state.sidebar != .pack) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
 
-        const artboard_mouse_ratio = (pixi.state.mouse.position[1] - imgui.getCursorScreenPos()[1]) / window_height;
+        const artboard_mouse_ratio = (pixi.state.mouse.position[1] - imgui.getCursorScreenPos().y) / window_height;
 
         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 0.0, .y = 0.0 });
         defer imgui.popStyleVar();
         if (imgui.beginChild("Artboard", .{
-            .w = 0.0,
-            .h = artboard_height,
+            .x = 0.0,
+            .y = artboard_height,
         }, false, imgui.WindowFlags_ChildWindow)) {
             if (pixi.state.sidebar == .pack) {
                 var packed_textures_flags: imgui.TabBarFlags = 0;
@@ -119,7 +119,7 @@ pub fn draw() void {
                             defer imgui.popStyleVar();
                             if (imgui.beginTooltip()) {
                                 defer imgui.endTooltip();
-                                imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), "{s}", file.path);
+                                imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), file.path);
                             }
                         }
                     }
@@ -141,7 +141,7 @@ pub fn draw() void {
                             imgui.WindowFlags_NoScrollbar,
                         )) {}
                         imgui.endChild();
-                        imgui.sameLine(.{});
+                        imgui.sameLine();
                     }
 
                     var canvas_flags: imgui.WindowFlags = 0;
@@ -151,8 +151,8 @@ pub fn draw() void {
                         if (imgui.beginChild(
                             file.path,
                             .{
-                                .h = 0.0,
-                                .w = 0.0,
+                                .x = 0.0,
+                                .y = 0.0,
                             },
                             false,
                             canvas_flags,

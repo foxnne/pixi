@@ -42,10 +42,10 @@ pub fn draw() void {
                     imgui.spacing();
 
                     for (pixi.state.open_files.items, 0..) |file, i| {
-                        imgui.textColored(pixi.state.theme.text_orange.toImguiVec4(), " {s}  ", .{pixi.fa.file_powerpoint});
+                        imgui.textColored(pixi.state.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ "  ");
                         imgui.sameLine();
                         const name = std.fs.path.basename(file.path);
-                        const label = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{name});
+                        const label = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{name}) catch unreachable;
                         defer pixi.state.allocator.free(label);
                         if (imgui.selectable(label)) {
                             pixi.editor.setActiveFile(i);
@@ -66,7 +66,8 @@ pub fn draw() void {
                         if (imgui.isItemHovered(imgui.HoveredFlags_DelayShort)) {
                             if (imgui.beginTooltip()) {
                                 defer imgui.endTooltip();
-                                imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), "{s}", .{file.path});
+
+                                imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), file.path);
                             }
                         }
                     }
@@ -102,7 +103,7 @@ pub fn draw() void {
             if (imgui.beginChild("FileTree", .{
                 .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
                 .y = 0.0,
-            }, imgui.WindowFlags_HorizontalScrollbar)) { // TODO: Should this also be ChildWindow?
+            }, false, imgui.WindowFlags_HorizontalScrollbar)) { // TODO: Should this also be ChildWindow?
                 imgui.spacing();
                 // File Tree
                 recurseFiles(pixi.state.allocator, path);
@@ -120,7 +121,7 @@ pub fn draw() void {
         }
     } else {
         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-        imgui.textWrapped("Open a folder to begin editing.", .{});
+        imgui.textWrapped("Open a folder to begin editing.");
         imgui.popStyleColor();
 
         if (pixi.state.recents.folders.items.len > 0) {
@@ -161,7 +162,7 @@ pub fn draw() void {
 
                     imgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
                     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-                    imgui.text("%s", folder);
+                    imgui.text(folder);
                     imgui.popStyleColor();
                 }
             }
@@ -213,8 +214,11 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         else => pixi.state.theme.text_background.toImguiVec4(),
                     };
 
-                    imgui.textColored(icon_color, " %s ", icon);
-                    imgui.sameLine(.{});
+                    const icon_spaced = std.fmt.allocPrintZ(pixi.state.allocator, " {s} ", .{icon}) catch unreachable;
+                    defer pixi.state.allocator.free(icon_spaced);
+
+                    imgui.textColored(icon_color, icon_spaced);
+                    imgui.sameLine();
 
                     const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
                     defer alloc.free(abs_path);
@@ -337,8 +341,8 @@ fn contextMenuFile(file: [:0]const u8) void {
     imgui.separator();
 
     if (imgui.menuItem("Rename...")) {
-        pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-        pixi.state.popups.rename_old_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+        pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+        pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
         std.mem.copy(u8, pixi.state.popups.rename_path[0..], file);
         std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], file);
         pixi.state.popups.rename = true;
@@ -346,8 +350,8 @@ fn contextMenuFile(file: [:0]const u8) void {
     }
 
     if (imgui.menuItem("Duplicate...")) {
-        pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-        pixi.state.popups.rename_old_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+        pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+        pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
         std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], file);
 
         const ex = std.fs.path.extension(file);

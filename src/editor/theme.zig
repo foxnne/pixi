@@ -180,24 +180,26 @@ pub const StyleColorButton = struct {
 pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
     var c = args.col.toImguiVec4();
     var c_slice = args.col.toSlice();
+    _ = c_slice;
     if (imgui.colorButton(
         desc_id,
         c,
+        imgui.ColorEditFlags_None,
     )) {
         return true;
     }
     if (imgui.beginPopupContextItem()) {
         defer imgui.endPopup();
         imgui.pushStyleColorImVec4(imgui.Col_Text, .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 1.0 });
-        if (imgui.colorPicker4(desc_id, .{ .col = &c_slice })) {
-            args.col.value[0] = c[0];
-            args.col.value[1] = c[1];
-            args.col.value[2] = c[2];
-            args.col.value[3] = c[3];
+        if (imgui.colorPicker4(desc_id, &c, imgui.ColorEditFlags_None, null)) {
+            args.col.value[0] = c.x;
+            args.col.value[1] = c.y;
+            args.col.value[2] = c.z;
+            args.col.value[3] = c.w;
         }
         imgui.popStyleColorEx(1);
     }
     imgui.sameLine();
-    imgui.text("{s}", .{desc_id});
+    imgui.text(desc_id);
     return false;
 }

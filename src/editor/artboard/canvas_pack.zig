@@ -45,7 +45,7 @@ pub fn draw(mode: PackTexture) void {
             camera.position[1] = std.math.clamp(camera.position[1], -(canvas_center_offset[1] + file_height), canvas_center_offset[1] + file_height);
         }
 
-        if (imgui.isWindowHovered(.{})) {
+        if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
             camera.processZoomTooltip();
         }
 

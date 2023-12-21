@@ -24,23 +24,23 @@ pub fn draw() void {
         const button_width = imgui.getWindowWidth() / 3.6;
         const button_height = button_width / 2.0;
 
-        const color_width = window_size[0] / 2.2;
+        const color_width = window_size.x / 2.2;
 
         // Row 1
         {
-            imgui.setCursorPosX(style.item_spacing[0]);
+            imgui.setCursorPosX(style.item_spacing.x);
             drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
-            imgui.sameLine(.{});
+            imgui.sameLine();
             drawTool(pixi.fa.pencil_alt, button_width, button_height, .pencil);
-            imgui.sameLine(.{});
+            imgui.sameLine();
             drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
         }
 
         // Row 2
         {
-            imgui.setCursorPosX(style.item_spacing[0]);
+            imgui.setCursorPosX(style.item_spacing.x);
             drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
-            imgui.sameLine(.{});
+            imgui.sameLine();
             drawTool(pixi.fa.fill_drip, button_width, button_height, .bucket);
         }
 
@@ -89,7 +89,7 @@ pub fn draw() void {
                     };
                 }
             }
-            imgui.sameLine(.{});
+            imgui.sameLine();
 
             if (imgui.colorButtonEx("Secondary", secondary, imgui.ColorEditFlags_None, .{
                 .w = color_width,
@@ -145,7 +145,7 @@ pub fn draw() void {
                     const columns: usize = @intFromFloat(@ceil((imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]) / (min_width + style.item_spacing[0])));
 
                     if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)
-                        imgui.sameLine(.{});
+                        imgui.sameLine();
                 }
             } else {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
@@ -165,7 +165,7 @@ pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tools.Tool) void
         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
     }
     defer imgui.popStyleColor();
-    if (imgui.selectableEx(label, selected, w, h)) {
+    if (imgui.selectableEx(label, selected, imgui.SelectableFlags_None, .{ .x = w, .y = h })) {
         pixi.state.tools.set(tool);
     }
     drawTooltip(tool);
@@ -186,16 +186,24 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
             };
 
             if (pixi.state.hotkeys.hotkey(.{ .tool = tool })) |hotkey| {
-                imgui.text("{s} ({s})", .{ text, hotkey.shortcut });
+                const hotkey_text = std.fmt.allocPrintZ(pixi.state.allocator, "{s} ({s})", .{ text, hotkey.shortcut }) catch unreachable;
+                defer pixi.state.allocator.free(hotkey_text);
+                imgui.text(hotkey_text);
             } else {
-                imgui.text("{s}", .{text});
+                imgui.text(text);
             }
 
             switch (tool) {
                 .animation => {
                     if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| {
-                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "Click and drag with (%s) released to edit the current animation", hotkey.shortcut);
-                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "Click and drag while holding (%s) to create a new animation", hotkey.shortcut);
+                        const first_text = std.fmt.allocPrintZ(pixi.state.allocator, "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(first_text);
+
+                        const second_text = std.fmt.allocPrintZ(pixi.state.allocator, "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(second_text);
+
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), first_text);
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), second_text);
                     }
                 },
                 else => {},

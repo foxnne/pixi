@@ -32,7 +32,7 @@ pub fn draw() void {
 
         const style = imgui.getStyle();
 
-        const full_width = popup_width - (style.frame_padding[0] * 3 * pixi.content_scale[0]) - imgui.calcTextSize("Tile Height").x;
+        const full_width = popup_width - (style.frame_padding.x * 3 * pixi.content_scale[0]) - imgui.calcTextSize("Tile Height").x;
         const base_name = std.fs.path.basename(&pixi.state.popups.file_setup_path);
         const base_name_index = if (std.mem.indexOf(u8, pixi.state.popups.file_setup_path[0..], base_name)) |index| index else 0;
 
@@ -118,11 +118,11 @@ pub fn draw() void {
         if (!sizes_match) {
             imgui.textColored(pixi.state.theme.text_red.toImguiVec4(), "Tile sizes and count do not match image size! %dx%d", combined_size[0], combined_size[1]);
         } else {
-            imgui.textColored(pixi.state.theme.highlight_primary.toImguiVec4(), " " ++ pixi.fa.check, .{});
+            imgui.textColored(pixi.state.theme.highlight_primary.toImguiVec4(), " " ++ pixi.fa.check);
         }
 
         const spacing = 5.0 * pixi.content_scale[0];
-        const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
+        const half_width = (popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
         if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
             pixi.state.popups.fileSetupClose();
         }

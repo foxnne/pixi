@@ -44,13 +44,15 @@ pub fn draw() void {
             .one => {
                 if (pixi.editor.getFile(pixi.state.popups.file_confirm_close_index)) |file| {
                     const base_name = std.fs.path.basename(file.path);
-                    imgui.textWrapped("The file {s} has unsaved changes, are you sure you want to close?", .{base_name});
+                    const file_name = std.fmt.allocPrintZ(pixi.state.allocator, "The file {s} has unsaved changes, are you sure you want to close?", base_name) catch unreachable;
+                    defer pixi.state.allocator.free(file_name);
+                    imgui.textWrapped(file_name);
                 }
             },
             .all => {
-                imgui.textWrapped("The following files have unsaved changes, are you sure you want to close?", .{});
+                imgui.textWrapped("The following files have unsaved changes, are you sure you want to close?");
                 imgui.spacing();
-                if (imgui.beginChild("OpenFileArea", .{ .x = 0.0, .y = 120 * pixi.content_scale[1] }, imgui.WindowFlags_None)) {
+                if (imgui.beginChild("OpenFileArea", .{ .x = 0.0, .y = 120 * pixi.content_scale[1] }, false, imgui.WindowFlags_None)) {
                     defer imgui.endChild();
                     for (pixi.state.open_files.items) |file| {
                         const base_name = std.fs.path.basename(file.path);
@@ -88,7 +90,7 @@ pub fn draw() void {
             }
             pixi.state.popups.file_confirm_close = false;
         }
-        imgui.sameLine(.{});
+        imgui.sameLine();
         if (imgui.buttonEx(if (pixi.state.popups.file_confirm_close_state == .one) "Save & Close" else "Save & Close All", .{ .x = third_width, .y = 0.0 })) {
             switch (pixi.state.popups.file_confirm_close_state) {
                 .one => {

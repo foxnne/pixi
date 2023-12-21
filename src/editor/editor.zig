@@ -25,16 +25,16 @@ pub const popup_heightmap = @import("popups/heightmap.zig");
 pub fn draw() void {
     sidebar.draw();
     explorer.draw();
-    artboard.draw();
+    //artboard.draw();
 
-    popup_rename.draw();
-    popup_file_setup.draw();
-    popup_about.draw();
-    popup_file_confirm_close.draw();
-    popup_layer_setup.draw();
-    popup_export_to_png.draw();
-    popup_animation.draw();
-    popup_heightmap.draw();
+    //popup_rename.draw();
+    //popup_file_setup.draw();
+    //popup_about.draw();
+    //popup_file_confirm_close.draw();
+    //popup_layer_setup.draw();
+    //popup_export_to_png.draw();
+    //popup_animation.draw();
+    //popup_heightmap.draw();
 }
 
 pub fn setProjectFolder(path: [:0]const u8) void {

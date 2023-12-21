@@ -23,7 +23,7 @@ pub fn draw() void {
 
         if (file.heightmap.layer != null) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
-            defer imgui.popStyleVar(.{ .count = 1 });
+            defer imgui.popStyleVar();
             imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.highlight_secondary.toImguiVec4());
             imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.highlight_secondary.toImguiVec4());
             imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.hover_secondary.toImguiVec4());
@@ -113,7 +113,7 @@ pub fn draw() void {
                 }
 
                 if (imgui.isItemActive() and !imgui.isItemHovered(imgui.HoveredFlags_None) and imgui.isAnyItemHovered()) {
-                    const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0)[1] < 0.0) @as(i32, 1) else @as(i32, -1)), 0, std.math.maxInt(i32))));
+                    const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0).y < 0.0) @as(i32, 1) else @as(i32, -1)), 0, std.math.maxInt(i32))));
                     if (i_next >= 0.0 and i_next < file.layers.items.len) {
                         var change = History.Change.create(pixi.state.allocator, .layers_order, file.layers.items.len) catch unreachable;
                         for (file.layers.items, 0..) |l, layer_i| {
@@ -128,7 +128,7 @@ pub fn draw() void {
                         file.layers.items[i_next] = layer;
                         file.selected_layer_index = i_next;
                     }
-                    imgui.resetMouseDragDelta(imgui.MouseButton_Left);
+                    imgui.resetMouseDragDeltaEx(imgui.MouseButton_Left);
                 }
             }
         }

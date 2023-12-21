@@ -39,7 +39,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     // TODO: Only clear and update if we need to?
     file.temporary_layer.clear(true);
 
-    if (imgui.isWindowHovered(.{})) {
+    if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
         var mouse_position = pixi.state.mouse.position;
 
         if (file.camera.pixelCoordinates(.{

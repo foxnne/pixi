@@ -55,8 +55,8 @@ pub fn draw() void {
 
         var enter = imgui.inputText(
             "Name",
-            pixi.state.popups.rename_path[base_index..],
-            pixi.state.popups.rename_path[base_index..].len,
+            pixi.state.popups.rename_path[base_index.. :0],
+            pixi.state.popups.rename_path[base_index.. :0].len,
             input_text_flags,
         );
 

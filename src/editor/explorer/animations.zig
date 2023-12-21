@@ -6,7 +6,7 @@ const imgui = @import("zig-imgui");
 
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_framePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
         defer imgui.popStyleVar();
         imgui.spacing();
         imgui.text("Tools");
@@ -29,7 +29,7 @@ pub fn draw() void {
             const style = imgui.getStyle();
             var window_size = imgui.getWindowSize();
 
-            const button_width = window_size[0] / 4.0;
+            const button_width = window_size.x / 4.0;
             const button_height = button_width / 2.0;
 
             { // Draw tools for animation editing
@@ -46,14 +46,17 @@ pub fn draw() void {
         imgui.separator();
         imgui.spacing();
 
-        if (imgui.beginChild("Animations", .{ .w = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] })) {
+        if (imgui.beginChild("Animations", .{
+            .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+            .y = 0.0,
+        }, false, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
 
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
             imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
             imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
             imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
-            defer imgui.popStyleVar(4);
+            defer imgui.popStyleVarEx(4);
             for (file.animations.items, 0..) |animation, animation_index| {
                 const header_color = if (file.selected_animation_index == animation_index) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
                 imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);

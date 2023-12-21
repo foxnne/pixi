@@ -50,31 +50,43 @@ pub fn draw() void {
                     imgui.text("Explorer");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .files })) |hotkey| {
                         imgui.sameLine();
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
+
+                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(shortcut);
+
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
                     }
                     imgui.endMenuBar();
                 }
                 imgui.separator();
-                files.draw();
+                //files.draw();
             },
             .tools => {
                 if (imgui.beginMenuBar()) {
                     imgui.text("Tools");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .tools })) |hotkey| {
-                        imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
+                        imgui.sameLine();
+
+                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(shortcut);
+
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
                     }
                     imgui.endMenuBar();
                 }
                 imgui.separator();
-                tools.draw();
+                //tools.draw();
             },
             .layers => {
                 if (imgui.beginMenuBar()) {
                     imgui.text("Layers");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .layers })) |hotkey| {
-                        imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toSlice(), "(%s)", hotkey.shortcut);
+                        imgui.sameLine();
+
+                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(shortcut);
+
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
                     }
                     imgui.endMenuBar();
                 }
@@ -85,20 +97,28 @@ pub fn draw() void {
                 if (imgui.beginMenuBar()) {
                     imgui.text("Sprites");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .sprites })) |hotkey| {
-                        imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
+                        imgui.sameLine();
+
+                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(shortcut);
+
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
                     }
                     imgui.endMenuBar();
                 }
                 imgui.separator();
-                sprites.draw();
+                //sprites.draw();
             },
             .animations => {
                 if (imgui.beginMenuBar()) {
                     imgui.text("Animations");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .animations })) |hotkey| {
-                        imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
+                        imgui.sameLine();
+
+                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(shortcut);
+
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
                     }
                     imgui.endMenuBar();
                 }
@@ -109,20 +129,28 @@ pub fn draw() void {
                 if (imgui.beginMenuBar()) {
                     imgui.text("Pack");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
-                        imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
+                        imgui.sameLine();
+
+                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(shortcut);
+
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
                     }
                     imgui.endMenuBar();
                 }
                 imgui.separator();
-                pack.draw();
+                //pack.draw();
             },
             .settings => {
                 if (imgui.beginMenuBar()) {
                     imgui.text("Settings");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .settings })) |hotkey| {
-                        imgui.sameLine(.{});
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "(%s)", hotkey.shortcut);
+                        imgui.sameLine();
+
+                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(shortcut);
+
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
                     }
                     imgui.endMenuBar();
                 }
@@ -136,14 +164,15 @@ pub fn draw() void {
     imgui.setCursorPosX(imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] + imgui.getStyle().item_spacing.x);
 
     _ = imgui.invisibleButton(pixi.fa.grip_vertical, .{
-        .w = pixi.state.settings.explorer_grip * pixi.content_scale[0] / 2.0,
-        .h = -1.0,
-    });
+        .x = pixi.state.settings.explorer_grip * pixi.content_scale[0] / 2.0,
+        .y = -1.0,
+    }, imgui.ButtonFlags_None);
 
-    if (imgui.isItemHovered(.{
-        .allow_when_overlapped = true,
-        .allow_when_blocked_by_active_item = true,
-    })) {
+    var hovered_flags: imgui.HoveredFlags = 0;
+    hovered_flags |= imgui.HoveredFlags_AllowWhenOverlapped;
+    hovered_flags |= imgui.HoveredFlags_AllowWhenBlockedByActiveItem;
+
+    if (imgui.isItemHovered(hovered_flags)) {
         pixi.state.cursors.current = .resize_ew;
     }
 

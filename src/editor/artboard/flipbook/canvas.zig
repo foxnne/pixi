@@ -75,18 +75,20 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const window_position = imgui.getWindowPos();
             const window_width = imgui.getWindowWidth();
 
-            const progress_start: [2]f32 = .{ window_position.x, window_position.y + 2 };
+            const progress_start: imgui.Vec2 = .{ .x = window_position.x, .y = window_position.y + 2 };
             const animation_length = @as(f32, @floatFromInt(animation.length)) / @as(f32, @floatFromInt(animation.fps));
             const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-            const progress_end: [2]f32 = .{ window_position.x + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), window_position.y + 2 };
+            const progress_end: imgui.Vec2 = .{ .x = window_position.x + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), .y = window_position.y + 2 };
 
-            const draw_list = imgui.getWindowDrawList();
-            draw_list.addLine(.{
-                .p1 = progress_start,
-                .p2 = progress_end,
-                .col = pixi.state.theme.highlight_primary.toU32(),
-                .thickness = 3.0,
-            });
+            const draw_list_opt = imgui.getWindowDrawList();
+            if (draw_list_opt) |draw_list| {
+                draw_list.addLineEx(
+                    progress_start,
+                    progress_end,
+                    pixi.state.theme.highlight_primary.toU32(),
+                    3.0,
+                );
+            }
         }
     }
 

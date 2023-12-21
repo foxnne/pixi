@@ -55,8 +55,8 @@ pub fn draw() void {
             imgui.pushItemWidth(full_width);
             var enter = imgui.inputText(
                 "Name",
-                pixi.state.popups.animation_name[0..],
-                pixi.state.popups.animation_name[0..].len,
+                pixi.state.popups.animation_name[0.. :0],
+                pixi.state.popups.animation_name[0.. :0].len,
                 input_text_flags,
             );
 
