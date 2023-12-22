@@ -11,7 +11,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
-    var canvas_center_offset = file.canvasCenterOffset(.primary);
+    const canvas_center_offset: [2]f32 = file.canvasCenterOffset(.primary);
 
     // Handle zooming, panning and extents
     {
@@ -40,7 +40,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     file.temporary_layer.clear(true);
 
     if (zgui.isWindowHovered(.{})) {
-        var mouse_position = pixi.state.mouse.position;
+        const mouse_position: [2]f32 = pixi.state.mouse.position;
 
         if (file.camera.pixelCoordinates(.{
             .texture_position = canvas_center_offset,
@@ -48,13 +48,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             .width = file.width,
             .height = file.height,
         })) |pixel_coord| {
-            const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
+            const pixel: [2]usize = .{ @intFromFloat(pixel_coord[0]), @intFromFloat(pixel_coord[1]) };
 
-            var tile_column = @divTrunc(pixel[0], @as(usize, @intCast(file.tile_width)));
-            var tile_row = @divTrunc(pixel[1], @as(usize, @intCast(file.tile_height)));
+            const tile_column: usize = @divTrunc(pixel[0], @as(usize, @intCast(file.tile_width)));
+            const tile_row: usize = @divTrunc(pixel[1], @as(usize, @intCast(file.tile_height)));
 
-            const x = @as(f32, @floatFromInt(tile_column)) * tile_width + canvas_center_offset[0];
-            const y = @as(f32, @floatFromInt(tile_row)) * tile_height + canvas_center_offset[1];
+            const x: f32 = @as(f32, @floatFromInt(tile_column)) * tile_width + canvas_center_offset[0];
+            const y: f32 = @as(f32, @floatFromInt(tile_row)) * tile_height + canvas_center_offset[1];
 
             if (pixi.state.sidebar != .pack)
                 file.camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
@@ -66,8 +66,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             if (pixi.state.mouse.button(.primary)) |primary| {
                 if (primary.pressed()) {
-                    var tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
-                    var tile_index = tile_column + tile_row * tiles_wide;
+                    const tiles_wide: usize = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
+                    const tile_index: usize = tile_column + tile_row * tiles_wide;
 
                     if (pixi.state.sidebar == .sprites) {
                         file.makeSpriteSelection(tile_index);

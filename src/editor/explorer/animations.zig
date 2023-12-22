@@ -27,7 +27,7 @@ pub fn draw() void {
             defer zgui.endChild();
 
             const style = zgui.getStyle();
-            var window_size = zgui.getWindowSize();
+            const window_size: [2]f32 = zgui.getWindowSize();
 
             const button_width = window_size[0] / 4.0;
             const button_height = button_width / 2.0;

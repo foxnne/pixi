@@ -8,10 +8,10 @@ pub fn draw() void {
         zgui.openPopup("About", .{});
     } else return;
 
-    const popup_width = 450 * pixi.content_scale[0];
-    const popup_height = 450 * pixi.content_scale[1];
+    const popup_width: f32 = 450 * pixi.content_scale[0];
+    const popup_height: f32 = 450 * pixi.content_scale[1];
 
-    var window_size = pixi.framebuffer_size;
+    const window_size: [2]f32 = pixi.framebuffer_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     zgui.setNextWindowPos(.{

@@ -144,7 +144,7 @@ pub fn draw() void {
                         zgui.sameLine(.{});
                     }
 
-                    var flags: zgui.WindowFlags = .{
+                    const flags: zgui.WindowFlags = .{
                         .horizontal_scrollbar = true,
                     };
 

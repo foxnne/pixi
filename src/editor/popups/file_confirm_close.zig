@@ -8,10 +8,10 @@ pub fn draw() void {
         zgui.openPopup("Confirm close...", .{});
     } else return;
 
-    const popup_width = 350 * pixi.content_scale[0];
-    const popup_height = if (pixi.state.popups.file_confirm_close_state == .one) 120 * pixi.content_scale[1] else 250 * pixi.content_scale[1];
+    const popup_width: f32 = 350 * pixi.content_scale[0];
+    const popup_height: f32 = if (pixi.state.popups.file_confirm_close_state == .one) 120 * pixi.content_scale[1] else 250 * pixi.content_scale[1];
 
-    var window_size = pixi.framebuffer_size;
+    const window_size: [2]f32 = pixi.framebuffer_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     zgui.setNextWindowPos(.{
@@ -76,9 +76,8 @@ pub fn draw() void {
                     pixi.editor.forceCloseFile(pixi.state.popups.file_confirm_close_index) catch unreachable;
                 },
                 .all => {
-                    var len = pixi.state.open_files.items.len;
-                    var i: usize = 0;
-                    while (i < len) : (i += 1) {
+                    const len = pixi.state.open_files.items.len;
+                    for (0..len) |_| {
                         pixi.editor.forceCloseFile(0) catch unreachable;
                     }
                 },

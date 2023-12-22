@@ -17,10 +17,10 @@ pub fn draw() void {
             zgui.openPopup(dialog_name, .{});
         } else return;
 
-        const popup_width = 350 * pixi.content_scale[0];
-        const popup_height = 115 * pixi.content_scale[1];
+        const popup_width: f32 = 350 * pixi.content_scale[0];
+        const popup_height: f32 = 115 * pixi.content_scale[1];
 
-        var window_size = pixi.framebuffer_size;
+        const window_size: [2]f32 = pixi.framebuffer_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         zgui.setNextWindowPos(.{
@@ -48,7 +48,7 @@ pub fn draw() void {
             const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
             zgui.pushItemWidth(full_width);
-            var enter = zgui.inputText("Name", .{
+            const enter: bool = zgui.inputText("Name", .{
                 .buf = pixi.state.popups.animation_name[0..],
                 .flags = .{
                     .chars_no_blank = false,

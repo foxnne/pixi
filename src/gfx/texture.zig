@@ -22,17 +22,17 @@ pub const Texture = struct {
     };
 
     pub fn createEmpty(width: u32, height: u32, options: Texture.SamplerOptions) !Texture {
-        var image = try zstbi.Image.createEmpty(width, height, 4, .{});
+        const image = try zstbi.Image.createEmpty(width, height, 4, .{});
         return create(image, options);
     }
 
     pub fn loadFromFile(file: [:0]const u8, options: Texture.SamplerOptions) !Texture {
-        var image = try zstbi.Image.loadFromFile(file, 4);
+        const image = try zstbi.Image.loadFromFile(file, 4);
         return create(image, options);
     }
 
     pub fn loadFromMemory(data: []const u8, options: Texture.SamplerOptions) !Texture {
-        var image = try zstbi.Image.loadFromMemory(data, 0);
+        const image = try zstbi.Image.loadFromMemory(data, 0);
         return create(image, options);
     }
 

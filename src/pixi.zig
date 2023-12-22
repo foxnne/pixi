@@ -139,7 +139,7 @@ pub fn init(app: *App) !void {
 
     zstbi.init(allocator);
 
-    var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
+    const open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
     // Logos
     const background_logo = try gfx.Texture.loadFromFile(assets.icon_1024_png.path, .{});

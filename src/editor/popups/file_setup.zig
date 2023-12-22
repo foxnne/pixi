@@ -8,10 +8,10 @@ pub fn draw() void {
         zgui.openPopup("File Setup...", .{});
     } else return;
 
-    const popup_width = 350 * pixi.content_scale[0];
-    const popup_height = 300 * pixi.content_scale[1];
+    const popup_width: f32 = 350 * pixi.content_scale[0];
+    const popup_height: f32 = 300 * pixi.content_scale[1];
 
-    var window_size = pixi.framebuffer_size;
+    const window_size: [2]f32 = pixi.framebuffer_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     zgui.setNextWindowPos(.{
@@ -40,7 +40,7 @@ pub fn draw() void {
 
         zgui.spacing();
         zgui.pushItemWidth(full_width);
-        var enter = zgui.inputText("Name", .{
+        const enter: bool = zgui.inputText("Name", .{
             .buf = pixi.state.popups.file_setup_path[base_name_index..],
             .flags = .{
                 .auto_select_all = true,
@@ -168,7 +168,7 @@ pub fn draw() void {
 }
 
 fn inputIntClamp(label: [:0]const u8, v: *i32, min: i32, max: i32) bool {
-    var b = zgui.inputInt(label, .{ .v = v });
+    const b: bool = zgui.inputInt(label, .{ .v = v });
     if (b) {
         v.* = std.math.clamp(v.*, min, max);
     }

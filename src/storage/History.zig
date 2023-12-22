@@ -259,8 +259,8 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
         .origins => |*origins| {
             file.selected_sprites.clearAndFree();
             for (origins.indices, 0..) |sprite_index, i| {
-                var origin_x = origins.values[i][0];
-                var origin_y = origins.values[i][1];
+                const origin_x: f32 = origins.values[i][0];
+                const origin_y: f32 = origins.values[i][1];
                 origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
                 file.sprites.items[sprite_index].origin_x = origin_x;
                 file.sprites.items[sprite_index].origin_y = origin_y;

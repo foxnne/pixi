@@ -139,7 +139,7 @@ pub fn draw() void {
                 while (i > 0) {
                     i -= 1;
                     const folder = pixi.state.recents.folders.items[i];
-                    var label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.folder, std.fs.path.basename(folder) }) catch unreachable;
+                    const label: [:0]const u8 = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.folder, std.fs.path.basename(folder) }) catch unreachable;
                     defer pixi.state.allocator.free(label);
 
                     if (zgui.selectable(label, .{})) {
@@ -289,7 +289,7 @@ fn contextMenuFolder(folder: [:0]const u8) void {
 
     if (pixi.state.popups.file_dialog_response) |response| {
         if (response.type == .new_png) {
-            var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{response.path[0 .. response.path.len - 4]}) catch unreachable;
+            const new_file_path: [:0]const u8 = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{response.path[0 .. response.path.len - 4]}) catch unreachable;
             defer pixi.state.allocator.free(new_file_path);
             pixi.state.popups.fileSetupImportPng(new_file_path, response.path);
 
@@ -313,7 +313,7 @@ fn contextMenuFile(file: [:0]const u8) void {
     switch (ext) {
         .png => {
             if (zgui.menuItem("Import...", .{})) {
-                var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{file[0 .. file.len - 4]}) catch unreachable;
+                const new_file_path: [:0]const u8 = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{file[0 .. file.len - 4]}) catch unreachable;
                 defer pixi.state.allocator.free(new_file_path);
                 pixi.state.popups.fileSetupImportPng(new_file_path, file);
             }
