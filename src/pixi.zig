@@ -189,7 +189,7 @@ pub fn init(app: *App) !void {
     io.config_flags |= imgui.ConfigFlags_NavEnableKeyboard;
     io.font_global_scale = 1.0 / io.display_framebuffer_scale.y;
     var cozette_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
-    cozette_config.font_data_owned_by_atlas = false;
+    cozette_config.font_data_owned_by_atlas = true;
     cozette_config.oversample_h = 2;
     cozette_config.oversample_v = 1;
     cozette_config.glyph_max_advance_x = std.math.floatMax(f32);
@@ -200,7 +200,7 @@ pub fn init(app: *App) !void {
 
     var fa_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     fa_config.merge_mode = true;
-    fa_config.font_data_owned_by_atlas = false;
+    fa_config.font_data_owned_by_atlas = true;
     fa_config.oversample_h = 2;
     fa_config.oversample_v = 1;
     fa_config.glyph_max_advance_x = std.math.floatMax(f32);
@@ -414,13 +414,17 @@ pub fn deinit(_: *App) void {
     editor.deinit();
 
     imgui_mach.shutdown();
+    imgui.getIO().fonts.?.clear();
     imgui.destroyContext(null);
 
     zstbi.deinit();
     state.allocator.free(state.root_path);
     state.allocator.destroy(state);
+
+    core.queue.release();
     core.deinit();
 
-    //uncomment this line to check for memory leaks on program shutdown, currently there are several
+    //uncomment this line to check for memory leaks on program shutdown
     _ = gpa.detectLeaks();
+    _ = gpa.deinit();
 }

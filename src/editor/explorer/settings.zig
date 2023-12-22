@@ -148,7 +148,7 @@ fn searchThemes() !void {
                         const abs_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ pixi.assets.themes, entry.name });
                         defer pixi.state.allocator.free(abs_path);
                         pixi.state.allocator.free(pixi.state.theme.name);
-                        pixi.state.allocator.free(pixi.state.settings.theme);
+                        //pixi.state.allocator.free(pixi.state.settings.theme);
                         pixi.state.theme = try pixi.editor.Theme.loadFromFile(abs_path);
                         pixi.state.settings.theme = pixi.state.theme.name;
                     }
