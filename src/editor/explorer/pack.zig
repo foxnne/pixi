@@ -99,9 +99,9 @@ pub fn draw() void {
         }
 
         if (pixi.state.atlas.external) |atlas| {
-            imgui.text("Atlas Details", .{});
-            imgui.text("Sprites: {d}", .{atlas.sprites.len});
-            imgui.text("Animations: {d}", .{atlas.animations.len});
+            imgui.text("Atlas Details");
+            imgui.text("Sprites: %d", atlas.sprites.len);
+            imgui.text("Animations: %d", atlas.animations.len);
             if (pixi.state.atlas.diffusemap) |diffusemap| {
                 imgui.text("Atlas size: %dx%d", diffusemap.image.width, diffusemap.image.height);
             }
@@ -127,17 +127,17 @@ pub fn draw() void {
                 if (imgui.buttonEx("Repeat Last Export", .{ .x = window_size.x, .y = 0.0 })) {
                     pixi.state.atlas.save(pixi.state.recents.exports.getLast()) catch unreachable;
                 }
-                imgui.textWrapped("{s}", .{pixi.state.recents.exports.getLast()});
+                imgui.textWrapped(pixi.state.recents.exports.getLast());
 
                 imgui.spacing();
-                imgui.text("Recents", .{});
+                imgui.text("Recents");
                 imgui.separator();
                 imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
                 defer imgui.popStyleColor();
                 if (imgui.beginChild("Recents", .{
                     .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
                     .y = 0.0,
-                }, imgui.WindowFlags_ChildWindow)) {
+                }, false, imgui.WindowFlags_ChildWindow)) {
                     defer imgui.endChild();
 
                     var i: usize = pixi.state.recents.exports.items.len;
@@ -151,10 +151,10 @@ pub fn draw() void {
                             const exp_out = pixi.state.recents.exports.swapRemove(i);
                             pixi.state.recents.appendExport(exp_out) catch unreachable;
                         }
-                        imgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
+                        imgui.sameLineEx(0.0, 5.0 * pixi.content_scale[0]);
                         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
                         imgui.text(exp);
-                        imgui.popStyleColor(.{ .count = 1 });
+                        imgui.popStyleColor();
                     }
                 }
             }

@@ -16,13 +16,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         -file_height / 2,
     };
     if (imgui.beginChild("TopRuler", .{ .x = 0.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
-        const draw_list_opt = imgui.getWindowDrawList();
         const window_tl = imgui.getCursorScreenPos();
         const layer_tl = file.camera.matrix().transformVec2(layer_position);
         const line_length = imgui.getWindowHeight() / 2.0;
         const tl: [2]f32 = .{ window_tl.x + layer_tl[0] + imgui.getTextLineHeightWithSpacing() * 1.5 / 2, window_tl.y };
 
-        if (draw_list_opt) |draw_list| {
+        if (imgui.getWindowDrawList()) |draw_list| {
             var i: usize = 0;
             while (i < @as(usize, @intCast(tiles_wide))) : (i += 1) {
                 const offset = .{ (@as(f32, @floatFromInt(i)) * tile_width) * file.camera.zoom, 0.0 };
@@ -49,17 +48,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 pixi.state.theme.text_secondary.toU32(),
                 1.0,
             );
-            imgui.endChild();
         }
+        imgui.endChild();
     }
 
     if (imgui.beginChild("SideRuler", .{ .x = 0.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
-        const draw_list_opt = imgui.getWindowDrawList();
         const window_tl = imgui.getCursorScreenPos();
         const layer_tl = file.camera.matrix().transformVec2(layer_position);
         const tl: [2]f32 = .{ window_tl.x + (text_size.x / 2.0), window_tl.y + layer_tl[1] + 1.0 };
 
-        if (draw_list_opt) |draw_list| {
+        if (imgui.getWindowDrawList()) |draw_list| {
             var i: usize = 0;
             while (i < @as(usize, @intCast(tiles_tall))) : (i += 1) {
                 const offset = .{ 0.0, @as(f32, @floatFromInt(i)) * tile_height * file.camera.zoom };
@@ -83,7 +81,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 pixi.state.theme.text_secondary.toU32(),
                 1.0,
             );
-            imgui.endChild();
         }
+        imgui.endChild();
     }
 }

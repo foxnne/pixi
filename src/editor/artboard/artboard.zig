@@ -128,7 +128,7 @@ pub fn draw() void {
                     if (pixi.state.settings.show_rulers) {
                         if (imgui.beginChild(
                             "TopRuler",
-                            .{ .x = 0.0, .y = imgui.getTextLineHeightWithSpacing() * 1.5 },
+                            .{ .x = -1.0, .y = imgui.getTextLineHeightWithSpacing() * 1.5 },
                             false,
                             imgui.WindowFlags_NoScrollbar,
                         )) {}
@@ -136,7 +136,7 @@ pub fn draw() void {
 
                         if (imgui.beginChild(
                             "SideRuler",
-                            .{ .x = -1.0, .y = imgui.getTextLineHeightWithSpacing() * 1.5 },
+                            .{ .x = imgui.getTextLineHeightWithSpacing() * 1.5, .y = -1.0 },
                             false,
                             imgui.WindowFlags_NoScrollbar,
                         )) {}

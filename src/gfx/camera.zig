@@ -84,7 +84,7 @@ pub const Camera = struct {
         p2[1] = std.math.floor(p2[1]);
 
         const p1_vec: imgui.Vec2 = .{ .x = p1[0], .y = p1[1] };
-        const p2_vec: imgui.Vec2 = .{ .x = p2[0], .y = p2[0] };
+        const p2_vec: imgui.Vec2 = .{ .x = p2[0], .y = p2[1] };
 
         if (imgui.getWindowDrawList()) |draw_list| {
             draw_list.addLineEx(

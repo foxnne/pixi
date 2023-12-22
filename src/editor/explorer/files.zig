@@ -126,7 +126,7 @@ pub fn draw() void {
 
         if (pixi.state.recents.folders.items.len > 0) {
             imgui.spacing();
-            imgui.text("Recents", .{});
+            imgui.text("Recents");
             imgui.separator();
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
             defer imgui.popStyleColor();
@@ -160,7 +160,7 @@ pub fn draw() void {
                         }
                     }
 
-                    imgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
+                    imgui.sameLineEx(0.0, 5.0 * pixi.content_scale[0]);
                     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
                     imgui.text(folder);
                     imgui.popStyleColor();

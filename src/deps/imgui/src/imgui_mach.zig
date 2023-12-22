@@ -739,9 +739,9 @@ const DeviceResources = struct {
 
         // Sampler
         const sampler = bd.device.createSampler(&.{
-            .min_filter = .linear,
-            .mag_filter = .linear,
-            .mipmap_filter = .linear,
+            .min_filter = .nearest,
+            .mag_filter = .nearest,
+            .mipmap_filter = .nearest,
             .address_mode_u = .repeat,
             .address_mode_v = .repeat,
             .address_mode_w = .repeat,

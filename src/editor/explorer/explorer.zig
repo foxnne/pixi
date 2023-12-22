@@ -59,7 +59,7 @@ pub fn draw() void {
                     imgui.endMenuBar();
                 }
                 imgui.separator();
-                //files.draw();
+                files.draw();
             },
             .tools => {
                 if (imgui.beginMenuBar()) {
@@ -139,7 +139,7 @@ pub fn draw() void {
                     imgui.endMenuBar();
                 }
                 imgui.separator();
-                //pack.draw();
+                pack.draw();
             },
             .settings => {
                 if (imgui.beginMenuBar()) {
