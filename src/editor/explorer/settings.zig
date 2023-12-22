@@ -129,6 +129,11 @@ pub fn draw() void {
 
             imgui.popItemWidth();
         }
+
+        imgui.spacing();
+        imgui.separator();
+        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Framerate: %d", core.frameRate());
+
         imgui.popItemWidth();
     }
 }

@@ -253,7 +253,7 @@ pub fn draw() void {
                 if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
                     imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.state.theme.highlight_primary.toImguiVec4());
                     defer imgui.popStyleColor();
-                    if (imgui.beginChild("InfoBar", .{ .x = 0.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
+                    if (imgui.beginChild("InfoBar", .{ .x = -1.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
                         infobar.draw();
                     }
                     imgui.endChild();

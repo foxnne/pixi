@@ -10,14 +10,14 @@ pub fn draw() void {
     defer imgui.popStyleColor();
 
     const h = imgui.getTextLineHeightWithSpacing() + 6.0 * pixi.content_scale[1];
-    const y = (imgui.getContentRegionAvail().x - h) / 2;
+    const y = (imgui.getContentRegionAvail().y - h) / 2;
     const spacing: f32 = 3.0 * pixi.content_scale[0];
     imgui.setCursorPosY(y);
     imgui.setCursorPosX(5.0 * pixi.content_scale[0]);
 
     if (pixi.state.project_folder) |path| {
         imgui.setCursorPosY(y + 2.0 * pixi.content_scale[1]);
-        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), "%s ", pixi.fa.folder_open);
+        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), pixi.fa.folder_open);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text(path);
@@ -29,7 +29,7 @@ pub fn draw() void {
 
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         imgui.setCursorPosY(y + spacing);
-        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), "%s ", pixi.fa.chess_board);
+        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), pixi.fa.chess_board);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text("%dpx by %dpx", file.width, file.height);
@@ -39,7 +39,7 @@ pub fn draw() void {
         imgui.sameLine();
 
         imgui.setCursorPosY(y + spacing);
-        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), "%s ", pixi.fa.border_all);
+        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), pixi.fa.border_all);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text("%dpx by %dpx", file.tile_width, file.tile_height);
@@ -51,7 +51,7 @@ pub fn draw() void {
 
     if (pixi.editor.saving()) {
         imgui.setCursorPosY(y + spacing);
-        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), "%s ", pixi.fa.save);
+        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), pixi.fa.save);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text("Saving!...");
