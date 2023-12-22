@@ -46,7 +46,7 @@ pub fn draw() void {
 
         imgui.spacing();
         imgui.spacing();
-        imgui.text("Colors", .{});
+        imgui.text("Colors");
         imgui.separator();
 
         if (pixi.state.tools.current == .heightmap) {
@@ -79,21 +79,20 @@ pub fn draw() void {
             }
             if (imgui.beginPopupContextItem()) {
                 defer imgui.endPopup();
-                var primary_slice: [4]f32 = .{ primary.x, primary.y, primary.z, primary.w };
                 if (imgui.colorPicker4("Primary", &primary, imgui.ColorEditFlags_None, null)) {
                     pixi.state.colors.primary = .{
-                        @as(u8, @intFromFloat(primary_slice[0] * 255.0)),
-                        @as(u8, @intFromFloat(primary_slice[1] * 255.0)),
-                        @as(u8, @intFromFloat(primary_slice[2] * 255.0)),
-                        @as(u8, @intFromFloat(primary_slice[3] * 255.0)),
+                        @as(u8, @intFromFloat(primary.x * 255.0)),
+                        @as(u8, @intFromFloat(primary.y * 255.0)),
+                        @as(u8, @intFromFloat(primary.z * 255.0)),
+                        @as(u8, @intFromFloat(primary.w * 255.0)),
                     };
                 }
             }
             imgui.sameLine();
 
             if (imgui.colorButtonEx("Secondary", secondary, imgui.ColorEditFlags_None, .{
-                .w = color_width,
-                .h = 64 * pixi.content_scale[1],
+                .x = color_width,
+                .y = 64 * pixi.content_scale[1],
             })) {
                 const color = pixi.state.colors.primary;
                 pixi.state.colors.primary = pixi.state.colors.secondary;
@@ -101,13 +100,12 @@ pub fn draw() void {
             }
             if (imgui.beginPopupContextItem()) {
                 defer imgui.endPopup();
-                var secondary_slice: [4]f32 = .{ secondary.x, secondary.y, secondary.z, secondary.w };
                 if (imgui.colorPicker4("Secondary", &secondary, imgui.ColorEditFlags_None, null)) {
                     pixi.state.colors.secondary = .{
-                        @as(u8, @intFromFloat(secondary_slice[0] * 255.0)),
-                        @as(u8, @intFromFloat(secondary_slice[1] * 255.0)),
-                        @as(u8, @intFromFloat(secondary_slice[2] * 255.0)),
-                        @as(u8, @intFromFloat(secondary_slice[3] * 255.0)),
+                        @as(u8, @intFromFloat(secondary.x * 255.0)),
+                        @as(u8, @intFromFloat(secondary.y * 255.0)),
+                        @as(u8, @intFromFloat(secondary.z * 255.0)),
+                        @as(u8, @intFromFloat(secondary.w * 255.0)),
                     };
                 }
             }
@@ -115,7 +113,7 @@ pub fn draw() void {
 
         imgui.spacing();
         imgui.spacing();
-        imgui.text("Palette", .{});
+        imgui.text("Palette");
         imgui.separator();
 
         imgui.setNextItemWidth(-1.0);
@@ -134,13 +132,13 @@ pub fn draw() void {
                         .w = @as(f32, @floatFromInt(color[3])) / 255.0,
                     };
                     imgui.pushIDInt(@as(c_int, @intCast(i)));
-                    if (imgui.colorButton(palette.name, .{ c.x, c.y, c.z, c.w }, imgui.ColorEditFlags_None)) {
+                    if (imgui.colorButton(palette.name, .{ .x = c.x, .y = c.y, .z = c.z, .w = c.w }, imgui.ColorEditFlags_None)) {
                         pixi.state.colors.primary = color;
                     }
-                    imgui.popId();
+                    imgui.popID();
 
                     const min_width = 32.0 * pixi.content_scale[0];
-                    const columns: usize = @intFromFloat(@ceil((imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]) / (min_width + style.item_spacing[0])));
+                    const columns: usize = @intFromFloat(@ceil((imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]) / (min_width + style.item_spacing.x)));
 
                     if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)
                         imgui.sameLine();
@@ -149,7 +147,15 @@ pub fn draw() void {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
                 defer imgui.popStyleColor();
                 imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette");
-                imgui.textWrapped("To add new palettes, download a .hex palette from lospec.com and place it here: \n %s%c%s", pixi.state.root_path, std.fs.path.sep, pixi.assets.palettes);
+
+                const new_palette_text = std.fmt.allocPrintZ(pixi.state.allocator, "To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{
+                    pixi.state.root_path,
+                    std.fs.path.sep,
+                    pixi.assets.palettes,
+                }) catch unreachable;
+                defer pixi.state.allocator.free(new_palette_text);
+
+                imgui.textWrapped(new_palette_text);
             }
         }
     }
@@ -219,7 +225,7 @@ fn searchPalettes() !void {
             if (entry.kind == .file) {
                 const ext = std.fs.path.extension(entry.name);
                 if (std.mem.eql(u8, ext, ".hex")) {
-                    const label = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name}) catch unreachable;
+                    const label = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name});
                     defer pixi.state.allocator.free(label);
                     if (imgui.selectable(label)) {
                         const abs_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ pixi.assets.palettes, entry.name });

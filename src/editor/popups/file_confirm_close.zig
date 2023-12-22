@@ -44,7 +44,7 @@ pub fn draw() void {
             .one => {
                 if (pixi.editor.getFile(pixi.state.popups.file_confirm_close_index)) |file| {
                     const base_name = std.fs.path.basename(file.path);
-                    const file_name = std.fmt.allocPrintZ(pixi.state.allocator, "The file {s} has unsaved changes, are you sure you want to close?", base_name) catch unreachable;
+                    const file_name = std.fmt.allocPrintZ(pixi.state.allocator, "The file {s} has unsaved changes, are you sure you want to close?", .{base_name}) catch unreachable;
                     defer pixi.state.allocator.free(file_name);
                     imgui.textWrapped(file_name);
                 }
@@ -56,7 +56,11 @@ pub fn draw() void {
                     defer imgui.endChild();
                     for (pixi.state.open_files.items) |file| {
                         const base_name = std.fs.path.basename(file.path);
-                        if (file.dirty()) imgui.bulletText("{s}", .{base_name});
+
+                        const base_name_z = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{base_name}) catch unreachable;
+                        pixi.state.allocator.free(base_name_z);
+
+                        if (file.dirty()) imgui.bulletText(base_name_z);
                     }
                 }
             },
