@@ -155,8 +155,11 @@ pub fn init(app: *App) !void {
     const fox_logo = try gfx.Texture.loadFromFile(assets.fox_1024_png.path, .{});
 
     // Cursors
-    const pencil = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
-    const eraser = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
+    //const pencil = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
+    //const eraser = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
+
+    const pencil = try gfx.Texture.loadFromFile(assets.pencil32_png.path, .{});
+    const eraser = try gfx.Texture.loadFromFile(assets.eraser32_png.path, .{});
 
     const hotkeys = try input.Hotkeys.initDefault(allocator);
     const mouse = try input.Mouse.initDefault(allocator);
