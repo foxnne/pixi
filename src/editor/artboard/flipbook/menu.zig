@@ -52,7 +52,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
                     defer imgui.endCombo();
                     for (0..animation.length) |i| {
                         const other_frame = std.fmt.allocPrintZ(pixi.state.allocator, "{d}/{d}", .{ i + 1, animation.length }) catch unreachable;
-                        pixi.state.allocator.free(other_frame);
+                        defer pixi.state.allocator.free(other_frame);
 
                         if (imgui.selectableEx(other_frame, animation.start + i == file.selected_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
                             file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(animation.start + i), .state = file.selected_animation_state };

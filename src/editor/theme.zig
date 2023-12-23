@@ -67,7 +67,7 @@ pub fn init(self: Self) void {
     style.colors[imgui.Col_WindowBg] = bg;
     style.colors[imgui.Col_Border] = fg;
     style.colors[imgui.Col_MenuBarBg] = fg;
-    style.colors[imgui.Col_Separator] = fg;
+    style.colors[imgui.Col_Separator] = text;
     style.colors[imgui.Col_TitleBg] = fg;
     style.colors[imgui.Col_TitleBgActive] = fg;
     style.colors[imgui.Col_Tab] = bg;
@@ -106,7 +106,7 @@ pub fn set(self: *Self) void {
     imgui.pushStyleColorImVec4(imgui.Col_WindowBg, bg);
     imgui.pushStyleColorImVec4(imgui.Col_Border, fg);
     imgui.pushStyleColorImVec4(imgui.Col_MenuBarBg, fg);
-    imgui.pushStyleColorImVec4(imgui.Col_Separator, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_Separator, text);
     imgui.pushStyleColorImVec4(imgui.Col_TitleBg, fg);
     imgui.pushStyleColorImVec4(imgui.Col_TitleBgActive, fg);
     imgui.pushStyleColorImVec4(imgui.Col_Tab, bg);

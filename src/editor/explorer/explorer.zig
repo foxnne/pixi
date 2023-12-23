@@ -40,7 +40,7 @@ pub fn draw() void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * pixi.content_scale[1] });
         defer imgui.popStyleVarEx(2);
 
-        imgui.pushStyleColorImVec4(imgui.Col_Separator, pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Separator, pixi.state.theme.text.toImguiVec4());
         imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(2);
 
