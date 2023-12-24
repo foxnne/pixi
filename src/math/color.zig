@@ -11,16 +11,21 @@ pub const Color = struct {
 
     pub fn initBytes(r: u8, g: u8, b: u8, a: u8) Color {
         return .{
-            .value = zm.f32x4(@as(f32, @floatFromInt(r)) / 255, @as(f32, @floatFromInt(g)) / 255, @as(f32, @floatFromInt(b)) / 255, @as(f32, @floatFromInt(a)) / 255),
+            .value = zm.f32x4(
+                @as(f32, @floatFromInt(r)) / 255,
+                @as(f32, @floatFromInt(g)) / 255,
+                @as(f32, @floatFromInt(b)) / 255,
+                @as(f32, @floatFromInt(a)) / 255,
+            ),
         };
     }
 
     pub fn bytes(self: Color) [4]u8 {
         return .{
-            @as(u8, @intFromFloat(self.value[0] * 255.0)),
-            @as(u8, @intFromFloat(self.value[1] * 255.0)),
-            @as(u8, @intFromFloat(self.value[2] * 255.0)),
-            @as(u8, @intFromFloat(self.value[3] * 255.0)),
+            @intFromFloat(self.value[0] * 255.0),
+            @intFromFloat(self.value[1] * 255.0),
+            @intFromFloat(self.value[2] * 255.0),
+            @intFromFloat(self.value[3] * 255.0),
         };
     }
 
@@ -43,13 +48,13 @@ pub const Color = struct {
         };
 
         const p = Packed{
-            .r = @as(u8, @intFromFloat(self.value[0] * 255.0)),
-            .g = @as(u8, @intFromFloat(self.value[1] * 255.0)),
-            .b = @as(u8, @intFromFloat(self.value[2] * 255.0)),
-            .a = @as(u8, @intFromFloat(self.value[3] * 255.0)),
+            .r = @intFromFloat(self.value[0] * 255.0),
+            .g = @intFromFloat(self.value[1] * 255.0),
+            .b = @intFromFloat(self.value[2] * 255.0),
+            .a = @intFromFloat(self.value[3] * 255.0),
         };
 
-        return @as(u32, @bitCast(p));
+        return @bitCast(p);
     }
 };
 

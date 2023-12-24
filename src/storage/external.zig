@@ -67,7 +67,7 @@ pub const Atlas = struct {
     sprites: []Sprite,
     animations: []Animation,
 
-    pub fn initFromFile(allocator: std.mem.Allocator, file: [:0]const u8) !Atlas {
+    pub fn initFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
         const read = try fs.read(allocator, file);
         defer allocator.free(read);
 

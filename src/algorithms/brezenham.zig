@@ -25,16 +25,16 @@ pub fn process(start: [2]f32, end: [2]f32) ![][2]f32 {
 
     var err: f32 = dx / 2.0;
     const ystep: i32 = if (y1 < y2) 1 else -1;
-    var y: i32 = @as(i32, @intFromFloat(y1));
+    var y: i32 = @intFromFloat(y1);
 
-    const maxX: i32 = @as(i32, @intFromFloat(x2));
+    const maxX: i32 = @intFromFloat(x2);
 
-    var x: i32 = @as(i32, @intFromFloat(x1));
+    var x: i32 = @intFromFloat(x1);
     while (x <= maxX) : (x += 1) {
         if (steep) {
-            try output.append(.{ @as(f32, @floatFromInt(y)), @as(f32, @floatFromInt(x)) });
+            try output.append([_]f32{ @floatFromInt(y), @floatFromInt(x) });
         } else {
-            try output.append(.{ @as(f32, @floatFromInt(x)), @as(f32, @floatFromInt(y)) });
+            try output.append([_]f32{ @floatFromInt(x), @floatFromInt(y) });
         }
 
         err -= dy;

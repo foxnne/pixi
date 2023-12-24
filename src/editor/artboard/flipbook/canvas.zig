@@ -76,9 +76,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const window_width = zgui.getWindowWidth();
 
             const progress_start: [2]f32 = .{ window_position[0], window_position[1] + 2 };
-            const animation_length = @as(f32, @floatFromInt(animation.length)) / @as(f32, @floatFromInt(animation.fps));
-            const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
+            const progress_end: [2]f32 = blk: {
+                const current_frame: f32 = if (file.selected_sprite_index > animation.start) @floatFromInt(file.selected_sprite_index - animation.start) else 0;
+                const animation_length: f32 = @floatFromInt(animation.length);
+                const animation_duration: f32 = animation_length / @as(f32, @floatFromInt(animation.fps));
+                break :blk .{
+                    window_position[0] + window_width * ((current_frame / animation_length) + (file.selected_animation_elapsed / animation_duration)),
+                    window_position[1] + 2,
+                };
+            };
 
             const draw_list = zgui.getWindowDrawList();
             draw_list.addLine(.{
@@ -92,12 +98,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
     // Draw all sprites sequentially
     const tiles_wide = @divExact(file.width, file.tile_width);
-    for (file.sprites.items, 0..) |_, i| {
-        const column = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(i)), tiles_wide)));
-        const row = @as(f32, @floatFromInt(@divTrunc(@as(u32, @intCast(i)), tiles_wide)));
+    l: for (file.sprites.items, 0..) |_, i| {
+        const column: f32 = @floatFromInt(@mod(@as(u32, @intCast(i)), tiles_wide));
+        const row: f32 = @floatFromInt(@divTrunc(@as(u32, @intCast(i)), tiles_wide));
 
-        const src_x = column * tile_width;
-        const src_y = row * tile_height;
+        const src_x: f32 = column * tile_width;
+        const src_y: f32 = row * tile_height;
 
         const sprite_scale = std.math.clamp(0.5 / @abs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
         const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
@@ -124,65 +130,74 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             }
         }
 
-        if (dst_rect[0] > -zgui.getWindowWidth() / 2 and dst_rect[0] + dst_rect[2] < zgui.getWindowWidth()) {
-            // Draw all layers in reverse order
-            var j: usize = file.layers.items.len;
-            while (j > 0) {
-                j -= 1;
-                if (!file.layers.items[j].visible) continue;
-                file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
-            }
+        if (dst_rect[0] <= -zgui.getWindowWidth() / 2 or dst_rect[0] + dst_rect[2] >= zgui.getWindowWidth()) {
+            continue :l;
+        }
+        // Draw all layers in reverse order
+        var j: usize = file.layers.items.len;
+        while (j > 0) {
+            j -= 1;
+            if (!file.layers.items[j].visible) continue;
+            file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
+        }
 
-            if (file.heightmap.visible) {
-                file.flipbook_camera.drawRectFilled(dst_rect, 0x50FFFFFF);
-                file.flipbook_camera.drawSprite(file.heightmap.layer.?, src_rect, dst_rect);
-            }
+        if (file.heightmap.visible) {
+            file.flipbook_camera.drawRectFilled(dst_rect, 0x50FFFFFF);
+            file.flipbook_camera.drawSprite(file.heightmap.layer.?, src_rect, dst_rect);
+        }
 
-            if (i == file.selected_sprite_index)
-                file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
+        if (i == file.selected_sprite_index) {
+            file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
+        }
 
-            if (file.flipbook_camera.isHovered(dst_rect) and !zgui.isAnyItemHovered()) {
-                if (i != file.selected_sprite_index) {
-                    file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.theme.text.toU32());
-                    if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != i) {
-                        file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
-                    }
-                } else {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
-
-                    file.processSampleTool(.flipbook);
-                    file.processStrokeTool(.flipbook) catch unreachable;
-                    file.processFillTool(.flipbook) catch unreachable;
+        if (file.flipbook_camera.isHovered(dst_rect) and !zgui.isAnyItemHovered()) {
+            if (i != file.selected_sprite_index) {
+                file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.theme.text.toU32());
+                if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != i) {
+                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
                 }
             } else {
-                if (i != file.selected_sprite_index) {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text_secondary.toU32());
-                } else {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
-                }
+                file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
+
+                file.processSampleTool(.flipbook);
+                file.processStrokeTool(.flipbook) catch unreachable;
+                file.processFillTool(.flipbook) catch unreachable;
+            }
+        } else {
+            if (i != file.selected_sprite_index) {
+                file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text_secondary.toU32());
+            } else {
+                file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
             }
         }
+    } // end for :l
+
+    if (file.selected_animation_state != .play) {
+        return;
     }
+    const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
+    // Draw progress bar
+    {
+        const window_position = zgui.getWindowPos();
+        const window_width = zgui.getWindowWidth();
 
-    if (file.selected_animation_state == .play) {
-        const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
-        // Draw progress bar
-        {
-            const window_position = zgui.getWindowPos();
-            const window_width = zgui.getWindowWidth();
+        const progress_start: [2]f32 = .{ window_position[0], window_position[1] + 2 };
+        const progress_end: [2]f32 = blk: {
+            const current_frame: f32 = if (file.selected_sprite_index > animation.start) @floatFromInt(file.selected_sprite_index - animation.start) else 0;
+            const animation_length: f32 = @floatFromInt(animation.length);
+            const animation_duration = animation_length / @as(f32, @floatFromInt(animation.fps));
+            break :blk .{
+                window_position[0] + window_width * ((current_frame / animation_length) + (file.selected_animation_elapsed / animation_duration)),
+                window_position[1] + 2,
+            };
+        };
 
-            const progress_start: [2]f32 = .{ window_position[0], window_position[1] + 2 };
-            const animation_length = @as(f32, @floatFromInt(animation.length)) / @as(f32, @floatFromInt(animation.fps));
-            const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
-
-            const draw_list = zgui.getWindowDrawList();
-            draw_list.addLine(.{
-                .p1 = progress_start,
-                .p2 = progress_end,
-                .col = pixi.state.theme.text_background.toU32(),
-                .thickness = 3.0,
-            });
-        }
+        const draw_list = zgui.getWindowDrawList();
+        draw_list.addLine(.{
+            .p1 = progress_start,
+            .p2 = progress_end,
+            .col = pixi.state.theme.text_background.toU32(),
+            .thickness = 3.0,
+        });
     }
 }
