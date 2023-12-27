@@ -96,6 +96,10 @@ pub fn draw() void {
                 }
             }
         }
+    } else {
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+        imgui.textWrapped("Open a file to begin editing.");
+        imgui.popStyleColor();
     }
 }
 

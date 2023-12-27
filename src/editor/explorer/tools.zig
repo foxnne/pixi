@@ -77,6 +77,10 @@ pub fn draw() void {
                 pixi.state.colors.primary = pixi.state.colors.secondary;
                 pixi.state.colors.secondary = color;
             }
+            if (imgui.beginItemTooltip()) {
+                defer imgui.endTooltip();
+                imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click to edit color.");
+            }
             if (imgui.beginPopupContextItem()) {
                 defer imgui.endPopup();
                 if (imgui.colorPicker4("Primary", &primary, imgui.ColorEditFlags_None, null)) {
@@ -98,6 +102,12 @@ pub fn draw() void {
                 pixi.state.colors.primary = pixi.state.colors.secondary;
                 pixi.state.colors.secondary = color;
             }
+
+            if (imgui.beginItemTooltip()) {
+                defer imgui.endTooltip();
+                imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click to edit color.");
+            }
+
             if (imgui.beginPopupContextItem()) {
                 defer imgui.endPopup();
                 if (imgui.colorPicker4("Secondary", &secondary, imgui.ColorEditFlags_None, null)) {

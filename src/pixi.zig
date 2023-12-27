@@ -424,7 +424,6 @@ pub fn deinit(_: *App) void {
     state.allocator.free(state.root_path);
     state.allocator.destroy(state);
 
-    core.queue.release();
     core.deinit();
 
     //uncomment this line to check for memory leaks on program shutdown

@@ -58,6 +58,7 @@ pub fn init(self: Self) void {
     const bg = self.background.toImguiVec4();
     const fg = self.foreground.toImguiVec4();
     const text = self.text.toImguiVec4();
+    const bg_text = self.text_background.toImguiVec4();
     const highlight_primary = self.highlight_primary.toImguiVec4();
     const hover_primary = self.hover_primary.toImguiVec4();
     const highlight_secondary = self.highlight_secondary.toImguiVec4();
@@ -67,7 +68,7 @@ pub fn init(self: Self) void {
     style.colors[imgui.Col_WindowBg] = bg;
     style.colors[imgui.Col_Border] = fg;
     style.colors[imgui.Col_MenuBarBg] = fg;
-    style.colors[imgui.Col_Separator] = text;
+    style.colors[imgui.Col_Separator] = bg_text;
     style.colors[imgui.Col_TitleBg] = fg;
     style.colors[imgui.Col_TitleBgActive] = fg;
     style.colors[imgui.Col_Tab] = bg;
@@ -97,6 +98,7 @@ pub fn set(self: *Self) void {
     const bg = self.background.toImguiVec4();
     const fg = self.foreground.toImguiVec4();
     const text = self.text.toImguiVec4();
+    const bg_text = self.text_background.toImguiVec4();
     const highlight_primary = self.highlight_primary.toImguiVec4();
     const hover_primary = self.hover_primary.toImguiVec4();
     const highlight_secondary = self.highlight_secondary.toImguiVec4();
@@ -106,7 +108,7 @@ pub fn set(self: *Self) void {
     imgui.pushStyleColorImVec4(imgui.Col_WindowBg, bg);
     imgui.pushStyleColorImVec4(imgui.Col_Border, fg);
     imgui.pushStyleColorImVec4(imgui.Col_MenuBarBg, fg);
-    imgui.pushStyleColorImVec4(imgui.Col_Separator, text);
+    imgui.pushStyleColorImVec4(imgui.Col_Separator, bg_text);
     imgui.pushStyleColorImVec4(imgui.Col_TitleBg, fg);
     imgui.pushStyleColorImVec4(imgui.Col_TitleBgActive, fg);
     imgui.pushStyleColorImVec4(imgui.Col_Tab, bg);
