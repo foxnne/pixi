@@ -80,7 +80,7 @@ pub const FileDialogResponse = struct {
 };
 
 pub fn anyPopupOpen(popups: *Popups) bool {
-    return popups.rename or popups.file_setup or popups.file_confirm_close or popups.layer_setup or popups.export_to_png or popups.animation;
+    return popups.rename or popups.file_setup or popups.file_confirm_close or popups.layer_setup or popups.export_to_png or popups.animation or popups.about or popups.heightmap;
 }
 
 pub fn fileSetupNew(popups: *Popups, new_file_path: [:0]const u8) void {

@@ -250,6 +250,23 @@ pub fn draw() void {
                     }
                 }
                 imgui.endChild();
+
+                {
+                    const pos = imgui.getWindowPos();
+                    const height = imgui.getWindowHeight();
+
+                    if (imgui.getWindowDrawList()) |draw_list|
+                        // Draw a shadow fading from left to right
+                        draw_list.addRectFilledMultiColor(
+                            pos,
+                            .{ .x = pos.x + 18 * pixi.content_scale[0], .y = height + pos.x },
+                            0x15000000,
+                            0x0,
+                            0x15000000,
+                            0x0,
+                        );
+                }
+
                 if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
                     imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.state.theme.highlight_primary.toImguiVec4());
                     defer imgui.popStyleColor();
@@ -259,22 +276,6 @@ pub fn draw() void {
                     imgui.endChild();
                 }
             }
-        }
-
-        {
-            const pos = imgui.getWindowPos();
-            const height = imgui.getWindowHeight();
-
-            if (imgui.getWindowDrawList()) |draw_list|
-                // Draw a shadow fading from left to right
-                draw_list.addRectFilledMultiColor(
-                    pos,
-                    .{ .x = pos.x + 18 * pixi.content_scale[0], .y = height + pos.x },
-                    0x15000000,
-                    0x0,
-                    0x15000000,
-                    0x0,
-                );
         }
     }
     imgui.end();

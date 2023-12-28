@@ -267,8 +267,10 @@ pub fn update(app: *App) !bool {
                 state.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
             },
             .mouse_scroll => |mouse_scroll| {
-                state.mouse.scroll_x = mouse_scroll.xoffset;
-                state.mouse.scroll_y = mouse_scroll.yoffset;
+                if (!state.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
+                    state.mouse.scroll_x = mouse_scroll.xoffset;
+                    state.mouse.scroll_y = mouse_scroll.yoffset;
+                }
             },
             .mouse_motion => |mouse_motion| {
                 state.mouse.position = .{ @floatCast(mouse_motion.pos.x * content_scale[0]), @floatCast(mouse_motion.pos.y * content_scale[1]) };
