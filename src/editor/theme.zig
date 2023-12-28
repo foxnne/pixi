@@ -39,6 +39,7 @@ pub fn init(self: Self) void {
     style.popup_rounding = 8.0;
     style.tab_rounding = 8.0;
     style.frame_rounding = 8.0;
+    style.child_rounding = 8.0;
     style.grab_rounding = 4.0;
     style.frame_padding = .{ .x = 12.0, .y = 4.0 };
     style.window_padding = .{ .x = 5.0, .y = 5.0 };
@@ -53,7 +54,7 @@ pub fn init(self: Self) void {
     style.hover_stationary_delay = 0.35;
     style.hover_delay_normal = 0.5;
     style.hover_delay_short = 0.25;
-    //style.scaleAllSizes(@max(pixi.content_scale[0], pixi.content_scale[1]));
+    style.popup_rounding = 8.0;
 
     const bg = self.background.toImguiVec4();
     const fg = self.foreground.toImguiVec4();

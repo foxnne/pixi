@@ -109,7 +109,8 @@ pub fn draw() void {
             _ = pixi.editor.Theme.styleColorEdit("Primary Hover", .{ .col = &pixi.state.theme.hover_primary });
             _ = pixi.editor.Theme.styleColorEdit("Secondary Hover", .{ .col = &pixi.state.theme.hover_secondary });
 
-            imgui.separator();
+            imgui.spacing();
+
             if (imgui.buttonEx("Save As...", .{ .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .y = 0.0 })) {
                 pixi.state.popups.file_dialog_request = .{
                     .state = .save,
@@ -122,6 +123,9 @@ pub fn draw() void {
             if (pixi.state.popups.file_dialog_response) |response| {
                 if (response.type == .export_theme) {
                     pixi.state.theme.save(response.path) catch unreachable;
+                    pixi.state.allocator.free(pixi.state.theme.name);
+                    pixi.state.theme = pixi.editor.Theme.loadFromFile(response.path) catch unreachable;
+                    pixi.state.settings.theme = pixi.state.theme.name;
                 }
                 nfd.freePath(response.path);
                 pixi.state.popups.file_dialog_response = null;
@@ -153,7 +157,6 @@ fn searchThemes() !void {
                         const abs_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ pixi.assets.themes, entry.name });
                         defer pixi.state.allocator.free(abs_path);
                         pixi.state.allocator.free(pixi.state.theme.name);
-                        //pixi.state.allocator.free(pixi.state.settings.theme);
                         pixi.state.theme = try pixi.editor.Theme.loadFromFile(abs_path);
                         pixi.state.settings.theme = pixi.state.theme.name;
                     }
