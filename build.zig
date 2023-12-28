@@ -24,8 +24,8 @@ pub fn build(b: *std.Build) !void {
     const zstbi_pkg = zstbi.package(b, target, optimize, .{});
     const zmath_pkg = zmath.package(b, target, optimize, .{});
 
-    const use_dusk = b.option(bool, "use_dusk", "Use Dusk") orelse false;
-    const use_freetype = b.option(bool, "use_freetype", "Use Freetype") orelse false;
+    const use_sysgpu = b.option(bool, "use_sysgpu", "Use sysgpu") orelse false;
+    const use_freetype = b.option(bool, "use_freetype", "Use freetype") orelse false;
 
     const zip_pkg = zip.package(b, .{});
 
@@ -84,7 +84,7 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(imgui_lib);
 
     const build_options = b.addOptions();
-    build_options.addOption(bool, "use_dusk", use_dusk);
+    build_options.addOption(bool, "use_sysgpu", use_sysgpu);
 
     const app = try mach_core.App.init(b, mach_core_dep.builder, .{
         .name = "pixi",
@@ -93,7 +93,6 @@ pub fn build(b: *std.Build) !void {
         .deps = &[_]std.build.ModuleDependency{
             .{ .name = "zstbi", .module = zstbi_pkg.zstbi },
             .{ .name = "zmath", .module = zmath_pkg.zmath },
-            //.{ .name = "zgui", .module = zgui_pkg.zgui },
             .{ .name = "nfd", .module = nfd.getModule(b) },
             .{ .name = "zip", .module = zip_pkg.module },
             .{ .name = "zig-imgui", .module = imgui_module },
@@ -102,7 +101,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    if (use_dusk) {
+    if (use_sysgpu) {
         const mach_sysgpu_dep = b.dependency("mach_sysgpu", .{
             .target = target,
             .optimize = optimize,

@@ -4,7 +4,6 @@ const build_options = @import("build-options");
 const core = @import("mach-core");
 const gpu = core.gpu;
 
-//const zgui = @import("zgui").MachImgui(core);
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
 const nfd = @import("nfd");
@@ -15,8 +14,8 @@ const imgui_mach = imgui.backends.mach;
 pub const App = @This();
 
 pub const mach_core_options = core.ComptimeOptions{
-    .use_wgpu = !build_options.use_dusk,
-    .use_dgpu = build_options.use_dusk,
+    .use_wgpu = !build_options.use_sysgpu,
+    .use_dgpu = build_options.use_sysgpu,
 };
 
 timer: core.Timer,
