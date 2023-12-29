@@ -3,7 +3,6 @@ const builtin = @import("builtin");
 
 const zmath = @import("src/deps/zig-gamedev/zmath/build.zig");
 const zstbi = @import("src/deps/zig-gamedev/zstbi/build.zig");
-const zgui = @import("src/deps/zig-gamedev/zgui/build.zig");
 
 const mach_core = @import("mach_core");
 const mach_gpu_dawn = @import("mach_gpu_dawn");
