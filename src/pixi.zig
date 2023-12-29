@@ -254,7 +254,6 @@ pub fn update(app: *App) !bool {
 
     var iter = core.pollEvents();
     while (iter.next()) |event| {
-        state.cursors.current = .arrow;
         switch (event) {
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
@@ -305,10 +304,9 @@ pub fn update(app: *App) !bool {
     state.theme.set();
 
     editor.draw();
-    //imgui.showDemoWindow(null);
     state.theme.unset();
 
-    state.cursors.update();
+    //state.cursors.update();
 
     imgui.render();
 

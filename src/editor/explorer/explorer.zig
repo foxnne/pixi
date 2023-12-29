@@ -166,7 +166,7 @@ pub fn draw() void {
     hovered_flags |= imgui.HoveredFlags_AllowWhenBlockedByActiveItem;
 
     if (imgui.isItemHovered(hovered_flags)) {
-        pixi.state.cursors.current = .resize_ew;
+        imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
     }
 
     if (imgui.isItemActive()) {
@@ -175,7 +175,7 @@ pub fn draw() void {
 
         const diff = cur[0] - prev[0];
 
-        pixi.state.cursors.current = .resize_ew;
+        imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
         pixi.state.settings.explorer_width = std.math.clamp(pixi.state.settings.explorer_width + diff / pixi.content_scale[0], 200, 500);
     }
     imgui.end();

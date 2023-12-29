@@ -99,11 +99,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
         }, imgui.ButtonFlags_None);
 
         if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
-            pixi.state.cursors.current = .resize_ns;
+            imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
         }
 
         if (imgui.isItemActive()) {
-            pixi.state.cursors.current = .resize_ns;
+            imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
             pixi.state.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
         }
     }

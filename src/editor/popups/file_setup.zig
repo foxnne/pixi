@@ -115,8 +115,13 @@ pub fn draw() void {
         );
         imgui.spacing();
 
+        const file_setup_path = std.mem.trimRight(u8, &pixi.state.popups.file_setup_path, "\u{0}");
+        const ext = std.fs.path.extension(&pixi.state.popups.file_setup_path);
+
         if (!sizes_match) {
             imgui.textColored(pixi.state.theme.text_red.toImguiVec4(), "Tile sizes and count do not match image size! %dx%d", combined_size[0], combined_size[1]);
+        } else if (ext.len < 5 or !std.mem.eql(u8, ".pixi", ext[0..5])) {
+            imgui.textColored(pixi.state.theme.text_red.toImguiVec4(), "File name must end with .pixi extension!");
         } else {
             imgui.textColored(pixi.state.theme.highlight_primary.toImguiVec4(), " " ++ pixi.fa.check);
         }
@@ -130,9 +135,8 @@ pub fn draw() void {
         if (!sizes_match) {
             imgui.beginDisabled(true);
         }
+
         if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
-            const file_setup_path = std.mem.trimRight(u8, &pixi.state.popups.file_setup_path, "\u{0}");
-            const ext = std.fs.path.extension(file_setup_path);
             if (std.mem.eql(u8, ".pixi", ext)) {
                 switch (pixi.state.popups.file_setup_state) {
                     .new => {
@@ -164,6 +168,7 @@ pub fn draw() void {
                 pixi.state.popups.fileSetupClose();
             }
         }
+
         if (!sizes_match) {
             imgui.endDisabled();
         }
