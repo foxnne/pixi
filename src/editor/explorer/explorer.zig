@@ -47,114 +47,107 @@ pub fn draw() void {
         switch (pixi.state.sidebar) {
             .files => {
                 if (imgui.beginMenuBar()) {
-                    imgui.text("Explorer");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .files })) |hotkey| {
-                        imgui.sameLine();
+                        const title = std.fmt.allocPrintZ(pixi.state.allocator, "Explorer ({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(title);
 
-                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
-                        defer pixi.state.allocator.free(shortcut);
-
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
+                        imgui.separatorText(title);
+                    } else {
+                        imgui.separatorText("Explorer");
                     }
                     imgui.endMenuBar();
                 }
-                imgui.separator();
+                imgui.spacing();
                 files.draw();
             },
             .tools => {
                 if (imgui.beginMenuBar()) {
-                    imgui.text("Tools");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .tools })) |hotkey| {
-                        imgui.sameLine();
+                        const title = std.fmt.allocPrintZ(pixi.state.allocator, "Tools ({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(title);
 
-                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
-                        defer pixi.state.allocator.free(shortcut);
-
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
+                        imgui.separatorText(title);
+                    } else {
+                        imgui.separatorText("Tools");
                     }
                     imgui.endMenuBar();
                 }
-                imgui.separator();
+                imgui.spacing();
                 tools.draw();
             },
             .layers => {
                 if (imgui.beginMenuBar()) {
-                    imgui.text("Layers");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .layers })) |hotkey| {
-                        imgui.sameLine();
+                        const title = std.fmt.allocPrintZ(pixi.state.allocator, "Layers ({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(title);
 
-                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
-                        defer pixi.state.allocator.free(shortcut);
-
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
+                        imgui.separatorText(title);
+                    } else {
+                        imgui.separatorText("Layers");
                     }
                     imgui.endMenuBar();
                 }
-                imgui.separator();
+                imgui.spacing();
                 layers.draw();
             },
             .sprites => {
                 if (imgui.beginMenuBar()) {
-                    imgui.text("Sprites");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .sprites })) |hotkey| {
-                        imgui.sameLine();
+                        const title = std.fmt.allocPrintZ(pixi.state.allocator, "Sprites ({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(title);
 
-                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
-                        defer pixi.state.allocator.free(shortcut);
-
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
+                        imgui.separatorText(title);
+                    } else {
+                        imgui.separatorText("Sprites");
                     }
                     imgui.endMenuBar();
                 }
-                imgui.separator();
+                imgui.spacing();
                 sprites.draw();
             },
             .animations => {
                 if (imgui.beginMenuBar()) {
-                    imgui.text("Animations");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .animations })) |hotkey| {
-                        imgui.sameLine();
+                        const title = std.fmt.allocPrintZ(pixi.state.allocator, "Animations ({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(title);
 
-                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
-                        defer pixi.state.allocator.free(shortcut);
-
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
+                        imgui.separatorText(title);
+                    } else {
+                        imgui.separatorText("Animations");
                     }
                     imgui.endMenuBar();
                 }
-                imgui.separator();
+                imgui.spacing();
                 animations.draw();
             },
             .pack => {
                 if (imgui.beginMenuBar()) {
-                    imgui.text("Pack");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
-                        imgui.sameLine();
+                        const title = std.fmt.allocPrintZ(pixi.state.allocator, "Packing ({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(title);
 
-                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
-                        defer pixi.state.allocator.free(shortcut);
-
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
+                        imgui.separatorText(title);
+                    } else {
+                        imgui.separatorText("Packing");
                     }
                     imgui.endMenuBar();
                 }
-                imgui.separator();
+                imgui.spacing();
                 pack.draw();
             },
             .settings => {
                 if (imgui.beginMenuBar()) {
-                    imgui.text("Settings");
                     if (pixi.state.hotkeys.hotkey(.{ .sidebar = .settings })) |hotkey| {
-                        imgui.sameLine();
+                        const title = std.fmt.allocPrintZ(pixi.state.allocator, "Settings ({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(title);
 
-                        const shortcut = std.fmt.allocPrintZ(pixi.state.allocator, "({s})", .{hotkey.shortcut}) catch unreachable;
-                        defer pixi.state.allocator.free(shortcut);
-
-                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), shortcut);
+                        imgui.separatorText(title);
+                    } else {
+                        imgui.separatorText("Settings");
                     }
                     imgui.endMenuBar();
                 }
-                imgui.separator();
+                imgui.spacing();
                 settings.draw();
             },
         }

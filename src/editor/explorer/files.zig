@@ -126,8 +126,7 @@ pub fn draw() void {
 
         if (pixi.state.recents.folders.items.len > 0) {
             imgui.spacing();
-            imgui.text("Recents");
-            imgui.separator();
+            imgui.separatorText("Recents");
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
             defer imgui.popStyleColor();
             if (imgui.beginChild("Recents", .{

@@ -9,8 +9,7 @@ pub fn draw() void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
         defer imgui.popStyleVar();
         imgui.spacing();
-        imgui.text("Tools");
-        imgui.separator();
+        imgui.separatorText("Tools");
         imgui.spacing();
         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 8.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
         imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.8 });
@@ -42,8 +41,7 @@ pub fn draw() void {
         }
 
         imgui.spacing();
-        imgui.text("Animations");
-        imgui.separator();
+        imgui.separatorText("Animations");
         imgui.spacing();
 
         if (imgui.beginChild("Animations", .{
@@ -54,7 +52,7 @@ pub fn draw() void {
 
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
             imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
-            imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
+            imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * pixi.content_scale[0]);
             imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
             defer imgui.popStyleVarEx(4);
             for (file.animations.items, 0..) |animation, animation_index| {

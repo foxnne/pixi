@@ -25,7 +25,7 @@ pub fn draw() void {
         .y = pixi.window_size[1] + 5.0,
     }, imgui.Cond_None);
 
-    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.5 });
     imgui.pushStyleVar(imgui.StyleVar_TabRounding, 0.0);
     imgui.pushStyleVar(imgui.StyleVar_ChildBorderSize, 1.0);
     defer imgui.popStyleVarEx(3);

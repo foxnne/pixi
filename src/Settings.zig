@@ -70,6 +70,9 @@ explorer_width: f32 = 200.0,
 /// Width of the explorer grip.
 explorer_grip: f32 = 18.0,
 
+/// Alignment of explorer separator titles
+explorer_title_align: f32 = 0.5,
+
 /// Height of the flipbook window.
 flipbook_height: f32 = 0.3,
 

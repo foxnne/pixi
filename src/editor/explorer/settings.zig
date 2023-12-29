@@ -68,6 +68,16 @@ pub fn draw() void {
                 "Show Rulers",
                 &pixi.state.settings.show_rulers,
             );
+
+            _ = imgui.sliderFloatEx(
+                "Explorer Title Align",
+                &pixi.state.settings.explorer_title_align,
+                0.0,
+                1.0,
+                "%0.1f",
+                imgui.SliderFlags_None,
+            );
+
             imgui.popItemWidth();
         }
 

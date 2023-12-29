@@ -23,6 +23,9 @@ pub const popup_animation = @import("popups/animation.zig");
 pub const popup_heightmap = @import("popups/heightmap.zig");
 
 pub fn draw() void {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = pixi.state.settings.explorer_title_align, .y = 0.5 });
+    defer imgui.popStyleVar();
+
     sidebar.draw();
     explorer.draw();
     artboard.draw();

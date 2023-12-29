@@ -130,8 +130,7 @@ pub fn draw() void {
                 imgui.textWrapped(pixi.state.recents.exports.getLast());
 
                 imgui.spacing();
-                imgui.text("Recents");
-                imgui.separator();
+                imgui.separatorText("Recents");
                 imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
                 defer imgui.popStyleColor();
                 if (imgui.beginChild("Recents", .{

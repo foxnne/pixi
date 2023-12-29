@@ -46,8 +46,7 @@ pub fn draw() void {
 
         imgui.spacing();
         imgui.spacing();
-        imgui.text("Colors");
-        imgui.separator();
+        imgui.separatorText("Colors");
 
         if (pixi.state.tools.current == .heightmap) {
             var height: i32 = @as(i32, @intCast(pixi.state.colors.height));
@@ -123,8 +122,7 @@ pub fn draw() void {
 
         imgui.spacing();
         imgui.spacing();
-        imgui.text("Palette");
-        imgui.separator();
+        imgui.separatorText("Palette");
 
         imgui.setNextItemWidth(-1.0);
         if (imgui.beginCombo("##PaletteCombo", if (pixi.state.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {

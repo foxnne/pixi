@@ -304,9 +304,8 @@ pub fn update(app: *App) !bool {
 
     state.theme.set();
 
-    //imgui.showDemoWindow(null);
-
     editor.draw();
+    //imgui.showDemoWindow(null);
     state.theme.unset();
 
     state.cursors.update();

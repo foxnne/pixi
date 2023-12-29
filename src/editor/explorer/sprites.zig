@@ -8,8 +8,7 @@ pub fn draw() void {
         const selection = file.selected_sprites.items.len > 0;
 
         imgui.spacing();
-        imgui.text("Edit");
-        imgui.separator();
+        imgui.separatorText("Edit");
         imgui.spacing();
         if (imgui.beginChild("Sprite", .{
             .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
@@ -83,8 +82,7 @@ pub fn draw() void {
         }
 
         imgui.spacing();
-        imgui.text("Sprites");
-        imgui.separator();
+        imgui.separatorText("Sprites");
         imgui.spacing();
 
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
