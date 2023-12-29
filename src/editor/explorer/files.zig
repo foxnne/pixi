@@ -42,7 +42,7 @@ pub fn draw() void {
                     imgui.spacing();
 
                     for (pixi.state.open_files.items, 0..) |file, i| {
-                        imgui.textColored(pixi.state.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ "  ");
+                        imgui.textColored(pixi.state.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ " ");
                         imgui.sameLine();
                         const name = std.fs.path.basename(file.path);
                         const label = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{name}) catch unreachable;

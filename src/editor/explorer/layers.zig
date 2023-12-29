@@ -68,6 +68,9 @@ pub fn draw() void {
                 }
                 imgui.popID();
 
+                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 30.0);
+                defer imgui.popStyleVar();
+
                 imgui.sameLine();
                 imgui.indent();
                 defer imgui.unindent();
