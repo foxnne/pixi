@@ -59,10 +59,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (pixi.state.sidebar != .pack)
                 file.camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
-            file.processSampleTool(.primary);
             file.processStrokeTool(.primary) catch unreachable;
             file.processFillTool(.primary) catch unreachable;
             file.processAnimationTool() catch unreachable;
+            file.processSampleTool(.primary);
 
             if (pixi.state.mouse.button(.primary)) |primary| {
                 if (primary.pressed()) {

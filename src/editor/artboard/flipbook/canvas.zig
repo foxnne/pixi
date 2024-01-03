@@ -152,9 +152,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 } else {
                     file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
 
-                    file.processSampleTool(.flipbook);
                     file.processStrokeTool(.flipbook) catch unreachable;
                     file.processFillTool(.flipbook) catch unreachable;
+                    file.processSampleTool(.flipbook);
                 }
             } else {
                 if (i != file.selected_sprite_index) {

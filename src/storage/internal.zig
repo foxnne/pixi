@@ -108,6 +108,9 @@ pub const Pixi = struct {
 
         if (!sample_key and !sample_button) return;
 
+        imgui.setMouseCursor(imgui.MouseCursor_None);
+        file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.dropper_0_Layer_0], 0xFFFFFFFF);
+
         var mouse_position = pixi.state.mouse.position;
         var camera = switch (canvas) {
             .primary => file.camera,
@@ -151,10 +154,12 @@ pub const Pixi = struct {
                 }
 
                 if (color[3] == 0) {
-                    pixi.state.tools.set(.eraser);
+                    if (pixi.state.settings.eyedropper_auto_switch_layer)
+                        pixi.state.tools.set(.eraser);
                 } else {
                     if (pixi.state.tools.current == .eraser) {
-                        pixi.state.tools.set(pixi.state.tools.previous);
+                        if (pixi.state.settings.eyedropper_auto_switch_layer)
+                            pixi.state.tools.set(pixi.state.tools.previous);
                     }
                     pixi.state.colors.primary = color;
                 }
@@ -183,6 +188,11 @@ pub const Pixi = struct {
             .pencil, .eraser, .heightmap => false,
             else => true,
         }) return;
+
+        const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+
+        if (sample_key or sample_button) return;
 
         switch (pixi.state.tools.current) {
             .pencil, .heightmap => {
@@ -556,6 +566,11 @@ pub const Pixi = struct {
             .bucket => false,
             else => true,
         }) return;
+
+        const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+
+        if (sample_key or sample_button) return;
 
         imgui.setMouseCursor(imgui.MouseCursor_None);
         file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.bucket_0_Layer_0], 0xFFFFFFFF);
