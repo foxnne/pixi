@@ -124,7 +124,6 @@ pub fn build(b: *std.Build) !void {
     });
 
     unit_tests.addModule("zstbi", zstbi_pkg.zstbi);
-    //unit_tests.addModule("zgui", zgui_pkg.zgui);
     unit_tests.addModule("zmath", zmath_pkg.zmath);
     unit_tests.addModule("nfd", nfd.getModule(b));
     unit_tests.addModule("zip", zip_pkg.module);
@@ -134,7 +133,6 @@ pub fn build(b: *std.Build) !void {
     test_step.dependOn(&run_unit_tests.step);
 
     app.compile.addModule("zstbi", zstbi_pkg.zstbi);
-    //app.compile.addModule("zgui", zgui_pkg.zgui);
     app.compile.addModule("zmath", zmath_pkg.zmath);
     app.compile.addModule("nfd", nfd.getModule(b));
     app.compile.addModule("zip", zip_pkg.module);
@@ -151,7 +149,6 @@ pub fn build(b: *std.Build) !void {
     app.compile.linkLibrary(nfd_lib);
     app.compile.linkLibrary(imgui_lib);
     zstbi_pkg.link(app.compile);
-    //zgui_pkg.link(app.compile);
     zip.link(app.compile);
 
     const assets = ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");

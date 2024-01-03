@@ -187,11 +187,11 @@ pub const Pixi = struct {
         switch (pixi.state.tools.current) {
             .pencil, .heightmap => {
                 imgui.setMouseCursor(imgui.MouseCursor_None);
-                file.camera.drawCursor(pixi.state.cursors.pencil.view_handle, pixi.state.cursors.pencil.image.width, pixi.state.cursors.pencil.image.height, 0xFFFFFFFF);
+                file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.pencil_0_Layer_0], 0xFFFFFFFF);
             },
             .eraser => {
                 imgui.setMouseCursor(imgui.MouseCursor_None);
-                file.camera.drawCursor(pixi.state.cursors.eraser.view_handle, pixi.state.cursors.eraser.image.width, pixi.state.cursors.eraser.image.height, 0xFFFFFFFF);
+                file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.eraser_0_Layer_0], 0xFFFFFFFF);
             },
             else => {},
         }
@@ -557,6 +557,9 @@ pub const Pixi = struct {
             else => true,
         }) return;
 
+        imgui.setMouseCursor(imgui.MouseCursor_None);
+        file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.bucket_0_Layer_0], 0xFFFFFFFF);
+
         const canvas_center_offset = canvasCenterOffset(file, canvas);
         const mouse_position = pixi.state.mouse.position;
 
@@ -847,8 +850,6 @@ pub const Pixi = struct {
         } };
         @memcpy(change.animation.name[0..animation.name.len], animation.name);
 
-        std.log.debug("{s}", .{name});
-
         self.selected_animation_index = index;
         pixi.state.allocator.free(animation.name);
         animation.name = try pixi.state.allocator.dupeZ(u8, name);
@@ -857,8 +858,6 @@ pub const Pixi = struct {
         while (i < animation.start + animation.length) : (i += 1) {
             pixi.state.allocator.free(self.sprites.items[i].name);
             self.sprites.items[i].name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ name, i - animation.start });
-
-            std.log.debug("{s}", .{self.sprites.items[i].name});
         }
 
         try self.history.append(change);
@@ -866,7 +865,7 @@ pub const Pixi = struct {
 
     pub fn deleteAnimation(self: *Pixi, index: usize) !void {
         if (index >= self.animations.items.len) return;
-        const animation = self.animations.orderedRemove(index);
+        const animation = self.animations.swapRemove(index);
         try self.deleted_animations.append(animation);
         try self.history.append(.{ .animation_restore_delete = .{
             .action = .restore,

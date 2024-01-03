@@ -35,11 +35,19 @@ pub fn draw() void {
         defer imgui.endPopup();
         imgui.spacing();
 
-        const w = @as(f32, @floatFromInt(pixi.state.fox_logo.image.width / 4)) * pixi.content_scale[0];
-        const h = @as(f32, @floatFromInt(pixi.state.fox_logo.image.height / 4)) * pixi.content_scale[1];
-        const window_position = imgui.getWindowPos();
-        _ = window_position;
-        const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
+        const fox_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.fox_0_Layer_0];
+
+        const src: [4]f32 = .{
+            @floatFromInt(fox_sprite.source[0]),
+            @floatFromInt(fox_sprite.source[1]),
+            @floatFromInt(fox_sprite.source[2]),
+            @floatFromInt(fox_sprite.source[3]),
+        };
+
+        const w = src[2] * 4.0 * pixi.content_scale[0];
+        const h = src[3] * 4.0 * pixi.content_scale[1];
+        const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 4.0 };
+
         imgui.setCursorPosX(center[0] - w / 2.0);
         imgui.setCursorPosY(center[1] - h / 2.0);
         imgui.dummy(.{ .x = w, .y = h });
@@ -51,21 +59,35 @@ pub fn draw() void {
         if (draw_list_opt) |draw_list| {
             draw_list.addCircleFilled(
                 .{ .x = dummy_pos.x + w / 2, .y = dummy_pos.y + w / 2 },
-                w / 2.5,
+                w / 1.5,
                 pixi.state.theme.foreground.toU32(),
                 32,
             );
         }
 
+        const inv_w = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.height));
+
         imgui.setCursorPosX(center[0] - w / 2.0);
-        imgui.setCursorPosY(center[1] - h / 2.0);
-        imgui.image(pixi.state.fox_logo.view_handle, .{
-            .x = w,
-            .y = h,
-        });
+        imgui.setCursorPosY(center[1] - h / 6.0);
+        imgui.imageEx(
+            pixi.state.assets.atlas_png.view_handle,
+            .{ .x = w, .y = h },
+            .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
+            .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
+            .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 1.0 },
+            .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
+        );
+
+        imgui.dummy(.{ .x = w, .y = h });
 
         centerText("Pixi Editor");
         centerText("https://github.com/foxnne/pixi");
+
+        const version = std.fmt.allocPrintZ(pixi.state.allocator, "Version {d}.{d}.{d}", .{ pixi.version.major, pixi.version.minor, pixi.version.patch }) catch unreachable;
+        defer pixi.state.allocator.free(version);
+
+        centerText(version);
 
         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
         defer imgui.popStyleColor();
@@ -104,7 +126,7 @@ pub fn draw() void {
     }
 }
 
-fn centerText(comptime text: [:0]const u8) void {
+fn centerText(text: [:0]const u8) void {
     const center = imgui.getWindowWidth() / 2.0;
     const text_width = imgui.calcTextSize(text).x;
     imgui.setCursorPosX(center - text_width / 2.0);

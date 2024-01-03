@@ -171,26 +171,39 @@ pub fn draw() void {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
                 defer imgui.popStyleColorEx(4);
                 { // Draw semi-transparent logo
-                    const w = @as(f32, @floatFromInt((pixi.state.background_logo.image.width) / 4)) * pixi.content_scale[0];
-                    const h = @as(f32, @floatFromInt((pixi.state.background_logo.image.height) / 4)) * pixi.content_scale[1];
+                    const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_Layer_0];
+
+                    const src: [4]f32 = .{
+                        @floatFromInt(logo_sprite.source[0]),
+                        @floatFromInt(logo_sprite.source[1]),
+                        @floatFromInt(logo_sprite.source[2]),
+                        @floatFromInt(logo_sprite.source[3]),
+                    };
+
+                    const w = src[2] * 32.0 * pixi.content_scale[0];
+                    const h = src[3] * 32.0 * pixi.content_scale[0];
                     const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
+
+                    const inv_w = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.width));
+                    const inv_h = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.height));
 
                     imgui.setCursorPosX(center[0] - w / 2.0);
                     imgui.setCursorPosY(center[1] - h / 2.0);
                     imgui.imageEx(
-                        pixi.state.background_logo.view_handle,
+                        pixi.state.assets.atlas_png.view_handle,
                         .{ .x = w, .y = h },
-                        .{ .x = 0.0, .y = 0.0 },
-                        .{ .x = 1.0, .y = 1.0 },
-                        .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.25 },
+                        .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
+                        .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
+                        .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
                         .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
                     );
+                    imgui.spacing();
                 }
                 { // Draw `Open Folder` button
                     const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
                     const size = imgui.calcTextSize(text);
-                    imgui.setCursorPosX((imgui.getWindowWidth() - size.x) / 2);
-                    if (imgui.button(text)) {
+                    imgui.setCursorPosX((imgui.getWindowWidth() / 2.0) - size.x / 2.0);
+                    if (imgui.buttonEx(text, .{ .x = size.x, .y = 0.0 })) {
                         pixi.state.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .project,

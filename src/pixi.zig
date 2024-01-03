@@ -54,7 +54,6 @@ pub var framebuffer_size: [2]f32 = undefined;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
 pub const Colors = @import("Colors.zig");
-pub const Cursors = @import("Cursors.zig");
 pub const Recents = @import("Recents.zig");
 pub const Tools = @import("Tools.zig");
 pub const Settings = @import("Settings.zig");
@@ -71,8 +70,6 @@ pub const PixiState = struct {
     root_path: [:0]const u8 = undefined,
     recents: Recents = undefined,
     previous_atlas_export: ?[:0]const u8 = null,
-    background_logo: gfx.Texture = undefined,
-    fox_logo: gfx.Texture = undefined,
     open_files: std.ArrayList(storage.Internal.Pixi) = undefined,
     pack_target: PackTarget = .project,
     pack_camera: gfx.Camera = .{},
@@ -83,10 +80,27 @@ pub const PixiState = struct {
     popups: Popups = .{},
     should_close: bool = false,
     fonts: Fonts = .{},
-    cursors: Cursors = undefined,
     colors: Colors = .{},
     delta_time: f32 = 0.0,
     json_allocator: std.heap.ArenaAllocator = undefined,
+    assets: Assets = undefined,
+};
+
+pub const Assets = struct {
+    atlas_png: gfx.Texture,
+    atlas: gfx.Atlas,
+
+    pub fn init(allocator: std.mem.Allocator) !Assets {
+        return .{
+            .atlas_png = try gfx.Texture.loadFromFile(assets.pixi_png.path, .{}),
+            .atlas = try gfx.Atlas.loadFromFile(allocator, assets.pixi_atlas.path),
+        };
+    }
+
+    pub fn deinit(self: *Assets, allocator: std.mem.Allocator) void {
+        self.atlas_png.deinit();
+        self.atlas.deinit(allocator);
+    }
 };
 
 pub const Sidebar = enum(u32) {
@@ -147,37 +161,16 @@ pub fn init(app: *App) !void {
 
     zstbi.init(allocator);
 
-    var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
+    state.open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
-    // Logos
-    const background_logo = try gfx.Texture.loadFromFile(assets.icon_1024_png.path, .{});
-    const fox_logo = try gfx.Texture.loadFromFile(assets.fox_1024_png.path, .{});
+    state.hotkeys = try input.Hotkeys.initDefault(allocator);
+    state.assets = try Assets.init(allocator);
+    state.mouse = try input.Mouse.initDefault(allocator);
 
-    // Cursors
-    //const pencil = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
-    //const eraser = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
-
-    const pencil = try gfx.Texture.loadFromFile(assets.pencil32_png.path, .{});
-    const eraser = try gfx.Texture.loadFromFile(assets.eraser32_png.path, .{});
-
-    const hotkeys = try input.Hotkeys.initDefault(allocator);
-    const mouse = try input.Mouse.initDefault(allocator);
-
-    const packer = try Packer.init(allocator);
-    const recents = try Recents.init(allocator);
+    state.packer = try Packer.init(allocator);
+    state.recents = try Recents.init(allocator);
 
     state.allocator = allocator;
-    state.background_logo = background_logo;
-    state.fox_logo = fox_logo;
-    state.open_files = open_files;
-    state.cursors = .{
-        .pencil = pencil,
-        .eraser = eraser,
-    };
-    state.hotkeys = hotkeys;
-    state.mouse = mouse;
-    state.packer = packer;
-    state.recents = recents;
 
     app.* = .{
         .timer = try core.Timer.start(),
@@ -306,8 +299,6 @@ pub fn update(app: *App) !bool {
     editor.draw();
     state.theme.unset();
 
-    //state.cursors.update();
-
     imgui.render();
 
     if (editor.getFile(state.open_file_index)) |file| {
@@ -389,9 +380,6 @@ pub fn deinit(_: *App) void {
 
     state.allocator.free(state.hotkeys.hotkeys);
     state.allocator.free(state.mouse.buttons);
-    state.background_logo.deinit();
-    state.fox_logo.deinit();
-    state.cursors.deinit();
     state.packer.deinit();
     state.recents.deinit();
     if (state.atlas.external) |*atlas| {
@@ -412,7 +400,9 @@ pub fn deinit(_: *App) void {
     if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
     if (state.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (state.colors.palette) |*palette| palette.deinit();
+
     editor.deinit();
+    state.assets.deinit(state.allocator);
 
     imgui_mach.shutdown();
     imgui.getIO().fonts.?.clear();

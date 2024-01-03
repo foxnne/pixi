@@ -213,16 +213,38 @@ pub const Camera = struct {
             );
     }
 
-    pub fn drawCursor(_: Camera, texture: *gpu.TextureView, width: u32, height: u32, color: u32) void {
+    pub fn drawCursor(self: Camera, texture: *pixi.gfx.Texture, sprite: pixi.gfx.Sprite, color: u32) void {
+        _ = self;
         var position = pixi.state.mouse.position;
+
+        var sprite_source: [4]f32 = .{
+            @floatFromInt(sprite.source[0]),
+            @floatFromInt(sprite.source[1]),
+            @floatFromInt(sprite.source[2]),
+            @floatFromInt(sprite.source[3]),
+        };
+
+        const inv_w = 1.0 / @as(f32, @floatFromInt(texture.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(texture.image.height));
+
+        var min: imgui.Vec2 = .{ .x = position[0], .y = position[1] };
+        var max: imgui.Vec2 = .{ .x = position[0] + sprite_source[2], .y = position[1] + sprite_source[3] };
+
+        min.x += @floatFromInt(sprite.origin[0]);
+        min.y -= @floatFromInt(sprite.origin[1]);
+        max.x += @floatFromInt(sprite.origin[0]);
+        max.y -= @floatFromInt(sprite.origin[1]);
+
+        const uvmin: imgui.Vec2 = .{ .x = sprite_source[0] * inv_w, .y = sprite_source[1] * inv_h };
+        const uvmax: imgui.Vec2 = .{ .x = (sprite_source[0] + sprite_source[2]) * inv_w, .y = (sprite_source[1] + sprite_source[3]) * inv_h };
 
         if (imgui.getForegroundDrawList()) |draw_list|
             draw_list.addImageEx(
-                texture,
-                .{ .x = position[0], .y = position[1] - @as(f32, @floatFromInt(height)) },
-                .{ .x = position[0] + @as(f32, @floatFromInt(width)), .y = position[1] },
-                .{ .x = 0.0, .y = 0.0 },
-                .{ .x = 1.0, .y = 1.0 },
+                texture.view_handle,
+                min,
+                max,
+                uvmin,
+                uvmax,
                 color,
             );
     }
@@ -250,8 +272,8 @@ pub const Camera = struct {
         const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
         const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.image.height));
 
-        const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
-        const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
+        var min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
+        var max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
 
         const uvmin: imgui.Vec2 = .{ .x = src_rect[0] * inv_w, .y = src_rect[1] * inv_h };
         const uvmax: imgui.Vec2 = .{ .x = (src_rect[0] + src_rect[2]) * inv_w, .y = (src_rect[1] + src_rect[3]) * inv_h };
