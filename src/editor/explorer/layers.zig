@@ -49,7 +49,7 @@ pub fn draw() void {
         imgui.spacing();
 
         if (imgui.beginChild("LayersChild", .{
-            .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+            .x = imgui.getWindowWidth(),
             .y = 0.0,
         }, false, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();

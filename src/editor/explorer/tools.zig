@@ -13,7 +13,7 @@ pub fn draw() void {
     imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.foreground.toImguiVec4());
     defer imgui.popStyleColorEx(3);
     if (imgui.beginChild("Tools", .{
-        .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+        .x = imgui.getWindowWidth(),
         .y = -1.0,
     }, false, imgui.WindowFlags_ChildWindow)) {
         defer imgui.endChild();
@@ -46,7 +46,9 @@ pub fn draw() void {
 
         imgui.spacing();
         imgui.spacing();
-        imgui.separatorText("Colors");
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Colors  " ++ pixi.fa.paint_brush);
+        imgui.popStyleColor();
 
         if (pixi.state.tools.current == .heightmap) {
             var height: i32 = @as(i32, @intCast(pixi.state.colors.height));
@@ -122,7 +124,9 @@ pub fn draw() void {
 
         imgui.spacing();
         imgui.spacing();
-        imgui.separatorText("Palette");
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Palette  " ++ pixi.fa.palette);
+        imgui.popStyleColor();
 
         imgui.setNextItemWidth(-1.0);
         if (imgui.beginCombo("##PaletteCombo", if (pixi.state.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {

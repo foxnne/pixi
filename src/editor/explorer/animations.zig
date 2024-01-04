@@ -9,7 +9,9 @@ pub fn draw() void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
         defer imgui.popStyleVar();
         imgui.spacing();
-        imgui.separatorText("Tools");
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Tools  " ++ pixi.fa.screwdriver);
+        imgui.popStyleColor();
         imgui.spacing();
         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 8.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
         imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.8 });
@@ -20,7 +22,7 @@ pub fn draw() void {
         imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(3);
         if (imgui.beginChild("AnimationTools", .{
-            .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+            .x = imgui.getWindowWidth(),
             .y = pixi.state.settings.animation_edit_height * pixi.content_scale[1],
         }, false, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
@@ -41,7 +43,9 @@ pub fn draw() void {
         }
 
         imgui.spacing();
-        imgui.separatorText("Animations");
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Animations  " ++ pixi.fa.film);
+        imgui.popStyleColor();
         imgui.spacing();
 
         if (imgui.beginChild("Animations", .{

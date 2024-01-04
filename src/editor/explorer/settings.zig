@@ -11,7 +11,7 @@ pub fn draw() void {
     defer imgui.popStyleColor();
 
     if (imgui.beginChild("SettingsChild", .{
-        .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+        .x = imgui.getWindowWidth(),
         .y = -1.0,
     }, false, imgui.WindowFlags_ChildWindow)) {
         defer imgui.endChild();

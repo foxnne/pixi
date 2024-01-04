@@ -8,10 +8,12 @@ pub fn draw() void {
         const selection = file.selected_sprites.items.len > 0;
 
         imgui.spacing();
-        imgui.separatorText("Edit");
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Edit  " ++ pixi.fa.wrench);
+        imgui.popStyleColor();
         imgui.spacing();
         if (imgui.beginChild("Sprite", .{
-            .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+            .x = imgui.getWindowWidth(),
             .y = pixi.state.settings.sprite_edit_height * pixi.content_scale[1],
         }, false, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
@@ -82,7 +84,9 @@ pub fn draw() void {
         }
 
         imgui.spacing();
-        imgui.separatorText("Sprites");
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Sprites  " ++ pixi.fa.atlas);
+        imgui.popStyleColor();
         imgui.spacing();
 
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });

@@ -56,7 +56,7 @@ pub fn init(self: Self) void {
     style.popup_rounding = 8.0;
     style.separator_text_align = .{ .x = pixi.state.settings.explorer_title_align, .y = 0.5 };
     style.separator_text_border_size = 1.0;
-    style.separator_text_padding = .{ .x = 20.0, .y = 8.0 };
+    style.separator_text_padding = .{ .x = 20.0, .y = 10.0 };
 
     const bg = self.background.toImguiVec4();
     const fg = self.foreground.toImguiVec4();

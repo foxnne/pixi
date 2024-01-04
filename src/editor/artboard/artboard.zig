@@ -17,11 +17,11 @@ pub fn draw() void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
-        .x = (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width) * pixi.content_scale[0],
+        .x = (pixi.state.settings.sidebar_width + pixi.state.settings.explorer_width + pixi.state.settings.explorer_grip) * pixi.content_scale[0],
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = pixi.window_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width) * pixi.content_scale[0]),
+        .x = pixi.window_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width + pixi.state.settings.explorer_grip) * pixi.content_scale[0]),
         .y = pixi.window_size[1] + 5.0,
     }, imgui.Cond_None);
 

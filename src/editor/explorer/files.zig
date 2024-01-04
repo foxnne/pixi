@@ -36,7 +36,7 @@ pub fn draw() void {
                 imgui.separator();
 
                 if (imgui.beginChild("OpenFiles", .{
-                    .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+                    .x = imgui.getWindowWidth(),
                     .y = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (imgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]),
                 }, false, imgui.WindowFlags_ChildWindow)) {
                     imgui.spacing();
@@ -126,7 +126,9 @@ pub fn draw() void {
 
         if (pixi.state.recents.folders.items.len > 0) {
             imgui.spacing();
-            imgui.separatorText("Recents");
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.separatorText("Recents  " ++ pixi.fa.clock);
+            imgui.popStyleColor();
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
             defer imgui.popStyleColor();
             if (imgui.beginChild("Recents", .{

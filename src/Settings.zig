@@ -68,7 +68,7 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
 explorer_width: f32 = 200.0,
 
 /// Width of the explorer grip.
-explorer_grip: f32 = 18.0,
+explorer_grip: f32 = 2.0,
 
 /// Alignment of explorer separator titles
 explorer_title_align: f32 = 0.0,
