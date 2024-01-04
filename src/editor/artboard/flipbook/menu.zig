@@ -93,18 +93,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
             }
         }
 
-        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
-        defer imgui.popStyleColorEx(3);
+        const cursor_x = imgui.getCursorPosX();
+        const avail = imgui.getContentRegionAvail().x;
 
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ButtonTextAlign, .{ .x = 0.1, .y = 0.5 });
-        defer imgui.popStyleVar();
-
-        _ = imgui.buttonEx(pixi.fa.grip_lines ++ "##FlipbookGrip", .{
+        _ = imgui.invisibleButton("FlipbookGrip", .{
             .x = -1.0,
             .y = 12.0 * pixi.content_scale[1],
-        });
+        }, imgui.ButtonFlags_None);
 
         if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
             imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
@@ -114,5 +109,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
             imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
             pixi.state.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
         }
+
+        imgui.setCursorPosX(cursor_x + (avail / 2.0));
+        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), pixi.fa.grip_lines);
     }
 }
