@@ -137,6 +137,12 @@ eyedropper_auto_switch_layer: bool = true,
 /// Width and height of the eyedropper preview
 eyedropper_preview_size: f32 = 64.0,
 
+/// Drop shadow opacity
+shadow_opacity: f32 = 0.05,
+
+/// Shadow length
+shadow_length: f32 = 10.0,
+
 /// Currently applied theme name
 theme: [:0]const u8,
 
