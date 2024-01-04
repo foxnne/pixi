@@ -93,10 +93,18 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
             }
         }
 
-        _ = imgui.invisibleButton("FlipbookGrip", .{
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
+        defer imgui.popStyleColorEx(3);
+
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ButtonTextAlign, .{ .x = 0.1, .y = 0.5 });
+        defer imgui.popStyleVar();
+
+        _ = imgui.buttonEx(pixi.fa.grip_lines ++ "##FlipbookGrip", .{
             .x = -1.0,
             .y = 12.0 * pixi.content_scale[1],
-        }, imgui.ButtonFlags_None);
+        });
 
         if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
             imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);

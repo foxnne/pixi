@@ -58,7 +58,7 @@ pub fn draw() void {
                         const base_name = std.fs.path.basename(file.path);
 
                         const base_name_z = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{base_name}) catch unreachable;
-                        pixi.state.allocator.free(base_name_z);
+                        defer pixi.state.allocator.free(base_name_z);
 
                         if (file.dirty()) imgui.bulletText(base_name_z);
                     }

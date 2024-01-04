@@ -289,7 +289,8 @@ pub fn update(app: *App) !bool {
             },
             else => {},
         }
-        _ = imgui_mach.processEvent(event);
+        if (!state.should_close)
+            _ = imgui_mach.processEvent(event);
     }
 
     try input.process();
@@ -363,8 +364,9 @@ pub fn update(app: *App) !bool {
 
     state.mouse.previous_position = state.mouse.position;
 
-    if (state.should_close and !editor.saving())
+    if (state.should_close and !editor.saving()) {
         return true;
+    }
 
     return false;
 }
