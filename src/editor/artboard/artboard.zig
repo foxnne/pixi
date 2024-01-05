@@ -171,7 +171,7 @@ pub fn draw() void {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
                 defer imgui.popStyleColorEx(4);
                 { // Draw semi-transparent logo
-                    const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_Layer_0];
+                    const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_default];
 
                     const src: [4]f32 = .{
                         @floatFromInt(logo_sprite.source[0]),

@@ -7,42 +7,18 @@ pub const palettes = "assets/palettes/";
 
 pub const themes = "assets/themes/";
 
-pub const fox_1024_png = struct {
-  pub const path = "assets/fox_1024.png";
-};
-
 pub const pixi_atlas = struct {
   pub const path = "assets/pixi.atlas";
-  pub const pencil_0_Layer_0 = 0;
-  pub const eraser_0_Layer_0 = 1;
-  pub const bucket_0_Layer_0 = 2;
-  pub const dropper_0_Layer_0 = 3;
-  pub const fox_0_Layer_0 = 4;
-  pub const logo_0_Layer_0 = 5;
+  pub const pencil_0_default = 0;
+  pub const eraser_0_default = 1;
+  pub const bucket_0_default = 2;
+  pub const dropper_0_default = 3;
+  pub const fox_0_default = 4;
+  pub const logo_0_default = 5;
 };
 
 pub const pixi_png = struct {
   pub const path = "assets/pixi.png";
-};
-
-pub const icon_1024_png = struct {
-  pub const path = "assets/icon_1024.png";
-};
-
-pub const eraser64_png = struct {
-  pub const path = "assets/cursors/eraser64.png";
-};
-
-pub const pencil64_png = struct {
-  pub const path = "assets/cursors/pencil64.png";
-};
-
-pub const eraser32_png = struct {
-  pub const path = "assets/cursors/eraser32.png";
-};
-
-pub const pencil32_png = struct {
-  pub const path = "assets/cursors/pencil32.png";
 };
 
 pub const pear36_hex = struct {

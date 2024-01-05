@@ -109,7 +109,7 @@ pub const Pixi = struct {
         if (!sample_key and !sample_button) return;
 
         imgui.setMouseCursor(imgui.MouseCursor_None);
-        file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.dropper_0_Layer_0], 0xFFFFFFFF);
+        file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.dropper_0_default], 0xFFFFFFFF);
 
         var mouse_position = pixi.state.mouse.position;
         var camera = switch (canvas) {
@@ -197,11 +197,11 @@ pub const Pixi = struct {
         switch (pixi.state.tools.current) {
             .pencil, .heightmap => {
                 imgui.setMouseCursor(imgui.MouseCursor_None);
-                file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.pencil_0_Layer_0], 0xFFFFFFFF);
+                file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.pencil_0_default], 0xFFFFFFFF);
             },
             .eraser => {
                 imgui.setMouseCursor(imgui.MouseCursor_None);
-                file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.eraser_0_Layer_0], 0xFFFFFFFF);
+                file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.eraser_0_default], 0xFFFFFFFF);
             },
             else => {},
         }
@@ -573,7 +573,7 @@ pub const Pixi = struct {
         if (sample_key or sample_button) return;
 
         imgui.setMouseCursor(imgui.MouseCursor_None);
-        file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.bucket_0_Layer_0], 0xFFFFFFFF);
+        file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.bucket_0_default], 0xFFFFFFFF);
 
         const canvas_center_offset = canvasCenterOffset(file, canvas);
         const mouse_position = pixi.state.mouse.position;
