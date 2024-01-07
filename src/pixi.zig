@@ -189,6 +189,7 @@ pub fn init(app: *App) !void {
     cozette_config.oversample_v = 1;
     cozette_config.glyph_max_advance_x = std.math.floatMax(f32);
     cozette_config.rasterizer_multiply = 1.0;
+    cozette_config.rasterizer_density = 1.0;
     cozette_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
 
     _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor, &cozette_config, null);
@@ -200,6 +201,7 @@ pub fn init(app: *App) !void {
     fa_config.oversample_v = 1;
     fa_config.glyph_max_advance_x = std.math.floatMax(f32);
     fa_config.rasterizer_multiply = 1.0;
+    fa_config.rasterizer_density = 1.0;
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
@@ -247,6 +249,9 @@ pub fn update(app: *App) !bool {
 
     var iter = core.pollEvents();
     while (iter.next()) |event| {
+        if (!state.should_close)
+            _ = imgui_mach.processEvent(event);
+
         switch (event) {
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
@@ -289,13 +294,13 @@ pub fn update(app: *App) !bool {
             },
             else => {},
         }
-        if (!state.should_close)
-            _ = imgui_mach.processEvent(event);
     }
 
     try input.process();
 
     state.theme.set();
+
+    imgui.showDemoWindow(null);
 
     editor.draw();
     state.theme.unset();

@@ -742,9 +742,9 @@ const DeviceResources = struct {
             .min_filter = .nearest,
             .mag_filter = .nearest,
             .mipmap_filter = .nearest,
-            .address_mode_u = .clamp_to_edge,
-            .address_mode_v = .clamp_to_edge,
-            .address_mode_w = .clamp_to_edge,
+            .address_mode_u = .repeat,
+            .address_mode_v = .repeat,
+            .address_mode_w = .repeat,
             .max_anisotropy = 1,
         });
         errdefer sampler.release();

@@ -49,7 +49,7 @@ pub fn draw() void {
         if (imgui.beginChild("Artboard", .{
             .x = 0.0,
             .y = artboard_height,
-        }, false, imgui.WindowFlags_ChildWindow)) {
+        }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             if (pixi.state.sidebar == .pack) {
                 var packed_textures_flags: imgui.TabBarFlags = 0;
                 packed_textures_flags |= imgui.TabBarFlags_Reorderable;
@@ -129,7 +129,7 @@ pub fn draw() void {
                         if (imgui.beginChild(
                             "TopRuler",
                             .{ .x = -1.0, .y = imgui.getTextLineHeightWithSpacing() * 1.5 },
-                            false,
+                            imgui.ChildFlags_None,
                             imgui.WindowFlags_NoScrollbar,
                         )) {}
                         imgui.endChild();
@@ -137,7 +137,7 @@ pub fn draw() void {
                         if (imgui.beginChild(
                             "SideRuler",
                             .{ .x = imgui.getTextLineHeightWithSpacing() * 1.5, .y = -1.0 },
-                            false,
+                            imgui.ChildFlags_None,
                             imgui.WindowFlags_NoScrollbar,
                         )) {}
                         imgui.endChild();
@@ -151,7 +151,7 @@ pub fn draw() void {
                         if (imgui.beginChild(
                             file.path,
                             .{ .x = 0.0, .y = 0.0 },
-                            false,
+                            imgui.ChildFlags_None,
                             canvas_flags,
                         )) {
                             canvas.draw(file);
@@ -264,11 +264,11 @@ pub fn draw() void {
                 if (imgui.beginChild("Flipbook", .{
                     .x = 0.0,
                     .y = flipbook_height,
-                }, false, flipbook_flags)) {
+                }, imgui.ChildFlags_None, flipbook_flags)) {
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                         flipbook.menu.draw(file, artboard_mouse_ratio);
 
-                        if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
+                        if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                             flipbook.canvas.draw(file);
                         }
                         imgui.endChild();
@@ -279,7 +279,7 @@ pub fn draw() void {
                 if (pixi.state.project_folder != null or pixi.state.open_files.items.len > 0) {
                     imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.state.theme.highlight_primary.toImguiVec4());
                     defer imgui.popStyleColor();
-                    if (imgui.beginChild("InfoBar", .{ .x = -1.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
+                    if (imgui.beginChild("InfoBar", .{ .x = -1.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                         infobar.draw();
                     }
                     imgui.endChild();

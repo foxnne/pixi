@@ -13,7 +13,7 @@ pub fn draw() void {
     if (imgui.beginChild("SettingsChild", .{
         .x = imgui.getWindowWidth(),
         .y = -1.0,
-    }, false, imgui.WindowFlags_ChildWindow)) {
+    }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
         defer imgui.endChild();
         imgui.pushItemWidth(imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]);
 

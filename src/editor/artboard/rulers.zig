@@ -15,7 +15,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         -file_width / 2,
         -file_height / 2,
     };
-    if (imgui.beginChild("TopRuler", .{ .x = 0.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
+    if (imgui.beginChild("TopRuler", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
         const window_tl = imgui.getCursorScreenPos();
         const layer_tl = file.camera.matrix().transformVec2(layer_position);
         const line_length = imgui.getWindowHeight() / 2.0;
@@ -52,7 +52,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         imgui.endChild();
     }
 
-    if (imgui.beginChild("SideRuler", .{ .x = 0.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
+    if (imgui.beginChild("SideRuler", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
         const window_tl = imgui.getCursorScreenPos();
         const layer_tl = file.camera.matrix().transformVec2(layer_position);
         const tl: [2]f32 = .{ window_tl.x + (text_size.x / 2.0), window_tl.y + layer_tl[1] + 1.0 };

@@ -15,7 +15,7 @@ pub fn draw() void {
     if (imgui.beginChild("Tools", .{
         .x = imgui.getWindowWidth(),
         .y = -1.0,
-    }, false, imgui.WindowFlags_ChildWindow)) {
+    }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
         defer imgui.endChild();
 
         const style = imgui.getStyle();
@@ -133,7 +133,7 @@ pub fn draw() void {
             defer imgui.endCombo();
             searchPalettes() catch unreachable;
         }
-        if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = 0.0 }, false, imgui.WindowFlags_ChildWindow)) {
+        if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
             if (pixi.state.colors.palette) |palette| {
                 for (palette.colors, 0..) |color, i| {

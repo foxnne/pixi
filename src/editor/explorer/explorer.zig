@@ -166,7 +166,7 @@ pub fn draw() void {
         }
     }
 
-    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowMinSize, .{ .x = pixi.state.settings.explorer_grip, .y = 0.0 });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowMinSize, .{ .x = 0.0, .y = 0.0 });
     defer imgui.popStyleVar();
 
     imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());

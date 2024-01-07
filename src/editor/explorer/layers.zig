@@ -51,7 +51,7 @@ pub fn draw() void {
         if (imgui.beginChild("LayersChild", .{
             .x = imgui.getWindowWidth(),
             .y = 0.0,
-        }, false, imgui.WindowFlags_ChildWindow)) {
+        }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
 
             var i: usize = file.layers.items.len;

@@ -136,7 +136,7 @@ pub fn draw() void {
                 if (imgui.beginChild("Recents", .{
                     .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
                     .y = 0.0,
-                }, false, imgui.WindowFlags_ChildWindow)) {
+                }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                     defer imgui.endChild();
 
                     var i: usize = pixi.state.recents.exports.items.len;

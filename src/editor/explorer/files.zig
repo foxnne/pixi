@@ -38,7 +38,7 @@ pub fn draw() void {
                 if (imgui.beginChild("OpenFiles", .{
                     .x = imgui.getWindowWidth(),
                     .y = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (imgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]),
-                }, false, imgui.WindowFlags_ChildWindow)) {
+                }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                     imgui.spacing();
 
                     for (pixi.state.open_files.items, 0..) |file, i| {
@@ -103,7 +103,7 @@ pub fn draw() void {
             if (imgui.beginChild("FileTree", .{
                 .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
                 .y = 0.0,
-            }, false, imgui.WindowFlags_HorizontalScrollbar)) { // TODO: Should this also be ChildWindow?
+            }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) { // TODO: Should this also be ChildWindow?
                 imgui.spacing();
                 // File Tree
                 recurseFiles(pixi.state.allocator, path);
@@ -134,7 +134,7 @@ pub fn draw() void {
             if (imgui.beginChild("Recents", .{
                 .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
                 .y = 0.0,
-            }, false, imgui.WindowFlags_HorizontalScrollbar)) {
+            }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) {
                 defer imgui.endChild();
 
                 var i: usize = pixi.state.recents.folders.items.len;

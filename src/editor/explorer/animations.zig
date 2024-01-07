@@ -24,7 +24,7 @@ pub fn draw() void {
         if (imgui.beginChild("AnimationTools", .{
             .x = imgui.getWindowWidth(),
             .y = pixi.state.settings.animation_edit_height * pixi.content_scale[1],
-        }, false, imgui.WindowFlags_ChildWindow)) {
+        }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
 
             const style = imgui.getStyle();
@@ -51,7 +51,7 @@ pub fn draw() void {
         if (imgui.beginChild("Animations", .{
             .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
             .y = 0.0,
-        }, false, imgui.WindowFlags_ChildWindow)) {
+        }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
 
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });

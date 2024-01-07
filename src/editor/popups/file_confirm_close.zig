@@ -52,7 +52,12 @@ pub fn draw() void {
             .all => {
                 imgui.textWrapped("The following files have unsaved changes, are you sure you want to close?");
                 imgui.spacing();
-                if (imgui.beginChild("OpenFileArea", .{ .x = 0.0, .y = 120 * pixi.content_scale[1] }, false, imgui.WindowFlags_None)) {
+                if (imgui.beginChild(
+                    "OpenFileArea",
+                    .{ .x = 0.0, .y = 120 * pixi.content_scale[1] },
+                    imgui.ChildFlags_None,
+                    imgui.WindowFlags_None,
+                )) {
                     defer imgui.endChild();
                     for (pixi.state.open_files.items) |file| {
                         const base_name = std.fs.path.basename(file.path);

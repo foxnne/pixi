@@ -40,6 +40,7 @@ pub fn init(app: *App) !void {
     font_cfg.oversample_v = 1;
     font_cfg.glyph_max_advance_x = std.math.floatMax(f32);
     font_cfg.rasterizer_multiply = 1.0;
+    font_cfg.rasterizer_density = 1.0;
     font_cfg.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     _ = io.fonts.?.addFontFromMemoryTTF(@constCast(@ptrCast(font_data.ptr)), font_data.len, size_pixels, &font_cfg, null);
 
