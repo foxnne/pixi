@@ -178,7 +178,11 @@ pub fn init(app: *App) !void {
 
     imgui.setZigAllocator(&state.allocator);
     _ = imgui.createContext(null);
-    try imgui_mach.init(allocator, core.device, 3, .bgra8_unorm, .undefined);
+    try imgui_mach.init(allocator, core.device, .{
+        .mag_filter = .nearest,
+        .min_filter = .nearest,
+        .mipmap_filter = .nearest,
+    });
 
     var io = imgui.getIO();
     io.config_flags |= imgui.ConfigFlags_NavEnableKeyboard;

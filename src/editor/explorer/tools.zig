@@ -84,12 +84,13 @@ pub fn draw() void {
             }
             if (imgui.beginPopupContextItem()) {
                 defer imgui.endPopup();
-                if (imgui.colorPicker4("Primary", &primary, imgui.ColorEditFlags_None, null)) {
+                var c = pixi.math.Color.initFloats(primary.x, primary.y, primary.z, primary.w).toSlice();
+                if (imgui.colorPicker4("Primary", &c, imgui.ColorEditFlags_None, null)) {
                     pixi.state.colors.primary = .{
-                        @as(u8, @intFromFloat(primary.x * 255.0)),
-                        @as(u8, @intFromFloat(primary.y * 255.0)),
-                        @as(u8, @intFromFloat(primary.z * 255.0)),
-                        @as(u8, @intFromFloat(primary.w * 255.0)),
+                        @as(u8, @intFromFloat(c[0] * 255.0)),
+                        @as(u8, @intFromFloat(c[1] * 255.0)),
+                        @as(u8, @intFromFloat(c[2] * 255.0)),
+                        @as(u8, @intFromFloat(c[3] * 255.0)),
                     };
                 }
             }
@@ -111,12 +112,13 @@ pub fn draw() void {
 
             if (imgui.beginPopupContextItem()) {
                 defer imgui.endPopup();
-                if (imgui.colorPicker4("Secondary", &secondary, imgui.ColorEditFlags_None, null)) {
+                var c = pixi.math.Color.initFloats(primary.x, primary.y, primary.z, primary.w).toSlice();
+                if (imgui.colorPicker4("Secondary", &c, imgui.ColorEditFlags_None, null)) {
                     pixi.state.colors.secondary = .{
-                        @as(u8, @intFromFloat(secondary.x * 255.0)),
-                        @as(u8, @intFromFloat(secondary.y * 255.0)),
-                        @as(u8, @intFromFloat(secondary.z * 255.0)),
-                        @as(u8, @intFromFloat(secondary.w * 255.0)),
+                        @as(u8, @intFromFloat(c[0] * 255.0)),
+                        @as(u8, @intFromFloat(c[1] * 255.0)),
+                        @as(u8, @intFromFloat(c[2] * 255.0)),
+                        @as(u8, @intFromFloat(c[3] * 255.0)),
                     };
                 }
             }

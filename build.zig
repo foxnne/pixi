@@ -33,8 +33,10 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    const zig_imgui_dep = b.dependency("zig_imgui", .{});
+
     const imgui_module = b.addModule("zig-imgui", .{
-        .source_file = .{ .path = "src/deps/imgui/src/imgui.zig" },
+        .source_file = zig_imgui_dep.path("src/imgui.zig"),
         .dependencies = &.{
             .{ .name = "mach-core", .module = mach_core_dep.module("mach-core") },
         },
@@ -42,7 +44,7 @@ pub fn build(b: *std.Build) !void {
 
     const imgui_lib = b.addStaticLibrary(.{
         .name = "imgui",
-        .root_source_file = .{ .path = "src/deps/imgui/src/cimgui.cpp" },
+        .root_source_file = zig_imgui_dep.path("src/cimgui.cpp"),
         .target = target,
         .optimize = optimize,
     });

@@ -39,5 +39,9 @@
             .url = "https://pkg.machengine.org/freetype/fa33c2db730c0e888046e863b5550ddc3d24e739.tar.gz",
             .hash = "12206ed50a939287c717f76547baf24e54301de4500505c19f10965ef559619baf10",
         },
+        .zig_imgui = .{
+            .url = "https://github.com/foxnne/zig-imgui/archive/67fed393e9a9c02a3efc396c04f4fbc9b1c26c3b.tar.gz",
+            .hash = "1220a8efc2d1198fce5496fecd71f0c4e422647db972caaa2e16ec48c563f2b87544",
+        },
     },
 }
