@@ -10,7 +10,7 @@ const Self = @This();
 
 name: [:0]const u8,
 
-background: Color = Color.initBytes(39, 40, 47, 255),
+background: Color = Color.initBytes(34, 35, 42, 255),
 foreground: Color = Color.initBytes(42, 44, 54, 255),
 text: Color = Color.initBytes(230, 175, 137, 255),
 text_secondary: Color = Color.initBytes(159, 159, 176, 255),
@@ -196,10 +196,10 @@ pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
         defer imgui.endPopup();
         imgui.pushStyleColorImVec4(imgui.Col_Text, .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 1.0 });
         if (imgui.colorPicker4(desc_id, &c_slice, imgui.ColorEditFlags_None, null)) {
-            args.col.value[0] = c.x;
-            args.col.value[1] = c.y;
-            args.col.value[2] = c.z;
-            args.col.value[3] = c.w;
+            args.col.value[0] = c_slice[0];
+            args.col.value[1] = c_slice[1];
+            args.col.value[2] = c_slice[2];
+            args.col.value[3] = c_slice[3];
         }
         imgui.popStyleColorEx(1);
     }

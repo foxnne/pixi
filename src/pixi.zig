@@ -304,7 +304,7 @@ pub fn update(app: *App) !bool {
 
     state.theme.set();
 
-    imgui.showDemoWindow(null);
+    //imgui.showDemoWindow(null);
 
     editor.draw();
     state.theme.unset();
