@@ -25,6 +25,10 @@ pub const Extension = enum {
 };
 
 pub fn draw() void {
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.background.toImguiVec4());
+    defer imgui.popStyleColorEx(2);
+
     if (pixi.state.project_folder) |path| {
         const folder = std.fs.path.basename(path);
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
@@ -32,51 +36,59 @@ pub fn draw() void {
         // Open files
         const file_count = pixi.state.open_files.items.len;
         if (file_count > 0) {
-            if (imgui.collapsingHeader("Open Files", imgui.TreeNodeFlags_DefaultOpen)) {
-                imgui.separator();
+            // if (imgui.collapsingHeader("Open Files", imgui.TreeNodeFlags_DefaultOpen)) {
+            // imgui.separator();
 
-                if (imgui.beginChild("OpenFiles", .{
-                    .x = imgui.getWindowWidth(),
-                    .y = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (imgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]),
-                }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-                    imgui.spacing();
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.separatorText("Open Files  " ++ pixi.fa.file_powerpoint);
+            imgui.popStyleColor();
 
-                    for (pixi.state.open_files.items, 0..) |file, i| {
-                        imgui.textColored(pixi.state.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ " ");
-                        imgui.sameLine();
-                        const name = std.fs.path.basename(file.path);
-                        const label = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{name}) catch unreachable;
-                        defer pixi.state.allocator.free(label);
-                        if (imgui.selectable(label)) {
-                            pixi.editor.setActiveFile(i);
-                        }
+            if (imgui.beginChild("OpenFiles", .{
+                .x = -1.0,
+                .y = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (imgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]),
+            }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+                defer imgui.endChild();
+                imgui.spacing();
 
-                        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
-                        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
-                        imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
-                        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
-                        imgui.pushID(file.path);
-                        if (imgui.beginPopupContextItem()) {
-                            contextMenuFile(file.path);
-                            imgui.endPopup();
-                        }
-                        imgui.popID();
-                        imgui.popStyleVarEx(4);
+                for (pixi.state.open_files.items, 0..) |file, i| {
+                    imgui.textColored(pixi.state.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ " ");
+                    imgui.sameLine();
+                    const name = std.fs.path.basename(file.path);
+                    const label = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{name}) catch unreachable;
+                    defer pixi.state.allocator.free(label);
+                    if (imgui.selectable(label)) {
+                        pixi.editor.setActiveFile(i);
+                    }
 
-                        if (imgui.isItemHovered(imgui.HoveredFlags_DelayShort)) {
-                            if (imgui.beginTooltip()) {
-                                defer imgui.endTooltip();
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+                    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+                    imgui.pushID(file.path);
+                    if (imgui.beginPopupContextItem()) {
+                        contextMenuFile(file.path);
+                        imgui.endPopup();
+                    }
+                    imgui.popID();
+                    imgui.popStyleVarEx(4);
 
-                                imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), file.path);
-                            }
+                    if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
+                        if (imgui.beginTooltip()) {
+                            defer imgui.endTooltip();
+
+                            imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), file.path);
                         }
                     }
                 }
-                defer imgui.endChild();
             }
         }
 
         const index = if (std.mem.indexOf(u8, path, folder)) |i| i else 0;
+
+        imgui.spacing();
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Project Folder  " ++ pixi.fa.folder_open);
+        imgui.popStyleColor();
 
         // File tree
         var open: bool = true;
@@ -85,10 +97,13 @@ pub fn draw() void {
             &open,
             imgui.TreeNodeFlags_DefaultOpen,
         )) {
+            imgui.indent();
+            defer imgui.unindent();
+
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
             imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
             imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
-            imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
             imgui.pushID(path);
             if (imgui.beginPopupContextItem()) {
                 contextMenuFolder(path);
@@ -97,19 +112,16 @@ pub fn draw() void {
             imgui.popID();
             imgui.popStyleVarEx(4);
 
-            imgui.separator();
-            imgui.spacing();
-
             if (imgui.beginChild("FileTree", .{
-                .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+                .x = -1.0,
                 .y = 0.0,
             }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) { // TODO: Should this also be ChildWindow?
-                imgui.spacing();
                 // File Tree
                 recurseFiles(pixi.state.allocator, path);
             }
             defer imgui.endChild();
         }
+
         imgui.popStyleVar();
 
         if (!open) {

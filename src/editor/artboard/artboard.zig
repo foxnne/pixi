@@ -39,6 +39,7 @@ pub fn draw() void {
 
     if (imgui.begin("Art", null, art_flags)) {
         menu.draw();
+
         const window_height = imgui.getContentRegionAvail().y;
         const artboard_height = if (pixi.state.open_files.items.len > 0 and pixi.state.sidebar != .pack) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
 
@@ -50,6 +51,23 @@ pub fn draw() void {
             .x = 0.0,
             .y = artboard_height,
         }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+            {
+                const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
+                // Draw a shadow fading from bottom to top
+                const pos = imgui.getWindowPos();
+                const width = imgui.getWindowWidth();
+
+                if (imgui.getWindowDrawList()) |draw_list| {
+                    draw_list.addRectFilledMultiColor(
+                        .{ .x = pos.x, .y = pos.y },
+                        .{ .x = pos.x + width, .y = pos.y + pixi.state.settings.shadow_length },
+                        shadow_color,
+                        shadow_color,
+                        0x0,
+                        0x0,
+                    );
+                }
+            }
             if (pixi.state.sidebar == .pack) {
                 var packed_textures_flags: imgui.TabBarFlags = 0;
                 packed_textures_flags |= imgui.TabBarFlags_Reorderable;
@@ -80,7 +98,7 @@ pub fn draw() void {
                 files_flags |= imgui.TabBarFlags_Reorderable;
                 files_flags |= imgui.TabBarFlags_AutoSelectNewTabs;
 
-                if (imgui.beginTabBar("Files", files_flags)) {
+                if (imgui.beginTabBar("FilesTabBar", files_flags)) {
                     defer imgui.endTabBar();
 
                     for (pixi.state.open_files.items, 0..) |file, i| {
@@ -95,7 +113,7 @@ pub fn draw() void {
                         defer pixi.state.allocator.free(label);
 
                         var file_tab_flags: imgui.TabItemFlags = 0;
-                        file_tab_flags |= imgui.TabItemFlags_SetSelected;
+                        file_tab_flags |= imgui.TabItemFlags_None;
                         if (file.dirty() or file.saving)
                             file_tab_flags |= imgui.TabItemFlags_UnsavedDocument;
 
@@ -114,7 +132,7 @@ pub fn draw() void {
                             pixi.editor.setActiveFile(i);
                         }
 
-                        if (imgui.isItemHovered(imgui.HoveredFlags_DelayShort)) {
+                        if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
                             imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 4.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
                             defer imgui.popStyleVar();
                             if (imgui.beginTooltip()) {
@@ -220,35 +238,6 @@ pub fn draw() void {
             }
         }
 
-        const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
-
-        {
-            // Draw a shadow fading from bottom to top
-            const pos = imgui.getWindowPos();
-            const height = imgui.getWindowHeight();
-            const width = imgui.getWindowWidth();
-
-            if (imgui.getWindowDrawList()) |draw_list| {
-                draw_list.addRectFilledMultiColor(
-                    .{ .x = pos.x, .y = (pos.y + height) - pixi.state.settings.shadow_length * pixi.content_scale[1] },
-                    .{ .x = pos.x + width, .y = pos.y + height },
-                    0x0,
-                    0x0,
-                    shadow_color,
-                    shadow_color,
-                );
-
-                draw_list.addRectFilledMultiColor(
-                    .{ .x = pos.x, .y = pos.y },
-                    .{ .x = pos.x + width, .y = pos.y + pixi.state.settings.shadow_length },
-                    shadow_color,
-                    shadow_color,
-                    0x0,
-                    0x0,
-                );
-            }
-        }
-
         imgui.endChild();
 
         if (pixi.state.sidebar != .pack) {
@@ -288,6 +277,7 @@ pub fn draw() void {
         }
 
         {
+            const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
             const pos = imgui.getWindowPos();
             const height = imgui.getWindowHeight();
 

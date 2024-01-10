@@ -74,8 +74,8 @@ pub fn init(self: Self) void {
     style.colors[imgui.Col_Separator] = bg_text;
     style.colors[imgui.Col_TitleBg] = fg;
     style.colors[imgui.Col_TitleBgActive] = fg;
-    style.colors[imgui.Col_Tab] = bg;
-    style.colors[imgui.Col_TabUnfocused] = bg;
+    style.colors[imgui.Col_Tab] = fg;
+    style.colors[imgui.Col_TabUnfocused] = fg;
     style.colors[imgui.Col_TabUnfocusedActive] = fg;
     style.colors[imgui.Col_TabActive] = fg;
     style.colors[imgui.Col_TabHovered] = fg;

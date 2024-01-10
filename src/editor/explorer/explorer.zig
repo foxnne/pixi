@@ -183,7 +183,14 @@ pub fn draw() void {
         .y = pixi.window_size[1],
     }, imgui.Cond_Always);
 
-    if (imgui.begin("Grip", null, explorer_flags)) {
+    var grip_flags: imgui.WindowFlags = 0;
+    grip_flags |= imgui.WindowFlags_NoTitleBar;
+    grip_flags |= imgui.WindowFlags_NoResize;
+    grip_flags |= imgui.WindowFlags_NoMove;
+    grip_flags |= imgui.WindowFlags_NoCollapse;
+    grip_flags |= imgui.WindowFlags_NoScrollbar;
+
+    if (imgui.begin("Grip", null, grip_flags)) {
         defer imgui.end();
 
         imgui.setCursorPosY(0.0);
