@@ -96,6 +96,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
             // Draw horizontal grip with remaining menu space
             const cursor_x = imgui.getCursorPosX();
             const avail = imgui.getContentRegionAvail().x;
+            var color = pixi.state.theme.text_background.toImguiVec4();
 
             _ = imgui.invisibleButton("FlipbookGrip", .{
                 .x = -1.0,
@@ -104,15 +105,17 @@ pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
 
             if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
                 imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
+                color = pixi.state.theme.text.toImguiVec4();
             }
 
             if (imgui.isItemActive()) {
+                color = pixi.state.theme.text.toImguiVec4();
                 imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
                 pixi.state.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
             }
 
             imgui.setCursorPosX(cursor_x + (avail / 2.0));
-            imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), pixi.fa.grip_lines);
+            imgui.textColored(color, pixi.fa.grip_lines);
         }
     }
 }

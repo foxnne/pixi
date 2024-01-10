@@ -196,10 +196,15 @@ pub fn draw() void {
         imgui.setCursorPosY(0.0);
         imgui.setCursorPosX(0.0);
 
-        _ = imgui.buttonEx(pixi.fa.grip_lines_vertical, .{
+        const avail = imgui.getContentRegionAvail().y;
+        const curs_y = imgui.getCursorPosY();
+
+        var color = pixi.state.theme.text_background.toImguiVec4();
+
+        _ = imgui.invisibleButton("GripButton", .{
             .x = pixi.state.settings.explorer_grip,
             .y = -1.0,
-        });
+        }, imgui.ButtonFlags_None);
 
         var hovered_flags: imgui.HoveredFlags = 0;
         hovered_flags |= imgui.HoveredFlags_AllowWhenOverlapped;
@@ -207,9 +212,11 @@ pub fn draw() void {
 
         if (imgui.isItemHovered(hovered_flags)) {
             imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
+            color = pixi.state.theme.text.toImguiVec4();
         }
 
         if (imgui.isItemActive()) {
+            color = pixi.state.theme.text.toImguiVec4();
             const prev = pixi.state.mouse.previous_position;
             const cur = pixi.state.mouse.position;
 
@@ -218,5 +225,8 @@ pub fn draw() void {
             imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
             pixi.state.settings.explorer_width = std.math.clamp(pixi.state.settings.explorer_width + diff / pixi.content_scale[0], 200, 500);
         }
+
+        imgui.setCursorPosY(curs_y + avail / 2.0);
+        imgui.textColored(color, pixi.fa.grip_lines_vertical);
     }
 }
