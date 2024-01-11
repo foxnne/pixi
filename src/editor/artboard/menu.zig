@@ -12,7 +12,10 @@ pub fn draw() void {
     defer imgui.popStyleVarEx(2);
     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_PopupBg, pixi.state.theme.foreground.toImguiVec4());
-    defer imgui.popStyleColorEx(2);
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.background.toImguiVec4());
+    defer imgui.popStyleColorEx(5);
     if (imgui.beginMenuBar()) {
         defer imgui.endMenuBar();
         if (imgui.beginMenu("File")) {

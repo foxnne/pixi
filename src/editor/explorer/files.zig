@@ -36,9 +36,6 @@ pub fn draw() void {
         // Open files
         const file_count = pixi.state.open_files.items.len;
         if (file_count > 0) {
-            // if (imgui.collapsingHeader("Open Files", imgui.TreeNodeFlags_DefaultOpen)) {
-            // imgui.separator();
-
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
             imgui.separatorText("Open Files  " ++ pixi.fa.file_powerpoint);
             imgui.popStyleColor();

@@ -70,7 +70,7 @@ pub fn draw() void {
                 .w = @as(f32, @floatFromInt(pixi.state.colors.secondary[3])) / 255.0,
             };
 
-            if (imgui.colorButtonEx("Primary", primary, imgui.ColorEditFlags_None, .{
+            if (imgui.colorButtonEx("Primary", primary, imgui.ColorEditFlags_AlphaPreview, .{
                 .x = color_width,
                 .y = 64 * pixi.content_scale[1],
             })) {
@@ -96,7 +96,7 @@ pub fn draw() void {
             }
             imgui.sameLine();
 
-            if (imgui.colorButtonEx("Secondary", secondary, imgui.ColorEditFlags_None, .{
+            if (imgui.colorButtonEx("Secondary", secondary, imgui.ColorEditFlags_AlphaPreview, .{
                 .x = color_width,
                 .y = 64 * pixi.content_scale[1],
             })) {
@@ -112,7 +112,7 @@ pub fn draw() void {
 
             if (imgui.beginPopupContextItem()) {
                 defer imgui.endPopup();
-                var c = pixi.math.Color.initFloats(primary.x, primary.y, primary.z, primary.w).toSlice();
+                var c = pixi.math.Color.initFloats(secondary.x, secondary.y, secondary.z, secondary.w).toSlice();
                 if (imgui.colorPicker4("Secondary", &c, imgui.ColorEditFlags_None, null)) {
                     pixi.state.colors.secondary = .{
                         @as(u8, @intFromFloat(c[0] * 255.0)),
