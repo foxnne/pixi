@@ -119,6 +119,40 @@ pub fn draw() void {
 
         zgui.spacing();
         zgui.spacing();
+        zgui.text("Brush", .{});
+        zgui.separator();
+
+        if (zgui.radioButton("Circle", .{ .active = pixi.state.tools.shape == .circle })) {
+            pixi.state.tools.shape = .circle;
+        }
+
+        zgui.sameLine(.{});
+
+        if (zgui.radioButton("Square", .{ .active = pixi.state.tools.shape == .square })) {
+            pixi.state.tools.shape = .square;
+        }
+
+        _ = zgui.sliderInt("##Size", .{
+            .v = &pixi.state.tools.size,
+            .min = pixi.Tools.MinSize,
+            .max = pixi.Tools.MaxSize,
+            .cfmt = "Size: %.0u",
+        });
+
+        zgui.sameLine(.{});
+
+        if (zgui.button(" -1 ", .{})) {
+            pixi.state.tools.increment_size(-1);
+        }
+
+        zgui.sameLine(.{});
+
+        if (zgui.button(" +1 ", .{})) {
+            pixi.state.tools.increment_size(1);
+        }
+
+        zgui.spacing();
+        zgui.spacing();
         zgui.text("Palette", .{});
         zgui.separator();
 

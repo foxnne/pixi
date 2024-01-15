@@ -102,6 +102,33 @@ pub const Pixi = struct {
         return file.counter;
     }
 
+    fn pixelFromSizeOffset(file: *Pixi, pixel_origin: [2]i32, shape: pixi.Tools.Shape, size: u16, index: usize) ?[2]usize {
+        const size_center_offset: i32 = -@divFloor(@as(i32, @intCast(size)), 2);
+        const index_i32: i32 = @as(i32, @intCast(index));
+        const pixel_offset: [2]i32 = .{ @mod(index_i32, size) + size_center_offset, @divFloor(index_i32, size) + size_center_offset };
+
+        if (shape == .circle) {
+            const extra_pixel_offset_circle: [2]i32 = if (size % 2 == 0) .{ 1, 1 } else .{ 0, 0 };
+            const pixel_offset_circle: [2]i32 = .{ pixel_offset[0] * 2 + extra_pixel_offset_circle[0], pixel_offset[1] * 2 + extra_pixel_offset_circle[1] };
+            const sqr_magnitude = pixel_offset_circle[0] * pixel_offset_circle[0] + pixel_offset_circle[1] * pixel_offset_circle[1];
+
+            // adjust radius check for nicer looking circles
+            const radius_check_mult: f32 = (if (size == 3 or size > 10) 0.7 else 0.8);
+
+            if (@as(f32, @floatFromInt(sqr_magnitude)) > @as(f32, @floatFromInt(size * size)) * radius_check_mult) {
+                return null;
+            }
+        }
+
+        const pixel_i32: [2]i32 = .{ pixel_origin[0] + pixel_offset[0], pixel_origin[1] + pixel_offset[1] };
+
+        if (pixel_i32[0] < 0 or pixel_i32[1] < 0 or pixel_i32[0] >= file.width or pixel_i32[1] >= file.height) {
+            return null;
+        }
+
+        return .{ @as(usize, @intCast(pixel_i32[0])), @as(usize, @intCast(pixel_i32[1])) };
+    }
+
     pub fn processSampleTool(file: *Pixi, canvas: Canvas) void {
         const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
         const sample_button = if (pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
@@ -253,96 +280,102 @@ pub const Pixi = struct {
                         const pixel_coords = try pixi.algorithms.brezenham.process(prev_pixel_coord, pixel_coord);
                         var previous_pixel_opt: ?[2]usize = null;
                         for (pixel_coords) |p_coord| {
-                            const pixel = .{ @as(usize, @intFromFloat(p_coord[0])), @as(usize, @intFromFloat(p_coord[1])) };
-                            const index = layer.getPixelIndex(pixel);
-                            const value = layer.getPixel(pixel);
-                            if (file.heightmap.visible) {
-                                if (pixi.state.tools.current == .heightmap) {
-                                    const tile_width: usize = @intCast(file.tile_width);
-                                    const tile_column = @divTrunc(pixel[0], tile_width);
-                                    const min_column = tile_column * tile_width;
-                                    const max_column = min_column + tile_width;
+                            const pixel_origin = .{ @as(i32, @intFromFloat(p_coord[0])), @as(i32, @intFromFloat(p_coord[1])) };
+                            const tool_size: u16 = pixi.state.tools.unsigned_size();
+                            for (0..(tool_size * tool_size)) |i| {
+                                const pixel_opt: ?[2]usize = pixelFromSizeOffset(file, pixel_origin, pixi.state.tools.shape, tool_size, i);
+                                if (pixel_opt) |pixel| {
+                                    const index = layer.getPixelIndex(pixel);
+                                    const value = layer.getPixel(pixel);
+                                    if (file.heightmap.visible) {
+                                        if (pixi.state.tools.current == .heightmap) {
+                                            const tile_width: usize = @intCast(file.tile_width);
+                                            const tile_column = @divTrunc(pixel[0], tile_width);
+                                            const min_column = tile_column * tile_width;
+                                            const max_column = min_column + tile_width;
 
-                                    defer previous_pixel_opt = pixel;
-                                    if (previous_pixel_opt) |previous_pixel| {
-                                        if (pixel[1] != previous_pixel[1]) {
-                                            if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
-                                                if (hk.down()) {
-                                                    const pixel_signed: i32 = @intCast(pixel[1]);
-                                                    const previous_pixel_signed: i32 = @intCast(previous_pixel[1]);
-                                                    const difference: i32 = pixel_signed - previous_pixel_signed;
-                                                    const sign: i32 = @intFromFloat(std.math.sign((pixi.state.mouse.position[1] - pixi.state.mouse.previous_position[1]) * -1.0));
-                                                    pixi.state.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(pixi.state.colors.height)) + difference * sign, 0, 255));
+                                            defer previous_pixel_opt = pixel;
+                                            if (previous_pixel_opt) |previous_pixel| {
+                                                if (pixel[1] != previous_pixel[1]) {
+                                                    if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                                        if (hk.down()) {
+                                                            const pixel_signed: i32 = @intCast(pixel[1]);
+                                                            const previous_pixel_signed: i32 = @intCast(previous_pixel[1]);
+                                                            const difference: i32 = pixel_signed - previous_pixel_signed;
+                                                            const sign: i32 = @intFromFloat(std.math.sign((pixi.state.mouse.position[1] - pixi.state.mouse.previous_position[1]) * -1.0));
+                                                            pixi.state.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(pixi.state.colors.height)) + difference * sign, 0, 255));
+                                                        }
+                                                    }
+                                                } else {
+                                                    continue;
                                                 }
                                             }
+                                            var current_pixel: [2]usize = pixel;
+
+                                            while (current_pixel[0] > min_column) : (current_pixel[0] -= 1) {
+                                                var valid: bool = false;
+                                                for (file.layers.items) |l| {
+                                                    if (l.getPixel(current_pixel)[3] != 0) {
+                                                        valid = true;
+                                                        break;
+                                                    }
+                                                }
+                                                if (valid) {
+                                                    const current_index: usize = layer.getPixelIndex(current_pixel);
+                                                    const current_value: [4]u8 = layer.getPixel(current_pixel);
+
+                                                    if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
+                                                        try file.buffers.stroke.append(current_index, current_value);
+                                                    layer.setPixel(current_pixel, color, false);
+                                                } else break;
+                                            }
+
+                                            current_pixel = pixel;
+
+                                            while (current_pixel[0] < max_column) : (current_pixel[0] += 1) {
+                                                var valid: bool = false;
+                                                for (file.layers.items) |l| {
+                                                    if (l.getPixel(current_pixel)[3] != 0) {
+                                                        valid = true;
+                                                        break;
+                                                    }
+                                                }
+                                                if (valid) {
+                                                    const current_index: usize = layer.getPixelIndex(current_pixel);
+                                                    const current_value: [4]u8 = layer.getPixel(current_pixel);
+
+                                                    if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
+                                                        try file.buffers.stroke.append(current_index, current_value);
+                                                    layer.setPixel(current_pixel, color, false);
+                                                } else break;
+                                            }
                                         } else {
-                                            continue;
-                                        }
-                                    }
-                                    var current_pixel: [2]usize = pixel;
-
-                                    while (current_pixel[0] > min_column) : (current_pixel[0] -= 1) {
-                                        var valid: bool = false;
-                                        for (file.layers.items) |l| {
-                                            if (l.getPixel(current_pixel)[3] != 0) {
-                                                valid = true;
-                                                break;
+                                            var valid: bool = false;
+                                            for (file.layers.items) |l| {
+                                                if (l.getPixel(pixel)[3] != 0) {
+                                                    valid = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (valid) {
+                                                if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
+                                                    try file.buffers.stroke.append(index, value);
+                                                layer.setPixel(pixel, color, false);
                                             }
                                         }
-                                        if (valid) {
-                                            const current_index: usize = layer.getPixelIndex(current_pixel);
-                                            const current_value: [4]u8 = layer.getPixel(current_pixel);
-
-                                            if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
-                                                try file.buffers.stroke.append(current_index, current_value);
-                                            layer.setPixel(current_pixel, color, false);
-                                        } else break;
-                                    }
-
-                                    current_pixel = pixel;
-
-                                    while (current_pixel[0] < max_column) : (current_pixel[0] += 1) {
-                                        var valid: bool = false;
-                                        for (file.layers.items) |l| {
-                                            if (l.getPixel(current_pixel)[3] != 0) {
-                                                valid = true;
-                                                break;
-                                            }
-                                        }
-                                        if (valid) {
-                                            const current_index: usize = layer.getPixelIndex(current_pixel);
-                                            const current_value: [4]u8 = layer.getPixel(current_pixel);
-
-                                            if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
-                                                try file.buffers.stroke.append(current_index, current_value);
-                                            layer.setPixel(current_pixel, color, false);
-                                        } else break;
-                                    }
-                                } else {
-                                    var valid: bool = false;
-                                    for (file.layers.items) |l| {
-                                        if (l.getPixel(pixel)[3] != 0) {
-                                            valid = true;
-                                            break;
-                                        }
-                                    }
-                                    if (valid) {
+                                    } else {
                                         if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
                                             try file.buffers.stroke.append(index, value);
                                         layer.setPixel(pixel, color, false);
+
+                                        // TODO: Implement a better way to handle heightmap changing when underlying layers change
+                                        // if (color[3] == 0) {
+                                        //     if (file.heightmap.layer) |*l| {
+                                        //         l.setPixel(p, .{ 0, 0, 0, 0 }, true);
+                                        //     }
+                                        // }
                                     }
                                 }
-                            } else {
-                                if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
-                                    try file.buffers.stroke.append(index, value);
-                                layer.setPixel(pixel, color, false);
-
-                                // TODO: Implement a better way to handle heightmap changing when underlying layers change
-                                // if (color[3] == 0) {
-                                //     if (file.heightmap.layer) |*l| {
-                                //         l.setPixel(p, .{ 0, 0, 0, 0 }, true);
-                                //     }
-                                // }
                             }
                         }
                         layer.texture.update(core.device);
@@ -430,15 +463,24 @@ pub const Pixi = struct {
             }
         } else { // Not actively drawing, but hovering over canvas
             if (pixel_coords_opt) |pixel_coord| {
-                const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
+                const pixel_origin = .{ @as(i32, @intFromFloat(pixel_coord[0])), @as(i32, @intFromFloat(pixel_coord[1])) };
                 const heightmap_color: [4]u8 = .{ pixi.state.colors.height, 0, 0, 255 };
-                switch (pixi.state.tools.current) {
-                    .pencil => file.temporary_layer.setPixel(pixel, if (file.heightmap.visible) heightmap_color else pixi.state.colors.primary, true),
-                    .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
-                    .heightmap => {
-                        file.temporary_layer.setPixel(pixel, heightmap_color, true);
-                    },
-                    else => unreachable,
+
+                const tool_size: u16 = pixi.state.tools.unsigned_size();
+
+                for (0..(tool_size * tool_size)) |i| {
+                    const pixel_opt: ?[2]usize = pixelFromSizeOffset(file, pixel_origin, pixi.state.tools.shape, tool_size, i);
+
+                    if (pixel_opt) |pixel| {
+                        switch (pixi.state.tools.current) {
+                            .pencil => file.temporary_layer.setPixel(pixel, if (file.heightmap.visible) heightmap_color else pixi.state.colors.primary, true),
+                            .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
+                            .heightmap => {
+                                file.temporary_layer.setPixel(pixel, heightmap_color, true);
+                            },
+                            else => unreachable,
+                        }
+                    }
                 }
             }
 

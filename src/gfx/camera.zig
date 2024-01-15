@@ -349,51 +349,54 @@ pub const Camera = struct {
     pub fn processPanZoom(camera: *Camera) void {
         var zoom_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
         if (pixi.state.settings.input_scheme != .trackpad) zoom_key = true;
+        const modify_brush_size_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .modify_brush_size })) |hotkey| hotkey.down() else false;
 
         // Handle controls while canvas is hovered
         if (zgui.isWindowHovered(.{})) {
             camera.processZoomTooltip();
-            if (pixi.state.mouse.scroll_x) |x| {
-                if (!zoom_key and camera.zoom_timer >= pixi.state.settings.zoom_time) {
-                    camera.position[0] -= x * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
-                }
-                pixi.state.mouse.scroll_x = null;
-            }
-            if (pixi.state.mouse.scroll_y) |y| {
-                if (zoom_key) {
-                    camera.zoom_timer = 0.0;
-                    camera.zoom_wait_timer = 0.0;
-
-                    switch (pixi.state.settings.input_scheme) {
-                        .trackpad => {
-                            const nearest_zoom_index = camera.nearestZoomIndex();
-                            const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(pixi.state.settings.zoom_steps.len - 1));
-                            const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t);
-                            const zoom_delta = y * sensitivity;
-
-                            camera.zoom += zoom_delta;
-                        },
-                        .mouse => {
-                            const nearest_zoom_index = camera.nearestZoomIndex();
-                            const sign = std.math.sign(y);
-                            if (sign > 0.0 and nearest_zoom_index + 1 < pixi.state.settings.zoom_steps.len - 1) {
-                                camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index + 1];
-                            } else if (sign < 0.0 and nearest_zoom_index >= 1) {
-                                camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index - 1];
-                            }
-                        },
+            if (!modify_brush_size_key) {
+                if (pixi.state.mouse.scroll_x) |x| {
+                    if (!zoom_key and camera.zoom_timer >= pixi.state.settings.zoom_time) {
+                        camera.position[0] -= x * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
                     }
-                } else if (camera.zoom_timer >= pixi.state.settings.zoom_time) {
-                    camera.position[1] -= y * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
+                    pixi.state.mouse.scroll_x = null;
                 }
-                pixi.state.mouse.scroll_y = null;
-            }
-            const mouse_drag_delta = zgui.getMouseDragDelta(.middle, .{ .lock_threshold = 0.0 });
-            if (mouse_drag_delta[0] != 0.0 or mouse_drag_delta[1] != 0.0) {
-                camera.position[0] -= mouse_drag_delta[0] * (1.0 / camera.zoom);
-                camera.position[1] -= mouse_drag_delta[1] * (1.0 / camera.zoom);
+                if (pixi.state.mouse.scroll_y) |y| {
+                    if (zoom_key) {
+                        camera.zoom_timer = 0.0;
+                        camera.zoom_wait_timer = 0.0;
 
-                zgui.resetMouseDragDelta(.middle);
+                        switch (pixi.state.settings.input_scheme) {
+                            .trackpad => {
+                                const nearest_zoom_index = camera.nearestZoomIndex();
+                                const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(pixi.state.settings.zoom_steps.len - 1));
+                                const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t);
+                                const zoom_delta = y * sensitivity;
+
+                                camera.zoom += zoom_delta;
+                            },
+                            .mouse => {
+                                const nearest_zoom_index = camera.nearestZoomIndex();
+                                const sign = std.math.sign(y);
+                                if (sign > 0.0 and nearest_zoom_index + 1 < pixi.state.settings.zoom_steps.len - 1) {
+                                    camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index + 1];
+                                } else if (sign < 0.0 and nearest_zoom_index >= 1) {
+                                    camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index - 1];
+                                }
+                            },
+                        }
+                    } else if (camera.zoom_timer >= pixi.state.settings.zoom_time) {
+                        camera.position[1] -= y * pixi.state.settings.pan_sensitivity * (1.0 / camera.zoom);
+                    }
+                    pixi.state.mouse.scroll_y = null;
+                }
+                const mouse_drag_delta = zgui.getMouseDragDelta(.middle, .{ .lock_threshold = 0.0 });
+                if (mouse_drag_delta[0] != 0.0 or mouse_drag_delta[1] != 0.0) {
+                    camera.position[0] -= mouse_drag_delta[0] * (1.0 / camera.zoom);
+                    camera.position[1] -= mouse_drag_delta[1] * (1.0 / camera.zoom);
+
+                    zgui.resetMouseDragDelta(.middle);
+                }
             }
             camera.zoom_wait_timer = @min(camera.zoom_wait_timer + pixi.state.delta_time, pixi.state.settings.zoom_wait_time);
         }

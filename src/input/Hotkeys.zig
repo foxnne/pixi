@@ -52,6 +52,10 @@ pub const Proc = enum(u32) {
     paste,
     paste_all,
     toggle_heightmap,
+    toggle_brush_shape,
+    modify_brush_size,
+    inc_brush_size,
+    dec_brush_size,
 };
 
 pub const Action = union(enum) {
@@ -292,6 +296,40 @@ pub fn process(self: *Self) !void {
             }
         }
     }
+
+    const modify_brush_size_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .modify_brush_size })) |modify_brush_size_hotkey| modify_brush_size_hotkey.down() else false;
+    if (modify_brush_size_key) {
+        if (pixi.state.mouse.scroll_y) |y| {
+            if (pixi.state.settings.input_scheme == .mouse) {
+                const sign = std.math.sign(y);
+                pixi.state.tools.increment_size(@as(i32, @intFromFloat(sign)));
+            }
+            pixi.state.mouse.scroll_y = null;
+        }
+    }
+
+    if (self.hotkey(.{ .proc = .toggle_brush_shape })) |hk| {
+        if (hk.pressed()) {
+            if (pixi.state.tools.shape == .circle) {
+                pixi.state.tools.shape = .square;
+            } else {
+                pixi.state.tools.shape = .circle;
+            }
+        }
+    }
+
+    if (self.hotkey(.{ .proc = .inc_brush_size })) |hk| {
+        if (hk.pressed()) {
+            pixi.state.tools.increment_size(1);
+        }
+    }
+
+    if (self.hotkey(.{ .proc = .dec_brush_size })) |hk| {
+        if (hk.pressed()) {
+            pixi.state.tools.increment_size(-1);
+        }
+    }
+
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
             pixi.state.popups.file_dialog_request = .{
@@ -426,6 +464,20 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .action = .{ .proc = Proc.zoom },
         });
 
+        // Brush size
+        try hotkeys.append(.{
+            .key = Key.left_shift,
+            .mods = .{
+                .control = false,
+                .super = false,
+                .shift = true,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.modify_brush_size },
+        });
+
         // Sample
         try hotkeys.append(.{
             .key = Key.left_alt,
@@ -475,6 +527,51 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .shortcut = "tab",
             .key = Key.tab,
             .action = .{ .proc = Proc.toggle_heightmap },
+        });
+
+        // Toggle brush shape
+        try hotkeys.append(.{
+            .shortcut = "ctrl+b",
+            .key = Key.b,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.toggle_brush_shape },
+        });
+
+        // Decrement brush size
+        try hotkeys.append(.{
+            .shortcut = "ctrl+n",
+            .key = Key.n,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.dec_brush_size },
+        });
+
+        // Increment brush size
+        try hotkeys.append(.{
+            .shortcut = "ctrl+m",
+            .key = Key.m,
+            .mods = .{
+                .control = windows,
+                .super = !windows,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.inc_brush_size },
         });
 
         // Size up
