@@ -186,14 +186,19 @@ pub const Camera = struct {
         });
     }
 
-    pub fn drawCursor(_: Camera, texture: *gpu.TextureView, width: u32, height: u32, color: u32) void {
+    pub fn drawCursor(_: Camera, texture: *gpu.TextureView, size: u32, src_rect: [4]f32, color: u32) void {
         var position = pixi.state.mouse.position;
 
         const draw_list = zgui.getForegroundDrawList();
 
+        const uvmin: [2]f32 = .{ src_rect[0], src_rect[1] };
+        const uvmax: [2]f32 = .{ src_rect[0] + src_rect[2], src_rect[1] + src_rect[3] };
+
         draw_list.addImage(texture, .{
-            .pmin = .{ position[0], position[1] - @as(f32, @floatFromInt(height)) },
-            .pmax = .{ position[0] + @as(f32, @floatFromInt(width)), position[1] },
+            .pmin = .{ position[0], position[1] - @as(f32, @floatFromInt(size)) },
+            .pmax = .{ position[0] + @as(f32, @floatFromInt(size)), position[1] },
+            .uvmin = uvmin,
+            .uvmax = uvmax,
             .col = color,
         });
     }
