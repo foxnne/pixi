@@ -289,6 +289,47 @@ pub const Camera = struct {
             );
     }
 
+    pub fn drawSpriteQuad(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32) void {
+        const dst = camera.getQuad(dst_p1, dst_p2, dst_p3, dst_p4);
+
+        const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.image.height));
+
+        const uvmin: imgui.Vec2 = .{ .x = src_rect[0] * inv_w, .y = src_rect[1] * inv_h };
+        const uvmax: imgui.Vec2 = .{ .x = (src_rect[0] + src_rect[2]) * inv_w, .y = (src_rect[1] + src_rect[3]) * inv_h };
+
+        if (imgui.getWindowDrawList()) |draw_list| {
+            draw_list.addImageQuadEx(
+                layer.texture.view_handle,
+                dst[0],
+                dst[1],
+                dst[2],
+                dst[3],
+                uvmin,
+                .{ .x = uvmax.x, .y = uvmin.y },
+                uvmax,
+                .{ .x = uvmin.x, .y = uvmax.y },
+                0xFFFFFFFF,
+            );
+        }
+    }
+
+    pub fn drawQuad(camera: Camera, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32, color: u32, thickness: f32) void {
+        const dst = camera.getQuad(dst_p1, dst_p2, dst_p3, dst_p4);
+
+        if (imgui.getWindowDrawList()) |draw_list| {
+            draw_list.addQuadEx(dst[0], dst[1], dst[2], dst[3], color, thickness);
+        }
+    }
+
+    pub fn drawQuadFilled(camera: Camera, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32, color: u32) void {
+        const dst = camera.getQuad(dst_p1, dst_p2, dst_p3, dst_p4);
+
+        if (imgui.getWindowDrawList()) |draw_list| {
+            draw_list.addQuadFilled(dst[0], dst[1], dst[2], dst[3], color);
+        }
+    }
+
     pub fn nearestZoomIndex(camera: Camera) usize {
         var nearest_zoom_index: usize = 0;
         var nearest_zoom_step: f32 = pixi.state.settings.zoom_steps[nearest_zoom_index];
@@ -345,6 +386,39 @@ pub const Camera = struct {
         return .{ tl, br };
     }
 
+    pub fn getQuad(camera: Camera, p1: [2]f32, p2: [2]f32, p3: [2]f32, p4: [2]f32) [4]imgui.Vec2 {
+        const window_position = imgui.getWindowPos();
+        const mat = camera.matrix();
+        var p1_trans = mat.transformVec2(p1);
+        p1_trans[0] += window_position.x;
+        p1_trans[1] += window_position.y;
+        var p2_trans = mat.transformVec2(p2);
+        p2_trans[0] += window_position.x;
+        p2_trans[1] += window_position.y;
+        var p3_trans = mat.transformVec2(p3);
+        p3_trans[0] += window_position.x;
+        p3_trans[1] += window_position.y;
+        var p4_trans = mat.transformVec2(p4);
+        p4_trans[0] += window_position.x;
+        p4_trans[1] += window_position.y;
+
+        p1_trans[0] = @floor(p1_trans[0]);
+        p1_trans[1] = @floor(p1_trans[1]);
+        p2_trans[0] = @floor(p2_trans[0]);
+        p2_trans[1] = @floor(p2_trans[1]);
+        p3_trans[0] = @floor(p3_trans[0]);
+        p3_trans[1] = @floor(p3_trans[1]);
+        p4_trans[0] = @floor(p4_trans[0]);
+        p4_trans[1] = @floor(p4_trans[1]);
+
+        return .{
+            .{ .x = p1_trans[0], .y = p1_trans[1] },
+            .{ .x = p2_trans[0], .y = p2_trans[1] },
+            .{ .x = p3_trans[0], .y = p3_trans[1] },
+            .{ .x = p4_trans[0], .y = p4_trans[1] },
+        };
+    }
+
     const PixelCoordinatesOptions = struct {
         texture_position: [2]f32,
         position: [2]f32,
@@ -385,8 +459,8 @@ pub const Camera = struct {
         const i = file.selected_sprite_index;
         const tile_width = @as(f32, @floatFromInt(file.tile_width));
         const tile_height = @as(f32, @floatFromInt(file.tile_height));
-        const sprite_scale = std.math.clamp(0.5 / @abs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
-        var dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + @as(f32, @floatFromInt(i)) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
+        const sprite_scale = std.math.clamp(0.4 / @abs(@as(f32, @floatFromInt(i)) / 1.5 + (file.flipbook_scroll / tile_width / 1.5)), 0.4, 1.0);
+        var dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + @as(f32, @floatFromInt(i)) / 1.5 * tile_width * 1.5 - (tile_width * sprite_scale / 2.0);
         var dst_y: f32 = options.sprite_position[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
         var dst_width: f32 = tile_width * sprite_scale;
         var dst_height: f32 = tile_height * sprite_scale;

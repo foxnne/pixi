@@ -12,8 +12,8 @@
     .version = "0.0.1",
     .dependencies = .{
         .mach_core = .{
-            .url = "https://pkg.machengine.org/mach-core/cce02fb96ca787378289c5855b381f0ca9f3e090.tar.gz",
-            .hash = "122096b39d9266d275b780df4d63b1afe6e9a3726f19766baf74b34af3f092532cd3",
+            .url = "https://pkg.machengine.org/mach-core/90c927e20d045035152d9b0b421ea45db7e5569c.tar.gz",
+            .hash = "12209c255c69822b57cd8906754bbee815e69678741d48a64e945168e611874da662",
         },
         .mach_gpu_dawn = .{
             .url = "https://pkg.machengine.org/mach-gpu-dawn/ee2fb5066a774238a97ab18dc5620acce538d2e6.tar.gz",

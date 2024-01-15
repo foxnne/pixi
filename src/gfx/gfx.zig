@@ -17,6 +17,10 @@ pub const Vertex = struct {
     data: [3]f32 = [_]f32{ 0.0, 0.0, 0.0 },
 };
 
+pub const ImGuiQuad = struct {
+    
+};
+
 pub const Uniforms = struct {
     mvp: zm.Mat,
 };

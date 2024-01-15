@@ -15,7 +15,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (request.elapsed < 1.0) {
             file.selected_animation_state = .pause;
             request.elapsed += pixi.state.delta_time * 2.0;
-            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed, .ease_out);
+            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed, .ease_in_out);
         } else {
             file.flipbook_scroll = request.to;
             file.selected_animation_state = request.state;
@@ -100,13 +100,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         const src_x = column * tile_width;
         const src_y = row * tile_height;
-
-        const sprite_scale = std.math.clamp(0.5 / @abs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
         const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
-        var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + @as(f32, @floatFromInt(i)) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
-        var dst_y: f32 = canvas_center_offset[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
+
+        const sprite_scale = std.math.clamp(0.4 / @abs(@as(f32, @floatFromInt(i)) / 1.2 + (file.flipbook_scroll / tile_width / 1.2)), 0.4, 1.0);
+        var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(i)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
+        var dst_y: f32 = canvas_center_offset[1];
         var dst_width: f32 = tile_width * sprite_scale;
-        var dst_height: f32 = tile_height * sprite_scale;
+        var dst_height: f32 = tile_height;
 
         if (file.selected_animation_state == .play) {
             dst_x = @round(dst_x);
@@ -114,7 +114,14 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             dst_width = @round(dst_width);
             dst_height = @round(dst_height);
         }
-        const dst_rect: [4]f32 = .{ dst_x, dst_y, dst_width, dst_height };
+        const offset = (1.0 - sprite_scale) * (dst_height / 5.0);
+        const offset_x = (1.0 - sprite_scale) * dst_width * 0.5;
+        const flip = if (dst_x + dst_width > 0) false else true;
+        const dst_rect: [4]f32 = .{ dst_x + offset_x, dst_y + offset, dst_width, dst_height };
+        const dst_p1: [2]f32 = if (flip) .{ dst_x + offset_x, dst_y } else .{ dst_x + offset_x, dst_y + offset };
+        const dst_p2: [2]f32 = if (flip) .{ dst_x + dst_width + offset_x, dst_y + offset } else .{ dst_x + dst_width + offset_x, dst_y };
+        const dst_p3: [2]f32 = if (flip) .{ dst_x + dst_width + offset_x, dst_y + dst_height - offset } else .{ dst_x + dst_width + offset_x, dst_y + dst_height };
+        const dst_p4: [2]f32 = if (flip) .{ dst_x + offset_x, dst_y + dst_height } else .{ dst_x + offset_x, dst_y + dst_height - offset };
 
         if (sprite_scale >= 1.0) {
             // TODO: Make background texture opacity available through settings.
@@ -132,12 +139,26 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             while (j > 0) {
                 j -= 1;
                 if (!file.layers.items[j].visible) continue;
-                file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
+                file.flipbook_camera.drawQuadFilled(
+                    dst_p1,
+                    dst_p2,
+                    dst_p3,
+                    dst_p4,
+                    pixi.state.theme.background.toU32(),
+                );
+                file.flipbook_camera.drawSpriteQuad(
+                    file.layers.items[j],
+                    src_rect,
+                    dst_p1,
+                    dst_p2,
+                    dst_p3,
+                    dst_p4,
+                );
             }
 
             if (file.heightmap.visible) {
-                file.flipbook_camera.drawRectFilled(dst_rect, 0x50FFFFFF);
-                file.flipbook_camera.drawSprite(file.heightmap.layer.?, src_rect, dst_rect);
+                //file.flipbook_camera.drawRectFilled(dst_rect, 0x50FFFFFF);
+                //file.flipbook_camera.drawSprite(file.heightmap.layer.?, src_rect, dst_rect);
             }
 
             if (i == file.selected_sprite_index)
@@ -145,7 +166,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
                 if (i != file.selected_sprite_index) {
-                    file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.theme.text.toU32());
+                    file.flipbook_camera.drawQuad(dst_p1, dst_p2, dst_p3, dst_p4, pixi.state.theme.text.toU32(), 2.0);
                     if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != i) {
                         file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
                     }
@@ -158,9 +179,23 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             } else {
                 if (i != file.selected_sprite_index) {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text_secondary.toU32());
+                    file.flipbook_camera.drawQuad(
+                        dst_p1,
+                        dst_p2,
+                        dst_p3,
+                        dst_p4,
+                        pixi.state.theme.text_secondary.toU32(),
+                        1.0,
+                    );
                 } else {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
+                    file.flipbook_camera.drawQuad(
+                        dst_p1,
+                        dst_p2,
+                        dst_p3,
+                        dst_p4,
+                        pixi.state.theme.text.toU32(),
+                        1.0,
+                    );
                 }
             }
         }

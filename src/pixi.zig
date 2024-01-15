@@ -15,7 +15,7 @@ pub const App = @This();
 
 pub const mach_core_options = core.ComptimeOptions{
     .use_wgpu = !build_options.use_sysgpu,
-    .use_dgpu = build_options.use_sysgpu,
+    .use_sysgpu = build_options.use_sysgpu,
 };
 
 timer: core.Timer,

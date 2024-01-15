@@ -956,7 +956,7 @@ pub const Pixi = struct {
     }
 
     pub fn flipbookScrollFromSpriteIndex(self: Pixi, index: usize) f32 {
-        return -@as(f32, @floatFromInt(index * self.tile_width)) * 1.1;
+        return -(@as(f32, @floatFromInt(index)) / 1.5 * @as(f32, @floatFromInt(self.tile_width)) * 1.5);
     }
 
     pub fn pixelCoordinatesFromIndex(self: Pixi, index: usize) ?[2]f32 {
