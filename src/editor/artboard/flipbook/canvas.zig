@@ -125,6 +125,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         if (sprite_scale >= 1.0) {
             // TODO: Make background texture opacity available through settings.
+            file.flipbook_camera.drawQuadFilled(
+                dst_p1,
+                dst_p2,
+                dst_p3,
+                dst_p4,
+                pixi.state.theme.background.toU32(),
+            ); 
             // Draw background
             file.flipbook_camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
             file.selected_sprite_index = i;
@@ -139,13 +146,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             while (j > 0) {
                 j -= 1;
                 if (!file.layers.items[j].visible) continue;
-                file.flipbook_camera.drawQuadFilled(
-                    dst_p1,
-                    dst_p2,
-                    dst_p3,
-                    dst_p4,
-                    pixi.state.theme.background.toU32(),
-                );
+
                 file.flipbook_camera.drawSpriteQuad(
                     file.layers.items[j],
                     src_rect,
