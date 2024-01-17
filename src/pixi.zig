@@ -1,14 +1,22 @@
 const std = @import("std");
+const build_options = @import("build-options");
 
 const core = @import("mach-core");
 const gpu = core.gpu;
 
-const zgui = @import("zgui").MachImgui(core);
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
 const nfd = @import("nfd");
 
+const imgui = @import("zig-imgui");
+const imgui_mach = imgui.backends.mach;
+
 pub const App = @This();
+
+pub const mach_core_options = core.ComptimeOptions{
+    .use_wgpu = !build_options.use_sysgpu,
+    .use_sysgpu = build_options.use_sysgpu,
+};
 
 timer: core.Timer,
 
@@ -46,7 +54,6 @@ pub var framebuffer_size: [2]f32 = undefined;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
 pub const Colors = @import("Colors.zig");
-pub const Cursors = @import("Cursors.zig");
 pub const Recents = @import("Recents.zig");
 pub const Tools = @import("Tools.zig");
 pub const Settings = @import("Settings.zig");
@@ -63,8 +70,6 @@ pub const PixiState = struct {
     root_path: [:0]const u8 = undefined,
     recents: Recents = undefined,
     previous_atlas_export: ?[:0]const u8 = null,
-    background_logo: gfx.Texture = undefined,
-    fox_logo: gfx.Texture = undefined,
     open_files: std.ArrayList(storage.Internal.Pixi) = undefined,
     pack_target: PackTarget = .project,
     pack_camera: gfx.Camera = .{},
@@ -75,10 +80,27 @@ pub const PixiState = struct {
     popups: Popups = .{},
     should_close: bool = false,
     fonts: Fonts = .{},
-    cursors: Cursors = undefined,
     colors: Colors = .{},
     delta_time: f32 = 0.0,
     json_allocator: std.heap.ArenaAllocator = undefined,
+    assets: Assets = undefined,
+};
+
+pub const Assets = struct {
+    atlas_png: gfx.Texture,
+    atlas: gfx.Atlas,
+
+    pub fn init(allocator: std.mem.Allocator) !Assets {
+        return .{
+            .atlas_png = try gfx.Texture.loadFromFile(assets.pixi_png.path, .{}),
+            .atlas = try gfx.Atlas.loadFromFile(allocator, assets.pixi_atlas.path),
+        };
+    }
+
+    pub fn deinit(self: *Assets, allocator: std.mem.Allocator) void {
+        self.atlas_png.deinit();
+        self.atlas.deinit(allocator);
+    }
 };
 
 pub const Sidebar = enum(u32) {
@@ -92,10 +114,10 @@ pub const Sidebar = enum(u32) {
 };
 
 pub const Fonts = struct {
-    fa_standard_regular: zgui.Font = undefined,
-    fa_standard_solid: zgui.Font = undefined,
-    fa_small_regular: zgui.Font = undefined,
-    fa_small_solid: zgui.Font = undefined,
+    fa_standard_regular: *imgui.Font = undefined,
+    fa_standard_solid: *imgui.Font = undefined,
+    fa_small_regular: *imgui.Font = undefined,
+    fa_small_solid: *imgui.Font = undefined,
 };
 
 pub const PackTarget = enum {
@@ -139,54 +161,58 @@ pub fn init(app: *App) !void {
 
     zstbi.init(allocator);
 
-    var open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
+    state.open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
 
-    // Logos
-    const background_logo = try gfx.Texture.loadFromFile(assets.icon_1024_png.path, .{});
-    const fox_logo = try gfx.Texture.loadFromFile(assets.fox_1024_png.path, .{});
+    state.hotkeys = try input.Hotkeys.initDefault(allocator);
+    state.assets = try Assets.init(allocator);
+    state.mouse = try input.Mouse.initDefault(allocator);
 
-    // Cursors
-    const pencil = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.pencil64_png.path else assets.pencil32_png.path, .{});
-    const eraser = try gfx.Texture.loadFromFile(if (scale_factor > 1) assets.eraser64_png.path else assets.eraser32_png.path, .{});
-
-    const hotkeys = try input.Hotkeys.initDefault(allocator);
-    const mouse = try input.Mouse.initDefault(allocator);
-
-    const packer = try Packer.init(allocator);
-    const recents = try Recents.init(allocator);
+    state.packer = try Packer.init(allocator);
+    state.recents = try Recents.init(allocator);
 
     state.allocator = allocator;
-    state.background_logo = background_logo;
-    state.fox_logo = fox_logo;
-    state.open_files = open_files;
-    state.cursors = .{
-        .pencil = pencil,
-        .eraser = eraser,
-    };
-    state.hotkeys = hotkeys;
-    state.mouse = mouse;
-    state.packer = packer;
-    state.recents = recents;
 
     app.* = .{
         .timer = try core.Timer.start(),
     };
 
-    zgui.init(allocator);
-    zgui.mach_backend.init(core.device, core.descriptor.format, .{});
+    imgui.setZigAllocator(&state.allocator);
+    _ = imgui.createContext(null);
+    try imgui_mach.init(allocator, core.device, .{
+        .mag_filter = .nearest,
+        .min_filter = .nearest,
+        .mipmap_filter = .nearest,
+    });
 
-    zgui.io.setIniFilename("imgui.ini");
+    var io = imgui.getIO();
+    io.config_flags |= imgui.ConfigFlags_NavEnableKeyboard;
+    io.font_global_scale = 1.0 / io.display_framebuffer_scale.y;
+    var cozette_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
+    cozette_config.font_data_owned_by_atlas = true;
+    cozette_config.oversample_h = 2;
+    cozette_config.oversample_v = 1;
+    cozette_config.glyph_max_advance_x = std.math.floatMax(f32);
+    cozette_config.rasterizer_multiply = 1.0;
+    cozette_config.rasterizer_density = 1.0;
+    cozette_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
 
-    _ = zgui.io.addFontFromFile(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor);
+    _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor, &cozette_config, null);
 
-    var config = zgui.FontConfig.init();
-    config.merge_mode = true;
+    var fa_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
+    fa_config.merge_mode = true;
+    fa_config.font_data_owned_by_atlas = true;
+    fa_config.oversample_h = 2;
+    fa_config.oversample_v = 1;
+    fa_config.glyph_max_advance_x = std.math.floatMax(f32);
+    fa_config.rasterizer_multiply = 1.0;
+    fa_config.rasterizer_density = 1.0;
+    fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    state.fonts.fa_standard_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    state.fonts.fa_standard_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, config, ranges.ptr);
-    state.fonts.fa_small_solid = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, config, ranges.ptr);
-    state.fonts.fa_small_regular = zgui.io.addFontFromFileWithConfig(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, config, ranges.ptr);
+    state.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    state.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    state.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    state.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
     state.theme.init();
 }
@@ -212,7 +238,8 @@ pub fn updateMainThread(_: *App) !bool {
 }
 
 pub fn update(app: *App) !bool {
-    zgui.mach_backend.newFrame();
+    try imgui_mach.newFrame();
+    imgui.newFrame();
     state.delta_time = app.timer.lap();
 
     const descriptor = core.descriptor;
@@ -222,10 +249,13 @@ pub fn update(app: *App) !bool {
         framebuffer_size[0] / window_size[0],
         framebuffer_size[1] / window_size[1],
     };
+    content_scale = .{ 1.0, 1.0 };
 
     var iter = core.pollEvents();
     while (iter.next()) |event| {
-        state.cursors.current = .arrow;
+        if (!state.should_close)
+            _ = imgui_mach.processEvent(event);
+
         switch (event) {
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
@@ -237,8 +267,10 @@ pub fn update(app: *App) !bool {
                 state.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
             },
             .mouse_scroll => |mouse_scroll| {
-                state.mouse.scroll_x = mouse_scroll.xoffset;
-                state.mouse.scroll_y = mouse_scroll.yoffset;
+                if (!state.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
+                    state.mouse.scroll_x = mouse_scroll.xoffset;
+                    state.mouse.scroll_y = mouse_scroll.yoffset;
+                }
             },
             .mouse_motion => |mouse_motion| {
                 state.mouse.position = .{ @floatCast(mouse_motion.pos.x * content_scale[0]), @floatCast(mouse_motion.pos.y * content_scale[1]) };
@@ -266,17 +298,18 @@ pub fn update(app: *App) !bool {
             },
             else => {},
         }
-        zgui.mach_backend.passEvent(event, content_scale);
     }
 
     try input.process();
 
     state.theme.set();
 
+    //imgui.showDemoWindow(null);
+
     editor.draw();
     state.theme.unset();
 
-    state.cursors.update();
+    imgui.render();
 
     if (editor.getFile(state.open_file_index)) |file| {
         @memset(core.title[0..], 0);
@@ -293,7 +326,7 @@ pub fn update(app: *App) !bool {
     if (core.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
-        const zgui_commands = commands: {
+        const imgui_commands = commands: {
             const encoder = core.device.createCommandEncoder(null);
             defer encoder.release();
 
@@ -317,17 +350,16 @@ pub fn update(app: *App) !bool {
                     .color_attachments = &.{color_attachment},
                 });
                 const pass = encoder.beginRenderPass(&render_pass_info);
-
-                zgui.mach_backend.draw(pass);
+                imgui_mach.renderDrawData(imgui.getDrawData().?, pass) catch {};
                 pass.end();
                 pass.release();
             }
 
             break :commands encoder.finish(null);
         };
-        defer zgui_commands.release();
+        defer imgui_commands.release();
 
-        core.queue.submit(&.{zgui_commands});
+        core.queue.submit(&.{imgui_commands});
         core.swap_chain.present();
     }
 
@@ -341,8 +373,9 @@ pub fn update(app: *App) !bool {
 
     state.mouse.previous_position = state.mouse.position;
 
-    if (state.should_close and !editor.saving())
+    if (state.should_close and !editor.saving()) {
         return true;
+    }
 
     return false;
 }
@@ -358,9 +391,6 @@ pub fn deinit(_: *App) void {
 
     state.allocator.free(state.hotkeys.hotkeys);
     state.allocator.free(state.mouse.buttons);
-    state.background_logo.deinit();
-    state.fox_logo.deinit();
-    state.cursors.deinit();
     state.packer.deinit();
     state.recents.deinit();
     if (state.atlas.external) |*atlas| {
@@ -381,15 +411,21 @@ pub fn deinit(_: *App) void {
     if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
     if (state.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (state.colors.palette) |*palette| palette.deinit();
-    editor.deinit();
 
-    zgui.mach_backend.deinit();
-    zgui.deinit();
+    editor.deinit();
+    state.assets.deinit(state.allocator);
+
+    imgui_mach.shutdown();
+    imgui.getIO().fonts.?.clear();
+    imgui.destroyContext(null);
+
     zstbi.deinit();
     state.allocator.free(state.root_path);
     state.allocator.destroy(state);
+
     core.deinit();
 
-    //uncomment this line to check for memory leaks on program shutdown, currently there are several
+    //uncomment this line to check for memory leaks on program shutdown
     _ = gpa.detectLeaks();
+    _ = gpa.deinit();
 }

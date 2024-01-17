@@ -1,9 +1,9 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
+const imgui = @import("zig-imgui");
 
 pub const Extension = enum {
     unsupported,
@@ -25,92 +25,101 @@ pub const Extension = enum {
 };
 
 pub fn draw() void {
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.background.toImguiVec4());
+    defer imgui.popStyleColorEx(2);
+
     if (pixi.state.project_folder) |path| {
         const folder = std.fs.path.basename(path);
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
 
         // Open files
         const file_count = pixi.state.open_files.items.len;
         if (file_count > 0) {
-            if (zgui.collapsingHeader("Open Files", .{
-                .default_open = true,
-            })) {
-                zgui.separator();
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.separatorText("Open Files  " ++ pixi.fa.file_powerpoint);
+            imgui.popStyleColor();
 
-                if (zgui.beginChild("OpenFiles", .{
-                    .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
-                    .h = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (zgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]),
-                })) {
-                    zgui.spacing();
+            if (imgui.beginChild("OpenFiles", .{
+                .x = -1.0,
+                .y = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (imgui.getTextLineHeight() + 6.0 * pixi.content_scale[0]),
+            }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+                defer imgui.endChild();
+                imgui.spacing();
 
-                    for (pixi.state.open_files.items, 0..) |file, i| {
-                        zgui.textColored(pixi.state.theme.text_orange.toSlice(), " {s}  ", .{pixi.fa.file_powerpoint});
-                        zgui.sameLine(.{});
-                        const name = std.fs.path.basename(file.path);
-                        const label = zgui.formatZ("{s}", .{name});
-                        if (zgui.selectable(label, .{})) {
-                            pixi.editor.setActiveFile(i);
-                        }
+                for (pixi.state.open_files.items, 0..) |file, i| {
+                    imgui.textColored(pixi.state.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ " ");
+                    imgui.sameLine();
+                    const name = std.fs.path.basename(file.path);
+                    const label = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{name}) catch unreachable;
+                    defer pixi.state.allocator.free(label);
+                    if (imgui.selectable(label)) {
+                        pixi.editor.setActiveFile(i);
+                    }
 
-                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });
-                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
-                        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.content_scale[0] });
-                        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
-                        zgui.pushStrId(file.path);
-                        if (zgui.beginPopupContextItem()) {
-                            contextMenuFile(file.path);
-                            zgui.endPopup();
-                        }
-                        zgui.popId();
-                        zgui.popStyleVar(.{ .count = 4 });
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+                    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+                    imgui.pushID(file.path);
+                    if (imgui.beginPopupContextItem()) {
+                        contextMenuFile(file.path);
+                        imgui.endPopup();
+                    }
+                    imgui.popID();
+                    imgui.popStyleVarEx(4);
 
-                        if (zgui.isItemHovered(.{ .delay_short = true })) {
-                            if (zgui.beginTooltip()) {
-                                defer zgui.endTooltip();
-                                zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{s}", .{file.path});
-                            }
+                    if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
+                        if (imgui.beginTooltip()) {
+                            defer imgui.endTooltip();
+
+                            imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), file.path);
                         }
                     }
                 }
-                defer zgui.endChild();
             }
         }
 
         const index = if (std.mem.indexOf(u8, path, folder)) |i| i else 0;
 
+        imgui.spacing();
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Project Folder  " ++ pixi.fa.folder_open);
+        imgui.popStyleColor();
+
         // File tree
         var open: bool = true;
-        if (zgui.collapsingHeaderStatePtr(path[index.. :0], .{
-            .pvisible = &open,
-            .flags = .{
-                .default_open = true,
-            },
-        })) {
-            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });
-            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
-            zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.content_scale[0] });
-            zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
-            zgui.pushStrId(path);
-            if (zgui.beginPopupContextItem()) {
+        if (imgui.collapsingHeaderBoolPtr(
+            path[index.. :0],
+            &open,
+            imgui.TreeNodeFlags_DefaultOpen,
+        )) {
+            imgui.indent();
+            defer imgui.unindent();
+
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+            imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
+            imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
+            imgui.pushID(path);
+            if (imgui.beginPopupContextItem()) {
                 contextMenuFolder(path);
-                zgui.endPopup();
+                imgui.endPopup();
             }
-            zgui.popId();
-            zgui.popStyleVar(.{ .count = 4 });
+            imgui.popID();
+            imgui.popStyleVarEx(4);
 
-            zgui.separator();
-            zgui.spacing();
-
-            if (zgui.beginChild("FileTree", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .flags = .{
-                .horizontal_scrollbar = true,
-            } })) {
-                zgui.spacing();
+            if (imgui.beginChild("FileTree", .{
+                .x = -1.0,
+                .y = 0.0,
+            }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) { // TODO: Should this also be ChildWindow?
                 // File Tree
                 recurseFiles(pixi.state.allocator, path);
             }
-            defer zgui.endChild();
+            defer imgui.endChild();
         }
-        zgui.popStyleVar(.{ .count = 1 });
+
+        imgui.popStyleVar();
 
         if (!open) {
             if (pixi.state.project_folder) |f| {
@@ -120,20 +129,22 @@ pub fn draw() void {
             pixi.state.project_folder = null;
         }
     } else {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
-        zgui.textWrapped("Open a folder to begin editing.", .{});
-        zgui.popStyleColor(.{ .count = 1 });
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+        imgui.textWrapped("Open a folder to begin editing.");
+        imgui.popStyleColor();
 
         if (pixi.state.recents.folders.items.len > 0) {
-            zgui.spacing();
-            zgui.text("Recents", .{});
-            zgui.separator();
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
-            defer zgui.popStyleColor(.{ .count = 1 });
-            if (zgui.beginChild("Recents", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .h = 0.0, .flags = .{
-                .horizontal_scrollbar = true,
-            } })) {
-                defer zgui.endChild();
+            imgui.spacing();
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.separatorText("Recents  " ++ pixi.fa.clock);
+            imgui.popStyleColor();
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+            defer imgui.popStyleColor();
+            if (imgui.beginChild("Recents", .{
+                .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+                .y = 0.0,
+            }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) {
+                defer imgui.endChild();
 
                 var i: usize = pixi.state.recents.folders.items.len;
                 while (i > 0) {
@@ -142,27 +153,27 @@ pub fn draw() void {
                     var label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.folder, std.fs.path.basename(folder) }) catch unreachable;
                     defer pixi.state.allocator.free(label);
 
-                    if (zgui.selectable(label, .{})) {
+                    if (imgui.selectable(label)) {
                         pixi.editor.setProjectFolder(folder);
                     }
-                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });
-                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
-                    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.content_scale[0] });
-                    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
-                    defer zgui.popStyleVar(.{ .count = 4 });
-                    if (zgui.beginPopupContextItem()) {
-                        defer zgui.endPopup();
-                        if (zgui.menuItem("Remove", .{})) {
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+                    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+                    defer imgui.popStyleVarEx(4);
+                    if (imgui.beginPopupContextItem()) {
+                        defer imgui.endPopup();
+                        if (imgui.menuItem("Remove")) {
                             const item = pixi.state.recents.folders.orderedRemove(i);
                             pixi.state.allocator.free(item);
                             pixi.state.recents.save() catch unreachable;
                         }
                     }
 
-                    zgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
-                    zgui.text("{s}", .{folder});
-                    zgui.popStyleColor(.{ .count = 1 });
+                    imgui.sameLineEx(0.0, 5.0 * pixi.content_scale[0]);
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                    imgui.text(folder);
+                    imgui.popStyleColor();
                 }
             }
         }
@@ -170,11 +181,11 @@ pub fn draw() void {
 }
 
 pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) void {
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 2.0 * pixi.content_scale[1] } });
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 6.0 * pixi.content_scale[1] } });
-    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.indent_spacing, .v = 16.0 * pixi.content_scale[0] });
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 10.0 * pixi.content_scale[0], 10.0 * pixi.content_scale[1] } });
-    defer zgui.popStyleVar(.{ .count = 4 });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+    defer imgui.popStyleVarEx(4);
 
     const recursor = struct {
         fn search(alloc: std.mem.Allocator, directory: [:0]const u8) void {
@@ -184,8 +195,8 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
             var iter = dir.iterate();
             while (iter.next() catch unreachable) |entry| {
                 if (entry.kind == .file) {
-                    zgui.indent(.{});
-                    defer zgui.unindent(.{});
+                    imgui.indent();
+                    defer imgui.unindent();
                     const ext = extension(entry.name);
                     if (ext == .hidden) continue;
                     const icon = switch (ext) {
@@ -198,67 +209,78 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     };
 
                     const icon_color = switch (ext) {
-                        .pixi, .zig => pixi.state.theme.text_orange.toSlice(),
-                        .png, .psd => pixi.state.theme.text_blue.toSlice(),
-                        .jpg => pixi.state.theme.highlight_primary.toSlice(),
-                        .pdf => pixi.state.theme.text_red.toSlice(),
-                        .json, .atlas => pixi.state.theme.text_yellow.toSlice(),
-                        .txt, .zip, ._7z, .tar => pixi.state.theme.text_background.toSlice(),
-                        else => pixi.state.theme.text_background.toSlice(),
+                        .pixi, .zig => pixi.state.theme.text_orange.toImguiVec4(),
+                        .png, .psd => pixi.state.theme.text_blue.toImguiVec4(),
+                        .jpg => pixi.state.theme.highlight_primary.toImguiVec4(),
+                        .pdf => pixi.state.theme.text_red.toImguiVec4(),
+                        .json, .atlas => pixi.state.theme.text_yellow.toImguiVec4(),
+                        .txt, .zip, ._7z, .tar => pixi.state.theme.text_background.toImguiVec4(),
+                        else => pixi.state.theme.text_background.toImguiVec4(),
                     };
 
                     const text_color = switch (ext) {
-                        .pixi => pixi.state.theme.text.toSlice(),
-                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => pixi.state.theme.text_secondary.toSlice(),
-                        else => pixi.state.theme.text_background.toSlice(),
+                        .pixi => pixi.state.theme.text.toImguiVec4(),
+                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => pixi.state.theme.text_secondary.toImguiVec4(),
+                        else => pixi.state.theme.text_background.toImguiVec4(),
                     };
 
-                    zgui.textColored(icon_color, " {s} ", .{icon});
-                    zgui.sameLine(.{});
+                    const icon_spaced = std.fmt.allocPrintZ(pixi.state.allocator, " {s} ", .{icon}) catch unreachable;
+                    defer pixi.state.allocator.free(icon_spaced);
+
+                    imgui.textColored(icon_color, icon_spaced);
+                    imgui.sameLine();
 
                     const abs_path = std.fs.path.joinZ(alloc, &.{ directory, entry.name }) catch unreachable;
                     defer alloc.free(abs_path);
 
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = text_color });
-                    if (zgui.selectable(zgui.formatZ("{s}", .{entry.name}), .{
-                        .selected = if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
-                    })) {
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, text_color);
+
+                    const selectable_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{entry.name}) catch unreachable;
+                    defer pixi.state.allocator.free(selectable_name);
+
+                    if (imgui.selectableEx(
+                        selectable_name,
+                        if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
+                        imgui.SelectableFlags_None,
+                        .{ .x = 0.0, .y = 0.0 },
+                    )) {
                         if (ext == .pixi)
                             _ = pixi.editor.openFile(abs_path) catch unreachable;
                     }
-                    zgui.popStyleColor(.{ .count = 1 });
+                    imgui.popStyleColor();
 
-                    zgui.pushStrId(abs_path);
-                    if (zgui.beginPopupContextItem()) {
+                    imgui.pushID(abs_path);
+                    if (imgui.beginPopupContextItem()) {
                         contextMenuFile(abs_path);
-                        zgui.endPopup();
+                        imgui.endPopup();
                     }
-                    zgui.popId();
+                    imgui.popID();
                 } else if (entry.kind == .directory) {
                     const abs_path = std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
                     defer alloc.free(abs_path);
-                    const folder = zgui.formatZ("{s}  {s}", .{ pixi.fa.folder, entry.name });
-                    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
-                    defer zgui.popStyleColor(.{ .count = 1 });
+                    const folder = std.fmt.allocPrintZ(alloc, "{s}  {s}", .{ pixi.fa.folder, entry.name }) catch unreachable;
+                    defer alloc.free(folder);
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+                    defer imgui.popStyleColor();
 
-                    if (zgui.treeNode(folder)) {
-                        zgui.pushStrId(abs_path);
-                        if (zgui.beginPopupContextItem()) {
+                    if (imgui.treeNode(folder)) {
+                        imgui.pushID(abs_path);
+                        if (imgui.beginPopupContextItem()) {
                             contextMenuFolder(abs_path);
-                            zgui.endPopup();
+                            imgui.endPopup();
                         }
-                        zgui.popId();
+                        imgui.popID();
 
                         search(alloc, abs_path);
 
-                        zgui.treePop();
+                        imgui.treePop();
                     } else {
-                        zgui.pushStrId(abs_path);
-                        if (zgui.beginPopupContextItem()) {
+                        imgui.pushID(abs_path);
+                        if (imgui.beginPopupContextItem()) {
                             contextMenuFolder(abs_path);
-                            zgui.endPopup();
+                            imgui.endPopup();
                         }
-                        zgui.popId();
+                        imgui.popID();
                     }
                 }
             }
@@ -271,15 +293,15 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 }
 
 fn contextMenuFolder(folder: [:0]const u8) void {
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.theme.foreground.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
-    defer zgui.popStyleColor(.{ .count = 2 });
-    if (zgui.menuItem("New File...", .{})) {
+    imgui.pushStyleColorImVec4(imgui.Col_Separator, pixi.state.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
+    defer imgui.popStyleColorEx(2);
+    if (imgui.menuItem("New File...")) {
         const new_file_path = std.fs.path.joinZ(pixi.state.allocator, &[_][]const u8{ folder, "New_file.pixi" }) catch unreachable;
         defer pixi.state.allocator.free(new_file_path);
         pixi.state.popups.fileSetupNew(new_file_path);
     }
-    if (zgui.menuItem("New File from PNG...", .{})) {
+    if (imgui.menuItem("New File from PNG...")) {
         pixi.state.popups.file_dialog_request = .{
             .state = .file,
             .type = .new_png,
@@ -297,49 +319,49 @@ fn contextMenuFolder(folder: [:0]const u8) void {
             pixi.state.popups.file_dialog_response = null;
         }
     }
-    if (zgui.menuItem("New Folder...", .{})) {
+    if (imgui.menuItem("New Folder...")) {
         std.log.debug("{s}", .{folder});
     }
 
-    zgui.separator();
+    imgui.separator();
 }
 
 fn contextMenuFile(file: [:0]const u8) void {
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = pixi.state.theme.foreground.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
+    imgui.pushStyleColorImVec4(imgui.Col_Separator, pixi.state.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
 
     const ext = extension(file);
 
     switch (ext) {
         .png => {
-            if (zgui.menuItem("Import...", .{})) {
+            if (imgui.menuItem("Import...")) {
                 var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{file[0 .. file.len - 4]}) catch unreachable;
                 defer pixi.state.allocator.free(new_file_path);
                 pixi.state.popups.fileSetupImportPng(new_file_path, file);
             }
         },
         .pixi => {
-            if (zgui.menuItem("Re-slice...", .{})) {
+            if (imgui.menuItem("Re-slice...")) {
                 pixi.state.popups.fileSetupSlice(file);
             }
         },
         else => {},
     }
 
-    zgui.separator();
+    imgui.separator();
 
-    if (zgui.menuItem("Rename...", .{})) {
-        pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-        pixi.state.popups.rename_old_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+    if (imgui.menuItem("Rename...")) {
+        pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+        pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
         std.mem.copy(u8, pixi.state.popups.rename_path[0..], file);
         std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], file);
         pixi.state.popups.rename = true;
         pixi.state.popups.rename_state = .rename;
     }
 
-    if (zgui.menuItem("Duplicate...", .{})) {
-        pixi.state.popups.rename_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-        pixi.state.popups.rename_old_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
+    if (imgui.menuItem("Duplicate...")) {
+        pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+        pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
         std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], file);
 
         const ex = std.fs.path.extension(file);
@@ -353,15 +375,15 @@ fn contextMenuFile(file: [:0]const u8) void {
             pixi.state.popups.rename_state = .duplicate;
         }
     }
-    zgui.separator();
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_red.toSlice() });
-    if (zgui.menuItem("Delete", .{})) {
+    imgui.separator();
+    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_red.toImguiVec4());
+    if (imgui.menuItem("Delete")) {
         std.fs.deleteFileAbsolute(file) catch unreachable;
         if (pixi.editor.getFileIndex(file)) |index| {
             pixi.editor.closeFile(index) catch unreachable;
         }
     }
-    zgui.popStyleColor(.{ .count = 3 });
+    imgui.popStyleColorEx(3);
 }
 
 pub fn extension(file: []const u8) Extension {

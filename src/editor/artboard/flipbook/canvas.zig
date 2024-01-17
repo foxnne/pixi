@@ -1,10 +1,10 @@
 const std = @import("std");
 const pixi = @import("../../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
-    const window_height = zgui.getWindowHeight();
+    const window_height = imgui.getWindowHeight();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
@@ -15,7 +15,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (request.elapsed < 1.0) {
             file.selected_animation_state = .pause;
             request.elapsed += pixi.state.delta_time * 2.0;
-            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed, .ease_out);
+            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed, .ease_in_out);
         } else {
             file.flipbook_scroll = request.to;
             file.selected_animation_state = request.state;
@@ -72,21 +72,23 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         // Draw progress bar
         {
-            const window_position = zgui.getWindowPos();
-            const window_width = zgui.getWindowWidth();
+            const window_position = imgui.getWindowPos();
+            const window_width = imgui.getWindowWidth();
 
-            const progress_start: [2]f32 = .{ window_position[0], window_position[1] + 2 };
+            const progress_start: imgui.Vec2 = .{ .x = window_position.x, .y = window_position.y + 2 };
             const animation_length = @as(f32, @floatFromInt(animation.length)) / @as(f32, @floatFromInt(animation.fps));
             const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
+            const progress_end: imgui.Vec2 = .{ .x = window_position.x + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), .y = window_position.y + 2 };
 
-            const draw_list = zgui.getWindowDrawList();
-            draw_list.addLine(.{
-                .p1 = progress_start,
-                .p2 = progress_end,
-                .col = pixi.state.theme.highlight_primary.toU32(),
-                .thickness = 3.0,
-            });
+            const draw_list_opt = imgui.getWindowDrawList();
+            if (draw_list_opt) |draw_list| {
+                draw_list.addLineEx(
+                    progress_start,
+                    progress_end,
+                    pixi.state.theme.highlight_primary.toU32(),
+                    3.0,
+                );
+            }
         }
     }
 
@@ -98,13 +100,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         const src_x = column * tile_width;
         const src_y = row * tile_height;
-
-        const sprite_scale = std.math.clamp(0.5 / @abs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
         const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
-        var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + @as(f32, @floatFromInt(i)) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
-        var dst_y: f32 = canvas_center_offset[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
+
+        const sprite_scale = std.math.clamp(0.4 / @abs(@as(f32, @floatFromInt(i)) / 1.2 + (file.flipbook_scroll / tile_width / 1.2)), 0.4, 1.0);
+        var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(i)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
+        var dst_y: f32 = canvas_center_offset[1];
         var dst_width: f32 = tile_width * sprite_scale;
-        var dst_height: f32 = tile_height * sprite_scale;
+        var dst_height: f32 = tile_height;
 
         if (file.selected_animation_state == .play) {
             dst_x = @round(dst_x);
@@ -112,10 +114,24 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             dst_width = @round(dst_width);
             dst_height = @round(dst_height);
         }
-        const dst_rect: [4]f32 = .{ dst_x, dst_y, dst_width, dst_height };
+        const offset = (1.0 - sprite_scale) * (dst_height / 5.0);
+        const offset_x = (1.0 - sprite_scale) * dst_width * 0.5;
+        const flip = if (dst_x + dst_width > 0) false else true;
+        const dst_rect: [4]f32 = .{ dst_x + offset_x, dst_y + offset, dst_width, dst_height };
+        const dst_p1: [2]f32 = if (flip) .{ dst_x + offset_x, dst_y } else .{ dst_x + offset_x, dst_y + offset };
+        const dst_p2: [2]f32 = if (flip) .{ dst_x + dst_width + offset_x, dst_y + offset } else .{ dst_x + dst_width + offset_x, dst_y };
+        const dst_p3: [2]f32 = if (flip) .{ dst_x + dst_width + offset_x, dst_y + dst_height - offset } else .{ dst_x + dst_width + offset_x, dst_y + dst_height };
+        const dst_p4: [2]f32 = if (flip) .{ dst_x + offset_x, dst_y + dst_height } else .{ dst_x + offset_x, dst_y + dst_height - offset };
 
         if (sprite_scale >= 1.0) {
             // TODO: Make background texture opacity available through settings.
+            file.flipbook_camera.drawQuadFilled(
+                dst_p1,
+                dst_p2,
+                dst_p3,
+                dst_p4,
+                pixi.state.theme.background.toU32(),
+            ); 
             // Draw background
             file.flipbook_camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
             file.selected_sprite_index = i;
@@ -124,41 +140,63 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             }
         }
 
-        if (dst_rect[0] > -zgui.getWindowWidth() / 2 and dst_rect[0] + dst_rect[2] < zgui.getWindowWidth()) {
+        if (dst_rect[0] > -imgui.getWindowWidth() / 2 and dst_rect[0] + dst_rect[2] < imgui.getWindowWidth()) {
             // Draw all layers in reverse order
             var j: usize = file.layers.items.len;
             while (j > 0) {
                 j -= 1;
                 if (!file.layers.items[j].visible) continue;
-                file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
+
+                file.flipbook_camera.drawSpriteQuad(
+                    file.layers.items[j],
+                    src_rect,
+                    dst_p1,
+                    dst_p2,
+                    dst_p3,
+                    dst_p4,
+                );
             }
 
             if (file.heightmap.visible) {
-                file.flipbook_camera.drawRectFilled(dst_rect, 0x50FFFFFF);
-                file.flipbook_camera.drawSprite(file.heightmap.layer.?, src_rect, dst_rect);
+                //file.flipbook_camera.drawRectFilled(dst_rect, 0x50FFFFFF);
+                //file.flipbook_camera.drawSprite(file.heightmap.layer.?, src_rect, dst_rect);
             }
 
             if (i == file.selected_sprite_index)
                 file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
 
-            if (file.flipbook_camera.isHovered(dst_rect) and !zgui.isAnyItemHovered()) {
+            if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
                 if (i != file.selected_sprite_index) {
-                    file.flipbook_camera.drawRect(dst_rect, 2, pixi.state.theme.text.toU32());
+                    file.flipbook_camera.drawQuad(dst_p1, dst_p2, dst_p3, dst_p4, pixi.state.theme.text.toU32(), 2.0);
                     if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != i) {
                         file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
                     }
                 } else {
                     file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
 
-                    file.processSampleTool(.flipbook);
                     file.processStrokeTool(.flipbook) catch unreachable;
                     file.processFillTool(.flipbook) catch unreachable;
+                    file.processSampleTool(.flipbook);
                 }
             } else {
                 if (i != file.selected_sprite_index) {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text_secondary.toU32());
+                    file.flipbook_camera.drawQuad(
+                        dst_p1,
+                        dst_p2,
+                        dst_p3,
+                        dst_p4,
+                        pixi.state.theme.text_secondary.toU32(),
+                        1.0,
+                    );
                 } else {
-                    file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
+                    file.flipbook_camera.drawQuad(
+                        dst_p1,
+                        dst_p2,
+                        dst_p3,
+                        dst_p4,
+                        pixi.state.theme.text.toU32(),
+                        1.0,
+                    );
                 }
             }
         }
@@ -168,21 +206,24 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
         // Draw progress bar
         {
-            const window_position = zgui.getWindowPos();
-            const window_width = zgui.getWindowWidth();
+            const window_position = imgui.getWindowPos();
+            const window_width = imgui.getWindowWidth();
 
-            const progress_start: [2]f32 = .{ window_position[0], window_position[1] + 2 };
+            const progress_start: imgui.Vec2 = .{ .x = window_position.x, .y = window_position.y + 2 };
             const animation_length = @as(f32, @floatFromInt(animation.length)) / @as(f32, @floatFromInt(animation.fps));
             const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-            const progress_end: [2]f32 = .{ window_position[0] + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), window_position[1] + 2 };
+            const progress_end: imgui.Vec2 = .{ .x = window_position.x + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), .y = window_position.y + 2 };
 
-            const draw_list = zgui.getWindowDrawList();
-            draw_list.addLine(.{
-                .p1 = progress_start,
-                .p2 = progress_end,
-                .col = pixi.state.theme.text_background.toU32(),
-                .thickness = 3.0,
-            });
+            const draw_list_opt = imgui.getWindowDrawList();
+
+            if (draw_list_opt) |draw_list| {
+                draw_list.addLineEx(
+                    progress_start,
+                    progress_end,
+                    pixi.state.theme.text_background.toU32(),
+                    3.0,
+                );
+            }
         }
     }
 }

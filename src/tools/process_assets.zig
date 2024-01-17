@@ -26,7 +26,7 @@ pub const ProcessAssetsStep = struct {
     }
 
     fn process(step: *Step, prog_node: *std.Progress.Node) anyerror!void {
-        _ = prog_node;
+        _ = prog_node.start("Processing assets...", 100);
         const self = @fieldParentPtr(ProcessAssetsStep, "step", step);
         const root = self.assets_root_path;
         const assets_output = self.assets_output_path;
@@ -84,17 +84,17 @@ pub const ProcessAssetsStep = struct {
 
                     // Atlases
                     if (std.mem.eql(u8, ext, ".atlas")) {
-                        try assets_writer.print("pub const {s}{s} = struct {{\n", .{ name_fixed, "_atlas" });
+                        try assets_writer.print("pub const {s}{s} = struct {{\n", .{ name, "_atlas" });
                         try assets_writer.print("  pub const path = \"{s}\";\n", .{path_fixed});
 
-                        var atlas = Atlas.initFromFile(self.builder.allocator, file) catch unreachable;
+                        var atlas = Atlas.loadFromFile(self.builder.allocator, file) catch unreachable;
 
                         for (atlas.sprites, 0..) |sprite, i| {
                             var sprite_name = try self.builder.allocator.alloc(u8, sprite.name.len);
                             _ = std.mem.replace(u8, sprite.name, " ", "_", sprite_name);
                             _ = std.mem.replace(u8, sprite_name, ".", "_", sprite_name);
 
-                            try assets_writer.print("  pub const {s} = {};\n", .{ sprite_name, i });
+                            try assets_writer.print("  pub const {s} = {d};\n", .{ sprite_name, i });
                         }
 
                         try assets_writer.print("}};\n\n", .{});
@@ -119,7 +119,6 @@ pub const ProcessAssetsStep = struct {
                                 try animations_writer.print("pub var {s} = [_]usize {{\n", .{animation_name});
 
                                 var animation_index = animation.start;
-
                                 while (animation_index < animation.start + animation.length) : (animation_index += 1) {
                                     var sprite_name = try self.builder.allocator.alloc(u8, atlas.sprites[animation_index].name.len);
                                     _ = std.mem.replace(u8, atlas.sprites[animation_index].name, " ", "_", sprite_name);

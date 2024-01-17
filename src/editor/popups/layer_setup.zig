@@ -1,7 +1,7 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
@@ -12,55 +12,61 @@ pub fn draw() void {
         };
 
         if (pixi.state.popups.layer_setup) {
-            zgui.openPopup(dialog_name, .{});
+            imgui.openPopup(dialog_name, imgui.PopupFlags_None);
         } else return;
 
         const popup_width = 350 * pixi.content_scale[0];
         const popup_height = 115 * pixi.content_scale[1];
 
-        var window_size = pixi.framebuffer_size;
+        var window_size = pixi.window_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
-        zgui.setNextWindowPos(.{
+        imgui.setNextWindowPos(.{
             .x = window_center[0] - popup_width / 2.0,
             .y = window_center[1] - popup_height / 2.0,
-        });
-        zgui.setNextWindowSize(.{
-            .w = popup_width,
-            .h = popup_height,
-        });
+        }, imgui.Cond_None);
+        imgui.setNextWindowSize(.{
+            .x = popup_width,
+            .y = popup_height,
+        }, imgui.Cond_None);
 
-        if (zgui.beginPopupModal(dialog_name, .{
-            .popen = &pixi.state.popups.layer_setup,
-            .flags = .{
-                .no_resize = true,
-                .no_collapse = true,
-            },
-        })) {
-            defer zgui.endPopup();
-            zgui.spacing();
+        var modal_flags: imgui.WindowFlags = 0;
+        modal_flags |= imgui.WindowFlags_NoResize;
+        modal_flags |= imgui.WindowFlags_NoCollapse;
 
-            const style = zgui.getStyle();
-            const spacing = style.item_spacing[0];
-            const full_width = popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - zgui.calcTextSize("Name", .{})[0];
-            const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
+        if (imgui.beginPopupModal(
+            dialog_name,
+            &pixi.state.popups.layer_setup,
+            modal_flags,
+        )) {
+            defer imgui.endPopup();
+            imgui.spacing();
 
-            zgui.pushItemWidth(full_width);
-            var enter = zgui.inputText("Name", .{
-                .buf = pixi.state.popups.layer_setup_name[0..],
-                .flags = .{
-                    .auto_select_all = true,
-                    .enter_returns_true = true,
-                },
-            });
+            const style = imgui.getStyle();
+            const spacing = style.item_spacing.x;
+            const full_width = popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - imgui.calcTextSize("Name").x;
+            const half_width = (popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
-            zgui.setCursorPosY(popup_height - zgui.getTextLineHeightWithSpacing() * 2.0);
+            imgui.pushItemWidth(full_width);
 
-            if (zgui.button("Cancel", .{ .w = half_width })) {
+            var input_text_flags: imgui.InputTextFlags = 0;
+            input_text_flags |= imgui.InputTextFlags_AutoSelectAll;
+            input_text_flags |= imgui.InputTextFlags_EnterReturnsTrue;
+
+            var enter = imgui.inputText(
+                "Name",
+                pixi.state.popups.layer_setup_name[0.. :0],
+                pixi.state.popups.layer_setup_name[0.. :0].len,
+                input_text_flags,
+            );
+
+            imgui.setCursorPosY(popup_height - imgui.getTextLineHeightWithSpacing() * 2.0);
+
+            if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
                 pixi.state.popups.layer_setup = false;
             }
-            zgui.sameLine(.{});
-            if (zgui.button("Ok", .{ .w = half_width }) or enter) {
+            imgui.sameLine();
+            if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
                 switch (pixi.state.popups.layer_setup_state) {
                     .none => {
                         const new_name = std.mem.trimRight(u8, pixi.state.popups.layer_setup_name[0..], "\u{0}");
@@ -91,7 +97,7 @@ pub fn draw() void {
                 pixi.state.popups.layer_setup = false;
             }
 
-            zgui.popItemWidth();
+            imgui.popItemWidth();
         }
     }
 }

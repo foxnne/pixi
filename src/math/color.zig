@@ -1,4 +1,5 @@
 const zm = @import("zmath");
+const imgui = @import("zig-imgui");
 
 pub const Color = struct {
     value: zm.F32x4,
@@ -32,6 +33,15 @@ pub const Color = struct {
         var slice: [4]f32 = undefined;
         zm.storeArr4(&slice, self.value);
         return slice;
+    }
+
+    pub fn toImguiVec4(self: Color) imgui.Vec4 {
+        return .{
+            .x = self.value[0],
+            .y = self.value[1],
+            .z = self.value[2],
+            .w = self.value[3],
+        };
     }
 
     pub fn toU32(self: Color) u32 {

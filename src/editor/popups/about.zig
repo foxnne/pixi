@@ -1,107 +1,134 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 pub fn draw() void {
     if (pixi.state.popups.about) {
-        zgui.openPopup("About", .{});
+        imgui.openPopup("About", imgui.PopupFlags_None);
     } else return;
 
     const popup_width = 450 * pixi.content_scale[0];
     const popup_height = 450 * pixi.content_scale[1];
 
-    var window_size = pixi.framebuffer_size;
+    var window_size = pixi.window_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
-    zgui.setNextWindowPos(.{
+    imgui.setNextWindowPos(.{
         .x = window_center[0] - popup_width / 2.0,
         .y = window_center[1] - popup_height / 2.0,
-    });
-    zgui.setNextWindowSize(.{
-        .w = popup_width,
-        .h = popup_height,
-    });
+    }, imgui.Cond_None);
+    imgui.setNextWindowSize(.{
+        .x = popup_width,
+        .y = popup_height,
+    }, imgui.Cond_None);
 
-    if (zgui.beginPopupModal("About", .{
-        .popen = &pixi.state.popups.about,
-        .flags = .{
-            .no_resize = true,
-            .no_collapse = true,
-        },
-    })) {
-        defer zgui.endPopup();
-        zgui.spacing();
+    var modal_flags: imgui.WindowFlags = 0;
+    modal_flags |= imgui.WindowFlags_NoResize;
+    modal_flags |= imgui.WindowFlags_NoCollapse;
 
-        const w = @as(f32, @floatFromInt(pixi.state.fox_logo.image.width / 4)) * pixi.content_scale[0];
-        const h = @as(f32, @floatFromInt(pixi.state.fox_logo.image.height / 4)) * pixi.content_scale[1];
-        const window_position = zgui.getWindowPos();
-        _ = window_position;
-        const center: [2]f32 = .{ zgui.getWindowWidth() / 2.0, zgui.getWindowHeight() / 2.0 };
-        zgui.setCursorPosX(center[0] - w / 2.0);
-        zgui.setCursorPosY(center[1] - h / 2.0);
-        zgui.dummy(.{ .w = w, .h = h });
+    if (imgui.beginPopupModal(
+        "About",
+        &pixi.state.popups.about,
+        modal_flags,
+    )) {
+        defer imgui.endPopup();
+        imgui.spacing();
 
-        const dummy_pos = zgui.getItemRectMin();
+        const fox_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.fox_0_default];
 
-        const draw_list = zgui.getWindowDrawList();
-        draw_list.addCircleFilled(.{
-            .p = .{ dummy_pos[0] + w / 2, dummy_pos[1] + w / 2 },
-            .r = w / 2.5,
-            .col = pixi.state.theme.foreground.toU32(),
-        });
+        const src: [4]f32 = .{
+            @floatFromInt(fox_sprite.source[0]),
+            @floatFromInt(fox_sprite.source[1]),
+            @floatFromInt(fox_sprite.source[2]),
+            @floatFromInt(fox_sprite.source[3]),
+        };
 
-        zgui.setCursorPosX(center[0] - w / 2.0);
-        zgui.setCursorPosY(center[1] - h / 2.0);
-        zgui.image(pixi.state.fox_logo.view_handle, .{
-            .w = w,
-            .h = h,
-        });
+        const w = src[2] * 4.0 * pixi.content_scale[0];
+        const h = src[3] * 4.0 * pixi.content_scale[1];
+        const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 4.0 };
 
-        centerText("Pixi Editor", .{});
-        centerText("https://github.com/foxnne/pixi", .{});
-        centerText("Version: {any}", .{pixi.version});
+        imgui.setCursorPosX(center[0] - w / 2.0);
+        imgui.setCursorPosY(center[1] - h / 2.0);
+        imgui.dummy(.{ .x = w, .y = h });
 
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
-        defer zgui.popStyleColor(.{ .count = 1 });
+        const dummy_pos = imgui.getItemRectMin();
 
-        zgui.spacing();
-        zgui.spacing();
-        zgui.spacing();
-        zgui.spacing();
-        zgui.spacing();
-        zgui.spacing();
-        centerText("Credits", .{});
-        centerText("__________________", .{});
-        zgui.spacing();
-        zgui.spacing();
+        const draw_list_opt = imgui.getWindowDrawList();
 
-        centerText("mach-core", .{});
-        centerText("https://github.com/hexops/mach-core", .{});
+        if (draw_list_opt) |draw_list| {
+            draw_list.addCircleFilled(
+                .{ .x = dummy_pos.x + w / 2, .y = dummy_pos.y + w / 2 },
+                w / 1.5,
+                pixi.state.theme.foreground.toU32(),
+                32,
+            );
+        }
 
-        zgui.spacing();
-        zgui.spacing();
+        const inv_w = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.height));
 
-        centerText("zig-gamedev", .{});
-        centerText("https://github.com/michal-z/zig-gamedev", .{});
+        imgui.setCursorPosX(center[0] - w / 2.0);
+        imgui.setCursorPosY(center[1] - h / 6.0);
+        imgui.imageEx(
+            pixi.state.assets.atlas_png.view_handle,
+            .{ .x = w, .y = h },
+            .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
+            .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
+            .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 1.0 },
+            .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
+        );
 
-        zgui.spacing();
-        zgui.spacing();
+        imgui.dummy(.{ .x = w, .y = h });
 
-        centerText("zip", .{});
-        centerText("https://github.com/kuba--/zip", .{});
+        centerText("Pixi Editor");
+        centerText("https://github.com/foxnne/pixi");
 
-        zgui.spacing();
-        zgui.spacing();
+        const version = std.fmt.allocPrintZ(pixi.state.allocator, "Version {d}.{d}.{d}", .{ pixi.version.major, pixi.version.minor, pixi.version.patch }) catch unreachable;
+        defer pixi.state.allocator.free(version);
 
-        centerText("nfd-zig", .{});
-        centerText("https://github.com/fabioarnold/nfd-zig", .{});
+        centerText(version);
+
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+        defer imgui.popStyleColor();
+
+        imgui.spacing();
+        imgui.spacing();
+        imgui.spacing();
+        imgui.spacing();
+        imgui.spacing();
+        imgui.spacing();
+        centerText("Credits");
+        centerText("__________________");
+        imgui.spacing();
+        imgui.spacing();
+
+        centerText("mach-core");
+        centerText("https://github.com/hexops/mach-core");
+
+        imgui.spacing();
+        imgui.spacing();
+
+        centerText("zig-gamedev");
+        centerText("https://github.com/michal-z/zig-gamedev");
+
+        imgui.spacing();
+        imgui.spacing();
+
+        centerText("zip");
+        centerText("https://github.com/kuba--/zip");
+
+        imgui.spacing();
+        imgui.spacing();
+
+        centerText("nfd-zig");
+        centerText("https://github.com/fabioarnold/nfd-zig");
     }
 }
 
-fn centerText(comptime text: []const u8, args: anytype) void {
-    const center = zgui.getWindowWidth() / 2.0;
-    const text_width = zgui.calcTextSize(zgui.format(text, args), .{})[0];
-    zgui.setCursorPosX(center - text_width / 2.0);
-    zgui.text(text, args);
+fn centerText(text: [:0]const u8) void {
+    const center = imgui.getWindowWidth() / 2.0;
+    const text_width = imgui.calcTextSize(text).x;
+    imgui.setCursorPosX(center - text_width / 2.0);
+    imgui.text(text);
 }

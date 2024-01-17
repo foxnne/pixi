@@ -1,18 +1,18 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
 const nfd = @import("nfd");
+const imgui = @import("zig-imgui");
 
 pub fn draw() void {
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 6.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
-    defer zgui.popStyleVar(.{ .count = 1 });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.highlight_secondary.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.highlight_secondary.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.hover_secondary.toSlice() });
-    defer zgui.popStyleColor(.{ .count = 3 });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
+    defer imgui.popStyleVar();
+    imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.highlight_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.highlight_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.hover_secondary.toImguiVec4());
+    defer imgui.popStyleColorEx(3);
 
-    const window_size = zgui.getContentRegionAvail();
+    const window_size = imgui.getContentRegionAvail();
 
     switch (pixi.state.pack_target) {
         .all_open => {
@@ -33,22 +33,22 @@ pub fn draw() void {
         .single_open => "Current Open File",
     };
 
-    if (zgui.beginCombo("Files", .{ .preview_value = preview_text.ptr })) {
-        defer zgui.endCombo();
-        if (zgui.menuItem("Full Project", .{})) {
+    if (imgui.beginCombo("Files", preview_text.ptr, imgui.ComboFlags_None)) {
+        defer imgui.endCombo();
+        if (imgui.menuItem("Full Project")) {
             pixi.state.pack_target = .project;
         }
 
         {
             const enabled = if (pixi.editor.getFile(pixi.state.open_file_index)) |_| true else false;
-            if (zgui.menuItem("Current Open File", .{ .enabled = enabled })) {
+            if (imgui.menuItemEx("Current Open File", null, false, enabled)) {
                 pixi.state.pack_target = .single_open;
             }
         }
 
         {
             const enabled = if (pixi.state.open_files.items.len > 1) true else false;
-            if (zgui.menuItem("All Open Files", .{ .enabled = enabled })) {
+            if (imgui.menuItemEx("All Open Files", null, false, enabled)) {
                 pixi.state.pack_target = .all_open;
             }
         }
@@ -59,15 +59,15 @@ pub fn draw() void {
         if (pixi.state.pack_target == .project and pixi.state.project_folder == null) packable = false;
         if (pixi.state.pack_target == .all_open and pixi.state.open_files.items.len <= 1) packable = false;
         if (pixi.editor.saving()) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
-            defer zgui.popStyleColor(.{ .count = 1 });
-            zgui.textWrapped("Please wait until all files are done saving.", .{});
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+            defer imgui.popStyleColor();
+            imgui.textWrapped("Please wait until all files are done saving.");
             packable = false;
         }
 
         if (!packable)
-            zgui.beginDisabled(.{});
-        if (zgui.button("Pack", .{ .w = window_size[0] })) {
+            imgui.beginDisabled(true);
+        if (imgui.buttonEx("Pack", .{ .x = window_size.x, .y = 0.0 })) {
             switch (pixi.state.pack_target) {
                 .project => {
                     if (pixi.state.project_folder) |folder| {
@@ -90,23 +90,23 @@ pub fn draw() void {
             }
         }
         if (!packable)
-            zgui.endDisabled();
+            imgui.endDisabled();
 
         if (pixi.state.pack_target == .project and pixi.state.project_folder == null) {
-            zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
-            defer zgui.popStyleColor(.{ .count = 1 });
-            zgui.textWrapped("Select a project folder to pack.", .{});
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+            defer imgui.popStyleColor();
+            imgui.textWrapped("Select a project folder to pack.");
         }
 
         if (pixi.state.atlas.external) |atlas| {
-            zgui.text("Atlas Details", .{});
-            zgui.text("Sprites: {d}", .{atlas.sprites.len});
-            zgui.text("Animations: {d}", .{atlas.animations.len});
+            imgui.text("Atlas Details");
+            imgui.text("Sprites: %d", atlas.sprites.len);
+            imgui.text("Animations: %d", atlas.animations.len);
             if (pixi.state.atlas.diffusemap) |diffusemap| {
-                zgui.text("Atlas size: {d}x{d}", .{ diffusemap.image.width, diffusemap.image.height });
+                imgui.text("Atlas size: %dx%d", diffusemap.image.width, diffusemap.image.height);
             }
 
-            if (zgui.button("Export", .{ .w = window_size[0] })) {
+            if (imgui.buttonEx("Export", .{ .x = window_size.x, .y = 0.0 })) {
                 pixi.state.popups.file_dialog_request = .{
                     .state = .save,
                     .type = .export_atlas,
@@ -124,24 +124,20 @@ pub fn draw() void {
             }
 
             if (pixi.state.recents.exports.items.len > 0) {
-                if (zgui.button("Repeat Last Export", .{ .w = window_size[0] })) {
+                if (imgui.buttonEx("Repeat Last Export", .{ .x = window_size.x, .y = 0.0 })) {
                     pixi.state.atlas.save(pixi.state.recents.exports.getLast()) catch unreachable;
                 }
-                zgui.textWrapped("{s}", .{pixi.state.recents.exports.getLast()});
+                imgui.textWrapped(pixi.state.recents.exports.getLast());
 
-                zgui.spacing();
-                zgui.text("Recents", .{});
-                zgui.separator();
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
-                defer zgui.popStyleColor(.{ .count = 1 });
-                if (zgui.beginChild("Recents", .{
-                    .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
-                    .h = 0.0,
-                    .flags = .{
-                        .horizontal_scrollbar = true,
-                    },
-                })) {
-                    defer zgui.endChild();
+                imgui.spacing();
+                imgui.separatorText("Recents");
+                imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+                defer imgui.popStyleColor();
+                if (imgui.beginChild("Recents", .{
+                    .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+                    .y = 0.0,
+                }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+                    defer imgui.endChild();
 
                     var i: usize = pixi.state.recents.exports.items.len;
                     while (i > 0) {
@@ -150,14 +146,14 @@ pub fn draw() void {
                         var label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.file_download, std.fs.path.basename(exp) }) catch unreachable;
                         defer pixi.state.allocator.free(label);
 
-                        if (zgui.selectable(label, .{})) {
+                        if (imgui.selectable(label)) {
                             const exp_out = pixi.state.recents.exports.swapRemove(i);
                             pixi.state.recents.appendExport(exp_out) catch unreachable;
                         }
-                        zgui.sameLine(.{ .spacing = 5.0 * pixi.content_scale[0] });
-                        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
-                        zgui.text("{s}", .{exp});
-                        zgui.popStyleColor(.{ .count = 1 });
+                        imgui.sameLineEx(0.0, 5.0 * pixi.content_scale[0]);
+                        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                        imgui.text(exp);
+                        imgui.popStyleColor();
                     }
                 }
             }

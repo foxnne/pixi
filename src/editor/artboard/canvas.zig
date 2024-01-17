@@ -1,11 +1,30 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
-    const window_width = zgui.getWindowWidth();
-    const window_height = zgui.getWindowHeight();
+    {
+        const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
+        // Draw a shadow fading from bottom to top
+        const pos = imgui.getWindowPos();
+        const height = imgui.getWindowHeight();
+        const width = imgui.getWindowWidth();
+
+        if (imgui.getWindowDrawList()) |draw_list| {
+            draw_list.addRectFilledMultiColor(
+                .{ .x = pos.x, .y = (pos.y + height) - pixi.state.settings.shadow_length * pixi.content_scale[1] },
+                .{ .x = pos.x + width, .y = pos.y + height },
+                0x0,
+                0x0,
+                shadow_color,
+                shadow_color,
+            );
+        }
+    }
+
+    const window_width = imgui.getWindowWidth();
+    const window_height = imgui.getWindowHeight();
     const file_width = @as(f32, @floatFromInt(file.width));
     const file_height = @as(f32, @floatFromInt(file.height));
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -39,7 +58,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     // TODO: Only clear and update if we need to?
     file.temporary_layer.clear(true);
 
-    if (zgui.isWindowHovered(.{})) {
+    if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
         var mouse_position = pixi.state.mouse.position;
 
         if (file.camera.pixelCoordinates(.{
@@ -59,10 +78,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (pixi.state.sidebar != .pack)
                 file.camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
-            file.processSampleTool(.primary);
             file.processStrokeTool(.primary) catch unreachable;
             file.processFillTool(.primary) catch unreachable;
             file.processAnimationTool() catch unreachable;
+            file.processSampleTool(.primary);
 
             if (pixi.state.mouse.button(.primary)) |primary| {
                 if (primary.pressed()) {

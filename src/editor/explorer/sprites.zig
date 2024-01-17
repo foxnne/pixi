@@ -1,31 +1,32 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         const selection = file.selected_sprites.items.len > 0;
 
-        zgui.spacing();
-        zgui.text("Edit", .{});
-        zgui.separator();
-        zgui.spacing();
-        if (zgui.beginChild("Sprite", .{
-            .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
-            .h = pixi.state.settings.sprite_edit_height * pixi.content_scale[1],
-        })) {
-            defer zgui.endChild();
+        imgui.spacing();
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Edit  " ++ pixi.fa.wrench);
+        imgui.popStyleColor();
+        imgui.spacing();
+        if (imgui.beginChild("Sprite", .{
+            .x = imgui.getWindowWidth(),
+            .y = pixi.state.settings.sprite_edit_height * pixi.content_scale[1],
+        }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+            defer imgui.endChild();
 
             if (!selection) {
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_background.toSlice() });
-                defer zgui.popStyleColor(.{ .count = 1 });
-                zgui.textWrapped("Make a selection to begin editing sprite origins.", .{});
+                imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                defer imgui.popStyleColor();
+                imgui.textWrapped("Make a selection to begin editing sprite origins.");
             } else {
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = pixi.state.theme.background.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = pixi.state.theme.foreground.toSlice() });
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = pixi.state.theme.background.toSlice() });
-                defer zgui.popStyleColor(.{ .count = 3 });
+                imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.background.toImguiVec4());
+                defer imgui.popStyleColorEx(3);
                 var x_same: bool = true;
                 var y_same: bool = true;
                 const first_sprite = file.sprites.items[file.selected_sprites.items[0]];
@@ -50,16 +51,11 @@ pub fn draw() void {
 
                 const label_origin_x = "X  " ++ if (x_same) pixi.fa.link else pixi.fa.unlink;
                 var changed_origin_x: bool = false;
-                if (zgui.sliderFloat(label_origin_x, .{
-                    .v = &origin_x,
-                    .min = 0.0,
-                    .max = tile_width,
-                    .cfmt = "%.0f",
-                })) {
+                if (imgui.sliderFloatEx(label_origin_x, &origin_x, 0.0, tile_width, "%.0f", imgui.SliderFlags_None)) {
                     changed_origin_x = true;
                 }
 
-                if (zgui.isItemActivated()) {
+                if (imgui.isItemActivated()) {
                     file.newHistorySelectedSprites(.origins) catch unreachable;
                 }
 
@@ -68,16 +64,11 @@ pub fn draw() void {
 
                 const label_origin_y = "Y  " ++ if (y_same) pixi.fa.link else pixi.fa.unlink;
                 var changed_origin_y: bool = false;
-                if (zgui.sliderFloat(label_origin_y, .{
-                    .v = &origin_y,
-                    .min = 0.0,
-                    .max = tile_height,
-                    .cfmt = "%.0f",
-                })) {
+                if (imgui.sliderFloatEx(label_origin_y, &origin_y, 0.0, tile_height, "%.0f", imgui.SliderFlags_None)) {
                     changed_origin_y = true;
                 }
 
-                if (zgui.isItemActivated()) {
+                if (imgui.isItemActivated()) {
                     file.newHistorySelectedSprites(.origins) catch unreachable;
                 }
 
@@ -85,33 +76,42 @@ pub fn draw() void {
                     file.setSelectedSpritesOriginY(origin_y);
                 }
 
-                if (zgui.button(" Center ", .{ .w = -1.0 })) {
+                if (imgui.buttonEx(" Center ", .{ .x = -1.0, .y = 0.0 })) {
                     file.newHistorySelectedSprites(.origins) catch unreachable;
                     file.setSelectedSpritesOrigin(.{ tile_width / 2.0, tile_height / 2.0 });
                 }
             }
         }
 
-        zgui.spacing();
-        zgui.text("Sprites", .{});
-        zgui.separator();
-        zgui.spacing();
+        imgui.spacing();
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Sprites  " ++ pixi.fa.atlas);
+        imgui.popStyleColor();
+        imgui.spacing();
 
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.frame_padding, .v = .{ 2.0 * pixi.content_scale[0], 5.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 1 });
-        if (zgui.beginChild("Sprites", .{ .w = zgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0] })) {
-            defer zgui.endChild();
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
+        defer imgui.popStyleVar();
+        if (imgui.beginChild("Sprites", .{ .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+            defer imgui.endChild();
 
             for (file.sprites.items) |sprite| {
                 const selected_sprite_index = file.spriteSelectionIndex(sprite.index);
                 const contains = selected_sprite_index != null;
-                const color = if (contains) pixi.state.theme.text.toSlice() else pixi.state.theme.text_secondary.toSlice();
-                zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = color });
-                defer zgui.popStyleColor(.{ .count = 1 });
-                if (zgui.selectable(zgui.formatZ("{s} - Index: {d}", .{ sprite.name, sprite.index }), .{ .selected = contains })) {
+                const color = if (contains) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
+                imgui.pushStyleColorImVec4(imgui.Col_Text, color);
+                defer imgui.popStyleColor();
+
+                const name = std.fmt.allocPrintZ(pixi.state.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index }) catch unreachable;
+                defer pixi.state.allocator.free(name);
+
+                if (imgui.selectableEx(name, contains, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
                     file.makeSpriteSelection(sprite.index);
                 }
             }
         }
+    } else {
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+        imgui.textWrapped("Open a file to begin editing.");
+        imgui.popStyleColor();
     }
 }

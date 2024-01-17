@@ -1,59 +1,59 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 const spacer: [:0]const u8 = "    ";
 
 pub fn draw() void {
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.foreground.toSlice() });
-    defer zgui.popStyleColor(.{ .count = 1 });
+    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.foreground.toImguiVec4());
+    defer imgui.popStyleColor();
 
-    const h = zgui.getTextLineHeightWithSpacing() + 6.0 * pixi.content_scale[1];
-    const y = (zgui.getContentRegionAvail()[1] - h) / 2;
+    const h = imgui.getTextLineHeightWithSpacing() + 6.0 * pixi.content_scale[1];
+    const y = (imgui.getContentRegionAvail().y - h) / 2;
     const spacing: f32 = 3.0 * pixi.content_scale[0];
-    zgui.setCursorPosY(y);
-    zgui.setCursorPosX(5.0 * pixi.content_scale[0]);
+    imgui.setCursorPosY(y);
+    imgui.setCursorPosX(5.0 * pixi.content_scale[0]);
 
     if (pixi.state.project_folder) |path| {
-        zgui.setCursorPosY(y + 2.0 * pixi.content_scale[1]);
-        zgui.textColored(pixi.state.theme.foreground.toSlice(), "{s}", .{pixi.fa.folder_open});
-        zgui.setCursorPosY(y);
-        zgui.sameLine(.{ .spacing = spacing });
-        zgui.text("{s}", .{path});
+        imgui.setCursorPosY(y + 2.0 * pixi.content_scale[1]);
+        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), pixi.fa.folder_open);
+        imgui.setCursorPosY(y);
+        imgui.sameLineEx(0.0, spacing);
+        imgui.text(path);
 
-        zgui.sameLine(.{});
-        zgui.text(spacer, .{});
-        zgui.sameLine(.{});
+        imgui.sameLine();
+        imgui.text(spacer);
+        imgui.sameLine();
     }
 
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-        zgui.setCursorPosY(y + spacing);
-        zgui.textColored(pixi.state.theme.foreground.toSlice(), "{s} ", .{pixi.fa.chess_board});
-        zgui.setCursorPosY(y);
-        zgui.sameLine(.{ .spacing = spacing });
-        zgui.text("{d}px by {d}px", .{ file.width, file.height });
+        imgui.setCursorPosY(y + spacing);
+        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), pixi.fa.chess_board);
+        imgui.setCursorPosY(y);
+        imgui.sameLineEx(0.0, spacing);
+        imgui.text("%dpx by %dpx", file.width, file.height);
 
-        zgui.sameLine(.{});
-        zgui.text(spacer, .{});
-        zgui.sameLine(.{});
+        imgui.sameLine();
+        imgui.text(spacer);
+        imgui.sameLine();
 
-        zgui.setCursorPosY(y + spacing);
-        zgui.textColored(pixi.state.theme.foreground.toSlice(), "{s} ", .{pixi.fa.border_all});
-        zgui.setCursorPosY(y);
-        zgui.sameLine(.{ .spacing = spacing });
-        zgui.text("{d}px by {d}px", .{ file.tile_width, file.tile_height });
+        imgui.setCursorPosY(y + spacing);
+        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), pixi.fa.border_all);
+        imgui.setCursorPosY(y);
+        imgui.sameLineEx(0.0, spacing);
+        imgui.text("%dpx by %dpx", file.tile_width, file.tile_height);
 
-        zgui.sameLine(.{});
-        zgui.text(spacer, .{});
-        zgui.sameLine(.{});
+        imgui.sameLine();
+        imgui.text(spacer);
+        imgui.sameLine();
     }
 
     if (pixi.editor.saving()) {
-        zgui.setCursorPosY(y + spacing);
-        zgui.textColored(pixi.state.theme.foreground.toSlice(), "{s} ", .{pixi.fa.save});
-        zgui.setCursorPosY(y);
-        zgui.sameLine(.{ .spacing = spacing });
-        zgui.text("Saving!...", .{});
+        imgui.setCursorPosY(y + spacing);
+        imgui.textColored(pixi.state.theme.foreground.toImguiVec4(), pixi.fa.save);
+        imgui.setCursorPosY(y);
+        imgui.sameLineEx(0.0, spacing);
+        imgui.text("Saving!...");
     }
 }

@@ -4,7 +4,7 @@ const zstbi = @import("zstbi");
 const storage = @import("storage.zig");
 const zip = @import("zip");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 const gpu = core.gpu;
 
 const external = @import("external.zig");
@@ -15,13 +15,13 @@ pub const Pixi = struct {
     height: u32,
     tile_width: u32,
     tile_height: u32,
+    camera: pixi.gfx.Camera = .{},
     layers: std.ArrayList(Layer),
-    deleted_layers: std.ArrayList(Layer),
-    deleted_heightmap_layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
+    deleted_layers: std.ArrayList(Layer),
+    deleted_heightmap_layers: std.ArrayList(Layer),
     deleted_animations: std.ArrayList(Animation),
-    camera: pixi.gfx.Camera = .{},
     flipbook_camera: pixi.gfx.Camera = .{},
     flipbook_scroll: f32 = 0.0,
     flipbook_scroll_request: ?ScrollRequest = null,
@@ -108,6 +108,9 @@ pub const Pixi = struct {
 
         if (!sample_key and !sample_button) return;
 
+        imgui.setMouseCursor(imgui.MouseCursor_None);
+        file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.dropper_0_default], 0xFFFFFFFF);
+
         var mouse_position = pixi.state.mouse.position;
         var camera = switch (canvas) {
             .primary => file.camera,
@@ -151,10 +154,12 @@ pub const Pixi = struct {
                 }
 
                 if (color[3] == 0) {
-                    pixi.state.tools.set(.eraser);
+                    if (pixi.state.settings.eyedropper_auto_switch_layer)
+                        pixi.state.tools.set(.eraser);
                 } else {
                     if (pixi.state.tools.current == .eraser) {
-                        pixi.state.tools.set(pixi.state.tools.previous);
+                        if (pixi.state.settings.eyedropper_auto_switch_layer)
+                            pixi.state.tools.set(pixi.state.tools.previous);
                     }
                     pixi.state.colors.primary = color;
                 }
@@ -184,14 +189,19 @@ pub const Pixi = struct {
             else => true,
         }) return;
 
+        const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+
+        if (sample_key or sample_button) return;
+
         switch (pixi.state.tools.current) {
             .pencil, .heightmap => {
-                file.camera.drawCursor(pixi.state.cursors.pencil.view_handle, pixi.state.cursors.pencil.image.width, pixi.state.cursors.pencil.image.height, 0xFFFFFFFF);
-                pixi.state.cursors.current = .pencil;
+                imgui.setMouseCursor(imgui.MouseCursor_None);
+                file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.pencil_0_default], 0xFFFFFFFF);
             },
             .eraser => {
-                file.camera.drawCursor(pixi.state.cursors.eraser.view_handle, pixi.state.cursors.eraser.image.width, pixi.state.cursors.eraser.image.height, 0xFFFFFFFF);
-                pixi.state.cursors.current = .eraser;
+                imgui.setMouseCursor(imgui.MouseCursor_None);
+                file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.eraser_0_default], 0xFFFFFFFF);
             },
             else => {},
         }
@@ -557,6 +567,14 @@ pub const Pixi = struct {
             else => true,
         }) return;
 
+        const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+
+        if (sample_key or sample_button) return;
+
+        imgui.setMouseCursor(imgui.MouseCursor_None);
+        file.camera.drawCursor(&pixi.state.assets.atlas_png, pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.bucket_0_default], 0xFFFFFFFF);
+
         const canvas_center_offset = canvasCenterOffset(file, canvas);
         const mouse_position = pixi.state.mouse.position;
 
@@ -686,14 +704,16 @@ pub const Pixi = struct {
             _ = zip.zip_entry_close(z);
 
             for (self.layers.items) |layer| {
-                const layer_name = zgui.formatZ("{s}.png", .{layer.name});
+                const layer_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});
+                defer pixi.state.allocator.free(layer_name);
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
                 try layer.texture.image.writeToFn(write, z, .png);
                 _ = zip.zip_entry_close(z);
             }
 
             if (self.heightmap.layer) |layer| {
-                const layer_name = zgui.formatZ("{s}.png", .{layer.name});
+                const layer_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});
+                defer pixi.state.allocator.free(layer_name);
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
                 try layer.texture.image.writeToFn(write, z, .png);
                 _ = zip.zip_entry_close(z);
@@ -845,8 +865,6 @@ pub const Pixi = struct {
         } };
         @memcpy(change.animation.name[0..animation.name.len], animation.name);
 
-        std.log.debug("{s}", .{name});
-
         self.selected_animation_index = index;
         pixi.state.allocator.free(animation.name);
         animation.name = try pixi.state.allocator.dupeZ(u8, name);
@@ -855,8 +873,6 @@ pub const Pixi = struct {
         while (i < animation.start + animation.length) : (i += 1) {
             pixi.state.allocator.free(self.sprites.items[i].name);
             self.sprites.items[i].name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ name, i - animation.start });
-
-            std.log.debug("{s}", .{self.sprites.items[i].name});
         }
 
         try self.history.append(change);
@@ -864,7 +880,7 @@ pub const Pixi = struct {
 
     pub fn deleteAnimation(self: *Pixi, index: usize) !void {
         if (index >= self.animations.items.len) return;
-        const animation = self.animations.orderedRemove(index);
+        const animation = self.animations.swapRemove(index);
         try self.deleted_animations.append(animation);
         try self.history.append(.{ .animation_restore_delete = .{
             .action = .restore,
@@ -940,7 +956,7 @@ pub const Pixi = struct {
     }
 
     pub fn flipbookScrollFromSpriteIndex(self: Pixi, index: usize) f32 {
-        return -@as(f32, @floatFromInt(index * self.tile_width)) * 1.1;
+        return -(@as(f32, @floatFromInt(index)) / 1.5 * @as(f32, @floatFromInt(self.tile_width)) * 1.5);
     }
 
     pub fn pixelCoordinatesFromIndex(self: Pixi, index: usize) ?[2]f32 {

@@ -3,7 +3,6 @@ const builtin = @import("builtin");
 
 const zmath = @import("src/deps/zig-gamedev/zmath/build.zig");
 const zstbi = @import("src/deps/zig-gamedev/zstbi/build.zig");
-const zgui = @import("src/deps/zig-gamedev/zgui/build.zig");
 
 const mach_core = @import("mach_core");
 const mach_gpu_dawn = @import("mach_gpu_dawn");
@@ -24,14 +23,8 @@ pub fn build(b: *std.Build) !void {
     const zstbi_pkg = zstbi.package(b, target, optimize, .{});
     const zmath_pkg = zmath.package(b, target, optimize, .{});
 
-    const zgui_pkg = zgui.Package(.{
-        .gpu_dawn = mach_gpu_dawn,
-    }).build(b, target, optimize, .{
-        .options = .{
-            .backend = .mach,
-        },
-        .gpu_dawn_options = .{},
-    }) catch unreachable;
+    const use_sysgpu = b.option(bool, "use_sysgpu", "Use sysgpu") orelse false;
+    const use_freetype = b.option(bool, "use_freetype", "Use freetype") orelse false;
 
     const zip_pkg = zip.package(b, .{});
 
@@ -39,6 +32,61 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+
+    const zig_imgui_dep = b.dependency("zig_imgui", .{});
+
+    const imgui_module = b.addModule("zig-imgui", .{
+        .source_file = zig_imgui_dep.path("src/imgui.zig"),
+        .dependencies = &.{
+            .{ .name = "mach-core", .module = mach_core_dep.module("mach-core") },
+        },
+    });
+
+    const imgui_lib = b.addStaticLibrary(.{
+        .name = "imgui",
+        .root_source_file = zig_imgui_dep.path("src/cimgui.cpp"),
+        .target = target,
+        .optimize = optimize,
+    });
+    imgui_lib.linkLibC();
+
+    const imgui_dep = b.dependency("imgui", .{});
+
+    var imgui_files = std.ArrayList([]const u8).init(b.allocator);
+    defer imgui_files.deinit();
+
+    var imgui_flags = std.ArrayList([]const u8).init(b.allocator);
+    defer imgui_flags.deinit();
+
+    try imgui_files.appendSlice(&.{
+        imgui_dep.path("imgui.cpp").getPath(b),
+        imgui_dep.path("imgui_widgets.cpp").getPath(b),
+        imgui_dep.path("imgui_tables.cpp").getPath(b),
+        imgui_dep.path("imgui_draw.cpp").getPath(b),
+        imgui_dep.path("imgui_demo.cpp").getPath(b),
+    });
+
+    if (use_freetype) {
+        try imgui_flags.append("-DIMGUI_ENABLE_FREETYPE");
+        try imgui_files.append("imgui/misc/freetype/imgui_freetype.cpp");
+
+        imgui_lib.linkLibrary(b.dependency("freetype", .{
+            .target = target,
+            .optimize = optimize,
+        }).artifact("freetype"));
+    }
+
+    imgui_lib.addIncludePath(imgui_dep.path("."));
+    imgui_lib.addCSourceFiles(.{
+        .files = imgui_files.items,
+        .flags = imgui_flags.items,
+    });
+
+    b.installArtifact(imgui_lib);
+
+    const build_options = b.addOptions();
+    build_options.addOption(bool, "use_sysgpu", use_sysgpu);
+
     const app = try mach_core.App.init(b, mach_core_dep.builder, .{
         .name = "pixi",
         .src = src_path,
@@ -46,12 +94,23 @@ pub fn build(b: *std.Build) !void {
         .deps = &[_]std.build.ModuleDependency{
             .{ .name = "zstbi", .module = zstbi_pkg.zstbi },
             .{ .name = "zmath", .module = zmath_pkg.zmath },
-            .{ .name = "zgui", .module = zgui_pkg.zgui },
             .{ .name = "nfd", .module = nfd.getModule(b) },
             .{ .name = "zip", .module = zip_pkg.module },
+            .{ .name = "zig-imgui", .module = imgui_module },
+            .{ .name = "build-options", .module = build_options.createModule() },
         },
         .optimize = optimize,
     });
+
+    if (use_sysgpu) {
+        const mach_sysgpu_dep = b.dependency("mach_sysgpu", .{
+            .target = target,
+            .optimize = optimize,
+        });
+
+        app.compile.linkLibrary(mach_sysgpu_dep.artifact("mach-dusk"));
+        @import("mach_sysgpu").link(mach_sysgpu_dep.builder, app.compile);
+    }
 
     const install_step = b.step("pixi", "Install pixi");
     install_step.dependOn(&app.install.step);
@@ -67,7 +126,6 @@ pub fn build(b: *std.Build) !void {
     });
 
     unit_tests.addModule("zstbi", zstbi_pkg.zstbi);
-    unit_tests.addModule("zgui", zgui_pkg.zgui);
     unit_tests.addModule("zmath", zmath_pkg.zmath);
     unit_tests.addModule("nfd", nfd.getModule(b));
     unit_tests.addModule("zip", zip_pkg.module);
@@ -77,10 +135,10 @@ pub fn build(b: *std.Build) !void {
     test_step.dependOn(&run_unit_tests.step);
 
     app.compile.addModule("zstbi", zstbi_pkg.zstbi);
-    app.compile.addModule("zgui", zgui_pkg.zgui);
     app.compile.addModule("zmath", zmath_pkg.zmath);
     app.compile.addModule("nfd", nfd.getModule(b));
     app.compile.addModule("zip", zip_pkg.module);
+    app.compile.addModule("zig-imgui", imgui_module);
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
     if (nfd_lib.target_info.target.os.tag == .macos) {
@@ -91,13 +149,14 @@ pub fn build(b: *std.Build) !void {
         xcode_frameworks.addPaths(nfd_lib);
     }
     app.compile.linkLibrary(nfd_lib);
+    app.compile.linkLibrary(imgui_lib);
     zstbi_pkg.link(app.compile);
-    zgui_pkg.link(app.compile);
     zip.link(app.compile);
 
     const assets = ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");
-    const process_assets_step = b.step("process-assets", "generates struct for all assets");
+    var process_assets_step = b.step("process-assets", "generates struct for all assets");
     process_assets_step.dependOn(&assets.step);
+    app.compile.step.dependOn(process_assets_step);
 
     const install_content_step = b.addInstallDirectory(.{
         .source_dir = .{ .path = thisDir() ++ "/" ++ content_dir },

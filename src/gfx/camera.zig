@@ -3,7 +3,7 @@ const zm = @import("zmath");
 const pixi = @import("../pixi.zig");
 const core = @import("mach-core");
 const gpu = core.gpu;
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 pub const Camera = struct {
     position: [2]f32 = .{ 0.0, 0.0 },
@@ -14,8 +14,8 @@ pub const Camera = struct {
     zoom_tooltip_timer: f32 = 0.6,
 
     pub fn matrix(self: Camera) Matrix3x2 {
-        var window_size = zgui.getWindowSize();
-        var window_half_size: [2]f32 = .{ @trunc(window_size[0] * 0.5), @trunc(window_size[1] * 0.5) };
+        var window_size = imgui.getWindowSize();
+        var window_half_size: [2]f32 = .{ @trunc(window_size.x * 0.5), @trunc(window_size.y * 0.5) };
 
         var transform = Matrix3x2.identity;
 
@@ -37,93 +37,111 @@ pub const Camera = struct {
     pub fn drawGrid(camera: Camera, position: [2]f32, width: f32, height: f32, columns: usize, rows: usize, color: u32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], width, height });
 
-        const draw_list = zgui.getWindowDrawList();
         const tile_width = width / @as(f32, @floatFromInt(columns));
         const tile_height = height / @as(f32, @floatFromInt(rows));
 
-        var i: usize = 0;
-        while (i < columns + 1) : (i += 1) {
-            const p1: [2]f32 = .{ rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, rect_min_max[0][1] };
-            const p2: [2]f32 = .{ rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, rect_min_max[0][1] + height * camera.zoom };
-            draw_list.addLine(.{
-                .p1 = p1,
-                .p2 = p2,
-                .col = color,
-                .thickness = 1.0,
-            });
-        }
+        if (imgui.getWindowDrawList()) |draw_list| {
+            var i: usize = 0;
+            while (i < columns + 1) : (i += 1) {
+                const p1: imgui.Vec2 = .{ .x = rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, .y = rect_min_max[0][1] };
+                const p2: imgui.Vec2 = .{ .x = rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, .y = rect_min_max[0][1] + height * camera.zoom };
+                draw_list.addLineEx(
+                    p1,
+                    p2,
+                    color,
+                    1.0,
+                );
+            }
 
-        i = 0;
-        while (i < rows + 1) : (i += 1) {
-            const p1: [2]f32 = .{ rect_min_max[0][0], rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
-            const p2: [2]f32 = .{ rect_min_max[0][0] + width * camera.zoom, rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
-            draw_list.addLine(.{
-                .p1 = p1,
-                .p2 = p2,
-                .col = color,
-                .thickness = 1.0,
-            });
+            i = 0;
+            while (i < rows + 1) : (i += 1) {
+                const p1: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
+                const p2: imgui.Vec2 = .{ .x = rect_min_max[0][0] + width * camera.zoom, .y = rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
+                draw_list.addLineEx(
+                    p1,
+                    p2,
+                    color,
+                    1.0,
+                );
+            }
         }
     }
 
     pub fn drawLine(camera: Camera, start: [2]f32, end: [2]f32, color: u32, thickness: f32) void {
-        const window_position = zgui.getWindowPos();
+        const window_position = imgui.getWindowPos();
         const mat = camera.matrix();
 
         var p1 = mat.transformVec2(start);
-        p1[0] += window_position[0];
-        p1[1] += window_position[1];
+        p1[0] += window_position.x;
+        p1[1] += window_position.y;
         var p2 = mat.transformVec2(end);
-        p2[0] += window_position[0];
-        p2[1] += window_position[1];
+        p2[0] += window_position.x;
+        p2[1] += window_position.y;
 
         p1[0] = std.math.floor(p1[0]);
         p1[1] = std.math.floor(p1[1]);
         p2[0] = std.math.floor(p2[0]);
         p2[1] = std.math.floor(p2[1]);
 
-        const draw_list = zgui.getWindowDrawList();
-        draw_list.addLine(.{
-            .p1 = p1,
-            .p2 = p2,
-            .col = color,
-            .thickness = thickness,
-        });
+        const p1_vec: imgui.Vec2 = .{ .x = p1[0], .y = p1[1] };
+        const p2_vec: imgui.Vec2 = .{ .x = p2[0], .y = p2[1] };
+
+        if (imgui.getWindowDrawList()) |draw_list| {
+            draw_list.addLineEx(
+                p1_vec,
+                p2_vec,
+                color,
+                thickness,
+            );
+        }
     }
 
     pub fn drawText(camera: Camera, comptime fmt: []const u8, args: anytype, position: [2]f32, color: u32) void {
-        const window_position = zgui.getWindowPos();
+        const window_position = imgui.getWindowPos();
         const mat = camera.matrix();
 
         var pos = mat.transformVec2(position);
-        pos[0] += window_position[0];
-        pos[1] += window_position[1];
+        pos[0] += window_position.x;
+        pos[1] += window_position.y;
 
-        const draw_list = zgui.getWindowDrawList();
-        draw_list.addText(pos, color, fmt, args);
+        const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
+
+        const text = std.fmt.allocPrintZ(pixi.state.allocator, fmt, args) catch unreachable;
+        defer pixi.state.allocator.free(text);
+
+        if (imgui.getWindowDrawList()) |draw_list|
+            draw_list.addText(pos_vec, color, text.ptr);
     }
 
     pub fn drawRect(camera: Camera, rect: [4]f32, thickness: f32, color: u32) void {
         const rect_min_max = camera.getRectMinMax(rect);
 
-        const draw_list = zgui.getWindowDrawList();
-        draw_list.addRect(.{
-            .pmin = rect_min_max[0],
-            .pmax = rect_min_max[1],
-            .col = color,
-            .thickness = thickness,
-        });
+        const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
+        const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
+
+        if (imgui.getWindowDrawList()) |draw_list|
+            draw_list.addRectEx(
+                min,
+                max,
+                color,
+                0.0,
+                imgui.DrawFlags_None,
+                thickness,
+            );
     }
 
     pub fn drawRectFilled(camera: Camera, rect: [4]f32, color: u32) void {
         const rect_min_max = camera.getRectMinMax(rect);
 
-        const draw_list = zgui.getWindowDrawList();
-        draw_list.addRectFilled(.{
-            .pmin = rect_min_max[0],
-            .pmax = rect_min_max[1],
-            .col = color,
-        });
+        const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
+        const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
+
+        if (imgui.getWindowDrawList()) |draw_list|
+            draw_list.addRectFilled(
+                min,
+                max,
+                color,
+            );
     }
 
     pub fn drawAnimationRect(camera: Camera, start_rect: [4]f32, end_rect: [4]f32, thickness: f32, start_color: u32, end_color: u32) void {
@@ -132,82 +150,120 @@ pub const Camera = struct {
 
         const width = start_rect_min_max[1][0] - start_rect_min_max[0][0];
 
-        const draw_list = zgui.getWindowDrawList();
+        const start_min: imgui.Vec2 = .{ .x = start_rect_min_max[0][0], .y = start_rect_min_max[0][1] };
+        const end_max: imgui.Vec2 = .{ .x = end_rect_min_max[1][0], .y = end_rect_min_max[1][1] };
 
-        // Start
-        draw_list.addLine(.{
-            .p1 = start_rect_min_max[0],
-            .p2 = .{ start_rect_min_max[0][0] + width / 2.0, start_rect_min_max[0][1] },
-            .col = start_color,
-            .thickness = thickness,
-        });
-        draw_list.addLine(.{
-            .p1 = start_rect_min_max[0],
-            .p2 = .{ start_rect_min_max[0][0], start_rect_min_max[1][1] },
-            .col = start_color,
-            .thickness = thickness,
-        });
-        draw_list.addLine(.{
-            .p1 = .{ start_rect_min_max[0][0], start_rect_min_max[1][1] },
-            .p2 = .{ start_rect_min_max[0][0] + width / 2.0, start_rect_min_max[1][1] },
-            .col = start_color,
-            .thickness = thickness,
-        });
-        // End
-        draw_list.addLine(.{
-            .p1 = end_rect_min_max[1],
-            .p2 = .{ end_rect_min_max[1][0] - width / 2.0, end_rect_min_max[1][1] },
-            .col = end_color,
-            .thickness = thickness,
-        });
-        draw_list.addLine(.{
-            .p1 = end_rect_min_max[1],
-            .p2 = .{ end_rect_min_max[1][0], end_rect_min_max[0][1] },
-            .col = end_color,
-            .thickness = thickness,
-        });
-        draw_list.addLine(.{
-            .p1 = .{ end_rect_min_max[1][0], end_rect_min_max[0][1] },
-            .p2 = .{ end_rect_min_max[1][0] - width / 2.0, end_rect_min_max[0][1] },
-            .col = end_color,
-            .thickness = thickness,
-        });
+        if (imgui.getWindowDrawList()) |draw_list| {
+
+            // Start
+            draw_list.addLineEx(
+                start_min,
+                .{ .x = start_rect_min_max[0][0] + width / 2.0, .y = start_rect_min_max[0][1] },
+                start_color,
+                thickness,
+            );
+            draw_list.addLineEx(
+                start_min,
+                .{ .x = start_rect_min_max[0][0], .y = start_rect_min_max[1][1] },
+                start_color,
+                thickness,
+            );
+            draw_list.addLineEx(
+                .{ .x = start_rect_min_max[0][0], .y = start_rect_min_max[1][1] },
+                .{ .x = start_rect_min_max[0][0] + width / 2.0, .y = start_rect_min_max[1][1] },
+                start_color,
+                thickness,
+            );
+            // End
+            draw_list.addLineEx(
+                end_max,
+                .{ .x = end_rect_min_max[1][0] - width / 2.0, .y = end_rect_min_max[1][1] },
+                end_color,
+                thickness,
+            );
+            draw_list.addLineEx(
+                end_max,
+                .{ .x = end_rect_min_max[1][0], .y = end_rect_min_max[0][1] },
+                end_color,
+                thickness,
+            );
+            draw_list.addLineEx(
+                .{ .x = end_rect_min_max[1][0], .y = end_rect_min_max[0][1] },
+                .{ .x = end_rect_min_max[1][0] - width / 2.0, .y = end_rect_min_max[0][1] },
+                end_color,
+                thickness,
+            );
+        }
     }
 
     pub fn drawTexture(camera: Camera, texture: *gpu.TextureView, width: u32, height: u32, position: [2]f32, color: u32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(width)), @as(f32, @floatFromInt(height)) });
 
-        const draw_list = zgui.getWindowDrawList();
+        const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
+        const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
 
-        draw_list.addImage(texture, .{
-            .pmin = rect_min_max[0],
-            .pmax = rect_min_max[1],
-            .col = color,
-        });
+        if (imgui.getWindowDrawList()) |draw_list|
+            draw_list.addImageEx(
+                texture,
+                min,
+                max,
+                .{ .x = 0.0, .y = 0.0 },
+                .{ .x = 1.0, .y = 1.0 },
+                color,
+            );
     }
 
-    pub fn drawCursor(_: Camera, texture: *gpu.TextureView, width: u32, height: u32, color: u32) void {
+    pub fn drawCursor(self: Camera, texture: *pixi.gfx.Texture, sprite: pixi.gfx.Sprite, color: u32) void {
+        _ = self;
         var position = pixi.state.mouse.position;
 
-        const draw_list = zgui.getForegroundDrawList();
+        var sprite_source: [4]f32 = .{
+            @floatFromInt(sprite.source[0]),
+            @floatFromInt(sprite.source[1]),
+            @floatFromInt(sprite.source[2]),
+            @floatFromInt(sprite.source[3]),
+        };
 
-        draw_list.addImage(texture, .{
-            .pmin = .{ position[0], position[1] - @as(f32, @floatFromInt(height)) },
-            .pmax = .{ position[0] + @as(f32, @floatFromInt(width)), position[1] },
-            .col = color,
-        });
+        const inv_w = 1.0 / @as(f32, @floatFromInt(texture.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(texture.image.height));
+
+        var min: imgui.Vec2 = .{ .x = position[0], .y = position[1] };
+        var max: imgui.Vec2 = .{ .x = position[0] + sprite_source[2], .y = position[1] + sprite_source[3] };
+
+        min.x += @floatFromInt(sprite.origin[0]);
+        min.y -= @floatFromInt(sprite.origin[1]);
+        max.x += @floatFromInt(sprite.origin[0]);
+        max.y -= @floatFromInt(sprite.origin[1]);
+
+        const uvmin: imgui.Vec2 = .{ .x = sprite_source[0] * inv_w, .y = sprite_source[1] * inv_h };
+        const uvmax: imgui.Vec2 = .{ .x = (sprite_source[0] + sprite_source[2]) * inv_w, .y = (sprite_source[1] + sprite_source[3]) * inv_h };
+
+        if (imgui.getForegroundDrawList()) |draw_list|
+            draw_list.addImageEx(
+                texture.view_handle,
+                min,
+                max,
+                uvmin,
+                uvmax,
+                color,
+            );
     }
 
     pub fn drawLayer(camera: Camera, layer: pixi.storage.Internal.Layer, position: [2]f32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(layer.texture.image.width)), @as(f32, @floatFromInt(layer.texture.image.height)) });
 
-        const draw_list = zgui.getWindowDrawList();
+        const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
+        const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
 
-        draw_list.addImage(layer.texture.view_handle, .{
-            .pmin = rect_min_max[0],
-            .pmax = rect_min_max[1],
-            .col = 0xFFFFFFFF,
-        });
+        if (imgui.getWindowDrawList()) |draw_list|
+            draw_list.addImageEx(
+                layer.texture.view_handle,
+                min,
+                max,
+                .{ .x = 0.0, .y = 0.0 },
+                .{ .x = 1.0, .y = 1.0 },
+                0xFFFFFFFF,
+            );
     }
 
     pub fn drawSprite(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
@@ -216,18 +272,62 @@ pub const Camera = struct {
         const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
         const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.image.height));
 
-        const uvmin: [2]f32 = .{ src_rect[0] * inv_w, src_rect[1] * inv_h };
-        const uvmax: [2]f32 = .{ (src_rect[0] + src_rect[2]) * inv_w, (src_rect[1] + src_rect[3]) * inv_h };
+        var min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
+        var max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
 
-        const draw_list = zgui.getWindowDrawList();
+        const uvmin: imgui.Vec2 = .{ .x = src_rect[0] * inv_w, .y = src_rect[1] * inv_h };
+        const uvmax: imgui.Vec2 = .{ .x = (src_rect[0] + src_rect[2]) * inv_w, .y = (src_rect[1] + src_rect[3]) * inv_h };
 
-        draw_list.addImage(layer.texture.view_handle, .{
-            .pmin = rect_min_max[0],
-            .pmax = rect_min_max[1],
-            .uvmin = uvmin,
-            .uvmax = uvmax,
-            .col = 0xFFFFFFFF,
-        });
+        if (imgui.getWindowDrawList()) |draw_list|
+            draw_list.addImageEx(
+                layer.texture.view_handle,
+                min,
+                max,
+                uvmin,
+                uvmax,
+                0xFFFFFFFF,
+            );
+    }
+
+    pub fn drawSpriteQuad(camera: Camera, layer: pixi.storage.Internal.Layer, src_rect: [4]f32, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32) void {
+        const dst = camera.getQuad(dst_p1, dst_p2, dst_p3, dst_p4);
+
+        const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.image.height));
+
+        const uvmin: imgui.Vec2 = .{ .x = src_rect[0] * inv_w, .y = src_rect[1] * inv_h };
+        const uvmax: imgui.Vec2 = .{ .x = (src_rect[0] + src_rect[2]) * inv_w, .y = (src_rect[1] + src_rect[3]) * inv_h };
+
+        if (imgui.getWindowDrawList()) |draw_list| {
+            draw_list.addImageQuadEx(
+                layer.texture.view_handle,
+                dst[0],
+                dst[1],
+                dst[2],
+                dst[3],
+                uvmin,
+                .{ .x = uvmax.x, .y = uvmin.y },
+                uvmax,
+                .{ .x = uvmin.x, .y = uvmax.y },
+                0xFFFFFFFF,
+            );
+        }
+    }
+
+    pub fn drawQuad(camera: Camera, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32, color: u32, thickness: f32) void {
+        const dst = camera.getQuad(dst_p1, dst_p2, dst_p3, dst_p4);
+
+        if (imgui.getWindowDrawList()) |draw_list| {
+            draw_list.addQuadEx(dst[0], dst[1], dst[2], dst[3], color, thickness);
+        }
+    }
+
+    pub fn drawQuadFilled(camera: Camera, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32, color: u32) void {
+        const dst = camera.getQuad(dst_p1, dst_p2, dst_p3, dst_p4);
+
+        if (imgui.getWindowDrawList()) |draw_list| {
+            draw_list.addQuadFilled(dst[0], dst[1], dst[2], dst[3], color);
+        }
     }
 
     pub fn nearestZoomIndex(camera: Camera) usize {
@@ -266,17 +366,17 @@ pub const Camera = struct {
     }
 
     pub fn getRectMinMax(camera: Camera, rect: [4]f32) [2][2]f32 {
-        const window_position = zgui.getWindowPos();
+        const window_position = imgui.getWindowPos();
         const mat = camera.matrix();
         var tl = mat.transformVec2(.{ rect[0], rect[1] });
-        tl[0] += window_position[0];
-        tl[1] += window_position[1];
+        tl[0] += window_position.x;
+        tl[1] += window_position.y;
         var br: [2]f32 = .{ rect[0], rect[1] };
         br[0] += rect[2];
         br[1] += rect[3];
         br = mat.transformVec2(br);
-        br[0] += window_position[0];
-        br[1] += window_position[1];
+        br[0] += window_position.x;
+        br[1] += window_position.y;
 
         tl[0] = std.math.floor(tl[0]);
         tl[1] = std.math.floor(tl[1]);
@@ -284,6 +384,39 @@ pub const Camera = struct {
         br[1] = std.math.floor(br[1]);
 
         return .{ tl, br };
+    }
+
+    pub fn getQuad(camera: Camera, p1: [2]f32, p2: [2]f32, p3: [2]f32, p4: [2]f32) [4]imgui.Vec2 {
+        const window_position = imgui.getWindowPos();
+        const mat = camera.matrix();
+        var p1_trans = mat.transformVec2(p1);
+        p1_trans[0] += window_position.x;
+        p1_trans[1] += window_position.y;
+        var p2_trans = mat.transformVec2(p2);
+        p2_trans[0] += window_position.x;
+        p2_trans[1] += window_position.y;
+        var p3_trans = mat.transformVec2(p3);
+        p3_trans[0] += window_position.x;
+        p3_trans[1] += window_position.y;
+        var p4_trans = mat.transformVec2(p4);
+        p4_trans[0] += window_position.x;
+        p4_trans[1] += window_position.y;
+
+        p1_trans[0] = @floor(p1_trans[0]);
+        p1_trans[1] = @floor(p1_trans[1]);
+        p2_trans[0] = @floor(p2_trans[0]);
+        p2_trans[1] = @floor(p2_trans[1]);
+        p3_trans[0] = @floor(p3_trans[0]);
+        p3_trans[1] = @floor(p3_trans[1]);
+        p4_trans[0] = @floor(p4_trans[0]);
+        p4_trans[1] = @floor(p4_trans[1]);
+
+        return .{
+            .{ .x = p1_trans[0], .y = p1_trans[1] },
+            .{ .x = p2_trans[0], .y = p2_trans[1] },
+            .{ .x = p3_trans[0], .y = p3_trans[1] },
+            .{ .x = p4_trans[0], .y = p4_trans[1] },
+        };
     }
 
     const PixelCoordinatesOptions = struct {
@@ -294,16 +427,16 @@ pub const Camera = struct {
     };
 
     pub fn pixelCoordinates(camera: Camera, options: PixelCoordinatesOptions) ?[2]f32 {
-        const screen_position = zgui.getCursorScreenPos();
+        const screen_position = imgui.getCursorScreenPos();
         var tl = camera.matrix().transformVec2(options.texture_position);
-        tl[0] += screen_position[0];
-        tl[1] += screen_position[1];
+        tl[0] += screen_position.x;
+        tl[1] += screen_position.y;
         var br = options.texture_position;
         br[0] += @as(f32, @floatFromInt(options.width));
         br[1] += @as(f32, @floatFromInt(options.height));
         br = camera.matrix().transformVec2(br);
-        br[0] += screen_position[0];
-        br[1] += screen_position[1];
+        br[0] += screen_position.x;
+        br[1] += screen_position.y;
 
         if (options.position[0] > tl[0] and options.position[0] < br[0] and options.position[1] < br[1] and options.position[1] > tl[1]) {
             var pixel_pos: [2]f32 = .{ 0.0, 0.0 };
@@ -326,9 +459,9 @@ pub const Camera = struct {
         const i = file.selected_sprite_index;
         const tile_width = @as(f32, @floatFromInt(file.tile_width));
         const tile_height = @as(f32, @floatFromInt(file.tile_height));
-        const sprite_scale = std.math.clamp(0.5 / @abs(@as(f32, @floatFromInt(i)) + (file.flipbook_scroll / tile_width / 1.1)), 0.5, 1.0);
-        var dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + @as(f32, @floatFromInt(i)) * tile_width * 1.1 - (tile_width * sprite_scale / 2.0);
-        var dst_y: f32 = options.sprite_position[1] + ((1.0 - sprite_scale) * (tile_height / 2.0));
+        const sprite_scale = std.math.clamp(0.4 / @abs(@as(f32, @floatFromInt(i)) / 1.2 + (file.flipbook_scroll / tile_width / 1.2)), 0.4, 1.0);
+        var dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(i)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
+        var dst_y: f32 = options.sprite_position[1];
         var dst_width: f32 = tile_width * sprite_scale;
         var dst_height: f32 = tile_height * sprite_scale;
         const dst_rect: [4]f32 = .{ dst_x, dst_y, dst_width, dst_height };
@@ -351,7 +484,7 @@ pub const Camera = struct {
         if (pixi.state.settings.input_scheme != .trackpad) zoom_key = true;
 
         // Handle controls while canvas is hovered
-        if (zgui.isWindowHovered(.{})) {
+        if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
             camera.processZoomTooltip();
             if (pixi.state.mouse.scroll_x) |x| {
                 if (!zoom_key and camera.zoom_timer >= pixi.state.settings.zoom_time) {
@@ -388,12 +521,12 @@ pub const Camera = struct {
                 }
                 pixi.state.mouse.scroll_y = null;
             }
-            const mouse_drag_delta = zgui.getMouseDragDelta(.middle, .{ .lock_threshold = 0.0 });
-            if (mouse_drag_delta[0] != 0.0 or mouse_drag_delta[1] != 0.0) {
-                camera.position[0] -= mouse_drag_delta[0] * (1.0 / camera.zoom);
-                camera.position[1] -= mouse_drag_delta[1] * (1.0 / camera.zoom);
+            const mouse_drag_delta = imgui.getMouseDragDelta(imgui.MouseButton_Middle, 0.0);
+            if (mouse_drag_delta.x != 0.0 or mouse_drag_delta.y != 0.0) {
+                camera.position[0] -= mouse_drag_delta.x * (1.0 / camera.zoom);
+                camera.position[1] -= mouse_drag_delta.y * (1.0 / camera.zoom);
 
-                zgui.resetMouseDragDelta(.middle);
+                imgui.resetMouseDragDeltaEx(imgui.MouseButton_Middle);
             }
             camera.zoom_wait_timer = @min(camera.zoom_wait_timer + pixi.state.delta_time, pixi.state.settings.zoom_wait_time);
         }
@@ -421,55 +554,56 @@ pub const Camera = struct {
     }
 
     pub fn drawLayerTooltip(camera: Camera, layer_index: usize) void {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
-        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.content_scale[0] });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 3 });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0 * pixi.content_scale[0], .y = 8.0 * pixi.content_scale[1] });
+        imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0 * pixi.content_scale[0]);
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
+        defer imgui.popStyleVarEx(3);
         _ = camera;
-        if (zgui.beginTooltip()) {
-            defer zgui.endTooltip();
+        if (imgui.beginTooltip()) {
+            defer imgui.endTooltip();
             const layer_name = pixi.state.open_files.items[pixi.state.open_file_index].layers.items[layer_index].name;
-            zgui.text("{s} {s}", .{ pixi.fa.layer_group, layer_name });
+            const label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.layer_group, layer_name }) catch unreachable;
+            defer pixi.state.allocator.free(label);
+            imgui.text(label);
         }
     }
 
     pub fn drawZoomTooltip(camera: Camera, zoom: f32) void {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
-        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.content_scale[0] });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 3 });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0 * pixi.content_scale[0], .y = 8.0 * pixi.content_scale[1] });
+        imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0 * pixi.content_scale[0]);
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
+        defer imgui.popStyleVarEx(3);
         _ = camera;
-        if (zgui.beginTooltip()) {
-            defer zgui.endTooltip();
-            zgui.textColored(pixi.state.theme.text.toSlice(), "{s} ", .{pixi.fa.search});
-            zgui.sameLine(.{});
-            zgui.textColored(pixi.state.theme.text_secondary.toSlice(), "{d:0.1}", .{zoom});
+        if (imgui.beginTooltip()) {
+            defer imgui.endTooltip();
+            imgui.textColored(pixi.state.theme.text.toImguiVec4(), pixi.fa.search ++ " ");
+            imgui.sameLine();
+            imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), "%0.1f", zoom);
         }
     }
 
     pub fn drawColorTooltip(camera: Camera, color: [4]u8) void {
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.window_padding, .v = .{ 8.0 * pixi.content_scale[0], 8.0 * pixi.content_scale[1] } });
-        zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 8.0 * pixi.content_scale[0] });
-        zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.item_spacing, .v = .{ 4.0 * pixi.content_scale[0], 4.0 * pixi.content_scale[1] } });
-        defer zgui.popStyleVar(.{ .count = 3 });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0 * pixi.content_scale[0], .y = 8.0 * pixi.content_scale[1] });
+        imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0 * pixi.content_scale[0]);
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
+        defer imgui.popStyleVarEx(3);
         _ = camera;
-        if (zgui.beginTooltip()) {
-            defer zgui.endTooltip();
-            const col: [4]f32 = .{
-                @as(f32, @floatFromInt(color[0])) / 255.0,
-                @as(f32, @floatFromInt(color[1])) / 255.0,
-                @as(f32, @floatFromInt(color[2])) / 255.0,
-                @as(f32, @floatFromInt(color[3])) / 255.0,
+        if (imgui.beginTooltip()) {
+            defer imgui.endTooltip();
+            const col: imgui.Vec4 = .{
+                .x = @as(f32, @floatFromInt(color[0])) / 255.0,
+                .y = @as(f32, @floatFromInt(color[1])) / 255.0,
+                .z = @as(f32, @floatFromInt(color[2])) / 255.0,
+                .w = @as(f32, @floatFromInt(color[3])) / 255.0,
             };
-            _ = zgui.colorButton("Eyedropper", .{
-                .col = col,
-                .w = pixi.state.settings.eyedropper_preview_size * pixi.content_scale[0],
-                .h = pixi.state.settings.eyedropper_preview_size * pixi.content_scale[1],
+            _ = imgui.colorButtonEx("Eyedropper", col, imgui.ColorEditFlags_None, .{
+                .x = pixi.state.settings.eyedropper_preview_size * pixi.content_scale[0],
+                .y = pixi.state.settings.eyedropper_preview_size * pixi.content_scale[1],
             });
-            zgui.text("R: {d}", .{color[0]});
-            zgui.text("G: {d}", .{color[1]});
-            zgui.text("B: {d}", .{color[2]});
-            zgui.text("A: {d}", .{color[3]});
+            imgui.text("R: %d", color[0]);
+            imgui.text("G: %d", color[1]);
+            imgui.text("B: %d", color[2]);
+            imgui.text("A: %d", color[3]);
         }
     }
 

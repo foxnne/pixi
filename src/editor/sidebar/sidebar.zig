@@ -1,38 +1,36 @@
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 
 pub fn draw() void {
-    zgui.pushStyleVar1f(.{ .idx = zgui.StyleVar.window_rounding, .v = 0.0 });
-    defer zgui.popStyleVar(.{ .count = 1 });
-    zgui.setNextWindowPos(.{
+    imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
+    defer imgui.popStyleVar();
+    imgui.setNextWindowPos(.{
         .x = 0.0,
         .y = 0.0,
-        .cond = .always,
-    });
-    zgui.setNextWindowSize(.{
-        .w = pixi.state.settings.sidebar_width * pixi.content_scale[0],
-        .h = pixi.framebuffer_size[1],
-    });
-    zgui.pushStyleVar2f(.{ .idx = zgui.StyleVar.selectable_text_align, .v = .{ 0.5, 0.5 } });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = pixi.state.theme.foreground.toSlice() });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = pixi.state.theme.foreground.toSlice() });
-    defer zgui.popStyleVar(.{ .count = 1 });
-    defer zgui.popStyleColor(.{ .count = 2 });
+    }, imgui.Cond_Always);
+    imgui.setNextWindowSize(.{
+        .x = pixi.state.settings.sidebar_width * pixi.content_scale[0],
+        .y = pixi.framebuffer_size[1],
+    }, imgui.Cond_None);
+    imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
+    imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_WindowBg, pixi.state.theme.foreground.toImguiVec4());
+    defer imgui.popStyleVar();
+    defer imgui.popStyleColorEx(2);
 
-    if (zgui.begin("Sidebar", .{
-        .flags = .{
-            .no_title_bar = true,
-            .no_resize = true,
-            .no_move = true,
-            .no_collapse = true,
-            .no_scrollbar = true,
-            .no_scroll_with_mouse = true,
-        },
-    })) {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = pixi.state.theme.foreground.toSlice() });
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = pixi.state.theme.foreground.toSlice() });
-        defer zgui.popStyleColor(.{ .count = 2 });
+    var sidebar_flags: imgui.WindowFlags = 0;
+    sidebar_flags |= imgui.WindowFlags_NoTitleBar;
+    sidebar_flags |= imgui.WindowFlags_NoResize;
+    sidebar_flags |= imgui.WindowFlags_NoMove;
+    sidebar_flags |= imgui.WindowFlags_NoCollapse;
+    sidebar_flags |= imgui.WindowFlags_NoScrollbar;
+    sidebar_flags |= imgui.WindowFlags_NoScrollWithMouse;
+
+    if (imgui.begin("Sidebar", null, sidebar_flags)) {
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.foreground.toImguiVec4());
+        defer imgui.popStyleColorEx(2);
 
         drawOption(.files, pixi.fa.folder_open);
         drawOption(.tools, pixi.fa.pencil_alt);
@@ -43,37 +41,32 @@ pub fn draw() void {
         drawOption(.settings, pixi.fa.cog);
     }
 
-    zgui.end();
+    imgui.end();
 }
 
 fn drawOption(option: pixi.Sidebar, icon: [:0]const u8) void {
-    const position = zgui.getCursorPos();
+    const position = imgui.getCursorPos();
     const selectable_width = (pixi.state.settings.sidebar_width - 8) * pixi.content_scale[0];
     const selectable_height = (pixi.state.settings.sidebar_width - 8) * pixi.content_scale[1];
-    zgui.dummy(.{
-        .w = selectable_width,
-        .h = selectable_height,
+    imgui.dummy(.{
+        .x = selectable_width,
+        .y = selectable_height,
     });
 
-    zgui.setCursorPos(position);
+    imgui.setCursorPos(position);
     if (pixi.state.sidebar == option) {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.highlight_primary.toSlice() });
-    } else if (zgui.isItemHovered(.{})) {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text.toSlice() });
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.highlight_primary.toImguiVec4());
+    } else if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
     } else {
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = pixi.state.theme.text_secondary.toSlice() });
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
     }
-    if (zgui.selectable(icon, .{
-        .selected = pixi.state.sidebar == option,
-        .w = selectable_width,
-        .h = selectable_height,
-        .flags = .{
-            .dont_close_popups = true,
-        },
-    })) {
+
+    var selectable_flags: imgui.SelectableFlags = imgui.SelectableFlags_DontClosePopups;
+    if (imgui.selectableEx(icon, pixi.state.sidebar == option, selectable_flags, .{ .x = selectable_width, .y = selectable_height })) {
         pixi.state.sidebar = option;
         if (option == .sprites)
             pixi.state.tools.set(.pointer);
     }
-    zgui.popStyleColor(.{ .count = 1 });
+    imgui.popStyleColor();
 }

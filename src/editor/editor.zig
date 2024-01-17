@@ -1,11 +1,11 @@
 const std = @import("std");
 const pixi = @import("../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
 const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
 const nfd = @import("nfd");
+const imgui = @import("zig-imgui");
 
 pub const Theme = @import("theme.zig");
 
@@ -23,6 +23,9 @@ pub const popup_animation = @import("popups/animation.zig");
 pub const popup_heightmap = @import("popups/heightmap.zig");
 
 pub fn draw() void {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = pixi.state.settings.explorer_title_align, .y = 0.5 });
+    defer imgui.popStyleVar();
+
     sidebar.draw();
     explorer.draw();
     artboard.draw();
@@ -134,10 +137,10 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 /// Returns true if png was imported and new file created.
 pub fn importPng(path: [:0]const u8, new_file_path: [:0]const u8) !bool {
     defer pixi.state.allocator.free(path);
-    if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
+    if (!std.mem.eql(u8, std.fs.path.extension(path)[0..4], ".png"))
         return false;
 
-    if (!std.mem.eql(u8, std.fs.path.extension(new_file_path[0..new_file_path.len]), ".pixi"))
+    if (!std.mem.eql(u8, std.fs.path.extension(new_file_path)[0..5], ".pixi"))
         return false;
 
     return try newFile(new_file_path, path);

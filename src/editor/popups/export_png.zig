@@ -1,43 +1,45 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach-core");
-const zgui = @import("zgui").MachImgui(core);
+const imgui = @import("zig-imgui");
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
 pub fn draw() void {
     if (pixi.state.popups.export_to_png) {
-        zgui.openPopup("Export to .png...", .{});
+        imgui.openPopup("Export to .png...", imgui.PopupFlags_None);
     } else return;
 
     const popup_width = 350 * pixi.content_scale[0];
     const popup_height = 300 * pixi.content_scale[1];
 
-    var window_size = pixi.framebuffer_size;
+    var window_size = pixi.window_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
-    zgui.setNextWindowPos(.{
+    imgui.setNextWindowPos(.{
         .x = window_center[0] - popup_width / 2.0,
         .y = window_center[1] - popup_height / 2.0,
-    });
-    zgui.setNextWindowSize(.{
-        .w = popup_width,
-        .h = 0.0,
-    });
+    }, imgui.Cond_None);
+    imgui.setNextWindowSize(.{
+        .x = popup_width,
+        .y = 0.0,
+    }, imgui.Cond_None);
 
-    if (zgui.beginPopupModal("Export to .png...", .{
-        .popen = &pixi.state.popups.export_to_png,
-        .flags = .{
-            .no_resize = true,
-            .no_collapse = true,
-        },
-    })) {
-        defer zgui.endPopup();
+    var modal_flags: imgui.WindowFlags = 0;
+    modal_flags |= imgui.WindowFlags_NoResize;
+    modal_flags |= imgui.WindowFlags_NoCollapse;
 
-        const style = zgui.getStyle();
-        const spacing = style.item_spacing[0];
-        const content = zgui.getContentRegionAvail();
-        const half_width = (popup_width - (style.frame_padding[0] * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
+    if (imgui.beginPopupModal(
+        "Export to .png...",
+        &pixi.state.popups.export_to_png,
+        modal_flags,
+    )) {
+        defer imgui.endPopup();
+
+        const style = imgui.getStyle();
+        const spacing = style.item_spacing.x;
+        const content = imgui.getContentRegionAvail();
+        const half_width = (popup_width - (style.frame_padding.x * 2.0 * pixi.content_scale[0]) - spacing) / 2.0;
 
         const plot_name = switch (pixi.state.popups.export_to_png_state) {
             .selected_sprite => "Selected Sprite",
@@ -47,12 +49,12 @@ pub fn draw() void {
             .full_image => "Full Flattened Image",
         };
 
-        zgui.pushItemWidth(content[0]);
+        imgui.pushItemWidth(content.x);
 
-        zgui.text("Select an export area:", .{});
+        imgui.text("Select an export area:");
 
-        if (zgui.beginCombo("Plot", .{ .preview_value = plot_name })) {
-            defer zgui.endCombo();
+        if (imgui.beginCombo("Plot", plot_name, imgui.ComboFlags_None)) {
+            defer imgui.endCombo();
             var i: usize = 0;
             while (i < 5) : (i += 1) {
                 const current = @as(pixi.Popups.ExportToPngState, @enumFromInt(i));
@@ -63,14 +65,14 @@ pub fn draw() void {
                     .all_layers => "All Layers Individually",
                     .full_image => "Full Flattened Image",
                 };
-                if (zgui.selectable(current_plot_name, .{ .selected = current == pixi.state.popups.export_to_png_state })) {
+                if (imgui.selectableEx(current_plot_name, current == pixi.state.popups.export_to_png_state, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
                     pixi.state.popups.export_to_png_state = current;
                 }
             }
         }
 
-        zgui.separator();
-        zgui.spacing();
+        imgui.separator();
+        imgui.spacing();
 
         var image_scale: i32 = 1;
 
@@ -78,20 +80,21 @@ pub fn draw() void {
             .selected_sprite, .selected_animation => {
                 image_scale = @as(i32, @intCast(pixi.state.popups.export_to_png_scale));
 
-                zgui.text("Select an export scale:", .{});
-                if (zgui.sliderInt("Image Scale", .{
-                    .v = &image_scale,
-                    .min = 1,
-                    .max = 16,
-                })) {
+                imgui.text("Select an export scale:");
+                if (imgui.sliderInt(
+                    "Image Scale",
+                    &image_scale,
+                    1,
+                    16,
+                )) {
                     pixi.state.popups.export_to_png_scale = @as(u32, @intCast(image_scale));
                 }
             },
             else => {
-                zgui.spacing();
+                imgui.spacing();
             },
         }
-        zgui.spacing();
+        imgui.spacing();
 
         switch (pixi.state.popups.export_to_png_state) {
             .selected_sprite,
@@ -99,21 +102,21 @@ pub fn draw() void {
             .selected_layer,
             .all_layers,
             => {
-                _ = zgui.checkbox("Preserve names", .{ .v = &pixi.state.popups.export_to_png_preserve_names });
-                zgui.spacing();
+                _ = imgui.checkbox("Preserve names", &pixi.state.popups.export_to_png_preserve_names);
+                imgui.spacing();
             },
             else => {
-                zgui.spacing();
+                imgui.spacing();
             },
         }
 
-        zgui.popItemWidth();
+        imgui.popItemWidth();
 
-        if (zgui.button("Cancel", .{ .w = half_width })) {
+        if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
             pixi.state.popups.export_to_png = false;
         }
-        zgui.sameLine(.{});
-        if (zgui.button("Export", .{ .w = half_width })) {
+        imgui.sameLine();
+        if (imgui.buttonEx("Export", .{ .x = half_width, .y = 0.0 })) {
             switch (pixi.state.popups.export_to_png_state) {
                 .selected_sprite => {
                     if (pixi.state.popups.export_to_png_preserve_names) {
@@ -191,7 +194,7 @@ pub fn draw() void {
                             full_path = response.path;
                         } else {
                             const name = file.sprites.items[file.selected_sprite_index].name;
-                            full_path = zgui.formatZ("{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
+                            full_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name }) catch unreachable;
                         }
 
                         var sprite_image = file.spriteToImage(file.selected_sprite_index) catch unreachable;
@@ -215,7 +218,7 @@ pub fn draw() void {
                             if (pixi.state.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
                                 const name = file.sprites.items[i].name;
-                                const full_path = zgui.formatZ("{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
+                                const full_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name }) catch unreachable;
 
                                 var sprite_image = file.spriteToImage(i) catch unreachable;
                                 defer sprite_image.deinit();
@@ -237,7 +240,7 @@ pub fn draw() void {
                                     if (std.mem.eql(u8, ext, ".png")) {
                                         if (std.mem.indexOf(u8, base_name, ext)) |ext_index| {
                                             const name = base_name[0..ext_index];
-                                            const full_path = zgui.formatZ("{s}{s}_{d}.png", .{ folder, name, i });
+                                            const full_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}_{d}.png", .{ folder, name, i }) catch unreachable;
 
                                             var sprite_image = file.spriteToImage(i) catch unreachable;
                                             defer sprite_image.deinit();
@@ -264,7 +267,7 @@ pub fn draw() void {
                             full_path = response.path;
                         } else {
                             const name = file.layers.items[file.selected_layer_index].name;
-                            full_path = zgui.formatZ("{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
+                            full_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name }) catch unreachable;
                         }
 
                         file.layers.items[file.selected_layer_index].texture.image.writeToFile(full_path, .png) catch unreachable;
@@ -277,7 +280,7 @@ pub fn draw() void {
                             if (pixi.state.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
                                 const name = file.layers.items[i].name;
-                                const full_path = zgui.formatZ("{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
+                                const full_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name }) catch unreachable;
                                 file.layers.items[i].texture.image.writeToFile(full_path, .png) catch unreachable;
                                 pixi.state.popups.export_to_png = false;
                             } else {
@@ -289,7 +292,7 @@ pub fn draw() void {
                                     if (std.mem.eql(u8, ext, ".png")) {
                                         if (std.mem.indexOf(u8, base_name, ext)) |ext_index| {
                                             const name = base_name[0..ext_index];
-                                            const full_path = zgui.formatZ("{s}{s}_{d}.png", .{ folder, name, i });
+                                            const full_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}_{d}.png", .{ folder, name, i }) catch unreachable;
 
                                             file.layers.items[i].texture.image.writeToFile(full_path, .png) catch unreachable;
                                             pixi.state.popups.export_to_png = false;

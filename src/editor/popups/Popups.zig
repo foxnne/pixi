@@ -7,13 +7,13 @@ const zstbi = @import("zstbi");
 // Renaming
 rename: bool = false,
 rename_state: RenameState = .none,
-rename_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
-rename_old_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
+rename_path: [std.fs.MAX_PATH_BYTES:0]u8 = undefined,
+rename_old_path: [std.fs.MAX_PATH_BYTES:0]u8 = undefined,
 // File setup
 file_setup: bool = false,
 file_setup_state: SetupState = .none,
-file_setup_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
-file_setup_png_path: [std.fs.MAX_PATH_BYTES]u8 = undefined,
+file_setup_path: [std.fs.MAX_PATH_BYTES:0]u8 = undefined,
+file_setup_png_path: [std.fs.MAX_PATH_BYTES:0]u8 = undefined,
 file_setup_tile_size: [2]i32 = .{ 32, 32 },
 file_setup_tiles: [2]i32 = .{ 32, 32 },
 file_setup_width: i32 = 0,
@@ -80,21 +80,21 @@ pub const FileDialogResponse = struct {
 };
 
 pub fn anyPopupOpen(popups: *Popups) bool {
-    return popups.rename or popups.file_setup or popups.file_confirm_close or popups.layer_setup or popups.export_to_png or popups.animation;
+    return popups.rename or popups.file_setup or popups.file_confirm_close or popups.layer_setup or popups.export_to_png or popups.animation or popups.about or popups.heightmap;
 }
 
 pub fn fileSetupNew(popups: *Popups, new_file_path: [:0]const u8) void {
     popups.file_setup = true;
     popups.file_setup_state = .new;
-    popups.file_setup_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-    std.mem.copy(u8, popups.file_setup_path[0..], new_file_path);
+    popups.file_setup_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+    std.mem.copy(u8, popups.file_setup_path[0.. :0], new_file_path);
 }
 
 pub fn fileSetupSlice(popups: *Popups, path: [:0]const u8) void {
     popups.file_setup = true;
     popups.file_setup_state = .slice;
-    popups.file_setup_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-    std.mem.copy(u8, popups.file_setup_path[0..], path);
+    popups.file_setup_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+    std.mem.copy(u8, popups.file_setup_path[0.. :0], path);
 
     if (editor.getFileIndex(path)) |index| {
         if (editor.getFile(index)) |file| {
@@ -114,10 +114,10 @@ pub fn fileSetupClose(popups: *Popups) void {
 pub fn fileSetupImportPng(popups: *Popups, new_file_path: [:0]const u8, png_path: [:0]const u8) void {
     popups.file_setup = true;
     popups.file_setup_state = .import_png;
-    popups.file_setup_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-    popups.file_setup_png_path = [_]u8{0} ** std.fs.MAX_PATH_BYTES;
-    std.mem.copy(u8, popups.file_setup_path[0..], new_file_path);
-    std.mem.copy(u8, popups.file_setup_png_path[0..], png_path);
+    popups.file_setup_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+    popups.file_setup_png_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+    std.mem.copy(u8, popups.file_setup_path[0.. :0], new_file_path);
+    std.mem.copy(u8, popups.file_setup_png_path[0.. :0], png_path);
 
     if (std.mem.eql(u8, std.fs.path.extension(png_path), ".png")) {
         const png_info = zstbi.Image.info(png_path);

@@ -1,15 +1,16 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const zgui = @import("zgui").MachImgui(core);
 const core = @import("mach-core");
 const pixi = @import("../pixi.zig");
 const Color = pixi.math.Color;
+
+const imgui = @import("zig-imgui");
 
 const Self = @This();
 
 name: [:0]const u8,
 
-background: Color = Color.initBytes(39, 40, 47, 255),
+background: Color = Color.initBytes(34, 35, 42, 255),
 foreground: Color = Color.initBytes(42, 44, 54, 255),
 text: Color = Color.initBytes(230, 175, 137, 255),
 text_secondary: Color = Color.initBytes(159, 159, 176, 255),
@@ -32,103 +33,108 @@ checkerboard_secondary: Color = Color.initBytes(100, 100, 100, 255),
 modal_dim: Color = Color.initBytes(0, 0, 0, 48),
 
 pub fn init(self: Self) void {
-    var style = zgui.getStyle();
+    var style = imgui.getStyle();
     style.window_border_size = 1.0;
     style.window_rounding = 8.0;
     style.popup_rounding = 8.0;
     style.tab_rounding = 8.0;
     style.frame_rounding = 8.0;
     style.grab_rounding = 4.0;
-    style.frame_padding = .{ 12.0, 4.0 };
-    style.window_padding = .{ 5.0, 5.0 };
-    style.item_spacing = .{ 4.0, 4.0 };
-    style.item_inner_spacing = .{ 3.0, 3.0 };
-    style.window_menu_button_position = .none;
-    style.window_title_align = .{ 0.5, 0.5 };
+    style.frame_padding = .{ .x = 12.0, .y = 8.0 };
+    style.window_padding = .{ .x = 5.0, .y = 5.0 };
+    style.item_spacing = .{ .x = 4.0, .y = 4.0 };
+    style.item_inner_spacing = .{ .x = 3.0, .y = 3.0 };
+    style.window_menu_button_position = 0;
+    style.window_title_align = .{ .x = 0.5, .y = 0.5 };
     style.grab_min_size = 6.5;
     style.scrollbar_size = 12;
-    style.frame_padding = .{ 4.0, 4.0 };
+    style.frame_padding = .{ .x = 4.0, .y = 4.0 };
     style.frame_border_size = 1.0;
     style.hover_stationary_delay = 0.35;
     style.hover_delay_normal = 0.5;
     style.hover_delay_short = 0.25;
-    style.scaleAllSizes(@max(pixi.content_scale[0], pixi.content_scale[1]));
+    style.popup_rounding = 8.0;
+    style.separator_text_align = .{ .x = pixi.state.settings.explorer_title_align, .y = 0.5 };
+    style.separator_text_border_size = 1.0;
+    style.separator_text_padding = .{ .x = 20.0, .y = 10.0 };
 
-    const bg = self.background.toSlice();
-    const fg = self.foreground.toSlice();
-    const text = self.text.toSlice();
-    const highlight_primary = self.highlight_primary.toSlice();
-    const hover_primary = self.hover_primary.toSlice();
-    const highlight_secondary = self.highlight_secondary.toSlice();
-    const hover_secondary = self.hover_secondary.toSlice();
-    const modal_dim = self.modal_dim.toSlice();
+    const bg = self.background.toImguiVec4();
+    const fg = self.foreground.toImguiVec4();
+    const text = self.text.toImguiVec4();
+    const bg_text = self.text_background.toImguiVec4();
+    const highlight_primary = self.highlight_primary.toImguiVec4();
+    const hover_primary = self.hover_primary.toImguiVec4();
+    const highlight_secondary = self.highlight_secondary.toImguiVec4();
+    const hover_secondary = self.hover_secondary.toImguiVec4();
+    const modal_dim = self.modal_dim.toImguiVec4();
 
-    style.setColor(zgui.StyleCol.window_bg, bg);
-    style.setColor(zgui.StyleCol.border, fg);
-    style.setColor(zgui.StyleCol.menu_bar_bg, fg);
-    style.setColor(zgui.StyleCol.separator, fg);
-    style.setColor(zgui.StyleCol.title_bg, fg);
-    style.setColor(zgui.StyleCol.title_bg_active, fg);
-    style.setColor(zgui.StyleCol.tab, bg);
-    style.setColor(zgui.StyleCol.tab_unfocused, bg);
-    style.setColor(zgui.StyleCol.tab_unfocused_active, fg);
-    style.setColor(zgui.StyleCol.tab_active, fg);
-    style.setColor(zgui.StyleCol.tab_hovered, fg);
-    style.setColor(zgui.StyleCol.popup_bg, bg);
-    style.setColor(zgui.StyleCol.frame_bg, bg);
-    style.setColor(zgui.StyleCol.frame_bg_hovered, bg);
-    style.setColor(zgui.StyleCol.text, text);
-    style.setColor(zgui.StyleCol.resize_grip, highlight_primary);
-    style.setColor(zgui.StyleCol.scrollbar_grab_active, highlight_primary);
-    style.setColor(zgui.StyleCol.scrollbar_grab_hovered, hover_primary);
-    style.setColor(zgui.StyleCol.scrollbar_bg, bg);
-    style.setColor(zgui.StyleCol.scrollbar_grab, fg);
-    style.setColor(zgui.StyleCol.header, highlight_secondary);
-    style.setColor(zgui.StyleCol.header_hovered, hover_secondary);
-    style.setColor(zgui.StyleCol.header_active, highlight_secondary);
-    style.setColor(zgui.StyleCol.button, fg);
-    style.setColor(zgui.StyleCol.button_hovered, hover_secondary);
-    style.setColor(zgui.StyleCol.button_active, highlight_secondary);
-    style.setColor(zgui.StyleCol.modal_window_dim_bg, modal_dim);
+    style.colors[imgui.Col_WindowBg] = bg;
+    style.colors[imgui.Col_Border] = fg;
+    style.colors[imgui.Col_MenuBarBg] = fg;
+    style.colors[imgui.Col_Separator] = bg_text;
+    style.colors[imgui.Col_TitleBg] = fg;
+    style.colors[imgui.Col_TitleBgActive] = fg;
+    style.colors[imgui.Col_Tab] = fg;
+    style.colors[imgui.Col_TabUnfocused] = fg;
+    style.colors[imgui.Col_TabUnfocusedActive] = fg;
+    style.colors[imgui.Col_TabActive] = fg;
+    style.colors[imgui.Col_TabHovered] = fg;
+    style.colors[imgui.Col_PopupBg] = bg;
+    style.colors[imgui.Col_FrameBg] = bg;
+    style.colors[imgui.Col_FrameBgHovered] = bg;
+    style.colors[imgui.Col_Text] = text;
+    style.colors[imgui.Col_ResizeGrip] = highlight_primary;
+    style.colors[imgui.Col_ScrollbarGrabActive] = highlight_primary;
+    style.colors[imgui.Col_ScrollbarGrabHovered] = hover_primary;
+    style.colors[imgui.Col_ScrollbarBg] = bg;
+    style.colors[imgui.Col_ScrollbarGrab] = fg;
+    style.colors[imgui.Col_Header] = highlight_secondary;
+    style.colors[imgui.Col_HeaderHovered] = hover_secondary;
+    style.colors[imgui.Col_HeaderActive] = highlight_secondary;
+    style.colors[imgui.Col_Button] = fg;
+    style.colors[imgui.Col_ButtonHovered] = hover_secondary;
+    style.colors[imgui.Col_ButtonActive] = highlight_secondary;
+    style.colors[imgui.Col_ModalWindowDimBg] = modal_dim;
 }
 
 pub fn set(self: *Self) void {
-    const bg = self.background.toSlice();
-    const fg = self.foreground.toSlice();
-    const text = self.text.toSlice();
-    const highlight_primary = self.highlight_primary.toSlice();
-    const hover_primary = self.hover_primary.toSlice();
-    const highlight_secondary = self.highlight_secondary.toSlice();
-    const hover_secondary = self.hover_secondary.toSlice();
-    const modal_dim = self.modal_dim.toSlice();
+    const bg = self.background.toImguiVec4();
+    const fg = self.foreground.toImguiVec4();
+    const text = self.text.toImguiVec4();
+    const bg_text = self.text_background.toImguiVec4();
+    const highlight_primary = self.highlight_primary.toImguiVec4();
+    const hover_primary = self.hover_primary.toImguiVec4();
+    const highlight_secondary = self.highlight_secondary.toImguiVec4();
+    const hover_secondary = self.hover_secondary.toImguiVec4();
+    const modal_dim = self.modal_dim.toImguiVec4();
 
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.window_bg, .c = bg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.border, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.menu_bar_bg, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.separator, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.title_bg, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.title_bg_active, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab, .c = bg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_unfocused, .c = bg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_unfocused_active, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_active, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.tab_hovered, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.popup_bg, .c = bg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg, .c = bg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.frame_bg_hovered, .c = bg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = text });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.resize_grip, .c = highlight_primary });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.scrollbar_grab_active, .c = highlight_primary });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.scrollbar_grab_hovered, .c = hover_primary });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.scrollbar_bg, .c = bg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.scrollbar_grab, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header, .c = highlight_secondary });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_hovered, .c = hover_secondary });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.header_active, .c = highlight_secondary });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button, .c = fg });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_hovered, .c = hover_secondary });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.button_active, .c = highlight_secondary });
-    zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.modal_window_dim_bg, .c = modal_dim });
+    imgui.pushStyleColorImVec4(imgui.Col_WindowBg, bg);
+    imgui.pushStyleColorImVec4(imgui.Col_Border, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_MenuBarBg, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_Separator, bg_text);
+    imgui.pushStyleColorImVec4(imgui.Col_TitleBg, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_TitleBgActive, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_Tab, bg);
+    imgui.pushStyleColorImVec4(imgui.Col_TabUnfocused, bg);
+    imgui.pushStyleColorImVec4(imgui.Col_TabUnfocusedActive, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_TabActive, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_TabHovered, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, bg);
+    imgui.pushStyleColorImVec4(imgui.Col_FrameBg, bg);
+    imgui.pushStyleColorImVec4(imgui.Col_FrameBgHovered, bg);
+    imgui.pushStyleColorImVec4(imgui.Col_Text, text);
+    imgui.pushStyleColorImVec4(imgui.Col_ResizeGrip, highlight_primary);
+    imgui.pushStyleColorImVec4(imgui.Col_ScrollbarGrabActive, highlight_primary);
+    imgui.pushStyleColorImVec4(imgui.Col_ScrollbarGrabHovered, hover_primary);
+    imgui.pushStyleColorImVec4(imgui.Col_ScrollbarBg, bg);
+    imgui.pushStyleColorImVec4(imgui.Col_ScrollbarGrab, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_Header, highlight_secondary);
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, hover_secondary);
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, highlight_secondary);
+    imgui.pushStyleColorImVec4(imgui.Col_Button, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, hover_secondary);
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, highlight_secondary);
+    imgui.pushStyleColorImVec4(imgui.Col_ModalWindowDimBg, modal_dim);
 }
 
 pub fn loadFromFile(file: [:0]const u8) !Self {
@@ -166,33 +172,38 @@ pub fn save(self: Self, path: [:0]const u8) !void {
 
 pub fn unset(self: Self) void {
     _ = self;
-    zgui.popStyleColor(.{ .count = 27 });
+    imgui.popStyleColorEx(27);
 }
 
 pub const StyleColorButton = struct {
     col: *Color,
-    flags: zgui.ColorEditFlags = .{},
+    flags: imgui.ColorEditFlags = 0,
     w: f32 = 0.0,
     h: f32 = 0.0,
 };
 
 pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
-    var c = args.col.toSlice();
-    if (zgui.colorButton(desc_id, .{ .col = c })) {
+    var c = args.col.toImguiVec4();
+    var c_slice = args.col.toSlice();
+    if (imgui.colorButton(
+        desc_id,
+        c,
+        imgui.ColorEditFlags_None,
+    )) {
         return true;
     }
-    if (zgui.beginPopupContextItem()) {
-        defer zgui.endPopup();
-        zgui.pushStyleColor4f(.{ .idx = zgui.StyleCol.text, .c = .{ 1.0, 1.0, 1.0, 1.0 } });
-        if (zgui.colorPicker4(desc_id, .{ .col = &c })) {
-            args.col.value[0] = c[0];
-            args.col.value[1] = c[1];
-            args.col.value[2] = c[2];
-            args.col.value[3] = c[3];
+    if (imgui.beginPopupContextItem()) {
+        defer imgui.endPopup();
+        imgui.pushStyleColorImVec4(imgui.Col_Text, .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 1.0 });
+        if (imgui.colorPicker4(desc_id, &c_slice, imgui.ColorEditFlags_None, null)) {
+            args.col.value[0] = c_slice[0];
+            args.col.value[1] = c_slice[1];
+            args.col.value[2] = c_slice[2];
+            args.col.value[3] = c_slice[3];
         }
-        zgui.popStyleColor(.{ .count = 1 });
+        imgui.popStyleColorEx(1);
     }
-    zgui.sameLine(.{});
-    zgui.text("{s}", .{desc_id});
+    imgui.sameLine();
+    imgui.text(desc_id);
     return false;
 }
