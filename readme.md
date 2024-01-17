@@ -1,6 +1,6 @@
 
 <p align="center">  
-  <img width="25%" src="assets/icon_1024.png">
+  <img width="25%" src="https://github.com/foxnne/pixi/assets/49629865/cd1768c1-ff39-4724-ab3a-bbb59690de1a">
   <h3 align=center></h3>
 </p>
 
