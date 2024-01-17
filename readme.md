@@ -7,7 +7,7 @@
 # 
 **Pixi** is an cross-platform open-source pixel art editor and animation editor written in [Zig](https://github.com/ziglang/zig).
 
-Pixi uses mach-core, and follows the same required version of zig, you can find the download [here](https://machengine.org/about/zig-version/).
+#### Check out the [user guide](https://github.com/foxnne/pixi/wiki/User-Guide)!
 
 ![pixi_explanatory_workflow](https://github.com/foxnne/pixi/assets/49629865/51e16f4d-634e-461d-ba5e-41cc4fa8229e)
 
@@ -17,7 +17,6 @@ Pixi uses mach-core, and follows the same required version of zig, you can find 
 
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R5R4LL2PJ)
-
 
 ## Features planned for 0.1
 - [x] Typical pixel art operations. (draw, erase, color select)
@@ -44,13 +43,14 @@ Pixi uses mach-core, and follows the same required version of zig, you can find 
 
 ## Compilation
 - [Linux] Ensure `gtk+3-devel` or similar is installed (for native file dialogs).
-- Download the supported nightly version of Zig [here](https://machengine.org/about/zig-version/) and add to PATH.
+- Install zig using [zigup](https://github.com/marler8997/zigup) `zigup 0.12.0-dev.1092+68ed78775` or manually and add to PATH.
 - Clone pixi.
 - Build.
     - ```git clone https://github.com/foxnne/pixi.git```
     - ```cd pixi```
-    - ```zig build run```
-
+    - ```git checkout sysgpu```
+    - **Dawn** ```zig build run```
+    - **sysgpu** ```zig build run -Duse_sysgpu=true```
 
 ## Credits
 - The wonderful [Dear Imgui](https://github.com/ocornut/imgui) used for almost all of the user interface.
