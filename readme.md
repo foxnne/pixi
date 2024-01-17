@@ -48,7 +48,6 @@
 - Build.
     - ```git clone https://github.com/foxnne/pixi.git```
     - ```cd pixi```
-    - ```git checkout sysgpu```
     - **Dawn** ```zig build run```
     - **sysgpu** ```zig build run -Duse_sysgpu=true```
 
