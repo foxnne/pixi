@@ -65,7 +65,9 @@ pub const Pixi = struct {
         pub fn enable(self: *Heightmap) void {
             if (self.layer != null) {
                 self.visible = true;
-            } else {}
+            } else {
+                pixi.state.popups.heightmap = true;
+            }
         }
 
         pub fn disable(self: *Heightmap) void {
@@ -264,8 +266,7 @@ pub const Pixi = struct {
                         var previous_pixel_opt: ?[2]usize = null;
                         for (pixel_coords) |p_coord| {
                             const pixel = .{ @as(usize, @intFromFloat(p_coord[0])), @as(usize, @intFromFloat(p_coord[1])) };
-                            const index = layer.getPixelIndex(pixel);
-                            const value = layer.getPixel(pixel);
+
                             if (file.heightmap.visible) {
                                 if (pixi.state.tools.current == .heightmap) {
                                     const tile_width: usize = @intCast(file.tile_width);
@@ -329,32 +330,58 @@ pub const Pixi = struct {
                                         } else break;
                                     }
                                 } else {
-                                    var valid: bool = false;
-                                    for (file.layers.items) |l| {
-                                        if (l.getPixel(pixel)[3] != 0) {
-                                            valid = true;
-                                            break;
+                                    const size: u32 = pixi.state.tools.stroke_size;
+
+                                    for (0..(size * size)) |stroke_index| {
+                                        var valid: bool = false;
+                                        var i: usize = 0;
+                                        var c: [4]u8 = .{ 0, 0, 0, 0 };
+                                        for (file.layers.items) |l| {
+                                            if (l.getIndexShapeOffset(pixel, stroke_index)) |shape_result| {
+                                                if (shape_result.color[3] != 0) {
+                                                    valid = true;
+                                                    i = shape_result.index;
+                                                    c = shape_result.color;
+                                                    break;
+                                                }
+                                            }
                                         }
-                                    }
-                                    if (valid) {
-                                        if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
-                                            try file.buffers.stroke.append(index, value);
-                                        layer.setPixel(pixel, color, false);
+                                        if (valid) {
+                                            if (layer.getIndexShapeOffset(pixel, stroke_index)) |shape_result| {
+                                                if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{shape_result.index}))
+                                                    try file.buffers.stroke.append(shape_result.index, shape_result.color);
+                                                layer.setPixelIndex(shape_result.index, color, false);
+                                            }
+                                        }
                                     }
                                 }
                             } else {
-                                if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{index}))
-                                    try file.buffers.stroke.append(index, value);
-                                layer.setPixel(pixel, color, false);
+                                const size: u32 = pixi.state.tools.stroke_size;
 
-                                // TODO: Implement a better way to handle heightmap changing when underlying layers change
+                                for (0..(size * size)) |stroke_index| {
+                                    if (layer.getIndexShapeOffset(pixel, stroke_index)) |result| {
+                                        if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{result.index}))
+                                            try file.buffers.stroke.append(result.index, result.color);
+                                        layer.setPixelIndex(result.index, color, false);
+
+                                        // if (color[3] == 0) {
+                                        //     if (file.heightmap.layer) |*l| {
+                                        //         l.setPixelIndex(result.index, .{ 0, 0, 0, 0 }, false);
+                                        //     }
+                                        // }
+                                    }
+                                }
+
+                                layer.texture.update(core.device);
+
                                 // if (color[3] == 0) {
                                 //     if (file.heightmap.layer) |*l| {
-                                //         l.setPixel(p, .{ 0, 0, 0, 0 }, true);
+                                //         l.texture.update(core.device);
                                 //     }
                                 // }
                             }
                         }
+
                         layer.texture.update(core.device);
                         pixi.state.allocator.free(pixel_coords);
                     }
@@ -362,9 +389,6 @@ pub const Pixi = struct {
             } else if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false) {
                 if (pixel_coords_opt) |pixel_coord| {
                     const pixel: [2]usize = .{ @intFromFloat(pixel_coord[0]), @intFromFloat(pixel_coord[1]) };
-
-                    const index = layer.getPixelIndex(pixel);
-                    const value = layer.getPixel(pixel);
 
                     if (file.heightmap.visible) {
                         if (pixi.state.tools.current == .heightmap) {
@@ -414,25 +438,54 @@ pub const Pixi = struct {
                                 } else break;
                             }
                         } else {
-                            var valid: bool = false;
-                            for (file.layers.items) |l| {
-                                if (l.getPixel(pixel)[3] != 0) {
-                                    valid = true;
-                                    break;
+                            const size: u32 = pixi.state.tools.stroke_size;
+
+                            for (0..(size * size)) |stroke_index| {
+                                var valid: bool = false;
+                                var i: usize = 0;
+                                var c: [4]u8 = .{ 0, 0, 0, 0 };
+                                for (file.layers.items) |l| {
+                                    if (l.getIndexShapeOffset(pixel, stroke_index)) |shape_result| {
+                                        if (shape_result.color[3] != 0) {
+                                            valid = true;
+                                            i = shape_result.index;
+                                            c = shape_result.color;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (valid) {
+                                    if (layer.getIndexShapeOffset(pixel, stroke_index)) |shape_result| {
+                                        if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{shape_result.index}))
+                                            try file.buffers.stroke.append(shape_result.index, shape_result.color);
+                                        layer.setPixelIndex(shape_result.index, color, false);
+                                    }
                                 }
                             }
-                            if (valid) {
-                                try file.buffers.stroke.append(index, value);
-                                layer.setPixel(pixel, color, true);
-                            }
+
+                            layer.texture.update(core.device);
                         }
                     } else {
-                        try file.buffers.stroke.append(index, value);
-                        layer.setPixel(pixel, color, true);
+                        const size: u32 = pixi.state.tools.stroke_size;
+
+                        for (0..(size * size)) |stroke_index| {
+                            if (layer.getIndexShapeOffset(pixel, stroke_index)) |result| {
+                                try file.buffers.stroke.append(result.index, result.color);
+                                layer.setPixelIndex(result.index, color, false);
+
+                                if (color[3] == 0) {
+                                    if (file.heightmap.layer) |*l| {
+                                        l.setPixelIndex(result.index, .{ 0, 0, 0, 0 }, false);
+                                    }
+                                }
+                            }
+                        }
+
+                        layer.texture.update(core.device);
 
                         if (color[3] == 0) {
                             if (file.heightmap.layer) |*l| {
-                                l.setPixel(pixel, .{ 0, 0, 0, 0 }, true);
+                                l.texture.update(core.device);
                             }
                         }
                     }
@@ -441,14 +494,26 @@ pub const Pixi = struct {
         } else { // Not actively drawing, but hovering over canvas
             if (pixel_coords_opt) |pixel_coord| {
                 const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
-                const heightmap_color: [4]u8 = .{ pixi.state.colors.height, 0, 0, 255 };
-                switch (pixi.state.tools.current) {
-                    .pencil => file.temporary_layer.setPixel(pixel, if (file.heightmap.visible) heightmap_color else pixi.state.colors.primary, true),
-                    .eraser => file.temporary_layer.setPixel(pixel, .{ 255, 255, 255, 255 }, true),
-                    .heightmap => {
-                        file.temporary_layer.setPixel(pixel, heightmap_color, true);
-                    },
+                var color: [4]u8 = switch (pixi.state.tools.current) {
+                    .pencil => if (file.heightmap.visible) .{ pixi.state.colors.height, 0, 0, 255 } else pixi.state.colors.primary,
+                    .eraser => .{ 255, 255, 255, 255 },
+                    .heightmap => .{ pixi.state.colors.height, 0, 0, 255 },
                     else => unreachable,
+                };
+
+                switch (pixi.state.tools.current) {
+                    .pencil, .eraser => {
+                        const size: u32 = @intCast(pixi.state.tools.stroke_size);
+                        for (0..(size * size)) |index| {
+                            if (file.temporary_layer.getIndexShapeOffset(pixel, index)) |result| {
+                                file.temporary_layer.setPixelIndex(result.index, color, false);
+                            }
+                        }
+                        file.temporary_layer.texture.update(core.device);
+                    },
+                    else => {
+                        file.temporary_layer.setPixel(pixel, color, true);
+                    },
                 }
             }
 
@@ -1293,6 +1358,64 @@ pub const Layer = struct {
         pixels[index] = color;
         if (update)
             self.texture.update(core.device);
+    }
+
+    pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8, update: bool) void {
+        var pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
+        pixels[index] = color;
+        if (update)
+            self.texture.update(core.device);
+    }
+
+    pub const ShapeOffsetResult = struct {
+        index: usize,
+        color: [4]u8,
+    };
+
+    /// Only used for handling getting the pixels
+    pub fn getIndexShapeOffset(self: Layer, origin: [2]usize, current_index: usize) ?ShapeOffsetResult {
+        const shape = pixi.state.tools.stroke_shape;
+        const size: i32 = @intCast(pixi.state.tools.stroke_size);
+
+        if (size == 1) {
+            if (current_index != 0)
+                return null;
+
+            return .{
+                .index = self.getPixelIndex(origin),
+                .color = self.getPixel(origin),
+            };
+        }
+
+        const size_center_offset: i32 = -@divFloor(@as(i32, @intCast(size)), 2);
+        const index_i32: i32 = @as(i32, @intCast(current_index));
+        const pixel_offset: [2]i32 = .{ @mod(index_i32, size) + size_center_offset, @divFloor(index_i32, size) + size_center_offset };
+
+        if (shape == .circle) {
+            const extra_pixel_offset_circle: [2]i32 = if (@mod(size, 2) == 0) .{ 1, 1 } else .{ 0, 0 };
+            const pixel_offset_circle: [2]i32 = .{ pixel_offset[0] * 2 + extra_pixel_offset_circle[0], pixel_offset[1] * 2 + extra_pixel_offset_circle[1] };
+            const sqr_magnitude = pixel_offset_circle[0] * pixel_offset_circle[0] + pixel_offset_circle[1] * pixel_offset_circle[1];
+
+            // adjust radius check for nicer looking circles
+            const radius_check_mult: f32 = (if (size == 3 or size > 10) 0.7 else 0.8);
+
+            if (@as(f32, @floatFromInt(sqr_magnitude)) > @as(f32, @floatFromInt(size * size)) * radius_check_mult) {
+                return null;
+            }
+        }
+
+        const pixel_i32: [2]i32 = .{ @as(i32, @intCast(origin[0])) + pixel_offset[0], @as(i32, @intCast(origin[1])) + pixel_offset[1] };
+
+        if (pixel_i32[0] < 0 or pixel_i32[1] < 0 or pixel_i32[0] >= self.texture.image.width or pixel_i32[1] >= self.texture.image.height) {
+            return null;
+        }
+
+        const pixel: [2]usize = .{ @intCast(pixel_i32[0]), @intCast(pixel_i32[1]) };
+
+        return .{
+            .index = getPixelIndex(self, pixel),
+            .color = getPixel(self, pixel),
+        };
     }
 
     pub fn clear(self: *Layer, update: bool) void {

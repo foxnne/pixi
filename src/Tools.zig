@@ -12,8 +12,15 @@ pub const Tool = enum(u32) {
     bucket,
 };
 
+pub const Shape = enum(u32) {
+    circle,
+    square,
+};
+
 current: Tool = .pointer,
 previous: Tool = .pointer,
+stroke_size: u8 = 1,
+stroke_shape: Shape = .circle,
 
 pub fn set(self: *Self, tool: Tool) void {
     if (self.current != tool) {
@@ -21,6 +28,8 @@ pub fn set(self: *Self, tool: Tool) void {
             switch (tool) {
                 .heightmap => {
                     file.heightmap.enable();
+                    if (file.heightmap.layer == null)
+                        return;
                 },
                 .pointer => {
                     file.heightmap.disable();

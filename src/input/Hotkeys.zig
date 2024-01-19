@@ -34,6 +34,8 @@ pub const Proc = enum(u32) {
     export_png,
     size_up,
     size_down,
+    height_up,
+    height_down,
     play_pause,
     select_right,
     select_left,
@@ -158,6 +160,30 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .size_up })) |hk| {
             if (hk.pressed()) {
+                switch (pixi.state.tools.current) {
+                    .pencil, .eraser => {
+                        if (pixi.state.tools.stroke_size < pixi.state.settings.stroke_max_size)
+                            pixi.state.tools.stroke_size += 1;
+                    },
+                    else => {},
+                }
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .size_down })) |hk| {
+            if (hk.pressed()) {
+                switch (pixi.state.tools.current) {
+                    .pencil, .eraser => {
+                        if (pixi.state.tools.stroke_size > 1)
+                            pixi.state.tools.stroke_size -= 1;
+                    },
+                    else => {},
+                }
+            }
+        }
+
+        if (self.hotkey(.{ .proc = .height_up })) |hk| {
+            if (hk.pressed()) {
                 if (file.heightmap.visible) {
                     if (pixi.state.colors.height < 255)
                         pixi.state.colors.height += 1;
@@ -165,7 +191,7 @@ pub fn process(self: *Self) !void {
             }
         }
 
-        if (self.hotkey(.{ .proc = .size_down })) |hk| {
+        if (self.hotkey(.{ .proc = .height_down })) |hk| {
             if (hk.pressed()) {
                 if (file.heightmap.visible) {
                     if (pixi.state.colors.height > 0)
@@ -292,6 +318,7 @@ pub fn process(self: *Self) !void {
             }
         }
     }
+
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
             pixi.state.popups.file_dialog_request = .{
@@ -472,8 +499,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Toggle heightmap
         try hotkeys.append(.{
-            .shortcut = "tab",
-            .key = Key.tab,
+            .shortcut = "/",
+            .key = Key.slash,
             .action = .{ .proc = Proc.toggle_heightmap },
         });
 
@@ -489,6 +516,20 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .shortcut = "[",
             .key = Key.left_bracket,
             .action = .{ .proc = Proc.size_down },
+        });
+
+        // Height up
+        try hotkeys.append(.{
+            .shortcut = ".",
+            .key = Key.period,
+            .action = .{ .proc = Proc.height_up },
+        });
+
+        // Height down
+        try hotkeys.append(.{
+            .shortcut = ",",
+            .key = Key.comma,
+            .action = .{ .proc = Proc.height_down },
         });
 
         // Play/Pause

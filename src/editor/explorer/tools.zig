@@ -50,7 +50,12 @@ pub fn draw() void {
         imgui.separatorText("Colors  " ++ pixi.fa.paint_brush);
         imgui.popStyleColor();
 
-        if (pixi.state.tools.current == .heightmap) {
+        var heightmap_visible: bool = false;
+        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+            heightmap_visible = file.heightmap.visible;
+        }
+
+        if (heightmap_visible) {
             var height: i32 = @as(i32, @intCast(pixi.state.colors.height));
             if (imgui.sliderInt("Height", &height, 0, 255)) {
                 pixi.state.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
@@ -186,6 +191,31 @@ pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tools.Tool) void
     if (imgui.selectableEx(label, selected, imgui.SelectableFlags_None, .{ .x = w, .y = h })) {
         pixi.state.tools.set(tool);
     }
+
+    if (tool == .pencil or tool == .eraser) {
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
+        defer imgui.popStyleColor();
+        if (imgui.beginPopupContextItem()) {
+            defer imgui.endPopup();
+
+            imgui.separatorText("Stroke Options");
+
+            var stroke_size: c_int = @intCast(pixi.state.tools.stroke_size);
+            if (imgui.sliderInt("Size", &stroke_size, 1, pixi.state.settings.stroke_max_size)) {
+                pixi.state.tools.stroke_size = @intCast(stroke_size);
+            }
+
+            var shape_label: [:0]const u8 = switch (pixi.state.tools.stroke_shape) {
+                .circle => "Circle",
+                .square => "Square",
+            };
+            if (imgui.beginCombo("Shape", shape_label, imgui.ComboFlags_None)) {
+                defer imgui.endCombo();
+                if (imgui.selectable("Circle")) pixi.state.tools.stroke_shape = .circle;
+                if (imgui.selectable("Square")) pixi.state.tools.stroke_shape = .square;
+            }
+        }
+    }
     drawTooltip(tool);
 }
 
@@ -223,6 +253,9 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
                         imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), first_text);
                         imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), second_text);
                     }
+                },
+                .pencil, .eraser => {
+                    imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click for options");
                 },
                 else => {},
             }

@@ -143,6 +143,9 @@ shadow_opacity: f32 = 0.05,
 /// Shadow length
 shadow_length: f32 = 10.0,
 
+/// Stroke
+stroke_max_size: i32 = 64,
+
 /// Currently applied theme name
 theme: [:0]const u8,
 

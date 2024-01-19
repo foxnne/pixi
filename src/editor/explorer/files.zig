@@ -150,7 +150,7 @@ pub fn draw() void {
                 while (i > 0) {
                     i -= 1;
                     const folder = pixi.state.recents.folders.items[i];
-                    var label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.folder, std.fs.path.basename(folder) }) catch unreachable;
+                    var label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}", .{ pixi.fa.folder, folder }) catch unreachable;
                     defer pixi.state.allocator.free(label);
 
                     if (imgui.selectable(label)) {
@@ -170,10 +170,10 @@ pub fn draw() void {
                         }
                     }
 
-                    imgui.sameLineEx(0.0, 5.0 * pixi.content_scale[0]);
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-                    imgui.text(folder);
-                    imgui.popStyleColor();
+                    // imgui.sameLineEx(0.0, 5.0 * pixi.content_scale[0]);
+                    // imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                    // imgui.text(folder);
+                    // imgui.popStyleColor();
                 }
             }
         }
