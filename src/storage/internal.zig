@@ -1372,7 +1372,8 @@ pub const Layer = struct {
         color: [4]u8,
     };
 
-    /// Only used for handling getting the pixels
+    /// Only used for handling getting the pixels surrounding the origin
+    /// for stroke sizes larger than 1
     pub fn getIndexShapeOffset(self: Layer, origin: [2]usize, current_index: usize) ?ShapeOffsetResult {
         const shape = pixi.state.tools.stroke_shape;
         const size: i32 = @intCast(pixi.state.tools.stroke_size);

@@ -251,11 +251,10 @@ pub fn update(app: *App) !bool {
     };
     content_scale = .{ 1.0, 1.0 };
 
+    var set_vsync: bool = false;
+
     var iter = core.pollEvents();
     while (iter.next()) |event| {
-        if (!state.should_close)
-            _ = imgui_mach.processEvent(event);
-
         switch (event) {
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
@@ -296,8 +295,15 @@ pub fn update(app: *App) !bool {
                 }
                 state.should_close = should_close;
             },
+            .framebuffer_resize => |_| {
+                core.setVSync(.none);
+                set_vsync = true;
+            },
             else => {},
         }
+
+        if (!state.should_close)
+            _ = imgui_mach.processEvent(event);
     }
 
     try input.process();
@@ -310,6 +316,11 @@ pub fn update(app: *App) !bool {
     state.theme.unset();
 
     imgui.render();
+
+    if (set_vsync) {
+        core.setVSync(.double);
+        set_vsync = false;
+    }
 
     if (editor.getFile(state.open_file_index)) |file| {
         @memset(core.title[0..], 0);
