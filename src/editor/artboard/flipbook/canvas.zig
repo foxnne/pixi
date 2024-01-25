@@ -12,10 +12,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
     // Progress flipbook scroll request
     if (file.flipbook_scroll_request) |*request| {
-        if (request.elapsed < 1.0) {
+        if (request.elapsed < 0.5) {
             file.selected_animation_state = .pause;
-            request.elapsed += pixi.state.delta_time * 2.0;
-            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed, .ease_in_out);
+            request.elapsed += pixi.state.delta_time;
+            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed / 0.5, .ease_in_out);
         } else {
             file.flipbook_scroll = request.to;
             file.selected_animation_state = request.state;
@@ -131,7 +131,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 dst_p3,
                 dst_p4,
                 pixi.state.theme.background.toU32(),
-            ); 
+            );
             // Draw background
             file.flipbook_camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
             file.selected_sprite_index = i;

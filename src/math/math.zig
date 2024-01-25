@@ -24,8 +24,6 @@ pub fn ease(a: f32, b: f32, t: f32, ease_type: EaseType) f32 {
         .ease_in => lerp(a, b, square(t)),
         .ease_out => lerp(a, b, flip(square(flip(t)))),
         .ease_in_out => lerp(a, b, -(std.math.cos(std.math.pi * t) - 1.0) / 2.0),
-
-        //-(Math.cos(Math.PI * x) - 1) / 2;
     };
 }
 
