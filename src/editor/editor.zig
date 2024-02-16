@@ -118,7 +118,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         const tiles = @as(usize, @intCast(pixi.state.popups.file_setup_tiles[0] * pixi.state.popups.file_setup_tiles[1]));
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
-            var sprite: pixi.storage.Internal.Sprite = .{
+            const sprite: pixi.storage.Internal.Sprite = .{
                 .name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ base_name[0..ext_ind], i }),
                 .index = i,
             };
@@ -163,7 +163,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
         _ = zip.zip_entry_read(pixi_file, &buf, &size);
         _ = zip.zip_entry_close(pixi_file);
 
-        var content: []const u8 = @as([*]const u8, @ptrCast(buf))[0..size];
+        const content: []const u8 = @as([*]const u8, @ptrCast(buf))[0..size];
 
         const options = std.json.ParseOptions{
             .duplicate_field_behavior = .use_first,
@@ -173,7 +173,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
         var parsed = std.json.parseFromSlice(pixi.storage.External.Pixi, pixi.state.allocator, content, options) catch unreachable;
         defer parsed.deinit();
 
-        var external = parsed.value;
+        const external = parsed.value;
 
         var internal: pixi.storage.Internal.Pixi = .{
             .path = try pixi.state.allocator.dupeZ(u8, path),
@@ -214,7 +214,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
 
                 if (img_buf) |data| {
-                    var new_layer: pixi.storage.Internal.Layer = .{
+                    const new_layer: pixi.storage.Internal.Layer = .{
                         .name = try pixi.state.allocator.dupeZ(u8, layer.name),
                         .texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
                         .id = internal.id(),
@@ -322,7 +322,7 @@ pub fn forceCloseFile(index: usize) !void {
 }
 
 pub fn forceCloseAllFiles() !void {
-    var len: usize = pixi.state.open_files.items.len;
+    const len: usize = pixi.state.open_files.items.len;
     var i: usize = 0;
     while (i < len) : (i += 1) {
         try forceCloseFile(0);

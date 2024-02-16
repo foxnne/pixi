@@ -1,18 +1,17 @@
 const std = @import("std");
 const path = std.fs.path;
-const Builder = std.build.Builder;
-const Step = std.build.Step;
+const Step = std.Build.Step;
 
 const Atlas = @import("../storage/external.zig").Atlas;
 
 pub const ProcessAssetsStep = struct {
     step: Step,
-    builder: *Builder,
+    builder: *std.Build,
     assets_root_path: []const u8,
     assets_output_path: []const u8,
     animations_output_path: []const u8,
 
-    pub fn init(builder: *Builder, comptime assets_path: []const u8, comptime assets_output_path: []const u8, comptime animations_output_path: []const u8) *ProcessAssetsStep {
+    pub fn init(builder: *std.Build, comptime assets_path: []const u8, comptime assets_output_path: []const u8, comptime animations_output_path: []const u8) *ProcessAssetsStep {
         const self = builder.allocator.create(ProcessAssetsStep) catch unreachable;
         self.* = .{
             .step = Step.init(.{ .id = .custom, .name = "process-assets", .owner = builder, .makeFn = process }),
@@ -34,7 +33,7 @@ pub const ProcessAssetsStep = struct {
 
         if (std.fs.cwd().openDir(root, .{ .access_sub_paths = true })) |_| {
             // path passed is a directory
-            var files = getAllFiles(self.builder.allocator, root, true);
+            const files = getAllFiles(self.builder.allocator, root, true);
 
             if (files.len > 0) {
                 var assets_array_list = std.ArrayList(u8).init(self.builder.allocator);
@@ -62,10 +61,10 @@ pub const ProcessAssetsStep = struct {
                     const ext_ind = std.mem.lastIndexOf(u8, base, ".");
                     const name = base[0..ext_ind.?];
 
-                    var path_fixed = try self.builder.allocator.alloc(u8, file.len);
+                    const path_fixed = try self.builder.allocator.alloc(u8, file.len);
                     _ = std.mem.replace(u8, file, "\\", "/", path_fixed);
 
-                    var name_fixed = try self.builder.allocator.alloc(u8, name.len);
+                    const name_fixed = try self.builder.allocator.alloc(u8, name.len);
                     _ = std.mem.replace(u8, name, "-", "_", name_fixed);
 
                     // Pngs
@@ -87,10 +86,10 @@ pub const ProcessAssetsStep = struct {
                         try assets_writer.print("pub const {s}{s} = struct {{\n", .{ name, "_atlas" });
                         try assets_writer.print("  pub const path = \"{s}\";\n", .{path_fixed});
 
-                        var atlas = Atlas.loadFromFile(self.builder.allocator, file) catch unreachable;
+                        const atlas = Atlas.loadFromFile(self.builder.allocator, file) catch unreachable;
 
                         for (atlas.sprites, 0..) |sprite, i| {
-                            var sprite_name = try self.builder.allocator.alloc(u8, sprite.name.len);
+                            const sprite_name = try self.builder.allocator.alloc(u8, sprite.name.len);
                             _ = std.mem.replace(u8, sprite.name, " ", "_", sprite_name);
                             _ = std.mem.replace(u8, sprite_name, ".", "_", sprite_name);
 
@@ -112,7 +111,7 @@ pub const ProcessAssetsStep = struct {
                             try animations_writer.writeAll("const assets = @import(\"assets.zig\");\n\n");
 
                             for (atlas.animations) |animation| {
-                                var animation_name = try self.builder.allocator.alloc(u8, animation.name.len);
+                                const animation_name = try self.builder.allocator.alloc(u8, animation.name.len);
                                 _ = std.mem.replace(u8, animation.name, " ", "_", animation_name);
                                 _ = std.mem.replace(u8, animation_name, ".", "_", animation_name);
 
@@ -120,7 +119,7 @@ pub const ProcessAssetsStep = struct {
 
                                 var animation_index = animation.start;
                                 while (animation_index < animation.start + animation.length) : (animation_index += 1) {
-                                    var sprite_name = try self.builder.allocator.alloc(u8, atlas.sprites[animation_index].name.len);
+                                    const sprite_name = try self.builder.allocator.alloc(u8, atlas.sprites[animation_index].name.len);
                                     _ = std.mem.replace(u8, atlas.sprites[animation_index].name, " ", "_", sprite_name);
                                     _ = std.mem.replace(u8, sprite_name, ".", "_", sprite_name);
 
@@ -148,7 +147,7 @@ pub const ProcessAssetsStep = struct {
 
         const recursor = struct {
             fn search(alloc: std.mem.Allocator, directory: []const u8, recursive: bool, filelist: *std.ArrayList([:0]const u8)) void {
-                var dir = std.fs.cwd().openIterableDir(directory, .{ .access_sub_paths = true }) catch unreachable;
+                var dir = std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true }) catch unreachable;
                 defer dir.close();
 
                 var iter = dir.iterate();

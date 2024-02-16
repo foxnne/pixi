@@ -42,7 +42,7 @@ open_files: std.ArrayList(pixi.storage.Internal.Pixi),
 allocator: std.mem.Allocator,
 
 pub fn init(allocator: std.mem.Allocator) !Packer {
-    var pixels: [][4]u8 = try allocator.alloc([4]u8, 4);
+    const pixels: [][4]u8 = try allocator.alloc([4]u8, 4);
     for (pixels) |*pixel| {
         pixel[3] = 0;
     }
@@ -249,7 +249,7 @@ pub fn packAndClear(self: *Packer) !void {
             }
         }
 
-        var atlas: pixi.storage.External.Atlas = .{
+        const atlas: pixi.storage.External.Atlas = .{
             .sprites = try self.allocator.alloc(pixi.storage.External.Sprite, self.sprites.items.len),
             .animations = try self.allocator.alloc(pixi.storage.External.Animation, self.animations.items.len),
         };

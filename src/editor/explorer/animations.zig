@@ -28,7 +28,7 @@ pub fn draw() void {
             defer imgui.endChild();
 
             const style = imgui.getStyle();
-            var window_size = imgui.getWindowSize();
+            const window_size = imgui.getWindowSize();
 
             const button_width = window_size.x / 4.0;
             const button_height = button_width / 2.0;

@@ -113,7 +113,7 @@ pub const Pixi = struct {
         imgui.setMouseCursor(imgui.MouseCursor_None);
         file.camera.drawCursor(pixi.assets.pixi_atlas.dropper_0_default, 0xFFFFFFFF);
 
-        var mouse_position = pixi.state.mouse.position;
+        const mouse_position = pixi.state.mouse.position;
         var camera = switch (canvas) {
             .primary => file.camera,
             .flipbook => file.flipbook_camera,
@@ -236,7 +236,7 @@ pub const Pixi = struct {
         };
 
         if (if (pixi.state.mouse.button(.primary)) |primary| primary.down() else false) {
-            var color = switch (pixi.state.tools.current) {
+            const color = switch (pixi.state.tools.current) {
                 .pencil => if (file.heightmap.visible) [_]u8{ pixi.state.colors.height, 0, 0, 255 } else pixi.state.colors.primary,
                 .eraser => [_]u8{ 0, 0, 0, 0 },
                 .heightmap => [_]u8{ pixi.state.colors.height, 0, 0, 255 },
@@ -494,7 +494,7 @@ pub const Pixi = struct {
         } else { // Not actively drawing, but hovering over canvas
             if (pixel_coords_opt) |pixel_coord| {
                 const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
-                var color: [4]u8 = switch (pixi.state.tools.current) {
+                const color: [4]u8 = switch (pixi.state.tools.current) {
                     .pencil => if (file.heightmap.visible) .{ pixi.state.colors.height, 0, 0, 255 } else pixi.state.colors.primary,
                     .eraser => .{ 255, 255, 255, 255 },
                     .heightmap => .{ pixi.state.colors.height, 0, 0, 255 },
@@ -540,11 +540,11 @@ pub const Pixi = struct {
         })) |pixel_coord| {
             const pixel: [2]usize = .{ @intFromFloat(pixel_coord[0]), @intFromFloat(pixel_coord[1]) };
 
-            var tile_column = @divTrunc(pixel[0], @as(usize, @intCast(file.tile_width)));
-            var tile_row = @divTrunc(pixel[1], @as(usize, @intCast(file.tile_height)));
+            const tile_column = @divTrunc(pixel[0], @as(usize, @intCast(file.tile_width)));
+            const tile_row = @divTrunc(pixel[1], @as(usize, @intCast(file.tile_height)));
 
-            var tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
-            var tile_index = tile_column + tile_row * tiles_wide;
+            const tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
+            const tile_index = tile_column + tile_row * tiles_wide;
 
             if (tile_index >= pixi.state.popups.animation_start) {
                 pixi.state.popups.animation_length = (tile_index - pixi.state.popups.animation_start) + 1;
@@ -668,7 +668,7 @@ pub const Pixi = struct {
 
         if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false) {
             if (pixel_coords_opt) |pixel_coord| {
-                var pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
+                const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
                 const index = layer.getPixelIndex(pixel);
                 var pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
@@ -676,10 +676,10 @@ pub const Pixi = struct {
                 const tile_width: usize = @intCast(file.tile_width);
                 const tile_height: usize = @intCast(file.tile_height);
 
-                var tile_column = @divTrunc(pixel[0], tile_width);
-                var tile_row = @divTrunc(pixel[1], tile_height);
+                const tile_column = @divTrunc(pixel[0], tile_width);
+                const tile_row = @divTrunc(pixel[1], tile_height);
 
-                var tl_pixel: [2]usize = .{ tile_column * tile_width, tile_row * tile_height };
+                const tl_pixel: [2]usize = .{ tile_column * tile_width, tile_row * tile_height };
 
                 const old_color = pixels[index];
                 var y: usize = tl_pixel[1];
@@ -706,9 +706,9 @@ pub const Pixi = struct {
     }
 
     pub fn external(self: Pixi, allocator: std.mem.Allocator) !storage.External.Pixi {
-        var layers = try allocator.alloc(storage.External.Layer, self.layers.items.len);
-        var sprites = try allocator.alloc(storage.External.Sprite, self.sprites.items.len);
-        var animations = try allocator.alloc(storage.External.Animation, self.animations.items.len);
+        const layers = try allocator.alloc(storage.External.Layer, self.layers.items.len);
+        const sprites = try allocator.alloc(storage.External.Sprite, self.sprites.items.len);
+        const animations = try allocator.alloc(storage.External.Animation, self.animations.items.len);
 
         for (layers, 0..) |*layer, i| {
             layer.name = try allocator.dupeZ(u8, self.layers.items[i].name);
@@ -752,7 +752,7 @@ pub const Pixi = struct {
         self.history.bookmark = 0;
         var ext = try self.external(pixi.state.allocator);
         defer ext.deinit(pixi.state.allocator);
-        var zip_file = zip.zip_open(self.path, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
+        const zip_file = zip.zip_open(self.path, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
         if (zip_file) |z| {
             var json = std.ArrayList(u8).init(pixi.state.allocator);
@@ -761,7 +761,7 @@ pub const Pixi = struct {
 
             try std.json.stringify(ext, options, out_stream);
 
-            var json_output = try json.toOwnedSlice();
+            const json_output = try json.toOwnedSlice();
             defer pixi.state.allocator.free(json_output);
 
             _ = zip.zip_entry_open(z, "pixidata.json");
@@ -897,7 +897,7 @@ pub const Pixi = struct {
     }
 
     pub fn createAnimation(self: *Pixi, name: []const u8, fps: usize, start: usize, length: usize) !void {
-        var animation = .{
+        const animation = .{
             .name = try pixi.state.allocator.dupeZ(u8, name),
             .fps = fps,
             .start = start,
@@ -1081,7 +1081,7 @@ pub const Pixi = struct {
     }
 
     pub fn spriteToImage(file: *Pixi, sprite_index: usize) !zstbi.Image {
-        var sprite_image = try zstbi.Image.createEmpty(file.tile_width, file.tile_height, 4, .{});
+        const sprite_image = try zstbi.Image.createEmpty(file.tile_width, file.tile_height, 4, .{});
 
         const tiles_wide = @divExact(file.width, file.tile_width);
 
@@ -1139,8 +1139,8 @@ pub const Pixi = struct {
         const x_sum = column + x_movement;
         const y_sum = row + y_movement;
 
-        var future_column = if (x_sum < 0) columns - 1 else if (x_sum >= columns) 0 else x_sum;
-        var future_row = if (y_sum < 0) rows - 1 else if (y_sum >= rows) 0 else y_sum;
+        const future_column = if (x_sum < 0) columns - 1 else if (x_sum >= columns) 0 else x_sum;
+        const future_row = if (y_sum < 0) rows - 1 else if (y_sum >= rows) 0 else y_sum;
 
         const future_index: usize = @intCast(future_column + future_row * rows);
         return future_index;
@@ -1420,7 +1420,7 @@ pub const Layer = struct {
     }
 
     pub fn clear(self: *Layer, update: bool) void {
-        var pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
+        const pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
         for (pixels) |*pixel| {
             pixel.* = .{ 0, 0, 0, 0 };
         }

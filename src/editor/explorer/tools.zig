@@ -61,14 +61,14 @@ pub fn draw() void {
                 pixi.state.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
             }
         } else {
-            var primary: imgui.Vec4 = if (pixi.state.tools.current == .heightmap) .{ .x = 255, .y = 255, .z = 255, .w = 255 } else .{
+            const primary: imgui.Vec4 = if (pixi.state.tools.current == .heightmap) .{ .x = 255, .y = 255, .z = 255, .w = 255 } else .{
                 .x = @as(f32, @floatFromInt(pixi.state.colors.primary[0])) / 255.0,
                 .y = @as(f32, @floatFromInt(pixi.state.colors.primary[1])) / 255.0,
                 .z = @as(f32, @floatFromInt(pixi.state.colors.primary[2])) / 255.0,
                 .w = @as(f32, @floatFromInt(pixi.state.colors.primary[3])) / 255.0,
             };
 
-            var secondary: imgui.Vec4 = .{
+            const secondary: imgui.Vec4 = .{
                 .x = @as(f32, @floatFromInt(pixi.state.colors.secondary[0])) / 255.0,
                 .y = @as(f32, @floatFromInt(pixi.state.colors.secondary[1])) / 255.0,
                 .z = @as(f32, @floatFromInt(pixi.state.colors.secondary[2])) / 255.0,
@@ -205,7 +205,7 @@ pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tools.Tool) void
                 pixi.state.tools.stroke_size = @intCast(stroke_size);
             }
 
-            var shape_label: [:0]const u8 = switch (pixi.state.tools.stroke_shape) {
+            const shape_label: [:0]const u8 = switch (pixi.state.tools.stroke_shape) {
                 .circle => "Circle",
                 .square => "Square",
             };

@@ -142,7 +142,7 @@ pub fn loadFromFile(file: [:0]const u8) !Self {
     const ext = std.fs.path.extension(file);
 
     if (std.mem.eql(u8, ext, ".json")) {
-        var read_opt: ?[]const u8 = pixi.fs.read(pixi.state.allocator, file) catch null;
+        const read_opt: ?[]const u8 = pixi.fs.read(pixi.state.allocator, file) catch null;
         if (read_opt) |read| {
             defer pixi.state.allocator.free(read);
 
@@ -183,7 +183,7 @@ pub const StyleColorButton = struct {
 };
 
 pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
-    var c = args.col.toImguiVec4();
+    const c = args.col.toImguiVec4();
     var c_slice = args.col.toSlice();
     if (imgui.colorButton(
         desc_id,

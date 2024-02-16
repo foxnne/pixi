@@ -36,8 +36,8 @@ pub fn build(b: *std.Build) !void {
     const zig_imgui_dep = b.dependency("zig_imgui", .{});
 
     const imgui_module = b.addModule("zig-imgui", .{
-        .source_file = zig_imgui_dep.path("src/imgui.zig"),
-        .dependencies = &.{
+        .root_source_file = zig_imgui_dep.path("src/imgui.zig"),
+        .imports = &.{
             .{ .name = "mach-core", .module = mach_core_dep.module("mach-core") },
         },
     });
@@ -91,7 +91,7 @@ pub fn build(b: *std.Build) !void {
         .name = "pixi",
         .src = src_path,
         .target = target,
-        .deps = &[_]std.build.ModuleDependency{
+        .deps = &.{
             .{ .name = "zstbi", .module = zstbi_pkg.zstbi },
             .{ .name = "zmath", .module = zmath_pkg.zmath },
             .{ .name = "nfd", .module = nfd.getModule(b) },
@@ -102,15 +102,15 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    if (use_sysgpu) {
-        const mach_sysgpu_dep = b.dependency("mach_sysgpu", .{
-            .target = target,
-            .optimize = optimize,
-        });
+    // if (use_sysgpu) {
+    //     const mach_sysgpu_dep = b.dependency("mach_sysgpu", .{
+    //         .target = target,
+    //         .optimize = optimize,
+    //     });
 
-        app.compile.linkLibrary(mach_sysgpu_dep.artifact("mach-dusk"));
-        @import("mach_sysgpu").link(mach_sysgpu_dep.builder, app.compile);
-    }
+    //     app.compile.linkLibrary(mach_sysgpu_dep.artifact("mach-dusk"));
+    //     //@import("mach_sysgpu").link(mach_sysgpu_dep.builder, app.compile);
+    // }
 
     const install_step = b.step("pixi", "Install pixi");
     install_step.dependOn(&app.install.step);
@@ -125,30 +125,31 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    unit_tests.addModule("zstbi", zstbi_pkg.zstbi);
-    unit_tests.addModule("zmath", zmath_pkg.zmath);
-    unit_tests.addModule("nfd", nfd.getModule(b));
-    unit_tests.addModule("zip", zip_pkg.module);
+    unit_tests.root_module.addImport("zstbi", zstbi_pkg.zstbi);
+    unit_tests.root_module.addImport("zmath", zmath_pkg.zmath);
+    unit_tests.root_module.addImport("nfd", nfd.getModule(b));
+    unit_tests.root_module.addImport("zip", zip_pkg.module);
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    app.compile.addModule("zstbi", zstbi_pkg.zstbi);
-    app.compile.addModule("zmath", zmath_pkg.zmath);
-    app.compile.addModule("nfd", nfd.getModule(b));
-    app.compile.addModule("zip", zip_pkg.module);
-    app.compile.addModule("zig-imgui", imgui_module);
+    app.compile.root_module.addImport("zstbi", zstbi_pkg.zstbi);
+    app.compile.root_module.addImport("zmath", zmath_pkg.zmath);
+    app.compile.root_module.addImport("nfd", nfd.getModule(b));
+    app.compile.root_module.addImport("zip", zip_pkg.module);
+    app.compile.root_module.addImport("zig-imgui", imgui_module);
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
-    if (nfd_lib.target_info.target.os.tag == .macos) {
-        // MacOS: this must be defined for macOS 13.3 and older.
-        // Critically, this MUST NOT be included as a -D__kernel_ptr_semantics flag. If it is,
-        // then this macro will not be defined even if `defineCMacro` was also called!
-        nfd_lib.defineCMacro("__kernel_ptr_semantics", "");
-        xcode_frameworks.addPaths(nfd_lib);
-    }
-    app.compile.linkLibrary(nfd_lib);
+    app.compile.root_module.addImport("nfd", nfd_lib);
+    // if (nfd_lib.target_info.target.os.tag == .macos) {
+    //     // MacOS: this must be defined for macOS 13.3 and older.
+    //     // Critically, this MUST NOT be included as a -D__kernel_ptr_semantics flag. If it is,
+    //     // then this macro will not be defined even if `defineCMacro` was also called!
+    //     nfd_lib.defineCMacro("__kernel_ptr_semantics", "");
+    //     xcode_frameworks.addPaths(nfd_lib);
+    // }
+    //app.compile.linkLibrary(nfd_lib);
     app.compile.linkLibrary(imgui_lib);
     zstbi_pkg.link(app.compile);
     zip.link(app.compile);

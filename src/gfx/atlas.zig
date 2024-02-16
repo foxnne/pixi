@@ -10,32 +10,32 @@ pub const Atlas = struct {
     animations: []Animation,
 
     pub fn init(allocator: *std.mem.Allocator, width: i32, height: i32, columns: i32, rows: i32) Atlas {
-        var count: i32 = columns * rows;
+        const count: i32 = columns * rows;
 
         var atlas: Atlas = .{
             .sprites = try allocator.alloc(Sprite, count),
         };
 
-        var sprite_width = @divExact(@as(i32, @intFromFloat(width)), columns);
-        var sprite_height = @divExact(@as(i32, @intFromFloat(height)), rows);
+        const sprite_width = @divExact(@as(i32, @intFromFloat(width)), columns);
+        const sprite_height = @divExact(@as(i32, @intFromFloat(height)), rows);
 
         var r: i32 = 0;
         while (r < rows) : (r += 1) {
             var c: i32 = 0;
             while (c < columns) : (c += 1) {
-                var source: math.Rect = .{
+                const source: math.Rect = .{
                     .x = c * sprite_width,
                     .y = r * sprite_height,
                     .width = sprite_width,
                     .height = sprite_height,
                 };
 
-                var origin: math.Point = .{
+                const origin: math.Point = .{
                     .x = @divExact(sprite_width, 2),
                     .y = @divExact(sprite_height, 2),
                 };
 
-                var s: Sprite = .{
+                const s: Sprite = .{
                     .name = "Sprite_" ++ std.fmt.allocPrint(allocator, "{}", .{c + r}), // add _0, _1 etc...
                     .source = source,
                     .origin = origin,

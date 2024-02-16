@@ -62,7 +62,7 @@ fn drawOption(option: pixi.Sidebar, icon: [:0]const u8) void {
         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
     }
 
-    var selectable_flags: imgui.SelectableFlags = imgui.SelectableFlags_DontClosePopups;
+    const selectable_flags: imgui.SelectableFlags = imgui.SelectableFlags_DontClosePopups;
     if (imgui.selectableEx(icon, pixi.state.sidebar == option, selectable_flags, .{ .x = selectable_width, .y = selectable_height })) {
         pixi.state.sidebar = option;
         if (option == .sprites)
