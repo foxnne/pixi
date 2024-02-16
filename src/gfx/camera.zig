@@ -213,8 +213,12 @@ pub const Camera = struct {
             );
     }
 
-    pub fn drawCursor(self: Camera, texture: *pixi.gfx.Texture, sprite: pixi.gfx.Sprite, color: u32) void {
+    pub fn drawCursor(self: Camera, sprite_index: usize, color: u32) void {
         _ = self;
+        if (sprite_index >= pixi.state.assets.atlas.sprites.len) return;
+
+        const sprite = pixi.state.assets.atlas.sprites[sprite_index];
+        const texture = pixi.state.assets.atlas_png;
         var position = pixi.state.mouse.position;
 
         var sprite_source: [4]f32 = .{
