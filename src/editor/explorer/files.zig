@@ -362,14 +362,14 @@ fn contextMenuFile(file: [:0]const u8) void {
     if (imgui.menuItem("Duplicate...")) {
         pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
         pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
-        @memcpy(pixi.state.popups.rename_old_path[0..], file);
+        @memcpy(pixi.state.popups.rename_old_path[0..file.len], file);
 
         const ex = std.fs.path.extension(file);
 
         if (std.mem.indexOf(u8, file, ex)) |ext_i| {
             const new_base_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}{s}", .{ file[0..ext_i], "_copy", ex }) catch unreachable;
             defer pixi.state.allocator.free(new_base_name);
-            @memcpy(pixi.state.popups.rename_path[0..], new_base_name);
+            @memcpy(pixi.state.popups.rename_path[0..new_base_name.len], new_base_name);
 
             pixi.state.popups.rename = true;
             pixi.state.popups.rename_state = .duplicate;
