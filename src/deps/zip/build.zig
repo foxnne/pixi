@@ -9,12 +9,12 @@ pub const Package = struct {
 
 pub fn package(b: *std.Build, _: struct {}) Package {
     const module = b.createModule(.{
-        .source_file = .{ .path = thisDir() ++ "/zip.zig" },
+        .root_source_file = .{ .path = thisDir() ++ "/zip.zig" },
     });
     return .{ .module = module };
 }
 
-pub fn link(exe: *std.Build.CompileStep) void {
+pub fn link(exe: *std.Build.Step.Compile) void {
     exe.linkLibC();
     exe.addIncludePath(.{ .path = thisDir() ++ "/src" });
     const c_flags = [_][]const u8{"-fno-sanitize=undefined"};

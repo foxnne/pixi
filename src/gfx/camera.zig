@@ -14,8 +14,8 @@ pub const Camera = struct {
     zoom_tooltip_timer: f32 = 0.6,
 
     pub fn matrix(self: Camera) Matrix3x2 {
-        var window_size = imgui.getWindowSize();
-        var window_half_size: [2]f32 = .{ @trunc(window_size.x * 0.5), @trunc(window_size.y * 0.5) };
+        const window_size = imgui.getWindowSize();
+        const window_half_size: [2]f32 = .{ @trunc(window_size.x * 0.5), @trunc(window_size.y * 0.5) };
 
         var transform = Matrix3x2.identity;
 
@@ -219,9 +219,9 @@ pub const Camera = struct {
 
         const sprite = pixi.state.assets.atlas.sprites[sprite_index];
         const texture = pixi.state.assets.atlas_png;
-        var position = pixi.state.mouse.position;
+        const position = pixi.state.mouse.position;
 
-        var sprite_source: [4]f32 = .{
+        const sprite_source: [4]f32 = .{
             @floatFromInt(sprite.source[0]),
             @floatFromInt(sprite.source[1]),
             @floatFromInt(sprite.source[2]),
@@ -276,8 +276,8 @@ pub const Camera = struct {
         const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
         const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.image.height));
 
-        var min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
-        var max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
+        const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
+        const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
 
         const uvmin: imgui.Vec2 = .{ .x = src_rect[0] * inv_w, .y = src_rect[1] * inv_h };
         const uvmax: imgui.Vec2 = .{ .x = (src_rect[0] + src_rect[2]) * inv_w, .y = (src_rect[1] + src_rect[3]) * inv_h };
@@ -464,10 +464,10 @@ pub const Camera = struct {
         const tile_width = @as(f32, @floatFromInt(file.tile_width));
         const tile_height = @as(f32, @floatFromInt(file.tile_height));
         const sprite_scale = std.math.clamp(0.4 / @abs(@as(f32, @floatFromInt(i)) / 1.2 + (file.flipbook_scroll / tile_width / 1.2)), 0.4, 1.0);
-        var dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(i)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
-        var dst_y: f32 = options.sprite_position[1];
-        var dst_width: f32 = tile_width * sprite_scale;
-        var dst_height: f32 = tile_height * sprite_scale;
+        const dst_x: f32 = options.sprite_position[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(i)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
+        const dst_y: f32 = options.sprite_position[1];
+        const dst_width: f32 = tile_width * sprite_scale;
+        const dst_height: f32 = tile_height * sprite_scale;
         const dst_rect: [4]f32 = .{ dst_x, dst_y, dst_width, dst_height };
         const rect_min_max = camera.getRectMinMax(dst_rect);
 
@@ -612,7 +612,7 @@ pub const Camera = struct {
     }
 
     pub fn processZoomTooltip(camera: *Camera) void {
-        var zoom_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
+        const zoom_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
         const zooming = pixi.state.mouse.scroll_y != null and zoom_key;
 
         // Draw current zoom tooltip

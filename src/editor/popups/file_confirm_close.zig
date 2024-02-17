@@ -11,7 +11,7 @@ pub fn draw() void {
     const popup_width = 350 * pixi.content_scale[0];
     const popup_height = if (pixi.state.popups.file_confirm_close_state == .one) 120 * pixi.content_scale[1] else 250 * pixi.content_scale[1];
 
-    var window_size = pixi.window_size;
+    const window_size = pixi.window_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     imgui.setNextWindowPos(.{
@@ -89,7 +89,7 @@ pub fn draw() void {
                     pixi.editor.forceCloseFile(pixi.state.popups.file_confirm_close_index) catch unreachable;
                 },
                 .all => {
-                    var len = pixi.state.open_files.items.len;
+                    const len = pixi.state.open_files.items.len;
                     var i: usize = 0;
                     while (i < len) : (i += 1) {
                         pixi.editor.forceCloseFile(0) catch unreachable;

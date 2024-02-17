@@ -11,7 +11,7 @@ pub fn draw() void {
     const popup_width = 350 * pixi.content_scale[0];
     const popup_height = 300 * pixi.content_scale[1];
 
-    var window_size = pixi.window_size;
+    const window_size = pixi.window_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     imgui.setNextWindowPos(.{
@@ -43,7 +43,7 @@ pub fn draw() void {
         input_text_flags |= imgui.InputTextFlags_AutoSelectAll;
         input_text_flags |= imgui.InputTextFlags_EnterReturnsTrue;
 
-        var enter = imgui.inputText(
+        const enter = imgui.inputText(
             "Name",
             pixi.state.popups.file_setup_path[base_name_index..],
             pixi.state.popups.file_setup_path[base_name_index..].len,
@@ -176,7 +176,7 @@ pub fn draw() void {
 }
 
 fn inputIntClamp(label: [:0]const u8, v: *i32, min: i32, max: i32) bool {
-    var b = imgui.inputInt(label, v);
+    const b = imgui.inputInt(label, v);
     if (b) {
         v.* = std.math.clamp(v.*, min, max);
     }

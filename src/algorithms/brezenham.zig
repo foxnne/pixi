@@ -24,7 +24,7 @@ pub fn process(start: [2]f32, end: [2]f32) ![][2]f32 {
     const dy: f32 = @abs(y2 - y1);
 
     var err: f32 = dx / 2.0;
-    var ystep: i32 = if (y1 < y2) 1 else -1;
+    const ystep: i32 = if (y1 < y2) 1 else -1;
     var y: i32 = @as(i32, @intFromFloat(y1));
 
     const maxX: i32 = @as(i32, @intFromFloat(x2));

@@ -36,7 +36,7 @@ pub const Batcher = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, gctx: *zgpu.GraphicsContext, max_quads: usize) !Batcher {
-        var vertices = try allocator.alloc(gfx.Vertex, max_quads * 4);
+        const vertices = try allocator.alloc(gfx.Vertex, max_quads * 4);
         var indices = try allocator.alloc(u32, max_quads * 6);
 
         // Arrange index buffer for quads
@@ -149,7 +149,7 @@ pub const Batcher = struct {
         var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
         zm.store(color[0..], options.color, 4);
 
-        var quad = gfx.Quad{
+        const quad = gfx.Quad{
             .vertices = [_]gfx.Vertex{
                 .{
                     .position = [3]f32{ pos[0], pos[1] + height, pos[2] },

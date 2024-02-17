@@ -150,7 +150,7 @@ pub fn draw() void {
                 while (i > 0) {
                     i -= 1;
                     const folder = pixi.state.recents.folders.items[i];
-                    var label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}##{s}", .{ pixi.fa.folder, std.fs.path.basename(folder), folder }) catch unreachable;
+                    const label = std.fmt.allocPrintZ(pixi.state.allocator, "{s} {s}##{s}", .{ pixi.fa.folder, std.fs.path.basename(folder), folder }) catch unreachable;
                     defer pixi.state.allocator.free(label);
 
                     if (imgui.selectable(label)) {
@@ -189,7 +189,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 
     const recursor = struct {
         fn search(alloc: std.mem.Allocator, directory: [:0]const u8) void {
-            var dir = std.fs.cwd().openIterableDir(directory, .{ .access_sub_paths = true }) catch unreachable;
+            var dir = std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true }) catch unreachable;
             defer dir.close();
 
             var iter = dir.iterate();
@@ -311,7 +311,7 @@ fn contextMenuFolder(folder: [:0]const u8) void {
 
     if (pixi.state.popups.file_dialog_response) |response| {
         if (response.type == .new_png) {
-            var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{response.path[0 .. response.path.len - 4]}) catch unreachable;
+            const new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{response.path[0 .. response.path.len - 4]}) catch unreachable;
             defer pixi.state.allocator.free(new_file_path);
             pixi.state.popups.fileSetupImportPng(new_file_path, response.path);
 
@@ -335,7 +335,7 @@ fn contextMenuFile(file: [:0]const u8) void {
     switch (ext) {
         .png => {
             if (imgui.menuItem("Import...")) {
-                var new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{file[0 .. file.len - 4]}) catch unreachable;
+                const new_file_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}.pixi", .{file[0 .. file.len - 4]}) catch unreachable;
                 defer pixi.state.allocator.free(new_file_path);
                 pixi.state.popups.fileSetupImportPng(new_file_path, file);
             }
@@ -353,8 +353,8 @@ fn contextMenuFile(file: [:0]const u8) void {
     if (imgui.menuItem("Rename...")) {
         pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
         pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
-        std.mem.copy(u8, pixi.state.popups.rename_path[0..], file);
-        std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], file);
+        @memcpy(pixi.state.popups.rename_path[0..file.len], file);
+        @memcpy(pixi.state.popups.rename_old_path[0..file.len], file);
         pixi.state.popups.rename = true;
         pixi.state.popups.rename_state = .rename;
     }
@@ -362,14 +362,14 @@ fn contextMenuFile(file: [:0]const u8) void {
     if (imgui.menuItem("Duplicate...")) {
         pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
         pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
-        std.mem.copy(u8, pixi.state.popups.rename_old_path[0..], file);
+        @memcpy(pixi.state.popups.rename_old_path[0..file.len], file);
 
         const ex = std.fs.path.extension(file);
 
         if (std.mem.indexOf(u8, file, ex)) |ext_i| {
             const new_base_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}{s}", .{ file[0..ext_i], "_copy", ex }) catch unreachable;
             defer pixi.state.allocator.free(new_base_name);
-            std.mem.copy(u8, pixi.state.popups.rename_path[0..], new_base_name);
+            @memcpy(pixi.state.popups.rename_path[0..new_base_name.len], new_base_name);
 
             pixi.state.popups.rename = true;
             pixi.state.popups.rename_state = .duplicate;

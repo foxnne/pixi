@@ -10,7 +10,7 @@ pub fn init(allocator: std.mem.Allocator) !Self {
     var folders = std.ArrayList([:0]const u8).init(allocator);
     var exports = std.ArrayList([:0]const u8).init(allocator);
 
-    var read_opt: ?[]const u8 = pixi.fs.read(allocator, "recents.json") catch null;
+    const read_opt: ?[]const u8 = pixi.fs.read(allocator, "recents.json") catch null;
     if (read_opt) |read| {
         defer allocator.free(read);
 

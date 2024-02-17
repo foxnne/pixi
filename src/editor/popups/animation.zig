@@ -19,7 +19,7 @@ pub fn draw() void {
         const popup_width = 350 * pixi.content_scale[0];
         const popup_height = 115 * pixi.content_scale[1];
 
-        var window_size = pixi.window_size;
+        const window_size = pixi.window_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         imgui.setNextWindowPos(.{
@@ -53,7 +53,7 @@ pub fn draw() void {
             input_text_flags |= imgui.InputTextFlags_EnterReturnsTrue;
 
             imgui.pushItemWidth(full_width);
-            var enter = imgui.inputText(
+            const enter = imgui.inputText(
                 "Name",
                 pixi.state.popups.animation_name[0.. :0],
                 pixi.state.popups.animation_name[0.. :0].len,

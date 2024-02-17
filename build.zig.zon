@@ -4,44 +4,17 @@
         "build.zig",
         "build.zig.zon",
         "assets",
-        "contributor.md",
-        "readme.md",
-        "LICENSE",
     },
     .name = "pixi",
     .version = "0.0.1",
     .dependencies = .{
         .mach_core = .{
-            .url = "https://pkg.machengine.org/mach-core/90c927e20d045035152d9b0b421ea45db7e5569c.tar.gz",
-            .hash = "12209c255c69822b57cd8906754bbee815e69678741d48a64e945168e611874da662",
-        },
-        .mach_gpu_dawn = .{
-            .url = "https://pkg.machengine.org/mach-gpu-dawn/ee2fb5066a774238a97ab18dc5620acce538d2e6.tar.gz",
-            .hash = "1220120328740b87b10f373b8b716d5fb7f73b437c770d18cc9012137328f2dd30e2",
-        },
-        .direct3d_headers = .{
-            .url = "https://pkg.machengine.org/direct3d-headers/9617cfd497fae598610a7b0a4be0b035e7308e93.tar.gz",
-            .hash = "122098cc0b0a39d24aaffcd6d5556e8f31f5dd1a754559ffa468918f2ed6c1ad0a03",
-        },
-        .xcode_frameworks = .{
-            .url = "https://pkg.machengine.org/xcode-frameworks/e77a5c6809a0d3f62ec549ee56e9d2dc6807cd5b.tar.gz",
-            .hash = "12202044ed9fd69af156b0afde619ffd1d111554c557f57ab670ca9960e76d60d0b8",
-        },
-        .mach_sysgpu = .{
-            .url = "https://pkg.machengine.org/mach-sysgpu/ee8abd31daefa617832c590d61c1e1d665a5e55a.tar.gz",
-            .hash = "1220d0bf732d8291b8629ce7e115efb6adef84dcc1218317ee0a89a6f1663153f2a9",
-        },
-        .imgui = .{
-            .url = "https://github.com/ocornut/imgui/archive/refs/tags/v1.90.tar.gz",
-            .hash = "12206ca5fe2c3d35964b3a1cd30c4ff4e1050852f0062db0dda122513dc9477d5115",
-        },
-        .freetype = .{
-            .url = "https://pkg.machengine.org/freetype/fa33c2db730c0e888046e863b5550ddc3d24e739.tar.gz",
-            .hash = "12206ed50a939287c717f76547baf24e54301de4500505c19f10965ef559619baf10",
+            .url = "https://pkg.machengine.org/mach-core/2422c164842eadebd937509c591e3d36aa92470b.tar.gz",
+            .hash = "122038cccd01128c92f12cfeee34677bf64f423d9aebb17f0648ef4d4a58e452ab71",
         },
         .zig_imgui = .{
-            .url = "https://github.com/foxnne/zig-imgui/archive/10521deafb3f745ac0611431bc2e256442d06cba.tar.gz",
-            .hash = "1220cba50a09790cc799b5923b61f65425dd82959408efdc5c221a6801d5af4e4c89",
+            .url = "https://github.com/foxnne/zig-imgui/archive/43540af087b77a1f13114e7ad0d80864fce4eea5.tar.gz",
+            .hash = "1220dcccfff73a9b7413db7607820ed765d52a7b2b041376b3fb7f1ca8299ef165d3",
         },
     },
 }

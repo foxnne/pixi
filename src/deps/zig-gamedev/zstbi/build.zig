@@ -2,22 +2,22 @@ const std = @import("std");
 
 pub const Package = struct {
     zstbi: *std.Build.Module,
-    zstbi_c_cpp: *std.Build.CompileStep,
+    zstbi_c_cpp: *std.Build.Step.Compile,
 
-    pub fn link(pkg: Package, exe: *std.Build.CompileStep) void {
+    pub fn link(pkg: Package, exe: *std.Build.Step.Compile) void {
         exe.linkLibrary(pkg.zstbi_c_cpp);
-        exe.addModule("zstbi", pkg.zstbi);
+        exe.root_module.addImport("zstbi", pkg.zstbi);
     }
 };
 
 pub fn package(
     b: *std.Build,
-    target: std.zig.CrossTarget,
+    target: std.Build.ResolvedTarget,
     optimize: std.builtin.Mode,
     _: struct {},
 ) Package {
-    const zstbi = b.createModule(.{
-        .source_file = .{ .path = thisDir() ++ "/src/zstbi.zig" },
+    const zstbi = b.addModule("zstbi", .{
+        .root_source_file = .{ .path = thisDir() ++ "/src/zstbi.zig" },
     });
 
     const zstbi_c_cpp = b.addStaticLibrary(.{
@@ -27,17 +27,23 @@ pub fn package(
     });
     if (optimize == .Debug) {
         // TODO: Workaround for Zig bug.
-        zstbi_c_cpp.addCSourceFile(.{ .file = .{ .path = thisDir() ++ "/libs/stbi/stb_image.c" }, .flags = &.{
-            "-std=c99",
-            "-fno-sanitize=undefined",
-            "-g",
-            "-O0",
-        } });
+        zstbi_c_cpp.addCSourceFile(.{
+            .file = .{ .path = thisDir() ++ "/libs/stbi/stb_image.c" },
+            .flags = &.{
+                "-std=c99",
+                "-fno-sanitize=undefined",
+                "-g",
+                "-O0",
+            },
+        });
     } else {
-        zstbi_c_cpp.addCSourceFile(.{ .file = .{ .path = thisDir() ++ "/libs/stbi/stb_image.c" }, .flags = &.{
-            "-std=c99",
-            "-fno-sanitize=undefined",
-        } });
+        zstbi_c_cpp.addCSourceFile(.{
+            .file = .{ .path = thisDir() ++ "/libs/stbi/stb_image.c" },
+            .flags = &.{
+                "-std=c99",
+                "-fno-sanitize=undefined",
+            },
+        });
     }
     zstbi_c_cpp.linkLibC();
 
@@ -53,12 +59,14 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run zstbi tests");
     test_step.dependOn(runTests(b, optimize, target));
+
+    _ = package(b, target, optimize, .{});
 }
 
 pub fn runTests(
     b: *std.Build,
     optimize: std.builtin.Mode,
-    target: std.zig.CrossTarget,
+    target: std.Build.ResolvedTarget,
 ) *std.Build.Step {
     const tests = b.addTest(.{
         .name = "zstbi-tests",
@@ -70,7 +78,7 @@ pub fn runTests(
     const zstbi_pkg = package(b, target, optimize, .{});
     zstbi_pkg.link(tests);
 
-    return &tests.run().step;
+    return &b.addRunArtifact(tests).step;
 }
 
 inline fn thisDir() []const u8 {
