@@ -16,9 +16,5 @@
             .url = "https://github.com/foxnne/zig-imgui/archive/43540af087b77a1f13114e7ad0d80864fce4eea5.tar.gz",
             .hash = "1220dcccfff73a9b7413db7607820ed765d52a7b2b041376b3fb7f1ca8299ef165d3",
         },
-        .imgui = .{
-            .url = "https://github.com/ocornut/imgui/archive/refs/tags/v1.90.tar.gz",
-            .hash = "12206ca5fe2c3d35964b3a1cd30c4ff4e1050852f0062db0dda122513dc9477d5115",
-        },
     },
 }

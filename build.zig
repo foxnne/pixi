@@ -41,48 +41,6 @@ pub fn build(b: *std.Build) !void {
         },
     });
 
-    const imgui_lib = b.addStaticLibrary(.{
-        .name = "imgui",
-        .root_source_file = zig_imgui_dep.path("src/cimgui.cpp"),
-        .target = target,
-        .optimize = optimize,
-    });
-    imgui_lib.linkLibC();
-
-    const imgui_dep = b.dependency("imgui", .{});
-
-    var imgui_files = std.ArrayList([]const u8).init(b.allocator);
-    defer imgui_files.deinit();
-
-    var imgui_flags = std.ArrayList([]const u8).init(b.allocator);
-    defer imgui_flags.deinit();
-
-    try imgui_files.appendSlice(&.{
-        imgui_dep.path("imgui.cpp").getPath(b),
-        imgui_dep.path("imgui_widgets.cpp").getPath(b),
-        imgui_dep.path("imgui_tables.cpp").getPath(b),
-        imgui_dep.path("imgui_draw.cpp").getPath(b),
-        imgui_dep.path("imgui_demo.cpp").getPath(b),
-    });
-
-    // if (use_freetype) {
-    //     try imgui_flags.append("-DIMGUI_ENABLE_FREETYPE");
-    //     try imgui_files.append("imgui/misc/freetype/imgui_freetype.cpp");
-
-    //     imgui_lib.linkLibrary(b.dependency("freetype", .{
-    //         .target = target,
-    //         .optimize = optimize,
-    //     }).artifact("freetype"));
-    // }
-
-    imgui_lib.addIncludePath(imgui_dep.path("."));
-    imgui_lib.addCSourceFiles(.{
-        .files = imgui_files.items,
-        .flags = imgui_flags.items,
-    });
-
-    b.installArtifact(imgui_lib);
-
     const build_options = b.addOptions();
     build_options.addOption(bool, "use_sysgpu", use_sysgpu);
 
@@ -148,8 +106,7 @@ pub fn build(b: *std.Build) !void {
     //     nfd_lib.defineCMacro("__kernel_ptr_semantics", "");
     //     xcode_frameworks.addPaths(nfd_lib);
     // }
-    //app.compile.linkLibrary(nfd_lib);
-    app.compile.root_module.linkLibrary(imgui_lib);
+    app.compile.linkLibrary(zig_imgui_dep.artifact("imgui"));
     zstbi_pkg.link(app.compile);
     zip.link(app.compile);
 
