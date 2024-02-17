@@ -264,7 +264,7 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
 }
 
 fn searchPalettes() !void {
-    var dir_opt = std.fs.cwd().openIterableDir(pixi.assets.palettes, .{ .access_sub_paths = false }) catch null;
+    var dir_opt = std.fs.cwd().openDir(pixi.assets.palettes, .{ .access_sub_paths = false, .iterate = true }) catch null;
     if (dir_opt) |*dir| {
         defer dir.close();
         var iter = dir.iterate();

@@ -24,7 +24,6 @@ pub fn build(b: *std.Build) !void {
     const zmath_pkg = zmath.package(b, target, optimize, .{});
 
     const use_sysgpu = b.option(bool, "use_sysgpu", "Use sysgpu") orelse false;
-    const use_freetype = b.option(bool, "use_freetype", "Use freetype") orelse false;
 
     const zip_pkg = zip.package(b, .{});
 
@@ -66,15 +65,15 @@ pub fn build(b: *std.Build) !void {
         imgui_dep.path("imgui_demo.cpp").getPath(b),
     });
 
-    if (use_freetype) {
-        try imgui_flags.append("-DIMGUI_ENABLE_FREETYPE");
-        try imgui_files.append("imgui/misc/freetype/imgui_freetype.cpp");
+    // if (use_freetype) {
+    //     try imgui_flags.append("-DIMGUI_ENABLE_FREETYPE");
+    //     try imgui_files.append("imgui/misc/freetype/imgui_freetype.cpp");
 
-        imgui_lib.linkLibrary(b.dependency("freetype", .{
-            .target = target,
-            .optimize = optimize,
-        }).artifact("freetype"));
-    }
+    //     imgui_lib.linkLibrary(b.dependency("freetype", .{
+    //         .target = target,
+    //         .optimize = optimize,
+    //     }).artifact("freetype"));
+    // }
 
     imgui_lib.addIncludePath(imgui_dep.path("."));
     imgui_lib.addCSourceFiles(.{
@@ -150,7 +149,7 @@ pub fn build(b: *std.Build) !void {
     //     xcode_frameworks.addPaths(nfd_lib);
     // }
     //app.compile.linkLibrary(nfd_lib);
-    app.compile.linkLibrary(imgui_lib);
+    app.compile.root_module.linkLibrary(imgui_lib);
     zstbi_pkg.link(app.compile);
     zip.link(app.compile);
 

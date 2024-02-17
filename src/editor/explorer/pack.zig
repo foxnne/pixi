@@ -164,7 +164,7 @@ pub fn draw() void {
 pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) !void {
     const recursor = struct {
         fn search(alloc: std.mem.Allocator, directory: [:0]const u8) !void {
-            var dir = try std.fs.cwd().openIterableDir(directory, .{ .access_sub_paths = true });
+            var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
             defer dir.close();
 
             var iter = dir.iterate();

@@ -87,14 +87,14 @@ pub fn fileSetupNew(popups: *Popups, new_file_path: [:0]const u8) void {
     popups.file_setup = true;
     popups.file_setup_state = .new;
     popups.file_setup_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
-    std.mem.copy(u8, popups.file_setup_path[0.. :0], new_file_path);
+    @memcpy(popups.file_setup_path[0.. :0], new_file_path);
 }
 
 pub fn fileSetupSlice(popups: *Popups, path: [:0]const u8) void {
     popups.file_setup = true;
     popups.file_setup_state = .slice;
     popups.file_setup_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
-    std.mem.copy(u8, popups.file_setup_path[0.. :0], path);
+    @memcpy(popups.file_setup_path[0.. :0], path);
 
     if (editor.getFileIndex(path)) |index| {
         if (editor.getFile(index)) |file| {
@@ -116,8 +116,8 @@ pub fn fileSetupImportPng(popups: *Popups, new_file_path: [:0]const u8, png_path
     popups.file_setup_state = .import_png;
     popups.file_setup_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
     popups.file_setup_png_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
-    std.mem.copy(u8, popups.file_setup_path[0.. :0], new_file_path);
-    std.mem.copy(u8, popups.file_setup_png_path[0.. :0], png_path);
+    @memcpy(popups.file_setup_path[0.. :0], new_file_path);
+    @memcpy(popups.file_setup_png_path[0.. :0], png_path);
 
     if (std.mem.eql(u8, std.fs.path.extension(png_path), ".png")) {
         const png_info = zstbi.Image.info(png_path);
