@@ -59,15 +59,10 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    // if (use_sysgpu) {
-    //     const mach_sysgpu_dep = b.dependency("mach_sysgpu", .{
-    //         .target = target,
-    //         .optimize = optimize,
-    //     });
-
-    //     app.compile.linkLibrary(mach_sysgpu_dep.artifact("mach-dusk"));
-    //     //@import("mach_sysgpu").link(mach_sysgpu_dep.builder, app.compile);
-    // }
+    switch (target.result.os.tag) {
+        .windows => app.compile.subsystem = .Windows,
+        else => app.compile.subsystem = .Posix,
+    }
 
     const install_step = b.step("pixi", "Install pixi");
     install_step.dependOn(&app.install.step);

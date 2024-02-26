@@ -344,16 +344,18 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
     const os = builtin.target.os.tag;
     const windows = os == .windows;
-    const macos = os == .macos;
+    const linux = os == .linux;
+
+    const windows_or_linux = windows or linux;
 
     { // Primary/secondary
         // Primary
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl" else if (macos) "cmd" else "super",
-            .key = if (windows) Key.left_control else Key.left_super,
+            .shortcut = if (windows_or_linux) "ctrl" else "cmd",
+            .key = if (windows_or_linux) Key.left_control else Key.left_super,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -381,11 +383,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
     { // Procs
         // Save
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+s" else if (macos) "cmd+s" else "super+s",
+            .shortcut = if (windows_or_linux) "ctrl+s" else "cmd+s",
             .key = Key.s,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -396,11 +398,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Save all
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+shift+s" else if (macos) "cmd+shift+s" else "super+shift+s",
+            .shortcut = if (windows_or_linux) "ctrl+shift+s" else "cmd+shift+s",
             .key = Key.s,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = true,
                 .alt = false,
                 .caps_lock = false,
@@ -411,11 +413,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Undo
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+z" else if (macos) "cmd+z" else "super+z",
+            .shortcut = if (windows_or_linux) "ctrl+z" else "cmd+z",
             .key = Key.z,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -426,11 +428,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Redo
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+shift+z" else if (macos) "cmd+shift+z" else "super+shift+z",
+            .shortcut = if (windows_or_linux) "ctrl+shift+z" else "cmd+shift+z",
             .key = Key.z,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = true,
                 .alt = false,
                 .caps_lock = false,
@@ -441,10 +443,10 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Zoom
         try hotkeys.append(.{
-            .key = if (windows) Key.left_control else Key.left_super,
+            .key = if (windows_or_linux) Key.left_control else Key.left_super,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -469,11 +471,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Open folder
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+f" else if (macos) "cmd+f" else "super+f",
+            .shortcut = if (windows_or_linux) "ctrl+f" else "cmd+f",
             .key = Key.f,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -484,11 +486,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Export png
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+p" else if (macos) "cmd+p" else "super+p",
+            .shortcut = if (windows_or_linux) "ctrl+p" else "cmd+p",
             .key = Key.p,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -570,11 +572,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+c" else if (macos) "cmd+c" else "super+c",
+            .shortcut = if (windows_or_linux) "ctrl+c" else "cmd+c",
             .key = Key.c,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -584,11 +586,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+v" else if (macos) "cmd+v" else "super+v",
+            .shortcut = if (windows_or_linux) "ctrl+v" else "cmd+v",
             .key = Key.v,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -598,11 +600,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+shift+v" else if (macos) "cmd+shift+v" else "super+shift+v",
+            .shortcut = if (windows_or_linux) "ctrl+shift+v" else "cmd+shift+v",
             .key = Key.v,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = true,
                 .alt = false,
                 .caps_lock = false,
@@ -612,11 +614,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+right arrow" else if (macos) "cmd+right arrow" else "super+right arrow",
+            .shortcut = if (windows_or_linux) "ctrl+right arrow" else "cmd+right arrow",
             .key = Key.right,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -626,11 +628,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+left arrow" else if (macos) "cmd+left arrow" else "super+left arrow",
+            .shortcut = if (windows_or_linux) "ctrl+left arrow" else "cmd+left arrow",
             .key = Key.left,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -640,11 +642,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+up arrow" else if (macos) "cmd+up arrow" else "super+up arrow",
+            .shortcut = if (windows_or_linux) "ctrl+up arrow" else "cmd+up arrow",
             .key = Key.up,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -654,11 +656,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
-            .shortcut = if (windows) "ctrl+down arrow" else if (macos) "cmd+down arrow" else "super+down arrow",
+            .shortcut = if (windows_or_linux) "ctrl+down arrow" else "cmd+down arrow",
             .key = Key.down,
             .mods = .{
-                .control = windows,
-                .super = !windows,
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
