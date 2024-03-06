@@ -3,7 +3,7 @@ const zm = @import("zmath");
 const math = @import("../math/math.zig");
 const pixi = @import("../pixi.zig");
 const nfd = @import("nfd");
-const core = @import("mach-core");
+const core = @import("mach").core;
 
 const Key = core.Key;
 const Mods = core.KeyMods;

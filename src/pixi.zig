@@ -1,7 +1,7 @@
 const std = @import("std");
 const build_options = @import("build-options");
 
-const core = @import("mach-core");
+const core = @import("mach").core;
 const gpu = core.gpu;
 
 const zstbi = @import("zstbi");

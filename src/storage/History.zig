@@ -2,7 +2,7 @@ const std = @import("std");
 const pixi = @import("../pixi.zig");
 const zgui = @import("zgui");
 const History = @This();
-const core = @import("mach-core");
+const core = @import("mach").core;
 
 pub const Action = enum { undo, redo };
 pub const RestoreDelete = enum { restore, delete };

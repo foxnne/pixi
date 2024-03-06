@@ -1,6 +1,6 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
-const core = @import("mach-core");
+const core = @import("mach").core;
 const tools = @import("tools.zig");
 const imgui = @import("zig-imgui");
 

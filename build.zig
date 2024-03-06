@@ -4,7 +4,7 @@ const builtin = @import("builtin");
 const zmath = @import("src/deps/zig-gamedev/zmath/build.zig");
 const zstbi = @import("src/deps/zig-gamedev/zstbi/build.zig");
 
-const mach_core = @import("mach_core");
+const mach = @import("mach");
 const mach_gpu_dawn = @import("mach_gpu_dawn");
 const xcode_frameworks = @import("xcode_frameworks");
 
@@ -27,7 +27,7 @@ pub fn build(b: *std.Build) !void {
 
     const zip_pkg = zip.package(b, .{});
 
-    const mach_core_dep = b.dependency("mach_core", .{
+    const mach_dep = b.dependency("mach", .{
         .target = target,
         .optimize = optimize,
     });
@@ -37,14 +37,14 @@ pub fn build(b: *std.Build) !void {
     const imgui_module = b.addModule("zig-imgui", .{
         .root_source_file = zig_imgui_dep.path("src/imgui.zig"),
         .imports = &.{
-            .{ .name = "mach-core", .module = mach_core_dep.module("mach-core") },
+            .{ .name = "mach", .module = mach_dep.module("mach") },
         },
     });
 
     const build_options = b.addOptions();
     build_options.addOption(bool, "use_sysgpu", use_sysgpu);
 
-    const app = try mach_core.App.init(b, mach_core_dep.builder, .{
+    const app = try mach.CoreApp.init(b, mach_dep.builder, .{
         .name = "pixi",
         .src = src_path,
         .target = target,

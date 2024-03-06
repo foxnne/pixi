@@ -1,6 +1,6 @@
 const std = @import("std");
 const pixi = @import("../../../pixi.zig");
-const core = @import("mach-core");
+const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {

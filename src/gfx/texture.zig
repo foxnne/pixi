@@ -5,7 +5,7 @@ const zstbi = @import("zstbi");
 const wgpu = zgpu.wgpu;
 const zm = @import("zmath");
 
-const core = @import("mach-core");
+const core = @import("mach").core;
 const gpu = core.gpu;
 
 const game = @import("game");

@@ -2,7 +2,7 @@ const std = @import("std");
 const zm = @import("zmath");
 const math = @import("../math/math.zig");
 const pixi = @import("../pixi.zig");
-const core = @import("mach-core");
+const core = @import("mach").core;
 
 const builtin = @import("builtin");
 

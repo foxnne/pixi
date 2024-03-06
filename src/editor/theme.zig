@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const core = @import("mach-core");
+const core = @import("mach").core;
 const pixi = @import("../pixi.zig");
 const Color = pixi.math.Color;
 
