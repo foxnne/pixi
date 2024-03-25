@@ -1,9 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const zmath = @import("src/deps/zig-gamedev/zmath/build.zig");
-const zstbi = @import("src/deps/zig-gamedev/zstbi/build.zig");
-
 const mach = @import("mach");
 const mach_gpu_dawn = @import("mach_gpu_dawn");
 const xcode_frameworks = @import("xcode_frameworks");
@@ -20,10 +17,10 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const zstbi_pkg = zstbi.package(b, target, optimize, .{});
-    const zmath_pkg = zmath.package(b, target, optimize, .{});
-
     const use_sysgpu = b.option(bool, "use_sysgpu", "Use sysgpu") orelse false;
+
+    const zstbi = b.dependency("zstbi", .{ .target = target, .optimize = optimize });
+    const zmath = b.dependency("zmath", .{ .target = target, .optimize = optimize });
 
     const zip_pkg = zip.package(b, .{});
 
@@ -49,8 +46,8 @@ pub fn build(b: *std.Build) !void {
         .src = src_path,
         .target = target,
         .deps = &.{
-            .{ .name = "zstbi", .module = zstbi_pkg.zstbi },
-            .{ .name = "zmath", .module = zmath_pkg.zmath },
+            .{ .name = "zstbi", .module = zstbi.module("root") },
+            .{ .name = "zmath", .module = zmath.module("root") },
             .{ .name = "nfd", .module = nfd.getModule(b) },
             .{ .name = "zip", .module = zip_pkg.module },
             .{ .name = "zig-imgui", .module = imgui_module },
@@ -77,8 +74,8 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    unit_tests.root_module.addImport("zstbi", zstbi_pkg.zstbi);
-    unit_tests.root_module.addImport("zmath", zmath_pkg.zmath);
+    unit_tests.root_module.addImport("zstbi", zstbi.module("root"));
+    unit_tests.root_module.addImport("zmath", zmath.module("root"));
     unit_tests.root_module.addImport("nfd", nfd.getModule(b));
     unit_tests.root_module.addImport("zip", zip_pkg.module);
 
@@ -86,8 +83,8 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    app.compile.root_module.addImport("zstbi", zstbi_pkg.zstbi);
-    app.compile.root_module.addImport("zmath", zmath_pkg.zmath);
+    app.compile.root_module.addImport("zstbi", zstbi.module("root"));
+    app.compile.root_module.addImport("zmath", zmath.module("root"));
     app.compile.root_module.addImport("nfd", nfd.getModule(b));
     app.compile.root_module.addImport("zip", zip_pkg.module);
     app.compile.root_module.addImport("zig-imgui", imgui_module);
@@ -102,7 +99,7 @@ pub fn build(b: *std.Build) !void {
     //     xcode_frameworks.addPaths(nfd_lib);
     // }
     app.compile.linkLibrary(zig_imgui_dep.artifact("imgui"));
-    zstbi_pkg.link(app.compile);
+    app.compile.linkLibrary(zstbi.artifact("zstbi"));
     zip.link(app.compile);
 
     const assets = ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");

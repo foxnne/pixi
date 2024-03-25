@@ -16,5 +16,13 @@
             .url = "https://github.com/foxnne/zig-imgui/archive/918b941cfce9127581ab33c7da2306b036ea2d2e.tar.gz",
             .hash = "12203ea87584e579079c6f1ccfa61ec1cfe30a8a3a62c6cf5b284039524f59c44a53",
         },
+        .zstbi = .{
+            .url = "https://github.com/foxnne/zstbi/archive/a1c98da23c4be769100fc441a9cc070e73313a99.tar.gz",
+            .hash = "1220fb738b701190120ebb3808a2787f8875a7b1866b75744e974288e2072e0a4553",
+        },
+        .zmath = .{
+            .url = "https://github.com/foxnne/zmath/archive/ecfdbf57c6fd0a8ac8a9bf01dafe1e5adae869ae.tar.gz",
+            .hash = "1220a105762825631ef4dfd4730109120600bba51368f1207fc63b7536333c5748c3",
+        },
     },
 }
