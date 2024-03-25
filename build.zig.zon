@@ -9,12 +9,12 @@
     .version = "0.0.1",
     .dependencies = .{
         .mach = .{
-            .url = "https://pkg.machengine.org/mach/ea6a9438aa13ee83f9239d3aada352dcb9ea8b7c.tar.gz",
-            .hash = "1220a1ac8dba2fee590af6bafce6e1d5a768b93456e8877fe3d5402f19aec3d5d696",
+            .url = "https://pkg.machengine.org/mach/279290bbf2f1adab0af00323280a07d6bfff47a5.tar.gz",
+            .hash = "1220ba5472217ef81455b19d540967049bbfaf768b30d04534865707e907ee1c4aec",
         },
         .zig_imgui = .{
-            .url = "https://github.com/foxnne/zig-imgui/archive/918b941cfce9127581ab33c7da2306b036ea2d2e.tar.gz",
-            .hash = "12203ea87584e579079c6f1ccfa61ec1cfe30a8a3a62c6cf5b284039524f59c44a53",
+            .url = "https://github.com/foxnne/zig-imgui/archive/64d9179d275a04051ac9c688470578265f2f6734.tar.gz",
+            .hash = "1220d2e9b74878399872ad1a77b8f20c8dcf3ae07e345e3ef4f8d5a45ce8a23eaba3",
         },
         .zstbi = .{
             .url = "https://github.com/foxnne/zstbi/archive/a1c98da23c4be769100fc441a9cc070e73313a99.tar.gz",

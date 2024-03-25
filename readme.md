@@ -43,7 +43,7 @@
 
 ## Compilation
 - [Linux] Ensure `gtk+3-devel` or similar is installed (for native file dialogs).
-- Install zig using [zigup](https://github.com/marler8997/zigup) `zigup 0.12.0-dev.2063+804cee3b9` or manually and add to PATH.
+- Install zig using [zigup](https://github.com/marler8997/zigup) `zigup 0.12.0-dev.3180+83e578a18` or manually and add to PATH.
 - Clone pixi.
 - Build.
     - ```git clone https://github.com/foxnne/pixi.git```
