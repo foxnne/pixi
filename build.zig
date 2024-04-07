@@ -29,7 +29,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const zig_imgui_dep = b.dependency("zig_imgui", .{});
+    const zig_imgui_dep = b.dependency("zig_imgui", .{ .target = target, .optimize = optimize });
 
     const imgui_module = b.addModule("zig-imgui", .{
         .root_source_file = zig_imgui_dep.path("src/imgui.zig"),
