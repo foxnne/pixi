@@ -34,7 +34,8 @@ pub fn draw() void {
             }
 
             if (pixi.state.settings.input_scheme == .trackpad) {
-                _ = imgui.sliderFloatEx("Sensitivity", &pixi.state.settings.pan_sensitivity, 1.0, 25.0, "%.0f", imgui.SliderFlags_None);
+                _ = imgui.sliderFloatEx("Pan Sensitivity", &pixi.state.settings.pan_sensitivity, 1.0, 25.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
+                _ = imgui.sliderFloatEx("Zoom Sensitivity", &pixi.state.settings.zoom_sensitivity, 1, 200, "%.0f%", imgui.SliderFlags_AlwaysClamp);
             }
             imgui.popItemWidth();
         }

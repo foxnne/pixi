@@ -113,6 +113,9 @@ zoom_max_sensitivity: f32 = 1.0,
 /// Minimum zoom sensitivity applied at first zoom steps.
 zoom_min_sensitivity: f32 = 0.1,
 
+/// Setting to control overall zoom sensitivity
+zoom_sensitivity: f32 = 100.0,
+
 /// Predetermined zoom steps, each is pixel perfect.
 zoom_steps: [21]f32 = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 5, 6, 8, 12, 18, 28, 38, 50, 70, 90, 128 },
 

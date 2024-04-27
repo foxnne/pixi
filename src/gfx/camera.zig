@@ -505,7 +505,7 @@ pub const Camera = struct {
                         .trackpad => {
                             const nearest_zoom_index = camera.nearestZoomIndex();
                             const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(pixi.state.settings.zoom_steps.len - 1));
-                            const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t);
+                            const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t) * (pixi.state.settings.zoom_sensitivity / 100.0);
                             const zoom_delta = y * sensitivity;
 
                             camera.zoom += zoom_delta;
