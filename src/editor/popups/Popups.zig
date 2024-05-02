@@ -41,9 +41,8 @@ animation_start: usize = 0,
 animation_length: usize = 0,
 animation_name: [128:0]u8 = undefined,
 animation_fps: usize = 0,
-// Heightmap
+
 heightmap: bool = false,
-// About
 about: bool = false,
 
 file_dialog_request: ?FileDialogRequest = null,
@@ -80,7 +79,14 @@ pub const FileDialogResponse = struct {
 };
 
 pub fn anyPopupOpen(popups: *Popups) bool {
-    return popups.rename or popups.file_setup or popups.file_confirm_close or popups.layer_setup or popups.export_to_png or popups.animation or popups.about or popups.heightmap;
+    return popups.rename or
+        popups.file_setup or
+        popups.file_confirm_close or
+        popups.layer_setup or
+        popups.export_to_png or
+        popups.animation or
+        popups.about or
+        popups.heightmap;
 }
 
 pub fn fileSetupNew(popups: *Popups, new_file_path: [:0]const u8) void {

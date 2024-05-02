@@ -63,6 +63,7 @@ pub const Action = union(enum) {
 };
 
 hotkeys: []Hotkey,
+disable: bool = false,
 
 pub const Hotkey = struct {
     shortcut: [:0]const u8 = undefined,
@@ -136,6 +137,10 @@ pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
 }
 
 pub fn process(self: *Self) !void {
+    if (self.disable) {
+        return;
+    }
+
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         if (self.hotkey(.{ .proc = .save })) |hk| {
             if (hk.pressed()) {

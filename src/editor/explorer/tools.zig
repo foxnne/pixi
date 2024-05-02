@@ -61,6 +61,8 @@ pub fn draw() void {
                 pixi.state.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
             }
         } else {
+            var disable_hotkeys: bool = false;
+
             const primary: imgui.Vec4 = if (pixi.state.tools.current == .heightmap) .{ .x = 255, .y = 255, .z = 255, .w = 255 } else .{
                 .x = @as(f32, @floatFromInt(pixi.state.colors.primary[0])) / 255.0,
                 .y = @as(f32, @floatFromInt(pixi.state.colors.primary[1])) / 255.0,
@@ -98,6 +100,7 @@ pub fn draw() void {
                         @as(u8, @intFromFloat(c[3] * 255.0)),
                     };
                 }
+                disable_hotkeys = true;
             }
             imgui.sameLine();
 
@@ -126,7 +129,11 @@ pub fn draw() void {
                         @as(u8, @intFromFloat(c[3] * 255.0)),
                     };
                 }
+
+                disable_hotkeys = true;
             }
+
+            pixi.state.hotkeys.disable = disable_hotkeys;
         }
 
         imgui.spacing();
