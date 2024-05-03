@@ -54,6 +54,7 @@ pub const Proc = enum(u32) {
     paste,
     paste_all,
     toggle_heightmap,
+    toggle_references,
 };
 
 pub const Action = union(enum) {
@@ -333,6 +334,12 @@ pub fn process(self: *Self) !void {
         }
     }
 
+    if (self.hotkey(.{ .proc = .toggle_references })) |hk| {
+        if (hk.pressed()) {
+            pixi.state.popups.references = !pixi.state.popups.references;
+        }
+    }
+
     for (self.hotkeys) |hk| {
         if (hk.pressed()) {
             switch (hk.action) {
@@ -509,6 +516,13 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .shortcut = "/",
             .key = Key.slash,
             .action = .{ .proc = Proc.toggle_heightmap },
+        });
+
+        // Toggle reference window
+        try hotkeys.append(.{
+            .shortcut = "r",
+            .key = Key.r,
+            .action = .{ .proc = Proc.toggle_references },
         });
 
         // Size up
