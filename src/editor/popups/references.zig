@@ -24,6 +24,9 @@ pub fn draw() void {
     var popup_flags: imgui.WindowFlags = 0;
     popup_flags |= imgui.WindowFlags_None;
 
+    imgui.pushStyleColorImVec4(imgui.Col_WindowBg, .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 });
+    defer imgui.popStyleColor();
+
     if (imgui.begin(
         "References",
         &pixi.state.popups.references,
@@ -95,7 +98,7 @@ pub fn draw() void {
                             reference.camera.zoom = camera.zoom;
                         }
                         camera.setNearestZoomFloor();
-                        const min_zoom = @min(camera.zoom, 1.0);
+                        const min_zoom = @min(camera.zoom, pixi.state.settings.zoom_steps[0]);
 
                         reference.camera.processPanZoom();
 
