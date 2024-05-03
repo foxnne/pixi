@@ -293,9 +293,6 @@ pub fn openFile(path: [:0]const u8) !bool {
 }
 
 pub fn openReference(path: [:0]const u8) !bool {
-    if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
-        return false;
-
     for (pixi.state.open_references.items, 0..) |reference, i| {
         if (std.mem.eql(u8, reference.path, path)) {
             setActiveReference(i);
