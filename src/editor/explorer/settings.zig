@@ -92,6 +92,12 @@ pub fn draw() void {
                 "Dropper Auto-switch",
                 &pixi.state.settings.eyedropper_auto_switch_layer,
             );
+
+            imgui.separator();
+
+            imgui.text("Reference Window Opacity");
+            _ = imgui.sliderFloatEx("##reference_window_opacity", &pixi.state.settings.reference_window_opacity, 0.0, 100.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
+
             imgui.popItemWidth();
         }
 

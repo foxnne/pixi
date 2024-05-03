@@ -24,7 +24,10 @@ pub fn draw() void {
     var popup_flags: imgui.WindowFlags = 0;
     popup_flags |= imgui.WindowFlags_None;
 
-    imgui.pushStyleColorImVec4(imgui.Col_WindowBg, .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 });
+    var background_color = pixi.state.theme.foreground;
+    background_color.value[3] = pixi.state.settings.reference_window_opacity / 100.0;
+
+    imgui.pushStyleColorImVec4(imgui.Col_WindowBg, background_color.toImguiVec4());
     defer imgui.popStyleColor();
 
     if (imgui.begin(
@@ -71,12 +74,14 @@ pub fn draw() void {
 
                 if (imgui.beginPopupContextItem()) {
                     defer imgui.endPopup();
-                    _ = imgui.sliderFloat("Opacity", &reference.opacity, 0.0, 100.0);
+                    imgui.text("Opacity");
+                    _ = imgui.sliderFloatEx("Background", &pixi.state.settings.reference_window_opacity, 0.0, 100.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
+                    _ = imgui.sliderFloatEx("Reference", &reference.opacity, 0.0, 100.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
                 }
             }
 
             var canvas_flags: imgui.WindowFlags = 0;
-            canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
+            canvas_flags |= imgui.WindowFlags_ChildWindow;
 
             if (pixi.editor.getReference(pixi.state.open_reference_index)) |reference| {
                 if (imgui.beginChild(

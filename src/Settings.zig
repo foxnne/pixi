@@ -149,6 +149,9 @@ shadow_length: f32 = 10.0,
 /// Stroke
 stroke_max_size: i32 = 64,
 
+/// Opacity of the reference window background
+reference_window_opacity: f32 = 50.0,
+
 /// Currently applied theme name
 theme: [:0]const u8,
 

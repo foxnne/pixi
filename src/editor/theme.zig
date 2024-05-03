@@ -74,6 +74,7 @@ pub fn init(self: Self) void {
     style.colors[imgui.Col_Separator] = bg_text;
     style.colors[imgui.Col_TitleBg] = fg;
     style.colors[imgui.Col_TitleBgActive] = fg;
+    style.colors[imgui.Col_TitleBgCollapsed] = fg;
     style.colors[imgui.Col_Tab] = fg;
     style.colors[imgui.Col_TabUnfocused] = fg;
     style.colors[imgui.Col_TabUnfocusedActive] = fg;
@@ -114,6 +115,7 @@ pub fn set(self: *Self) void {
     imgui.pushStyleColorImVec4(imgui.Col_Separator, bg_text);
     imgui.pushStyleColorImVec4(imgui.Col_TitleBg, fg);
     imgui.pushStyleColorImVec4(imgui.Col_TitleBgActive, fg);
+    imgui.pushStyleColorImVec4(imgui.Col_TitleBgCollapsed, fg);
     imgui.pushStyleColorImVec4(imgui.Col_Tab, bg);
     imgui.pushStyleColorImVec4(imgui.Col_TabUnfocused, bg);
     imgui.pushStyleColorImVec4(imgui.Col_TabUnfocusedActive, fg);
@@ -172,7 +174,7 @@ pub fn save(self: Self, path: [:0]const u8) !void {
 
 pub fn unset(self: Self) void {
     _ = self;
-    imgui.popStyleColorEx(27);
+    imgui.popStyleColorEx(28);
 }
 
 pub const StyleColorButton = struct {
