@@ -1434,6 +1434,11 @@ pub const Reference = struct {
     texture: pixi.gfx.Texture,
     camera: pixi.gfx.Camera = .{},
 
+    pub fn deinit(self: *Reference) void {
+        self.texture.deinit();
+        pixi.state.allocator.free(self.path);
+    }
+
     pub fn canvasCenterOffset(self: *Reference) [2]f32 {
         const width: f32 = @floatFromInt(self.texture.image.width);
         const height: f32 = @floatFromInt(self.texture.image.height);

@@ -455,6 +455,11 @@ pub fn deinit() void {
     }
     pixi.state.open_files.deinit();
 
+    for (pixi.state.open_references.items) |*reference| {
+        reference.deinit();
+    }
+    pixi.state.open_references.deinit();
+
     if (pixi.state.project_folder) |folder| {
         pixi.state.allocator.free(folder);
     }
