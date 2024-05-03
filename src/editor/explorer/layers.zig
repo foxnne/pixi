@@ -60,7 +60,9 @@ pub fn draw() void {
                 const layer = file.layers.items[i];
 
                 imgui.pushStyleColorImVec4(imgui.Col_Text, if (i == file.selected_layer_index) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4());
-                defer imgui.popStyleColor();
+                imgui.pushStyleColorImVec4(imgui.Col_Header, if (i == file.selected_layer_index) pixi.state.theme.highlight_secondary.toImguiVec4() else pixi.state.theme.foreground.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
+                defer imgui.popStyleColorEx(3);
 
                 imgui.pushID(layer.name);
                 if (imgui.smallButton(if (layer.visible) pixi.fa.eye else pixi.fa.eye_slash)) {
