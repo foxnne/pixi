@@ -36,6 +36,7 @@ pub fn draw() void {
     art_flags |= imgui.WindowFlags_NoMove;
     art_flags |= imgui.WindowFlags_NoCollapse;
     art_flags |= imgui.WindowFlags_MenuBar;
+    art_flags |= imgui.WindowFlags_NoBringToFrontOnFocus;
 
     if (imgui.begin("Art", null, art_flags)) {
         menu.draw();

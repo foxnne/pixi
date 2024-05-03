@@ -37,11 +37,12 @@ pub fn draw() void {
     explorer_flags |= imgui.WindowFlags_NoCollapse;
     explorer_flags |= imgui.WindowFlags_HorizontalScrollbar;
     explorer_flags |= imgui.WindowFlags_MenuBar;
+    explorer_flags |= imgui.WindowFlags_NoBringToFrontOnFocus;
 
     if (imgui.begin("Explorer", null, explorer_flags)) {
         defer imgui.end();
         imgui.popStyleVarEx(3);
-        // Push explorer style changes.
+
         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * pixi.content_scale[1] });
         defer imgui.popStyleVarEx(2);

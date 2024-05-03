@@ -71,9 +71,21 @@ pub fn draw() void {
             imgui.popStyleColor();
             imgui.endMenu();
         }
-        if (imgui.beginMenu("Edit")) {
+        if (imgui.beginMenu("View")) {
+            defer imgui.endMenu();
+
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
-            imgui.popStyleColor();
+            defer imgui.popStyleColor();
+
+            if (imgui.menuItemEx("References", "r", pixi.state.popups.references, true)) {
+                pixi.state.popups.references = !pixi.state.popups.references;
+            }
+        }
+        if (imgui.beginMenu("Edit")) {
+            defer imgui.endMenu();
+
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
+            defer imgui.popStyleColor();
 
             if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                 if (imgui.menuItemEx(
@@ -92,8 +104,6 @@ pub fn draw() void {
                 ))
                     file.redo() catch unreachable;
             }
-
-            imgui.endMenu();
         }
         if (imgui.beginMenu("Tools")) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());

@@ -26,6 +26,7 @@ pub fn draw() void {
     sidebar_flags |= imgui.WindowFlags_NoCollapse;
     sidebar_flags |= imgui.WindowFlags_NoScrollbar;
     sidebar_flags |= imgui.WindowFlags_NoScrollWithMouse;
+    sidebar_flags |= imgui.WindowFlags_NoBringToFrontOnFocus;
 
     if (imgui.begin("Sidebar", null, sidebar_flags)) {
         imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.foreground.toImguiVec4());

@@ -21,6 +21,7 @@ pub const popup_layer_setup = @import("popups/layer_setup.zig");
 pub const popup_export_to_png = @import("popups/export_png.zig");
 pub const popup_animation = @import("popups/animation.zig");
 pub const popup_heightmap = @import("popups/heightmap.zig");
+pub const popup_references = @import("popups/references.zig");
 
 pub fn draw() void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = pixi.state.settings.explorer_title_align, .y = 0.5 });
@@ -38,6 +39,7 @@ pub fn draw() void {
     popup_export_to_png.draw();
     popup_animation.draw();
     popup_heightmap.draw();
+    popup_references.draw();
 }
 
 pub fn setProjectFolder(path: [:0]const u8) void {
@@ -147,6 +149,7 @@ pub fn importPng(path: [:0]const u8, new_file_path: [:0]const u8) !bool {
 }
 
 pub fn loadFileAsync(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
+    std.log.warn("loadFileAsync not implemented!", .{});
     _ = path;
 }
 
@@ -289,6 +292,33 @@ pub fn openFile(path: [:0]const u8) !bool {
     return error.FailedToOpenFile;
 }
 
+pub fn openReference(path: [:0]const u8) !bool {
+    if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
+        return false;
+
+    for (pixi.state.open_references.items, 0..) |reference, i| {
+        if (std.mem.eql(u8, reference.path, path)) {
+            setActiveReference(i);
+            return false;
+        }
+    }
+
+    const texture = try pixi.gfx.Texture.loadFromFile(path, .{});
+
+    const reference: pixi.storage.Internal.Reference = .{
+        .path = try pixi.state.allocator.dupeZ(u8, path),
+        .texture = texture,
+    };
+
+    try pixi.state.open_references.insert(0, reference);
+    setActiveReference(0);
+
+    if (!pixi.state.popups.references)
+        pixi.state.popups.references = true;
+
+    return true;
+}
+
 pub fn setActiveFile(index: usize) void {
     if (index >= pixi.state.open_files.items.len) return;
     const file = &pixi.state.open_files.items[index];
@@ -297,6 +327,11 @@ pub fn setActiveFile(index: usize) void {
             pixi.state.tools.current = .pointer;
     }
     pixi.state.open_file_index = index;
+}
+
+pub fn setActiveReference(index: usize) void {
+    if (index >= pixi.state.open_references.items.len) return;
+    pixi.state.open_reference_index = index;
 }
 
 pub fn getFileIndex(path: [:0]const u8) ?usize {
@@ -312,6 +347,13 @@ pub fn getFile(index: usize) ?*pixi.storage.Internal.Pixi {
     if (index >= pixi.state.open_files.items.len) return null;
 
     return &pixi.state.open_files.items[index];
+}
+
+pub fn getReference(index: usize) ?*pixi.storage.Internal.Reference {
+    if (pixi.state.open_references.items.len == 0) return null;
+    if (index >= pixi.state.open_references.items.len) return null;
+
+    return &pixi.state.open_references.items[index];
 }
 
 pub fn forceCloseFile(index: usize) !void {
@@ -354,6 +396,17 @@ pub fn rawCloseFile(index: usize) !void {
     pixi.state.open_file_index = 0;
     var file: pixi.storage.Internal.Pixi = pixi.state.open_files.swapRemove(index);
     deinitFile(&file);
+}
+
+pub fn closeReference(index: usize) !void {
+    pixi.state.open_reference_index = 0;
+    var reference: pixi.storage.Internal.Reference = pixi.state.open_references.swapRemove(index);
+    deinitReference(&reference);
+}
+
+pub fn deinitReference(reference: *pixi.storage.Internal.Reference) void {
+    reference.texture.deinit();
+    pixi.state.allocator.free(reference.path);
 }
 
 pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {

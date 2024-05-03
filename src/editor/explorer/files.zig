@@ -244,8 +244,11 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         imgui.SelectableFlags_None,
                         .{ .x = 0.0, .y = 0.0 },
                     )) {
-                        if (ext == .pixi)
+                        if (ext == .pixi) {
                             _ = pixi.editor.openFile(abs_path) catch unreachable;
+                        } else if (ext == .png) {
+                            _ = pixi.editor.openReference(abs_path) catch unreachable;
+                        }
                     }
                     imgui.popStyleColor();
 

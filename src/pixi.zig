@@ -71,11 +71,13 @@ pub const PixiState = struct {
     recents: Recents = undefined,
     previous_atlas_export: ?[:0]const u8 = null,
     open_files: std.ArrayList(storage.Internal.Pixi) = undefined,
+    open_references: std.ArrayList(storage.Internal.Reference) = undefined,
     pack_target: PackTarget = .project,
     pack_camera: gfx.Camera = .{},
     packer: Packer = undefined,
     atlas: storage.Internal.Atlas = .{},
     open_file_index: usize = 0,
+    open_reference_index: usize = 0,
     tools: Tools = .{},
     popups: Popups = .{},
     should_close: bool = false,
@@ -162,6 +164,7 @@ pub fn init(app: *App) !void {
     zstbi.init(allocator);
 
     state.open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
+    state.open_references = std.ArrayList(storage.Internal.Reference).init(allocator);
 
     state.hotkeys = try input.Hotkeys.initDefault(allocator);
     state.assets = try Assets.init(allocator);

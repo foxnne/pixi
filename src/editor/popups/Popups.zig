@@ -44,6 +44,7 @@ animation_fps: usize = 0,
 
 heightmap: bool = false,
 about: bool = false,
+references: bool = false,
 
 file_dialog_request: ?FileDialogRequest = null,
 file_dialog_response: ?FileDialogResponse = null,
