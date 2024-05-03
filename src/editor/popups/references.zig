@@ -39,7 +39,7 @@ pub fn draw() void {
         if (imgui.beginTabBar("ReferencesTabBar", ref_flags)) {
             defer imgui.endTabBar();
 
-            for (pixi.state.open_references.items, 0..) |reference, i| {
+            for (pixi.state.open_references.items, 0..) |*reference, i| {
                 var tab_open: bool = true;
 
                 const file_name = std.fs.path.basename(reference.path);
@@ -67,6 +67,11 @@ pub fn draw() void {
 
                 if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
                     pixi.editor.setActiveReference(i);
+                }
+
+                if (imgui.beginPopupContextItem()) {
+                    defer imgui.endPopup();
+                    _ = imgui.sliderFloat("Opacity", &reference.opacity, 0.0, 100.0);
                 }
             }
 
@@ -111,7 +116,8 @@ pub fn draw() void {
                     }
 
                     { // Draw reference texture
-                        reference.camera.drawTexture(reference.texture.view_handle, reference.texture.image.width, reference.texture.image.height, canvas_center_offset, 0xFFFFFFFF);
+                        const color = pixi.math.Color.initFloats(1.0, 1.0, 1.0, reference.opacity / 100.0);
+                        reference.camera.drawTexture(reference.texture.view_handle, reference.texture.image.width, reference.texture.image.height, canvas_center_offset, color.toU32());
                     }
 
                     { // Allow dropper support

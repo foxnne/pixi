@@ -1433,6 +1433,7 @@ pub const Reference = struct {
     path: [:0]const u8,
     texture: pixi.gfx.Texture,
     camera: pixi.gfx.Camera = .{},
+    opacity: f32 = 100.0,
 
     pub fn deinit(self: *Reference) void {
         self.texture.deinit();
