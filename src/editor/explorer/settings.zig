@@ -1,3 +1,4 @@
+const builtin = @import("builtin");
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach").core;
@@ -37,6 +38,14 @@ pub fn draw() void {
                 _ = imgui.sliderFloatEx("Pan Sensitivity", &pixi.state.settings.pan_sensitivity, 1.0, 25.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
                 _ = imgui.sliderFloatEx("Zoom Sensitivity", &pixi.state.settings.zoom_sensitivity, 1, 200, "%.0f%", imgui.SliderFlags_AlwaysClamp);
             }
+
+            if (builtin.os.tag == .macos) {
+                if (imgui.checkbox("Ctrl zoom", &pixi.state.settings.zoom_ctrl)) {
+                    pixi.state.allocator.free(pixi.state.hotkeys.hotkeys);
+                    pixi.state.hotkeys = pixi.input.Hotkeys.initDefault(pixi.state.allocator) catch unreachable;
+                }
+            }
+
             imgui.popItemWidth();
         }
 

@@ -455,10 +455,10 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Zoom
         try hotkeys.append(.{
-            .key = if (windows_or_linux) Key.left_control else Key.left_super,
+            .key = if (windows_or_linux or pixi.state.settings.zoom_ctrl) Key.left_control else Key.left_super,
             .mods = .{
-                .control = windows_or_linux,
-                .super = !windows_or_linux,
+                .control = windows_or_linux or pixi.state.settings.zoom_ctrl,
+                .super = !windows_or_linux and !pixi.state.settings.zoom_ctrl,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,

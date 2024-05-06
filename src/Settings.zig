@@ -155,4 +155,7 @@ reference_window_opacity: f32 = 50.0,
 /// Currently applied theme name
 theme: [:0]const u8,
 
+/// Temporary switch to allow ctrl on macos for zoom
+zoom_ctrl: bool = false,
+
 pub const InputScheme = enum { mouse, trackpad };
