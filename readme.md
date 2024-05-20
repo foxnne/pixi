@@ -54,8 +54,8 @@
 
 ## Credits
 - The wonderful [Dear Imgui](https://github.com/ocornut/imgui) used for almost all of the user interface.
-- [michal-z](https://github.com/michal-z) for all the help and [zig-gamedev](https://github.com/michal-z/zig-gamedev) which does all the heavy lifting.
-- [slimsag](https://github.com/slimsag) for all the help and [mach-core](https://github.com/hexops/mach-core) which handles input and windowing.
+- [michal-z](https://github.com/michal-z) for all the help and [zig-gamedev](https://github.com/michal-z/zig-gamedev).
+- [slimsag](https://github.com/slimsag) for all the help and [mach-core](https://github.com/hexops/mach-core).
 - [prime31](https://github.com/prime31) for all the help.
 - Any and all contributors
 
