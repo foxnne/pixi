@@ -223,6 +223,8 @@ pub fn append(self: *History, change: Change) !void {
     }
 }
 
+// Handling cases in this function details how an undo/redo action works, and must be symmetrical.
+// This means that `change` needs to be modified to contain the active state prior to changing the active state
 pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Action) !void {
     var active_stack = switch (action) {
         .undo => &self.undo_stack,
@@ -320,6 +322,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                     layer_restore_delete.action = .restore;
                 },
             }
+            pixi.state.sidebar = .layers;
         },
         .layer_name => |*layer_name| {
             var name = [_:0]u8{0} ** 128;
@@ -328,6 +331,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             @memcpy(layer_name.name[0..file.layers.items[layer_name.index].name.len], file.layers.items[layer_name.index].name);
             pixi.state.allocator.free(file.layers.items[layer_name.index].name);
             file.layers.items[layer_name.index].name = try pixi.state.allocator.dupeZ(u8, &name);
+            pixi.state.sidebar = .layers;
         },
         .layer_settings => |*layer_settings| {
             const visible = file.layers.items[layer_settings.index].visible;
@@ -336,6 +340,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             file.layers.items[layer_settings.index].collapse = layer_settings.collapse;
             layer_settings.visible = visible;
             layer_settings.collapse = collapse;
+            pixi.state.sidebar = .layers;
         },
         .animation => |*animation| {
             // Set sprite names to generic
@@ -374,6 +379,8 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             const length = animation.length;
             animation.length = file.animations.items[animation.index].length;
             file.animations.items[animation.index].length = length;
+
+            pixi.state.sidebar = .animations;
         },
         .animation_restore_delete => |*animation_restore_delete| {
             const a = animation_restore_delete.action;
@@ -406,6 +413,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                         file.selected_animation_index = 0;
                 },
             }
+            pixi.state.sidebar = .animations;
         },
         .heightmap_restore_delete => |*heightmap_restore_delete| {
             const a = heightmap_restore_delete.action;
