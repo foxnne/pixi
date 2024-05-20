@@ -90,8 +90,27 @@ pub fn clearAndFree(self: *Packer) void {
 }
 
 pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
-    for (file.layers.items) |*layer| {
+    var i: usize = 0;
+    while (i < file.layers.items.len) : (i += 1) {
+        const layer = &file.layers.items[i];
         if (!layer.visible) continue;
+
+        if (layer.collapse and i != file.layers.items.len - 1) {
+            const layer_read = layer;
+            const layer_write = &file.layers.items[i + 1];
+
+            if (!layer_write.visible) continue;
+
+            const src_pixels = @as([*][4]u8, @ptrCast(layer_read.texture.image.data.ptr))[0 .. layer_read.texture.image.data.len / 4];
+            const dst_pixels = @as([*][4]u8, @ptrCast(layer_write.texture.image.data.ptr))[0 .. layer_write.texture.image.data.len / 4];
+
+            for (src_pixels, dst_pixels) |src, *dst| {
+                if (src[3] != 0) { //alpha
+                    dst.* = src;
+                }
+            }
+            continue;
+        }
 
         const layer_width = @as(usize, @intCast(layer.texture.image.width));
         for (file.sprites.items, 0..) |sprite, sprite_index| {

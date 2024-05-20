@@ -48,6 +48,9 @@ pub fn draw() void {
         imgui.separator();
         imgui.spacing();
 
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 5.0, .y = 10.0 });
+        defer imgui.popStyleVar();
+
         if (imgui.beginChild("LayersChild", .{
             .x = imgui.getWindowWidth(),
             .y = 0.0,
@@ -68,14 +71,28 @@ pub fn draw() void {
                 if (imgui.smallButton(if (layer.visible) pixi.fa.eye else pixi.fa.eye_slash)) {
                     file.layers.items[i].visible = !file.layers.items[i].visible;
                 }
+                imgui.sameLineEx(0.0, 0.0);
+
+                const collapse_true = pixi.fa.arrow_up;
+                const collapse_false = pixi.fa.arrow_down;
+                if (imgui.smallButton(if (layer.collapse) collapse_true else collapse_false)) {
+                    file.layers.items[i].collapse = !file.layers.items[i].collapse;
+                }
+                if (imgui.beginItemTooltip()) {
+                    defer imgui.endTooltip();
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                    defer imgui.popStyleColor();
+                    imgui.text("If " ++ collapse_true ++ ", layer will be drawn onto the layer beneath it prior to packing and won't be packed separately.");
+                    imgui.text("If " ++ collapse_false ++ ", layer will remain independent and will be packed separately.");
+                }
                 imgui.popID();
 
                 imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 30.0);
                 defer imgui.popStyleVar();
 
                 imgui.sameLine();
-                imgui.indent();
-                defer imgui.unindent();
+                imgui.indentEx(64.0);
+                defer imgui.unindentEx(64.0);
 
                 if (imgui.selectableEx(layer.name, i == file.selected_layer_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
                     file.selected_layer_index = i;

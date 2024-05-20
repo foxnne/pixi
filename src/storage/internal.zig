@@ -1340,6 +1340,7 @@ pub const Layer = struct {
     name: [:0]const u8,
     texture: pixi.gfx.Texture,
     visible: bool = true,
+    collapse: bool = false,
     id: usize = 0,
 
     pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {
