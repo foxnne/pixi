@@ -69,14 +69,30 @@ pub fn draw() void {
 
                 imgui.pushID(layer.name);
                 if (imgui.smallButton(if (layer.visible) pixi.fa.eye else pixi.fa.eye_slash)) {
+                    const change: History.Change = .{ .layer_settings = .{
+                        .collapse = file.layers.items[i].collapse,
+                        .visible = file.layers.items[i].visible,
+                        .index = i,
+                    } };
+
                     file.layers.items[i].visible = !file.layers.items[i].visible;
+
+                    file.history.append(change) catch unreachable;
                 }
                 imgui.sameLineEx(0.0, 0.0);
 
                 const collapse_true = pixi.fa.arrow_up;
                 const collapse_false = pixi.fa.arrow_down;
                 if (imgui.smallButton(if (layer.collapse) collapse_true else collapse_false)) {
+                    const change: History.Change = .{ .layer_settings = .{
+                        .collapse = file.layers.items[i].collapse,
+                        .visible = file.layers.items[i].visible,
+                        .index = i,
+                    } };
+
                     file.layers.items[i].collapse = !file.layers.items[i].collapse;
+
+                    file.history.append(change) catch unreachable;
                 }
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();

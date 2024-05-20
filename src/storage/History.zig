@@ -14,6 +14,7 @@ pub const ChangeType = enum {
     layers_order,
     layer_restore_delete,
     layer_name,
+    layer_settings,
     heightmap_restore_delete,
 };
 
@@ -55,6 +56,11 @@ pub const Change = union(ChangeType) {
         index: usize,
         name: [128:0]u8,
     };
+    pub const LayerSettings = struct {
+        index: usize,
+        visible: bool,
+        collapse: bool,
+    };
     pub const HeightmapRestoreDelete = struct {
         action: RestoreDelete,
     };
@@ -66,6 +72,7 @@ pub const Change = union(ChangeType) {
     layers_order: LayersOrder,
     layer_restore_delete: LayerRestoreDelete,
     layer_name: LayerName,
+    layer_settings: LayerSettings,
     heightmap_restore_delete: HeightmapRestoreDelete,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
@@ -198,6 +205,9 @@ pub fn append(self: *History, change: Change) !void {
                 .layer_name => {
                     equal = false;
                 },
+                .layer_settings => {
+                    equal = false;
+                },
                 .heightmap_restore_delete => {
                     equal = false;
                 },
@@ -226,6 +236,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
 
     if (active_stack.items.len == 0) return;
 
+    // Modify this change before its put into the other stack.
     var change = active_stack.pop();
 
     switch (change) {
@@ -317,6 +328,14 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             @memcpy(layer_name.name[0..file.layers.items[layer_name.index].name.len], file.layers.items[layer_name.index].name);
             pixi.state.allocator.free(file.layers.items[layer_name.index].name);
             file.layers.items[layer_name.index].name = try pixi.state.allocator.dupeZ(u8, &name);
+        },
+        .layer_settings => |*layer_settings| {
+            const visible = file.layers.items[layer_settings.index].visible;
+            const collapse = file.layers.items[layer_settings.index].collapse;
+            file.layers.items[layer_settings.index].visible = layer_settings.visible;
+            file.layers.items[layer_settings.index].collapse = layer_settings.collapse;
+            layer_settings.visible = visible;
+            layer_settings.collapse = collapse;
         },
         .animation => |*animation| {
             // Set sprite names to generic
