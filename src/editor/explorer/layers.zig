@@ -82,7 +82,7 @@ pub fn draw() void {
                 imgui.sameLineEx(0.0, 0.0);
 
                 const collapse_true = pixi.fa.arrow_up;
-                const collapse_false = pixi.fa.arrow_down;
+                const collapse_false = pixi.fa.arrow_right;
                 if (imgui.smallButton(if (layer.collapse) collapse_true else collapse_false)) {
                     const change: History.Change = .{ .layer_settings = .{
                         .collapse = file.layers.items[i].collapse,
