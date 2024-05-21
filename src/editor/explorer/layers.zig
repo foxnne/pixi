@@ -96,9 +96,10 @@ pub fn draw() void {
                 }
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();
+                    imgui.text("Collapse");
                     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
                     defer imgui.popStyleColor();
-                    imgui.text("If " ++ collapse_true ++ ", layer will be drawn onto the layer beneath it prior to packing and won't be packed separately.");
+                    imgui.text("If " ++ collapse_true ++ ", layer will be drawn onto the layer above it (lower in the layer stack) prior to packing.");
                     imgui.text("If " ++ collapse_false ++ ", layer will remain independent and will be packed separately.");
                 }
                 imgui.popID();
