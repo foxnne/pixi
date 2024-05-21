@@ -90,29 +90,36 @@ pub fn clearAndFree(self: *Packer) void {
 }
 
 pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
-    var i: usize = 0;
-    while (i < file.layers.items.len) : (i += 1) {
-        const layer = &file.layers.items[i];
+    var texture_opt: ?pixi.gfx.Texture = null;
+    for (file.layers.items, 0..) |*layer, i| {
         if (!layer.visible) continue;
 
-        if (layer.collapse and i != file.layers.items.len - 1) {
-            const layer_read = layer;
-            const layer_write = &file.layers.items[i + 1];
+        const last_item: bool = i == file.layers.items.len - 1;
 
-            if (!layer_write.visible) continue;
+        // If this layer is collapsed, we need to record its texture to survive the next loop
+        if ((layer.collapse and !last_item) or ((i != 0 and file.layers.items[i - 1].collapse))) {
+            const layer_read = layer;
+
+            const texture = if (texture_opt) |carry_over_texture| carry_over_texture else try pixi.gfx.Texture.createEmpty(file.width, file.height, .{});
 
             const src_pixels = @as([*][4]u8, @ptrCast(layer_read.texture.image.data.ptr))[0 .. layer_read.texture.image.data.len / 4];
-            const dst_pixels = @as([*][4]u8, @ptrCast(layer_write.texture.image.data.ptr))[0 .. layer_write.texture.image.data.len / 4];
+            const dst_pixels = @as([*][4]u8, @ptrCast(texture.image.data.ptr))[0 .. texture.image.data.len / 4];
 
             for (src_pixels, dst_pixels) |src, *dst| {
-                if (src[3] != 0) { //alpha
+                if (src[3] != 0 and dst[3] == 0) { //alpha
                     dst.* = src;
                 }
             }
-            continue;
+            texture_opt = texture;
+
+            if (layer.collapse and !last_item) {
+                continue;
+            }
         }
 
-        const layer_width = @as(usize, @intCast(layer.texture.image.width));
+        var texture = if (texture_opt) |carry_over_texture| carry_over_texture else layer.texture;
+
+        const layer_width = @as(usize, @intCast(texture.image.width));
         for (file.sprites.items, 0..) |sprite, sprite_index| {
             const tiles_wide = @divExact(file.width, file.tile_width);
 
@@ -124,14 +131,14 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
 
             const src_rect: [4]usize = .{ @as(usize, @intCast(src_x)), @as(usize, @intCast(src_y)), @as(usize, @intCast(file.tile_width)), @as(usize, @intCast(file.tile_height)) };
 
-            if (reduce(layer, src_rect)) |reduced_rect| {
+            if (reduce(&texture, src_rect)) |reduced_rect| {
                 const reduced_src_x = reduced_rect[0];
                 const reduced_src_y = reduced_rect[1];
                 const reduced_src_width = reduced_rect[2];
                 const reduced_src_height = reduced_rect[3];
 
                 const offset = .{ reduced_src_x - src_x, reduced_src_y - src_y };
-                const src_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+                const src_pixels = @as([*][4]u8, @ptrCast(texture.image.data.ptr))[0 .. texture.image.data.len / 4];
 
                 // Allocate pixels for reduced image
                 var image: Image = .{
@@ -227,6 +234,11 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                 }
             }
         }
+
+        if (texture_opt) |*t| {
+            t.deinit();
+            texture_opt = null;
+        }
     }
 }
 
@@ -307,9 +319,9 @@ pub fn packAndClear(self: *Packer) !void {
 
 /// Takes a layer and a src rect and reduces the rect removing all fully transparent pixels
 /// If the src rect doesn't contain any opaque pixels, returns null
-pub fn reduce(layer: *pixi.storage.Internal.Layer, src: [4]usize) ?[4]usize {
-    const pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
-    const layer_width = @as(usize, @intCast(layer.texture.image.width));
+pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
+    const pixels = @as([*][4]u8, @ptrCast(texture.image.data.ptr))[0 .. texture.image.data.len / 4];
+    const layer_width = @as(usize, @intCast(texture.image.width));
 
     const src_x = src[0];
     const src_y = src[1];
