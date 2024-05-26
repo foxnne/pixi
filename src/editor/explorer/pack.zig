@@ -54,6 +54,14 @@ pub fn draw() void {
         }
     }
 
+    _ = imgui.checkbox("Pack tileset", &pixi.state.pack_tileset);
+    if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
+        if (imgui.beginTooltip()) {
+            defer imgui.endTooltip();
+            imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), "Do not tightly pack sprites, pack a uniform grid");
+        }
+    }
+
     {
         var packable: bool = true;
         if (pixi.state.pack_target == .project and pixi.state.project_folder == null) packable = false;
