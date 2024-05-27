@@ -392,6 +392,11 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     if (width == 0)
         return null;
 
+    // If we are packing a tileset, we want a uniform / non-tightly-packed grid. We remove all
+    // completely empty sprite cells (the return null cases above), but do not trim transparent
+    // regions during packing.
+    if (pixi.state.pack_tileset) return src;
+
     return .{
         left,
         top,
