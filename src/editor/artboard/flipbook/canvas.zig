@@ -220,15 +220,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 if (sprite_scale >= 1.0) {
                     var dst_col: i32 = -1;
 
+                    var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(i)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
+                    var dst_y: f32 = canvas_center_offset[1];
+                    var dst_width: f32 = tile_width;
+                    var dst_height: f32 = tile_height;
+
                     while (dst_col < 2) : (dst_col += 1) {
                         var dst_row: i32 = -1;
 
                         while (dst_row < 2) : (dst_row += 1) {
-                            var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(i)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
-                            var dst_y: f32 = canvas_center_offset[1];
-                            var dst_width: f32 = tile_width;
-                            var dst_height: f32 = tile_height;
-
                             const offset_x: f32 = @as(f32, @floatFromInt(dst_col)) * dst_width;
                             const offset_y: f32 = @as(f32, @floatFromInt(dst_row)) * dst_height;
 
@@ -265,11 +265,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                 file.processStrokeTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } }) catch unreachable;
                                 file.processFillTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } }) catch unreachable;
                                 file.processSampleTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } });
-                            } else {
-                                file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text_secondary.toU32());
                             }
                         }
                     }
+
+                    file.flipbook_camera.drawRect(.{ dst_x - tile_width, dst_y - tile_height, dst_width * 3.0, dst_height * 3.0 }, 1.0, pixi.state.theme.text_background.toU32());
                 }
             }
         },
