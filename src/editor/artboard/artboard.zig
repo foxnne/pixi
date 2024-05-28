@@ -42,7 +42,7 @@ pub fn draw() void {
         menu.draw();
 
         const window_height = imgui.getContentRegionAvail().y;
-        const artboard_height = if (pixi.state.open_files.items.len > 0 and pixi.state.sidebar != .pack) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
+        const artboard_height = if (pixi.state.open_files.items.len > 0 and pixi.state.sidebar != .pack and pixi.state.sidebar != .copy) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
 
         const artboard_mouse_ratio = (pixi.state.mouse.position[1] - imgui.getCursorScreenPos().y) / window_height;
 
@@ -143,8 +143,10 @@ pub fn draw() void {
                         }
                     }
 
+                    const show_rulers: bool = pixi.state.settings.show_rulers and pixi.state.sidebar != .copy;
+
                     // Add ruler child windows to build layout, but wait to draw to them until camera has been updated.
-                    if (pixi.state.settings.show_rulers) {
+                    if (show_rulers) {
                         if (imgui.beginChild(
                             "TopRuler",
                             .{ .x = -1.0, .y = imgui.getTextLineHeightWithSpacing() * 1.5 },
@@ -178,7 +180,7 @@ pub fn draw() void {
                         imgui.endChild();
 
                         // Now add to ruler children windows, since we have updated the camera.
-                        if (pixi.state.settings.show_rulers) {
+                        if (show_rulers) {
                             rulers.draw(file);
                         }
                     }
@@ -241,7 +243,7 @@ pub fn draw() void {
 
         imgui.endChild();
 
-        if (pixi.state.sidebar != .pack) {
+        if (pixi.state.sidebar != .pack and pixi.state.sidebar != .copy) {
             if (pixi.state.open_files.items.len > 0) {
                 const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.content_scale[1];
                 imgui.separator();

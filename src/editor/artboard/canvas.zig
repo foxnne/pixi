@@ -78,9 +78,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (pixi.state.sidebar != .pack)
                 file.camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
-            file.processStrokeTool(.primary, .{}) catch unreachable;
-            file.processFillTool(.primary, .{}) catch unreachable;
-            file.processAnimationTool() catch unreachable;
+            if (pixi.state.sidebar != .sprites and pixi.state.sidebar != .copy) {
+                file.processStrokeTool(.primary, .{}) catch unreachable;
+                file.processFillTool(.primary, .{}) catch unreachable;
+                file.processAnimationTool() catch unreachable;
+            }
+
             file.processSampleTool(.primary, .{});
 
             if (pixi.state.mouse.button(.primary)) |primary| {
@@ -88,7 +91,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
                     const tile_index = tile_column + tile_row * tiles_wide;
 
-                    if (pixi.state.sidebar == .sprites) {
+                    if (pixi.state.sidebar == .sprites or pixi.state.sidebar == .copy) {
                         file.makeSpriteSelection(tile_index);
                     } else if (pixi.state.tools.current != .animation) {
                         // Ensure we only set the request state on the first set.
@@ -182,7 +185,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     {
         const tiles_wide = @divExact(file.width, file.tile_width);
 
-        if (pixi.state.sidebar == .sprites) {
+        if (pixi.state.sidebar == .sprites or pixi.state.sidebar == .copy) {
             if (file.selected_sprites.items.len > 0) {
                 for (file.selected_sprites.items) |sprite_index| {
                     const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);

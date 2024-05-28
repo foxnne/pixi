@@ -326,6 +326,16 @@ pub fn setActiveFile(index: usize) void {
     pixi.state.open_file_index = index;
 }
 
+pub fn setCopyFile(index: usize) void {
+    if (index >= pixi.state.open_files.items.len) return;
+    const file = &pixi.state.open_files.items[index];
+    if (file.heightmap.layer == null) {
+        if (pixi.state.tools.current == .heightmap)
+            pixi.state.tools.current = .pointer;
+    }
+    pixi.state.copy_file_index = index;
+}
+
 pub fn setActiveReference(index: usize) void {
     if (index >= pixi.state.open_references.items.len) return;
     pixi.state.open_reference_index = index;
