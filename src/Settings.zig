@@ -76,6 +76,9 @@ explorer_title_align: f32 = 0.0,
 /// Height of the flipbook window.
 flipbook_height: f32 = 0.3,
 
+/// Flipbook view, sequential or grid
+flipbook_view: FlipbookView = .sequential,
+
 /// Font size set when loading the editor.
 font_size: f32 = 13.0,
 
@@ -159,3 +162,4 @@ theme: [:0]const u8,
 zoom_ctrl: bool = false,
 
 pub const InputScheme = enum { mouse, trackpad };
+pub const FlipbookView = enum { sequential, grid };

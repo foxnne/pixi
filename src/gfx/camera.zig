@@ -354,8 +354,8 @@ pub const Camera = struct {
 
     pub fn setNearestZoomFloor(camera: *Camera) void {
         var nearest_zoom_index = camera.nearestZoomIndex();
-        if (nearest_zoom_index > 0)
-            nearest_zoom_index -= 1;
+        if (nearest_zoom_index > 3)
+            nearest_zoom_index -= 4;
         camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
     }
 

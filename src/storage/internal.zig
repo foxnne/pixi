@@ -104,7 +104,11 @@ pub const Pixi = struct {
         return file.counter;
     }
 
-    pub fn processSampleTool(file: *Pixi, canvas: Canvas) void {
+    pub const SampleToolOptions = struct {
+        texture_position_offset: [2]f32 = .{ 0.0, 0.0 },
+    };
+
+    pub fn processSampleTool(file: *Pixi, canvas: Canvas, options: SampleToolOptions) void {
         const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
         const sample_button = if (pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
 
@@ -118,6 +122,10 @@ pub const Pixi = struct {
             .primary => file.camera,
             .flipbook => file.flipbook_camera,
         };
+
+        var canvas_center_offset = canvasCenterOffset(file, canvas);
+        canvas_center_offset[0] += options.texture_position_offset[0];
+        canvas_center_offset[1] += options.texture_position_offset[1];
 
         const pixel_coord_opt = switch (canvas) {
             .primary => camera.pixelCoordinates(.{
@@ -185,7 +193,11 @@ pub const Pixi = struct {
         }
     }
 
-    pub fn processStrokeTool(file: *Pixi, canvas: Canvas) !void {
+    pub const StrokeToolOptions = struct {
+        texture_position_offset: [2]f32 = .{ 0.0, 0.0 },
+    };
+
+    pub fn processStrokeTool(file: *Pixi, canvas: Canvas, options: StrokeToolOptions) !void {
         if (switch (pixi.state.tools.current) {
             .pencil, .eraser, .heightmap => false,
             else => true,
@@ -208,7 +220,9 @@ pub const Pixi = struct {
             else => {},
         }
 
-        const canvas_center_offset = canvasCenterOffset(file, canvas);
+        var canvas_center_offset = canvasCenterOffset(file, canvas);
+        canvas_center_offset[0] += options.texture_position_offset[0];
+        canvas_center_offset[1] += options.texture_position_offset[1];
         const mouse_position = pixi.state.mouse.position;
         const previous_mouse_position = pixi.state.mouse.previous_position;
 
@@ -626,7 +640,11 @@ pub const Pixi = struct {
         }
     }
 
-    pub fn processFillTool(file: *Pixi, canvas: Canvas) !void {
+    pub const FillToolOptions = struct {
+        texture_position_offset: [2]f32 = .{ 0.0, 0.0 },
+    };
+
+    pub fn processFillTool(file: *Pixi, canvas: Canvas, options: FillToolOptions) !void {
         if (switch (pixi.state.tools.current) {
             .bucket => false,
             else => true,
@@ -640,7 +658,9 @@ pub const Pixi = struct {
         imgui.setMouseCursor(imgui.MouseCursor_None);
         file.camera.drawCursor(pixi.assets.pixi_atlas.bucket_0_default, 0xFFFFFFFF);
 
-        const canvas_center_offset = canvasCenterOffset(file, canvas);
+        var canvas_center_offset = canvasCenterOffset(file, canvas);
+        canvas_center_offset[0] += options.texture_position_offset[0];
+        canvas_center_offset[1] += options.texture_position_offset[1];
         const mouse_position = pixi.state.mouse.position;
 
         var layer: pixi.storage.Internal.Layer = file.layers.items[file.selected_layer_index];

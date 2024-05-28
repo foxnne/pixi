@@ -77,6 +77,18 @@ pub fn draw() void {
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
             defer imgui.popStyleColor();
 
+            if (imgui.beginMenu("Flipbook")) {
+                defer imgui.endMenu();
+
+                if (imgui.menuItemEx("Sequential", null, pixi.state.settings.flipbook_view == .sequential, true)) {
+                    pixi.state.settings.flipbook_view = .sequential;
+                }
+
+                if (imgui.menuItemEx("Grid", null, pixi.state.settings.flipbook_view == .grid, true)) {
+                    pixi.state.settings.flipbook_view = .grid;
+                }
+            }
+
             if (imgui.menuItemEx("References", "r", pixi.state.popups.references, true)) {
                 pixi.state.popups.references = !pixi.state.popups.references;
             }
