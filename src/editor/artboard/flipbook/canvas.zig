@@ -31,7 +31,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         const zoom_index = sprite_camera.nearestZoomIndex();
         const max_zoom_index = if (zoom_index < pixi.state.settings.zoom_steps.len - 2) zoom_index + 2 else zoom_index;
         const max_zoom = pixi.state.settings.zoom_steps[max_zoom_index];
-        sprite_camera.setNearestZoomFloor();
+        if (pixi.state.settings.flipbook_view == .sequential) sprite_camera.setNearestZoomFloor() else sprite_camera.setNearZoomFloor();
         const min_zoom = sprite_camera.zoom;
 
         file.flipbook_camera.processPanZoom();
@@ -69,27 +69,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
 
         file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(file.selected_sprite_index);
-
-        // Draw progress bar
-        {
-            const window_position = imgui.getWindowPos();
-            const window_width = imgui.getWindowWidth();
-
-            const progress_start: imgui.Vec2 = .{ .x = window_position.x, .y = window_position.y + 2 };
-            const animation_length = @as(f32, @floatFromInt(animation.length)) / @as(f32, @floatFromInt(animation.fps));
-            const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-            const progress_end: imgui.Vec2 = .{ .x = window_position.x + window_width * ((@as(f32, @floatFromInt(current_frame)) / @as(f32, @floatFromInt(animation.length))) + (file.selected_animation_elapsed / animation_length)), .y = window_position.y + 2 };
-
-            const draw_list_opt = imgui.getWindowDrawList();
-            if (draw_list_opt) |draw_list| {
-                draw_list.addLineEx(
-                    progress_start,
-                    progress_end,
-                    pixi.state.theme.highlight_primary.toU32(),
-                    3.0,
-                );
-            }
-        }
     }
 
     switch (pixi.state.settings.flipbook_view) {
@@ -205,7 +184,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             }
         },
         .grid => {
-            // Draw all sprites sequentially
+            // Draw current sprite in 3x3 grid
             const tiles_wide = @divExact(file.width, file.tile_width);
             for (file.sprites.items, 0..) |_, i| {
                 const column = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(i)), tiles_wide)));
