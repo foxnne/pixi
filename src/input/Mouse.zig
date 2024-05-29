@@ -64,6 +64,16 @@ pub fn button(self: *Self, action: Action) ?*Button {
     return null;
 }
 
+pub fn anyButtonDown(self: *Self) bool {
+    for (self.buttons) |bt| {
+        if (bt.down()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 pub fn setButtonState(self: *Self, b: MouseButton, mods: Mods, state: ButtonState) void {
     for (self.buttons) |*bt| {
         if (bt.button == b) {

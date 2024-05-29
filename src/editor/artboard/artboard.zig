@@ -13,6 +13,9 @@ pub const canvas_pack = @import("canvas_pack.zig");
 pub const flipbook = @import("flipbook/flipbook.zig");
 pub const infobar = @import("infobar.zig");
 
+pub var artboard_0_open_file_index: usize = 0;
+pub var artboard_1_open_file_index: usize = 0;
+
 pub fn draw() void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
@@ -81,6 +84,9 @@ pub fn draw() void {
                 .y = artboard_height,
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 if (!artboard_grip) {
+                    const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
+                    const mouse_clicked: bool = pixi.state.mouse.anyButtonDown();
+
                     {
                         const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
                         // Draw a shadow fading from bottom to top
@@ -159,7 +165,11 @@ pub fn draw() void {
                                 }
 
                                 if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
-                                    pixi.editor.setActiveFile(i);
+                                    if (artboard_0) {
+                                        artboard_0_open_file_index = i;
+                                    } else if (!artboard_grip) {
+                                        artboard_1_open_file_index = i;
+                                    }
                                 }
 
                                 if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
@@ -197,7 +207,9 @@ pub fn draw() void {
                             var canvas_flags: imgui.WindowFlags = 0;
                             canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
 
-                            if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                            const open_file_index = if (artboard_0) artboard_0_open_file_index else if (!artboard_grip) artboard_1_open_file_index else 0;
+
+                            if (pixi.editor.getFile(open_file_index)) |file| {
                                 if (imgui.beginChild(
                                     file.path,
                                     .{ .x = 0.0, .y = 0.0 },
@@ -212,6 +224,10 @@ pub fn draw() void {
                                 if (show_rulers) {
                                     rulers.draw(file);
                                 }
+                            }
+
+                            if (window_hovered and mouse_clicked) {
+                                pixi.editor.setActiveFile(open_file_index);
                             }
                         }
                     } else {
@@ -370,5 +386,3 @@ pub fn draw() void {
     }
     imgui.end();
 }
-
-pub fn drawArtboard() void {}
