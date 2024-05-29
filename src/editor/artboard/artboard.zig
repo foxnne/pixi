@@ -163,16 +163,18 @@ pub fn draw() void {
                                     imgui.endTabItem();
                                 }
                                 if (!open and !file.saving) {
+                                    if (artboard_0_open_file_index == i) artboard_0_open_file_index = 0;
+                                    if (artboard_1_open_file_index == i) artboard_1_open_file_index = 0;
+
                                     pixi.editor.closeFile(i) catch unreachable;
+                                    break; // This ensures we dont use after free
                                 }
 
                                 if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
                                     if (artboard_0) {
                                         artboard_0_open_file_index = i;
 
-                                        if (!pixi.state.settings.split_artboard) {
-
-                                        }
+                                        if (!pixi.state.settings.split_artboard) {}
                                     } else if (!artboard_grip) {
                                         artboard_1_open_file_index = i;
                                     }
@@ -237,8 +239,6 @@ pub fn draw() void {
                                     rulers.draw(file);
                                 }
                             }
-
-                            
                         }
                     } else {
                         imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
