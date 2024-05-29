@@ -39,9 +39,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         // Lock camera from zooming in or out too far for the flipbook
         file.flipbook_camera.zoom = std.math.clamp(file.flipbook_camera.zoom, min_zoom, max_zoom);
 
+        const view_width: f32 = if (pixi.state.settings.flipbook_view == .grid) tile_width * 3.0 else tile_width;
+        const view_height: f32 = if (pixi.state.settings.flipbook_view == .grid) tile_height * 3.0 else tile_height;
+
         // Lock camera from moving too far away from canvas
-        const min_position: [2]f32 = .{ -(canvas_center_offset[0] + tile_width) - tile_width / 2.0, -(canvas_center_offset[1] + tile_height) };
-        const max_position: [2]f32 = .{ canvas_center_offset[0] + tile_width - tile_width / 2.0, canvas_center_offset[1] + tile_height };
+        const min_position: [2]f32 = .{ -(canvas_center_offset[0] + view_width) - view_width / 2.0, -(canvas_center_offset[1] + view_width) };
+        const max_position: [2]f32 = .{ canvas_center_offset[0] + view_height - view_height / 2.0, canvas_center_offset[1] + view_height };
 
         var scroll_delta: f32 = 0.0;
         if (file.selected_animation_state != .play) {

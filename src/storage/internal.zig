@@ -129,13 +129,13 @@ pub const Pixi = struct {
 
         const pixel_coord_opt = switch (canvas) {
             .primary => camera.pixelCoordinates(.{
-                .texture_position = canvasCenterOffset(file, canvas),
+                .texture_position = canvas_center_offset,
                 .position = mouse_position,
                 .width = file.width,
                 .height = file.height,
             }),
             .flipbook => camera.flipbookPixelCoordinates(file, .{
-                .sprite_position = canvasCenterOffset(file, canvas),
+                .sprite_position = canvas_center_offset,
                 .position = mouse_position,
                 .width = file.width,
                 .height = file.height,
