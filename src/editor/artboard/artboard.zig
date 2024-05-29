@@ -69,7 +69,9 @@ pub fn draw() void {
                 artboard_width = 0.0;
             }
 
-            const artboard_color: pixi.math.Color = if (artboard_grip) pixi.state.theme.foreground else pixi.state.theme.background;
+            const not_active: bool = (artboard_0 and artboard_0_open_file_index != pixi.state.open_file_index) or (!artboard_0 and !artboard_grip and artboard_1_open_file_index != pixi.state.open_file_index);
+
+            const artboard_color: pixi.math.Color = if (artboard_grip or (not_active and pixi.state.settings.split_artboard)) pixi.state.theme.foreground else pixi.state.theme.background;
 
             imgui.pushStyleColor(imgui.Col_ChildBg, artboard_color.toU32());
             defer imgui.popStyleColor();
@@ -167,6 +169,10 @@ pub fn draw() void {
                                 if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
                                     if (artboard_0) {
                                         artboard_0_open_file_index = i;
+
+                                        if (!pixi.state.settings.split_artboard) {
+
+                                        }
                                     } else if (!artboard_grip) {
                                         artboard_1_open_file_index = i;
                                     }
@@ -207,7 +213,13 @@ pub fn draw() void {
                             var canvas_flags: imgui.WindowFlags = 0;
                             canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
 
-                            const open_file_index = if (artboard_0) artboard_0_open_file_index else if (!artboard_grip) artboard_1_open_file_index else 0;
+                            var open_file_index = if (artboard_0) artboard_0_open_file_index else if (!artboard_grip) artboard_1_open_file_index else 0;
+
+                            if (window_hovered and mouse_clicked) {
+                                pixi.editor.setActiveFile(open_file_index);
+                            }
+
+                            if (!pixi.state.settings.split_artboard) open_file_index = pixi.state.open_file_index;
 
                             if (pixi.editor.getFile(open_file_index)) |file| {
                                 if (imgui.beginChild(
@@ -226,9 +238,7 @@ pub fn draw() void {
                                 }
                             }
 
-                            if (window_hovered and mouse_clicked) {
-                                pixi.editor.setActiveFile(open_file_index);
-                            }
+                            
                         }
                     } else {
                         imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
@@ -334,7 +344,6 @@ pub fn draw() void {
         if (pixi.state.sidebar != .pack) {
             if (pixi.state.open_files.items.len > 0) {
                 const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.content_scale[1];
-                imgui.separator();
 
                 var flipbook_flags: imgui.WindowFlags = 0;
                 if (pixi.editor.getFile(pixi.state.open_file_index)) |_| {
