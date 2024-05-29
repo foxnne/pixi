@@ -45,6 +45,13 @@ pub fn draw() void {
             pixi.state.popups.layer_setup_state = .none;
             pixi.state.popups.layer_setup = true;
         }
+        imgui.sameLine();
+
+        const file_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{std.fs.path.basename(file.path)}) catch unreachable;
+        defer pixi.state.allocator.free(file_name);
+
+        imgui.text(file_name);
+
         imgui.separator();
         imgui.spacing();
 
