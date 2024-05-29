@@ -8,7 +8,6 @@ pub const files = @import("files.zig");
 pub const tools = @import("tools.zig");
 pub const layers = @import("layers.zig");
 pub const sprites = @import("sprites.zig");
-pub const copy = @import("copy.zig");
 pub const animations = @import("animations.zig");
 pub const pack = @import("pack.zig");
 pub const settings = @import("settings.zig");
@@ -116,25 +115,6 @@ pub fn draw() void {
                 imgui.spacing();
                 imgui.spacing();
                 sprites.draw();
-            },
-            .copy => {
-                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 4.0 * pixi.content_scale[1] });
-                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
-                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 6.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
-
-                imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_PopupBg, pixi.state.theme.foreground.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.background.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.background.toImguiVec4());
-
-                if (imgui.beginMenuBar()) {
-                    defer imgui.endMenuBar();
-                    if (imgui.menuItem("Copy")) {}
-                }
-                defer imgui.popStyleVarEx(3);
-                imgui.popStyleColorEx(5);
-                copy.draw();
             },
             .animations => {
                 if (imgui.beginMenuBar()) {

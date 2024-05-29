@@ -41,209 +41,281 @@ pub fn draw() void {
     if (imgui.begin("Art", null, art_flags)) {
         menu.draw();
 
+        const art_width = imgui.getWindowWidth();
+
         const window_height = imgui.getContentRegionAvail().y;
-        const artboard_height = if (pixi.state.open_files.items.len > 0 and pixi.state.sidebar != .pack and pixi.state.sidebar != .copy) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
+        const window_width = imgui.getContentRegionAvail().x;
+        const artboard_height = if (pixi.state.open_files.items.len > 0 and pixi.state.sidebar != .pack) window_height - window_height * pixi.state.settings.flipbook_height else 0.0;
 
-        const artboard_mouse_ratio = (pixi.state.mouse.position[1] - imgui.getCursorScreenPos().y) / window_height;
+        const artboard_flipbook_ratio = (pixi.state.mouse.position[1] - imgui.getCursorScreenPos().y) / window_height;
 
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 0.0, .y = 0.0 });
-        defer imgui.popStyleVar();
-        if (imgui.beginChild("Artboard", .{
-            .x = 0.0,
-            .y = artboard_height,
-        }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-            {
-                const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
-                // Draw a shadow fading from bottom to top
-                const pos = imgui.getWindowPos();
-                const width = imgui.getWindowWidth();
+        const split_index: usize = if (pixi.state.settings.split_artboard) 3 else 1;
 
-                if (imgui.getWindowDrawList()) |draw_list| {
-                    draw_list.addRectFilledMultiColor(
-                        .{ .x = pos.x, .y = pos.y },
-                        .{ .x = pos.x + width, .y = pos.y + pixi.state.settings.shadow_length },
-                        shadow_color,
-                        shadow_color,
-                        0x0,
-                        0x0,
-                    );
-                }
+        for (0..split_index) |artboard_index| {
+            const artboard_0 = artboard_index == 0;
+            const artboard_grip = artboard_index == 1;
+            const artboard_name = if (artboard_0) "Artboard_0" else if (artboard_grip) "Artboard_Grip" else "Artboard_1";
+
+            var artboard_width: f32 = 0.0;
+
+            if (artboard_0 and pixi.state.settings.split_artboard) {
+                artboard_width = window_width * pixi.state.settings.split_artboard_ratio;
+            } else if (artboard_grip) {
+                artboard_width = pixi.state.settings.explorer_grip;
+            } else {
+                artboard_width = 0.0;
             }
-            if (pixi.state.sidebar == .pack) {
-                var packed_textures_flags: imgui.TabBarFlags = 0;
-                packed_textures_flags |= imgui.TabBarFlags_Reorderable;
 
-                if (imgui.beginTabBar("PackedTextures", packed_textures_flags)) {
-                    defer imgui.endTabBar();
+            const artboard_color: pixi.math.Color = if (artboard_grip) pixi.state.theme.foreground else pixi.state.theme.background;
 
-                    if (imgui.beginTabItem(
-                        "Atlas.Diffusemap",
-                        null,
-                        imgui.TabItemFlags_None,
-                    )) {
-                        defer imgui.endTabItem();
-                        canvas_pack.draw(.diffusemap);
+            imgui.pushStyleColor(imgui.Col_ChildBg, artboard_color.toU32());
+            defer imgui.popStyleColor();
+
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 0.0, .y = 0.0 });
+            defer imgui.popStyleVar();
+
+            if (!artboard_0) imgui.sameLine();
+
+            if (imgui.beginChild(artboard_name, .{
+                .x = artboard_width,
+                .y = artboard_height,
+            }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+                if (!artboard_grip) {
+                    {
+                        const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
+                        // Draw a shadow fading from bottom to top
+                        const pos = imgui.getWindowPos();
+                        const width = imgui.getWindowWidth();
+
+                        if (imgui.getWindowDrawList()) |draw_list| {
+                            draw_list.addRectFilledMultiColor(
+                                .{ .x = pos.x, .y = pos.y },
+                                .{ .x = pos.x + width, .y = pos.y + pixi.state.settings.shadow_length },
+                                shadow_color,
+                                shadow_color,
+                                0x0,
+                                0x0,
+                            );
+                        }
                     }
+                    if (pixi.state.sidebar == .pack) {
+                        var packed_textures_flags: imgui.TabBarFlags = 0;
+                        packed_textures_flags |= imgui.TabBarFlags_Reorderable;
 
-                    if (imgui.beginTabItem(
-                        "Atlas.Heightmap",
-                        null,
-                        imgui.TabItemFlags_None,
-                    )) {
-                        defer imgui.endTabItem();
-                        canvas_pack.draw(.heightmap);
-                    }
-                }
-            } else if (pixi.state.open_files.items.len > 0) {
-                var files_flags: imgui.TabBarFlags = 0;
-                files_flags |= imgui.TabBarFlags_Reorderable;
-                files_flags |= imgui.TabBarFlags_AutoSelectNewTabs;
+                        if (imgui.beginTabBar("PackedTextures", packed_textures_flags)) {
+                            defer imgui.endTabBar();
 
-                if (imgui.beginTabBar("FilesTabBar", files_flags)) {
-                    defer imgui.endTabBar();
+                            if (imgui.beginTabItem(
+                                "Atlas.Diffusemap",
+                                null,
+                                imgui.TabItemFlags_None,
+                            )) {
+                                defer imgui.endTabItem();
+                                canvas_pack.draw(.diffusemap);
+                            }
 
-                    for (pixi.state.open_files.items, 0..) |file, i| {
-                        var open: bool = true;
-
-                        const file_name = std.fs.path.basename(file.path);
-
-                        imgui.pushIDInt(@as(c_int, @intCast(i)));
-                        defer imgui.popID();
-
-                        const label = std.fmt.allocPrintZ(pixi.state.allocator, " {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name }) catch unreachable;
-                        defer pixi.state.allocator.free(label);
-
-                        var file_tab_flags: imgui.TabItemFlags = 0;
-                        file_tab_flags |= imgui.TabItemFlags_None;
-                        if (file.dirty() or file.saving)
-                            file_tab_flags |= imgui.TabItemFlags_UnsavedDocument;
-
-                        if (imgui.beginTabItem(
-                            label,
-                            &open,
-                            file_tab_flags,
-                        )) {
-                            imgui.endTabItem();
+                            if (imgui.beginTabItem(
+                                "Atlas.Heightmap",
+                                null,
+                                imgui.TabItemFlags_None,
+                            )) {
+                                defer imgui.endTabItem();
+                                canvas_pack.draw(.heightmap);
+                            }
                         }
-                        if (!open and !file.saving) {
-                            pixi.editor.closeFile(i) catch unreachable;
-                        }
+                    } else if (pixi.state.open_files.items.len > 0) {
+                        var files_flags: imgui.TabBarFlags = 0;
+                        files_flags |= imgui.TabBarFlags_Reorderable;
+                        files_flags |= imgui.TabBarFlags_AutoSelectNewTabs;
 
-                        if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
-                            pixi.editor.setActiveFile(i);
-                        }
+                        if (imgui.beginTabBar("FilesTabBar", files_flags)) {
+                            defer imgui.endTabBar();
 
-                        if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
-                            imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 4.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
-                            defer imgui.popStyleVar();
-                            if (imgui.beginTooltip()) {
-                                defer imgui.endTooltip();
-                                imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), file.path);
+                            for (pixi.state.open_files.items, 0..) |file, i| {
+                                var open: bool = true;
+
+                                const file_name = std.fs.path.basename(file.path);
+
+                                imgui.pushIDInt(@as(c_int, @intCast(i)));
+                                defer imgui.popID();
+
+                                const label = std.fmt.allocPrintZ(pixi.state.allocator, " {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name }) catch unreachable;
+                                defer pixi.state.allocator.free(label);
+
+                                var file_tab_flags: imgui.TabItemFlags = 0;
+                                file_tab_flags |= imgui.TabItemFlags_None;
+                                if (file.dirty() or file.saving)
+                                    file_tab_flags |= imgui.TabItemFlags_UnsavedDocument;
+
+                                if (imgui.beginTabItem(
+                                    label,
+                                    &open,
+                                    file_tab_flags,
+                                )) {
+                                    imgui.endTabItem();
+                                }
+                                if (!open and !file.saving) {
+                                    pixi.editor.closeFile(i) catch unreachable;
+                                }
+
+                                if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
+                                    pixi.editor.setActiveFile(i);
+                                }
+
+                                if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
+                                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 4.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
+                                    defer imgui.popStyleVar();
+                                    if (imgui.beginTooltip()) {
+                                        defer imgui.endTooltip();
+                                        imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), file.path);
+                                    }
+                                }
+                            }
+
+                            const show_rulers: bool = pixi.state.settings.show_rulers;
+
+                            // Add ruler child windows to build layout, but wait to draw to them until camera has been updated.
+                            if (show_rulers) {
+                                if (imgui.beginChild(
+                                    "TopRuler",
+                                    .{ .x = -1.0, .y = imgui.getTextLineHeightWithSpacing() * 1.5 },
+                                    imgui.ChildFlags_None,
+                                    imgui.WindowFlags_NoScrollbar,
+                                )) {}
+                                imgui.endChild();
+
+                                if (imgui.beginChild(
+                                    "SideRuler",
+                                    .{ .x = imgui.getTextLineHeightWithSpacing() * 1.5, .y = -1.0 },
+                                    imgui.ChildFlags_None,
+                                    imgui.WindowFlags_NoScrollbar,
+                                )) {}
+                                imgui.endChild();
+                                imgui.sameLine();
+                            }
+
+                            var canvas_flags: imgui.WindowFlags = 0;
+                            canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
+
+                            if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                                if (imgui.beginChild(
+                                    file.path,
+                                    .{ .x = 0.0, .y = 0.0 },
+                                    imgui.ChildFlags_None,
+                                    canvas_flags,
+                                )) {
+                                    canvas.draw(file);
+                                }
+                                imgui.endChild();
+
+                                // Now add to ruler children windows, since we have updated the camera.
+                                if (show_rulers) {
+                                    rulers.draw(file);
+                                }
+                            }
+                        }
+                    } else {
+                        imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
+                        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.background.toImguiVec4());
+                        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
+                        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                        defer imgui.popStyleColorEx(4);
+                        { // Draw semi-transparent logo
+                            const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_default];
+
+                            const src: [4]f32 = .{
+                                @floatFromInt(logo_sprite.source[0]),
+                                @floatFromInt(logo_sprite.source[1]),
+                                @floatFromInt(logo_sprite.source[2]),
+                                @floatFromInt(logo_sprite.source[3]),
+                            };
+
+                            const w = src[2] * 32.0 * pixi.content_scale[0];
+                            const h = src[3] * 32.0 * pixi.content_scale[0];
+                            const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
+
+                            const inv_w = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.width));
+                            const inv_h = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.height));
+
+                            imgui.setCursorPosX(center[0] - w / 2.0);
+                            imgui.setCursorPosY(center[1] - h / 2.0);
+                            imgui.imageEx(
+                                pixi.state.assets.atlas_png.view_handle,
+                                .{ .x = w, .y = h },
+                                .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
+                                .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
+                                .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
+                                .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
+                            );
+                            imgui.spacing();
+                        }
+                        { // Draw `Open Folder` button
+                            const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
+                            const size = imgui.calcTextSize(text);
+                            imgui.setCursorPosX((imgui.getWindowWidth() / 2.0) - size.x / 2.0);
+                            if (imgui.buttonEx(text, .{ .x = size.x, .y = 0.0 })) {
+                                pixi.state.popups.file_dialog_request = .{
+                                    .state = .folder,
+                                    .type = .project,
+                                };
+                            }
+                            if (pixi.state.popups.file_dialog_response) |response| {
+                                if (response.type == .project) {
+                                    pixi.editor.setProjectFolder(response.path);
+                                    nfd.freePath(response.path);
+                                    pixi.state.popups.file_dialog_response = null;
+                                }
                             }
                         }
                     }
+                } else {
+                    imgui.setCursorPosY(0.0);
+                    imgui.setCursorPosX(0.0);
 
-                    const show_rulers: bool = pixi.state.settings.show_rulers and pixi.state.sidebar != .copy;
+                    const avail = imgui.getContentRegionAvail().y;
+                    const curs_y = imgui.getCursorPosY();
 
-                    // Add ruler child windows to build layout, but wait to draw to them until camera has been updated.
-                    if (show_rulers) {
-                        if (imgui.beginChild(
-                            "TopRuler",
-                            .{ .x = -1.0, .y = imgui.getTextLineHeightWithSpacing() * 1.5 },
-                            imgui.ChildFlags_None,
-                            imgui.WindowFlags_NoScrollbar,
-                        )) {}
-                        imgui.endChild();
+                    var color = pixi.state.theme.text_background.toImguiVec4();
 
-                        if (imgui.beginChild(
-                            "SideRuler",
-                            .{ .x = imgui.getTextLineHeightWithSpacing() * 1.5, .y = -1.0 },
-                            imgui.ChildFlags_None,
-                            imgui.WindowFlags_NoScrollbar,
-                        )) {}
-                        imgui.endChild();
-                        imgui.sameLine();
+                    _ = imgui.invisibleButton("ArtboardGripButton", .{
+                        .x = pixi.state.settings.explorer_grip,
+                        .y = -1.0,
+                    }, imgui.ButtonFlags_None);
+
+                    var hovered_flags: imgui.HoveredFlags = 0;
+                    hovered_flags |= imgui.HoveredFlags_AllowWhenOverlapped;
+                    hovered_flags |= imgui.HoveredFlags_AllowWhenBlockedByActiveItem;
+
+                    if (imgui.isItemHovered(hovered_flags)) {
+                        imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
+                        color = pixi.state.theme.text.toImguiVec4();
                     }
 
-                    var canvas_flags: imgui.WindowFlags = 0;
-                    canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
+                    if (imgui.isItemActive()) {
+                        color = pixi.state.theme.text.toImguiVec4();
+                        const prev = pixi.state.mouse.previous_position;
+                        const cur = pixi.state.mouse.position;
 
-                    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                        if (imgui.beginChild(
-                            file.path,
-                            .{ .x = 0.0, .y = 0.0 },
-                            imgui.ChildFlags_None,
-                            canvas_flags,
-                        )) {
-                            canvas.draw(file);
-                        }
-                        imgui.endChild();
+                        const diff = (cur[0] - prev[0]) / art_width;
 
-                        // Now add to ruler children windows, since we have updated the camera.
-                        if (show_rulers) {
-                            rulers.draw(file);
-                        }
+                        imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
+                        pixi.state.settings.split_artboard_ratio = std.math.clamp(
+                            pixi.state.settings.split_artboard_ratio + diff,
+                            0.1,
+                            0.9,
+                        );
                     }
-                }
-            } else {
-                imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.background.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-                defer imgui.popStyleColorEx(4);
-                { // Draw semi-transparent logo
-                    const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_default];
 
-                    const src: [4]f32 = .{
-                        @floatFromInt(logo_sprite.source[0]),
-                        @floatFromInt(logo_sprite.source[1]),
-                        @floatFromInt(logo_sprite.source[2]),
-                        @floatFromInt(logo_sprite.source[3]),
-                    };
-
-                    const w = src[2] * 32.0 * pixi.content_scale[0];
-                    const h = src[3] * 32.0 * pixi.content_scale[0];
-                    const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
-
-                    const inv_w = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.width));
-                    const inv_h = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.height));
-
-                    imgui.setCursorPosX(center[0] - w / 2.0);
-                    imgui.setCursorPosY(center[1] - h / 2.0);
-                    imgui.imageEx(
-                        pixi.state.assets.atlas_png.view_handle,
-                        .{ .x = w, .y = h },
-                        .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
-                        .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
-                        .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
-                        .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
-                    );
-                    imgui.spacing();
-                }
-                { // Draw `Open Folder` button
-                    const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
-                    const size = imgui.calcTextSize(text);
-                    imgui.setCursorPosX((imgui.getWindowWidth() / 2.0) - size.x / 2.0);
-                    if (imgui.buttonEx(text, .{ .x = size.x, .y = 0.0 })) {
-                        pixi.state.popups.file_dialog_request = .{
-                            .state = .folder,
-                            .type = .project,
-                        };
-                    }
-                    if (pixi.state.popups.file_dialog_response) |response| {
-                        if (response.type == .project) {
-                            pixi.editor.setProjectFolder(response.path);
-                            nfd.freePath(response.path);
-                            pixi.state.popups.file_dialog_response = null;
-                        }
-                    }
+                    imgui.setCursorPosY(curs_y + avail / 2.0);
+                    imgui.setCursorPosX(pixi.state.settings.explorer_grip / 2.0 - imgui.calcTextSize(pixi.fa.grip_lines_vertical).x / 2.0);
+                    imgui.textColored(color, pixi.fa.grip_lines_vertical);
                 }
             }
+
+            imgui.endChild();
         }
 
-        imgui.endChild();
-
-        if (pixi.state.sidebar != .pack and pixi.state.sidebar != .copy) {
+        if (pixi.state.sidebar != .pack) {
             if (pixi.state.open_files.items.len > 0) {
                 const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.content_scale[1];
                 imgui.separator();
@@ -258,7 +330,7 @@ pub fn draw() void {
                     .y = flipbook_height,
                 }, imgui.ChildFlags_None, flipbook_flags)) {
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                        flipbook.menu.draw(file, artboard_mouse_ratio);
+                        flipbook.menu.draw(file, artboard_flipbook_ratio);
 
                         if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                             flipbook.canvas.draw(file);
@@ -298,3 +370,5 @@ pub fn draw() void {
     }
     imgui.end();
 }
+
+pub fn drawArtboard() void {}

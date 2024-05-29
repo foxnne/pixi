@@ -5,9 +5,9 @@ const editor = pixi.editor;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-pub const menu = @import("../artboard/menu.zig");
-pub const rulers = @import("../artboard/rulers.zig");
-pub const canvas = @import("../artboard/canvas.zig");
+pub const menu = @import("menu.zig");
+pub const rulers = @import("rulers.zig");
+pub const canvas = @import("canvas.zig");
 
 pub fn draw() void {
     imgui.pushStyleVar(imgui.StyleVar_TabRounding, 0.0);

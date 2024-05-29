@@ -70,6 +70,12 @@ explorer_width: f32 = 200.0,
 /// Width of the explorer grip.
 explorer_grip: f32 = 18.0,
 
+/// Whether or not the artboard is split
+split_artboard: bool = false,
+
+/// The horizontal ratio of the artboard split
+split_artboard_ratio: f32 = 0.5,
+
 /// Alignment of explorer separator titles
 explorer_title_align: f32 = 0.0,
 

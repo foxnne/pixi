@@ -77,6 +77,10 @@ pub fn draw() void {
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
             defer imgui.popStyleColor();
 
+            if (imgui.menuItemEx("Split Artboard", null, pixi.state.settings.split_artboard, true)) {
+                pixi.state.settings.split_artboard = !pixi.state.settings.split_artboard;
+            }
+
             if (imgui.beginMenu("Flipbook")) {
                 defer imgui.endMenu();
 

@@ -112,7 +112,6 @@ pub const Sidebar = enum(u32) {
     tools,
     layers,
     sprites,
-    copy,
     animations,
     pack,
     settings,
