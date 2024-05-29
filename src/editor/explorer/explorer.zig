@@ -214,6 +214,10 @@ pub fn draw() void {
         if (imgui.isItemHovered(hovered_flags)) {
             imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
             color = pixi.state.theme.text.toImguiVec4();
+
+            if (imgui.isMouseDoubleClicked(imgui.MouseButton_Left)) {
+                pixi.state.settings.split_artboard = !pixi.state.settings.split_artboard;
+            }
         }
 
         if (imgui.isItemActive()) {

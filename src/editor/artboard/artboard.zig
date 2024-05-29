@@ -106,31 +106,9 @@ pub fn draw() void {
                             );
                         }
                     }
+
                     if (pixi.state.sidebar == .pack) {
-                        var packed_textures_flags: imgui.TabBarFlags = 0;
-                        packed_textures_flags |= imgui.TabBarFlags_Reorderable;
-
-                        if (imgui.beginTabBar("PackedTextures", packed_textures_flags)) {
-                            defer imgui.endTabBar();
-
-                            if (imgui.beginTabItem(
-                                "Atlas.Diffusemap",
-                                null,
-                                imgui.TabItemFlags_None,
-                            )) {
-                                defer imgui.endTabItem();
-                                canvas_pack.draw(.diffusemap);
-                            }
-
-                            if (imgui.beginTabItem(
-                                "Atlas.Heightmap",
-                                null,
-                                imgui.TabItemFlags_None,
-                            )) {
-                                defer imgui.endTabItem();
-                                canvas_pack.draw(.heightmap);
-                            }
-                        }
+                        drawCanvasPack();
                     } else if (pixi.state.open_files.items.len > 0) {
                         var files_flags: imgui.TabBarFlags = 0;
                         files_flags |= imgui.TabBarFlags_Reorderable;
@@ -241,100 +219,10 @@ pub fn draw() void {
                             }
                         }
                     } else {
-                        imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
-                        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.background.toImguiVec4());
-                        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
-                        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-                        defer imgui.popStyleColorEx(4);
-                        { // Draw semi-transparent logo
-                            const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_default];
-
-                            const src: [4]f32 = .{
-                                @floatFromInt(logo_sprite.source[0]),
-                                @floatFromInt(logo_sprite.source[1]),
-                                @floatFromInt(logo_sprite.source[2]),
-                                @floatFromInt(logo_sprite.source[3]),
-                            };
-
-                            const w = src[2] * 32.0 * pixi.content_scale[0];
-                            const h = src[3] * 32.0 * pixi.content_scale[0];
-                            const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
-
-                            const inv_w = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.width));
-                            const inv_h = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.height));
-
-                            imgui.setCursorPosX(center[0] - w / 2.0);
-                            imgui.setCursorPosY(center[1] - h / 2.0);
-                            imgui.imageEx(
-                                pixi.state.assets.atlas_png.view_handle,
-                                .{ .x = w, .y = h },
-                                .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
-                                .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
-                                .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
-                                .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
-                            );
-                            imgui.spacing();
-                        }
-                        { // Draw `Open Folder` button
-                            const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
-                            const size = imgui.calcTextSize(text);
-                            imgui.setCursorPosX((imgui.getWindowWidth() / 2.0) - size.x / 2.0);
-                            if (imgui.buttonEx(text, .{ .x = size.x, .y = 0.0 })) {
-                                pixi.state.popups.file_dialog_request = .{
-                                    .state = .folder,
-                                    .type = .project,
-                                };
-                            }
-                            if (pixi.state.popups.file_dialog_response) |response| {
-                                if (response.type == .project) {
-                                    pixi.editor.setProjectFolder(response.path);
-                                    nfd.freePath(response.path);
-                                    pixi.state.popups.file_dialog_response = null;
-                                }
-                            }
-                        }
+                        drawLogoScreen();
                     }
                 } else {
-                    imgui.setCursorPosY(0.0);
-                    imgui.setCursorPosX(0.0);
-
-                    const avail = imgui.getContentRegionAvail().y;
-                    const curs_y = imgui.getCursorPosY();
-
-                    var color = pixi.state.theme.text_background.toImguiVec4();
-
-                    _ = imgui.invisibleButton("ArtboardGripButton", .{
-                        .x = pixi.state.settings.explorer_grip,
-                        .y = -1.0,
-                    }, imgui.ButtonFlags_None);
-
-                    var hovered_flags: imgui.HoveredFlags = 0;
-                    hovered_flags |= imgui.HoveredFlags_AllowWhenOverlapped;
-                    hovered_flags |= imgui.HoveredFlags_AllowWhenBlockedByActiveItem;
-
-                    if (imgui.isItemHovered(hovered_flags)) {
-                        imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
-                        color = pixi.state.theme.text.toImguiVec4();
-                    }
-
-                    if (imgui.isItemActive()) {
-                        color = pixi.state.theme.text.toImguiVec4();
-                        const prev = pixi.state.mouse.previous_position;
-                        const cur = pixi.state.mouse.position;
-
-                        const diff = (cur[0] - prev[0]) / art_width;
-
-                        imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
-                        pixi.state.settings.split_artboard_ratio = std.math.clamp(
-                            pixi.state.settings.split_artboard_ratio + diff,
-                            0.1,
-                            0.9,
-                        );
-                    }
-
-                    imgui.setCursorPosY(curs_y + avail / 2.0);
-                    imgui.setCursorPosX(pixi.state.settings.explorer_grip / 2.0 - imgui.calcTextSize(pixi.fa.grip_lines_vertical).x / 2.0);
-                    imgui.textColored(color, pixi.fa.grip_lines_vertical);
+                    drawGrip(art_width);
                 }
             }
 
@@ -394,4 +282,133 @@ pub fn draw() void {
         }
     }
     imgui.end();
+}
+
+pub fn drawLogoScreen() void {
+    imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+    defer imgui.popStyleColorEx(4);
+    { // Draw semi-transparent logo
+        const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_default];
+
+        const src: [4]f32 = .{
+            @floatFromInt(logo_sprite.source[0]),
+            @floatFromInt(logo_sprite.source[1]),
+            @floatFromInt(logo_sprite.source[2]),
+            @floatFromInt(logo_sprite.source[3]),
+        };
+
+        const w = src[2] * 32.0 * pixi.content_scale[0];
+        const h = src[3] * 32.0 * pixi.content_scale[0];
+        const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
+
+        const inv_w = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.height));
+
+        imgui.setCursorPosX(center[0] - w / 2.0);
+        imgui.setCursorPosY(center[1] - h / 2.0);
+        imgui.imageEx(
+            pixi.state.assets.atlas_png.view_handle,
+            .{ .x = w, .y = h },
+            .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
+            .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
+            .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
+            .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
+        );
+        imgui.spacing();
+    }
+    { // Draw `Open Folder` button
+        const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
+        const size = imgui.calcTextSize(text);
+        imgui.setCursorPosX((imgui.getWindowWidth() / 2.0) - size.x / 2.0);
+        if (imgui.buttonEx(text, .{ .x = size.x, .y = 0.0 })) {
+            pixi.state.popups.file_dialog_request = .{
+                .state = .folder,
+                .type = .project,
+            };
+        }
+        if (pixi.state.popups.file_dialog_response) |response| {
+            if (response.type == .project) {
+                pixi.editor.setProjectFolder(response.path);
+                nfd.freePath(response.path);
+                pixi.state.popups.file_dialog_response = null;
+            }
+        }
+    }
+}
+
+pub fn drawGrip(window_width: f32) void {
+    imgui.setCursorPosY(0.0);
+    imgui.setCursorPosX(0.0);
+
+    const avail = imgui.getContentRegionAvail().y;
+    const curs_y = imgui.getCursorPosY();
+
+    var color = pixi.state.theme.text_background.toImguiVec4();
+
+    _ = imgui.invisibleButton("ArtboardGripButton", .{
+        .x = pixi.state.settings.explorer_grip,
+        .y = -1.0,
+    }, imgui.ButtonFlags_None);
+
+    var hovered_flags: imgui.HoveredFlags = 0;
+    hovered_flags |= imgui.HoveredFlags_AllowWhenOverlapped;
+    hovered_flags |= imgui.HoveredFlags_AllowWhenBlockedByActiveItem;
+
+    if (imgui.isItemHovered(hovered_flags)) {
+        imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
+        color = pixi.state.theme.text.toImguiVec4();
+
+        if (imgui.isMouseDoubleClicked(imgui.MouseButton_Left)) {
+            pixi.state.settings.split_artboard = !pixi.state.settings.split_artboard;
+        }
+    }
+
+    if (imgui.isItemActive()) {
+        color = pixi.state.theme.text.toImguiVec4();
+        const prev = pixi.state.mouse.previous_position;
+        const cur = pixi.state.mouse.position;
+
+        const diff = (cur[0] - prev[0]) / window_width;
+
+        imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
+        pixi.state.settings.split_artboard_ratio = std.math.clamp(
+            pixi.state.settings.split_artboard_ratio + diff,
+            0.1,
+            0.9,
+        );
+    }
+
+    imgui.setCursorPosY(curs_y + avail / 2.0);
+    imgui.setCursorPosX(pixi.state.settings.explorer_grip / 2.0 - imgui.calcTextSize(pixi.fa.grip_lines_vertical).x / 2.0);
+    imgui.textColored(color, pixi.fa.grip_lines_vertical);
+}
+
+pub fn drawCanvasPack() void {
+    var packed_textures_flags: imgui.TabBarFlags = 0;
+    packed_textures_flags |= imgui.TabBarFlags_Reorderable;
+
+    if (imgui.beginTabBar("PackedTextures", packed_textures_flags)) {
+        defer imgui.endTabBar();
+
+        if (imgui.beginTabItem(
+            "Atlas.Diffusemap",
+            null,
+            imgui.TabItemFlags_None,
+        )) {
+            defer imgui.endTabItem();
+            canvas_pack.draw(.diffusemap);
+        }
+
+        if (imgui.beginTabItem(
+            "Atlas.Heightmap",
+            null,
+            imgui.TabItemFlags_None,
+        )) {
+            defer imgui.endTabItem();
+            canvas_pack.draw(.heightmap);
+        }
+    }
 }
