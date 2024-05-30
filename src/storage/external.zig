@@ -46,7 +46,7 @@ pub const Pixi = struct {
 
 pub const Layer = struct {
     name: [:0]const u8,
-    visible: bool = false,
+    visible: bool = true,
     collapse: bool = false,
 };
 
