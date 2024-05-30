@@ -66,6 +66,7 @@ pub fn draw() void {
 
                 if (!tab_open) {
                     pixi.editor.closeReference(i) catch unreachable;
+                    break;
                 }
 
                 if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
