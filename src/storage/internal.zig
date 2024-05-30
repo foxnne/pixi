@@ -732,6 +732,8 @@ pub const Pixi = struct {
 
         for (layers, 0..) |*layer, i| {
             layer.name = try allocator.dupeZ(u8, self.layers.items[i].name);
+            layer.visible = self.layers.items[i].visible;
+            layer.collapse = self.layers.items[i].collapse;
         }
 
         for (sprites, 0..) |*sprite, i| {

@@ -221,6 +221,8 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                         .name = try pixi.state.allocator.dupeZ(u8, layer.name),
                         .texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
                         .id = internal.id(),
+                        .visible = layer.visible,
+                        .collapse = layer.collapse,
                     };
                     try internal.layers.append(new_layer);
                 }

@@ -46,7 +46,8 @@ pub const Pixi = struct {
 
 pub const Layer = struct {
     name: [:0]const u8,
-    index_on_export: bool = false,
+    visible: bool = false,
+    collapse: bool = false,
 };
 
 pub const OldSprite = struct {
