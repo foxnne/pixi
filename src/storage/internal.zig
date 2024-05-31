@@ -854,7 +854,7 @@ pub const Pixi = struct {
     }
 
     pub fn saveAsync(self: *Pixi) !void {
-        if (!self.dirty()) return;
+        //if (!self.dirty()) return;
         const thread = try std.Thread.spawn(.{}, save, .{self});
         thread.detach();
     }
