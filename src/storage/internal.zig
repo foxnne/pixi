@@ -834,7 +834,7 @@ pub const Pixi = struct {
                 defer pixi.state.allocator.free(file_folder_path);
 
                 for (self.layers.items) |layer| {
-                    var layer_save_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}_{s}.png", .{ file_folder_path, std.fs.path.sep, base_name, layer.name });
+                    var layer_save_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}__{s}.png", .{ file_folder_path, std.fs.path.sep, base_name, layer.name });
                     defer pixi.state.allocator.free(layer_save_name);
 
                     for (layer_save_name, 0..) |c, i| {
