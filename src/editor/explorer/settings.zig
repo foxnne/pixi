@@ -107,6 +107,15 @@ pub fn draw() void {
             imgui.text("Reference Window Opacity");
             _ = imgui.sliderFloatEx("##reference_window_opacity", &pixi.state.settings.reference_window_opacity, 0.0, 100.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
 
+            imgui.separator();
+
+            if (imgui.beginCombo("Compatibility", if (pixi.state.settings.compatibility == .none) "None" else "LDtk", imgui.ComboFlags_None)) {
+                defer imgui.endCombo();
+
+                if (imgui.selectable("None")) pixi.state.settings.compatibility = .none;
+                if (imgui.selectable("LDtk")) pixi.state.settings.compatibility = .ldtk;
+            }
+
             imgui.popItemWidth();
         }
 

@@ -808,7 +808,49 @@ pub const Pixi = struct {
 
             zip.zip_close(z);
         }
+
+        switch (pixi.state.settings.compatibility) {
+            .none => {},
+            .ldtk => {
+                try self.saveLDtk();
+            },
+        }
+
         self.saving = false;
+    }
+
+    pub fn saveLDtk(self: *Pixi) !void {
+        if (pixi.state.project_folder) |project_folder_path| {
+            const ldtk_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ project_folder_path, "compatibility", "LDtk" });
+            defer pixi.state.allocator.free(ldtk_path);
+
+            const base_name_w_ext = std.fs.path.basename(self.path);
+            const ext = std.fs.path.extension(base_name_w_ext);
+
+            const base_name = base_name_w_ext[0 .. base_name_w_ext.len - ext.len];
+
+            if (std.fs.path.dirname(self.path)) |self_dir_path| {
+                const file_folder_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ ldtk_path, self_dir_path[project_folder_path.len..], base_name });
+                defer pixi.state.allocator.free(file_folder_path);
+
+                std.log.debug("{s}", .{file_folder_path});
+
+                for (self.layers.items) |layer| {
+                    var layer_save_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}.png", .{ file_folder_path, std.fs.path.sep, layer.name });
+                    defer pixi.state.allocator.free(layer_save_name);
+
+                    for (layer_save_name, 0..) |c, i| {
+                        if (c == ' ') {
+                            layer_save_name[i] = '_';
+                        }
+                    }
+
+                    try std.fs.cwd().makePath(file_folder_path);
+
+                    try layer.texture.image.writeToFile(layer_save_name, .png);
+                }
+            }
+        }
     }
 
     pub fn saveAsync(self: *Pixi) !void {

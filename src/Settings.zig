@@ -167,5 +167,9 @@ theme: [:0]const u8,
 /// Temporary switch to allow ctrl on macos for zoom
 zoom_ctrl: bool = false,
 
+/// Setting to generate a compatiblity layer between pixi and level editors
+compatibility: Compatibility = .none,
+
 pub const InputScheme = enum { mouse, trackpad };
 pub const FlipbookView = enum { sequential, grid };
+pub const Compatibility = enum { none, ldtk };
