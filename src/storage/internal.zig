@@ -821,7 +821,7 @@ pub const Pixi = struct {
 
     pub fn saveLDtk(self: *Pixi) !void {
         if (pixi.state.project_folder) |project_folder_path| {
-            const ldtk_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ project_folder_path, "compatibility", "LDtk" });
+            const ldtk_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ project_folder_path, "pixi-ldtk" });
             defer pixi.state.allocator.free(ldtk_path);
 
             const base_name_w_ext = std.fs.path.basename(self.path);
@@ -836,7 +836,7 @@ pub const Pixi = struct {
                 std.log.debug("{s}", .{file_folder_path});
 
                 for (self.layers.items) |layer| {
-                    var layer_save_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}.png", .{ file_folder_path, std.fs.path.sep, layer.name });
+                    var layer_save_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}_{s}.png", .{ file_folder_path, std.fs.path.sep, base_name, layer.name });
                     defer pixi.state.allocator.free(layer_save_name);
 
                     for (layer_save_name, 0..) |c, i| {
