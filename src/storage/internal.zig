@@ -830,10 +830,8 @@ pub const Pixi = struct {
             const base_name = base_name_w_ext[0 .. base_name_w_ext.len - ext.len];
 
             if (std.fs.path.dirname(self.path)) |self_dir_path| {
-                const file_folder_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ ldtk_path, self_dir_path[project_folder_path.len..], base_name });
+                const file_folder_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ ldtk_path, self_dir_path[project_folder_path.len..] });
                 defer pixi.state.allocator.free(file_folder_path);
-
-                std.log.debug("{s}", .{file_folder_path});
 
                 for (self.layers.items) |layer| {
                     var layer_save_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}_{s}.png", .{ file_folder_path, std.fs.path.sep, base_name, layer.name });
