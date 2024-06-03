@@ -809,13 +809,6 @@ pub const Pixi = struct {
             zip.zip_close(z);
         }
 
-        switch (pixi.state.settings.compatibility) {
-            .none => {},
-            .ldtk => {
-                try self.saveLDtk();
-            },
-        }
-
         self.saving = false;
     }
 
@@ -850,6 +843,7 @@ pub const Pixi = struct {
             }
 
             pixi.state.packer.ldtk = true;
+            defer pixi.state.packer.ldtk = false;
             try pixi.state.packer.appendProject();
 
             const ldtk_atlas_save_path = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}pixi-ldtk.json", .{ project_folder_path, std.fs.path.sep });
@@ -862,7 +856,6 @@ pub const Pixi = struct {
             const options: std.json.StringifyOptions = .{};
 
             try std.json.stringify(pixi.state.packer.ldtk_tilesets.items, options, out_stream);
-
             pixi.state.packer.clearAndFree();
         }
     }
@@ -871,6 +864,13 @@ pub const Pixi = struct {
         //if (!self.dirty()) return;
         const thread = try std.Thread.spawn(.{}, save, .{self});
         thread.detach();
+
+        switch (pixi.state.settings.compatibility) {
+            .none => {},
+            .ldtk => {
+                try self.saveLDtk();
+            },
+        }
     }
 
     pub fn newHistorySelectedSprites(file: *Pixi, change_type: History.ChangeType) !void {

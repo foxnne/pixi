@@ -94,6 +94,7 @@ pub fn clearAndFree(self: *Packer) void {
             self.allocator.free(sprite.name);
         }
         self.allocator.free(tileset.sprites);
+        self.allocator.free(tileset.layer_paths);
     }
     self.frames.clearAndFree();
     self.sprites.clearAndFree();
@@ -106,10 +107,6 @@ pub fn clearAndFree(self: *Packer) void {
     }
     self.open_files.clearAndFree();
 }
-
-pub const PackOptions = struct {
-    ldtk_compatibility: bool = false,
-};
 
 pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
     if (self.ldtk) {
@@ -129,7 +126,8 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                 var sprites = std.ArrayList(LDTKTileset.LDTKSprite).init(pixi.state.allocator);
 
                 for (file.layers.items) |layer| {
-                    try layer_names.append(try std.fmt.allocPrintZ(pixi.state.allocator, "pixi-ldtk{s}{c}{s}__{s}.png", .{ relative_path, std.fs.path.sep, base_name, layer.name }));
+                    const layer_name = try std.fmt.allocPrintZ(pixi.state.allocator, "pixi-ldtk{s}{c}{s}__{s}.png", .{ relative_path, std.fs.path.sep, base_name, layer.name });
+                    try layer_names.append(layer_name);
                 }
 
                 for (file.sprites.items, 0..) |sprite, sprite_index| {
@@ -152,10 +150,9 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                     .sprite_size = .{ file.tile_width, file.tile_height },
                     .sprites = try sprites.toOwnedSlice(),
                 });
-
-                return;
             }
         }
+        return;
     }
 
     var texture_opt: ?pixi.gfx.Texture = null;
