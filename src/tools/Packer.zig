@@ -3,7 +3,7 @@ const zstbi = @import("zstbi");
 const pixi = @import("../pixi.zig");
 const core = @import("mach").core;
 
-const LDTKTileset = @import("LDTKTileset.zig");
+pub const LDTKTileset = @import("LDTKTileset.zig");
 
 const Packer = @This();
 

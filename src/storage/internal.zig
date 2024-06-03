@@ -855,7 +855,9 @@ pub const Pixi = struct {
             const out_stream = handle.writer();
             const options: std.json.StringifyOptions = .{};
 
-            try std.json.stringify(pixi.state.packer.ldtk_tilesets.items, options, out_stream);
+            const output: pixi.Packer.LDTKTileset.LDTKCompatibility = .{ .tilesets = pixi.state.packer.ldtk_tilesets.items };
+
+            try std.json.stringify(output, options, out_stream);
             pixi.state.packer.clearAndFree();
         }
     }

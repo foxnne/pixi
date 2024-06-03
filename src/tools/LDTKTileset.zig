@@ -2,6 +2,10 @@ const std = @import("std");
 const pixi = @import("../pixi.zig");
 const core = @import("mach").core;
 
+pub const LDTKCompatibility = struct {
+    tilesets: []LDTKTileset,
+};
+
 const LDTKTileset = @This();
 
 pub const LDTKSprite = struct {
