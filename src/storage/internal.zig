@@ -852,7 +852,7 @@ pub const Pixi = struct {
             pixi.state.packer.ldtk = true;
             try pixi.state.packer.appendProject();
 
-            const ldtk_atlas_save_path = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}compatibility.atlas", .{ ldtk_path, std.fs.path.sep });
+            const ldtk_atlas_save_path = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}pixi-ldtk.json", .{ project_folder_path, std.fs.path.sep });
             defer pixi.state.allocator.free(ldtk_atlas_save_path);
 
             var handle = try std.fs.cwd().createFile(ldtk_atlas_save_path, .{});
