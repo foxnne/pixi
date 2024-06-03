@@ -73,7 +73,6 @@ pub const PixiState = struct {
     open_files: std.ArrayList(storage.Internal.Pixi) = undefined,
     open_references: std.ArrayList(storage.Internal.Reference) = undefined,
     pack_target: PackTarget = .project,
-    pack_tileset: bool = false,
     pack_camera: gfx.Camera = .{},
     packer: Packer = undefined,
     atlas: storage.Internal.Atlas = .{},

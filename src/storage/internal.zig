@@ -848,6 +848,22 @@ pub const Pixi = struct {
                     try layer.texture.image.writeToFile(layer_save_name, .png);
                 }
             }
+
+            pixi.state.packer.ldtk = true;
+            try pixi.state.packer.appendProject();
+
+            const ldtk_atlas_save_path = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}compatibility.atlas", .{ ldtk_path, std.fs.path.sep });
+            defer pixi.state.allocator.free(ldtk_atlas_save_path);
+
+            var handle = try std.fs.cwd().createFile(ldtk_atlas_save_path, .{});
+            defer handle.close();
+
+            const out_stream = handle.writer();
+            const options: std.json.StringifyOptions = .{};
+
+            try std.json.stringify(pixi.state.packer.ldtk_tilesets.items, options, out_stream);
+
+            pixi.state.packer.clearAndFree();
         }
     }
 
@@ -1617,7 +1633,7 @@ pub const Atlas = struct {
             defer handle.close();
 
             const out_stream = handle.writer();
-            const options = std.json.StringifyOptions{};
+            const options: std.json.StringifyOptions = .{};
 
             try std.json.stringify(atlas, options, out_stream);
         }

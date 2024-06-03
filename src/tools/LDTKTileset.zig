@@ -1,0 +1,14 @@
+const std = @import("std");
+const pixi = @import("../pixi.zig");
+const core = @import("mach").core;
+
+const LDTKTileset = @This();
+
+pub const LDTKSprite = struct {
+    name: [:0]const u8,
+    src: [2]u32,
+};
+
+layer_paths: [][:0]const u8,
+sprite_size: [2]u32,
+sprites: []LDTKSprite,

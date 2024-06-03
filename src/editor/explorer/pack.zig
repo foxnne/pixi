@@ -54,13 +54,13 @@ pub fn draw() void {
         }
     }
 
-    _ = imgui.checkbox("Pack tileset", &pixi.state.pack_tileset);
-    if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
-        if (imgui.beginTooltip()) {
-            defer imgui.endTooltip();
-            imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), "Do not tightly pack sprites, pack a uniform grid");
-        }
-    }
+    // _ = imgui.checkbox("Pack tileset", &pixi.state.pack_tileset);
+    // if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
+    //     if (imgui.beginTooltip()) {
+    //         defer imgui.endTooltip();
+    //         imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), "Do not tightly pack sprites, pack a uniform grid");
+    //     }
+    // }
 
     {
         var packable: bool = true;
@@ -79,7 +79,7 @@ pub fn draw() void {
             switch (pixi.state.pack_target) {
                 .project => {
                     if (pixi.state.project_folder) |folder| {
-                        recurseFiles(pixi.state.allocator, folder) catch unreachable;
+                        pixi.Packer.recurseFiles(pixi.state.allocator, folder) catch unreachable;
                         pixi.state.packer.packAndClear() catch unreachable;
                     }
                 },
@@ -167,43 +167,4 @@ pub fn draw() void {
             }
         }
     }
-}
-
-pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) !void {
-    const recursor = struct {
-        fn search(alloc: std.mem.Allocator, directory: [:0]const u8) !void {
-            var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
-            defer dir.close();
-
-            var iter = dir.iterate();
-            while (try iter.next()) |entry| {
-                if (entry.kind == .file) {
-                    const ext = std.fs.path.extension(entry.name);
-                    if (std.mem.eql(u8, ext, ".pixi")) {
-                        const abs_path = try std.fs.path.joinZ(alloc, &.{ directory, entry.name });
-                        defer alloc.free(abs_path);
-
-                        if (pixi.editor.getFileIndex(abs_path)) |index| {
-                            if (pixi.editor.getFile(index)) |file| {
-                                try pixi.state.packer.append(file);
-                            }
-                        } else {
-                            if (try pixi.editor.loadFile(abs_path)) |file| {
-                                try pixi.state.packer.open_files.append(file);
-                                try pixi.state.packer.append(&pixi.state.packer.open_files.items[pixi.state.packer.open_files.items.len - 1]);
-                            }
-                        }
-                    }
-                } else if (entry.kind == .directory) {
-                    const abs_path = try std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name });
-                    defer alloc.free(abs_path);
-                    try search(alloc, abs_path);
-                }
-            }
-        }
-    }.search;
-
-    try recursor(allocator, root_directory);
-
-    return;
 }

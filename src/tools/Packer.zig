@@ -3,6 +3,8 @@ const zstbi = @import("zstbi");
 const pixi = @import("../pixi.zig");
 const core = @import("mach").core;
 
+const LDTKTileset = @import("LDTKTileset.zig");
+
 const Packer = @This();
 
 pub const Image = struct {
@@ -41,6 +43,9 @@ contains_height: bool = false,
 open_files: std.ArrayList(pixi.storage.Internal.Pixi),
 allocator: std.mem.Allocator,
 
+ldtk: bool = false,
+ldtk_tilesets: std.ArrayList(LDTKTileset),
+
 pub fn init(allocator: std.mem.Allocator) !Packer {
     const pixels: [][4]u8 = try allocator.alloc([4]u8, 4);
     for (pixels) |*pixel| {
@@ -54,6 +59,7 @@ pub fn init(allocator: std.mem.Allocator) !Packer {
         .open_files = std.ArrayList(pixi.storage.Internal.Pixi).init(allocator),
         .placeholder = .{ .width = 2, .height = 2, .pixels = pixels },
         .allocator = allocator,
+        .ldtk_tilesets = std.ArrayList(LDTKTileset).init(allocator),
     };
 }
 
@@ -69,6 +75,7 @@ pub fn deinit(self: *Packer) void {
     self.sprites.deinit();
     self.frames.deinit();
     self.animations.deinit();
+    self.ldtk_tilesets.deinit();
 }
 
 pub fn clearAndFree(self: *Packer) void {
@@ -78,10 +85,21 @@ pub fn clearAndFree(self: *Packer) void {
     for (self.animations.items) |*animation| {
         self.allocator.free(animation.name);
     }
+    for (self.ldtk_tilesets.items) |*tileset| {
+        for (tileset.layer_paths) |path| {
+            self.allocator.free(path);
+        }
+
+        for (tileset.sprites) |*sprite| {
+            self.allocator.free(sprite.name);
+        }
+        self.allocator.free(tileset.sprites);
+    }
     self.frames.clearAndFree();
     self.sprites.clearAndFree();
     self.animations.clearAndFree();
     self.contains_height = false;
+    self.ldtk_tilesets.clearAndFree();
 
     for (self.open_files.items) |*file| {
         pixi.editor.deinitFile(file);
@@ -89,7 +107,57 @@ pub fn clearAndFree(self: *Packer) void {
     self.open_files.clearAndFree();
 }
 
+pub const PackOptions = struct {
+    ldtk_compatibility: bool = false,
+};
+
 pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
+    if (self.ldtk) {
+        if (pixi.state.project_folder) |project_folder_path| {
+            const ldtk_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ project_folder_path, "pixi-ldtk" });
+            defer pixi.state.allocator.free(ldtk_path);
+
+            const base_name_w_ext = std.fs.path.basename(file.path);
+            const ext = std.fs.path.extension(base_name_w_ext);
+
+            const base_name = base_name_w_ext[0 .. base_name_w_ext.len - ext.len];
+
+            if (std.fs.path.dirname(file.path)) |file_dir_path| {
+                const relative_path = file_dir_path[project_folder_path.len..];
+
+                var layer_names = std.ArrayList([:0]const u8).init(pixi.state.allocator);
+                var sprites = std.ArrayList(LDTKTileset.LDTKSprite).init(pixi.state.allocator);
+
+                for (file.layers.items) |layer| {
+                    try layer_names.append(try std.fmt.allocPrintZ(pixi.state.allocator, "pixi-ldtk{s}{c}{s}__{s}.png", .{ relative_path, std.fs.path.sep, base_name, layer.name }));
+                }
+
+                for (file.sprites.items, 0..) |sprite, sprite_index| {
+                    const tiles_wide = @divExact(file.width, file.tile_width);
+
+                    const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
+                    const row = @divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide);
+
+                    const src_x = column * file.tile_width;
+                    const src_y = row * file.tile_height;
+
+                    try sprites.append(.{
+                        .name = try pixi.state.allocator.dupeZ(u8, sprite.name),
+                        .src = .{ src_x, src_y },
+                    });
+                }
+
+                try self.ldtk_tilesets.append(.{
+                    .layer_paths = try layer_names.toOwnedSlice(),
+                    .sprite_size = .{ file.tile_width, file.tile_height },
+                    .sprites = try sprites.toOwnedSlice(),
+                });
+
+                return;
+            }
+        }
+    }
+
     var texture_opt: ?pixi.gfx.Texture = null;
     for (file.layers.items, 0..) |*layer, i| {
         if (!layer.visible) continue;
@@ -242,6 +310,51 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
     }
 }
 
+pub fn appendProject(self: Packer) !void {
+    if (pixi.state.project_folder) |root_directory| {
+        try recurseFiles(self.allocator, root_directory);
+    }
+}
+
+pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) !void {
+    const recursor = struct {
+        fn search(alloc: std.mem.Allocator, directory: [:0]const u8) !void {
+            var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
+            defer dir.close();
+
+            var iter = dir.iterate();
+            while (try iter.next()) |entry| {
+                if (entry.kind == .file) {
+                    const ext = std.fs.path.extension(entry.name);
+                    if (std.mem.eql(u8, ext, ".pixi")) {
+                        const abs_path = try std.fs.path.joinZ(alloc, &.{ directory, entry.name });
+                        defer alloc.free(abs_path);
+
+                        if (pixi.editor.getFileIndex(abs_path)) |index| {
+                            if (pixi.editor.getFile(index)) |file| {
+                                try pixi.state.packer.append(file);
+                            }
+                        } else {
+                            if (try pixi.editor.loadFile(abs_path)) |file| {
+                                try pixi.state.packer.open_files.append(file);
+                                try pixi.state.packer.append(&pixi.state.packer.open_files.items[pixi.state.packer.open_files.items.len - 1]);
+                            }
+                        }
+                    }
+                } else if (entry.kind == .directory) {
+                    const abs_path = try std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name });
+                    defer alloc.free(abs_path);
+                    try search(alloc, abs_path);
+                }
+            }
+        }
+    }.search;
+
+    try recursor(allocator, root_directory);
+
+    return;
+}
+
 pub fn packAndClear(self: *Packer) !void {
     if (try self.packRects()) |size| {
         var atlas_texture = try pixi.gfx.Texture.createEmpty(size[0], size[1], .{});
@@ -392,10 +505,10 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     if (width == 0)
         return null;
 
-    // If we are packing a tileset, we want a uniform / non-tightly-packed grid. We remove all
-    // completely empty sprite cells (the return null cases above), but do not trim transparent
-    // regions during packing.
-    if (pixi.state.pack_tileset) return src;
+    // // If we are packing a tileset, we want a uniform / non-tightly-packed grid. We remove all
+    // // completely empty sprite cells (the return null cases above), but do not trim transparent
+    // // regions during packing.
+    // if (pixi.state.pack_tileset) return src;
 
     return .{
         left,
