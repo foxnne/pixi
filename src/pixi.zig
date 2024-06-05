@@ -1,5 +1,5 @@
 const std = @import("std");
-const build_options = @import("build-options");
+pub const build_options = @import("build-options");
 
 const core = @import("mach").core;
 const gpu = core.gpu;
@@ -77,7 +77,6 @@ pub const PixiState = struct {
     packer: Packer = undefined,
     atlas: storage.Internal.Atlas = .{},
     open_file_index: usize = 0,
-    copy_file_index: usize = 0,
     open_reference_index: usize = 0,
     tools: Tools = .{},
     popups: Popups = .{},
@@ -87,6 +86,11 @@ pub const PixiState = struct {
     delta_time: f32 = 0.0,
     json_allocator: std.heap.ArenaAllocator = undefined,
     assets: Assets = undefined,
+    clipboard_image: ?zstbi.Image = null,
+    batcher: gfx.Batcher = undefined,
+    pipeline_default: *gpu.RenderPipeline = undefined,
+    uniform_buffer_default: *gpu.Buffer = undefined,
+    bind_group_default: *gpu.BindGroup = undefined,
 };
 
 pub const Assets = struct {
@@ -174,11 +178,15 @@ pub fn init(app: *App) !void {
     state.packer = try Packer.init(allocator);
     state.recents = try Recents.init(allocator);
 
+    state.batcher = try gfx.Batcher.init(allocator, 1000);
+
     state.allocator = allocator;
 
     app.* = .{
         .timer = try core.Timer.start(),
     };
+
+    try gfx.init(state);
 
     imgui.setZigAllocator(&state.allocator);
     _ = imgui.createContext(null);
@@ -374,7 +382,13 @@ pub fn update(app: *App) !bool {
         };
         defer imgui_commands.release();
 
-        core.queue.submit(&.{imgui_commands});
+        if (state.batcher.empty) {
+            core.queue.submit(&.{imgui_commands});
+        } else {
+            const batcher_commands = try state.batcher.finish();
+            core.queue.submit(&.{ batcher_commands, imgui_commands });
+        }
+
         core.swap_chain.present();
     }
 
@@ -408,6 +422,12 @@ pub fn deinit(_: *App) void {
     state.allocator.free(state.mouse.buttons);
     state.packer.deinit();
     state.recents.deinit();
+
+    state.batcher.deinit();
+    state.pipeline_default.release();
+    state.bind_group_default.release();
+    state.uniform_buffer_default.release();
+
     if (state.atlas.external) |*atlas| {
         for (atlas.sprites) |sprite| {
             state.allocator.free(sprite.name);
@@ -426,6 +446,8 @@ pub fn deinit(_: *App) void {
     if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
     if (state.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (state.colors.palette) |*palette| palette.deinit();
+
+    if (state.clipboard_image) |*image| image.deinit();
 
     editor.deinit();
     state.assets.deinit(state.allocator);

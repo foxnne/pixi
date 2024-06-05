@@ -31,9 +31,10 @@ pub const Pixi = struct {
     selected_animation_index: usize = 0,
     selected_animation_state: AnimationState = .pause,
     selected_animation_elapsed: f32 = 0.0,
-    copy_sprite: ?CopySprite = null,
     background: pixi.gfx.Texture,
     temporary_layer: Layer,
+    transform_texture: ?TransformTexture = null,
+    transform_bindgroup: ?*gpu.BindGroup = null,
     heightmap: Heightmap = .{},
     history: History,
     buffers: Buffers,
@@ -47,9 +48,11 @@ pub const Pixi = struct {
         state: AnimationState,
     };
 
-    pub const CopySprite = struct {
-        index: usize,
-        layer_id: usize,
+    pub const TransformTexture = struct {
+        position: [2]f32 = .{ 0.0, 0.0 },
+        rotation: f32 = 0.0,
+        scale: [2]f32 = .{ 1.0, 1.0 },
+        texture: pixi.gfx.Texture,
     };
 
     pub const AnimationState = enum { pause, play };
@@ -898,6 +901,44 @@ pub const Pixi = struct {
         return self.history.undoRedo(self, .redo);
     }
 
+    pub fn paste(self: *Pixi) !void {
+        if (pixi.state.clipboard_image) |image| {
+            if (self.transform_texture) |*transform_texture| {
+                transform_texture.texture.deinit();
+            }
+
+            const image_copy: zstbi.Image = try zstbi.Image.createEmpty(
+                image.width,
+                image.height,
+                image.num_components,
+                .{
+                    .bytes_per_component = image.bytes_per_component,
+                    .bytes_per_row = image.bytes_per_row,
+                },
+            );
+            @memcpy(image_copy.data, image.data);
+            self.transform_texture = .{
+                .texture = pixi.gfx.Texture.create(image_copy, .{}),
+            };
+
+            const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
+
+            self.transform_bindgroup = core.device.createBindGroup(
+                &core.gpu.BindGroup.Descriptor.init(.{
+                    .layout = pipeline_layout_default,
+                    .entries = &.{
+                        if (pixi.build_options.use_sysgpu)
+                            core.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
+                        else
+                            core.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
+                        core.gpu.BindGroup.Entry.textureView(1, self.transform_texture.?.texture.view_handle),
+                        core.gpu.BindGroup.Entry.sampler(2, self.transform_texture.?.texture.sampler_handle),
+                    },
+                }),
+            );
+        }
+    }
+
     pub fn createBackground(self: *Pixi) !void {
         var image = try zstbi.Image.createEmpty(self.tile_width * 2, self.tile_height * 2, 4, .{});
         // Set background image data to checkerboard
@@ -1160,7 +1201,7 @@ pub const Pixi = struct {
         }
     }
 
-    pub fn spriteToImage(file: *Pixi, sprite_index: usize) !zstbi.Image {
+    pub fn spriteToImage(file: *Pixi, sprite_index: usize, all_layers: bool) !zstbi.Image {
         const sprite_image = try zstbi.Image.createEmpty(file.tile_width, file.tile_height, 4, .{});
 
         const tiles_wide = @divExact(file.width, file.tile_width);
@@ -1171,13 +1212,36 @@ pub const Pixi = struct {
         const src_x = column * file.tile_width;
         const src_y = row * file.tile_height;
 
-        var i: usize = file.layers.items.len;
-        while (i > 0) {
-            i -= 1;
+        if (all_layers) {
+            var i: usize = file.layers.items.len;
+            while (i > 0) {
+                i -= 1;
 
-            const layer = &file.layers.items[i];
+                const layer = &file.layers.items[i];
 
-            if (!layer.visible) continue;
+                if (!layer.visible) continue;
+
+                const first_index = layer.getPixelIndex(.{ src_x, src_y });
+
+                var src_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+                var dest_pixels = @as([*][4]u8, @ptrCast(sprite_image.data.ptr))[0 .. sprite_image.data.len / 4];
+
+                var r: usize = 0;
+                while (r < @as(usize, @intCast(file.tile_height))) : (r += 1) {
+                    const p_src = first_index + (r * @as(usize, @intCast(file.width)));
+                    const src = src_pixels[p_src .. p_src + @as(usize, @intCast(file.tile_width))];
+
+                    const p_dest = r * @as(usize, @intCast(file.tile_width));
+                    const dest = dest_pixels[p_dest .. p_dest + @as(usize, @intCast(file.tile_width))];
+
+                    for (src, 0..) |pixel, pixel_i| {
+                        if (pixel[3] != 0)
+                            dest[pixel_i] = pixel;
+                    }
+                }
+            }
+        } else {
+            const layer = &file.layers.items[file.selected_layer_index];
 
             const first_index = layer.getPixelIndex(.{ src_x, src_y });
 

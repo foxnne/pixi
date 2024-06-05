@@ -2,8 +2,11 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
+const zmath = @import("zmath");
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
+    const transforming = file.transform_texture != null;
+
     {
         const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
         // Draw a shadow fading from bottom to top
@@ -113,17 +116,71 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
     }
 
+    // Draw transform texture on gpu to temporary texture
+    {
+        if (file.transform_texture) |*transform_texture| {
+            if (file.transform_bindgroup) |transform_bindgroup| {
+                const width: f32 = @floatFromInt(file.width);
+                const height: f32 = @floatFromInt(file.height);
+
+                const texture_height: f32 = @floatFromInt(transform_texture.texture.image.height);
+                const position = zmath.f32x4(
+                    @trunc(transform_texture.position[0] + canvas_center_offset[0]),
+                    @trunc(transform_texture.position[1] - (canvas_center_offset[1] + texture_height)),
+                    0.0,
+                    0.0,
+                );
+
+                const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
+                    file.camera.renderTextureMatrix(width, height),
+                ) };
+
+                pixi.state.batcher.begin(.{
+                    .pipeline_handle = pixi.state.pipeline_default,
+                    .bind_group_handle = transform_bindgroup,
+                    .output_handle = file.temporary_layer.texture.view_handle,
+                    .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+                }) catch unreachable;
+
+                pixi.state.batcher.texture(
+                    position,
+                    &transform_texture.texture,
+                    .{},
+                ) catch unreachable;
+
+                pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
+            }
+        }
+    }
+
     // Draw all layers in reverse order
     {
         var i: usize = file.layers.items.len;
         while (i > 0) {
             i -= 1;
-            if (!file.layers.items[i].visible) continue;
-            file.camera.drawLayer(file.layers.items[i], canvas_center_offset);
+
+            if (file.layers.items[i].visible)
+                file.camera.drawLayer(file.layers.items[i], canvas_center_offset);
         }
 
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
+
+        if (file.transform_texture) |*transform_texture| {
+            const width = transform_texture.texture.image.width;
+            const height = transform_texture.texture.image.height;
+            const position: [2]f32 = .{ canvas_center_offset[0], canvas_center_offset[1] };
+
+            const transform_rect: [4]f32 = .{ position[0], position[1], @floatFromInt(width), @floatFromInt(height) };
+
+            file.camera.drawRect(transform_rect, 3.0, 0xFFFFFFFF);
+
+            const grip_size: f32 = 10.0 / file.camera.zoom;
+
+            const tl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
+            const color: u32 = if (file.camera.isHovered(tl_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
+            file.camera.drawRect(tl_rect, 1.0, color);
+        }
 
         if (file.heightmap.visible) {
             file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
@@ -182,7 +239,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     {
         const tiles_wide = @divExact(file.width, file.tile_width);
 
-        if (pixi.state.sidebar == .sprites) {
+        if (pixi.state.sidebar == .sprites and !transforming) {
             if (file.selected_sprites.items.len > 0) {
                 for (file.selected_sprites.items) |sprite_index| {
                     const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
@@ -209,7 +266,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     );
                 }
             }
-        } else if (pixi.state.sidebar != .pack) {
+        } else if (pixi.state.sidebar != .pack and !transforming) {
             const column = @mod(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const row = @divTrunc(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const x = @as(f32, @floatFromInt(column)) * tile_width + canvas_center_offset[0];
@@ -219,7 +276,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             file.camera.drawRect(rect, 3.0, pixi.state.theme.text.toU32());
         }
 
-        if (pixi.state.popups.animation_length > 0 and pixi.state.tools.current == .animation) {
+        if (pixi.state.popups.animation_length > 0 and pixi.state.tools.current == .animation and !transforming) {
             if (pixi.state.mouse.button(.primary)) |primary| {
                 if (primary.down() or pixi.state.popups.animation) {
                     const start_column = @mod(@as(u32, @intCast(pixi.state.popups.animation_start)), tiles_wide);
@@ -240,7 +297,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
 
         if (file.animations.items.len > 0) {
-            if (pixi.state.tools.current == .animation) {
+            if (pixi.state.tools.current == .animation and !transforming) {
                 for (file.animations.items, 0..) |animation, i| {
                     const start_column = @mod(@as(u32, @intCast(animation.start)), tiles_wide);
                     const start_row = @divTrunc(@as(u32, @intCast(animation.start)), tiles_wide);
@@ -257,7 +314,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const thickness: f32 = if (i == file.selected_animation_index and (if (pixi.state.mouse.button(.primary)) |primary| primary.up() else false and !pixi.state.popups.animation)) 4.0 else 2.0;
                     file.camera.drawAnimationRect(start_rect, end_rect, thickness, pixi.state.theme.highlight_primary.toU32(), pixi.state.theme.text_red.toU32());
                 }
-            } else if (pixi.state.sidebar != .pack) {
+            } else if (pixi.state.sidebar != .pack and !transforming) {
                 const animation = file.animations.items[file.selected_animation_index];
 
                 const start_column = @mod(@as(u32, @intCast(animation.start)), tiles_wide);

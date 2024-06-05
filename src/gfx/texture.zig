@@ -19,6 +19,8 @@ pub const Texture = struct {
     pub const SamplerOptions = struct {
         address_mode: gpu.Sampler.AddressMode = .clamp_to_edge,
         filter: gpu.FilterMode = .nearest,
+        format: gpu.Texture.Format = .rgba8_unorm,
+        storage_binding: bool = false,
     };
 
     pub fn createEmpty(width: u32, height: u32, options: Texture.SamplerOptions) !Texture {
@@ -41,17 +43,19 @@ pub const Texture = struct {
 
         const texture_descriptor = .{
             .size = image_size,
-            .format = .rgba8_unorm,
+            .format = options.format,
             .usage = .{
                 .texture_binding = true,
                 .copy_dst = true,
+                .render_attachment = true,
+                .storage_binding = options.storage_binding,
             },
         };
 
         const texture = core.device.createTexture(&texture_descriptor);
 
         const view_descriptor = .{
-            .format = .rgba8_unorm,
+            .format = options.format,
             .dimension = .dimension_2d,
             .array_layer_count = 1,
         };

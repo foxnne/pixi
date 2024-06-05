@@ -34,6 +34,15 @@ pub const Camera = struct {
         return transform;
     }
 
+    /// Use this matrix when drawing to an off-screen render texture.
+    pub fn renderTextureMatrix(camera: Camera, width: f32, height: f32) zm.Mat {
+        _ = camera; // autofix
+        const rt_ortho = zm.orthographicLh(width, height, -100, 100);
+        const rt_translation = zm.translation(0, 0, 0);
+
+        return zm.mul(rt_translation, rt_ortho);
+    }
+
     pub fn drawGrid(camera: Camera, position: [2]f32, width: f32, height: f32, columns: usize, rows: usize, color: u32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], width, height });
 

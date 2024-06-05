@@ -427,6 +427,12 @@ pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
         layer.texture.deinit();
         pixi.state.allocator.free(layer.name);
     }
+    if (file.transform_texture) |*texture| {
+        texture.texture.deinit();
+    }
+    if (file.transform_bindgroup) |bindgroup| {
+        bindgroup.release();
+    }
     for (file.deleted_heightmap_layers.items) |*layer| {
         layer.texture.deinit();
         pixi.state.allocator.free(layer.name);

@@ -3,6 +3,7 @@ const zm = @import("zmath");
 const math = @import("../math/math.zig");
 const pixi = @import("../pixi.zig");
 const nfd = @import("nfd");
+const zstbi = @import("zstbi");
 const core = @import("mach").core;
 
 const Key = core.Key;
@@ -247,26 +248,25 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .copy })) |hk| {
             if (hk.pressed()) {
-                file.copy_sprite = .{
-                    .index = file.selected_sprite_index,
-                    .layer_id = file.layers.items[file.selected_layer_index].id,
-                };
+                if (pixi.state.clipboard_image) |*image| {
+                    image.deinit();
+                }
+
+                pixi.state.clipboard_image = try file.spriteToImage(file.selected_sprite_index, false);
             }
         }
 
         if (self.hotkey(.{ .proc = .paste })) |hk| {
             if (hk.pressed()) {
-                if (file.copy_sprite) |src| {
-                    try file.copySprite(src.index, file.selected_sprite_index, src.layer_id);
-                }
+                try file.paste();
             }
         }
 
         if (self.hotkey(.{ .proc = .paste_all })) |hk| {
             if (hk.pressed()) {
-                if (file.copy_sprite) |src| {
-                    try file.copySpriteAllLayers(src.index, file.selected_sprite_index);
-                }
+                // if (file.copy_sprite) |src| {
+                //     try file.copySpriteAllLayers(src.index, file.selected_sprite_index);
+                // }
             }
         }
 

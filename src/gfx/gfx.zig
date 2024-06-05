@@ -1,7 +1,13 @@
 const std = @import("std");
 const zm = @import("zmath");
-const game = @import("game");
+const pixi = @import("../pixi.zig");
 const zstbi = @import("zstbi");
+
+const build_options = @import("build-options");
+
+const mach = @import("mach");
+const core = mach.core;
+const gpu = mach.gpu;
 
 pub const Quad = @import("quad.zig").Quad;
 pub const Batcher = @import("batcher.zig").Batcher;
@@ -17,20 +23,69 @@ pub const Vertex = struct {
     data: [3]f32 = [_]f32{ 0.0, 0.0, 0.0 },
 };
 
-pub const ImGuiQuad = struct {};
-
-pub const Uniforms = struct {
+pub const UniformBufferObject = struct {
     mvp: zm.Mat,
 };
 
-pub fn createImage(data: []u8, width: u32, height: u32) zstbi.Image {
-    return .{
-        .data = data,
-        .width = width,
-        .height = height,
-        .num_components = 4,
-        .bytes_per_component = 1,
-        .bytes_per_row = 4 * width,
-        .is_hdr = false,
+pub fn init(state: *pixi.PixiState) !void {
+    const default_shader = @embedFile("../shaders/default.wgsl");
+    const default_shader_module = core.device.createShaderModuleWGSL("default.wgsl", default_shader);
+
+    defer default_shader_module.release();
+
+    const vertex_attributes = [_]gpu.VertexAttribute{
+        .{ .format = .float32x3, .offset = @offsetOf(Vertex, "position"), .shader_location = 0 },
+        .{ .format = .float32x2, .offset = @offsetOf(Vertex, "uv"), .shader_location = 1 },
+        .{ .format = .float32x4, .offset = @offsetOf(Vertex, "color"), .shader_location = 2 },
+        .{ .format = .float32x3, .offset = @offsetOf(Vertex, "data"), .shader_location = 3 },
     };
+    const vertex_buffer_layout = gpu.VertexBufferLayout.init(.{
+        .array_stride = @sizeOf(Vertex),
+        .step_mode = .vertex,
+        .attributes = &vertex_attributes,
+    });
+
+    const blend = gpu.BlendState{
+        .color = .{
+            .operation = .add,
+            .src_factor = .src_alpha,
+            .dst_factor = .one_minus_src_alpha,
+        },
+        .alpha = .{
+            .operation = .add,
+            .src_factor = .src_alpha,
+            .dst_factor = .one_minus_src_alpha,
+        },
+    };
+
+    const color_target = gpu.ColorTargetState{
+        .format = .rgba8_unorm,
+        .blend = &blend,
+        .write_mask = gpu.ColorWriteMaskFlags.all,
+    };
+
+    const default_fragment = gpu.FragmentState.init(.{
+        .module = default_shader_module,
+        .entry_point = "frag_main",
+        .targets = &.{color_target},
+    });
+
+    const default_vertex = gpu.VertexState.init(.{
+        .module = default_shader_module,
+        .entry_point = "vert_main",
+        .buffers = &.{vertex_buffer_layout},
+    });
+
+    const default_pipeline_descriptor = gpu.RenderPipeline.Descriptor{
+        .fragment = &default_fragment,
+        .vertex = default_vertex,
+    };
+
+    state.pipeline_default = core.device.createRenderPipeline(&default_pipeline_descriptor);
+
+    state.uniform_buffer_default = core.device.createBuffer(&.{
+        .usage = .{ .copy_dst = true, .uniform = true },
+        .size = @sizeOf(UniformBufferObject),
+        .mapped_at_creation = .false,
+    });
 }

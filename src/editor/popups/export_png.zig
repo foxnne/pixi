@@ -197,7 +197,7 @@ pub fn draw() void {
                             full_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name }) catch unreachable;
                         }
 
-                        var sprite_image = file.spriteToImage(file.selected_sprite_index) catch unreachable;
+                        var sprite_image = file.spriteToImage(file.selected_sprite_index, true) catch unreachable;
                         defer sprite_image.deinit();
 
                         if (pixi.state.popups.export_to_png_scale > 1) {
@@ -220,7 +220,7 @@ pub fn draw() void {
                                 const name = file.sprites.items[i].name;
                                 const full_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name }) catch unreachable;
 
-                                var sprite_image = file.spriteToImage(i) catch unreachable;
+                                var sprite_image = file.spriteToImage(i, true) catch unreachable;
                                 defer sprite_image.deinit();
 
                                 if (pixi.state.popups.export_to_png_scale > 1) {
@@ -242,7 +242,7 @@ pub fn draw() void {
                                             const name = base_name[0..ext_index];
                                             const full_path = std.fmt.allocPrintZ(pixi.state.allocator, "{s}{s}_{d}.png", .{ folder, name, i }) catch unreachable;
 
-                                            var sprite_image = file.spriteToImage(i) catch unreachable;
+                                            var sprite_image = file.spriteToImage(i, true) catch unreachable;
                                             defer sprite_image.deinit();
 
                                             if (pixi.state.popups.export_to_png_scale > 1) {
