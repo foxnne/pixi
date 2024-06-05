@@ -931,7 +931,9 @@ pub const Pixi = struct {
                 },
             );
             @memcpy(image_copy.data, image.data);
+
             self.transform_texture = .{
+                .position = self.pixelCoordinatesFromIndex(self.selected_sprite_index),
                 .texture = pixi.gfx.Texture.create(image_copy, .{}),
             };
 
@@ -1160,11 +1162,16 @@ pub const Pixi = struct {
         return -(@as(f32, @floatFromInt(index)) / 1.5 * @as(f32, @floatFromInt(self.tile_width)) * 1.5);
     }
 
-    pub fn pixelCoordinatesFromIndex(self: Pixi, index: usize) ?[2]f32 {
-        if (index > self.sprites.items.len - 1) return null;
-        const x = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(index)), self.width)));
-        const y = @as(f32, @floatFromInt(@divTrunc(@as(u32, @intCast(index)), self.width)));
-        return .{ x, y };
+    pub fn pixelCoordinatesFromIndex(self: Pixi, index: usize) [2]f32 {
+        const tiles_wide: u32 = self.width / self.tile_width;
+
+        const dst_col = @mod(@as(u32, @intCast(index)), tiles_wide);
+        const dst_row = @divTrunc(@as(u32, @intCast(index)), tiles_wide);
+
+        const dst_x = dst_col * self.tile_width;
+        const dst_y = dst_row * self.tile_height;
+
+        return .{ @floatFromInt(dst_x), @floatFromInt(dst_y) };
     }
 
     pub fn spriteSelectionIndex(self: Pixi, index: usize) ?usize {
