@@ -51,7 +51,8 @@ pub const Pixi = struct {
     pub const TransformTexture = struct {
         position: [2]f32 = .{ 0.0, 0.0 },
         rotation: f32 = 0.0,
-        scale: [2]f32 = .{ 1.0, 1.0 },
+        width: f32 = 0.0,
+        height: f32 = 0.0,
         active_control: TransformControl = .none,
         texture: pixi.gfx.Texture,
     };
@@ -934,6 +935,8 @@ pub const Pixi = struct {
 
             self.transform_texture = .{
                 .position = self.pixelCoordinatesFromIndex(self.selected_sprite_index),
+                .width = @floatFromInt(image.width),
+                .height = @floatFromInt(image.height),
                 .texture = pixi.gfx.Texture.create(image_copy, .{}),
             };
 

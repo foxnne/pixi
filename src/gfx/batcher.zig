@@ -143,10 +143,11 @@ pub const Batcher = struct {
     pub const TextureOptions = struct {
         color: zmath.F32x4 = pixi.math.Colors.white.value,
         origin: [2]f32 = .{ 0.0, 0.0 }, //tl
+        width: f32 = 0.0, // if not 0.0, will scale to use this width
+        height: f32 = 0.0, // if not 0.0, will scale to use this height
         flip_y: bool = false,
         flip_x: bool = false,
         rotation: f32 = 0.0,
-        scale: [2]f32 = .{ 1.0, 1.0 },
         data_0: f32 = 0.0,
         data_1: f32 = 0.0,
         data_2: f32 = 0.0,
@@ -154,8 +155,8 @@ pub const Batcher = struct {
 
     /// Appends a quad at the passed position set to the size needed to render the target texture.
     pub fn texture(self: *Batcher, position: zmath.F32x4, t: *gfx.Texture, options: TextureOptions) !void {
-        const width = @as(f32, @floatFromInt(t.image.width));
-        const height = @as(f32, @floatFromInt(t.image.height));
+        const width = if (options.width != 0.0) options.width else @as(f32, @floatFromInt(t.image.width));
+        const height = if (options.height != 0.0) options.height else @as(f32, @floatFromInt(t.image.height));
         const pos = zmath.trunc(position);
 
         var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
@@ -201,7 +202,7 @@ pub const Batcher = struct {
         if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, pos[0], pos[1], options.origin[0], options.origin[1]);
 
         // Apply scale
-        quad.scale(options.scale, options.origin[0], options.origin[1]);
+        //quad.scale(options.scale, pos[0], pos[1], options.origin[0], options.origin[1]);
 
         return self.append(quad);
     }

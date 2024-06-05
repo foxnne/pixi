@@ -135,15 +135,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 const height: f32 = @floatFromInt(file.height);
 
                 const origin: [2]f32 = switch (transform_texture.active_control) {
-                    .ne_scale => .{ 0.0, height },
+                    .ne_scale => .{ 0.0, -height },
                     .se_scale => .{ 0.0, 0.0 },
                     .sw_scale => .{ width, 0.0 },
-                    .nw_scale => .{ width, height },
-                    else => .{ width / 2.0, height / 2.0 },
+                    .nw_scale => .{ width, -height },
+                    else => .{ width / 2.0, -height / 2.0 },
                 };
 
-                var texture_height: f32 = @floatFromInt(transform_texture.texture.image.height);
-                texture_height *= transform_texture.scale[1];
+                const texture_height: f32 = transform_texture.height;
+
                 const position = zmath.f32x4(
                     @trunc(transform_texture.position[0] + canvas_center_offset[0]),
                     @trunc(-transform_texture.position[1] - (canvas_center_offset[1] + texture_height)),
@@ -166,7 +166,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     position,
                     &transform_texture.texture,
                     .{
-                        .scale = transform_texture.scale,
+                        .width = transform_texture.width,
+                        .height = transform_texture.height,
                         .rotation = transform_texture.rotation,
                         .origin = origin,
                     },
@@ -198,79 +199,55 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
 
+            const mouse_position = pixi.state.mouse.position;
+            const prev_mouse_position = pixi.state.mouse.previous_position;
+            const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                .texture_position = canvas_center_offset,
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            });
+
+            const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                .texture_position = canvas_center_offset,
+                .position = prev_mouse_position,
+                .width = file.width,
+                .height = file.height,
+            });
+
+            const delta: [2]f32 = .{
+                current_pixel_coords[0] - previous_pixel_coords[0],
+                current_pixel_coords[1] - previous_pixel_coords[1],
+            };
+
             switch (transform_texture.active_control) {
                 .pan => {
-                    const mouse_position = pixi.state.mouse.position;
-                    const prev_mouse_position = pixi.state.mouse.previous_position;
-                    const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-                        .texture_position = canvas_center_offset,
-                        .position = mouse_position,
-                        .width = file.width,
-                        .height = file.height,
-                    });
-
-                    const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-                        .texture_position = canvas_center_offset,
-                        .position = prev_mouse_position,
-                        .width = file.width,
-                        .height = file.height,
-                    });
-
-                    const delta: [2]f32 = .{
-                        current_pixel_coords[0] - previous_pixel_coords[0],
-                        current_pixel_coords[1] - previous_pixel_coords[1],
-                    };
-
                     transform_texture.position[0] += delta[0];
                     transform_texture.position[1] += delta[1];
                 },
                 .ne_scale => {
-                    const texture_width: f32 = @floatFromInt(transform_texture.texture.image.width);
-                    const texture_height: f32 = @floatFromInt(transform_texture.texture.image.height);
-
-                    var width = texture_width;
-                    var height = texture_height;
-
-                    width *= transform_texture.scale[0];
-                    height *= transform_texture.scale[1];
-
-                    const mouse_position = pixi.state.mouse.position;
-                    const prev_mouse_position = pixi.state.mouse.previous_position;
-                    const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-                        .texture_position = canvas_center_offset,
-                        .position = mouse_position,
-                        .width = file.width,
-                        .height = file.height,
-                    });
-
-                    const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-                        .texture_position = canvas_center_offset,
-                        .position = prev_mouse_position,
-                        .width = file.width,
-                        .height = file.height,
-                    });
-
-                    const delta: [2]f32 = .{
-                        previous_pixel_coords[0] - current_pixel_coords[0],
-                        previous_pixel_coords[1] - current_pixel_coords[1],
-                    };
-
-                    width -= delta[0];
-                    height += delta[1];
-
-                    width = @trunc(width);
-                    height = @trunc(height);
-
-                    transform_texture.scale[0] = width / texture_width;
-                    transform_texture.scale[1] = height / texture_height;
+                    transform_texture.width += delta[0];
+                    transform_texture.height -= delta[1];
+                    transform_texture.position[1] += delta[1];
                 },
+                .se_scale => {
+                    transform_texture.width += delta[0];
+                    transform_texture.height += delta[1];
+                },
+                .sw_scale => {},
+
+                .nw_scale => {
+                    transform_texture.width -= delta[0];
+                    transform_texture.height -= delta[1];
+                    transform_texture.position[0] += delta[0];
+                    transform_texture.position[1] += delta[1];
+                },
+
                 else => {},
             }
 
-            var width: f32 = @floatFromInt(transform_texture.texture.image.width);
-            width *= transform_texture.scale[0];
-            var height: f32 = @floatFromInt(transform_texture.texture.image.height);
-            height *= transform_texture.scale[1];
+            const width: f32 = transform_texture.width;
+            const height: f32 = transform_texture.height;
             const position: [2]f32 = .{ canvas_center_offset[0] + transform_texture.position[0], canvas_center_offset[1] + transform_texture.position[1] };
 
             const transform_rect: [4]f32 = .{ position[0], position[1], width, height };
