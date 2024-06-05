@@ -116,15 +116,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
     }
 
-    if (file.transform_texture) |*transform| {
-        const mouse_position = pixi.state.mouse.position;
-        transform.position = file.camera.pixelCoordinatesRaw(.{
-            .texture_position = canvas_center_offset,
-            .position = mouse_position,
-            .width = file.width,
-            .height = file.height,
-        });
-    }
+    // Example, sets the transformation texture position to mouse position
+    // if (file.transform_texture) |*transform| {
+    //     const mouse_position = pixi.state.mouse.position;
+    //     transform.position = file.camera.pixelCoordinatesRaw(.{
+    //         .texture_position = canvas_center_offset,
+    //         .position = mouse_position,
+    //         .width = file.width,
+    //         .height = file.height,
+    //     });
+    // }
 
     // Draw transform texture on gpu to temporary texture
     {
@@ -176,20 +177,43 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
 
+        // Draw transformation texture controls
         if (file.transform_texture) |*transform_texture| {
-            const width = transform_texture.texture.image.width;
-            const height = transform_texture.texture.image.height;
+            const width: f32 = @floatFromInt(transform_texture.texture.image.width);
+            const height: f32 = @floatFromInt(transform_texture.texture.image.height);
             const position: [2]f32 = .{ canvas_center_offset[0] + transform_texture.position[0], canvas_center_offset[1] + transform_texture.position[1] };
 
-            const transform_rect: [4]f32 = .{ position[0], position[1], @floatFromInt(width), @floatFromInt(height) };
+            const transform_rect: [4]f32 = .{ position[0], position[1], width, height };
+
+            if (file.camera.isHovered(transform_rect)) imgui.setMouseCursor(imgui.MouseCursor_Hand);
 
             file.camera.drawRect(transform_rect, 3.0, 0xFFFFFFFF);
 
             const grip_size: f32 = 10.0 / file.camera.zoom;
 
             const tl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
-            const color: u32 = if (file.camera.isHovered(tl_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
-            file.camera.drawRect(tl_rect, 1.0, color);
+            const tl_color: u32 = if (file.camera.isHovered(tl_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
+            file.camera.drawRect(tl_rect, 1.0, tl_color);
+
+            if (file.camera.isHovered(tl_rect)) imgui.setMouseCursor(imgui.MouseCursor_ResizeNWSE);
+
+            const tr_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
+            const tr_color: u32 = if (file.camera.isHovered(tr_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
+            file.camera.drawRect(tr_rect, 1.0, tr_color);
+
+            if (file.camera.isHovered(tr_rect)) imgui.setMouseCursor(imgui.MouseCursor_ResizeNESW);
+
+            const br_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
+            const br_color: u32 = if (file.camera.isHovered(br_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
+            file.camera.drawRect(br_rect, 1.0, br_color);
+
+            if (file.camera.isHovered(br_rect)) imgui.setMouseCursor(imgui.MouseCursor_ResizeNWSE);
+
+            const bl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
+            const bl_color: u32 = if (file.camera.isHovered(bl_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
+            file.camera.drawRect(bl_rect, 1.0, bl_color);
+
+            if (file.camera.isHovered(bl_rect)) imgui.setMouseCursor(imgui.MouseCursor_ResizeNESW);
         }
 
         if (file.heightmap.visible) {
