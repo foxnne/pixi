@@ -234,8 +234,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     transform_texture.width += delta[0];
                     transform_texture.height += delta[1];
                 },
-                .sw_scale => {},
-
+                .sw_scale => {
+                    transform_texture.width -= delta[0];
+                    transform_texture.height += delta[1];
+                    transform_texture.position[0] += delta[0];
+                },
                 .nw_scale => {
                     transform_texture.width -= delta[0];
                     transform_texture.height -= delta[1];
