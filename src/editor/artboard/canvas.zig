@@ -116,6 +116,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
     }
 
+    if (file.transform_texture) |*transform| {
+        const mouse_position = pixi.state.mouse.position;
+        transform.position = file.camera.pixelCoordinatesRaw(.{
+            .texture_position = canvas_center_offset,
+            .position = mouse_position,
+            .width = file.width,
+            .height = file.height,
+        });
+    }
+
     // Draw transform texture on gpu to temporary texture
     {
         if (file.transform_texture) |*transform_texture| {
@@ -126,13 +136,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 const texture_height: f32 = @floatFromInt(transform_texture.texture.image.height);
                 const position = zmath.f32x4(
                     @trunc(transform_texture.position[0] + canvas_center_offset[0]),
-                    @trunc(transform_texture.position[1] - (canvas_center_offset[1] + texture_height)),
+                    @trunc(-transform_texture.position[1] - (canvas_center_offset[1] + texture_height)),
                     0.0,
                     0.0,
                 );
 
                 const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
-                    file.camera.renderTextureMatrix(width, height),
+                    zmath.orthographicLh(width, height, -100, 100),
                 ) };
 
                 pixi.state.batcher.begin(.{
@@ -169,7 +179,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (file.transform_texture) |*transform_texture| {
             const width = transform_texture.texture.image.width;
             const height = transform_texture.texture.image.height;
-            const position: [2]f32 = .{ canvas_center_offset[0], canvas_center_offset[1] };
+            const position: [2]f32 = .{ canvas_center_offset[0] + transform_texture.position[0], canvas_center_offset[1] + transform_texture.position[1] };
 
             const transform_rect: [4]f32 = .{ position[0], position[1], @floatFromInt(width), @floatFromInt(height) };
 

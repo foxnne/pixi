@@ -907,6 +907,10 @@ pub const Pixi = struct {
                 transform_texture.texture.deinit();
             }
 
+            if (self.transform_bindgroup) |bindgroup| {
+                bindgroup.release();
+            }
+
             const image_copy: zstbi.Image = try zstbi.Image.createEmpty(
                 image.width,
                 image.height,
@@ -922,6 +926,7 @@ pub const Pixi = struct {
             };
 
             const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
+            defer pipeline_layout_default.release();
 
             self.transform_bindgroup = core.device.createBindGroup(
                 &core.gpu.BindGroup.Descriptor.init(.{

@@ -34,15 +34,6 @@ pub const Camera = struct {
         return transform;
     }
 
-    /// Use this matrix when drawing to an off-screen render texture.
-    pub fn renderTextureMatrix(camera: Camera, width: f32, height: f32) zm.Mat {
-        _ = camera; // autofix
-        const rt_ortho = zm.orthographicLh(width, height, -100, 100);
-        const rt_translation = zm.translation(0, 0, 0);
-
-        return zm.mul(rt_translation, rt_ortho);
-    }
-
     pub fn drawGrid(camera: Camera, position: [2]f32, width: f32, height: f32, columns: usize, rows: usize, color: u32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], width, height });
 
@@ -466,6 +457,26 @@ pub const Camera = struct {
 
             return pixel_pos;
         } else return null;
+    }
+
+    pub fn pixelCoordinatesRaw(camera: Camera, options: PixelCoordinatesOptions) [2]f32 {
+        const screen_position = imgui.getCursorScreenPos();
+        var tl = camera.matrix().transformVec2(options.texture_position);
+        tl[0] += screen_position.x;
+        tl[1] += screen_position.y;
+        var br = options.texture_position;
+        br[0] += @as(f32, @floatFromInt(options.width));
+        br[1] += @as(f32, @floatFromInt(options.height));
+        br = camera.matrix().transformVec2(br);
+        br[0] += screen_position.x;
+        br[1] += screen_position.y;
+
+        var pixel_pos: [2]f32 = .{ 0.0, 0.0 };
+
+        pixel_pos[0] = @divTrunc(options.position[0] - tl[0], camera.zoom);
+        pixel_pos[1] = @divTrunc(options.position[1] - tl[1], camera.zoom);
+
+        return pixel_pos;
     }
 
     const FlipbookPixelCoordinatesOptions = struct {
