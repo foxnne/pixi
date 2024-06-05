@@ -52,7 +52,17 @@ pub const Pixi = struct {
         position: [2]f32 = .{ 0.0, 0.0 },
         rotation: f32 = 0.0,
         scale: [2]f32 = .{ 1.0, 1.0 },
+        active_control: TransformControl = .none,
         texture: pixi.gfx.Texture,
+    };
+
+    pub const TransformControl = enum {
+        none,
+        pan,
+        ne_scale,
+        se_scale,
+        sw_scale,
+        nw_scale,
     };
 
     pub const AnimationState = enum { pause, play };

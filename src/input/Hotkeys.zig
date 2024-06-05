@@ -248,11 +248,13 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .copy })) |hk| {
             if (hk.pressed()) {
-                if (pixi.state.clipboard_image) |*image| {
-                    image.deinit();
-                }
+                if (file.transform_texture == null) {
+                    if (pixi.state.clipboard_image) |*image| {
+                        image.deinit();
+                    }
 
-                pixi.state.clipboard_image = try file.spriteToImage(file.selected_sprite_index, false);
+                    pixi.state.clipboard_image = try file.spriteToImage(file.selected_sprite_index, false);
+                }
             }
         }
 

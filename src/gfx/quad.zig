@@ -58,6 +58,18 @@ pub const Quad = struct {
         self.vertices[3].uv = tr_uv;
     }
 
+    pub fn scale(self: *Quad, scaling: [2]f32, origin_x: f32, origin_y: f32) void {
+        for (self.vertices, 0..) |vert, i| {
+            var position = zm.loadArr3(vert.position);
+
+            const scale_matrix = zm.scaling(scaling[0], scaling[1], 1.0);
+            const translation_matrix = zm.translation(origin_x, origin_y, 0);
+            position = zm.mul(position, zm.mul(translation_matrix, scale_matrix));
+
+            zm.storeArr3(&self.vertices[i].position, position);
+        }
+    }
+
     pub fn rotate(self: *Quad, rotation: f32, pos_x: f32, pos_y: f32, origin_x: f32, origin_y: f32) void {
         for (self.vertices, 0..) |vert, i| {
             var position = zm.loadArr3(vert.position);

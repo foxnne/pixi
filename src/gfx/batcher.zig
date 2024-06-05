@@ -142,7 +142,7 @@ pub const Batcher = struct {
 
     pub const TextureOptions = struct {
         color: zmath.F32x4 = pixi.math.Colors.white.value,
-        origin: [2]f32 = .{ 0.5, 0.5 },
+        origin: [2]f32 = .{ 0.0, 0.0 }, //tl
         flip_y: bool = false,
         flip_x: bool = false,
         rotation: f32 = 0.0,
@@ -198,7 +198,10 @@ pub const Batcher = struct {
         if (options.flip_y) quad.flipVertically();
 
         // Apply rotation
-        if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, pos[0], pos[1], 0.0, 0.0);
+        if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, pos[0], pos[1], options.origin[0], options.origin[1]);
+
+        // Apply scale
+        quad.scale(options.scale, options.origin[0], options.origin[1]);
 
         return self.append(quad);
     }

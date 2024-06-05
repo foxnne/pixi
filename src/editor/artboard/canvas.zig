@@ -134,7 +134,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 const width: f32 = @floatFromInt(file.width);
                 const height: f32 = @floatFromInt(file.height);
 
-                const texture_height: f32 = @floatFromInt(transform_texture.texture.image.height);
+                const origin: [2]f32 = switch (transform_texture.active_control) {
+                    .ne_scale => .{ 0.0, height },
+                    .se_scale => .{ 0.0, 0.0 },
+                    .sw_scale => .{ width, 0.0 },
+                    .nw_scale => .{ width, height },
+                    else => .{ width / 2.0, height / 2.0 },
+                };
+
+                var texture_height: f32 = @floatFromInt(transform_texture.texture.image.height);
+                texture_height *= transform_texture.scale[1];
                 const position = zmath.f32x4(
                     @trunc(transform_texture.position[0] + canvas_center_offset[0]),
                     @trunc(-transform_texture.position[1] - (canvas_center_offset[1] + texture_height)),
@@ -156,7 +165,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 pixi.state.batcher.texture(
                     position,
                     &transform_texture.texture,
-                    .{},
+                    .{
+                        .scale = transform_texture.scale,
+                        .rotation = transform_texture.rotation,
+                        .origin = origin,
+                    },
                 ) catch unreachable;
 
                 pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
@@ -179,41 +192,158 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         // Draw transformation texture controls
         if (file.transform_texture) |*transform_texture| {
-            const width: f32 = @floatFromInt(transform_texture.texture.image.width);
-            const height: f32 = @floatFromInt(transform_texture.texture.image.height);
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.released()) {
+                    transform_texture.active_control = .none;
+                }
+            }
+
+            switch (transform_texture.active_control) {
+                .pan => {
+                    const mouse_position = pixi.state.mouse.position;
+                    const prev_mouse_position = pixi.state.mouse.previous_position;
+                    const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                        .texture_position = canvas_center_offset,
+                        .position = mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
+
+                    const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                        .texture_position = canvas_center_offset,
+                        .position = prev_mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
+
+                    const delta: [2]f32 = .{
+                        current_pixel_coords[0] - previous_pixel_coords[0],
+                        current_pixel_coords[1] - previous_pixel_coords[1],
+                    };
+
+                    transform_texture.position[0] += delta[0];
+                    transform_texture.position[1] += delta[1];
+                },
+                .ne_scale => {
+                    const texture_width: f32 = @floatFromInt(transform_texture.texture.image.width);
+                    const texture_height: f32 = @floatFromInt(transform_texture.texture.image.height);
+
+                    var width = texture_width;
+                    var height = texture_height;
+
+                    width *= transform_texture.scale[0];
+                    height *= transform_texture.scale[1];
+
+                    const mouse_position = pixi.state.mouse.position;
+                    const prev_mouse_position = pixi.state.mouse.previous_position;
+                    const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                        .texture_position = canvas_center_offset,
+                        .position = mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
+
+                    const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                        .texture_position = canvas_center_offset,
+                        .position = prev_mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
+
+                    const delta: [2]f32 = .{
+                        previous_pixel_coords[0] - current_pixel_coords[0],
+                        previous_pixel_coords[1] - current_pixel_coords[1],
+                    };
+
+                    width -= delta[0];
+                    height += delta[1];
+
+                    width = @trunc(width);
+                    height = @trunc(height);
+
+                    transform_texture.scale[0] = width / texture_width;
+                    transform_texture.scale[1] = height / texture_height;
+                },
+                else => {},
+            }
+
+            var width: f32 = @floatFromInt(transform_texture.texture.image.width);
+            width *= transform_texture.scale[0];
+            var height: f32 = @floatFromInt(transform_texture.texture.image.height);
+            height *= transform_texture.scale[1];
             const position: [2]f32 = .{ canvas_center_offset[0] + transform_texture.position[0], canvas_center_offset[1] + transform_texture.position[1] };
 
             const transform_rect: [4]f32 = .{ position[0], position[1], width, height };
 
-            if (file.camera.isHovered(transform_rect)) imgui.setMouseCursor(imgui.MouseCursor_Hand);
+            if (file.camera.isHovered(transform_rect)) {
+                imgui.setMouseCursor(imgui.MouseCursor_Hand);
 
-            file.camera.drawRect(transform_rect, 3.0, 0xFFFFFFFF);
+                if (pixi.state.mouse.button(.primary)) |bt| {
+                    if (bt.pressed()) {
+                        transform_texture.active_control = .pan;
+                    }
+                }
+            }
+
+            const text_color = pixi.state.theme.text.toU32();
+            file.camera.drawRect(transform_rect, 3.0, text_color);
 
             const grip_size: f32 = 10.0 / file.camera.zoom;
 
             const tl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
-            const tl_color: u32 = if (file.camera.isHovered(tl_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
+            const tl_color: u32 = if (file.camera.isHovered(tl_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
             file.camera.drawRect(tl_rect, 1.0, tl_color);
 
-            if (file.camera.isHovered(tl_rect)) imgui.setMouseCursor(imgui.MouseCursor_ResizeNWSE);
+            if (file.camera.isHovered(tl_rect)) {
+                imgui.setMouseCursor(imgui.MouseCursor_ResizeNWSE);
+
+                if (pixi.state.mouse.button(.primary)) |bt| {
+                    if (bt.pressed()) {
+                        transform_texture.active_control = .nw_scale;
+                    }
+                }
+            }
 
             const tr_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
-            const tr_color: u32 = if (file.camera.isHovered(tr_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
+            const tr_color: u32 = if (file.camera.isHovered(tr_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
             file.camera.drawRect(tr_rect, 1.0, tr_color);
 
-            if (file.camera.isHovered(tr_rect)) imgui.setMouseCursor(imgui.MouseCursor_ResizeNESW);
+            if (file.camera.isHovered(tr_rect)) {
+                imgui.setMouseCursor(imgui.MouseCursor_ResizeNESW);
+
+                if (pixi.state.mouse.button(.primary)) |bt| {
+                    if (bt.pressed()) {
+                        transform_texture.active_control = .ne_scale;
+                    }
+                }
+            }
 
             const br_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
-            const br_color: u32 = if (file.camera.isHovered(br_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
+            const br_color: u32 = if (file.camera.isHovered(br_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
             file.camera.drawRect(br_rect, 1.0, br_color);
 
-            if (file.camera.isHovered(br_rect)) imgui.setMouseCursor(imgui.MouseCursor_ResizeNWSE);
+            if (file.camera.isHovered(br_rect)) {
+                imgui.setMouseCursor(imgui.MouseCursor_ResizeNWSE);
+
+                if (pixi.state.mouse.button(.primary)) |bt| {
+                    if (bt.pressed()) {
+                        transform_texture.active_control = .se_scale;
+                    }
+                }
+            }
 
             const bl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
-            const bl_color: u32 = if (file.camera.isHovered(bl_rect)) pixi.state.theme.highlight_primary.toU32() else 0xFFFFFFFF;
+            const bl_color: u32 = if (file.camera.isHovered(bl_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
             file.camera.drawRect(bl_rect, 1.0, bl_color);
 
-            if (file.camera.isHovered(bl_rect)) imgui.setMouseCursor(imgui.MouseCursor_ResizeNESW);
+            if (file.camera.isHovered(bl_rect)) {
+                imgui.setMouseCursor(imgui.MouseCursor_ResizeNESW);
+                if (pixi.state.mouse.button(.primary)) |bt| {
+                    if (bt.pressed()) {
+                        transform_texture.active_control = .sw_scale;
+                    }
+                }
+            }
         }
 
         if (file.heightmap.visible) {
