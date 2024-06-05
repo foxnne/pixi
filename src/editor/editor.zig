@@ -403,13 +403,13 @@ pub fn closeFile(index: usize) !void {
 
 pub fn rawCloseFile(index: usize) !void {
     pixi.state.open_file_index = 0;
-    var file: pixi.storage.Internal.Pixi = pixi.state.open_files.swapRemove(index);
+    var file: pixi.storage.Internal.Pixi = pixi.state.open_files.orderedRemove(index);
     deinitFile(&file);
 }
 
 pub fn closeReference(index: usize) !void {
     pixi.state.open_reference_index = 0;
-    var reference: pixi.storage.Internal.Reference = pixi.state.open_references.swapRemove(index);
+    var reference: pixi.storage.Internal.Reference = pixi.state.open_references.orderedRemove(index);
     deinitReference(&reference);
 }
 
