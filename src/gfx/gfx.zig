@@ -33,6 +33,11 @@ pub fn init(state: *pixi.PixiState) !void {
 
     defer default_shader_module.release();
 
+    const compute_shader = @embedFile("../shaders/compute.wgsl");
+    const compute_shader_module = core.device.createShaderModuleWGSL("compute.wgsl", compute_shader);
+
+    defer compute_shader_module.release();
+
     const vertex_attributes = [_]gpu.VertexAttribute{
         .{ .format = .float32x3, .offset = @offsetOf(Vertex, "position"), .shader_location = 0 },
         .{ .format = .float32x2, .offset = @offsetOf(Vertex, "uv"), .shader_location = 1 },
@@ -88,4 +93,13 @@ pub fn init(state: *pixi.PixiState) !void {
         .size = @sizeOf(UniformBufferObject),
         .mapped_at_creation = .false,
     });
+
+    const compute_pipeline_descriptor = gpu.ComputePipeline.Descriptor{
+        .compute = gpu.ProgrammableStageDescriptor{
+            .module = compute_shader_module,
+            .entry_point = "copyTextureToBuffer",
+        },
+    };
+
+    state.pipeline_compute = core.device.createComputePipeline(&compute_pipeline_descriptor);
 }

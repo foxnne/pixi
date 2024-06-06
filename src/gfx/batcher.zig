@@ -21,7 +21,9 @@ pub const Batcher = struct {
     /// Contains instructions on pipeline and binding for the current batch
     pub const Context = struct {
         pipeline_handle: *core.gpu.RenderPipeline,
+        compute_pipeline_handle: *core.gpu.ComputePipeline,
         bind_group_handle: *core.gpu.BindGroup,
+        compute_bind_group_handle: *core.gpu.BindGroup,
         // If output handle is null, render to the back buffer
         // otherwise, render to offscreen texture view handle
         //output_handle: ?*core.gpu.TextureView = null,
@@ -296,8 +298,7 @@ pub const Batcher = struct {
         return self.append(quad);
     }
 
-    pub fn end(self: *Batcher, uniforms: anytype, buffer: *core.gpu.Buffer, output_buffer: *core.gpu.Buffer) !void {
-        _ = output_buffer; // autofix
+    pub fn end(self: *Batcher, uniforms: anytype, buffer: *core.gpu.Buffer) !void {
         const UniformsType = @TypeOf(uniforms);
         const uniforms_type_info = @typeInfo(UniformsType);
         if (uniforms_type_info != .Struct) {
@@ -313,9 +314,9 @@ pub const Batcher = struct {
         if (quad_count < 1) return;
 
         // Begin the render pass
-        pass: {
-            const encoder = self.encoder orelse break :pass;
-            const back_buffer_view = core.swap_chain.getCurrentTextureView() orelse break :pass;
+        pass_blk: {
+            const encoder = self.encoder orelse break :pass_blk;
+            const back_buffer_view = core.swap_chain.getCurrentTextureView() orelse break :pass_blk;
             defer back_buffer_view.release();
 
             const color_attachments = [_]core.gpu.RenderPassColorAttachment{.{
@@ -331,10 +332,8 @@ pub const Batcher = struct {
             };
 
             encoder.writeBuffer(buffer, 0, &[_]UniformsType{uniforms});
-            //encoder.writeBuffer(self.vertex_buffer_handle, 0, self.vertices[0 .. self.quad_count * 4]);
-            //encoder.writeBuffer(self.index_buffer_handle, 0, self.indices[0 .. self.quad_count * 6]);
 
-            const pass = encoder.beginRenderPass(&render_pass_info);
+            const pass: *core.gpu.RenderPassEncoder = encoder.beginRenderPass(&render_pass_info);
             defer {
                 pass.end();
                 pass.release();
@@ -353,22 +352,21 @@ pub const Batcher = struct {
 
             // Draw only the quads appended this cycle
             pass.drawIndexed(@as(u32, @intCast(quad_count * 6)), 1, @as(u32, @intCast(self.start_count * 6)), 0, 0);
+        }
 
-            // if (self.context.output_texture) |output_texture| {
-            //     encoder.copyTextureToBuffer(&.{ .texture = output_texture.handle }, &.{ .buffer = output_buffer, .layout = .{
-            //         .bytes_per_row = @sizeOf([4]u8) * output_texture.image.width,
-            //         .rows_per_image = output_texture.image.height,
-            //     } }, &.{
-            //         .width = output_texture.image.width,
-            //         .height = output_texture.image.height,
-            //     });
+        pass_blk: {
+            const encoder = self.encoder orelse break :pass_blk;
+            { // Compute pass for blur shader to blur bloom texture
+                const compute_pass = encoder.beginComputePass(null);
+                defer {
+                    compute_pass.end();
+                    compute_pass.release();
+                }
+                compute_pass.setPipeline(self.context.compute_pipeline_handle);
+                compute_pass.setBindGroup(0, self.context.compute_bind_group_handle, &.{});
 
-            //     const context: CallbackContext = .{ .batcher = self, .buffer = output_buffer };
-
-            //     output_buffer.mapAsync(.{ .read = true }, 0, output_buffer.getSize(), context, callback);
-
-            //     //encoder.copyTextureToTexture(&.{ .texture = output_texture.handle }, &.{ .texture = output_texture.handle }, &.{ .width = output_texture.image.width, .height = output_texture.image.height });
-            // }
+                compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
+            }
         }
     }
 

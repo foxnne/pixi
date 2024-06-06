@@ -35,7 +35,8 @@ pub const Pixi = struct {
     temporary_layer: Layer,
     transform_texture: ?TransformTexture = null,
     transform_bindgroup: ?*gpu.BindGroup = null,
-    transform_buffer: ?*gpu.Buffer = null,
+    compute_buffer: ?*gpu.Buffer = null,
+    compute_bindgroup: ?*gpu.BindGroup = null,
     heightmap: Heightmap = .{},
     history: History,
     buffers: Buffers,
@@ -933,6 +934,10 @@ pub const Pixi = struct {
                 bindgroup.release();
             }
 
+            if (self.compute_buffer) |buffer| {
+                buffer.release();
+            }
+
             const image_copy: zstbi.Image = try zstbi.Image.createEmpty(
                 image.width,
                 image.height,
@@ -968,11 +973,27 @@ pub const Pixi = struct {
                 }),
             );
 
-            self.transform_buffer = core.device.createBuffer(&.{
+            self.compute_buffer = core.device.createBuffer(&.{
                 .usage = .{ .copy_dst = true, .map_read = true },
-                .size = @sizeOf([4]u8) * (self.width * self.height),
+                .size = @sizeOf([4]f32) * (self.width * self.height),
                 .mapped_at_creation = .false,
             });
+
+            const compute_layout_default = pixi.state.pipeline_compute.getBindGroupLayout(0);
+            defer compute_layout_default.release();
+
+            self.compute_bindgroup = core.device.createBindGroup(
+                &core.gpu.BindGroup.Descriptor.init(.{
+                    .layout = compute_layout_default,
+                    .entries = &.{
+                        if (pixi.build_options.use_sysgpu)
+                            core.gpu.BindGroup.Entry.buffer(0, self.compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height), 0)
+                        else
+                            core.gpu.BindGroup.Entry.buffer(0, self.compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height)),
+                        core.gpu.BindGroup.Entry.textureView(1, self.temporary_layer.texture.view_handle),
+                    },
+                }),
+            );
 
             pixi.state.tools.set(pixi.Tools.Tool.pointer);
         }

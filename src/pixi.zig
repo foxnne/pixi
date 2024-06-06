@@ -89,8 +89,8 @@ pub const PixiState = struct {
     clipboard_image: ?zstbi.Image = null,
     batcher: gfx.Batcher = undefined,
     pipeline_default: *gpu.RenderPipeline = undefined,
+    pipeline_compute: *gpu.ComputePipeline = undefined,
     uniform_buffer_default: *gpu.Buffer = undefined,
-    bind_group_default: *gpu.BindGroup = undefined,
 };
 
 pub const Assets = struct {
@@ -386,6 +386,7 @@ pub fn update(app: *App) !bool {
             core.queue.submit(&.{imgui_commands});
         } else {
             const batcher_commands = try state.batcher.finish();
+            defer batcher_commands.release();
             core.queue.submit(&.{ batcher_commands, imgui_commands });
         }
 
@@ -455,8 +456,9 @@ pub fn deinit(_: *App) void {
 
     state.batcher.deinit();
     state.pipeline_default.release();
-    state.bind_group_default.release();
     state.uniform_buffer_default.release();
+
+    state.pipeline_compute.release();
 
     if (state.atlas.external) |*atlas| {
         for (atlas.sprites) |sprite| {

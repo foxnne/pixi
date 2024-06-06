@@ -121,7 +121,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     {
         if (file.transform_texture) |*transform_texture| {
             if (file.transform_bindgroup) |transform_bindgroup| {
-                if (file.transform_buffer) |transform_buffer| {
+                if (file.compute_bindgroup) |compute_bindgroup| {
                     const width: f32 = @floatFromInt(file.width);
                     const height: f32 = @floatFromInt(file.height);
 
@@ -148,7 +148,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                     pixi.state.batcher.begin(.{
                         .pipeline_handle = pixi.state.pipeline_default,
+                        .compute_pipeline_handle = pixi.state.pipeline_compute,
                         .bind_group_handle = transform_bindgroup,
+                        .compute_bind_group_handle = compute_bindgroup,
                         .output_texture = &file.temporary_layer.texture,
                         .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
                     }) catch unreachable;
@@ -164,7 +166,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         },
                     ) catch unreachable;
 
-                    pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default, transform_buffer) catch unreachable;
+                    pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
                 }
             }
         }
