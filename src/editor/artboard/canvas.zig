@@ -59,7 +59,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     }
 
     // TODO: Only clear and update if we need to?
-    file.temporary_layer.clear(true);
+    if (file.transform_texture == null)
+        file.temporary_layer.clear(true);
 
     if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
         const mouse_position = pixi.state.mouse.position;
@@ -115,17 +116,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             }
         }
     }
-
-    // Example, sets the transformation texture position to mouse position
-    // if (file.transform_texture) |*transform| {
-    //     const mouse_position = pixi.state.mouse.position;
-    //     transform.position = file.camera.pixelCoordinatesRaw(.{
-    //         .texture_position = canvas_center_offset,
-    //         .position = mouse_position,
-    //         .width = file.width,
-    //         .height = file.height,
-    //     });
-    // }
 
     // Draw transform texture on gpu to temporary texture
     {
@@ -187,6 +177,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             if (file.layers.items[i].visible)
                 file.camera.drawLayer(file.layers.items[i], canvas_center_offset);
         }
+
+        // Draw the temporary layer
+        file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
 
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
@@ -332,9 +325,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 file.camera.drawLayer(layer, canvas_center_offset);
             }
         }
-
-        // Draw the temporary layer
-        file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
     }
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient

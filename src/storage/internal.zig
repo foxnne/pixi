@@ -912,6 +912,16 @@ pub const Pixi = struct {
         return self.history.undoRedo(self, .redo);
     }
 
+    pub fn copy(self: *Pixi) !void {
+        if (self.transform_texture == null) {
+            if (pixi.state.clipboard_image) |*image| {
+                image.deinit();
+            }
+
+            pixi.state.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
+        }
+    }
+
     pub fn paste(self: *Pixi) !void {
         if (pixi.state.clipboard_image) |image| {
             if (self.transform_texture) |*transform_texture| {
@@ -956,6 +966,8 @@ pub const Pixi = struct {
                     },
                 }),
             );
+
+            pixi.state.tools.set(pixi.Tools.Tool.pointer);
         }
     }
 
@@ -1512,27 +1524,31 @@ pub const Layer = struct {
     collapse: bool = false,
     id: usize = 0,
 
+    pub fn pixels(self: *Layer) [][4]u8 {
+        return @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
+    }
+
     pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {
         return pixel[0] + pixel[1] * @as(usize, @intCast(self.texture.image.width));
     }
 
     pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
         const index = self.getPixelIndex(pixel);
-        const pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
-        return pixels[index];
+        const p = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
+        return p[index];
     }
 
     pub fn setPixel(self: *Layer, pixel: [2]usize, color: [4]u8, update: bool) void {
         const index = self.getPixelIndex(pixel);
-        var pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
-        pixels[index] = color;
+        var p = self.pixels();
+        p[index] = color;
         if (update)
             self.texture.update(core.device);
     }
 
     pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8, update: bool) void {
-        var pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
-        pixels[index] = color;
+        var p = self.pixels();
+        p[index] = color;
         if (update)
             self.texture.update(core.device);
     }
@@ -1590,8 +1606,8 @@ pub const Layer = struct {
     }
 
     pub fn clear(self: *Layer, update: bool) void {
-        const pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
-        for (pixels) |*pixel| {
+        const p = self.pixels();
+        for (p) |*pixel| {
             pixel.* = .{ 0, 0, 0, 0 };
         }
         if (update)

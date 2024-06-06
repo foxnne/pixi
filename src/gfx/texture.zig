@@ -118,6 +118,7 @@ pub const Texture = struct {
     pub fn update(texture: *Texture, device: *gpu.Device) void {
         const image_size = gpu.Extent3D{ .width = texture.image.width, .height = texture.image.height };
         const queue = device.getQueue();
+        defer queue.release();
 
         const data_layout = gpu.Texture.DataLayout{
             .bytes_per_row = texture.image.width * 4,

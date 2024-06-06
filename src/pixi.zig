@@ -392,6 +392,36 @@ pub fn update(app: *App) !bool {
         core.swap_chain.present();
     }
 
+    // Accept or cancel transformations
+    {
+        for (state.open_files.items) |*file| {
+            if (file.transform_texture) |*transform_texture| {
+                if (core.keyPressed(core.Key.enter)) {
+                    // Blit temp layer to selected layer
+
+                    const write_layer = &file.layers.items[file.selected_layer_index];
+                    const read_layer = &file.temporary_layer;
+
+                    for (write_layer.pixels(), read_layer.pixels()) |*w, r| {
+                        if (r[3] != 0) {
+                            w.* = r;
+                        }
+                    }
+
+                    write_layer.texture.update(core.device);
+
+                    transform_texture.texture.deinit();
+                    file.transform_texture = null;
+                }
+
+                if (core.keyPressed(core.Key.escape)) {
+                    transform_texture.texture.deinit();
+                    file.transform_texture = null;
+                }
+            }
+        }
+    }
+
     for (state.hotkeys.hotkeys) |*hotkey| {
         hotkey.previous_state = hotkey.state;
     }
