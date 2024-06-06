@@ -184,140 +184,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
 
-        // Draw transformation texture controls
-        if (file.transform_texture) |*transform_texture| {
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.released()) {
-                    transform_texture.active_control = .none;
-                }
-            }
-
-            const mouse_position = pixi.state.mouse.position;
-            const prev_mouse_position = pixi.state.mouse.previous_position;
-            const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-                .texture_position = canvas_center_offset,
-                .position = mouse_position,
-                .width = file.width,
-                .height = file.height,
-            });
-
-            const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-                .texture_position = canvas_center_offset,
-                .position = prev_mouse_position,
-                .width = file.width,
-                .height = file.height,
-            });
-
-            const delta: [2]f32 = .{
-                current_pixel_coords[0] - previous_pixel_coords[0],
-                current_pixel_coords[1] - previous_pixel_coords[1],
-            };
-
-            switch (transform_texture.active_control) {
-                .pan => {
-                    transform_texture.position[0] += delta[0];
-                    transform_texture.position[1] += delta[1];
-                },
-                .ne_scale => {
-                    transform_texture.width += delta[0];
-                    transform_texture.height -= delta[1];
-                    transform_texture.position[1] += delta[1];
-                },
-                .se_scale => {
-                    transform_texture.width += delta[0];
-                    transform_texture.height += delta[1];
-                },
-                .sw_scale => {
-                    transform_texture.width -= delta[0];
-                    transform_texture.height += delta[1];
-                    transform_texture.position[0] += delta[0];
-                },
-                .nw_scale => {
-                    transform_texture.width -= delta[0];
-                    transform_texture.height -= delta[1];
-                    transform_texture.position[0] += delta[0];
-                    transform_texture.position[1] += delta[1];
-                },
-
-                else => {},
-            }
-
-            const width: f32 = transform_texture.width;
-            const height: f32 = transform_texture.height;
-            const position: [2]f32 = .{ canvas_center_offset[0] + transform_texture.position[0], canvas_center_offset[1] + transform_texture.position[1] };
-
-            const transform_rect: [4]f32 = .{ position[0], position[1], width, height };
-
-            if (file.camera.isHovered(transform_rect)) {
-                imgui.setMouseCursor(imgui.MouseCursor_Hand);
-
-                if (pixi.state.mouse.button(.primary)) |bt| {
-                    if (bt.pressed()) {
-                        transform_texture.active_control = .pan;
-                    }
-                }
-            }
-
-            const text_color = pixi.state.theme.text.toU32();
-            file.camera.drawRect(transform_rect, 3.0, text_color);
-
-            const grip_size: f32 = 10.0 / file.camera.zoom;
-
-            const tl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
-            const tl_color: u32 = if (file.camera.isHovered(tl_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
-            file.camera.drawRect(tl_rect, 1.0, tl_color);
-
-            if (file.camera.isHovered(tl_rect)) {
-                imgui.setMouseCursor(imgui.MouseCursor_ResizeNWSE);
-
-                if (pixi.state.mouse.button(.primary)) |bt| {
-                    if (bt.pressed()) {
-                        transform_texture.active_control = .nw_scale;
-                    }
-                }
-            }
-
-            const tr_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
-            const tr_color: u32 = if (file.camera.isHovered(tr_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
-            file.camera.drawRect(tr_rect, 1.0, tr_color);
-
-            if (file.camera.isHovered(tr_rect)) {
-                imgui.setMouseCursor(imgui.MouseCursor_ResizeNESW);
-
-                if (pixi.state.mouse.button(.primary)) |bt| {
-                    if (bt.pressed()) {
-                        transform_texture.active_control = .ne_scale;
-                    }
-                }
-            }
-
-            const br_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
-            const br_color: u32 = if (file.camera.isHovered(br_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
-            file.camera.drawRect(br_rect, 1.0, br_color);
-
-            if (file.camera.isHovered(br_rect)) {
-                imgui.setMouseCursor(imgui.MouseCursor_ResizeNWSE);
-
-                if (pixi.state.mouse.button(.primary)) |bt| {
-                    if (bt.pressed()) {
-                        transform_texture.active_control = .se_scale;
-                    }
-                }
-            }
-
-            const bl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
-            const bl_color: u32 = if (file.camera.isHovered(bl_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
-            file.camera.drawRect(bl_rect, 1.0, bl_color);
-
-            if (file.camera.isHovered(bl_rect)) {
-                imgui.setMouseCursor(imgui.MouseCursor_ResizeNESW);
-                if (pixi.state.mouse.button(.primary)) |bt| {
-                    if (bt.pressed()) {
-                        transform_texture.active_control = .sw_scale;
-                    }
-                }
-            }
-        }
+        drawTransformTextureControls(file, canvas_center_offset);
 
         if (file.heightmap.visible) {
             file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
@@ -466,5 +333,142 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 file.camera.drawAnimationRect(start_rect, end_rect, 4.0, pixi.state.theme.highlight_primary.toU32(), pixi.state.theme.text_red.toU32());
             }
         }
+    }
+}
+
+pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_center_offset: [2]f32) void {
+    // Draw transformation texture controls
+    if (file.transform_texture) |*transform_texture| {
+        if (pixi.state.mouse.button(.primary)) |bt| {
+            if (bt.released()) {
+                transform_texture.active_control = .none;
+            }
+        }
+
+        const mouse_position = pixi.state.mouse.position;
+        const prev_mouse_position = pixi.state.mouse.previous_position;
+        const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+            .texture_position = canvas_center_offset,
+            .position = mouse_position,
+            .width = file.width,
+            .height = file.height,
+        });
+
+        const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+            .texture_position = canvas_center_offset,
+            .position = prev_mouse_position,
+            .width = file.width,
+            .height = file.height,
+        });
+
+        const delta: [2]f32 = .{
+            current_pixel_coords[0] - previous_pixel_coords[0],
+            current_pixel_coords[1] - previous_pixel_coords[1],
+        };
+
+        switch (transform_texture.active_control) {
+            .pan => {
+                transform_texture.position[0] += delta[0];
+                transform_texture.position[1] += delta[1];
+            },
+            .ne_scale => {
+                transform_texture.width += delta[0];
+                transform_texture.height -= delta[1];
+                transform_texture.position[1] += delta[1];
+            },
+            .se_scale => {
+                transform_texture.width += delta[0];
+                transform_texture.height += delta[1];
+            },
+            .sw_scale => {
+                transform_texture.width -= delta[0];
+                transform_texture.height += delta[1];
+                transform_texture.position[0] += delta[0];
+            },
+            .nw_scale => {
+                transform_texture.width -= delta[0];
+                transform_texture.height -= delta[1];
+                transform_texture.position[0] += delta[0];
+                transform_texture.position[1] += delta[1];
+            },
+
+            else => {},
+        }
+
+        const width: f32 = transform_texture.width;
+        const height: f32 = transform_texture.height;
+        const position: [2]f32 = .{ canvas_center_offset[0] + transform_texture.position[0], canvas_center_offset[1] + transform_texture.position[1] };
+
+        const transform_rect: [4]f32 = .{ position[0], position[1], width, height };
+
+        if (file.camera.isHovered(transform_rect)) {
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.active_control = .pan;
+                }
+            }
+        }
+
+        const text_color = pixi.state.theme.text.toU32();
+        file.camera.drawRect(transform_rect, 3.0, text_color);
+
+        const grip_size: f32 = 10.0 / file.camera.zoom;
+
+        const tl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
+        const tl_color: u32 = if (file.camera.isHovered(tl_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
+        file.camera.drawRect(tl_rect, 1.0, tl_color);
+
+        if (file.camera.isHovered(tl_rect)) {
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.active_control = .nw_scale;
+                }
+            }
+        }
+
+        const tr_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
+        const tr_color: u32 = if (file.camera.isHovered(tr_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
+        file.camera.drawRect(tr_rect, 1.0, tr_color);
+
+        if (file.camera.isHovered(tr_rect)) {
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.active_control = .ne_scale;
+                }
+            }
+        }
+
+        const br_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
+        const br_color: u32 = if (file.camera.isHovered(br_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
+        file.camera.drawRect(br_rect, 1.0, br_color);
+
+        if (file.camera.isHovered(br_rect)) {
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.active_control = .se_scale;
+                }
+            }
+        }
+
+        const bl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
+        const bl_color: u32 = if (file.camera.isHovered(bl_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
+        file.camera.drawRect(bl_rect, 1.0, bl_color);
+
+        if (file.camera.isHovered(bl_rect)) {
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.active_control = .sw_scale;
+                }
+            }
+        }
+
+        const cursor: imgui.MouseCursor = switch (transform_texture.active_control) {
+            .pan => imgui.MouseCursor_Hand,
+            .ne_scale, .sw_scale => imgui.MouseCursor_ResizeNESW,
+            .se_scale, .nw_scale => imgui.MouseCursor_ResizeNWSE,
+            else => imgui.MouseCursor_Arrow,
+        };
+
+        imgui.setMouseCursor(cursor);
     }
 }
