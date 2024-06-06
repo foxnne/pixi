@@ -25,6 +25,9 @@ stroke_shape: Shape = .circle,
 pub fn set(self: *Self, tool: Tool) void {
     if (self.current != tool) {
         if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+            if (file.transform_texture != null)
+                return;
+
             switch (tool) {
                 .heightmap => {
                     file.heightmap.enable();
