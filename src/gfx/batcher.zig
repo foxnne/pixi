@@ -24,7 +24,8 @@ pub const Batcher = struct {
         bind_group_handle: *core.gpu.BindGroup,
         // If output handle is null, render to the back buffer
         // otherwise, render to offscreen texture view handle
-        output_handle: ?*core.gpu.TextureView = null,
+        //output_handle: ?*core.gpu.TextureView = null,
+        output_texture: ?*gfx.Texture = null,
         clear_color: core.gpu.Color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
     };
 
@@ -295,7 +296,8 @@ pub const Batcher = struct {
         return self.append(quad);
     }
 
-    pub fn end(self: *Batcher, uniforms: anytype, buffer: *core.gpu.Buffer) !void {
+    pub fn end(self: *Batcher, uniforms: anytype, buffer: *core.gpu.Buffer, output_buffer: *core.gpu.Buffer) !void {
+        _ = output_buffer; // autofix
         const UniformsType = @TypeOf(uniforms);
         const uniforms_type_info = @typeInfo(UniformsType);
         if (uniforms_type_info != .Struct) {
@@ -317,7 +319,7 @@ pub const Batcher = struct {
             defer back_buffer_view.release();
 
             const color_attachments = [_]core.gpu.RenderPassColorAttachment{.{
-                .view = if (self.context.output_handle) |out_handle| out_handle else back_buffer_view,
+                .view = if (self.context.output_texture) |out_texture| out_texture.view_handle else back_buffer_view,
                 .load_op = .clear,
                 .store_op = .store,
                 .clear_value = self.context.clear_color,
@@ -351,6 +353,22 @@ pub const Batcher = struct {
 
             // Draw only the quads appended this cycle
             pass.drawIndexed(@as(u32, @intCast(quad_count * 6)), 1, @as(u32, @intCast(self.start_count * 6)), 0, 0);
+
+            // if (self.context.output_texture) |output_texture| {
+            //     encoder.copyTextureToBuffer(&.{ .texture = output_texture.handle }, &.{ .buffer = output_buffer, .layout = .{
+            //         .bytes_per_row = @sizeOf([4]u8) * output_texture.image.width,
+            //         .rows_per_image = output_texture.image.height,
+            //     } }, &.{
+            //         .width = output_texture.image.width,
+            //         .height = output_texture.image.height,
+            //     });
+
+            //     const context: CallbackContext = .{ .batcher = self, .buffer = output_buffer };
+
+            //     output_buffer.mapAsync(.{ .read = true }, 0, output_buffer.getSize(), context, callback);
+
+            //     //encoder.copyTextureToTexture(&.{ .texture = output_texture.handle }, &.{ .texture = output_texture.handle }, &.{ .width = output_texture.image.width, .height = output_texture.image.height });
+            // }
         }
     }
 
@@ -381,3 +399,24 @@ pub const Batcher = struct {
         self.allocator.free(self.indices);
     }
 };
+
+pub const CallbackContext = struct {
+    batcher: *Batcher,
+    buffer: *core.gpu.Buffer,
+};
+
+pub inline fn callback(ctx: CallbackContext, status: core.gpu.Buffer.MapAsyncStatus) void {
+    switch (status) {
+        .success => {
+            const batcher = ctx.batcher;
+
+            if (batcher.context.output_texture) |texture| {
+                _ = texture; // autofix
+
+            }
+        },
+        else => {},
+    }
+
+    ctx.buffer.unmap();
+}

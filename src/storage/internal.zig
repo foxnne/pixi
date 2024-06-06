@@ -35,6 +35,7 @@ pub const Pixi = struct {
     temporary_layer: Layer,
     transform_texture: ?TransformTexture = null,
     transform_bindgroup: ?*gpu.BindGroup = null,
+    transform_buffer: ?*gpu.Buffer = null,
     heightmap: Heightmap = .{},
     history: History,
     buffers: Buffers,
@@ -966,6 +967,12 @@ pub const Pixi = struct {
                     },
                 }),
             );
+
+            self.transform_buffer = core.device.createBuffer(&.{
+                .usage = .{ .copy_dst = true, .map_read = true },
+                .size = @sizeOf([4]u8) * (self.width * self.height),
+                .mapped_at_creation = .false,
+            });
 
             pixi.state.tools.set(pixi.Tools.Tool.pointer);
         }
