@@ -21,9 +21,9 @@ pub const Batcher = struct {
     /// Contains instructions on pipeline and binding for the current batch
     pub const Context = struct {
         pipeline_handle: *core.gpu.RenderPipeline,
-        compute_pipeline_handle: *core.gpu.ComputePipeline,
+        //compute_pipeline_handle: *core.gpu.ComputePipeline,
         bind_group_handle: *core.gpu.BindGroup,
-        compute_bind_group_handle: *core.gpu.BindGroup,
+        //compute_bind_group_handle: *core.gpu.BindGroup,
         // If output handle is null, render to the back buffer
         // otherwise, render to offscreen texture view handle
         //output_handle: ?*core.gpu.TextureView = null,
@@ -354,20 +354,20 @@ pub const Batcher = struct {
             pass.drawIndexed(@as(u32, @intCast(quad_count * 6)), 1, @as(u32, @intCast(self.start_count * 6)), 0, 0);
         }
 
-        pass_blk: {
-            const encoder = self.encoder orelse break :pass_blk;
-            { // Compute pass for blur shader to blur bloom texture
-                const compute_pass = encoder.beginComputePass(null);
-                defer {
-                    compute_pass.end();
-                    compute_pass.release();
-                }
-                compute_pass.setPipeline(self.context.compute_pipeline_handle);
-                compute_pass.setBindGroup(0, self.context.compute_bind_group_handle, &.{});
+        // pass_blk: {
+        //     const encoder = self.encoder orelse break :pass_blk;
+        //     { // Compute pass for blur shader to blur bloom texture
+        //         const compute_pass = encoder.beginComputePass(null);
+        //         defer {
+        //             compute_pass.end();
+        //             compute_pass.release();
+        //         }
+        //         compute_pass.setPipeline(self.context.compute_pipeline_handle);
+        //         compute_pass.setBindGroup(0, self.context.compute_bind_group_handle, &.{});
 
-                compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
-            }
-        }
+        //         compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
+        //     }
+        // }
     }
 
     pub fn finish(self: *Batcher) !*core.gpu.CommandBuffer {

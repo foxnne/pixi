@@ -934,9 +934,9 @@ pub const Pixi = struct {
                 bindgroup.release();
             }
 
-            if (self.compute_buffer) |buffer| {
-                buffer.release();
-            }
+            // if (self.compute_buffer) |buffer| {
+            //     buffer.release();
+            // }
 
             const image_copy: zstbi.Image = try zstbi.Image.createEmpty(
                 image.width,
@@ -973,27 +973,27 @@ pub const Pixi = struct {
                 }),
             );
 
-            self.compute_buffer = core.device.createBuffer(&.{
-                .usage = .{ .copy_dst = true, .map_read = true },
-                .size = @sizeOf([4]f32) * (self.width * self.height),
-                .mapped_at_creation = .false,
-            });
+            // self.compute_buffer = core.device.createBuffer(&.{
+            //     .usage = .{ .copy_dst = true, .map_read = true },
+            //     .size = @sizeOf([4]f32) * (self.width * self.height),
+            //     .mapped_at_creation = .false,
+            // });
 
-            const compute_layout_default = pixi.state.pipeline_compute.getBindGroupLayout(0);
-            defer compute_layout_default.release();
+            // const compute_layout_default = pixi.state.pipeline_compute.getBindGroupLayout(0);
+            // defer compute_layout_default.release();
 
-            self.compute_bindgroup = core.device.createBindGroup(
-                &core.gpu.BindGroup.Descriptor.init(.{
-                    .layout = compute_layout_default,
-                    .entries = &.{
-                        if (pixi.build_options.use_sysgpu)
-                            core.gpu.BindGroup.Entry.buffer(0, self.compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height), 0)
-                        else
-                            core.gpu.BindGroup.Entry.buffer(0, self.compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height)),
-                        core.gpu.BindGroup.Entry.textureView(1, self.temporary_layer.texture.view_handle),
-                    },
-                }),
-            );
+            // self.compute_bindgroup = core.device.createBindGroup(
+            //     &core.gpu.BindGroup.Descriptor.init(.{
+            //         .layout = compute_layout_default,
+            //         .entries = &.{
+            //             if (pixi.build_options.use_sysgpu)
+            //                 core.gpu.BindGroup.Entry.buffer(0, self.compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height), 0)
+            //             else
+            //                 core.gpu.BindGroup.Entry.buffer(0, self.compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height)),
+            //             core.gpu.BindGroup.Entry.textureView(1, self.temporary_layer.texture.view_handle),
+            //         },
+            //     }),
+            // );
 
             pixi.state.tools.set(pixi.Tools.Tool.pointer);
         }
