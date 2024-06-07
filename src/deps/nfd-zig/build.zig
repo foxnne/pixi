@@ -18,19 +18,19 @@ pub fn makeLib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: builti
     // });
 
     const nfd_mod = b.addModule("nfd", .{
-        .root_source_file = .{ .path = sdkPath("/src/lib.zig") },
+        .root_source_file = .{ .cwd_relative = sdkPath("/src/lib.zig") },
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
 
     const cflags = [_][]const u8{"-Wall"};
-    nfd_mod.addIncludePath(.{ .path = sdkPath("/nativefiledialog/src/include") });
-    nfd_mod.addCSourceFile(.{ .file = .{ .path = sdkPath("/nativefiledialog/src/nfd_common.c") }, .flags = &cflags });
+    nfd_mod.addIncludePath(.{ .cwd_relative = sdkPath("/nativefiledialog/src/include") });
+    nfd_mod.addCSourceFile(.{ .file = .{ .cwd_relative = sdkPath("/nativefiledialog/src/nfd_common.c") }, .flags = &cflags });
     switch (target.result.os.tag) {
-        .macos => nfd_mod.addCSourceFile(.{ .file = .{ .path = sdkPath("/nativefiledialog/src/nfd_cocoa.m") }, .flags = &cflags }),
-        .windows => nfd_mod.addCSourceFile(.{ .file = .{ .path = sdkPath("/nativefiledialog/src/nfd_win.cpp") }, .flags = &cflags }),
-        .linux => nfd_mod.addCSourceFile(.{ .file = .{ .path = sdkPath("/nativefiledialog/src/nfd_gtk.c") }, .flags = &cflags }),
+        .macos => nfd_mod.addCSourceFile(.{ .file = .{ .cwd_relative = sdkPath("/nativefiledialog/src/nfd_cocoa.m") }, .flags = &cflags }),
+        .windows => nfd_mod.addCSourceFile(.{ .file = .{ .cwd_relative = sdkPath("/nativefiledialog/src/nfd_win.cpp") }, .flags = &cflags }),
+        .linux => nfd_mod.addCSourceFile(.{ .file = .{ .cwd_relative = sdkPath("/nativefiledialog/src/nfd_gtk.c") }, .flags = &cflags }),
         else => @panic("unsupported OS"),
     }
 
@@ -55,7 +55,7 @@ pub fn makeLib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: builti
 }
 
 pub fn getModule(b: *std.Build) *std.Build.Module {
-    return b.createModule(.{ .root_source_file = .{ .path = sdkPath("/src/lib.zig") } });
+    return b.createModule(.{ .root_source_file = .{ .cwd_relative = sdkPath("/src/lib.zig") } });
 }
 
 pub fn build(b: *std.Build) void {

@@ -9,20 +9,20 @@
     .version = "0.0.1",
     .dependencies = .{
         .mach = .{
-            .url = "https://pkg.machengine.org/mach/279290bbf2f1adab0af00323280a07d6bfff47a5.tar.gz",
-            .hash = "1220ba5472217ef81455b19d540967049bbfaf768b30d04534865707e907ee1c4aec",
+            .url = "https://pkg.machengine.org/mach/b72f0e11b6d292c2b60789359a61f7ee6d7dc371.tar.gz",
+            .hash = "122015e1dac4afaf275f7f2adde3814e6a27f5799cbef96bb487ee305f7e33f4dca3",
         },
         .zig_imgui = .{
-            .url = "https://github.com/foxnne/zig-imgui/archive/64d9179d275a04051ac9c688470578265f2f6734.tar.gz",
-            .hash = "1220d2e9b74878399872ad1a77b8f20c8dcf3ae07e345e3ef4f8d5a45ce8a23eaba3",
+            .url = "https://github.com/foxnne/zig-imgui/archive/0fe4067e3c54aee08d808fa74270e10583d5f5bf.tar.gz",
+            .hash = "1220ed45ce2392c0828927f51f5ebd204d49e1f58c4d8f964bc9bcc41a30f0d4f54a",
         },
         .zstbi = .{
-            .url = "https://github.com/foxnne/zstbi/archive/a1c98da23c4be769100fc441a9cc070e73313a99.tar.gz",
-            .hash = "1220fb738b701190120ebb3808a2787f8875a7b1866b75744e974288e2072e0a4553",
+            .url = "https://github.com/foxnne/zstbi/archive/d9a0947365b1ee8131fcf518feac8dfe896cfcfa.tar.gz",
+            .hash = "1220ce381d38f9ce6db428405b7884d139cab8173d3bf7d950582991d941c868423a",
         },
         .zmath = .{
-            .url = "https://github.com/foxnne/zmath/archive/ecfdbf57c6fd0a8ac8a9bf01dafe1e5adae869ae.tar.gz",
-            .hash = "1220a105762825631ef4dfd4730109120600bba51368f1207fc63b7536333c5748c3",
+            .url = "https://github.com/foxnne/zmath/archive/fbaa671892f8562742356a6d6135a209b4ad05a0.tar.gz",
+            .hash = "1220a0e58646047a1322c89b4ff29829623290a6875d363cd35b377757c66510132c",
         },
     },
 }

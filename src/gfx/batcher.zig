@@ -3,14 +3,15 @@ const pixi = @import("../pixi.zig");
 const gfx = pixi.gfx;
 const zmath = @import("zmath");
 const core = @import("mach").core;
+const gpu = @import("mach").gpu;
 
 pub const Batcher = struct {
     allocator: std.mem.Allocator,
-    encoder: ?*core.gpu.CommandEncoder = null,
+    encoder: ?*gpu.CommandEncoder = null,
     vertices: []gfx.Vertex,
-    vertex_buffer_handle: *core.gpu.Buffer,
+    vertex_buffer_handle: *gpu.Buffer,
     indices: []u32,
-    index_buffer_handle: *core.gpu.Buffer,
+    index_buffer_handle: *gpu.Buffer,
     context: Context = undefined,
     vert_index: usize = 0,
     quad_count: usize = 0,
@@ -20,15 +21,15 @@ pub const Batcher = struct {
 
     /// Contains instructions on pipeline and binding for the current batch
     pub const Context = struct {
-        pipeline_handle: *core.gpu.RenderPipeline,
-        //compute_pipeline_handle: *core.gpu.ComputePipeline,
-        bind_group_handle: *core.gpu.BindGroup,
-        //compute_bind_group_handle: *core.gpu.BindGroup,
+        pipeline_handle: *gpu.RenderPipeline,
+        //compute_pipeline_handle: *gpu.ComputePipeline,
+        bind_group_handle: *gpu.BindGroup,
+        //compute_bind_group_handle: *gpu.BindGroup,
         // If output handle is null, render to the back buffer
         // otherwise, render to offscreen texture view handle
-        //output_handle: ?*core.gpu.TextureView = null,
+        //output_handle: ?*gpu.TextureView = null,
         output_texture: ?*gfx.Texture = null,
-        clear_color: core.gpu.Color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
+        clear_color: gpu.Color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
     };
 
     /// Describes the current state of the Batcher
@@ -298,7 +299,7 @@ pub const Batcher = struct {
         return self.append(quad);
     }
 
-    pub fn end(self: *Batcher, uniforms: anytype, buffer: *core.gpu.Buffer) !void {
+    pub fn end(self: *Batcher, uniforms: anytype, buffer: *gpu.Buffer) !void {
         const UniformsType = @TypeOf(uniforms);
         const uniforms_type_info = @typeInfo(UniformsType);
         if (uniforms_type_info != .Struct) {
@@ -319,21 +320,21 @@ pub const Batcher = struct {
             const back_buffer_view = core.swap_chain.getCurrentTextureView() orelse break :pass_blk;
             defer back_buffer_view.release();
 
-            const color_attachments = [_]core.gpu.RenderPassColorAttachment{.{
+            const color_attachments = [_]gpu.RenderPassColorAttachment{.{
                 .view = if (self.context.output_texture) |out_texture| out_texture.view_handle else back_buffer_view,
                 .load_op = .clear,
                 .store_op = .store,
                 .clear_value = self.context.clear_color,
             }};
 
-            const render_pass_info = core.gpu.RenderPassDescriptor{
+            const render_pass_info = gpu.RenderPassDescriptor{
                 .color_attachment_count = color_attachments.len,
                 .color_attachments = &color_attachments,
             };
 
             encoder.writeBuffer(buffer, 0, &[_]UniformsType{uniforms});
 
-            const pass: *core.gpu.RenderPassEncoder = encoder.beginRenderPass(&render_pass_info);
+            const pass: *gpu.RenderPassEncoder = encoder.beginRenderPass(&render_pass_info);
             defer {
                 pass.end();
                 pass.release();
@@ -370,7 +371,7 @@ pub const Batcher = struct {
         // }
     }
 
-    pub fn finish(self: *Batcher) !*core.gpu.CommandBuffer {
+    pub fn finish(self: *Batcher) !*gpu.CommandBuffer {
         if (self.encoder) |encoder| {
             self.empty = true;
             // Write the current vertex and index buffers to the queue.
@@ -400,10 +401,10 @@ pub const Batcher = struct {
 
 pub const CallbackContext = struct {
     batcher: *Batcher,
-    buffer: *core.gpu.Buffer,
+    buffer: *gpu.Buffer,
 };
 
-pub inline fn callback(ctx: CallbackContext, status: core.gpu.Buffer.MapAsyncStatus) void {
+pub inline fn callback(ctx: CallbackContext, status: gpu.Buffer.MapAsyncStatus) void {
     switch (status) {
         .success => {
             const batcher = ctx.batcher;

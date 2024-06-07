@@ -9,16 +9,16 @@ pub const Package = struct {
 
 pub fn package(b: *std.Build, _: struct {}) Package {
     const module = b.createModule(.{
-        .root_source_file = .{ .path = thisDir() ++ "/zip.zig" },
+        .root_source_file = .{ .cwd_relative = thisDir() ++ "/zip.zig" },
     });
     return .{ .module = module };
 }
 
 pub fn link(exe: *std.Build.Step.Compile) void {
     exe.linkLibC();
-    exe.addIncludePath(.{ .path = thisDir() ++ "/src" });
+    exe.addIncludePath(.{ .cwd_relative = thisDir() ++ "/src" });
     const c_flags = [_][]const u8{"-fno-sanitize=undefined"};
-    exe.addCSourceFile(.{ .file = .{ .path = thisDir() ++ "/src/zip.c" }, .flags = &c_flags });
+    exe.addCSourceFile(.{ .file = .{ .cwd_relative = thisDir() ++ "/src/zip.c" }, .flags = &c_flags });
 }
 
 inline fn thisDir() []const u8 {
