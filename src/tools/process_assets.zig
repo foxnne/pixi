@@ -24,9 +24,9 @@ pub const ProcessAssetsStep = struct {
         return self;
     }
 
-    fn process(step: *Step, prog_node: *std.Progress.Node) anyerror!void {
+    fn process(step: *Step, prog_node: std.Progress.Node) anyerror!void {
         _ = prog_node.start("Processing assets...", 100);
-        const self = @fieldParentPtr(ProcessAssetsStep, "step", step);
+        const self = @as(*ProcessAssetsStep, @fieldParentPtr("step", step));
         const root = self.assets_root_path;
         const assets_output = self.assets_output_path;
         const animations_output = self.animations_output_path;
@@ -128,12 +128,18 @@ pub const ProcessAssetsStep = struct {
                                 try animations_writer.print("}};\n", .{});
                             }
 
-                            try std.fs.cwd().writeFile(animations_output, animations_array_list.items);
+                            try std.fs.cwd().writeFile(.{
+                                .sub_path = animations_output,
+                                .data = animations_array_list.items,
+                            });
                         }
                     }
                 }
 
-                try std.fs.cwd().writeFile(assets_output, assets_array_list.items);
+                try std.fs.cwd().writeFile(.{
+                    .sub_path = assets_output,
+                    .data = assets_array_list.items,
+                });
             } else {
                 std.debug.print("No assets found!", .{});
             }

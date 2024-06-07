@@ -69,7 +69,7 @@ pub fn build(b: *std.Build) !void {
     run_step.dependOn(&app.run.step);
 
     const unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = src_path },
+        .root_source_file = b.path(src_path),
         .target = target,
         .optimize = optimize,
     });
@@ -108,7 +108,7 @@ pub fn build(b: *std.Build) !void {
     app.compile.step.dependOn(process_assets_step);
 
     const install_content_step = b.addInstallDirectory(.{
-        .source_dir = .{ .path = thisDir() ++ "/" ++ content_dir },
+        .source_dir = .{ .cwd_relative = thisDir() ++ "/" ++ content_dir },
         .install_dir = .{ .custom = "" },
         .install_subdir = "bin/" ++ content_dir,
     });
