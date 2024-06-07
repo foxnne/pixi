@@ -1,8 +1,9 @@
 const std = @import("std");
 pub const build_options = @import("build-options");
 
-const core = @import("mach").core;
-const gpu = core.gpu;
+const mach = @import("mach");
+const core = mach.core;
+const gpu = mach.gpu;
 
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
@@ -13,10 +14,7 @@ const imgui_mach = imgui.backends.mach;
 
 pub const App = @This();
 
-pub const mach_core_options = core.ComptimeOptions{
-    .use_wgpu = !build_options.use_sysgpu,
-    .use_sysgpu = build_options.use_sysgpu,
-};
+pub const use_sysgpu = build_options.use_sysgpu;
 
 timer: core.Timer,
 

@@ -79,7 +79,7 @@ pub const Quad = struct {
             var position = zm.loadArr3(vert.position);
             const offset = zm.f32x4(pos_x, pos_y, 0, 0);
 
-            const radians = std.math.degreesToRadians(f32, rotation);
+            const radians = std.math.degreesToRadians(rotation);
 
             const translation_matrix = zm.translation(origin_x, origin_y, 0);
             const rotation_matrix = zm.rotationZ(radians);

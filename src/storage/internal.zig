@@ -3,9 +3,10 @@ const pixi = @import("../pixi.zig");
 const zstbi = @import("zstbi");
 const storage = @import("storage.zig");
 const zip = @import("zip");
-const core = @import("mach").core;
+const mach = @import("mach");
 const imgui = @import("zig-imgui");
-const gpu = core.gpu;
+const core = mach.core;
+const gpu = mach.gpu;
 
 const external = @import("external.zig");
 
@@ -960,15 +961,15 @@ pub const Pixi = struct {
             defer pipeline_layout_default.release();
 
             self.transform_bindgroup = core.device.createBindGroup(
-                &core.gpu.BindGroup.Descriptor.init(.{
+                &gpu.BindGroup.Descriptor.init(.{
                     .layout = pipeline_layout_default,
                     .entries = &.{
                         if (pixi.build_options.use_sysgpu)
-                            core.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
+                            gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
                         else
-                            core.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
-                        core.gpu.BindGroup.Entry.textureView(1, self.transform_texture.?.texture.view_handle),
-                        core.gpu.BindGroup.Entry.sampler(2, self.transform_texture.?.texture.sampler_handle),
+                            gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
+                        gpu.BindGroup.Entry.textureView(1, self.transform_texture.?.texture.view_handle),
+                        gpu.BindGroup.Entry.sampler(2, self.transform_texture.?.texture.sampler_handle),
                     },
                 }),
             );
