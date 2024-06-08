@@ -373,7 +373,20 @@ pub const Camera = struct {
 
     pub fn isContained(camera: Camera, rect: [4]f32, position: [2]f32) bool {
         const rect_min_max = camera.getRectMinMax(rect);
-        return (position[0] > rect_min_max[0][0] and position[0] < rect_min_max[1][0] and position[1] < rect_min_max[1][1] and position[1] > rect_min_max[0][1]);
+
+        const min: [2]f32 = rect_min_max[0];
+        const max: [2]f32 = rect_min_max[1];
+        const rect_min_max_fixed: [2][2]f32 = .{
+            .{ //min
+                if (min[0] > max[0]) max[0] else min[0],
+                if (min[1] > max[1]) max[1] else min[1],
+            },
+            .{ //max
+                if (min[0] > max[0]) min[0] else max[0],
+                if (min[1] > max[1]) min[1] else max[1],
+            },
+        };
+        return (position[0] > rect_min_max_fixed[0][0] and position[0] < rect_min_max_fixed[1][0] and position[1] < rect_min_max_fixed[1][1] and position[1] > rect_min_max_fixed[0][1]);
     }
 
     pub fn getRectMinMax(camera: Camera, rect: [4]f32) [2][2]f32 {

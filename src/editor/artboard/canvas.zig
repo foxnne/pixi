@@ -416,7 +416,10 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
 
         const transform_rect: [4]f32 = .{ position[0], position[1], width, height };
 
+        var hovered_control: pixi.storage.Internal.Pixi.TransformControl = .none;
+
         if (file.camera.isHovered(transform_rect)) {
+            hovered_control = .pan;
             if (pixi.state.mouse.button(.primary)) |bt| {
                 if (bt.pressed()) {
                     transform_texture.active_control = .pan;
@@ -434,6 +437,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         file.camera.drawRect(tl_rect, 1.0, tl_color);
 
         if (file.camera.isHovered(tl_rect)) {
+            hovered_control = .nw_scale;
             if (pixi.state.mouse.button(.primary)) |bt| {
                 if (bt.pressed()) {
                     transform_texture.active_control = .nw_scale;
@@ -446,6 +450,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         file.camera.drawRect(tr_rect, 1.0, tr_color);
 
         if (file.camera.isHovered(tr_rect)) {
+            hovered_control = .ne_scale;
             if (pixi.state.mouse.button(.primary)) |bt| {
                 if (bt.pressed()) {
                     transform_texture.active_control = .ne_scale;
@@ -458,6 +463,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         file.camera.drawRect(br_rect, 1.0, br_color);
 
         if (file.camera.isHovered(br_rect)) {
+            hovered_control = .se_scale;
             if (pixi.state.mouse.button(.primary)) |bt| {
                 if (bt.pressed()) {
                     transform_texture.active_control = .se_scale;
@@ -470,6 +476,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         file.camera.drawRect(bl_rect, 1.0, bl_color);
 
         if (file.camera.isHovered(bl_rect)) {
+            hovered_control = .sw_scale;
             if (pixi.state.mouse.button(.primary)) |bt| {
                 if (bt.pressed()) {
                     transform_texture.active_control = .sw_scale;
@@ -477,7 +484,12 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
             }
         }
 
-        const cursor: imgui.MouseCursor = switch (transform_texture.active_control) {
+        const cursor: imgui.MouseCursor = if (transform_texture.active_control != .none) switch (transform_texture.active_control) {
+            .pan => imgui.MouseCursor_Hand,
+            .ne_scale, .sw_scale => imgui.MouseCursor_ResizeNESW,
+            .se_scale, .nw_scale => imgui.MouseCursor_ResizeNWSE,
+            else => imgui.MouseCursor_Arrow,
+        } else switch (hovered_control) {
             .pan => imgui.MouseCursor_Hand,
             .ne_scale, .sw_scale => imgui.MouseCursor_ResizeNESW,
             .se_scale, .nw_scale => imgui.MouseCursor_ResizeNWSE,
