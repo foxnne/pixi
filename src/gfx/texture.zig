@@ -47,6 +47,7 @@ pub const Texture = struct {
             .usage = .{
                 .texture_binding = true,
                 .copy_dst = true,
+                .copy_src = true,
                 .render_attachment = true,
                 .storage_binding = options.storage_binding,
             },

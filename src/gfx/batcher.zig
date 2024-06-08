@@ -22,9 +22,12 @@ pub const Batcher = struct {
     /// Contains instructions on pipeline and binding for the current batch
     pub const Context = struct {
         pipeline_handle: *gpu.RenderPipeline,
-        //compute_pipeline_handle: *gpu.ComputePipeline,
+        compute_pipeline_handle: *gpu.ComputePipeline,
         bind_group_handle: *gpu.BindGroup,
-        //compute_bind_group_handle: *gpu.BindGroup,
+        compute_bind_group_handle: *gpu.BindGroup,
+        compute_buffer: *gpu.Buffer,
+        staging_buffer: *gpu.Buffer,
+        buffer_size: usize,
         // If output handle is null, render to the back buffer
         // otherwise, render to offscreen texture view handle
         //output_handle: ?*gpu.TextureView = null,
@@ -299,7 +302,7 @@ pub const Batcher = struct {
         return self.append(quad);
     }
 
-    pub fn end(self: *Batcher, uniforms: anytype, buffer: *gpu.Buffer) !void {
+    pub fn end(self: *Batcher, uniforms: anytype, uniform_buffer: *gpu.Buffer) !void {
         const UniformsType = @TypeOf(uniforms);
         const uniforms_type_info = @typeInfo(UniformsType);
         if (uniforms_type_info != .Struct) {
@@ -332,7 +335,7 @@ pub const Batcher = struct {
                 .color_attachments = &color_attachments,
             };
 
-            encoder.writeBuffer(buffer, 0, &[_]UniformsType{uniforms});
+            encoder.writeBuffer(uniform_buffer, 0, &[_]UniformsType{uniforms});
 
             const pass: *gpu.RenderPassEncoder = encoder.beginRenderPass(&render_pass_info);
             defer {
@@ -355,20 +358,42 @@ pub const Batcher = struct {
             pass.drawIndexed(@as(u32, @intCast(quad_count * 6)), 1, @as(u32, @intCast(self.start_count * 6)), 0, 0);
         }
 
-        // pass_blk: {
-        //     const encoder = self.encoder orelse break :pass_blk;
-        //     { // Compute pass for blur shader to blur bloom texture
-        //         const compute_pass = encoder.beginComputePass(null);
-        //         defer {
-        //             compute_pass.end();
-        //             compute_pass.release();
-        //         }
-        //         compute_pass.setPipeline(self.context.compute_pipeline_handle);
-        //         compute_pass.setBindGroup(0, self.context.compute_bind_group_handle, &.{});
+        pass_blk: {
+            const encoder = self.encoder orelse break :pass_blk;
+            { // Compute pass for blur shader to blur bloom texture
+                const compute_pass = encoder.beginComputePass(null);
+                defer {
+                    compute_pass.end();
+                    compute_pass.release();
+                }
+                compute_pass.setPipeline(self.context.compute_pipeline_handle);
+                compute_pass.setBindGroup(0, self.context.compute_bind_group_handle, &.{});
 
-        //         compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
-        //     }
-        // }
+                compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
+            }
+
+            encoder.copyBufferToBuffer(self.context.compute_buffer, 0, self.context.staging_buffer, 0, self.context.buffer_size);
+
+            // TODO: The below method is not implemented in sysgpu yet. In the meantime, we are using a compute shader to copy the
+            // TODO: data to the staging buffer. If this gets implemented, we can skip the compute shader and use this.
+
+            // encoder.copyTextureToBuffer(
+            //     &.{
+            //         .texture = self.context.output_texture.?.handle,
+            //     },
+            //     &.{
+            //         .buffer = self.context.staging_buffer,
+            //         .layout = .{
+            //             .bytes_per_row = @sizeOf([4]u8) * self.context.output_texture.?.image.width,
+            //             .rows_per_image = self.context.output_texture.?.image.height,
+            //         },
+            //     },
+            //     &.{
+            //         .width = self.context.output_texture.?.image.width,
+            //         .height = self.context.output_texture.?.image.height,
+            //     },
+            // );
+        }
     }
 
     pub fn finish(self: *Batcher) !*gpu.CommandBuffer {
@@ -398,24 +423,3 @@ pub const Batcher = struct {
         self.allocator.free(self.indices);
     }
 };
-
-pub const CallbackContext = struct {
-    batcher: *Batcher,
-    buffer: *gpu.Buffer,
-};
-
-pub inline fn callback(ctx: CallbackContext, status: gpu.Buffer.MapAsyncStatus) void {
-    switch (status) {
-        .success => {
-            const batcher = ctx.batcher;
-
-            if (batcher.context.output_texture) |texture| {
-                _ = texture; // autofix
-
-            }
-        },
-        else => {},
-    }
-
-    ctx.buffer.unmap();
-}

@@ -439,6 +439,9 @@ pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
     if (file.compute_buffer) |buffer| {
         buffer.release();
     }
+    if (file.staging_buffer) |buffer| {
+        buffer.release();
+    }
     for (file.deleted_heightmap_layers.items) |*layer| {
         layer.texture.deinit();
         pixi.state.allocator.free(layer.name);

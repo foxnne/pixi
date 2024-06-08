@@ -121,56 +121,65 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     {
         if (file.transform_texture) |*transform_texture| {
             if (file.transform_bindgroup) |transform_bindgroup| {
-                //if (file.compute_bindgroup) |compute_bindgroup| {
-                const width: f32 = @floatFromInt(file.width);
-                const height: f32 = @floatFromInt(file.height);
+                if (file.compute_bindgroup) |compute_bindgroup| {
+                    if (file.compute_buffer) |compute_buffer| {
+                        if (file.staging_buffer) |staging_buffer| {
+                            const width: f32 = @floatFromInt(file.width);
+                            const height: f32 = @floatFromInt(file.height);
 
-                const origin: [2]f32 = switch (transform_texture.active_control) {
-                    .ne_scale => .{ 0.0, -height },
-                    .se_scale => .{ 0.0, 0.0 },
-                    .sw_scale => .{ width, 0.0 },
-                    .nw_scale => .{ width, -height },
-                    else => .{ width / 2.0, -height / 2.0 },
-                };
+                            const buffer_size: usize = @as(usize, @intCast(file.width * file.height * @sizeOf([4]f32)));
 
-                const texture_height: f32 = transform_texture.height;
+                            const origin: [2]f32 = switch (transform_texture.active_control) {
+                                .ne_scale => .{ 0.0, -height },
+                                .se_scale => .{ 0.0, 0.0 },
+                                .sw_scale => .{ width, 0.0 },
+                                .nw_scale => .{ width, -height },
+                                else => .{ width / 2.0, -height / 2.0 },
+                            };
 
-                const position = zmath.f32x4(
-                    @trunc(transform_texture.position[0] + canvas_center_offset[0]),
-                    @trunc(-transform_texture.position[1] - (canvas_center_offset[1] + texture_height)),
-                    0.0,
-                    0.0,
-                );
+                            const texture_height: f32 = transform_texture.height;
 
-                const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
-                    zmath.orthographicLh(width, height, -100, 100),
-                ) };
+                            const position = zmath.f32x4(
+                                @trunc(transform_texture.position[0] + canvas_center_offset[0]),
+                                @trunc(-transform_texture.position[1] - (canvas_center_offset[1] + texture_height)),
+                                0.0,
+                                0.0,
+                            );
 
-                pixi.state.batcher.begin(.{
-                    .pipeline_handle = pixi.state.pipeline_default,
-                    //.compute_pipeline_handle = pixi.state.pipeline_compute,
-                    .bind_group_handle = transform_bindgroup,
-                    //.compute_bind_group_handle = compute_bindgroup,
-                    .output_texture = &file.temporary_layer.texture,
-                    .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
-                }) catch unreachable;
+                            const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
+                                zmath.orthographicLh(width, height, -100, 100),
+                            ) };
 
-                pixi.state.batcher.texture(
-                    position,
-                    &transform_texture.texture,
-                    .{
-                        .width = transform_texture.width,
-                        .height = transform_texture.height,
-                        .rotation = transform_texture.rotation,
-                        .origin = origin,
-                    },
-                ) catch unreachable;
+                            pixi.state.batcher.begin(.{
+                                .pipeline_handle = pixi.state.pipeline_default,
+                                .compute_pipeline_handle = pixi.state.pipeline_compute,
+                                .bind_group_handle = transform_bindgroup,
+                                .compute_bind_group_handle = compute_bindgroup,
+                                .output_texture = &file.temporary_layer.texture,
+                                .compute_buffer = compute_buffer,
+                                .staging_buffer = staging_buffer,
+                                .buffer_size = buffer_size,
+                                .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+                            }) catch unreachable;
 
-                pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
+                            pixi.state.batcher.texture(
+                                position,
+                                &transform_texture.texture,
+                                .{
+                                    .width = transform_texture.width,
+                                    .height = transform_texture.height,
+                                    .rotation = transform_texture.rotation,
+                                    .origin = origin,
+                                },
+                            ) catch unreachable;
+
+                            pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
+                        }
+                    }
+                }
             }
         }
     }
-    //}
 
     // Draw all layers in reverse order
     {

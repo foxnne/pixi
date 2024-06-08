@@ -398,16 +398,46 @@ pub fn update(app: *App) !bool {
                 if (core.keyPressed(core.Key.enter)) {
                     // Blit temp layer to selected layer
 
-                    const write_layer = &file.layers.items[file.selected_layer_index];
-                    const read_layer = &file.temporary_layer;
+                    if (file.staging_buffer) |staging_buffer| {
+                        const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
 
-                    for (write_layer.pixels(), read_layer.pixels()) |*w, r| {
-                        if (r[3] != 0) {
-                            w.* = r;
+                        var response: gpu.Buffer.MapAsyncStatus = undefined;
+                        const callback = (struct {
+                            pub inline fn callback(ctx: *gpu.Buffer.MapAsyncStatus, status: gpu.Buffer.MapAsyncStatus) void {
+                                ctx.* = status;
+                            }
+                        }).callback;
+
+                        staging_buffer.mapAsync(.{ .read = true }, 0, buffer_size * @sizeOf([4]f32), &response, callback);
+                        while (true) {
+                            if (response == gpu.Buffer.MapAsyncStatus.success) {
+                                break;
+                            } else {
+                                mach.core.device.tick();
+                            }
                         }
-                    }
 
-                    write_layer.texture.update(core.device);
+                        const write_layer = &file.layers.items[file.selected_layer_index];
+
+                        if (staging_buffer.getConstMappedRange([4]f32, 0, buffer_size)) |buffer_mapped| {
+                            for (write_layer.pixels(), buffer_mapped) |*p, b| {
+                                if (b[3] != 0.0) {
+                                    const out: [4]u8 = .{
+                                        @as(u8, @intFromFloat(b[0] * 255.0)),
+                                        @as(u8, @intFromFloat(b[1] * 255.0)),
+                                        @as(u8, @intFromFloat(b[2] * 255.0)),
+                                        @as(u8, @intFromFloat(b[3] * 255.0)),
+                                    };
+                                    p.* = out;
+                                }
+                            }
+                            std.log.debug("success!", .{});
+                        }
+
+                        staging_buffer.unmap();
+
+                        write_layer.texture.update(core.device);
+                    }
 
                     transform_texture.texture.deinit();
                     file.transform_texture = null;
