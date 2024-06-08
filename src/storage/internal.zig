@@ -928,21 +928,17 @@ pub const Pixi = struct {
 
     pub fn paste(self: *Pixi) !void {
         if (pixi.state.clipboard_image) |image| {
-            if (self.transform_texture) |*transform_texture| {
+            if (self.transform_texture) |*transform_texture|
                 transform_texture.texture.deinit();
-            }
 
-            if (self.transform_bindgroup) |bindgroup| {
+            if (self.transform_bindgroup) |bindgroup|
                 bindgroup.release();
-            }
 
-            if (self.compute_buffer) |buffer| {
+            if (self.compute_buffer) |buffer|
                 buffer.release();
-            }
 
-            if (self.staging_buffer) |buffer| {
+            if (self.staging_buffer) |buffer|
                 buffer.release();
-            }
 
             const image_copy: zstbi.Image = try zstbi.Image.createEmpty(
                 image.width,
