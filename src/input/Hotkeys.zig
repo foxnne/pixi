@@ -53,7 +53,7 @@ pub const Proc = enum(u32) {
     shift_down,
     copy,
     paste,
-    paste_all,
+    transform,
     toggle_heightmap,
     toggle_references,
 };
@@ -258,11 +258,11 @@ pub fn process(self: *Self) !void {
             }
         }
 
-        if (self.hotkey(.{ .proc = .paste_all })) |hk| {
+        if (self.hotkey(.{ .proc = .transform })) |hk| {
             if (hk.pressed()) {
-                // if (file.copy_sprite) |src| {
-                //     try file.copySpriteAllLayers(src.index, file.selected_sprite_index);
-                // }
+                try file.copy();
+                try file.eraseSprite(file.selected_sprite_index);
+                try file.paste();
             }
         }
 
@@ -615,17 +615,17 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
-            .shortcut = if (windows_or_linux) "ctrl+shift+v" else "cmd+shift+v",
-            .key = Key.v,
+            .shortcut = if (windows_or_linux) "ctrl+t" else "cmd+t",
+            .key = Key.t,
             .mods = .{
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
-                .shift = true,
+                .shift = false,
                 .alt = false,
                 .caps_lock = false,
                 .num_lock = false,
             },
-            .action = .{ .proc = Proc.paste_all },
+            .action = .{ .proc = Proc.transform },
         });
 
         try hotkeys.append(.{

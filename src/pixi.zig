@@ -417,11 +417,14 @@ pub fn update(app: *App) !bool {
                             }
                         }
 
+                        const layer_index = file.selected_layer_index;
                         const write_layer = &file.layers.items[file.selected_layer_index];
 
                         if (staging_buffer.getConstMappedRange([4]f32, 0, buffer_size)) |buffer_mapped| {
-                            for (write_layer.pixels(), buffer_mapped) |*p, b| {
+                            for (write_layer.pixels(), buffer_mapped, 0..) |*p, b, i| {
                                 if (b[3] != 0.0) {
+                                    try file.buffers.stroke.append(i, p.*);
+
                                     const out: [4]u8 = .{
                                         @as(u8, @intFromFloat(b[0] * 255.0)),
                                         @as(u8, @intFromFloat(b[1] * 255.0)),
@@ -431,7 +434,12 @@ pub fn update(app: *App) !bool {
                                     p.* = out;
                                 }
                             }
-                            std.log.debug("success!", .{});
+                        }
+
+                        // Submit the stroke change buffer
+                        if (file.buffers.stroke.indices.items.len > 0) {
+                            const change = try file.buffers.stroke.toChange(@intCast(layer_index));
+                            try file.history.append(change);
                         }
 
                         staging_buffer.unmap();

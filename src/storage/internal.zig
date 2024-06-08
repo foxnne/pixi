@@ -934,11 +934,24 @@ pub const Pixi = struct {
             if (self.transform_bindgroup) |bindgroup|
                 bindgroup.release();
 
-            if (self.compute_buffer) |buffer|
-                buffer.release();
+            if (self.compute_bindgroup) |bindgroup|
+                bindgroup.release();
 
-            if (self.staging_buffer) |buffer|
-                buffer.release();
+            if (self.compute_buffer == null) {
+                self.compute_buffer = core.device.createBuffer(&.{
+                    .usage = .{ .copy_src = true, .storage = true },
+                    .size = @sizeOf([4]f32) * (self.width * self.height),
+                    .mapped_at_creation = .false,
+                });
+            }
+
+            if (self.staging_buffer == null) {
+                self.staging_buffer = core.device.createBuffer(&.{
+                    .usage = .{ .copy_dst = true, .map_read = true },
+                    .size = @sizeOf([4]f32) * (self.width * self.height),
+                    .mapped_at_creation = .false,
+                });
+            }
 
             const image_copy: zstbi.Image = try zstbi.Image.createEmpty(
                 image.width,
@@ -974,18 +987,6 @@ pub const Pixi = struct {
                     },
                 }),
             );
-
-            self.compute_buffer = core.device.createBuffer(&.{
-                .usage = .{ .copy_src = true, .storage = true },
-                .size = @sizeOf([4]f32) * (self.width * self.height),
-                .mapped_at_creation = .false,
-            });
-
-            self.staging_buffer = core.device.createBuffer(&.{
-                .usage = .{ .copy_dst = true, .map_read = true },
-                .size = @sizeOf([4]f32) * (self.width * self.height),
-                .mapped_at_creation = .false,
-            });
 
             const compute_layout_default = pixi.state.pipeline_compute.getBindGroupLayout(0);
             defer compute_layout_default.release();
