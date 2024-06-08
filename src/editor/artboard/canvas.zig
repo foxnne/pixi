@@ -358,54 +358,56 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
             }
         }
 
-        const mouse_position = pixi.state.mouse.position;
-        const prev_mouse_position = pixi.state.mouse.previous_position;
-        const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-            .texture_position = canvas_center_offset,
-            .position = mouse_position,
-            .width = file.width,
-            .height = file.height,
-        });
+        if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
+            const mouse_position = pixi.state.mouse.position;
+            const prev_mouse_position = pixi.state.mouse.previous_position;
+            const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                .texture_position = canvas_center_offset,
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            });
 
-        const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-            .texture_position = canvas_center_offset,
-            .position = prev_mouse_position,
-            .width = file.width,
-            .height = file.height,
-        });
+            const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                .texture_position = canvas_center_offset,
+                .position = prev_mouse_position,
+                .width = file.width,
+                .height = file.height,
+            });
 
-        const delta: [2]f32 = .{
-            current_pixel_coords[0] - previous_pixel_coords[0],
-            current_pixel_coords[1] - previous_pixel_coords[1],
-        };
+            const delta: [2]f32 = .{
+                current_pixel_coords[0] - previous_pixel_coords[0],
+                current_pixel_coords[1] - previous_pixel_coords[1],
+            };
 
-        switch (transform_texture.active_control) {
-            .pan => {
-                transform_texture.position[0] += delta[0];
-                transform_texture.position[1] += delta[1];
-            },
-            .ne_scale => {
-                transform_texture.width += delta[0];
-                transform_texture.height -= delta[1];
-                transform_texture.position[1] += delta[1];
-            },
-            .se_scale => {
-                transform_texture.width += delta[0];
-                transform_texture.height += delta[1];
-            },
-            .sw_scale => {
-                transform_texture.width -= delta[0];
-                transform_texture.height += delta[1];
-                transform_texture.position[0] += delta[0];
-            },
-            .nw_scale => {
-                transform_texture.width -= delta[0];
-                transform_texture.height -= delta[1];
-                transform_texture.position[0] += delta[0];
-                transform_texture.position[1] += delta[1];
-            },
+            switch (transform_texture.active_control) {
+                .pan => {
+                    transform_texture.position[0] += delta[0];
+                    transform_texture.position[1] += delta[1];
+                },
+                .ne_scale => {
+                    transform_texture.width += delta[0];
+                    transform_texture.height -= delta[1];
+                    transform_texture.position[1] += delta[1];
+                },
+                .se_scale => {
+                    transform_texture.width += delta[0];
+                    transform_texture.height += delta[1];
+                },
+                .sw_scale => {
+                    transform_texture.width -= delta[0];
+                    transform_texture.height += delta[1];
+                    transform_texture.position[0] += delta[0];
+                },
+                .nw_scale => {
+                    transform_texture.width -= delta[0];
+                    transform_texture.height -= delta[1];
+                    transform_texture.position[0] += delta[0];
+                    transform_texture.position[1] += delta[1];
+                },
 
-            else => {},
+                else => {},
+            }
         }
 
         const width: f32 = transform_texture.width;
