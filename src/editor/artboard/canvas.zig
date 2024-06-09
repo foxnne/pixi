@@ -490,7 +490,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
             }
         }
 
-        if (transform_texture.active_control == .pan) {
+        if (transform_texture.active_control == .pan or hovered_control == .pan) {
             pan_color = pixi.state.theme.highlight_primary.toU32();
         }
         file.camera.drawCircleFilled(center, (grip_size / 2.0) * file.camera.zoom, pan_color);
