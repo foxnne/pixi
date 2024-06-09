@@ -113,6 +113,34 @@ pub const Camera = struct {
             draw_list.addText(pos_vec, color, text.ptr);
     }
 
+    pub fn drawCircle(camera: Camera, position: [2]f32, radius: f32, thickness: f32, color: u32) void {
+        const window_position = imgui.getWindowPos();
+        const mat = camera.matrix();
+
+        var pos = mat.transformVec2(position);
+        pos[0] += window_position.x;
+        pos[1] += window_position.y;
+
+        const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
+
+        if (imgui.getWindowDrawList()) |draw_list|
+            draw_list.addCircleEx(pos_vec, radius, color, 10, thickness);
+    }
+
+    pub fn drawCircleFilled(camera: Camera, position: [2]f32, radius: f32, color: u32) void {
+        const window_position = imgui.getWindowPos();
+        const mat = camera.matrix();
+
+        var pos = mat.transformVec2(position);
+        pos[0] += window_position.x;
+        pos[1] += window_position.y;
+
+        const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
+
+        if (imgui.getWindowDrawList()) |draw_list|
+            draw_list.addCircleFilled(pos_vec, radius, color, 10);
+    }
+
     pub fn drawRect(camera: Camera, rect: [4]f32, thickness: f32, color: u32) void {
         const rect_min_max = camera.getRectMinMax(rect);
 

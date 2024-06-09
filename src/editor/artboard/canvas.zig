@@ -414,11 +414,18 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         const height: f32 = transform_texture.height;
         const position: [2]f32 = .{ canvas_center_offset[0] + transform_texture.position[0], canvas_center_offset[1] + transform_texture.position[1] };
 
+        const center: [2]f32 = .{ position[0] + width / 2.0, position[1] + height / 2.0 };
+
         const transform_rect: [4]f32 = .{ position[0], position[1], width, height };
 
         var hovered_control: pixi.storage.Internal.Pixi.TransformControl = .none;
 
+        const text_color = pixi.state.theme.text.toU32();
+
+        var pan_color: u32 = text_color;
+
         if (file.camera.isHovered(transform_rect)) {
+            //pan_color = pixi.state.theme.highlight_primary.toU32();
             hovered_control = .pan;
             if (pixi.state.mouse.button(.primary)) |bt| {
                 if (bt.pressed()) {
@@ -427,14 +434,13 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
             }
         }
 
-        const text_color = pixi.state.theme.text.toU32();
         file.camera.drawRect(transform_rect, 3.0, text_color);
 
         const grip_size: f32 = 10.0 / file.camera.zoom;
 
         const tl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
-        const tl_color: u32 = if (file.camera.isHovered(tl_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
-        file.camera.drawRect(tl_rect, 1.0, tl_color);
+        const tl_color: u32 = if (file.camera.isHovered(tl_rect) or transform_texture.active_control == .nw_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
+        file.camera.drawRectFilled(tl_rect, tl_color);
 
         if (file.camera.isHovered(tl_rect)) {
             hovered_control = .nw_scale;
@@ -446,8 +452,8 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         }
 
         const tr_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] - grip_size / 2.0, grip_size, grip_size };
-        const tr_color: u32 = if (file.camera.isHovered(tr_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
-        file.camera.drawRect(tr_rect, 1.0, tr_color);
+        const tr_color: u32 = if (file.camera.isHovered(tr_rect) or transform_texture.active_control == .ne_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
+        file.camera.drawRectFilled(tr_rect, tr_color);
 
         if (file.camera.isHovered(tr_rect)) {
             hovered_control = .ne_scale;
@@ -459,8 +465,8 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         }
 
         const br_rect: [4]f32 = .{ position[0] + width - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
-        const br_color: u32 = if (file.camera.isHovered(br_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
-        file.camera.drawRect(br_rect, 1.0, br_color);
+        const br_color: u32 = if (file.camera.isHovered(br_rect) or transform_texture.active_control == .se_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
+        file.camera.drawRectFilled(br_rect, br_color);
 
         if (file.camera.isHovered(br_rect)) {
             hovered_control = .se_scale;
@@ -472,8 +478,8 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         }
 
         const bl_rect: [4]f32 = .{ position[0] - grip_size / 2.0, position[1] + height - grip_size / 2.0, grip_size, grip_size };
-        const bl_color: u32 = if (file.camera.isHovered(bl_rect)) pixi.state.theme.highlight_primary.toU32() else text_color;
-        file.camera.drawRect(bl_rect, 1.0, bl_color);
+        const bl_color: u32 = if (file.camera.isHovered(bl_rect) or transform_texture.active_control == .sw_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
+        file.camera.drawRectFilled(bl_rect, bl_color);
 
         if (file.camera.isHovered(bl_rect)) {
             hovered_control = .sw_scale;
@@ -483,6 +489,11 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
                 }
             }
         }
+
+        if (transform_texture.active_control == .pan) {
+            pan_color = pixi.state.theme.highlight_primary.toU32();
+        }
+        file.camera.drawCircleFilled(center, (grip_size / 2.0) * file.camera.zoom, pan_color);
 
         const cursor: imgui.MouseCursor = if (transform_texture.active_control != .none) switch (transform_texture.active_control) {
             .pan => imgui.MouseCursor_Hand,
