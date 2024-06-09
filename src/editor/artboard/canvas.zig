@@ -118,8 +118,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     }
 
     // Draw transform texture on gpu to temporary texture
-    {
+    draw_transform: {
         if (file.transform_texture) |*transform_texture| {
+            if (transform_texture.width == 0.0 or transform_texture.height == 0.0)
+                break :draw_transform;
             if (file.transform_bindgroup) |transform_bindgroup| {
                 if (file.compute_bindgroup) |compute_bindgroup| {
                     if (file.compute_buffer) |compute_buffer| {
@@ -496,7 +498,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         file.camera.drawCircleFilled(center, (grip_size / 2.0) * file.camera.zoom, pan_color);
 
         const cursor: imgui.MouseCursor = if (transform_texture.active_control != .none) switch (transform_texture.active_control) {
-            .pan => imgui.MouseCursor_Hand,
+            .pan => imgui.MouseCursor_ResizeAll,
             .ne_scale, .sw_scale => imgui.MouseCursor_ResizeNESW,
             .se_scale, .nw_scale => imgui.MouseCursor_ResizeNWSE,
             else => imgui.MouseCursor_Arrow,
