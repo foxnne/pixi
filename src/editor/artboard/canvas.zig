@@ -562,6 +562,8 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         file.camera.drawRectFilled(br_rect, br_color);
         file.camera.drawRectFilled(bl_rect, bl_color);
 
+        file.camera.drawLine(.{ top_position[0], top_position[1] }, .{ rotate_control_position[0], rotate_control_position[1] }, text_color, 1.0);
+
         file.camera.drawCircleFilled(.{ rotate_control_position[0], rotate_control_position[1] }, half_grip_size * file.camera.zoom, rotate_color);
 
         if (transform_texture.active_control == .pan or hovered_control == .pan) {
