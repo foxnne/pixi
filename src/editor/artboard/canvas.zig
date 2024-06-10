@@ -570,14 +570,18 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         file.camera.drawCircleFilled(center, (grip_size / 2.0) * file.camera.zoom, pan_color);
 
         const cursor: imgui.MouseCursor = if (transform_texture.active_control != .none) switch (transform_texture.active_control) {
-            .pan => imgui.MouseCursor_ResizeAll,
+            .pan, .rotate => imgui.MouseCursor_ResizeAll,
             .ne_scale, .sw_scale => imgui.MouseCursor_ResizeNESW,
             .se_scale, .nw_scale => imgui.MouseCursor_ResizeNWSE,
+            .e_scale, .w_scale => imgui.MouseCursor_ResizeEW,
+            .n_scale, .s_scale => imgui.MouseCursor_ResizeNS,
             else => imgui.MouseCursor_Arrow,
         } else switch (hovered_control) {
-            .pan => imgui.MouseCursor_Hand,
+            .pan, .rotate => imgui.MouseCursor_Hand,
             .ne_scale, .sw_scale => imgui.MouseCursor_ResizeNESW,
             .se_scale, .nw_scale => imgui.MouseCursor_ResizeNWSE,
+            .e_scale, .w_scale => imgui.MouseCursor_ResizeEW,
+            .n_scale, .s_scale => imgui.MouseCursor_ResizeNS,
             else => imgui.MouseCursor_Arrow,
         };
 
@@ -661,17 +665,35 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
                     }
                 },
                 .rotate => {
-                    if (imgui.isMouseDoubleClicked(imgui.MouseButton_Left)) {
-                        transform_texture.rotation = 0.0;
-                        transform_texture.active_control = .none;
-                    } else {
-                        const c: [2]f32 = .{ transform_texture.position[0] + transform_texture.width / 2.0, transform_texture.position[1] + transform_texture.height / 2.0 };
-                        const mouse: [2]f32 = .{ current_pixel_coords[0], current_pixel_coords[1] };
+                    if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
+                        if (hk.down()) {
+                            const c: [2]f32 = .{ transform_texture.position[0] + transform_texture.width / 2.0, transform_texture.position[1] + transform_texture.height / 2.0 };
+                            const mouse: [2]f32 = .{ current_pixel_coords[0], current_pixel_coords[1] };
 
-                        const diff = zmath.loadArr2(mouse) - zmath.loadArr2(c);
-                        const angle = std.math.atan2(diff[1], diff[0]);
+                            const diff = zmath.loadArr2(mouse) - zmath.loadArr2(c);
 
-                        transform_texture.rotation = @trunc(std.math.radiansToDegrees(angle) + 90.0);
+                            const direction = pixi.math.Direction.find(8, -diff[0], diff[1]);
+
+                            transform_texture.rotation = switch (direction) {
+                                .n => 180.0,
+                                .ne => 225.0,
+                                .e => 270.0,
+                                .se => 315.0,
+                                .s => 0.0,
+                                .sw => 45.0,
+                                .w => 90.0,
+                                .nw => 135.0,
+                                else => 180.0,
+                            };
+                        } else {
+                            const c: [2]f32 = .{ transform_texture.position[0] + transform_texture.width / 2.0, transform_texture.position[1] + transform_texture.height / 2.0 };
+                            const mouse: [2]f32 = .{ current_pixel_coords[0], current_pixel_coords[1] };
+
+                            const diff = zmath.loadArr2(mouse) - zmath.loadArr2(c);
+                            const angle = std.math.atan2(diff[1], diff[0]);
+
+                            transform_texture.rotation = @trunc(std.math.radiansToDegrees(angle) + 90.0);
+                        }
                     }
                 },
                 else => {},
