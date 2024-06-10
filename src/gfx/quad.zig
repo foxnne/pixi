@@ -6,12 +6,6 @@ const gfx = pixi.gfx;
 pub const Quad = struct {
     vertices: [4]gfx.Vertex,
 
-    pub fn setData(self: *Quad, data: gfx.VertexData) void {
-        for (self.vertices, 0..) |_, i| {
-            self.vertices[i].data = data.value;
-        }
-    }
-
     pub fn setHeight(self: *Quad, height: f32) void {
         for (self.vertices, 0..) |_, i| {
             self.vertices[i].position[2] = height;
@@ -77,7 +71,7 @@ pub const Quad = struct {
     pub fn rotate(self: *Quad, rotation: f32, pos_x: f32, pos_y: f32, origin_x: f32, origin_y: f32) void {
         for (self.vertices, 0..) |vert, i| {
             var position = zm.loadArr3(vert.position);
-            const offset = zm.f32x4(pos_x, pos_y, 0, 0);
+            const offset = zm.f32x4(pos_x + origin_x, pos_y + origin_y, 0, 0);
 
             const radians = std.math.degreesToRadians(rotation);
 

@@ -208,9 +208,6 @@ pub const Batcher = struct {
         // Apply rotation
         if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, pos[0], pos[1], options.origin[0], options.origin[1]);
 
-        // Apply scale
-        //quad.scale(options.scale, pos[0], pos[1], options.origin[0], options.origin[1]);
-
         return self.append(quad);
     }
 

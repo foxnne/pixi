@@ -68,6 +68,7 @@ pub const Pixi = struct {
         se_scale,
         sw_scale,
         nw_scale,
+        rotate,
     };
 
     pub const AnimationState = enum { pause, play };
