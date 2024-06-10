@@ -381,8 +381,6 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
             }
         }
 
-        //file.camera.drawRect(transform_rect, 3.0, text_color);
-
         const grip_size: f32 = 10.0 / file.camera.zoom;
         const half_grip_size = grip_size / 2.0;
 
@@ -411,6 +409,74 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         if (file.camera.isHovered(.{ rotate_control_position[0] - half_grip_size * file.camera.zoom, rotate_control_position[1] - half_grip_size * file.camera.zoom, half_grip_size * file.camera.zoom * 2, half_grip_size * file.camera.zoom * 2 }) or transform_texture.active_control == .rotate) {
             rotate_color = pixi.state.theme.highlight_primary.toU32();
             file.camera.drawCircle(center, ((height / 2.0) + rotation_control_height) * file.camera.zoom, 1.0, text_color);
+        }
+
+        var top_position = zmath.f32x4(position[0] + width / 2.0, position[1], 1.0, 0.0);
+        top_position -= offset;
+        top_position = zmath.mul(top_position, rotation_matrix);
+        top_position += offset;
+
+        const top_rect: [4]f32 = .{ top_position[0] - half_grip_size, top_position[1] - half_grip_size, grip_size, grip_size };
+        const top_color: u32 = if (file.camera.isHovered(top_rect) or transform_texture.active_control == .n_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
+
+        if (file.camera.isHovered(top_rect)) {
+            hovered_control = .n_scale;
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.active_control = .n_scale;
+                }
+            }
+        }
+
+        var right_position = zmath.f32x4(position[0] + width, position[1] + height / 2.0, 1.0, 0.0);
+        right_position -= offset;
+        right_position = zmath.mul(right_position, rotation_matrix);
+        right_position += offset;
+
+        const right_rect: [4]f32 = .{ right_position[0] - half_grip_size, right_position[1] - half_grip_size, grip_size, grip_size };
+        const right_color: u32 = if (file.camera.isHovered(right_rect) or transform_texture.active_control == .e_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
+
+        if (file.camera.isHovered(right_rect)) {
+            hovered_control = .e_scale;
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.active_control = .e_scale;
+                }
+            }
+        }
+
+        var bottom_position = zmath.f32x4(position[0] + width / 2.0, position[1] + height, 1.0, 0.0);
+        bottom_position -= offset;
+        bottom_position = zmath.mul(bottom_position, rotation_matrix);
+        bottom_position += offset;
+
+        const bottom_rect: [4]f32 = .{ bottom_position[0] - half_grip_size, bottom_position[1] - half_grip_size, grip_size, grip_size };
+        const bottom_color: u32 = if (file.camera.isHovered(bottom_rect) or transform_texture.active_control == .s_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
+
+        if (file.camera.isHovered(bottom_rect)) {
+            hovered_control = .s_scale;
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.active_control = .s_scale;
+                }
+            }
+        }
+
+        var left_position = zmath.f32x4(position[0], position[1] + height / 2.0, 1.0, 0.0);
+        left_position -= offset;
+        left_position = zmath.mul(left_position, rotation_matrix);
+        left_position += offset;
+
+        const left_rect: [4]f32 = .{ left_position[0] - half_grip_size, left_position[1] - half_grip_size, grip_size, grip_size };
+        const left_color: u32 = if (file.camera.isHovered(left_rect) or transform_texture.active_control == .w_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
+
+        if (file.camera.isHovered(left_rect)) {
+            hovered_control = .w_scale;
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.active_control = .w_scale;
+                }
+            }
         }
 
         var tl_position = zmath.f32x4(position[0], position[1], 1.0, 0.0);
@@ -486,6 +552,11 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
         file.camera.drawLine(.{ br_position[0], br_position[1] }, .{ bl_position[0], bl_position[1] }, text_color, 3.0);
         file.camera.drawLine(.{ bl_position[0], bl_position[1] }, .{ tl_position[0], tl_position[1] }, text_color, 3.0);
 
+        file.camera.drawRectFilled(top_rect, top_color);
+        file.camera.drawRectFilled(right_rect, right_color);
+        file.camera.drawRectFilled(bottom_rect, bottom_color);
+        file.camera.drawRectFilled(left_rect, left_color);
+
         file.camera.drawRectFilled(tl_rect, tl_color);
         file.camera.drawRectFilled(tr_rect, tr_color);
         file.camera.drawRectFilled(br_rect, br_color);
@@ -539,25 +610,55 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_ce
                     transform_texture.position[0] += delta[0];
                     transform_texture.position[1] += delta[1];
                 },
+                .n_scale => {
+                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
+                        transform_texture.height -= delta[1];
+                        transform_texture.position[1] += delta[1];
+                    }
+                },
+                .e_scale => {
+                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
+                        transform_texture.width += delta[0];
+                    }
+                },
+                .s_scale => {
+                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
+                        transform_texture.height += delta[1];
+                    }
+                },
+                .w_scale => {
+                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
+                        transform_texture.width -= delta[0];
+                        transform_texture.position[0] += delta[0];
+                    }
+                },
                 .ne_scale => {
-                    transform_texture.width += delta[0];
-                    transform_texture.height -= delta[1];
-                    transform_texture.position[1] += delta[1];
+                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
+                        transform_texture.width += delta[0];
+                        transform_texture.height -= delta[1];
+                        transform_texture.position[1] += delta[1];
+                    }
                 },
                 .se_scale => {
-                    transform_texture.width += delta[0];
-                    transform_texture.height += delta[1];
+                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
+                        transform_texture.width += delta[0];
+                        transform_texture.height += delta[1];
+                    }
                 },
                 .sw_scale => {
-                    transform_texture.width -= delta[0];
-                    transform_texture.height += delta[1];
-                    transform_texture.position[0] += delta[0];
+                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
+                        transform_texture.width -= delta[0];
+                        transform_texture.height += delta[1];
+                        transform_texture.position[0] += delta[0];
+                    }
                 },
                 .nw_scale => {
-                    transform_texture.width -= delta[0];
-                    transform_texture.height -= delta[1];
-                    transform_texture.position[0] += delta[0];
-                    transform_texture.position[1] += delta[1];
+                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
+                        transform_texture.width -= delta[0];
+                        transform_texture.height -= delta[1];
+                        transform_texture.position[0] += delta[0];
+                        transform_texture.position[1] += delta[1];
+                    }
                 },
                 .rotate => {
                     if (imgui.isMouseDoubleClicked(imgui.MouseButton_Left)) {

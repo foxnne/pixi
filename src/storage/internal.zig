@@ -64,6 +64,10 @@ pub const Pixi = struct {
     pub const TransformControl = enum {
         none,
         pan,
+        n_scale,
+        e_scale,
+        s_scale,
+        w_scale,
         ne_scale,
         se_scale,
         sw_scale,
