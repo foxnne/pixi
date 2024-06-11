@@ -527,7 +527,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
             }
         }
 
-        { // Handle moving the vertices when panning
+        { // Handle changing the rotation when rotating
             if (transform_texture.rotate) {
                 if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
                     const mouse_position = pixi.state.mouse.position;
@@ -539,7 +539,6 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                     });
 
                     const diff = zmath.loadArr2(current_pixel_coords) - centroid;
-
                     const angle = std.math.atan2(diff[1], diff[0]);
 
                     transform_texture.rotation = @trunc(std.math.radiansToDegrees(angle) + 90.0);
@@ -562,12 +561,30 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                         .locked_aspect, .free_aspect => { // TODO: implement locked aspect
                             const control_vert = &rotated_vertices[control.index];
 
-                            const prev_position = control_vert.position;
                             const position = @trunc(zmath.loadArr2(current_pixel_coords));
                             control_vert.position = position;
 
-                            const delta = position - prev_position;
-                            _ = delta; // autofix
+                            if (transform_texture.rotation == 0.0) {
+                                const copy_x_index: usize = switch (control.index) {
+                                    0 => 3,
+                                    1 => 2,
+                                    2 => 1,
+                                    3 => 0,
+                                    else => unreachable,
+                                };
+
+                                rotated_vertices[copy_x_index].position[0] = control_vert.position[0];
+
+                                const copy_y_index: usize = switch (control.index) {
+                                    0 => 1,
+                                    1 => 0,
+                                    2 => 3,
+                                    3 => 2,
+                                    else => unreachable,
+                                };
+
+                                rotated_vertices[copy_y_index].position[1] = control_vert.position[1];
+                            }
 
                             var rotated_centroid = zmath.f32x4s(0.0);
                             for (rotated_vertices) |vert| {
