@@ -399,6 +399,11 @@ pub const Camera = struct {
         return camera.isContained(rect, mouse_position);
     }
 
+    pub fn isHoveredTriangle(camera: Camera, triangle: [3]zm.F32x4) bool {
+        const mouse_position = pixi.state.mouse.position;
+        return camera.isContainedTriangle(triangle, mouse_position);
+    }
+
     pub fn isContained(camera: Camera, rect: [4]f32, position: [2]f32) bool {
         const rect_min_max = camera.getRectMinMax(rect);
 
@@ -415,6 +420,50 @@ pub const Camera = struct {
             },
         };
         return (position[0] > rect_min_max_fixed[0][0] and position[0] < rect_min_max_fixed[1][0] and position[1] < rect_min_max_fixed[1][1] and position[1] > rect_min_max_fixed[0][1]);
+    }
+
+    pub fn isContainedTriangle(camera: Camera, triangle: [3]zm.F32x4, position: [2]f32) bool {
+        const window_position_raw = imgui.getWindowPos();
+        const window_position = zm.loadArr2(.{ window_position_raw.x, window_position_raw.y });
+        const mat = camera.matrix();
+
+        const triangle_1: [3]zm.F32x4 = .{
+            zm.loadArr2(mat.transformVec2(.{ triangle[0][0], triangle[0][1] })) + window_position,
+            zm.loadArr2(mat.transformVec2(.{ triangle[1][0], triangle[1][1] })) + window_position,
+            zm.loadArr2(.{ position[0], position[1] }),
+        };
+
+        const triangle_2: [3]zm.F32x4 = .{
+            zm.loadArr2(mat.transformVec2(.{ triangle[1][0], triangle[1][1] })) + window_position,
+            zm.loadArr2(mat.transformVec2(.{ triangle[2][0], triangle[2][1] })) + window_position,
+            zm.loadArr2(.{ position[0], position[1] }),
+        };
+
+        const triangle_3: [3]zm.F32x4 = .{
+            zm.loadArr2(mat.transformVec2(.{ triangle[0][0], triangle[0][1] })) + window_position,
+            zm.loadArr2(mat.transformVec2(.{ triangle[2][0], triangle[2][1] })) + window_position,
+            zm.loadArr2(.{ position[0], position[1] }),
+        };
+
+        const triangle_4: [3]zm.F32x4 = .{
+            zm.loadArr2(mat.transformVec2(.{ triangle[0][0], triangle[0][1] })) + window_position,
+            zm.loadArr2(mat.transformVec2(.{ triangle[1][0], triangle[1][1] })) + window_position,
+            zm.loadArr2(mat.transformVec2(.{ triangle[2][0], triangle[2][1] })) + window_position,
+        };
+
+        const area_1 = area(triangle_1);
+        const area_2 = area(triangle_2);
+        const area_3 = area(triangle_3);
+        const area_4 = area(triangle_4);
+
+        const combined = area_1 + area_2 + area_3;
+        const diff = @abs(combined - area_4);
+
+        return diff < 0.1;
+    }
+
+    fn area(triangle: [3]zm.F32x4) f32 {
+        return @abs((triangle[0][0] * (triangle[1][1] - triangle[2][1]) + triangle[1][0] * (triangle[2][1] - triangle[0][1]) + triangle[2][0] * (triangle[0][1] - triangle[1][1])) / 2.0);
     }
 
     pub fn getRectMinMax(camera: Camera, rect: [4]f32) [2][2]f32 {

@@ -68,19 +68,16 @@ pub const Quad = struct {
         }
     }
 
-    pub fn rotate(self: *Quad, rotation: f32, pos_x: f32, pos_y: f32, origin_x: f32, origin_y: f32) void {
+    pub fn rotate(self: *Quad, rotation: f32, centroid: zm.F32x4) void {
         for (self.vertices, 0..) |vert, i| {
             var position = zm.loadArr3(vert.position);
-            const offset = zm.f32x4(pos_x + origin_x, pos_y + origin_y, 0, 0);
-
             const radians = std.math.degreesToRadians(rotation);
 
-            const translation_matrix = zm.translation(origin_x, origin_y, 0);
             const rotation_matrix = zm.rotationZ(radians);
 
-            position -= offset;
-            position = zm.mul(position, zm.mul(translation_matrix, rotation_matrix));
-            position += offset;
+            position -= centroid;
+            position = zm.mul(position, rotation_matrix);
+            position += centroid;
 
             zm.storeArr3(&self.vertices[i].position, position);
         }

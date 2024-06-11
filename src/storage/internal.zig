@@ -7,6 +7,7 @@ const mach = @import("mach");
 const imgui = @import("zig-imgui");
 const core = mach.core;
 const gpu = mach.gpu;
+const zmath = @import("zmath");
 
 const external = @import("external.zig");
 
@@ -53,27 +54,46 @@ pub const Pixi = struct {
     };
 
     pub const TransformTexture = struct {
-        position: [2]f32 = .{ 0.0, 0.0 },
+        vertices: [4]TransformVertex,
+        control: ?TransformControl = null,
+        pan: bool = false,
+        rotate: bool = false,
         rotation: f32 = 0.0,
-        width: f32 = 0.0,
-        height: f32 = 0.0,
-        active_control: TransformControl = .none,
         texture: pixi.gfx.Texture,
     };
 
-    pub const TransformControl = enum {
-        none,
-        pan,
-        n_scale,
-        e_scale,
-        s_scale,
-        w_scale,
-        ne_scale,
-        se_scale,
-        sw_scale,
-        nw_scale,
-        rotate,
+    pub const TransformVertex = struct {
+        position: zmath.F32x4,
     };
+
+    pub const TransformControl = struct {
+        index: usize,
+        mode: TransformMode,
+    };
+
+    pub const TransformMode = enum {
+        locked_aspect,
+        free_aspect,
+        free,
+    };
+
+    // pub const TransformControl = enum {
+    //     none,
+    //     pan,
+    //     n_scale,
+    //     e_scale,
+    //     s_scale,
+    //     w_scale,
+    //     ne_scale,
+    //     se_scale,
+    //     sw_scale,
+    //     nw_scale,
+    //     ne_skew,
+    //     se_skew,
+    //     sw_skew,
+    //     nw_skew,
+    //     rotate,
+    // };
 
     pub const AnimationState = enum { pause, play };
     pub const Canvas = enum { primary, flipbook };
@@ -969,10 +989,17 @@ pub const Pixi = struct {
             );
             @memcpy(image_copy.data, image.data);
 
+            const transform_position = self.pixelCoordinatesFromIndex(self.selected_sprite_index);
+            const transform_width: f32 = @floatFromInt(image.width);
+            const transform_height: f32 = @floatFromInt(image.height);
+
             self.transform_texture = .{
-                .position = self.pixelCoordinatesFromIndex(self.selected_sprite_index),
-                .width = @floatFromInt(image.width),
-                .height = @floatFromInt(image.height),
+                .vertices = .{
+                    .{ .position = zmath.loadArr2(transform_position) }, // TL
+                    .{ .position = zmath.loadArr2(.{ transform_position[0] + transform_width, transform_position[1] }) }, // TR
+                    .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) }, //BR
+                    .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) }, // BL
+                },
                 .texture = pixi.gfx.Texture.create(image_copy, .{}),
             };
 

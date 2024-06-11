@@ -118,10 +118,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     }
 
     // Draw transform texture on gpu to temporary texture
-    draw_transform: {
+    {
         if (file.transform_texture) |*transform_texture| {
-            if (@abs(transform_texture.width) < 1.0 or @abs(transform_texture.height) < 1.0)
-                break :draw_transform;
             if (file.transform_bindgroup) |transform_bindgroup| {
                 if (file.compute_bindgroup) |compute_bindgroup| {
                     if (file.compute_buffer) |compute_buffer| {
@@ -130,17 +128,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             const height: f32 = @floatFromInt(file.height);
 
                             const buffer_size: usize = @as(usize, @intCast(file.width * file.height * @sizeOf([4]f32)));
-
-                            const origin: [2]f32 = .{ transform_texture.width / 2.0, transform_texture.height / 2.0 };
-
-                            const texture_height: f32 = transform_texture.height;
-
-                            const position = zmath.f32x4(
-                                @trunc(transform_texture.position[0] + canvas_center_offset[0]),
-                                @trunc(-transform_texture.position[1] - (canvas_center_offset[1] + texture_height)),
-                                0.0,
-                                0.0,
-                            );
 
                             const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
                                 zmath.orthographicLh(width, height, -100, 100),
@@ -158,14 +145,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                 .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
                             }) catch unreachable;
 
-                            pixi.state.batcher.texture(
-                                position,
-                                &transform_texture.texture,
+                            pixi.state.batcher.transformTexture(
+                                transform_texture.vertices,
+                                .{ canvas_center_offset[0], -canvas_center_offset[1] },
                                 .{
-                                    .width = transform_texture.width,
-                                    .height = transform_texture.height,
                                     .rotation = -transform_texture.rotation,
-                                    .origin = origin,
                                 },
                             ) catch unreachable;
 
@@ -193,7 +177,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
 
-        drawTransformTextureControls(file, canvas_center_offset);
+        drawTransformTextureControls(file);
 
         if (file.heightmap.visible) {
             file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
@@ -349,7 +333,195 @@ pub const TransformControls = struct {
     corners: [4][2]f32,
 };
 
-pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_center_offset: [2]f32) void {
+pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
+    if (file.transform_texture) |*transform_texture| {
+        const modifier_primary: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+        const modifier_secondary: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+
+        var cursor: imgui.MouseCursor = imgui.MouseCursor_Arrow;
+
+        const default_color = pixi.state.theme.text.toU32();
+        const highlight_color = pixi.state.theme.highlight_primary.toU32();
+
+        const offset = zmath.loadArr2(file.canvasCenterOffset(.primary));
+
+        if (pixi.state.mouse.button(.primary)) |bt| {
+            if (bt.released()) {
+                transform_texture.control = null;
+                transform_texture.pan = false;
+            }
+        }
+
+        const grip_size: f32 = 10.0 / file.camera.zoom;
+        const half_grip_size = grip_size / 2.0;
+
+        var hovered_index: ?usize = null;
+        var centroid = zmath.f32x4s(0.0);
+
+        // Draw bounding lines from vertices
+        for (&transform_texture.vertices, 0..) |*vertex, vertex_index| {
+            const previous_position = switch (vertex_index) {
+                0 => transform_texture.vertices[3].position,
+                1, 2, 3 => transform_texture.vertices[vertex_index - 1].position,
+                else => unreachable,
+            };
+
+            file.camera.drawLine(.{ offset[0] + previous_position[0], offset[1] + previous_position[1] }, .{ offset[0] + vertex.position[0], offset[1] + vertex.position[1] }, default_color, 3.0);
+        }
+
+        // Draw controls for moving vertices
+        for (&transform_texture.vertices, 0..) |*vertex, vertex_index| {
+            centroid += vertex.position;
+
+            const grip_rect: [4]f32 = .{ offset[0] + vertex.position[0] - half_grip_size, offset[1] + vertex.position[1] - half_grip_size, grip_size, grip_size };
+
+            if (file.camera.isHovered(grip_rect)) {
+                hovered_index = vertex_index;
+                if (pixi.state.mouse.button(.primary)) |bt| {
+                    if (bt.pressed()) {
+                        transform_texture.control = .{
+                            .index = vertex_index,
+                            .mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect,
+                        };
+                    }
+                }
+            }
+
+            const grip_color = if (hovered_index == vertex_index or if (transform_texture.control) |control| control.index == vertex_index else false) highlight_color else default_color;
+            file.camera.drawRectFilled(grip_rect, grip_color);
+        }
+        centroid /= zmath.f32x4s(4.0); // Average position
+
+        { // Handle hovering over transform texture
+            const triangle_a: [3]zmath.F32x4 = .{
+                transform_texture.vertices[0].position + offset,
+                transform_texture.vertices[1].position + offset,
+                transform_texture.vertices[2].position + offset,
+            };
+            const triangle_b: [3]zmath.F32x4 = .{
+                transform_texture.vertices[2].position + offset,
+                transform_texture.vertices[3].position + offset,
+                transform_texture.vertices[0].position + offset,
+            };
+
+            const hovered: bool = hovered_index == null and transform_texture.control == null and (file.camera.isHoveredTriangle(triangle_a) or file.camera.isHoveredTriangle(triangle_b));
+            const mouse_pressed = if (pixi.state.mouse.button(.primary)) |bt| bt.pressed() else false;
+
+            if (hovered) {
+                cursor = imgui.MouseCursor_Hand;
+            }
+
+            if (hovered and mouse_pressed) {
+                transform_texture.pan = true;
+            }
+            const centroid_color = if (hovered or transform_texture.pan) highlight_color else default_color;
+            file.camera.drawCircleFilled(.{ centroid[0] + offset[0], centroid[1] + offset[1] }, half_grip_size * file.camera.zoom, centroid_color);
+        }
+
+        { // Handle setting the mouse cursor based on controls
+
+            if (transform_texture.control) |c| {
+                switch (c.index) {
+                    0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
+                    1, 3 => cursor = imgui.MouseCursor_ResizeNESW,
+                    else => unreachable,
+                }
+            }
+
+            if (hovered_index) |i| {
+                switch (i) {
+                    0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
+                    1, 3 => cursor = imgui.MouseCursor_ResizeNESW,
+                    else => unreachable,
+                }
+            }
+
+            if (transform_texture.pan)
+                cursor = imgui.MouseCursor_ResizeAll;
+
+            imgui.setMouseCursor(cursor);
+        }
+
+        { // Handle moving the vertices when panning
+            if (transform_texture.pan) {
+                if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
+                    const mouse_position = pixi.state.mouse.position;
+                    const prev_mouse_position = pixi.state.mouse.previous_position;
+                    const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                        .texture_position = .{ offset[0], offset[1] },
+                        .position = mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
+
+                    const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                        .texture_position = .{ offset[0], offset[1] },
+                        .position = prev_mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
+
+                    const delta: [2]f32 = .{
+                        current_pixel_coords[0] - previous_pixel_coords[0],
+                        current_pixel_coords[1] - previous_pixel_coords[1],
+                    };
+
+                    for (&transform_texture.vertices) |*v| {
+                        v.position[0] += delta[0];
+                        v.position[1] += delta[1];
+                    }
+                }
+            }
+        }
+
+        { // Handle moving the vertices when moving a single control
+            if (transform_texture.control) |control| {
+                if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
+                    const mouse_position = pixi.state.mouse.position;
+                    const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                        .texture_position = .{ offset[0], offset[1] },
+                        .position = mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
+
+                    switch (control.mode) {
+                        .locked_aspect, .free_aspect => { // TODO: implement locked aspect
+                            const control_vert = &transform_texture.vertices[control.index];
+                            control_vert.position = @trunc(zmath.loadArr2(current_pixel_coords));
+
+                            const copy_x_index: usize = switch (control.index) {
+                                0 => 3,
+                                1 => 2,
+                                2 => 1,
+                                3 => 0,
+                                else => unreachable,
+                            };
+
+                            transform_texture.vertices[copy_x_index].position[0] = control_vert.position[0];
+
+                            const copy_y_index: usize = switch (control.index) {
+                                0 => 1,
+                                1 => 0,
+                                2 => 3,
+                                3 => 2,
+                                else => unreachable,
+                            };
+
+                            transform_texture.vertices[copy_y_index].position[1] = control_vert.position[1];
+                        },
+                        .free => {
+                            const control_vert = &transform_texture.vertices[control.index];
+                            control_vert.position = @trunc(zmath.loadArr2(current_pixel_coords));
+                        },
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn oldDrawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_center_offset: [2]f32) void {
     // Draw transformation texture controls
     if (file.transform_texture) |*transform_texture| {
         if (pixi.state.mouse.button(.primary)) |bt| {
