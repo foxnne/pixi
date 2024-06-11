@@ -145,9 +145,17 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                 .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
                             }) catch unreachable;
 
+                            var centroid = zmath.f32x4(0.0, 0.0, 0.0, 0.0);
+                            for (transform_texture.vertices) |v| {
+                                centroid += v.position;
+                            }
+                            centroid = centroid / zmath.f32x4s(4.0);
+                            centroid += zmath.loadArr2(.{ canvas_center_offset[0], canvas_center_offset[1] });
+
                             pixi.state.batcher.transformTexture(
                                 transform_texture.vertices,
                                 .{ canvas_center_offset[0], -canvas_center_offset[1] },
+                                .{ centroid[0], -centroid[1] },
                                 .{
                                     .rotation = -transform_texture.rotation,
                                 },
@@ -349,30 +357,62 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
             if (bt.released()) {
                 transform_texture.control = null;
                 transform_texture.pan = false;
+                transform_texture.rotate = false;
             }
         }
 
         const grip_size: f32 = 10.0 / file.camera.zoom;
         const half_grip_size = grip_size / 2.0;
+        const rotation_control_height = 12.0;
+        _ = rotation_control_height; // autofix
 
         var hovered_index: ?usize = null;
         var centroid = zmath.f32x4s(0.0);
 
+        const radians = std.math.degreesToRadians(transform_texture.rotation);
+        const rotation_matrix = zmath.rotationZ(radians);
+
+        for (&transform_texture.vertices) |*vertex| {
+            centroid += vertex.position; // Collect centroid
+        }
+        centroid /= zmath.f32x4s(4.0); // Average position
+
+        var rotated_vertices: [4]pixi.storage.Internal.Pixi.TransformVertex = .{
+            .{ .position = zmath.mul(transform_texture.vertices[0].position - centroid, rotation_matrix) + centroid },
+            .{ .position = zmath.mul(transform_texture.vertices[1].position - centroid, rotation_matrix) + centroid },
+            .{ .position = zmath.mul(transform_texture.vertices[2].position - centroid, rotation_matrix) + centroid },
+            .{ .position = zmath.mul(transform_texture.vertices[3].position - centroid, rotation_matrix) + centroid },
+        };
+
         // Draw bounding lines from vertices
-        for (&transform_texture.vertices, 0..) |*vertex, vertex_index| {
+        for (&rotated_vertices, 0..) |*vertex, vertex_index| {
             const previous_position = switch (vertex_index) {
-                0 => transform_texture.vertices[3].position,
-                1, 2, 3 => transform_texture.vertices[vertex_index - 1].position,
+                0 => rotated_vertices[3].position,
+                1, 2, 3 => rotated_vertices[vertex_index - 1].position,
                 else => unreachable,
             };
 
             file.camera.drawLine(.{ offset[0] + previous_position[0], offset[1] + previous_position[1] }, .{ offset[0] + vertex.position[0], offset[1] + vertex.position[1] }, default_color, 3.0);
         }
 
-        // Draw controls for moving vertices
-        for (&transform_texture.vertices, 0..) |*vertex, vertex_index| {
-            centroid += vertex.position;
+        // TODO figure out what radius to use here
+        // if (transform_texture.rotate) {
+        //     file.camera.drawCircle(.{ centroid[0], centroid[1] }, rotation_control_height, 1.0, default_color);
+        // }
 
+        const midpoint = (rotated_vertices[0].position + rotated_vertices[1].position) / zmath.f32x4s(2.0);
+        file.camera.drawCircleFilled(.{ midpoint[0] + offset[0], midpoint[1] + offset[1] }, half_grip_size * file.camera.zoom, default_color);
+
+        if (file.camera.isHovered(.{ midpoint[0] + offset[0] - half_grip_size, midpoint[1] + offset[0] - half_grip_size, grip_size, grip_size })) {
+            if (pixi.state.mouse.button(.primary)) |bt| {
+                if (bt.pressed()) {
+                    transform_texture.rotate = true;
+                }
+            }
+        }
+
+        // Draw controls for moving vertices
+        for (&rotated_vertices, 0..) |*vertex, vertex_index| {
             const grip_rect: [4]f32 = .{ offset[0] + vertex.position[0] - half_grip_size, offset[1] + vertex.position[1] - half_grip_size, grip_size, grip_size };
 
             if (file.camera.isHovered(grip_rect)) {
@@ -390,18 +430,17 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
             const grip_color = if (hovered_index == vertex_index or if (transform_texture.control) |control| control.index == vertex_index else false) highlight_color else default_color;
             file.camera.drawRectFilled(grip_rect, grip_color);
         }
-        centroid /= zmath.f32x4s(4.0); // Average position
 
         { // Handle hovering over transform texture
             const triangle_a: [3]zmath.F32x4 = .{
-                transform_texture.vertices[0].position + offset,
-                transform_texture.vertices[1].position + offset,
-                transform_texture.vertices[2].position + offset,
+                rotated_vertices[0].position + offset,
+                rotated_vertices[1].position + offset,
+                rotated_vertices[2].position + offset,
             };
             const triangle_b: [3]zmath.F32x4 = .{
-                transform_texture.vertices[2].position + offset,
-                transform_texture.vertices[3].position + offset,
-                transform_texture.vertices[0].position + offset,
+                rotated_vertices[2].position + offset,
+                rotated_vertices[3].position + offset,
+                rotated_vertices[0].position + offset,
             };
 
             const hovered: bool = hovered_index == null and transform_texture.control == null and (file.camera.isHoveredTriangle(triangle_a) or file.camera.isHoveredTriangle(triangle_b));
@@ -474,6 +513,26 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
             }
         }
 
+        { // Handle moving the vertices when panning
+            if (transform_texture.rotate) {
+                if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
+                    const mouse_position = pixi.state.mouse.position;
+                    const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
+                        .texture_position = .{ offset[0], offset[1] },
+                        .position = mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
+
+                    const diff = zmath.loadArr2(current_pixel_coords) - centroid;
+
+                    const angle = std.math.atan2(diff[1], diff[0]);
+
+                    transform_texture.rotation = @trunc(std.math.radiansToDegrees(angle) + 90.0);
+                }
+            }
+        }
+
         { // Handle moving the vertices when moving a single control
             if (transform_texture.control) |control| {
                 if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
@@ -487,8 +546,16 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
 
                     switch (control.mode) {
                         .locked_aspect, .free_aspect => { // TODO: implement locked aspect
-                            const control_vert = &transform_texture.vertices[control.index];
-                            control_vert.position = @trunc(zmath.loadArr2(current_pixel_coords));
+                            const control_vert = &rotated_vertices[control.index];
+
+                            const position = @trunc(zmath.loadArr2(current_pixel_coords));
+                            control_vert.position = position;
+
+                            var rotated_centroid = zmath.f32x4s(0.0);
+                            for (rotated_vertices) |vert| {
+                                rotated_centroid += vert.position;
+                            }
+                            rotated_centroid /= zmath.f32x4s(4.0);
 
                             const copy_x_index: usize = switch (control.index) {
                                 0 => 3,
@@ -509,6 +576,14 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                             };
 
                             transform_texture.vertices[copy_y_index].position[1] = control_vert.position[1];
+
+                            for (&rotated_vertices, 0..) |*vert, i| {
+                                vert.position -= rotated_centroid;
+                                vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
+                                vert.position += rotated_centroid;
+
+                                transform_texture.vertices[i].position = vert.position;
+                            }
                         },
                         .free => {
                             const control_vert = &transform_texture.vertices[control.index];
