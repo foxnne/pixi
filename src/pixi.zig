@@ -452,6 +452,7 @@ pub fn update(app: *App) !bool {
                 }
 
                 if (core.keyPressed(core.Key.escape)) {
+                    try file.undo();
                     transform_texture.texture.deinit();
                     file.transform_texture = null;
                 }
