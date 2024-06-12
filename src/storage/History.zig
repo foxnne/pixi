@@ -260,9 +260,9 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             }
 
             if (pixels.layer < 0) {
-                pixi.state.tools.current = .heightmap;
+                pixi.state.tools.set(.heightmap);
             } else {
-                pixi.state.tools.current = .pencil;
+                pixi.state.tools.set(.pencil);
             }
 
             layer.texture.update(core.device);
