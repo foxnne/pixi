@@ -405,7 +405,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
 
             var hovered: bool = false;
             var control_color: u32 = default_color;
-            if (file.camera.isHovered(.{ control_center[0] + offset[0] - half_grip_size, control_center[1] + offset[0] - half_grip_size, grip_size, grip_size })) {
+            if (file.camera.isHovered(.{ control_center[0] + offset[0] - half_grip_size, control_center[1] + offset[1] - half_grip_size, grip_size, grip_size })) {
                 hovered = true;
                 cursor = imgui.MouseCursor_Hand;
                 if (pixi.state.mouse.button(.primary)) |bt| {
@@ -559,39 +559,59 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
 
                     switch (control.mode) {
                         .locked_aspect, .free_aspect => { // TODO: implement locked aspect
-                            const control_vert = &rotated_vertices[control.index];
 
+                            // First, move the selected vertex to the mouse position
+                            const control_vert = &rotated_vertices[control.index];
                             const position = @trunc(zmath.loadArr2(current_pixel_coords));
                             control_vert.position = position;
 
-                            if (transform_texture.rotation == 0.0) {
-                                const copy_x_index: usize = switch (control.index) {
-                                    0 => 3,
-                                    1 => 2,
-                                    2 => 1,
-                                    3 => 0,
-                                    else => unreachable,
-                                };
+                            const adjacent_index_cw = if (control.index < 3) control.index + 1 else 0;
+                            const adjacent_index_ccw = if (control.index > 0) control.index - 1 else 3;
 
-                                rotated_vertices[copy_x_index].position[0] = control_vert.position[0];
+                            const opposite_index: usize = switch (control.index) {
+                                0 => 2,
+                                1 => 3,
+                                2 => 0,
+                                3 => 1,
+                                else => unreachable,
+                            };
 
-                                const copy_y_index: usize = switch (control.index) {
-                                    0 => 1,
-                                    1 => 0,
-                                    2 => 3,
-                                    3 => 2,
-                                    else => unreachable,
-                                };
+                            const adjacent_vert_cw = &rotated_vertices[adjacent_index_cw];
+                            const adjacent_vert_ccw = &rotated_vertices[adjacent_index_ccw];
+                            const opposite_vert = &rotated_vertices[opposite_index];
 
-                                rotated_vertices[copy_y_index].position[1] = control_vert.position[1];
+                            { // Calculate intersection point to set adjacent vert
+                                const as = control_vert.position;
+                                const bs = opposite_vert.position;
+                                const ad = opposite_vert.position - adjacent_vert_ccw.position;
+                                const bd = opposite_vert.position - adjacent_vert_cw.position;
+                                const dx = bs[0] - as[0];
+                                const dy = bs[1] - as[1];
+                                const det = bd[0] * ad[1] - bd[1] * ad[0];
+                                const u = (dy * bd[0] - dx * bd[1]) / det;
+                                adjacent_vert_cw.position = as + ad * zmath.f32x4s(u);
                             }
 
+                            { // Calculate intersection point to set adjacent vert
+                                const as = control_vert.position;
+                                const bs = opposite_vert.position;
+                                const ad = opposite_vert.position - adjacent_vert_cw.position;
+                                const bd = opposite_vert.position - adjacent_vert_ccw.position;
+                                const dx = bs[0] - as[0];
+                                const dy = bs[1] - as[1];
+                                const det = bd[0] * ad[1] - bd[1] * ad[0];
+                                const u = (dy * bd[0] - dx * bd[1]) / det;
+                                adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u);
+                            }
+
+                            // Recalculate the centroid with new vertex positions
                             var rotated_centroid = zmath.f32x4s(0.0);
                             for (rotated_vertices) |vert| {
                                 rotated_centroid += vert.position;
                             }
                             rotated_centroid /= zmath.f32x4s(4.0);
 
+                            // Reverse the rotation, then finalize the changes
                             for (&rotated_vertices, 0..) |*vert, i| {
                                 vert.position -= rotated_centroid;
                                 vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
@@ -622,361 +642,6 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                         },
                     }
                 }
-            }
-        }
-    }
-}
-
-pub fn oldDrawTransformTextureControls(file: *pixi.storage.Internal.Pixi, canvas_center_offset: [2]f32) void {
-    // Draw transformation texture controls
-    if (file.transform_texture) |*transform_texture| {
-        if (pixi.state.mouse.button(.primary)) |bt| {
-            if (bt.released()) {
-                transform_texture.active_control = .none;
-            }
-        }
-
-        const width: f32 = transform_texture.width;
-        const height: f32 = transform_texture.height;
-        const position: [2]f32 = .{ canvas_center_offset[0] + transform_texture.position[0], canvas_center_offset[1] + transform_texture.position[1] };
-
-        const center: [2]f32 = .{ position[0] + width / 2.0, position[1] + height / 2.0 };
-
-        const transform_rect: [4]f32 = .{ position[0], position[1], width, height };
-
-        var hovered_control: pixi.storage.Internal.Pixi.TransformControl = .none;
-
-        const text_color = pixi.state.theme.text.toU32();
-
-        var pan_color: u32 = text_color;
-
-        if (file.camera.isHovered(transform_rect)) {
-            hovered_control = .pan;
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.pressed()) {
-                    transform_texture.active_control = .pan;
-                }
-            }
-        }
-
-        const grip_size: f32 = 10.0 / file.camera.zoom;
-        const half_grip_size = grip_size / 2.0;
-
-        const offset = zmath.loadArr2(transform_texture.position) + zmath.loadArr2(canvas_center_offset) + zmath.f32x4(width / 2.0, height / 2.0, 0, 0);
-        const radians = std.math.degreesToRadians(transform_texture.rotation);
-        const rotation_matrix = zmath.rotationZ(radians);
-
-        const rotation_control_height = 12.0;
-
-        var rotate_control_position = zmath.f32x4(position[0] + width / 2.0, position[1] - rotation_control_height, 0.0, 0.0);
-        rotate_control_position -= offset;
-        rotate_control_position = zmath.mul(rotate_control_position, rotation_matrix);
-        rotate_control_position += offset;
-
-        if (file.camera.isHovered(.{ rotate_control_position[0] - half_grip_size * file.camera.zoom, rotate_control_position[1] - half_grip_size * file.camera.zoom, half_grip_size * file.camera.zoom * 2, half_grip_size * file.camera.zoom * 2 })) {
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                hovered_control = .rotate;
-                if (bt.pressed()) {
-                    transform_texture.active_control = .rotate;
-                }
-            }
-        }
-
-        var rotate_color = text_color;
-
-        if (file.camera.isHovered(.{ rotate_control_position[0] - half_grip_size * file.camera.zoom, rotate_control_position[1] - half_grip_size * file.camera.zoom, half_grip_size * file.camera.zoom * 2, half_grip_size * file.camera.zoom * 2 }) or transform_texture.active_control == .rotate) {
-            rotate_color = pixi.state.theme.highlight_primary.toU32();
-            file.camera.drawCircle(center, ((height / 2.0) + rotation_control_height) * file.camera.zoom, 1.0, text_color);
-        }
-
-        var top_position = zmath.f32x4(position[0] + width / 2.0, position[1], 1.0, 0.0);
-        top_position -= offset;
-        top_position = zmath.mul(top_position, rotation_matrix);
-        top_position += offset;
-
-        const top_rect: [4]f32 = .{ top_position[0] - half_grip_size, top_position[1] - half_grip_size, grip_size, grip_size };
-        const top_color: u32 = if (file.camera.isHovered(top_rect) or transform_texture.active_control == .n_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
-
-        if (file.camera.isHovered(top_rect)) {
-            hovered_control = .n_scale;
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.pressed()) {
-                    transform_texture.active_control = .n_scale;
-                }
-            }
-        }
-
-        var right_position = zmath.f32x4(position[0] + width, position[1] + height / 2.0, 1.0, 0.0);
-        right_position -= offset;
-        right_position = zmath.mul(right_position, rotation_matrix);
-        right_position += offset;
-
-        const right_rect: [4]f32 = .{ right_position[0] - half_grip_size, right_position[1] - half_grip_size, grip_size, grip_size };
-        const right_color: u32 = if (file.camera.isHovered(right_rect) or transform_texture.active_control == .e_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
-
-        if (file.camera.isHovered(right_rect)) {
-            hovered_control = .e_scale;
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.pressed()) {
-                    transform_texture.active_control = .e_scale;
-                }
-            }
-        }
-
-        var bottom_position = zmath.f32x4(position[0] + width / 2.0, position[1] + height, 1.0, 0.0);
-        bottom_position -= offset;
-        bottom_position = zmath.mul(bottom_position, rotation_matrix);
-        bottom_position += offset;
-
-        const bottom_rect: [4]f32 = .{ bottom_position[0] - half_grip_size, bottom_position[1] - half_grip_size, grip_size, grip_size };
-        const bottom_color: u32 = if (file.camera.isHovered(bottom_rect) or transform_texture.active_control == .s_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
-
-        if (file.camera.isHovered(bottom_rect)) {
-            hovered_control = .s_scale;
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.pressed()) {
-                    transform_texture.active_control = .s_scale;
-                }
-            }
-        }
-
-        var left_position = zmath.f32x4(position[0], position[1] + height / 2.0, 1.0, 0.0);
-        left_position -= offset;
-        left_position = zmath.mul(left_position, rotation_matrix);
-        left_position += offset;
-
-        const left_rect: [4]f32 = .{ left_position[0] - half_grip_size, left_position[1] - half_grip_size, grip_size, grip_size };
-        const left_color: u32 = if (file.camera.isHovered(left_rect) or transform_texture.active_control == .w_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
-
-        if (file.camera.isHovered(left_rect)) {
-            hovered_control = .w_scale;
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.pressed()) {
-                    transform_texture.active_control = .w_scale;
-                }
-            }
-        }
-
-        var tl_position = zmath.f32x4(position[0], position[1], 1.0, 0.0);
-        tl_position -= offset;
-        tl_position = zmath.mul(tl_position, rotation_matrix);
-        tl_position += offset;
-
-        const tl_rect: [4]f32 = .{ tl_position[0] - half_grip_size, tl_position[1] - half_grip_size, grip_size, grip_size };
-        const tl_color: u32 = if (file.camera.isHovered(tl_rect) or transform_texture.active_control == .nw_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
-
-        if (file.camera.isHovered(tl_rect)) {
-            hovered_control = .nw_scale;
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.pressed()) {
-                    transform_texture.active_control = .nw_scale;
-                }
-            }
-        }
-
-        var tr_position = zmath.f32x4(position[0] + width, position[1], 1.0, 0.0);
-        tr_position -= offset;
-        tr_position = zmath.mul(tr_position, rotation_matrix);
-        tr_position += offset;
-
-        const tr_rect: [4]f32 = .{ tr_position[0] - half_grip_size, tr_position[1] - half_grip_size, grip_size, grip_size };
-        const tr_color: u32 = if (file.camera.isHovered(tr_rect) or transform_texture.active_control == .ne_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
-
-        if (file.camera.isHovered(tr_rect)) {
-            hovered_control = .ne_scale;
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.pressed()) {
-                    transform_texture.active_control = .ne_scale;
-                }
-            }
-        }
-
-        var br_position = zmath.f32x4(position[0] + width, position[1] + height, 1.0, 0.0);
-        br_position -= offset;
-        br_position = zmath.mul(br_position, rotation_matrix);
-        br_position += offset;
-
-        const br_rect: [4]f32 = .{ br_position[0] - half_grip_size, br_position[1] - half_grip_size, grip_size, grip_size };
-        const br_color: u32 = if (file.camera.isHovered(br_rect) or transform_texture.active_control == .se_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
-
-        if (file.camera.isHovered(br_rect)) {
-            hovered_control = .se_scale;
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.pressed()) {
-                    transform_texture.active_control = .se_scale;
-                }
-            }
-        }
-
-        var bl_position = zmath.f32x4(position[0], position[1] + height, 1.0, 0.0);
-        bl_position -= offset;
-        bl_position = zmath.mul(bl_position, rotation_matrix);
-        bl_position += offset;
-
-        const bl_rect: [4]f32 = .{ bl_position[0] - half_grip_size, bl_position[1] - half_grip_size, grip_size, grip_size };
-        const bl_color: u32 = if (file.camera.isHovered(bl_rect) or transform_texture.active_control == .sw_scale) pixi.state.theme.highlight_primary.toU32() else text_color;
-
-        if (file.camera.isHovered(bl_rect)) {
-            hovered_control = .sw_scale;
-            if (pixi.state.mouse.button(.primary)) |bt| {
-                if (bt.pressed()) {
-                    transform_texture.active_control = .sw_scale;
-                }
-            }
-        }
-
-        file.camera.drawLine(.{ tl_position[0], tl_position[1] }, .{ tr_position[0], tr_position[1] }, text_color, 3.0);
-        file.camera.drawLine(.{ tr_position[0], tr_position[1] }, .{ br_position[0], br_position[1] }, text_color, 3.0);
-        file.camera.drawLine(.{ br_position[0], br_position[1] }, .{ bl_position[0], bl_position[1] }, text_color, 3.0);
-        file.camera.drawLine(.{ bl_position[0], bl_position[1] }, .{ tl_position[0], tl_position[1] }, text_color, 3.0);
-
-        file.camera.drawRectFilled(top_rect, top_color);
-        file.camera.drawRectFilled(right_rect, right_color);
-        file.camera.drawRectFilled(bottom_rect, bottom_color);
-        file.camera.drawRectFilled(left_rect, left_color);
-
-        file.camera.drawRectFilled(tl_rect, tl_color);
-        file.camera.drawRectFilled(tr_rect, tr_color);
-        file.camera.drawRectFilled(br_rect, br_color);
-        file.camera.drawRectFilled(bl_rect, bl_color);
-
-        file.camera.drawLine(.{ top_position[0], top_position[1] }, .{ rotate_control_position[0], rotate_control_position[1] }, text_color, 1.0);
-
-        file.camera.drawCircleFilled(.{ rotate_control_position[0], rotate_control_position[1] }, half_grip_size * file.camera.zoom, rotate_color);
-
-        if (transform_texture.active_control == .pan or hovered_control == .pan) {
-            pan_color = pixi.state.theme.highlight_primary.toU32();
-        }
-        file.camera.drawCircleFilled(center, (grip_size / 2.0) * file.camera.zoom, pan_color);
-
-        const cursor: imgui.MouseCursor = if (transform_texture.active_control != .none) switch (transform_texture.active_control) {
-            .pan, .rotate => imgui.MouseCursor_ResizeAll,
-            .ne_scale, .sw_scale => imgui.MouseCursor_ResizeNESW,
-            .se_scale, .nw_scale => imgui.MouseCursor_ResizeNWSE,
-            .e_scale, .w_scale => imgui.MouseCursor_ResizeEW,
-            .n_scale, .s_scale => imgui.MouseCursor_ResizeNS,
-            else => imgui.MouseCursor_Arrow,
-        } else switch (hovered_control) {
-            .pan, .rotate => imgui.MouseCursor_Hand,
-            .ne_scale, .sw_scale => imgui.MouseCursor_ResizeNESW,
-            .se_scale, .nw_scale => imgui.MouseCursor_ResizeNWSE,
-            .e_scale, .w_scale => imgui.MouseCursor_ResizeEW,
-            .n_scale, .s_scale => imgui.MouseCursor_ResizeNS,
-            else => imgui.MouseCursor_Arrow,
-        };
-
-        imgui.setMouseCursor(cursor);
-
-        if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
-            const mouse_position = pixi.state.mouse.position;
-            const prev_mouse_position = pixi.state.mouse.previous_position;
-            const current_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-                .texture_position = canvas_center_offset,
-                .position = mouse_position,
-                .width = file.width,
-                .height = file.height,
-            });
-
-            const previous_pixel_coords = file.camera.pixelCoordinatesRaw(.{
-                .texture_position = canvas_center_offset,
-                .position = prev_mouse_position,
-                .width = file.width,
-                .height = file.height,
-            });
-
-            const delta: [2]f32 = .{
-                current_pixel_coords[0] - previous_pixel_coords[0],
-                current_pixel_coords[1] - previous_pixel_coords[1],
-            };
-
-            switch (transform_texture.active_control) {
-                .pan => {
-                    transform_texture.position[0] += delta[0];
-                    transform_texture.position[1] += delta[1];
-                },
-                .n_scale => {
-                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
-                        transform_texture.height -= delta[1];
-                        transform_texture.position[1] += delta[1];
-                    }
-                },
-                .e_scale => {
-                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
-                        transform_texture.width += delta[0];
-                    }
-                },
-                .s_scale => {
-                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
-                        transform_texture.height += delta[1];
-                    }
-                },
-                .w_scale => {
-                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
-                        transform_texture.width -= delta[0];
-                        transform_texture.position[0] += delta[0];
-                    }
-                },
-                .ne_scale => {
-                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
-                        transform_texture.width += delta[0];
-                        transform_texture.height -= delta[1];
-                        transform_texture.position[1] += delta[1];
-                    }
-                },
-                .se_scale => {
-                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
-                        transform_texture.width += delta[0];
-                        transform_texture.height += delta[1];
-                    }
-                },
-                .sw_scale => {
-                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
-                        transform_texture.width -= delta[0];
-                        transform_texture.height += delta[1];
-                        transform_texture.position[0] += delta[0];
-                    }
-                },
-                .nw_scale => {
-                    if (transform_texture.rotation == 0.0) { // TODO: Fix when rotation != 0.0
-                        transform_texture.width -= delta[0];
-                        transform_texture.height -= delta[1];
-                        transform_texture.position[0] += delta[0];
-                        transform_texture.position[1] += delta[1];
-                    }
-                },
-                .rotate => {
-                    if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
-                        if (hk.down()) {
-                            const c: [2]f32 = .{ transform_texture.position[0] + transform_texture.width / 2.0, transform_texture.position[1] + transform_texture.height / 2.0 };
-                            const mouse: [2]f32 = .{ current_pixel_coords[0], current_pixel_coords[1] };
-
-                            const diff = zmath.loadArr2(mouse) - zmath.loadArr2(c);
-
-                            const direction = pixi.math.Direction.find(8, -diff[0], diff[1]);
-
-                            transform_texture.rotation = switch (direction) {
-                                .n => 180.0,
-                                .ne => 225.0,
-                                .e => 270.0,
-                                .se => 315.0,
-                                .s => 0.0,
-                                .sw => 45.0,
-                                .w => 90.0,
-                                .nw => 135.0,
-                                else => 180.0,
-                            };
-                        } else {
-                            const c: [2]f32 = .{ transform_texture.position[0] + transform_texture.width / 2.0, transform_texture.position[1] + transform_texture.height / 2.0 };
-                            const mouse: [2]f32 = .{ current_pixel_coords[0], current_pixel_coords[1] };
-
-                            const diff = zmath.loadArr2(mouse) - zmath.loadArr2(c);
-                            const angle = std.math.atan2(diff[1], diff[0]);
-
-                            transform_texture.rotation = @trunc(std.math.radiansToDegrees(angle) + 90.0);
-                        }
-                    }
-                },
-                else => {},
             }
         }
     }
