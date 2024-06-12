@@ -249,7 +249,7 @@ pub const Batcher = struct {
                     .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
                 }, //Tr
                 .{
-                    .position = [3]f32{ vertices[3].position[0] + offset[0], -vertices[2].position[1] + offset[1], vertices[3].position[2] },
+                    .position = [3]f32{ vertices[3].position[0] + offset[0], -vertices[3].position[1] + offset[1], vertices[3].position[2] },
                     .uv = [2]f32{ if (options.flip_x) max else min, max },
                     .color = color,
                     .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
