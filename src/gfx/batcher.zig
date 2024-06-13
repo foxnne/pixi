@@ -5,6 +5,10 @@ const zmath = @import("zmath");
 const core = @import("mach").core;
 const gpu = @import("mach").gpu;
 
+const num_triangles: usize = 4;
+const num_verts: usize = 5;
+const num_indices: usize = 12;
+
 pub const Batcher = struct {
     allocator: std.mem.Allocator,
     encoder: ?*gpu.CommandEncoder = null,
@@ -42,18 +46,24 @@ pub const Batcher = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, max_quads: usize) !Batcher {
-        const vertices = try allocator.alloc(gfx.Vertex, max_quads * 4);
-        var indices = try allocator.alloc(u32, max_quads * 6);
+        const vertices = try allocator.alloc(gfx.Vertex, max_quads * num_verts);
+        var indices = try allocator.alloc(u32, max_quads * num_indices);
 
         // Arrange index buffer for quads
         var i: usize = 0;
         while (i < max_quads) : (i += 1) {
-            indices[i * 2 * 3 + 0] = @as(u32, @intCast(i * 4 + 0));
-            indices[i * 2 * 3 + 1] = @as(u32, @intCast(i * 4 + 1));
-            indices[i * 2 * 3 + 2] = @as(u32, @intCast(i * 4 + 3));
-            indices[i * 2 * 3 + 3] = @as(u32, @intCast(i * 4 + 1));
-            indices[i * 2 * 3 + 4] = @as(u32, @intCast(i * 4 + 2));
-            indices[i * 2 * 3 + 5] = @as(u32, @intCast(i * 4 + 3));
+            indices[i * num_indices + 0] = @as(u32, @intCast(i * num_triangles + 0));
+            indices[i * num_indices + 1] = @as(u32, @intCast(i * num_triangles + 1));
+            indices[i * num_indices + 2] = @as(u32, @intCast(i * num_triangles + 4));
+            indices[i * num_indices + 3] = @as(u32, @intCast(i * num_triangles + 1));
+            indices[i * num_indices + 4] = @as(u32, @intCast(i * num_triangles + 2));
+            indices[i * num_indices + 5] = @as(u32, @intCast(i * num_triangles + 4));
+            indices[i * num_indices + 6] = @as(u32, @intCast(i * num_triangles + 2));
+            indices[i * num_indices + 7] = @as(u32, @intCast(i * num_triangles + 3));
+            indices[i * num_indices + 8] = @as(u32, @intCast(i * num_triangles + 4));
+            indices[i * num_indices + 9] = @as(u32, @intCast(i * num_triangles + 3));
+            indices[i * num_indices + 10] = @as(u32, @intCast(i * num_triangles + 0));
+            indices[i * num_indices + 11] = @as(u32, @intCast(i * num_triangles + 4));
         }
 
         const vertex_buffer_descriptor = .{
@@ -91,25 +101,31 @@ pub const Batcher = struct {
 
     /// Returns true if vertices array has room for another quad
     pub fn hasCapacity(self: Batcher) bool {
-        return self.quad_count * 4 < self.vertices.len - 1;
+        return self.quad_count * num_verts < self.vertices.len - 1;
     }
 
     /// Attempts to resize the buffers to hold a larger capacity
     pub fn resize(self: *Batcher, max_quads: usize) !void {
         if (max_quads <= self.quad_count) return error.BufferTooSmall;
 
-        self.vertices = try self.allocator.realloc(self.vertices, max_quads * 4);
-        self.indices = try self.allocator.realloc(self.indices, max_quads * 6);
+        self.vertices = try self.allocator.realloc(self.vertices, max_quads * num_verts);
+        self.indices = try self.allocator.realloc(self.indices, max_quads * num_indices);
 
         // Arrange index buffer for quads
         var i: usize = 0;
         while (i < max_quads) : (i += 1) {
-            self.indices[i * 2 * 3 + 0] = @as(u32, @intCast(i * 4 + 0));
-            self.indices[i * 2 * 3 + 1] = @as(u32, @intCast(i * 4 + 1));
-            self.indices[i * 2 * 3 + 2] = @as(u32, @intCast(i * 4 + 3));
-            self.indices[i * 2 * 3 + 3] = @as(u32, @intCast(i * 4 + 1));
-            self.indices[i * 2 * 3 + 4] = @as(u32, @intCast(i * 4 + 2));
-            self.indices[i * 2 * 3 + 5] = @as(u32, @intCast(i * 4 + 3));
+            self.indices[i * num_indices + 0] = @as(u32, @intCast(i * num_triangles + 0));
+            self.indices[i * num_indices + 1] = @as(u32, @intCast(i * num_triangles + 1));
+            self.indices[i * num_indices + 2] = @as(u32, @intCast(i * num_triangles + 4));
+            self.indices[i * num_indices + 3] = @as(u32, @intCast(i * num_triangles + 1));
+            self.indices[i * num_indices + 4] = @as(u32, @intCast(i * num_triangles + 2));
+            self.indices[i * num_indices + 5] = @as(u32, @intCast(i * num_triangles + 4));
+            self.indices[i * num_indices + 6] = @as(u32, @intCast(i * num_triangles + 2));
+            self.indices[i * num_indices + 7] = @as(u32, @intCast(i * num_triangles + 4));
+            self.indices[i * num_indices + 8] = @as(u32, @intCast(i * num_triangles + 3));
+            self.indices[i * num_indices + 9] = @as(u32, @intCast(i * num_triangles + 3));
+            self.indices[i * num_indices + 10] = @as(u32, @intCast(i * num_triangles + 4));
+            self.indices[i * num_indices + 11] = @as(u32, @intCast(i * num_triangles + 0));
         }
 
         std.log.warn("[{s}] Batcher buffers resized, previous size: {d} - new size: {d}", .{ pixi.name, self.quad_count, max_quads });
@@ -254,6 +270,12 @@ pub const Batcher = struct {
                     .color = color,
                     .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
                 }, //Tl
+                .{
+                    .position = [3]f32{ centroid[0], centroid[1], 0.0 },
+                    .uv = [2]f32{ 0.5, 0.5 },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Center
             },
         };
 
@@ -408,7 +430,7 @@ pub const Batcher = struct {
             }
 
             // Draw only the quads appended this cycle
-            pass.drawIndexed(@as(u32, @intCast(quad_count * 6)), 1, @as(u32, @intCast(self.start_count * 6)), 0, 0);
+            pass.drawIndexed(@as(u32, @intCast(quad_count * num_indices)), 1, @as(u32, @intCast(self.start_count * num_indices)), 0, 0);
         }
 
         pass_blk: {
@@ -453,8 +475,8 @@ pub const Batcher = struct {
         if (self.encoder) |encoder| {
             self.empty = true;
             // Write the current vertex and index buffers to the queue.
-            core.queue.writeBuffer(self.vertex_buffer_handle, 0, self.vertices[0 .. self.quad_count * 4]);
-            core.queue.writeBuffer(self.index_buffer_handle, 0, self.indices[0 .. self.quad_count * 6]);
+            core.queue.writeBuffer(self.vertex_buffer_handle, 0, self.vertices[0 .. self.quad_count * num_verts]);
+            core.queue.writeBuffer(self.index_buffer_handle, 0, self.indices[0 .. self.quad_count * num_indices]);
             // Reset the Batcher for the next time begin is called.
             self.quad_count = 0;
             self.vert_index = 0;

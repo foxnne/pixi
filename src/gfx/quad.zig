@@ -4,7 +4,7 @@ const pixi = @import("../pixi.zig");
 const gfx = pixi.gfx;
 
 pub const Quad = struct {
-    vertices: [4]gfx.Vertex,
+    vertices: [5]gfx.Vertex,
 
     pub fn setHeight(self: *Quad, height: f32) void {
         for (self.vertices, 0..) |_, i| {
@@ -69,7 +69,8 @@ pub const Quad = struct {
     }
 
     pub fn rotate(self: *Quad, rotation: f32, centroid: zm.F32x4) void {
-        for (self.vertices, 0..) |vert, i| {
+        for (0..5) |i| {
+            const vert = self.vertices[i];
             var position = zm.loadArr3(vert.position);
             const radians = std.math.degreesToRadians(rotation);
 
