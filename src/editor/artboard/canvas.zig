@@ -580,30 +580,41 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                             const adjacent_vert_ccw = &rotated_vertices[adjacent_index_ccw];
                             const opposite_vert = &rotated_vertices[opposite_index];
 
+                            const rotation_direction = zmath.mul(zmath.loadArr2(.{ 0.0, 1.0 }), rotation_matrix);
+                            const rotation_perp = zmath.mul(zmath.loadArr2(.{ 1.0, 0.0 }), rotation_matrix);
+
                             { // Calculate intersection point to set adjacent vert
                                 const as = control_vert.position;
                                 const bs = opposite_vert.position;
-                                const ad = opposite_vert.position - adjacent_vert_ccw.position;
-                                const bd = opposite_vert.position - adjacent_vert_cw.position;
+                                const ad = -rotation_direction;
+                                const bd = rotation_perp;
                                 const dx = bs[0] - as[0];
                                 const dy = bs[1] - as[1];
                                 const det = bd[0] * ad[1] - bd[1] * ad[0];
                                 if (det == 0.0) break :blk_vert;
                                 const u = (dy * bd[0] - dx * bd[1]) / det;
-                                adjacent_vert_cw.position = as + ad * zmath.f32x4s(u);
+                                switch (control.index) {
+                                    1, 3 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
+                                    0, 2 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
+                                    else => unreachable,
+                                }
                             }
 
                             { // Calculate intersection point to set adjacent vert
                                 const as = control_vert.position;
                                 const bs = opposite_vert.position;
-                                const ad = opposite_vert.position - adjacent_vert_cw.position;
-                                const bd = opposite_vert.position - adjacent_vert_ccw.position;
+                                const ad = -rotation_perp;
+                                const bd = rotation_direction;
                                 const dx = bs[0] - as[0];
                                 const dy = bs[1] - as[1];
                                 const det = bd[0] * ad[1] - bd[1] * ad[0];
                                 if (det == 0.0) break :blk_vert;
                                 const u = (dy * bd[0] - dx * bd[1]) / det;
-                                adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u);
+                                switch (control.index) {
+                                    1, 3 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
+                                    0, 2 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
+                                    else => unreachable,
+                                }
                             }
 
                             // Recalculate the centroid with new vertex positions
