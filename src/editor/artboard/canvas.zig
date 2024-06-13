@@ -546,7 +546,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
             }
         }
 
-        { // Handle moving the vertices when moving a single control
+        blk_vert: { // Handle moving the vertices when moving a single control
             if (transform_texture.control) |control| {
                 if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
                     const mouse_position = pixi.state.mouse.position;
@@ -588,6 +588,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                                 const dx = bs[0] - as[0];
                                 const dy = bs[1] - as[1];
                                 const det = bd[0] * ad[1] - bd[1] * ad[0];
+                                if (det == 0.0) break :blk_vert;
                                 const u = (dy * bd[0] - dx * bd[1]) / det;
                                 adjacent_vert_cw.position = as + ad * zmath.f32x4s(u);
                             }
@@ -600,6 +601,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                                 const dx = bs[0] - as[0];
                                 const dy = bs[1] - as[1];
                                 const det = bd[0] * ad[1] - bd[1] * ad[0];
+                                if (det == 0.0) break :blk_vert;
                                 const u = (dy * bd[0] - dx * bd[1]) / det;
                                 adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u);
                             }
