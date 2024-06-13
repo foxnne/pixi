@@ -59,6 +59,7 @@ pub const Pixi = struct {
         pan: bool = false,
         rotate: bool = false,
         rotation: f32 = 0.0,
+        rotation_grip_height: f32 = 8.0,
         texture: pixi.gfx.Texture,
     };
 
@@ -76,24 +77,6 @@ pub const Pixi = struct {
         free_aspect,
         free,
     };
-
-    // pub const TransformControl = enum {
-    //     none,
-    //     pan,
-    //     n_scale,
-    //     e_scale,
-    //     s_scale,
-    //     w_scale,
-    //     ne_scale,
-    //     se_scale,
-    //     sw_scale,
-    //     nw_scale,
-    //     ne_skew,
-    //     se_skew,
-    //     sw_skew,
-    //     nw_skew,
-    //     rotate,
-    // };
 
     pub const AnimationState = enum { pause, play };
     pub const Canvas = enum { primary, flipbook };
@@ -1001,6 +984,7 @@ pub const Pixi = struct {
                     .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) }, // BL
                 },
                 .texture = pixi.gfx.Texture.create(image_copy, .{}),
+                .rotation_grip_height = transform_height / 4.0,
             };
 
             const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);

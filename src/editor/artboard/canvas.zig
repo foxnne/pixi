@@ -394,7 +394,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
         }
 
         { // Draw controls for rotating
-            const rotation_control_height = 8.0;
+            const rotation_control_height = transform_texture.rotation_grip_height;
             var control_offset = zmath.loadArr2(.{ 0.0, rotation_control_height });
             control_offset = zmath.mul(control_offset, rotation_matrix);
 
