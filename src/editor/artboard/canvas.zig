@@ -384,11 +384,22 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
 
         // Draw bounding lines from vertices
         for (&rotated_vertices, 0..) |*vertex, vertex_index| {
-            const previous_position = switch (vertex_index) {
-                0 => rotated_vertices[3].position,
-                1, 2, 3 => rotated_vertices[vertex_index - 1].position,
+            const previous_index = switch (vertex_index) {
+                0 => 3,
+                1, 2, 3 => vertex_index - 1,
                 else => unreachable,
             };
+
+            const previous_position = rotated_vertices[previous_index].position;
+
+            if (transform_texture.control) |control| {
+                if (control.index == vertex_index or control.index == previous_index) {
+                    const midpoint = ((vertex.position + previous_position) / zmath.f32x4s(2.0)) + zmath.loadArr2(.{ offset[0] + 0.5, offset[1] + 0.5 });
+
+                    const dist = @sqrt(std.math.pow(f32, vertex.position[0] - previous_position[0], 2) + std.math.pow(f32, vertex.position[1] - previous_position[1], 2));
+                    file.camera.drawText("{d}", .{dist}, .{ midpoint[0], midpoint[1] }, default_color);
+                }
+            }
 
             file.camera.drawLine(.{ offset[0] + previous_position[0], offset[1] + previous_position[1] }, .{ offset[0] + vertex.position[0], offset[1] + vertex.position[1] }, default_color, 3.0);
         }
