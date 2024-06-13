@@ -346,6 +346,10 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
         const modifier_primary: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
         const modifier_secondary: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
+        if (transform_texture.control) |*control| {
+            control.mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect;
+        }
+
         var cursor: imgui.MouseCursor = imgui.MouseCursor_Arrow;
 
         const default_color = pixi.state.theme.text.toU32();
@@ -394,7 +398,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
 
             if (transform_texture.control) |control| {
                 if (control.index == vertex_index or control.index == previous_index) {
-                    const midpoint = ((vertex.position + previous_position) / zmath.f32x4s(2.0)) + zmath.loadArr2(.{ offset[0] + 0.5, offset[1] + 0.5 });
+                    const midpoint = ((vertex.position + previous_position) / zmath.f32x4s(2.0)) + zmath.loadArr2(.{ offset[0] + 1.5, offset[1] + 1.5 });
 
                     const dist = @sqrt(std.math.pow(f32, vertex.position[0] - previous_position[0], 2) + std.math.pow(f32, vertex.position[1] - previous_position[1], 2));
                     file.camera.drawText("{d}", .{dist}, .{ midpoint[0], midpoint[1] }, default_color);
@@ -557,9 +561,20 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                     });
 
                     const diff = zmath.loadArr2(current_pixel_coords) - centroid;
-                    const angle = std.math.atan2(diff[1], diff[0]);
+                    const direction = pixi.math.Direction.find(8, -diff[0], diff[1]);
+                    const angle: f32 = if (modifier_secondary) switch (direction) {
+                        .n => 180.0,
+                        .ne => 225.0,
+                        .e => 270.0,
+                        .se => 315.0,
+                        .s => 0.0,
+                        .sw => 45.0,
+                        .w => 90.0,
+                        .nw => 135.0,
+                        else => 180.0,
+                    } else std.math.atan2(diff[1], diff[0]);
 
-                    transform_texture.rotation = @trunc(std.math.radiansToDegrees(angle) + 90.0);
+                    transform_texture.rotation = if (modifier_secondary) angle else @trunc(std.math.radiansToDegrees(angle) + 90.0);
                 }
             }
         }
