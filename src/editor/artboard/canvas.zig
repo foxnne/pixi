@@ -420,6 +420,13 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
 
                 const dist = @sqrt(std.math.pow(f32, control_center[0] - centroid[0], 2) + std.math.pow(f32, control_center[1] - centroid[1], 2));
                 file.camera.drawCircle(.{ centroid[0] + offset[0], centroid[1] + offset[1] }, dist * file.camera.zoom, 1.0, default_color);
+
+                file.camera.drawText("{d}°", .{
+                    transform_texture.rotation,
+                }, .{
+                    centroid[0] + offset[0] + (dist),
+                    centroid[1] + offset[1] - (dist),
+                }, default_color);
             }
 
             file.camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * file.camera.zoom, control_color);
