@@ -565,6 +565,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                             const position = @trunc(zmath.loadArr2(current_pixel_coords));
                             control_vert.position = position;
 
+                            // Find adjacent verts
                             const adjacent_index_cw = if (control.index < 3) control.index + 1 else 0;
                             const adjacent_index_ccw = if (control.index > 0) control.index - 1 else 3;
 
@@ -580,6 +581,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                             const adjacent_vert_ccw = &rotated_vertices[adjacent_index_ccw];
                             const opposite_vert = &rotated_vertices[opposite_index];
 
+                            // Get rotation directions to apply to adjacent vertex
                             const rotation_direction = zmath.mul(zmath.loadArr2(.{ 0.0, 1.0 }), rotation_matrix);
                             const rotation_perp = zmath.mul(zmath.loadArr2(.{ 1.0, 0.0 }), rotation_matrix);
 
