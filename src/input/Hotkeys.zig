@@ -265,6 +265,10 @@ pub fn process(self: *Self) !void {
                 try file.copy();
                 try file.eraseSprite(file.selected_sprite_index);
                 try file.paste();
+
+                if (file.transform_texture) |*tt| {
+                    tt.undo_on_cancel = true;
+                }
             }
         }
 

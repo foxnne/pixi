@@ -35,7 +35,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
     const canvas_center_offset = file.canvasCenterOffset(.primary);
 
-    // Draw info bar at top when transforming
+    // Draw transform window at top
     {
         if (file.transform_texture) |*transform_texture| {
             var flags: imgui.WindowFlags = 0;
@@ -72,7 +72,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
                 imgui.sameLine();
                 if (imgui.button("Cancel") or (core.keyPressed(core.Key.escape) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
-                    //file.undo() catch unreachable;
+                    if (transform_texture.undo_on_cancel)
+                        file.undo() catch unreachable;
                     file.transform_texture.?.texture.deinit();
                     file.transform_texture = null;
                 }
