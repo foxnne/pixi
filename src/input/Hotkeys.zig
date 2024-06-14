@@ -144,6 +144,8 @@ pub fn process(self: *Self) !void {
     }
 
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+        if (file.transform_texture != null) return;
+
         if (self.hotkey(.{ .proc = .save })) |hk| {
             if (hk.pressed()) {
                 try file.saveAsync();

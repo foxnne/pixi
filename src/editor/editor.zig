@@ -325,6 +325,9 @@ pub fn setActiveFile(index: usize) void {
         if (pixi.state.tools.current == .heightmap)
             pixi.state.tools.current = .pointer;
     }
+    if (file.transform_texture != null and pixi.state.tools.current != .pointer) {
+        pixi.state.tools.set(.pointer);
+    }
     pixi.state.open_file_index = index;
 }
 

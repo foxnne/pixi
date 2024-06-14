@@ -151,8 +151,6 @@ pub fn draw() void {
                                 if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
                                     if (artboard_0) {
                                         artboard_0_open_file_index = i;
-
-                                        if (!pixi.state.settings.split_artboard) {}
                                     } else if (!artboard_grip) {
                                         artboard_1_open_file_index = i;
                                     }
