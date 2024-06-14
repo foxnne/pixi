@@ -23,6 +23,7 @@ pub const Change = union(ChangeType) {
         layer: i32,
         indices: []usize,
         values: [][4]u8,
+        allow_merge: bool = false,
     };
 
     pub const Origins = struct {
@@ -82,6 +83,7 @@ pub const Change = union(ChangeType) {
                     .layer = 0,
                     .indices = try allocator.alloc(usize, len),
                     .values = try allocator.alloc([4]u8, len),
+                    .allow_merge = false,
                 },
             },
             .origins => .{
@@ -238,209 +240,218 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
 
     if (active_stack.items.len == 0) return;
 
-    // Modify this change before its put into the other stack.
-    var change = active_stack.pop();
+    while (true) {
+        var pixels_merge: bool = false;
 
-    switch (change) {
-        .pixels => |*pixels| {
-            var layer = if (pixels.layer < 0) &file.heightmap.layer.? else &file.layers.items[@as(usize, @intCast(pixels.layer))];
-            for (pixels.indices, 0..) |pixel_index, i| {
-                const color: [4]u8 = pixels.values[i];
-                var current_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
-                pixels.values[i] = current_pixels[pixel_index];
-                current_pixels[pixel_index] = color;
-                if (color[3] == 0 and pixels.layer >= 0) {
-                    // TODO: This does all kinds of damage to a heightmap, fix later
-                    // Erasing a pixel on a layer, we also need to erase the heightmap
-                    // if (file.heightmap.layer) |heightmap_layer| {
-                    //     var heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.image.data.ptr))[0 .. heightmap_layer.texture.image.data.len / 4];
-                    //     heightmap_pixels[pixel_index] = color;
-                    // }
-                }
-            }
+        if (active_stack.items.len == 0) break;
+        // Modify this change before its put into the other stack.
+        var change = active_stack.pop();
 
-            if (pixels.layer < 0) {
-                pixi.state.tools.set(.heightmap);
-            } else {
-                pixi.state.tools.set(.pencil);
-            }
+        switch (change) {
+            .pixels => |*pixels| {
+                if (pixels.allow_merge) pixels_merge = true;
 
-            layer.texture.update(core.device);
-            if (pixi.state.sidebar == .sprites)
-                pixi.state.sidebar = .tools;
-        },
-        .origins => |*origins| {
-            file.selected_sprites.clearAndFree();
-            for (origins.indices, 0..) |sprite_index, i| {
-                const origin_x = origins.values[i][0];
-                const origin_y = origins.values[i][1];
-                origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
-                file.sprites.items[sprite_index].origin_x = origin_x;
-                file.sprites.items[sprite_index].origin_y = origin_y;
-                try file.selected_sprites.append(sprite_index);
-            }
-            pixi.state.sidebar = .sprites;
-        },
-        .layers_order => |*layers_order| {
-            var new_order = try pixi.state.allocator.alloc(usize, layers_order.order.len);
-            for (file.layers.items, 0..) |layer, i| {
-                new_order[i] = layer.id;
-            }
-
-            for (layers_order.order, 0..) |id, i| {
-                if (file.layers.items[i].id == id) continue;
-
-                // Save current layer
-                const current_layer = file.layers.items[i];
-                layers_order.order[i] = current_layer.id;
-
-                // Make changes to the layers
-                for (file.layers.items, 0..) |layer, layer_i| {
-                    if (layer.id == layers_order.selected) {
-                        file.selected_layer_index = layer_i;
-                    }
-                    if (layer.id == id) {
-                        file.layers.items[i] = layer;
-                        file.layers.items[layer_i] = current_layer;
-                        continue;
+                var layer = if (pixels.layer < 0) &file.heightmap.layer.? else &file.layers.items[@as(usize, @intCast(pixels.layer))];
+                for (pixels.indices, 0..) |pixel_index, i| {
+                    const color: [4]u8 = pixels.values[i];
+                    var current_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+                    pixels.values[i] = current_pixels[pixel_index];
+                    current_pixels[pixel_index] = color;
+                    if (color[3] == 0 and pixels.layer >= 0) {
+                        // TODO: This does all kinds of damage to a heightmap, fix later
+                        // Erasing a pixel on a layer, we also need to erase the heightmap
+                        // if (file.heightmap.layer) |heightmap_layer| {
+                        //     var heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.image.data.ptr))[0 .. heightmap_layer.texture.image.data.len / 4];
+                        //     heightmap_pixels[pixel_index] = color;
+                        // }
                     }
                 }
-            }
 
-            @memcpy(layers_order.order, new_order);
-            pixi.state.allocator.free(new_order);
-        },
-        .layer_restore_delete => |*layer_restore_delete| {
-            const a = layer_restore_delete.action;
-            switch (a) {
-                .restore => {
-                    try file.layers.insert(layer_restore_delete.index, file.deleted_layers.pop());
-                    layer_restore_delete.action = .delete;
-                },
-                .delete => {
-                    try file.deleted_layers.append(file.layers.orderedRemove(layer_restore_delete.index));
-                    layer_restore_delete.action = .restore;
-                },
-            }
-            pixi.state.sidebar = .layers;
-        },
-        .layer_name => |*layer_name| {
-            var name = [_:0]u8{0} ** 128;
-            @memcpy(name[0..layer_name.name.len], &layer_name.name);
-            layer_name.name = [_:0]u8{0} ** 128;
-            @memcpy(layer_name.name[0..file.layers.items[layer_name.index].name.len], file.layers.items[layer_name.index].name);
-            pixi.state.allocator.free(file.layers.items[layer_name.index].name);
-            file.layers.items[layer_name.index].name = try pixi.state.allocator.dupeZ(u8, &name);
-            pixi.state.sidebar = .layers;
-        },
-        .layer_settings => |*layer_settings| {
-            const visible = file.layers.items[layer_settings.index].visible;
-            const collapse = file.layers.items[layer_settings.index].collapse;
-            file.layers.items[layer_settings.index].visible = layer_settings.visible;
-            file.layers.items[layer_settings.index].collapse = layer_settings.collapse;
-            layer_settings.visible = visible;
-            layer_settings.collapse = collapse;
-            pixi.state.sidebar = .layers;
-        },
-        .animation => |*animation| {
-            // Set sprite names to generic
-            const current_animation = file.animations.items[animation.index];
-            var sprite_index = current_animation.start;
-            while (sprite_index < current_animation.start + current_animation.length) : (sprite_index += 1) {
-                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{sprite_index}) catch unreachable;
-            }
+                if (pixels.layer < 0) {
+                    pixi.state.tools.set(.heightmap);
+                } else {
+                    pixi.state.tools.set(.pencil);
+                }
 
-            // Set sprite names to specific animation
-            sprite_index = animation.start;
-            var animation_index: usize = 0;
-            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &animation.name, "\u{0}"), animation_index }) catch unreachable;
-                animation_index += 1;
-            }
+                layer.texture.update(core.device);
+                if (pixi.state.sidebar == .sprites)
+                    pixi.state.sidebar = .tools;
+            },
+            .origins => |*origins| {
+                file.selected_sprites.clearAndFree();
+                for (origins.indices, 0..) |sprite_index, i| {
+                    const origin_x = origins.values[i][0];
+                    const origin_y = origins.values[i][1];
+                    origins.values[i] = .{ file.sprites.items[sprite_index].origin_x, file.sprites.items[sprite_index].origin_y };
+                    file.sprites.items[sprite_index].origin_x = origin_x;
+                    file.sprites.items[sprite_index].origin_y = origin_y;
+                    try file.selected_sprites.append(sprite_index);
+                }
+                pixi.state.sidebar = .sprites;
+            },
+            .layers_order => |*layers_order| {
+                var new_order = try pixi.state.allocator.alloc(usize, layers_order.order.len);
+                for (file.layers.items, 0..) |layer, i| {
+                    new_order[i] = layer.id;
+                }
 
-            // Name
-            var name = [_:0]u8{0} ** 128;
-            @memcpy(name[0..animation.name.len], &animation.name);
-            animation.name = [_:0]u8{0} ** 128;
-            @memcpy(animation.name[0..file.animations.items[animation.index].name.len], file.animations.items[animation.index].name);
-            pixi.state.allocator.free(file.animations.items[animation.index].name);
-            file.animations.items[animation.index].name = try pixi.state.allocator.dupeZ(u8, std.mem.trimRight(u8, &name, "\u{0}"));
-            // FPS
-            const fps = animation.fps;
-            animation.fps = file.animations.items[animation.index].fps;
-            file.animations.items[animation.index].fps = fps;
-            // Start
-            const start = animation.start;
-            animation.start = file.animations.items[animation.index].start;
-            file.animations.items[animation.index].start = start;
-            // Length
-            const length = animation.length;
-            animation.length = file.animations.items[animation.index].length;
-            file.animations.items[animation.index].length = length;
+                for (layers_order.order, 0..) |id, i| {
+                    if (file.layers.items[i].id == id) continue;
 
-            pixi.state.sidebar = .animations;
-        },
-        .animation_restore_delete => |*animation_restore_delete| {
-            const a = animation_restore_delete.action;
-            switch (a) {
-                .restore => {
-                    const animation = file.deleted_animations.pop();
-                    try file.animations.insert(animation_restore_delete.index, animation);
-                    animation_restore_delete.action = .delete;
+                    // Save current layer
+                    const current_layer = file.layers.items[i];
+                    layers_order.order[i] = current_layer.id;
 
-                    var i: usize = animation.start;
-                    var animation_i: usize = 0;
-                    while (i < animation.start + animation.length) : (i += 1) {
-                        pixi.state.allocator.free(file.sprites.items[i].name);
-                        file.sprites.items[i].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name[0..], animation_i }) catch unreachable;
-                        animation_i += 1;
+                    // Make changes to the layers
+                    for (file.layers.items, 0..) |layer, layer_i| {
+                        if (layer.id == layers_order.selected) {
+                            file.selected_layer_index = layer_i;
+                        }
+                        if (layer.id == id) {
+                            file.layers.items[i] = layer;
+                            file.layers.items[layer_i] = current_layer;
+                            continue;
+                        }
                     }
-                },
-                .delete => {
-                    const animation = file.animations.orderedRemove(animation_restore_delete.index);
-                    try file.deleted_animations.append(animation);
-                    animation_restore_delete.action = .restore;
+                }
 
-                    var i: usize = animation.start;
-                    while (i < animation.start + animation.length) : (i += 1) {
-                        pixi.state.allocator.free(file.sprites.items[i].name);
-                        file.sprites.items[i].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{i}) catch unreachable;
-                    }
+                @memcpy(layers_order.order, new_order);
+                pixi.state.allocator.free(new_order);
+            },
+            .layer_restore_delete => |*layer_restore_delete| {
+                const a = layer_restore_delete.action;
+                switch (a) {
+                    .restore => {
+                        try file.layers.insert(layer_restore_delete.index, file.deleted_layers.pop());
+                        layer_restore_delete.action = .delete;
+                    },
+                    .delete => {
+                        try file.deleted_layers.append(file.layers.orderedRemove(layer_restore_delete.index));
+                        layer_restore_delete.action = .restore;
+                    },
+                }
+                pixi.state.sidebar = .layers;
+            },
+            .layer_name => |*layer_name| {
+                var name = [_:0]u8{0} ** 128;
+                @memcpy(name[0..layer_name.name.len], &layer_name.name);
+                layer_name.name = [_:0]u8{0} ** 128;
+                @memcpy(layer_name.name[0..file.layers.items[layer_name.index].name.len], file.layers.items[layer_name.index].name);
+                pixi.state.allocator.free(file.layers.items[layer_name.index].name);
+                file.layers.items[layer_name.index].name = try pixi.state.allocator.dupeZ(u8, &name);
+                pixi.state.sidebar = .layers;
+            },
+            .layer_settings => |*layer_settings| {
+                const visible = file.layers.items[layer_settings.index].visible;
+                const collapse = file.layers.items[layer_settings.index].collapse;
+                file.layers.items[layer_settings.index].visible = layer_settings.visible;
+                file.layers.items[layer_settings.index].collapse = layer_settings.collapse;
+                layer_settings.visible = visible;
+                layer_settings.collapse = collapse;
+                pixi.state.sidebar = .layers;
+            },
+            .animation => |*animation| {
+                // Set sprite names to generic
+                const current_animation = file.animations.items[animation.index];
+                var sprite_index = current_animation.start;
+                while (sprite_index < current_animation.start + current_animation.length) : (sprite_index += 1) {
+                    pixi.state.allocator.free(file.sprites.items[sprite_index].name);
+                    file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{sprite_index}) catch unreachable;
+                }
 
-                    if (file.selected_animation_index == animation_restore_delete.index)
-                        file.selected_animation_index = 0;
-                },
-            }
-            pixi.state.sidebar = .animations;
-        },
-        .heightmap_restore_delete => |*heightmap_restore_delete| {
-            const a = heightmap_restore_delete.action;
-            switch (a) {
-                .restore => {
-                    file.heightmap.layer = file.deleted_heightmap_layers.pop();
-                    heightmap_restore_delete.action = .delete;
-                },
-                .delete => {
-                    try file.deleted_heightmap_layers.append(file.heightmap.layer.?);
-                    file.heightmap.layer = null;
-                    heightmap_restore_delete.action = .restore;
-                    if (pixi.state.tools.current == .heightmap) {
-                        pixi.state.tools.set(.pointer);
-                    }
-                },
-            }
-        },
-        //else => {},
+                // Set sprite names to specific animation
+                sprite_index = animation.start;
+                var animation_index: usize = 0;
+                while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
+                    pixi.state.allocator.free(file.sprites.items[sprite_index].name);
+                    file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &animation.name, "\u{0}"), animation_index }) catch unreachable;
+                    animation_index += 1;
+                }
+
+                // Name
+                var name = [_:0]u8{0} ** 128;
+                @memcpy(name[0..animation.name.len], &animation.name);
+                animation.name = [_:0]u8{0} ** 128;
+                @memcpy(animation.name[0..file.animations.items[animation.index].name.len], file.animations.items[animation.index].name);
+                pixi.state.allocator.free(file.animations.items[animation.index].name);
+                file.animations.items[animation.index].name = try pixi.state.allocator.dupeZ(u8, std.mem.trimRight(u8, &name, "\u{0}"));
+                // FPS
+                const fps = animation.fps;
+                animation.fps = file.animations.items[animation.index].fps;
+                file.animations.items[animation.index].fps = fps;
+                // Start
+                const start = animation.start;
+                animation.start = file.animations.items[animation.index].start;
+                file.animations.items[animation.index].start = start;
+                // Length
+                const length = animation.length;
+                animation.length = file.animations.items[animation.index].length;
+                file.animations.items[animation.index].length = length;
+
+                pixi.state.sidebar = .animations;
+            },
+            .animation_restore_delete => |*animation_restore_delete| {
+                const a = animation_restore_delete.action;
+                switch (a) {
+                    .restore => {
+                        const animation = file.deleted_animations.pop();
+                        try file.animations.insert(animation_restore_delete.index, animation);
+                        animation_restore_delete.action = .delete;
+
+                        var i: usize = animation.start;
+                        var animation_i: usize = 0;
+                        while (i < animation.start + animation.length) : (i += 1) {
+                            pixi.state.allocator.free(file.sprites.items[i].name);
+                            file.sprites.items[i].name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_{d}", .{ animation.name[0..], animation_i }) catch unreachable;
+                            animation_i += 1;
+                        }
+                    },
+                    .delete => {
+                        const animation = file.animations.orderedRemove(animation_restore_delete.index);
+                        try file.deleted_animations.append(animation);
+                        animation_restore_delete.action = .restore;
+
+                        var i: usize = animation.start;
+                        while (i < animation.start + animation.length) : (i += 1) {
+                            pixi.state.allocator.free(file.sprites.items[i].name);
+                            file.sprites.items[i].name = std.fmt.allocPrintZ(pixi.state.allocator, "Sprite_{d}", .{i}) catch unreachable;
+                        }
+
+                        if (file.selected_animation_index == animation_restore_delete.index)
+                            file.selected_animation_index = 0;
+                    },
+                }
+                pixi.state.sidebar = .animations;
+            },
+            .heightmap_restore_delete => |*heightmap_restore_delete| {
+                const a = heightmap_restore_delete.action;
+                switch (a) {
+                    .restore => {
+                        file.heightmap.layer = file.deleted_heightmap_layers.pop();
+                        heightmap_restore_delete.action = .delete;
+                    },
+                    .delete => {
+                        try file.deleted_heightmap_layers.append(file.heightmap.layer.?);
+                        file.heightmap.layer = null;
+                        heightmap_restore_delete.action = .restore;
+                        if (pixi.state.tools.current == .heightmap) {
+                            pixi.state.tools.set(.pointer);
+                        }
+                    },
+                }
+            },
+            //else => {},
+        }
+
+        try other_stack.append(change);
+
+        self.bookmark += switch (action) {
+            .undo => -1,
+            .redo => 1,
+        };
+
+        if (!pixels_merge) break;
     }
-
-    try other_stack.append(change);
-
-    self.bookmark += switch (action) {
-        .undo => -1,
-        .redo => 1,
-    };
 }
 
 pub fn clearAndFree(self: *History) void {
