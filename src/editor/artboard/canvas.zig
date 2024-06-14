@@ -72,7 +72,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
                 imgui.sameLine();
                 if (imgui.button("Cancel") or (core.keyPressed(core.Key.escape) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
-                    file.undo() catch unreachable;
+                    //file.undo() catch unreachable;
                     file.transform_texture.?.texture.deinit();
                     file.transform_texture = null;
                 }
