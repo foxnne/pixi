@@ -438,9 +438,7 @@ pub fn update(app: *App) !bool {
 
                         // Submit the stroke change buffer
                         if (file.buffers.stroke.indices.items.len > 0) {
-                            var change = try file.buffers.stroke.toChange(@intCast(layer_index));
-                            if (transform_texture.undo_on_cancel)
-                                change.pixels.allow_merge = true;
+                            const change = try file.buffers.stroke.toChange(@intCast(layer_index));
                             try file.history.append(change);
                         }
 

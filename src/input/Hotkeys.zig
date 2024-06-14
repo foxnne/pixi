@@ -263,11 +263,11 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .transform })) |hk| {
             if (hk.pressed()) {
                 try file.copy();
-                try file.eraseSprite(file.selected_sprite_index);
+                try file.eraseSprite(file.selected_sprite_index, false);
                 try file.paste();
 
                 if (file.transform_texture) |*tt| {
-                    tt.undo_on_cancel = true;
+                    tt.one_shot = true;
                 }
             }
         }
@@ -298,7 +298,7 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .erase_sprite })) |hk| {
             if (hk.pressed()) {
-                try file.eraseSprite(file.selected_sprite_index);
+                try file.eraseSprite(file.selected_sprite_index, true);
             }
         }
 

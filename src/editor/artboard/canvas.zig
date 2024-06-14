@@ -72,8 +72,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
                 imgui.sameLine();
                 if (imgui.button("Cancel") or (core.keyPressed(core.Key.escape) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
-                    if (transform_texture.undo_on_cancel)
-                        file.undo() catch unreachable;
+                    var change = file.buffers.stroke.toChange(@intCast(file.selected_layer_index)) catch unreachable;
+                    change.pixels.temporary = true;
+                    file.history.append(change) catch unreachable;
+                    file.undo() catch unreachable;
+
                     file.transform_texture.?.texture.deinit();
                     file.transform_texture = null;
                 }

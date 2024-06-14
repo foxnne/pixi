@@ -62,7 +62,7 @@ pub const Pixi = struct {
         rotation_grip_height: f32 = 8.0,
         texture: pixi.gfx.Texture,
         confirm: bool = false,
-        undo_on_cancel: bool = false,
+        one_shot: bool = false,
     };
 
     pub const TransformVertex = struct {
@@ -1536,7 +1536,7 @@ pub const Pixi = struct {
         }
     }
 
-    pub fn eraseSprite(file: *Pixi, sprite_index: usize) !void {
+    pub fn eraseSprite(file: *Pixi, sprite_index: usize, append_history: bool) !void {
         const tiles_wide = @divExact(file.width, file.tile_width);
 
         const src_col = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
@@ -1565,7 +1565,7 @@ pub const Pixi = struct {
         layer.texture.update(core.device);
 
         // Submit the stroke change buffer
-        if (file.buffers.stroke.indices.items.len > 0) {
+        if (file.buffers.stroke.indices.items.len > 0 and append_history) {
             const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
             try file.history.append(change);
         }
