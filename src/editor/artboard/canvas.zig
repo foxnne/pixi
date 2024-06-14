@@ -50,7 +50,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             pos.y += 5.0;
 
             imgui.setNextWindowPos(pos, imgui.Cond_Always);
-            imgui.setNextWindowSize(.{ .x = 0.0, .y = 45.0 }, imgui.Cond_Always);
+            imgui.setNextWindowSize(.{ .x = 0.0, .y = 54.0 }, imgui.Cond_Always);
 
             imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 5.0, .y = 5.0 });
             imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 5.0, .y = 5.0 });
@@ -66,6 +66,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 defer imgui.end();
 
                 imgui.text("Transformation");
+                imgui.separator();
                 if (imgui.button("Confirm") or (core.keyPressed(core.Key.enter) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
                     transform_texture.confirm = true;
                 }
@@ -440,15 +441,6 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
 
             const previous_position = rotated_vertices[previous_index].position;
 
-            if (transform_texture.control) |control| {
-                if (control.index == vertex_index or control.index == previous_index) {
-                    const midpoint = ((vertex.position + previous_position) / zmath.f32x4s(2.0)) + zmath.loadArr2(.{ offset[0] + 1.5, offset[1] + 1.5 });
-
-                    const dist = @sqrt(std.math.pow(f32, vertex.position[0] - previous_position[0], 2) + std.math.pow(f32, vertex.position[1] - previous_position[1], 2));
-                    file.camera.drawText("{d}", .{dist}, .{ midpoint[0], midpoint[1] }, default_color);
-                }
-            }
-
             file.camera.drawLine(.{ offset[0] + previous_position[0], offset[1] + previous_position[1] }, .{ offset[0] + vertex.position[0], offset[1] + vertex.position[1] }, default_color, 3.0);
         }
 
@@ -509,6 +501,34 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
 
             const grip_color = if (hovered_index == vertex_index or if (transform_texture.control) |control| control.index == vertex_index else false) highlight_color else default_color;
             file.camera.drawRectFilled(grip_rect, grip_color);
+        }
+
+        // Draw dimensions
+        for (&rotated_vertices, 0..) |*vertex, vertex_index| {
+            const previous_index = switch (vertex_index) {
+                0 => 3,
+                1, 2, 3 => vertex_index - 1,
+                else => unreachable,
+            };
+
+            const previous_position = rotated_vertices[previous_index].position;
+
+            var draw_dimensions: bool = false;
+            var control_index: usize = 0;
+
+            if (transform_texture.control) |control| {
+                control_index = control.index;
+                draw_dimensions = true;
+            } else if (hovered_index) |index| {
+                control_index = index;
+                draw_dimensions = true;
+            }
+            if ((control_index == vertex_index or control_index == previous_index) and draw_dimensions) {
+                const midpoint = ((vertex.position + previous_position) / zmath.f32x4s(2.0)) + zmath.loadArr2(.{ offset[0] + 1.5, offset[1] + 1.5 });
+
+                const dist = @sqrt(std.math.pow(f32, vertex.position[0] - previous_position[0], 2) + std.math.pow(f32, vertex.position[1] - previous_position[1], 2));
+                file.camera.drawText("{d}", .{dist}, .{ midpoint[0], midpoint[1] }, default_color);
+            }
         }
 
         { // Handle hovering over transform texture
