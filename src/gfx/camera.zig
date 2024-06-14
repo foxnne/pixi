@@ -113,6 +113,26 @@ pub const Camera = struct {
             draw_list.addText(pos_vec, color, text.ptr);
     }
 
+    pub fn drawTextWithShadow(camera: Camera, comptime fmt: []const u8, args: anytype, position: [2]f32, color: u32, shadow_color: u32) void {
+        const window_position = imgui.getWindowPos();
+        const mat = camera.matrix();
+
+        var pos = mat.transformVec2(position);
+        pos[0] += window_position.x;
+        pos[1] += window_position.y;
+
+        const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
+
+        const text = std.fmt.allocPrintZ(pixi.state.allocator, fmt, args) catch unreachable;
+        defer pixi.state.allocator.free(text);
+
+        if (imgui.getWindowDrawList()) |draw_list| {
+            draw_list.addText(.{ .x = pos_vec.x + 1.0, .y = pos_vec.y }, shadow_color, text.ptr);
+            draw_list.addText(.{ .x = pos_vec.x, .y = pos_vec.y + 1.0 }, shadow_color, text.ptr);
+            draw_list.addText(pos_vec, color, text.ptr);
+        }
+    }
+
     pub fn drawCircle(camera: Camera, position: [2]f32, radius: f32, thickness: f32, color: u32) void {
         const window_position = imgui.getWindowPos();
         const mat = camera.matrix();
