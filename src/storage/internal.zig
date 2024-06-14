@@ -61,6 +61,7 @@ pub const Pixi = struct {
         rotation: f32 = 0.0,
         rotation_grip_height: f32 = 8.0,
         texture: pixi.gfx.Texture,
+        confirm: bool = false,
     };
 
     pub const TransformVertex = struct {

@@ -35,6 +35,50 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
     const canvas_center_offset = file.canvasCenterOffset(.primary);
 
+    // Draw info bar at top when transforming
+    {
+        if (file.transform_texture) |*transform_texture| {
+            var flags: imgui.WindowFlags = 0;
+            flags |= imgui.WindowFlags_NoDecoration;
+            flags |= imgui.WindowFlags_AlwaysAutoResize;
+            flags |= imgui.WindowFlags_NoMove;
+            flags |= imgui.WindowFlags_NoNavInputs;
+            flags |= imgui.WindowFlags_NoResize;
+
+            var pos = imgui.getWindowPos();
+            pos.x += 5.0;
+            pos.y += 5.0;
+
+            imgui.setNextWindowPos(pos, imgui.Cond_Always);
+            imgui.setNextWindowSize(.{ .x = 0.0, .y = 45.0 }, imgui.Cond_Always);
+
+            imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 5.0, .y = 5.0 });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 5.0, .y = 5.0 });
+            imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0);
+            defer imgui.popStyleVarEx(3);
+
+            imgui.pushStyleColorImVec4(imgui.Col_WindowBg, pixi.state.theme.foreground.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
+            defer imgui.popStyleColorEx(2);
+
+            var open: bool = true;
+            if (imgui.begin(file.path, &open, flags)) {
+                defer imgui.end();
+
+                imgui.text("Transformation");
+                if (imgui.button("Confirm") or (core.keyPressed(core.Key.enter) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
+                    transform_texture.confirm = true;
+                }
+                imgui.sameLine();
+                if (imgui.button("Cancel") or (core.keyPressed(core.Key.escape) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
+                    file.undo() catch unreachable;
+                    file.transform_texture.?.texture.deinit();
+                    file.transform_texture = null;
+                }
+            }
+        }
+    }
+
     // Handle zooming, panning and extents
     {
         var sprite_camera: pixi.gfx.Camera = .{

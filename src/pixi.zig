@@ -391,11 +391,11 @@ pub fn update(app: *App) !bool {
         core.swap_chain.present();
     }
 
-    // Accept or cancel transformations
+    // Accept transformations
     {
         for (state.open_files.items) |*file| {
             if (file.transform_texture) |*transform_texture| {
-                if (core.keyPressed(core.Key.enter)) {
+                if (transform_texture.confirm) {
                     // Blit temp layer to selected layer
 
                     if (file.staging_buffer) |staging_buffer| {
@@ -447,12 +447,6 @@ pub fn update(app: *App) !bool {
                         write_layer.texture.update(core.device);
                     }
 
-                    transform_texture.texture.deinit();
-                    file.transform_texture = null;
-                }
-
-                if (core.keyPressed(core.Key.escape)) {
-                    try file.undo();
                     transform_texture.texture.deinit();
                     file.transform_texture = null;
                 }
