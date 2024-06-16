@@ -266,9 +266,9 @@ pub fn process(self: *Self) !void {
                 try file.eraseSprite(file.selected_sprite_index, false);
                 try file.paste();
 
-                if (file.transform_texture) |*tt| {
-                    tt.one_shot = true;
-                }
+                // if (file.transform_texture) |*tt| {
+                //     tt.temporary = true;
+                // }
             }
         }
 

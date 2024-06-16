@@ -237,9 +237,15 @@ pub const Batcher = struct {
         data_2: f32 = 0.0,
     };
     /// Appends a quad at the passed position set to the size needed to render the target texture.
-    pub fn transformTexture(self: *Batcher, vertices: [4]pixi.storage.Internal.Pixi.TransformVertex, offset: [2]f32, centroid: [2]f32, options: TransformTextureOptions) !void {
+    pub fn transformTexture(self: *Batcher, vertices: [4]pixi.storage.Internal.Pixi.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
         var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
         zmath.store(&color, options.color, 4);
+
+        var centroid = zmath.f32x4(0.0, 0.0, 0.0, 0.0);
+        for (vertices) |v| {
+            centroid += v.position;
+        }
+        centroid = centroid / zmath.f32x4s(4.0);
 
         const max: f32 = if (!options.flip_y) 1.0 else 0.0;
         const min: f32 = if (!options.flip_y) 0.0 else 1.0;
@@ -271,7 +277,7 @@ pub const Batcher = struct {
                     .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
                 }, //Tl
                 .{
-                    .position = [3]f32{ centroid[0], centroid[1], 0.0 },
+                    .position = [3]f32{ centroid[0] + offset[0], -centroid[1] + offset[1], 0.0 },
                     .uv = [2]f32{ 0.5, 0.5 },
                     .color = color,
                     .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
@@ -284,7 +290,7 @@ pub const Batcher = struct {
         if (options.flip_y) quad.flipVertically();
 
         // Apply rotation
-        if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, zmath.loadArr2(centroid));
+        if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, zmath.loadArr2(pivot) + zmath.loadArr2(offset));
 
         return self.append(quad);
     }
