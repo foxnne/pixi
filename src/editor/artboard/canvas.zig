@@ -450,7 +450,21 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                     .width = file.width,
                     .height = file.height,
                 });
-                transform_texture.pivot = .{ .position = zmath.loadArr2(current_pixel_coords) };
+                const pivot = .{ .position = zmath.loadArr2(current_pixel_coords) };
+                transform_texture.pivot = pivot;
+
+                const rotation_control_height = transform_texture.rotation_grip_height;
+                const control_offset = zmath.loadArr2(.{ 0.0, rotation_control_height });
+
+                const midpoint = (transform_texture.vertices[0].position + transform_texture.vertices[1].position) / zmath.f32x4s(2.0);
+
+                const control_center = midpoint - control_offset;
+
+                const diff = pivot.position - control_center;
+
+                const angle = std.math.atan2(diff[1], diff[0]);
+
+                transform_texture.pivot_angle = std.math.radiansToDegrees(angle) - 90.0;
             }
         }
 
@@ -674,7 +688,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                         else => 180.0,
                     } else std.math.atan2(diff[1], diff[0]);
 
-                    transform_texture.rotation = if (modifier_secondary) angle else @trunc(std.math.radiansToDegrees(angle) + 90.0);
+                    transform_texture.rotation = if (modifier_secondary) angle else @trunc(std.math.radiansToDegrees(angle) + 90.0 + if (transform_texture.pivot != null) -transform_texture.pivot_angle else 0.0);
                 }
             }
         }

@@ -64,6 +64,7 @@ pub const Pixi = struct {
         texture: pixi.gfx.Texture,
         confirm: bool = false,
         pivot_move: bool = false,
+        pivot_angle: f32 = 0.0,
         temporary: bool = false,
     };
 
