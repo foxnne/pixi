@@ -388,10 +388,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     }
 }
 
-pub const TransformControls = struct {
-    corners: [4][2]f32,
-};
-
 pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
     if (file.transform_texture) |*transform_texture| {
         const modifier_primary: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
