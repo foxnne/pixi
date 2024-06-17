@@ -464,7 +464,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
 
                 const angle = std.math.atan2(diff[1], diff[0]);
 
-                transform_texture.pivot_angle = std.math.radiansToDegrees(angle) - 90.0;
+                transform_texture.pivot_angle = @trunc(std.math.radiansToDegrees(angle) - 90.0);
             }
         }
 
@@ -688,7 +688,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                         else => 180.0,
                     } else std.math.atan2(diff[1], diff[0]);
 
-                    transform_texture.rotation = if (modifier_secondary) angle else @trunc(std.math.radiansToDegrees(angle) + 90.0 + if (transform_texture.pivot != null) -transform_texture.pivot_angle else 0.0);
+                    transform_texture.rotation = (if (modifier_secondary) angle else @trunc(std.math.radiansToDegrees(angle) + 90.0)) + if (transform_texture.pivot != null) -transform_texture.pivot_angle else 0.0;
                 }
             }
         }
