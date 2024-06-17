@@ -525,9 +525,9 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                     centroid[1] + offset[1] - (dist),
                 }, default_color, 0xFF000000);
 
-                if (transform_texture.rotate) {
-                    file.camera.drawLine(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, .{ centroid[0] + offset[0], centroid[1] + offset[1] }, default_color, 1.0);
-                }
+                // if (transform_texture.rotate) {
+                //     file.camera.drawLine(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, .{ centroid[0] + offset[0], centroid[1] + offset[1] }, default_color, 1.0);
+                // }
             }
 
             file.camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * file.camera.zoom, control_color);
