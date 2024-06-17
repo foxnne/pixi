@@ -457,11 +457,9 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                 const control_offset = zmath.loadArr2(.{ 0.0, rotation_control_height });
 
                 const midpoint = (transform_texture.vertices[0].position + transform_texture.vertices[1].position) / zmath.f32x4s(2.0);
-
                 const control_center = midpoint - control_offset;
 
                 const diff = pivot.position - control_center;
-
                 const angle = std.math.atan2(diff[1], diff[0]);
 
                 transform_texture.pivot_angle = @trunc(std.math.radiansToDegrees(angle) - 90.0);
@@ -516,6 +514,10 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                     centroid[0] + offset[0] + (dist),
                     centroid[1] + offset[1] - (dist),
                 }, default_color, 0xFF000000);
+
+                if (transform_texture.rotate) {
+                    file.camera.drawLine(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, .{ centroid[0] + offset[0], centroid[1] + offset[1] }, default_color, 1.0);
+                }
             }
 
             file.camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * file.camera.zoom, control_color);
@@ -598,6 +600,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
             }
             if (pivot_hovered and mouse_pressed) {
                 transform_texture.pivot_move = true;
+                transform_texture.control = null;
             }
 
             const centroid_color = if (pan_hovered or transform_texture.pan or pivot_hovered or transform_texture.pivot_move) highlight_color else default_color;
