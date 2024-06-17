@@ -490,7 +490,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
 
-            if (transform_texture.rotate or hovered) {
+            if (transform_texture.rotate or hovered or transform_texture.pivot_move) {
                 control_color = highlight_color;
 
                 const dist = @sqrt(std.math.pow(f32, control_center[0] - centroid[0], 2) + std.math.pow(f32, control_center[1] - centroid[1], 2));
@@ -519,6 +519,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                             .index = vertex_index,
                             .mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect,
                         };
+                        transform_texture.pivot = null;
                     }
                 }
             }
@@ -585,7 +586,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                 transform_texture.pivot_move = true;
             }
 
-            const centroid_color = if (pan_hovered or transform_texture.pan) highlight_color else default_color;
+            const centroid_color = if (pan_hovered or transform_texture.pan or pivot_hovered or transform_texture.pivot_move) highlight_color else default_color;
             file.camera.drawCircleFilled(.{ centroid[0] + offset[0], centroid[1] + offset[1] }, half_grip_size * file.camera.zoom, centroid_color);
         }
 
@@ -607,7 +608,7 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
 
-            if (transform_texture.pan or transform_texture.rotate)
+            if (transform_texture.pan or transform_texture.rotate or transform_texture.pivot_move)
                 cursor = imgui.MouseCursor_ResizeAll;
 
             imgui.setMouseCursor(cursor);
