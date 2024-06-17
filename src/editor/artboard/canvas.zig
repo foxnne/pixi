@@ -448,18 +448,32 @@ pub fn drawTransformTextureControls(file: *pixi.storage.Internal.Pixi) void {
                 });
                 const pivot = .{ .position = zmath.loadArr2(current_pixel_coords) };
                 transform_texture.pivot = pivot;
-
-                const rotation_control_height = transform_texture.rotation_grip_height;
-                const control_offset = zmath.loadArr2(.{ 0.0, rotation_control_height });
-
-                const midpoint = (transform_texture.vertices[0].position + transform_texture.vertices[1].position) / zmath.f32x4s(2.0);
-                const control_center = midpoint - control_offset;
-
-                const diff = pivot.position - control_center;
-                const angle = std.math.atan2(diff[1], diff[0]);
-
-                transform_texture.pivot_angle = @trunc(std.math.radiansToDegrees(angle) - 90.0);
             }
+        }
+
+        if (transform_texture.pivot) |pivot| {
+            const rotation_control_height = transform_texture.rotation_grip_height;
+            const control_offset = zmath.loadArr2(.{ 0.0, rotation_control_height });
+
+            const midpoint = (transform_texture.vertices[0].position + transform_texture.vertices[1].position) / zmath.f32x4s(2.0);
+            const control_center = midpoint - control_offset;
+
+            const diff = pivot.position - control_center;
+
+            const direction = pixi.math.Direction.find(8, -diff[0], -diff[1]);
+            const angle: f32 = if (modifier_secondary) switch (direction) {
+                .n => 180.0,
+                .nw => 225.0,
+                .w => 270.0,
+                .sw => 315.0,
+                .s => 0.0,
+                .se => 45.0,
+                .e => 90.0,
+                .ne => 135.0,
+                else => 180.0,
+            } else @trunc(std.math.radiansToDegrees(std.math.atan2(diff[1], diff[0])) - 90.0);
+
+            transform_texture.pivot_angle = angle;
         }
 
         // Draw bounding lines from vertices
