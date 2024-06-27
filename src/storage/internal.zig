@@ -1160,7 +1160,7 @@ pub const Pixi = struct {
                             // Recalculate the centroid with new vertex positions
                             var rotated_centroid = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
                             if (transform_texture.pivot == null) {
-                                for (&transform_texture.vertices) |*vertex| {
+                                for (rotated_vertices) |vertex| {
                                     rotated_centroid += vertex.position; // Collect centroid
                                 }
                                 rotated_centroid /= zmath.f32x4s(4.0); // Average position
@@ -1183,7 +1183,7 @@ pub const Pixi = struct {
 
                             var rotated_centroid = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
                             if (transform_texture.pivot == null) {
-                                for (&transform_texture.vertices) |*vertex| {
+                                for (rotated_vertices) |vertex| {
                                     rotated_centroid += vertex.position; // Collect centroid
                                 }
                                 rotated_centroid /= zmath.f32x4s(4.0); // Average position
