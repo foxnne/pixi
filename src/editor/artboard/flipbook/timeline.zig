@@ -5,6 +5,8 @@ const core = mach.core;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
+var selected_transform_index: usize = 0;
+
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_height = imgui.getWindowHeight();
     const window_width = imgui.getWindowWidth();
@@ -136,47 +138,91 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         if (pixi.state.hotkeys.hotkey(.{ .proc = .play_pause })) |hk| {
             if (hk.pressed()) {
-                const image = file.spriteToImage(file.selected_sprite_index, false) catch unreachable;
+                if (file.transform_animations.items.len == 0) {
+                    const image = file.spriteToImage(file.selected_sprite_index, false) catch unreachable;
 
-                const transform_position = .{ 0.0, 0.0 };
-                const transform_width: f32 = @floatFromInt(image.width);
-                const transform_height: f32 = @floatFromInt(image.height);
+                    const transform_position = .{ 0.0, 0.0 };
+                    const transform_width: f32 = @floatFromInt(image.width);
+                    const transform_height: f32 = @floatFromInt(image.height);
 
-                const transform_texture = .{
-                    .vertices = .{
-                        .{ .position = zmath.loadArr2(transform_position) }, // TL
-                        .{ .position = zmath.loadArr2(.{ transform_position[0] + transform_width, transform_position[1] }) }, // TR
-                        .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) }, //BR
-                        .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) }, // BL
-                    },
-                    .texture = pixi.gfx.Texture.create(image, .{}),
-                    .rotation_grip_height = transform_height / 4.0,
-                };
-                const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
-                defer pipeline_layout_default.release();
+                    const transform_texture = .{
+                        .vertices = .{
+                            .{ .position = zmath.loadArr2(transform_position) }, // TL
+                            .{ .position = zmath.loadArr2(.{ transform_position[0] + transform_width, transform_position[1] }) }, // TR
+                            .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) }, //BR
+                            .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) }, // BL
+                        },
+                        .texture = pixi.gfx.Texture.create(image, .{}),
+                        .rotation_grip_height = transform_height / 4.0,
+                    };
+                    const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
+                    defer pipeline_layout_default.release();
 
-                var transforms = std.ArrayList(pixi.storage.Internal.SpriteTransform).init(pixi.state.allocator);
-                const transform: pixi.storage.Internal.SpriteTransform = .{
-                    .sprite_index = file.selected_sprite_index,
-                    .layer_index = file.selected_layer_index,
-                    .transform_texture = transform_texture,
-                    .transform_bindgroup = core.device.createBindGroup(
-                        &mach.gpu.BindGroup.Descriptor.init(.{
-                            .layout = pipeline_layout_default,
-                            .entries = &.{
-                                if (pixi.build_options.use_sysgpu)
-                                    mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
-                                else
-                                    mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
-                                mach.gpu.BindGroup.Entry.textureView(1, transform_texture.texture.view_handle),
-                                mach.gpu.BindGroup.Entry.sampler(2, transform_texture.texture.sampler_handle),
-                            },
-                        }),
-                    ),
-                    .time = 0.0,
-                };
-                transforms.append(transform) catch unreachable;
-                file.transform_animations.append(.{ .name = "New Transform", .transforms = transforms }) catch unreachable;
+                    var transforms = std.ArrayList(pixi.storage.Internal.SpriteTransform).init(pixi.state.allocator);
+                    const transform: pixi.storage.Internal.SpriteTransform = .{
+                        .sprite_index = file.selected_sprite_index,
+                        .layer_index = file.selected_layer_index,
+                        .transform_texture = transform_texture,
+                        .transform_bindgroup = core.device.createBindGroup(
+                            &mach.gpu.BindGroup.Descriptor.init(.{
+                                .layout = pipeline_layout_default,
+                                .entries = &.{
+                                    if (pixi.build_options.use_sysgpu)
+                                        mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
+                                    else
+                                        mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
+                                    mach.gpu.BindGroup.Entry.textureView(1, transform_texture.texture.view_handle),
+                                    mach.gpu.BindGroup.Entry.sampler(2, transform_texture.texture.sampler_handle),
+                                },
+                            }),
+                        ),
+                        .time = 0.0,
+                    };
+                    transforms.append(transform) catch unreachable;
+                    file.transform_animations.append(.{ .name = "New Transform", .transforms = transforms }) catch unreachable;
+                } else {
+                    const image = file.spriteToImage(file.selected_sprite_index, false) catch unreachable;
+
+                    const transform_position = .{ 0.0, 0.0 };
+                    const transform_width: f32 = @floatFromInt(image.width);
+                    const transform_height: f32 = @floatFromInt(image.height);
+
+                    const transform_texture = .{
+                        .vertices = .{
+                            .{ .position = zmath.loadArr2(transform_position) }, // TL
+                            .{ .position = zmath.loadArr2(.{ transform_position[0] + transform_width, transform_position[1] }) }, // TR
+                            .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) }, //BR
+                            .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) }, // BL
+                        },
+                        .texture = pixi.gfx.Texture.create(image, .{}),
+                        .rotation_grip_height = transform_height / 4.0,
+                    };
+
+                    const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
+                    defer pipeline_layout_default.release();
+
+                    var transforms = &file.transform_animations.items[0].transforms;
+                    const transform: pixi.storage.Internal.SpriteTransform = .{
+                        .sprite_index = file.selected_sprite_index,
+                        .layer_index = file.selected_layer_index,
+                        .transform_texture = transform_texture,
+                        .transform_bindgroup = core.device.createBindGroup(
+                            &mach.gpu.BindGroup.Descriptor.init(.{
+                                .layout = pipeline_layout_default,
+                                .entries = &.{
+                                    if (pixi.build_options.use_sysgpu)
+                                        mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
+                                    else
+                                        mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
+                                    mach.gpu.BindGroup.Entry.textureView(1, transform_texture.texture.view_handle),
+                                    mach.gpu.BindGroup.Entry.sampler(2, transform_texture.texture.sampler_handle),
+                                },
+                            }),
+                        ),
+                        .time = 0.0,
+                    };
+                    transforms.append(transform) catch unreachable;
+                }
             }
         }
 
@@ -214,7 +260,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                     pixi.state.batcher.transformTexture(
                         transform_texture.vertices,
-                        .{ 0.0, 0.0 },
+                        .{ canvas_center_offset[0], -canvas_center_offset[1] },
                         .{ pivot[0], -pivot[1] },
                         .{
                             .rotation = -transform_texture.rotation,
@@ -225,10 +271,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
         }
+        //file.flipbook_camera.drawRectFilled(.{ file.canvasCenterOffset(.primary)[0], file.canvasCenterOffset(.primary)[1], @floatFromInt(file.transform_animation_texture.image.width), @floatFromInt(file.transform_animation_texture.image.width) }, 0xFFFFFFFF);
+        file.flipbook_camera.drawTexture(file.transform_animation_texture.view_handle, file.transform_animation_texture.image.width, file.transform_animation_texture.image.height, file.canvasCenterOffset(.primary), 0xFFFFFFFF);
     }
-
-    const offset = zmath.loadArr2(file.canvasCenterOffset(.primary));
-    file.flipbook_camera.drawTexture(file.transform_animation_texture.view_handle, file.transform_animation_texture.image.width, file.transform_animation_texture.image.height, .{ offset[0], offset[1] }, 0xFFFFFFFF);
 
     // if (imgui.getWindowDrawList()) |draw_list|
     //     draw_list.addImageEx(
