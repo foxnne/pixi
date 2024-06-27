@@ -82,6 +82,8 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
         .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
         .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
+        .transform_animations = std.ArrayList(pixi.storage.Internal.TransformAnimation).init(pixi.state.allocator),
+        .transform_animation_texture = undefined,
         .deleted_animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
         .flipbook_camera = .{ .position = .{ -@as(f32, @floatFromInt(pixi.state.popups.file_setup_tile_size[0])) / 2.0, 0.0 } },
         .background = undefined,
@@ -96,6 +98,8 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .name = "Temporary",
         .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
     };
+
+    internal.transform_animation_texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
 
     var new_layer: pixi.storage.Internal.Layer = .{
         .name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"}),
@@ -190,6 +194,8 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
             .sprites = std.ArrayList(pixi.storage.Internal.Sprite).init(pixi.state.allocator),
             .selected_sprites = std.ArrayList(usize).init(pixi.state.allocator),
             .animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
+            .transform_animations = std.ArrayList(pixi.storage.Internal.TransformAnimation).init(pixi.state.allocator),
+            .transform_animation_texture = undefined,
             .deleted_animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
             .flipbook_camera = .{ .position = .{ -@as(f32, @floatFromInt(external.tile_width)) / 2.0, 0.0 } },
             .background = undefined,
@@ -205,6 +211,8 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
             .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
             .visible = true,
         };
+
+        internal.transform_animation_texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
 
         for (external.layers) |layer| {
             const layer_image_name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}.png", .{layer.name});
@@ -436,13 +444,13 @@ pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
     if (file.transform_bindgroup) |bindgroup| {
         bindgroup.release();
     }
-    if (file.compute_bindgroup) |bindgroup| {
+    if (file.transform_compute_bindgroup) |bindgroup| {
         bindgroup.release();
     }
-    if (file.compute_buffer) |buffer| {
+    if (file.transform_compute_buffer) |buffer| {
         buffer.release();
     }
-    if (file.staging_buffer) |buffer| {
+    if (file.transform_staging_buffer) |buffer| {
         buffer.release();
     }
     for (file.deleted_heightmap_layers.items) |*layer| {

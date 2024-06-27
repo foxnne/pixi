@@ -26,12 +26,12 @@ pub const Batcher = struct {
     /// Contains instructions on pipeline and binding for the current batch
     pub const Context = struct {
         pipeline_handle: *gpu.RenderPipeline,
-        compute_pipeline_handle: *gpu.ComputePipeline,
         bind_group_handle: *gpu.BindGroup,
-        compute_bind_group_handle: *gpu.BindGroup,
-        compute_buffer: *gpu.Buffer,
-        staging_buffer: *gpu.Buffer,
-        buffer_size: usize,
+        compute_pipeline_handle: ?*gpu.ComputePipeline = null,
+        compute_bind_group_handle: ?*gpu.BindGroup = null,
+        compute_buffer: ?*gpu.Buffer = null,
+        staging_buffer: ?*gpu.Buffer = null,
+        buffer_size: usize = 0,
         // If output handle is null, render to the back buffer
         // otherwise, render to offscreen texture view handle
         //output_handle: ?*gpu.TextureView = null,
@@ -440,40 +440,48 @@ pub const Batcher = struct {
         }
 
         pass_blk: {
-            const encoder = self.encoder orelse break :pass_blk;
-            { // Compute pass for blur shader to blur bloom texture
-                const compute_pass = encoder.beginComputePass(null);
-                defer {
-                    compute_pass.end();
-                    compute_pass.release();
+            if (self.context.compute_bind_group_handle) |compute_bind_group_handle| {
+                if (self.context.compute_pipeline_handle) |compute_pipeline_handle| {
+                    if (self.context.compute_buffer) |compute_buffer| {
+                        if (self.context.staging_buffer) |staging_buffer| {
+                            const encoder = self.encoder orelse break :pass_blk;
+                            { // Compute pass for blur shader to blur bloom texture
+                                const compute_pass = encoder.beginComputePass(null);
+                                defer {
+                                    compute_pass.end();
+                                    compute_pass.release();
+                                }
+                                compute_pass.setPipeline(compute_pipeline_handle);
+                                compute_pass.setBindGroup(0, compute_bind_group_handle, &.{});
+
+                                compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
+                            }
+
+                            encoder.copyBufferToBuffer(compute_buffer, 0, staging_buffer, 0, self.context.buffer_size);
+
+                            // TODO: The below method is not implemented in sysgpu yet. In the meantime, we are using a compute shader to copy the
+                            // TODO: data to the staging buffer. If this gets implemented, we can skip the compute shader and use this.
+
+                            // encoder.copyTextureToBuffer(
+                            //     &.{
+                            //         .texture = self.context.output_texture.?.handle,
+                            //     },
+                            //     &.{
+                            //         .buffer = self.context.staging_buffer,
+                            //         .layout = .{
+                            //             .bytes_per_row = @sizeOf([4]u8) * self.context.output_texture.?.image.width,
+                            //             .rows_per_image = self.context.output_texture.?.image.height,
+                            //         },
+                            //     },
+                            //     &.{
+                            //         .width = self.context.output_texture.?.image.width,
+                            //         .height = self.context.output_texture.?.image.height,
+                            //     },
+                            // );
+                        }
+                    }
                 }
-                compute_pass.setPipeline(self.context.compute_pipeline_handle);
-                compute_pass.setBindGroup(0, self.context.compute_bind_group_handle, &.{});
-
-                compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
             }
-
-            encoder.copyBufferToBuffer(self.context.compute_buffer, 0, self.context.staging_buffer, 0, self.context.buffer_size);
-
-            // TODO: The below method is not implemented in sysgpu yet. In the meantime, we are using a compute shader to copy the
-            // TODO: data to the staging buffer. If this gets implemented, we can skip the compute shader and use this.
-
-            // encoder.copyTextureToBuffer(
-            //     &.{
-            //         .texture = self.context.output_texture.?.handle,
-            //     },
-            //     &.{
-            //         .buffer = self.context.staging_buffer,
-            //         .layout = .{
-            //             .bytes_per_row = @sizeOf([4]u8) * self.context.output_texture.?.image.width,
-            //             .rows_per_image = self.context.output_texture.?.image.height,
-            //         },
-            //     },
-            //     &.{
-            //         .width = self.context.output_texture.?.image.width,
-            //         .height = self.context.output_texture.?.image.height,
-            //     },
-            // );
         }
     }
 

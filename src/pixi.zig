@@ -114,6 +114,7 @@ pub const Sidebar = enum(u32) {
     layers,
     sprites,
     animations,
+    keyframe_animations,
     pack,
     settings,
 };
@@ -153,6 +154,8 @@ pub fn init(app: *App) !void {
         .title = name,
         .size = .{ .width = state.settings.initial_window_width, .height = state.settings.initial_window_height },
     });
+
+    core.setSizeLimit(.{ .min = .{ .width = @divTrunc(state.settings.initial_window_width, 2), .height = @divTrunc(state.settings.initial_window_height, 2) }, .max = .{ .width = null, .height = null } });
 
     const descriptor = core.descriptor;
     window_size = .{ @floatFromInt(core.size().width), @floatFromInt(core.size().height) };
@@ -398,7 +401,7 @@ pub fn update(app: *App) !bool {
                 if (transform_texture.confirm) {
                     // Blit temp layer to selected layer
 
-                    if (file.staging_buffer) |staging_buffer| {
+                    if (file.transform_staging_buffer) |staging_buffer| {
                         const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
 
                         var response: gpu.Buffer.MapAsyncStatus = undefined;
