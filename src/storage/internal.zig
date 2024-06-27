@@ -36,6 +36,7 @@ pub const Pixi = struct {
     selected_animation_state: AnimationState = .pause,
     selected_animation_elapsed: f32 = 0.0,
     selected_transform_animation_index: usize = 0,
+    selected_transform_index: usize = 0,
     selected_transform_animation_state: AnimationState = .pause,
     selected_transform_animation_elapsed: f32 = 0.0,
     background: pixi.gfx.Texture,

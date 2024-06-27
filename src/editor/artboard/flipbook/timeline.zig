@@ -5,8 +5,6 @@ const core = mach.core;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-var selected_transform_index: usize = 0;
-
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_height = imgui.getWindowHeight();
     const window_width = imgui.getWindowWidth();
@@ -122,13 +120,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const min_position: [2]f32 = .{ canvas_center_offset[0] - view_width / 2.0, -(canvas_center_offset[1] + view_height) };
             const max_position: [2]f32 = .{ canvas_center_offset[0] + view_width, canvas_center_offset[1] + view_height };
 
-            // var scroll_delta: f32 = 0.0;
-            // if (file.selected_animation_state != .play) {
-            //     if (file.flipbook_camera.position[0] < min_position[0]) scroll_delta = file.flipbook_camera.position[0] - min_position[0];
-            //     if (file.flipbook_camera.position[0] > max_position[0]) scroll_delta = file.flipbook_camera.position[0] - max_position[0];
-            // }
-            //file.flipbook_scroll = std.math.clamp(file.flipbook_scroll - scroll_delta, file.flipbookScrollFromSpriteIndex(file.sprites.items.len - 1), 0.0);
-
             file.flipbook_camera.position[0] = std.math.clamp(file.flipbook_camera.position[0], min_position[0], max_position[0]);
             file.flipbook_camera.position[1] = std.math.clamp(file.flipbook_camera.position[1], min_position[1], max_position[1]);
         }
@@ -227,9 +218,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
 
         if (file.transform_animations.items.len > 0) {
-            const selected_transform_animation: pixi.storage.Internal.TransformAnimation = file.transform_animations.items[file.selected_transform_animation_index];
-            for (selected_transform_animation.transforms.items) |*sprite_transform| {
-                file.processTransformTextureControls(&sprite_transform.transform_texture, .flipbook);
+            const selected_transform_animation = file.transform_animations.items[file.selected_transform_animation_index];
+            if (selected_transform_animation.transforms.items.len > 0) {
+                const active_transform = &selected_transform_animation.transforms.items[file.selected_transform_index];
+                file.processTransformTextureControls(&active_transform.transform_texture, .flipbook);
             }
 
             // Draw transform texture on gpu to temporary texture
@@ -271,17 +263,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
         }
-        //file.flipbook_camera.drawRectFilled(.{ file.canvasCenterOffset(.primary)[0], file.canvasCenterOffset(.primary)[1], @floatFromInt(file.transform_animation_texture.image.width), @floatFromInt(file.transform_animation_texture.image.width) }, 0xFFFFFFFF);
         file.flipbook_camera.drawTexture(file.transform_animation_texture.view_handle, file.transform_animation_texture.image.width, file.transform_animation_texture.image.height, file.canvasCenterOffset(.primary), 0xFFFFFFFF);
     }
-
-    // if (imgui.getWindowDrawList()) |draw_list|
-    //     draw_list.addImageEx(
-    //         file.transform_animation_texture.view_handle,
-    //         .{ .x = offset[0], .y = offset[1] },
-    //         .{ .x = offset[0] + @as(f32, @floatFromInt(file.transform_animation_texture.image.width)), .y = offset[1] + @as(f32, @floatFromInt(file.transform_animation_texture.image.height)) },
-    //         .{ .x = 0.0, .y = 0.0 },
-    //         .{ .x = 1.0, .y = 1.0 },
-    //         0xFFFFFFFF,
-    //     );
 }

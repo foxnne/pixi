@@ -69,14 +69,15 @@ pub fn draw() void {
                 if (imgui.treeNode(animation_name)) {
                     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
                     defer imgui.popStyleColor();
-                    for (animation.transforms.items) |transform| {
+                    for (animation.transforms.items, 0..) |transform, i| {
                         const sprite = file.sprites.items[transform.sprite_index];
 
-                        const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index }) catch unreachable;
+                        const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s} - time: {d}##{d}", .{ sprite.name, transform.time, i }) catch unreachable;
                         defer pixi.state.allocator.free(sprite_name);
 
                         if (imgui.selectable(sprite_name)) {
                             file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
+                            file.selected_transform_index = i;
                         }
                     }
 
