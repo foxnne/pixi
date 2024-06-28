@@ -219,10 +219,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
         if (file.transform_animations.items.len > 0) {
             const selected_transform_animation = file.transform_animations.items[file.selected_transform_animation_index];
-            if (selected_transform_animation.transforms.items.len > 0) {
-                const active_transform = &selected_transform_animation.transforms.items[file.selected_transform_index];
-                file.processTransformTextureControls(&active_transform.transform_texture, .flipbook);
-            }
 
             // Draw transform texture on gpu to temporary texture
             {
@@ -292,7 +288,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
                 }
             }
+
+            file.flipbook_camera.drawTexture(file.transform_animation_texture.view_handle, file.transform_animation_texture.image.width, file.transform_animation_texture.image.height, file.canvasCenterOffset(.primary), 0xFFFFFFFF);
+            if (selected_transform_animation.transforms.items.len > 0) {
+                const active_transform = &selected_transform_animation.transforms.items[file.selected_transform_index];
+                file.processTransformTextureControls(&active_transform.transform_texture, .flipbook);
+            }
         }
-        file.flipbook_camera.drawTexture(file.transform_animation_texture.view_handle, file.transform_animation_texture.image.width, file.transform_animation_texture.image.height, file.canvasCenterOffset(.primary), 0xFFFFFFFF);
     }
 }
