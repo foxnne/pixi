@@ -1620,7 +1620,8 @@ pub const Pixi = struct {
     pub fn deleteTransformAnimation(self: *Pixi, index: usize) !void {
         if (index >= self.transform_animations.items.len) return;
         const animation = self.transform_animations.swapRemove(index);
-        pixi.state.allocator.free(animation.name);
+        _ = animation; // autofix
+        //pixi.state.allocator.free(animation.name);
     }
 
     pub fn setSelectedSpritesOriginX(self: *Pixi, origin_x: f32) void {

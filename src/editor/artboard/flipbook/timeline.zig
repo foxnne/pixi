@@ -130,11 +130,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (pixi.state.hotkeys.hotkey(.{ .proc = .play_pause })) |hk| {
             if (hk.pressed()) {
                 if (file.transform_animations.items.len == 0) {
-                    const image = file.spriteToImage(file.selected_sprite_index, false) catch unreachable;
+                    //const image = file.spriteToImage(file.selected_sprite_index, false) catch unreachable;
 
                     const transform_position = .{ 0.0, 0.0 };
-                    const transform_width: f32 = @floatFromInt(image.width);
-                    const transform_height: f32 = @floatFromInt(image.height);
+                    const transform_width: f32 = @floatFromInt(file.tile_width);
+                    const transform_height: f32 = @floatFromInt(file.tile_height);
 
                     const transform_texture = .{
                         .vertices = .{
@@ -143,7 +143,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) }, //BR
                             .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) }, // BL
                         },
-                        .texture = pixi.gfx.Texture.create(image, .{}),
+                        .texture = file.layers.items[file.selected_layer_index].texture,
                         .rotation_grip_height = transform_height / 4.0,
                     };
                     const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
@@ -162,8 +162,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                         mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
                                     else
                                         mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
-                                    mach.gpu.BindGroup.Entry.textureView(1, transform_texture.texture.view_handle),
-                                    mach.gpu.BindGroup.Entry.sampler(2, transform_texture.texture.sampler_handle),
+                                    mach.gpu.BindGroup.Entry.textureView(1, file.layers.items[file.selected_layer_index].texture.view_handle),
+                                    mach.gpu.BindGroup.Entry.sampler(2, file.layers.items[file.selected_layer_index].texture.sampler_handle),
                                 },
                             }),
                         ),
@@ -172,11 +172,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     transforms.append(transform) catch unreachable;
                     file.transform_animations.append(.{ .name = "New Transform", .transforms = transforms }) catch unreachable;
                 } else {
-                    const image = file.spriteToImage(file.selected_sprite_index, false) catch unreachable;
+                    //const image = file.spriteToImage(file.selected_sprite_index, false) catch unreachable;
 
                     const transform_position = .{ 0.0, 0.0 };
-                    const transform_width: f32 = @floatFromInt(image.width);
-                    const transform_height: f32 = @floatFromInt(image.height);
+                    const transform_width: f32 = @floatFromInt(file.tile_width);
+                    const transform_height: f32 = @floatFromInt(file.tile_height);
 
                     const transform_texture = .{
                         .vertices = .{
@@ -185,7 +185,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) }, //BR
                             .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) }, // BL
                         },
-                        .texture = pixi.gfx.Texture.create(image, .{}),
+                        .texture = file.layers.items[file.selected_layer_index].texture,
                         .rotation_grip_height = transform_height / 4.0,
                     };
 
@@ -205,8 +205,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                         mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
                                     else
                                         mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
-                                    mach.gpu.BindGroup.Entry.textureView(1, transform_texture.texture.view_handle),
-                                    mach.gpu.BindGroup.Entry.sampler(2, transform_texture.texture.sampler_handle),
+                                    mach.gpu.BindGroup.Entry.textureView(1, file.layers.items[file.selected_layer_index].texture.view_handle),
+                                    mach.gpu.BindGroup.Entry.sampler(2, file.layers.items[file.selected_layer_index].texture.sampler_handle),
                                 },
                             }),
                         ),
@@ -250,7 +250,37 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         pivot /= zmath.f32x4s(4.0); // Average position
                     }
 
-                    pixi.state.batcher.transformTexture(
+                    const tiles_wide = @divExact(file.width, file.tile_width);
+
+                    const src_col = @mod(@as(u32, @intCast(transform.sprite_index)), tiles_wide);
+                    const src_row = @divTrunc(@as(u32, @intCast(transform.sprite_index)), tiles_wide);
+
+                    const src_x = src_col * file.tile_width;
+                    const src_y = src_row * file.tile_height;
+
+                    const sprite: pixi.gfx.Sprite = .{
+                        .name = "",
+                        .origin = .{ 0, 0 },
+                        .source = .{
+                            src_x,
+                            src_y,
+                            file.tile_width,
+                            file.tile_height,
+                        },
+                    };
+
+                    // pixi.state.batcher.transformTexture(
+                    //     transform_texture.vertices,
+                    //     .{ canvas_center_offset[0], -canvas_center_offset[1] },
+                    //     .{ pivot[0], -pivot[1] },
+                    //     .{
+                    //         .rotation = -transform_texture.rotation,
+                    //     },
+                    // ) catch unreachable;
+
+                    pixi.state.batcher.transformSprite(
+                        &file.layers.items[transform.layer_index].texture,
+                        sprite,
                         transform_texture.vertices,
                         .{ canvas_center_offset[0], -canvas_center_offset[1] },
                         .{ pivot[0], -pivot[1] },

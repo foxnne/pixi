@@ -295,6 +295,76 @@ pub const Batcher = struct {
         return self.append(quad);
     }
 
+    /// Appends a quad at the passed position set to the size needed to render the target sprite.
+    pub fn transformSprite(self: *Batcher, t: *gfx.Texture, s: gfx.Sprite, vertices: [4]pixi.storage.Internal.Pixi.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
+        var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
+        zmath.store(&color, options.color, 4);
+
+        const x = @as(f32, @floatFromInt(s.source[0]));
+        const y = @as(f32, @floatFromInt(s.source[1]));
+        const width = @as(f32, @floatFromInt(s.source[2]));
+        const height = @as(f32, @floatFromInt(s.source[3]));
+
+        const tex_width = @as(f32, @floatFromInt(t.image.width));
+        const tex_height = @as(f32, @floatFromInt(t.image.height));
+
+        var centroid = zmath.f32x4(0.0, 0.0, 0.0, 0.0);
+        for (vertices) |v| {
+            centroid += v.position;
+        }
+        centroid = centroid / zmath.f32x4s(4.0);
+
+        const max: f32 = if (!options.flip_y) 1.0 else 0.0;
+        const min: f32 = if (!options.flip_y) 0.0 else 1.0;
+
+        var quad = gfx.Quad{
+            .vertices = [_]gfx.Vertex{
+                .{
+                    .position = [3]f32{ vertices[0].position[0] + offset[0], -vertices[0].position[1] + offset[1], vertices[0].position[2] },
+                    .uv = [2]f32{ if (options.flip_x) max else min, min },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Bl
+                .{
+                    .position = [3]f32{ vertices[1].position[0] + offset[0], -vertices[1].position[1] + offset[1], vertices[1].position[2] },
+                    .uv = [2]f32{ if (options.flip_x) min else max, min },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Br
+                .{
+                    .position = [3]f32{ vertices[2].position[0] + offset[0], -vertices[2].position[1] + offset[1], vertices[2].position[2] },
+                    .uv = [2]f32{ if (options.flip_x) min else max, max },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Tr
+                .{
+                    .position = [3]f32{ vertices[3].position[0] + offset[0], -vertices[3].position[1] + offset[1], vertices[3].position[2] },
+                    .uv = [2]f32{ if (options.flip_x) max else min, max },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Tl
+                .{
+                    .position = [3]f32{ centroid[0] + offset[0], -centroid[1] + offset[1], 0.0 },
+                    .uv = [2]f32{ 0.5, 0.5 },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Center
+            },
+        };
+
+        // Set viewport of quad to the sprite
+        quad.setViewport(x, y, width, height, tex_width, tex_height);
+
+        // Apply mirroring
+        if (options.flip_x) quad.flipHorizontally();
+        if (options.flip_y) quad.flipVertically();
+
+        // Apply rotation
+        if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, zmath.loadArr2(pivot) + zmath.loadArr2(offset));
+
+        return self.append(quad);
+    }
+
     pub const SpriteOptions = struct {
         color: [4]f32 = .{ 1.0, 1.0, 1.0, 1.0 },
         flip_x: bool = false,
