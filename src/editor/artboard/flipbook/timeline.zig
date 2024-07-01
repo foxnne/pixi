@@ -229,14 +229,14 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     zmath.orthographicLh(width, height, -100, 100),
                 ) };
 
-                for (selected_transform_animation.transforms.items) |transform| {
-                    pixi.state.batcher.begin(.{
-                        .pipeline_handle = pixi.state.pipeline_default,
-                        .bind_group_handle = transform.transform_bindgroup,
-                        .output_texture = &file.transform_animation_texture,
-                        .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
-                    }) catch unreachable;
+                pixi.state.batcher.begin(.{
+                    .pipeline_handle = pixi.state.pipeline_default,
+                    .bind_group_handle = undefined,
+                    .output_texture = &file.transform_animation_texture,
+                    .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+                }) catch unreachable;
 
+                for (selected_transform_animation.transforms.items) |transform| {
                     const transform_texture = &transform.transform_texture;
                     var pivot = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
                     if (transform_texture.pivot == null) {
@@ -282,11 +282,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         .{ pivot[0], -pivot[1] },
                         .{
                             .rotation = -transform_texture.rotation,
+                            .bind_group = transform.transform_bindgroup,
                         },
                     ) catch unreachable;
-
-                    pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
                 }
+
+                pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
             }
 
             file.flipbook_camera.drawTexture(file.transform_animation_texture.view_handle, file.transform_animation_texture.image.width, file.transform_animation_texture.image.height, file.canvasCenterOffset(.primary), 0xFFFFFFFF);

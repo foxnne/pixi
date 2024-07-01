@@ -52,18 +52,18 @@ pub const Batcher = struct {
         // Arrange index buffer for quads
         var i: usize = 0;
         while (i < max_quads) : (i += 1) {
-            indices[i * num_indices + 0] = @as(u32, @intCast(i * num_triangles + 0));
-            indices[i * num_indices + 1] = @as(u32, @intCast(i * num_triangles + 1));
-            indices[i * num_indices + 2] = @as(u32, @intCast(i * num_triangles + 4));
-            indices[i * num_indices + 3] = @as(u32, @intCast(i * num_triangles + 1));
-            indices[i * num_indices + 4] = @as(u32, @intCast(i * num_triangles + 2));
-            indices[i * num_indices + 5] = @as(u32, @intCast(i * num_triangles + 4));
-            indices[i * num_indices + 6] = @as(u32, @intCast(i * num_triangles + 2));
-            indices[i * num_indices + 7] = @as(u32, @intCast(i * num_triangles + 3));
-            indices[i * num_indices + 8] = @as(u32, @intCast(i * num_triangles + 4));
-            indices[i * num_indices + 9] = @as(u32, @intCast(i * num_triangles + 3));
-            indices[i * num_indices + 10] = @as(u32, @intCast(i * num_triangles + 0));
-            indices[i * num_indices + 11] = @as(u32, @intCast(i * num_triangles + 4));
+            indices[i * num_indices + 0] = @as(u32, @intCast(i * num_verts + 0));
+            indices[i * num_indices + 1] = @as(u32, @intCast(i * num_verts + 1));
+            indices[i * num_indices + 2] = @as(u32, @intCast(i * num_verts + 4));
+            indices[i * num_indices + 3] = @as(u32, @intCast(i * num_verts + 1));
+            indices[i * num_indices + 4] = @as(u32, @intCast(i * num_verts + 2));
+            indices[i * num_indices + 5] = @as(u32, @intCast(i * num_verts + 4));
+            indices[i * num_indices + 6] = @as(u32, @intCast(i * num_verts + 2));
+            indices[i * num_indices + 7] = @as(u32, @intCast(i * num_verts + 3));
+            indices[i * num_indices + 8] = @as(u32, @intCast(i * num_verts + 4));
+            indices[i * num_indices + 9] = @as(u32, @intCast(i * num_verts + 3));
+            indices[i * num_indices + 10] = @as(u32, @intCast(i * num_verts + 0));
+            indices[i * num_indices + 11] = @as(u32, @intCast(i * num_verts + 4));
         }
 
         const vertex_buffer_descriptor = .{
@@ -101,7 +101,7 @@ pub const Batcher = struct {
 
     /// Returns true if vertices array has room for another quad
     pub fn hasCapacity(self: Batcher) bool {
-        return self.quad_count * num_verts < self.vertices.len - 1;
+        return self.quad_count * num_verts < self.vertices.len - num_verts;
     }
 
     /// Attempts to resize the buffers to hold a larger capacity
@@ -114,18 +114,18 @@ pub const Batcher = struct {
         // Arrange index buffer for quads
         var i: usize = 0;
         while (i < max_quads) : (i += 1) {
-            self.indices[i * num_indices + 0] = @as(u32, @intCast(i * num_triangles + 0));
-            self.indices[i * num_indices + 1] = @as(u32, @intCast(i * num_triangles + 1));
-            self.indices[i * num_indices + 2] = @as(u32, @intCast(i * num_triangles + 4));
-            self.indices[i * num_indices + 3] = @as(u32, @intCast(i * num_triangles + 1));
-            self.indices[i * num_indices + 4] = @as(u32, @intCast(i * num_triangles + 2));
-            self.indices[i * num_indices + 5] = @as(u32, @intCast(i * num_triangles + 4));
-            self.indices[i * num_indices + 6] = @as(u32, @intCast(i * num_triangles + 2));
-            self.indices[i * num_indices + 7] = @as(u32, @intCast(i * num_triangles + 4));
-            self.indices[i * num_indices + 8] = @as(u32, @intCast(i * num_triangles + 3));
-            self.indices[i * num_indices + 9] = @as(u32, @intCast(i * num_triangles + 3));
-            self.indices[i * num_indices + 10] = @as(u32, @intCast(i * num_triangles + 4));
-            self.indices[i * num_indices + 11] = @as(u32, @intCast(i * num_triangles + 0));
+            self.indices[i * num_indices + 0] = @as(u32, @intCast(i * num_verts + 0));
+            self.indices[i * num_indices + 1] = @as(u32, @intCast(i * num_verts + 1));
+            self.indices[i * num_indices + 2] = @as(u32, @intCast(i * num_verts + 4));
+            self.indices[i * num_indices + 3] = @as(u32, @intCast(i * num_verts + 1));
+            self.indices[i * num_indices + 4] = @as(u32, @intCast(i * num_verts + 2));
+            self.indices[i * num_indices + 5] = @as(u32, @intCast(i * num_verts + 4));
+            self.indices[i * num_indices + 6] = @as(u32, @intCast(i * num_verts + 2));
+            self.indices[i * num_indices + 7] = @as(u32, @intCast(i * num_verts + 4));
+            self.indices[i * num_indices + 8] = @as(u32, @intCast(i * num_verts + 3));
+            self.indices[i * num_indices + 9] = @as(u32, @intCast(i * num_verts + 3));
+            self.indices[i * num_indices + 10] = @as(u32, @intCast(i * num_verts + 4));
+            self.indices[i * num_indices + 11] = @as(u32, @intCast(i * num_verts + 0));
         }
 
         std.log.warn("[{s}] Batcher buffers resized, previous size: {d} - new size: {d}", .{ pixi.name, self.quad_count, max_quads });
@@ -229,6 +229,7 @@ pub const Batcher = struct {
 
     pub const TransformTextureOptions = struct {
         color: zmath.F32x4 = pixi.math.Colors.white.value,
+        bind_group: ?*gpu.BindGroup = null,
         flip_y: bool = false,
         flip_x: bool = false,
         rotation: f32 = 0.0,
@@ -291,6 +292,8 @@ pub const Batcher = struct {
 
         // Apply rotation
         if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, zmath.loadArr2(pivot) + zmath.loadArr2(offset));
+
+        if (options.bind_group) |bg| self.context.bind_group_handle = bg;
 
         return self.append(quad);
     }
@@ -361,6 +364,8 @@ pub const Batcher = struct {
 
         // Apply rotation
         if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, zmath.loadArr2(pivot) + zmath.loadArr2(offset));
+
+        if (options.bind_group) |bg| self.context.bind_group_handle = bg;
 
         return self.append(quad);
     }
