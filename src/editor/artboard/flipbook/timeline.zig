@@ -178,7 +178,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const transform_width: f32 = @floatFromInt(file.tile_width);
                     const transform_height: f32 = @floatFromInt(file.tile_height);
 
-                    const transform_texture = .{
+                    const transform_texture: pixi.storage.Internal.Pixi.TransformTexture = .{
                         .vertices = .{
                             .{ .position = zmath.loadArr2(transform_position) }, // TL
                             .{ .position = zmath.loadArr2(.{ transform_position[0] + transform_width, transform_position[1] }) }, // TR
@@ -187,6 +187,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         },
                         .texture = file.layers.items[file.selected_layer_index].texture,
                         .rotation_grip_height = transform_height / 4.0,
+                        .pivot = .{ .position = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y }) },
                     };
 
                     const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
@@ -232,7 +233,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 for (selected_transform_animation.transforms.items) |transform| {
                     pixi.state.batcher.begin(.{
                         .pipeline_handle = pixi.state.pipeline_default,
-                        .bind_group_handle = undefined,
+                        .bind_group_handle = transform.transform_bindgroup,
                         .output_texture = &file.transform_animation_texture,
                         .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
                     }) catch unreachable;
