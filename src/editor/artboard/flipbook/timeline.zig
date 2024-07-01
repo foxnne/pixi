@@ -229,14 +229,14 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     zmath.orthographicLh(width, height, -100, 100),
                 ) };
 
-                pixi.state.batcher.begin(.{
-                    .pipeline_handle = pixi.state.pipeline_default,
-                    .bind_group_handle = undefined,
-                    .output_texture = &file.transform_animation_texture,
-                    .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
-                }) catch unreachable;
-
                 for (selected_transform_animation.transforms.items) |transform| {
+                    pixi.state.batcher.begin(.{
+                        .pipeline_handle = pixi.state.pipeline_default,
+                        .bind_group_handle = undefined,
+                        .output_texture = &file.transform_animation_texture,
+                        .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+                    }) catch unreachable;
+
                     const transform_texture = &transform.transform_texture;
                     var pivot = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
                     if (transform_texture.pivot == null) {
@@ -265,15 +265,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         },
                     };
 
-                    // pixi.state.batcher.transformTexture(
-                    //     transform_texture.vertices,
-                    //     .{ canvas_center_offset[0], -canvas_center_offset[1] },
-                    //     .{ pivot[0], -pivot[1] },
-                    //     .{
-                    //         .rotation = -transform_texture.rotation,
-                    //     },
-                    // ) catch unreachable;
-
                     pixi.state.batcher.transformSprite(
                         &file.layers.items[transform.layer_index].texture,
                         sprite,
@@ -282,19 +273,23 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         .{ pivot[0], -pivot[1] },
                         .{
                             .rotation = -transform_texture.rotation,
-                            .bind_group = transform.transform_bindgroup,
                         },
                     ) catch unreachable;
-                }
 
-                pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
+                    pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
+                }
             }
 
             file.flipbook_camera.drawTexture(file.transform_animation_texture.view_handle, file.transform_animation_texture.image.width, file.transform_animation_texture.image.height, file.canvasCenterOffset(.primary), 0xFFFFFFFF);
+
             if (selected_transform_animation.transforms.items.len > 0) {
                 const active_transform = &selected_transform_animation.transforms.items[file.selected_transform_index];
                 file.processTransformTextureControls(&active_transform.transform_texture, .flipbook);
             }
+
+            // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
+            @memset(file.transform_animation_texture.image.data, 0.0);
+            file.transform_animation_texture.update(core.device);
         }
     }
 }

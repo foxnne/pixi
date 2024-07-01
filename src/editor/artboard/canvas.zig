@@ -185,7 +185,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             pixi.state.batcher.begin(.{
                                 .pipeline_handle = pixi.state.pipeline_default,
                                 .compute_pipeline_handle = pixi.state.pipeline_compute,
-                                .bind_group_handle = undefined,
+                                .bind_group_handle = transform_bindgroup,
                                 .compute_bind_group_handle = compute_bindgroup,
                                 .output_texture = &file.temporary_layer.texture,
                                 .compute_buffer = compute_buffer,
@@ -209,7 +209,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                 .{ pivot[0], -pivot[1] },
                                 .{
                                     .rotation = -transform_texture.rotation,
-                                    .bind_group = transform_bindgroup,
                                 },
                             ) catch unreachable;
 

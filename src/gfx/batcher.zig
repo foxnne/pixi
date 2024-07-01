@@ -229,7 +229,6 @@ pub const Batcher = struct {
 
     pub const TransformTextureOptions = struct {
         color: zmath.F32x4 = pixi.math.Colors.white.value,
-        bind_group: ?*gpu.BindGroup = null,
         flip_y: bool = false,
         flip_x: bool = false,
         rotation: f32 = 0.0,
@@ -292,8 +291,6 @@ pub const Batcher = struct {
 
         // Apply rotation
         if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, zmath.loadArr2(pivot) + zmath.loadArr2(offset));
-
-        if (options.bind_group) |bg| self.context.bind_group_handle = bg;
 
         return self.append(quad);
     }
@@ -364,8 +361,6 @@ pub const Batcher = struct {
 
         // Apply rotation
         if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, zmath.loadArr2(pivot) + zmath.loadArr2(offset));
-
-        if (options.bind_group) |bg| self.context.bind_group_handle = bg;
 
         return self.append(quad);
     }
@@ -481,7 +476,7 @@ pub const Batcher = struct {
 
             const color_attachments = [_]gpu.RenderPassColorAttachment{.{
                 .view = if (self.context.output_texture) |out_texture| out_texture.view_handle else back_buffer_view,
-                .load_op = .clear,
+                .load_op = .load,
                 .store_op = .store,
                 .clear_value = self.context.clear_color,
             }};
