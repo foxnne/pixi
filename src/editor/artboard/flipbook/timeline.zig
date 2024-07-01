@@ -145,6 +145,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         },
                         .texture = file.layers.items[file.selected_layer_index].texture,
                         .rotation_grip_height = transform_height / 4.0,
+                        .pivot = .{ .position = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y }) },
                     };
                     const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
                     defer pipeline_layout_default.release();
