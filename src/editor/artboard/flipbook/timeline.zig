@@ -267,12 +267,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                         }
                                     }
 
-                                    // if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
-                                    //     if (hk.down()) {
-                                    //         transform_texture.parent = null;
-                                    //         change = false;
-                                    //     }
-                                    // }
+                                    if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
+                                        if (hk.down()) {
+                                            selected_transform_animation.transforms.items[file.selected_transform_index].transform_texture.parent = null;
+                                            change = false;
+                                        }
+                                    }
 
                                     if (change) {
                                         file.selected_transform_index = i;
