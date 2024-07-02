@@ -763,7 +763,15 @@ pub const Pixi = struct {
         }
     }
 
-    pub fn processTransformTextureControls(file: *Pixi, transform_texture: *pixi.storage.Internal.Pixi.TransformTexture, canvas: Canvas) void {
+    pub const TransformTextureControlsOptions = struct {
+        canvas: Canvas = .primary,
+        allow_vert_move: bool = true,
+        allow_pivot_move: bool = true,
+    };
+
+    pub fn processTransformTextureControls(file: *Pixi, transform_texture: *pixi.storage.Internal.Pixi.TransformTexture, options: TransformTextureControlsOptions) void {
+        const canvas = options.canvas;
+
         const modifier_primary: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
         const modifier_secondary: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
@@ -937,7 +945,7 @@ pub const Pixi = struct {
         for (&rotated_vertices, 0..) |*vertex, vertex_index| {
             const grip_rect: [4]f32 = .{ offset[0] + vertex.position[0] - half_grip_size, offset[1] + vertex.position[1] - half_grip_size, grip_size, grip_size };
 
-            if (camera.isHovered(grip_rect)) {
+            if (camera.isHovered(grip_rect) and options.allow_vert_move) {
                 hovered_index = vertex_index;
                 if (pixi.state.mouse.button(.primary)) |bt| {
                     if (bt.pressed()) {
@@ -1008,7 +1016,7 @@ pub const Pixi = struct {
             if ((pan_hovered and !pivot_hovered) and mouse_pressed) {
                 transform_texture.pan = true;
             }
-            if (pivot_hovered and mouse_pressed) {
+            if (pivot_hovered and mouse_pressed and options.allow_pivot_move) {
                 transform_texture.pivot_move = true;
                 transform_texture.control = null;
             }
@@ -1027,18 +1035,21 @@ pub const Pixi = struct {
                 }
             }
 
-            if (hovered_index) |i| {
-                switch (i) {
-                    0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
-                    1, 3 => cursor = imgui.MouseCursor_ResizeNESW,
-                    else => unreachable,
+            if (options.allow_pivot_move) {
+                if (hovered_index) |i| {
+                    switch (i) {
+                        0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
+                        1, 3 => cursor = imgui.MouseCursor_ResizeNESW,
+                        else => unreachable,
+                    }
                 }
             }
 
             if (transform_texture.pan or transform_texture.rotate or transform_texture.pivot_move)
                 cursor = imgui.MouseCursor_ResizeAll;
 
-            imgui.setMouseCursor(cursor);
+            if (cursor != imgui.MouseCursor_None)
+                imgui.setMouseCursor(cursor);
         }
 
         { // Handle moving the vertices when panning

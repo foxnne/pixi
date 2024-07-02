@@ -191,7 +191,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         .texture = file.layers.items[file.selected_layer_index].texture,
                         .rotation_grip_height = transform_height / 4.0,
                         .pivot = .{ .position = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y }) },
-                        .parent = &transforms.items[0].transform_texture,
                     };
 
                     const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
@@ -258,7 +257,29 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         const scaled_grip_size = grip_size / file.flipbook_camera.zoom;
 
                         if (file.flipbook_camera.isHovered(.{ pivot[0] + canvas_center_offset[0] - scaled_grip_size / 2.0, pivot[1] + canvas_center_offset[1] - scaled_grip_size / 2.0, scaled_grip_size, scaled_grip_size })) {
-                            file.selected_transform_index = i;
+                            if (pixi.state.mouse.button(.primary)) |bt| {
+                                if (bt.pressed()) {
+                                    var change: bool = true;
+                                    if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                        if (hk.down()) {
+                                            selected_transform_animation.transforms.items[file.selected_transform_index].transform_texture.parent = transform_texture;
+                                            change = false;
+                                        }
+                                    }
+
+                                    // if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
+                                    //     if (hk.down()) {
+                                    //         transform_texture.parent = null;
+                                    //         change = false;
+                                    //     }
+                                    // }
+
+                                    if (change) {
+                                        file.selected_transform_index = i;
+                                    }
+                                }
+                            }
+                            file.flipbook_camera.drawCircleFilled(.{ pivot[0] + canvas_center_offset[0], pivot[1] + canvas_center_offset[1] }, half_grip_size, pixi.state.theme.highlight_primary.toU32());
                         } else {
                             file.flipbook_camera.drawCircleFilled(.{ pivot[0] + canvas_center_offset[0], pivot[1] + canvas_center_offset[1] }, half_grip_size, pixi.state.theme.text.toU32());
                         }
@@ -299,6 +320,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         const angle = std.math.atan2(diff[1], diff[0]);
 
                         rotation -= std.math.radiansToDegrees(angle) - 90.0;
+
+                        file.flipbook_camera.drawLine(.{ pivot[0] + canvas_center_offset[0], pivot[1] + canvas_center_offset[1] }, .{ parent_pivot[0] + canvas_center_offset[0], parent_pivot[1] + canvas_center_offset[1] }, pixi.state.theme.text.toU32(), 1.0);
                     }
 
                     pixi.state.batcher.transformSprite(
@@ -318,7 +341,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
             if (selected_transform_animation.transforms.items.len > 0) {
                 const active_transform = &selected_transform_animation.transforms.items[file.selected_transform_index];
-                file.processTransformTextureControls(&active_transform.transform_texture, .flipbook);
+                file.processTransformTextureControls(&active_transform.transform_texture, .{
+                    .canvas = .flipbook,
+                    .allow_pivot_move = false,
+                    .allow_vert_move = false,
+                });
             }
 
             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done

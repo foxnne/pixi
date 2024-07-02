@@ -237,7 +237,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
 
         if (file.transform_texture) |*transform_texture|
-            file.processTransformTextureControls(transform_texture, .primary);
+            file.processTransformTextureControls(transform_texture, .{});
 
         if (file.heightmap.visible) {
             file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
