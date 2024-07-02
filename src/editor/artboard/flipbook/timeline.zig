@@ -219,6 +219,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             }
         }
 
+        file.flipbook_camera.drawTexture(file.transform_animation_texture.view_handle, file.transform_animation_texture.image.width, file.transform_animation_texture.image.height, file.canvasCenterOffset(.primary), 0xFFFFFFFF);
+
         if (file.transform_animations.items.len > 0) {
             const selected_transform_animation = file.transform_animations.items[file.selected_transform_animation_index];
 
@@ -231,7 +233,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     zmath.orthographicLh(width, height, -100, 100),
                 ) };
 
-                for (selected_transform_animation.transforms.items) |transform| {
+                for (selected_transform_animation.transforms.items, 0..) |transform, i| {
                     pixi.state.batcher.begin(.{
                         .pipeline_handle = pixi.state.pipeline_default,
                         .bind_group_handle = transform.transform_bindgroup,
@@ -246,6 +248,17 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             pivot += vertex.position; // Collect centroid
                         }
                         pivot /= zmath.f32x4s(4.0); // Average position
+                    }
+
+                    if (i != file.selected_transform_index) {
+                        const grip_size: f32 = 10.0;
+                        const half_grip_size = grip_size / 2.0;
+
+                        if (file.flipbook_camera.isHovered(.{ pivot[0] + canvas_center_offset[0] - half_grip_size / 2.0, pivot[1] + canvas_center_offset[1] - half_grip_size / 2.0, half_grip_size, half_grip_size })) {
+                            file.selected_transform_index = i;
+                        } else {
+                            file.flipbook_camera.drawCircleFilled(.{ pivot[0] + canvas_center_offset[0], pivot[1] + canvas_center_offset[1] }, half_grip_size, pixi.state.theme.text.toU32());
+                        }
                     }
 
                     const tiles_wide = @divExact(file.width, file.tile_width);
@@ -281,8 +294,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
                 }
             }
-
-            file.flipbook_camera.drawTexture(file.transform_animation_texture.view_handle, file.transform_animation_texture.image.width, file.transform_animation_texture.image.height, file.canvasCenterOffset(.primary), 0xFFFFFFFF);
 
             if (selected_transform_animation.transforms.items.len > 0) {
                 const active_transform = &selected_transform_animation.transforms.items[file.selected_transform_index];
