@@ -69,7 +69,7 @@ pub const Quad = struct {
         }
     }
 
-    pub fn rotate(self: *Quad, rotation: f32, centroid: zm.F32x4) void {
+    pub fn rotate(self: *Quad, rotation: f32, pivot: zm.F32x4) void {
         for (0..5) |i| {
             const vert = self.vertices[i];
             var position = zm.loadArr3(vert.position);
@@ -77,9 +77,9 @@ pub const Quad = struct {
 
             const rotation_matrix = zm.rotationZ(radians);
 
-            position -= centroid;
+            position -= pivot;
             position = zm.mul(position, rotation_matrix);
-            position += centroid;
+            position += pivot;
 
             zm.storeArr3(&self.vertices[i].position, position);
         }

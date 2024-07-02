@@ -72,6 +72,7 @@ pub const Pixi = struct {
         pivot_move: bool = false,
         pivot_angle: f32 = 0.0,
         temporary: bool = false,
+        parent: ?*TransformTexture = null,
     };
 
     pub const TransformVertex = struct {
@@ -813,6 +814,27 @@ pub const Pixi = struct {
             .{ .position = zmath.mul(transform_texture.vertices[2].position - centroid, rotation_matrix) + centroid },
             .{ .position = zmath.mul(transform_texture.vertices[3].position - centroid, rotation_matrix) + centroid },
         };
+
+        if (transform_texture.parent) |parent| {
+            const parent_radians = std.math.degreesToRadians(parent.rotation);
+            const parent_rotation_matrix = zmath.rotationZ(parent_radians);
+            _ = parent_rotation_matrix; // autofix
+
+            var parent_centroid = if (parent.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
+            if (parent.pivot == null) {
+                for (&parent.vertices) |*vertex| {
+                    parent_centroid += vertex.position; // Collect centroid
+                }
+                parent_centroid /= zmath.f32x4s(4.0); // Average position
+            }
+
+            // rotated_vertices[0].position = zmath.mul(rotated_vertices[0].position, parent_rotation_matrix);
+            // rotated_vertices[1].position = zmath.mul(rotated_vertices[1].position, parent_rotation_matrix);
+            // rotated_vertices[2].position = zmath.mul(rotated_vertices[2].position, parent_rotation_matrix);
+            // rotated_vertices[3].position = zmath.mul(rotated_vertices[3].position, parent_rotation_matrix);
+
+            camera.drawLine(.{ centroid[0] + offset[0], centroid[1] + offset[1] }, .{ parent_centroid[0] + offset[0], parent_centroid[1] + offset[1] }, pixi.state.theme.text.toU32(), 1.0);
+        }
 
         if (transform_texture.pivot_move) {
             if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
