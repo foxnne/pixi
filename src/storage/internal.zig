@@ -70,7 +70,7 @@ pub const Pixi = struct {
         texture: pixi.gfx.Texture,
         confirm: bool = false,
         pivot_move: bool = false,
-        pivot_angle: f32 = 0.0,
+        pivot_offset_angle: f32 = 0.0,
         temporary: bool = false,
         parent: ?*TransformTexture = null,
     };
@@ -824,10 +824,6 @@ pub const Pixi = struct {
         };
 
         if (transform_texture.parent) |parent| {
-            const parent_radians = std.math.degreesToRadians(parent.rotation);
-            const parent_rotation_matrix = zmath.rotationZ(parent_radians);
-            _ = parent_rotation_matrix; // autofix
-
             var parent_centroid = if (parent.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
             if (parent.pivot == null) {
                 for (&parent.vertices) |*vertex| {
@@ -835,12 +831,6 @@ pub const Pixi = struct {
                 }
                 parent_centroid /= zmath.f32x4s(4.0); // Average position
             }
-
-            // rotated_vertices[0].position = zmath.mul(rotated_vertices[0].position, parent_rotation_matrix);
-            // rotated_vertices[1].position = zmath.mul(rotated_vertices[1].position, parent_rotation_matrix);
-            // rotated_vertices[2].position = zmath.mul(rotated_vertices[2].position, parent_rotation_matrix);
-            // rotated_vertices[3].position = zmath.mul(rotated_vertices[3].position, parent_rotation_matrix);
-
             camera.drawLine(.{ centroid[0] + offset[0], centroid[1] + offset[1] }, .{ parent_centroid[0] + offset[0], parent_centroid[1] + offset[1] }, pixi.state.theme.text.toU32(), 1.0);
         }
 
@@ -881,7 +871,7 @@ pub const Pixi = struct {
                 else => 180.0,
             } else @trunc(std.math.radiansToDegrees(std.math.atan2(diff[1], diff[0])) - 90.0);
 
-            transform_texture.pivot_angle = angle;
+            transform_texture.pivot_offset_angle = angle;
         }
 
         // Draw bounding lines from vertices
@@ -1110,9 +1100,22 @@ pub const Pixi = struct {
                         .w => 90.0,
                         .nw => 135.0,
                         else => 180.0,
-                    } else std.math.atan2(diff[1], diff[0]);
+                    } else @trunc(std.math.radiansToDegrees(std.math.atan2(diff[1], diff[0])) + 90.0);
 
-                    transform_texture.rotation = (if (modifier_secondary) angle else @trunc(std.math.radiansToDegrees(angle) + 90.0)) + if (transform_texture.pivot != null) -transform_texture.pivot_angle else 0.0;
+                    var rotation = angle + if (transform_texture.pivot != null) -transform_texture.pivot_offset_angle else 0.0;
+
+                    if (rotation < 0.0) rotation += 360.0;
+
+                    var rotation_diff = rotation - @mod(transform_texture.rotation, 360.0);
+
+                    // TODO: Is there some better way to determine if the angle has crossed the boundary from 359.9 > 0
+                    // TODO: without using a separate variable? This will never reach 360.0 and depending on mouse speed
+                    // TODO: could be a valid change in rotation at even large numbers, especially when crossing the pivot.
+                    if (@abs(rotation_diff) > 300.0) {
+                        rotation_diff += 360.0 * -std.math.sign(rotation_diff);
+                    }
+
+                    transform_texture.rotation += rotation_diff;
                 }
             }
         }
