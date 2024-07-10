@@ -239,13 +239,10 @@ pub fn draw() void {
                     .y = flipbook_height,
                 }, imgui.ChildFlags_None, flipbook_flags)) {
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-                        if (pixi.state.sidebar == .keyframe_animations) {
-                            flipbook.menu.draw(file, artboard_flipbook_ratio);
-
+                        flipbook.menu.draw(file, artboard_flipbook_ratio);
+                        if (pixi.state.sidebar == .keyframe_animations or file.flipbook_view == .timeline) {
                             flipbook.timeline.draw(file);
                         } else {
-                            flipbook.menu.draw(file, artboard_flipbook_ratio);
-
                             if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                                 defer imgui.endChild();
                                 flipbook.canvas.draw(file);

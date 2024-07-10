@@ -346,7 +346,20 @@ pub fn process(self: *Self) !void {
         if (hk.pressed()) {
             switch (hk.action) {
                 .tool => |tool| pixi.state.tools.set(tool),
-                .sidebar => |sidebar| pixi.state.sidebar = sidebar,
+                .sidebar => |sidebar| {
+                    pixi.state.sidebar = sidebar;
+
+                    if (sidebar == .keyframe_animations) {
+                        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                            file.flipbook_view = .timeline;
+                        }
+                    }
+                    if (sidebar == .animations) {
+                        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                            file.flipbook_view = .canvas;
+                        }
+                    }
+                },
                 else => {},
             }
         }

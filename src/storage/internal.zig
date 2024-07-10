@@ -29,6 +29,7 @@ pub const Pixi = struct {
     flipbook_camera: pixi.gfx.Camera = .{},
     flipbook_scroll: f32 = 0.0,
     flipbook_scroll_request: ?ScrollRequest = null,
+    flipbook_view: FlipbookView = .canvas,
     selected_layer_index: usize = 0,
     selected_sprite_index: usize = 0,
     selected_sprites: std.ArrayList(usize),
@@ -89,6 +90,8 @@ pub const Pixi = struct {
         free_aspect,
         free,
     };
+
+    pub const FlipbookView = enum { canvas, timeline };
 
     pub const AnimationState = enum { pause, play };
     pub const Canvas = enum { primary, flipbook };
@@ -931,25 +934,27 @@ pub const Pixi = struct {
             camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * camera.zoom, control_color);
         }
 
-        // Draw controls for moving vertices
-        for (&rotated_vertices, 0..) |*vertex, vertex_index| {
-            const grip_rect: [4]f32 = .{ offset[0] + vertex.position[0] - half_grip_size, offset[1] + vertex.position[1] - half_grip_size, grip_size, grip_size };
+        if (options.allow_vert_move) {
+            // Draw controls for moving vertices
+            for (&rotated_vertices, 0..) |*vertex, vertex_index| {
+                const grip_rect: [4]f32 = .{ offset[0] + vertex.position[0] - half_grip_size, offset[1] + vertex.position[1] - half_grip_size, grip_size, grip_size };
 
-            if (camera.isHovered(grip_rect) and options.allow_vert_move) {
-                hovered_index = vertex_index;
-                if (pixi.state.mouse.button(.primary)) |bt| {
-                    if (bt.pressed()) {
-                        transform_texture.control = .{
-                            .index = vertex_index,
-                            .mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect,
-                        };
-                        transform_texture.pivot = null;
+                if (camera.isHovered(grip_rect) and options.allow_vert_move) {
+                    hovered_index = vertex_index;
+                    if (pixi.state.mouse.button(.primary)) |bt| {
+                        if (bt.pressed()) {
+                            transform_texture.control = .{
+                                .index = vertex_index,
+                                .mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect,
+                            };
+                            transform_texture.pivot = null;
+                        }
                     }
                 }
-            }
 
-            const grip_color = if (hovered_index == vertex_index or if (transform_texture.control) |control| control.index == vertex_index else false) highlight_color else default_color;
-            camera.drawRectFilled(grip_rect, grip_color);
+                const grip_color = if (hovered_index == vertex_index or if (transform_texture.control) |control| control.index == vertex_index else false) highlight_color else default_color;
+                camera.drawRectFilled(grip_rect, grip_color);
+            }
         }
 
         // Draw dimensions
@@ -1663,6 +1668,17 @@ pub const Pixi = struct {
     pub fn setSelectedSpritesOriginX(self: *Pixi, origin_x: f32) void {
         for (self.selected_sprites.items) |sprite_index| {
             if (self.sprites.items[sprite_index].origin_x != origin_x) {
+                for (self.transform_animations.items) |*animation| {
+                    for (animation.transforms.items) |*transform| {
+                        if (sprite_index == transform.sprite_index) {
+                            if (transform.transform_texture.pivot) |*pivot| {
+                                const diff = origin_x - self.sprites.items[sprite_index].origin_x;
+                                pivot.position += zmath.loadArr2(.{ diff, 0.0 });
+                            }
+                        }
+                    }
+                }
+
                 self.sprites.items[sprite_index].origin_x = origin_x;
             }
         }
@@ -1671,6 +1687,16 @@ pub const Pixi = struct {
     pub fn setSelectedSpritesOriginY(self: *Pixi, origin_y: f32) void {
         for (self.selected_sprites.items) |sprite_index| {
             if (self.sprites.items[sprite_index].origin_y != origin_y) {
+                for (self.transform_animations.items) |*animation| {
+                    for (animation.transforms.items) |*transform| {
+                        if (sprite_index == transform.sprite_index) {
+                            if (transform.transform_texture.pivot) |*pivot| {
+                                const diff = origin_y - self.sprites.items[sprite_index].origin_y;
+                                pivot.position += zmath.loadArr2(.{ 0.0, diff });
+                            }
+                        }
+                    }
+                }
                 self.sprites.items[sprite_index].origin_y = origin_y;
             }
         }
@@ -1694,6 +1720,18 @@ pub const Pixi = struct {
         for (self.selected_sprites.items) |sprite_index| {
             const current_origin = .{ self.sprites.items[sprite_index].origin_x, self.sprites.items[sprite_index].origin_y };
             if (current_origin[0] != origin[0] or current_origin[1] != origin[1]) {
+                const diff: [2]f32 = .{ origin[0] - current_origin[0], origin[1] - current_origin[1] };
+
+                for (self.transform_animations.items) |*animation| {
+                    for (animation.transforms.items) |*transform| {
+                        if (sprite_index == transform.sprite_index) {
+                            if (transform.transform_texture.pivot) |*pivot| {
+                                pivot.position += zmath.loadArr2(diff);
+                            }
+                        }
+                    }
+                }
+
                 self.sprites.items[sprite_index].origin_x = origin[0];
                 self.sprites.items[sprite_index].origin_y = origin[1];
             }
