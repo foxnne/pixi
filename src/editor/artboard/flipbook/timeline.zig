@@ -142,16 +142,18 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const transform_width: f32 = @floatFromInt(file.tile_width);
                     const transform_height: f32 = @floatFromInt(file.tile_height);
 
+                    const pivot = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y });
+
                     const transform_texture = .{
                         .vertices = .{
-                            .{ .position = zmath.loadArr2(transform_position) }, // TL
-                            .{ .position = zmath.loadArr2(.{ transform_position[0] + transform_width, transform_position[1] }) }, // TR
-                            .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) }, //BR
-                            .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) }, // BL
+                            .{ .position = zmath.loadArr2(transform_position) - pivot }, // TL
+                            .{ .position = zmath.loadArr2(.{ transform_position[0] + transform_width, transform_position[1] }) - pivot }, // TR
+                            .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) - pivot }, //BR
+                            .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) - pivot }, // BL
                         },
                         .texture = file.layers.items[file.selected_layer_index].texture,
                         .rotation_grip_height = transform_height / 4.0,
-                        .pivot = .{ .position = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y }) },
+                        .pivot = .{ .position = zmath.f32x4s(0.0) },
                     };
                     const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
                     defer pipeline_layout_default.release();
@@ -187,16 +189,18 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const transform_width: f32 = @floatFromInt(file.tile_width);
                     const transform_height: f32 = @floatFromInt(file.tile_height);
 
+                    const pivot = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y });
+
                     const transform_texture: pixi.storage.Internal.Pixi.TransformTexture = .{
                         .vertices = .{
-                            .{ .position = zmath.loadArr2(transform_position) }, // TL
-                            .{ .position = zmath.loadArr2(.{ transform_position[0] + transform_width, transform_position[1] }) }, // TR
-                            .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) }, //BR
-                            .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) }, // BL
+                            .{ .position = zmath.loadArr2(transform_position) - pivot }, // TL
+                            .{ .position = zmath.loadArr2(.{ transform_position[0] + transform_width, transform_position[1] }) - pivot }, // TR
+                            .{ .position = zmath.f32x4(transform_position[0] + transform_width, transform_position[1] + transform_height, 0.0, 0.0) - pivot }, //BR
+                            .{ .position = zmath.f32x4(transform_position[0], transform_position[1] + transform_height, 0.0, 0.0) - pivot }, // BL
                         },
                         .texture = file.layers.items[file.selected_layer_index].texture,
                         .rotation_grip_height = transform_height / 4.0,
-                        .pivot = .{ .position = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y }) },
+                        .pivot = .{ .position = zmath.f32x4s(0.0) },
                     };
 
                     const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
@@ -262,7 +266,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         const half_grip_size = grip_size / 2.0;
                         const scaled_grip_size = grip_size / file.flipbook_camera.zoom;
 
-                        if (file.flipbook_camera.isHovered(.{ pivot[0] + canvas_center_offset[0] - scaled_grip_size / 2.0, pivot[1] + canvas_center_offset[1] - scaled_grip_size / 2.0, scaled_grip_size, scaled_grip_size })) {
+                        if (file.flipbook_camera.isHovered(.{ pivot[0] - scaled_grip_size / 2.0, pivot[1] - scaled_grip_size / 2.0, scaled_grip_size, scaled_grip_size })) {
                             if (pixi.state.mouse.button(.primary)) |bt| {
                                 if (bt.pressed()) {
                                     var change: bool = true;
@@ -285,9 +289,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                     }
                                 }
                             }
-                            file.flipbook_camera.drawCircleFilled(.{ pivot[0] + canvas_center_offset[0], pivot[1] + canvas_center_offset[1] }, half_grip_size, pixi.state.theme.highlight_primary.toU32());
+                            file.flipbook_camera.drawCircleFilled(.{ pivot[0], pivot[1] }, half_grip_size, pixi.state.theme.highlight_primary.toU32());
                         } else {
-                            file.flipbook_camera.drawCircleFilled(.{ pivot[0] + canvas_center_offset[0], pivot[1] + canvas_center_offset[1] }, half_grip_size, pixi.state.theme.text.toU32());
+                            file.flipbook_camera.drawCircleFilled(.{ pivot[0], pivot[1] }, half_grip_size, pixi.state.theme.text.toU32());
                         }
                     }
 
@@ -327,7 +331,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                         rotation -= std.math.radiansToDegrees(angle) - 90.0;
 
-                        file.flipbook_camera.drawLine(.{ pivot[0] + canvas_center_offset[0], pivot[1] + canvas_center_offset[1] }, .{ parent_pivot[0] + canvas_center_offset[0], parent_pivot[1] + canvas_center_offset[1] }, pixi.state.theme.text.toU32(), 1.0);
+                        file.flipbook_camera.drawLine(.{ pivot[0], pivot[1] }, .{ parent_pivot[0], parent_pivot[1] }, pixi.state.theme.text.toU32(), 1.0);
                     }
 
                     pixi.state.batcher.transformSprite(
