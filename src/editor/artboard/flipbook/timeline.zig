@@ -117,7 +117,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const view_height: f32 = tile_height * 2.0;
 
             // Lock camera from moving too far away from canvas
-            const min_position: [2]f32 = .{ canvas_center_offset[0] - view_width / 2.0, -(canvas_center_offset[1] + view_height) };
+            const min_position: [2]f32 = .{ canvas_center_offset[0] - view_width / 2.0, canvas_center_offset[1] - view_height / 2.0 };
             const max_position: [2]f32 = .{ canvas_center_offset[0] + view_width, canvas_center_offset[1] + view_height };
 
             file.flipbook_camera.position[0] = std.math.clamp(file.flipbook_camera.position[0], min_position[0], max_position[0]);
@@ -125,7 +125,13 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         }
 
         // Draw tile outline for reference
-        file.flipbook_camera.drawRect(.{ canvas_center_offset[0], canvas_center_offset[1], tile_width, tile_height }, 1.0, pixi.state.theme.text_background.toU32());
+        //file.flipbook_camera.drawRect(.{ canvas_center_offset[0], canvas_center_offset[1], tile_width, tile_height }, 1.0, pixi.state.theme.text_background.toU32());
+
+        file.flipbook_camera.drawGrid(file.canvasCenterOffset(.primary), @floatFromInt(file.width), @floatFromInt(file.height), @intCast(@divTrunc(file.width, file.tile_width)), @intCast(@divTrunc(file.height, file.tile_height)), pixi.state.theme.text_background.toU32());
+
+        const l: f32 = 2000;
+        file.flipbook_camera.drawLine(.{ 0.0, l / 2.0 }, .{ 0.0, -l / 2.0 }, 0x5500FF00, 1.0);
+        file.flipbook_camera.drawLine(.{ -l / 2.0, 0.0 }, .{ l / 2.0, 0.0 }, 0x550000FF, 1.0);
 
         if (pixi.state.hotkeys.hotkey(.{ .proc = .play_pause })) |hk| {
             if (hk.pressed()) {
@@ -328,7 +334,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         &file.layers.items[transform.layer_index].texture,
                         sprite,
                         transform_texture.vertices,
-                        .{ canvas_center_offset[0], -canvas_center_offset[1] },
+                        .{ 0.0, 0.0 },
                         .{ pivot[0], -pivot[1] },
                         .{
                             .rotation = rotation,

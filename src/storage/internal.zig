@@ -789,7 +789,7 @@ pub const Pixi = struct {
         const default_color = pixi.state.theme.text.toU32();
         const highlight_color = pixi.state.theme.highlight_primary.toU32();
 
-        const offset = zmath.loadArr2(file.canvasCenterOffset(canvas));
+        const offset = zmath.loadArr2(if (canvas == .flipbook) .{ 0.0, 0.0 } else file.canvasCenterOffset(canvas));
 
         if (pixi.state.mouse.button(.primary)) |bt| {
             if (bt.released()) {
