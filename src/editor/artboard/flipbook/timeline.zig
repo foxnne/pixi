@@ -265,25 +265,26 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     pivot /= zmath.f32x4s(4.0); // Average position
                 }
 
-                if (i != file.selected_transform_index) {
-                    const grip_size: f32 = 10.0;
-                    const half_grip_size = grip_size / 2.0;
-                    const scaled_grip_size = grip_size / file.flipbook_camera.zoom;
+                const grip_size: f32 = 10.0;
+                const half_grip_size = grip_size / 2.0;
+                const scaled_grip_size = grip_size / file.flipbook_camera.zoom;
 
-                    if (file.flipbook_camera.isHovered(.{ pivot[0] - scaled_grip_size / 2.0, pivot[1] - scaled_grip_size / 2.0, scaled_grip_size, scaled_grip_size })) {
-                        if (pixi.state.mouse.button(.primary)) |bt| {
-                            if (bt.pressed()) {
-                                var change: bool = true;
+                if (file.flipbook_camera.isHovered(.{ pivot[0] - scaled_grip_size / 2.0, pivot[1] - scaled_grip_size / 2.0, scaled_grip_size, scaled_grip_size })) {
+                    if (pixi.state.mouse.button(.primary)) |bt| {
+                        if (bt.pressed()) {
+                            var change: bool = true;
+
+                            if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
+                                if (hk.down()) {
+                                    selected_transform_animation.transforms.items[file.selected_transform_index].transform_texture.parent = null;
+                                    change = false;
+                                }
+                            }
+
+                            if (i != file.selected_transform_index) {
                                 if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
                                     if (hk.down()) {
                                         selected_transform_animation.transforms.items[file.selected_transform_index].transform_texture.parent = transform_texture;
-                                        change = false;
-                                    }
-                                }
-
-                                if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
-                                    if (hk.down()) {
-                                        selected_transform_animation.transforms.items[file.selected_transform_index].transform_texture.parent = null;
                                         change = false;
                                     }
                                 }
@@ -293,10 +294,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                 }
                             }
                         }
-                        file.flipbook_camera.drawCircleFilled(.{ pivot[0], pivot[1] }, half_grip_size, pixi.state.theme.highlight_primary.toU32());
-                    } else {
-                        file.flipbook_camera.drawCircleFilled(.{ pivot[0], pivot[1] }, half_grip_size, pixi.state.theme.text.toU32());
                     }
+                    file.flipbook_camera.drawCircleFilled(.{ pivot[0], pivot[1] }, half_grip_size, pixi.state.theme.highlight_primary.toU32());
+                } else {
+                    file.flipbook_camera.drawCircleFilled(.{ pivot[0], pivot[1] }, half_grip_size, pixi.state.theme.text.toU32());
                 }
 
                 const tiles_wide = @divExact(file.width, file.tile_width);
