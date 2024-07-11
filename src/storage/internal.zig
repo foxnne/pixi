@@ -1027,7 +1027,7 @@ pub const Pixi = struct {
                 cursor = imgui.MouseCursor_Hand;
             }
 
-            if ((pan_hovered and !pivot_hovered) and mouse_pressed) {
+            if (((pan_hovered and !pivot_hovered) or (pan_hovered and !options.allow_pivot_move)) and mouse_pressed) {
                 transform_texture.pan = true;
             }
             if (pivot_hovered and mouse_pressed and options.allow_pivot_move) {
@@ -1156,6 +1156,7 @@ pub const Pixi = struct {
                     }
 
                     transform_texture.rotation += rotation_diff;
+                    transform_texture.rotation = @round(transform_texture.rotation);
                 }
             }
         }

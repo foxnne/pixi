@@ -108,15 +108,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             const max_zoom_index = if (zoom_index < pixi.state.settings.zoom_steps.len - 2) zoom_index + 2 else zoom_index;
             const max_zoom = pixi.state.settings.zoom_steps[max_zoom_index];
             sprite_camera.setNearZoomFloor();
-            const min_zoom = sprite_camera.zoom;
+            const min_zoom = 1.0;
 
             file.flipbook_camera.processPanZoom();
 
             // Lock camera from zooming in or out too far for the flipbook
             file.flipbook_camera.zoom = std.math.clamp(file.flipbook_camera.zoom, min_zoom, max_zoom);
 
-            const view_width: f32 = tile_width * 2.0;
-            const view_height: f32 = tile_height * 2.0;
+            const view_width: f32 = tile_width * 4.0;
+            const view_height: f32 = tile_height * 4.0;
 
             // Lock camera from moving too far away from canvas
             const min_position: [2]f32 = .{ canvas_center_offset[0] - view_width / 2.0, canvas_center_offset[1] - view_height / 2.0 };
@@ -126,10 +126,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             file.flipbook_camera.position[1] = std.math.clamp(file.flipbook_camera.position[1], min_position[1], max_position[1]);
         }
 
-        // Draw tile outline for reference
-        //file.flipbook_camera.drawRect(.{ canvas_center_offset[0], canvas_center_offset[1], tile_width, tile_height }, 1.0, pixi.state.theme.text_background.toU32());
+        const grid_columns: f32 = 20;
+        const grid_rows: f32 = 20;
+        const grid_width: f32 = tile_width * grid_columns;
+        const grid_height: f32 = tile_height * grid_rows;
 
-        file.flipbook_camera.drawGrid(file.canvasCenterOffset(.primary), @floatFromInt(file.width), @floatFromInt(file.height), @intCast(@divTrunc(file.width, file.tile_width)), @intCast(@divTrunc(file.height, file.tile_height)), pixi.state.theme.text_background.toU32());
+        file.flipbook_camera.drawGrid(.{ -grid_width / 2.0, -grid_height / 2.0 }, grid_width, grid_height, @intFromFloat(grid_columns), @intFromFloat(grid_rows), pixi.state.theme.text_background.toU32());
 
         const l: f32 = 2000;
         file.flipbook_camera.drawLine(.{ 0.0, l / 2.0 }, .{ 0.0, -l / 2.0 }, 0x5500FF00, 1.0);
