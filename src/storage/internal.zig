@@ -808,34 +808,53 @@ pub const Pixi = struct {
 
         var hovered_index: ?usize = null;
 
-        const radians = std.math.degreesToRadians(transform_texture.rotation);
-        const rotation_matrix = zmath.rotationZ(radians);
+        var offset_rotation: f32 = -transform_texture.rotation;
 
-        var centroid = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
+        var pivot = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
         if (transform_texture.pivot == null) {
             for (&transform_texture.vertices) |*vertex| {
-                centroid += vertex.position; // Collect centroid
+                pivot += vertex.position; // Collect centroid
             }
-            centroid /= zmath.f32x4s(4.0); // Average position
+            pivot /= zmath.f32x4s(4.0); // Average position
         }
-
-        var rotated_vertices: [4]pixi.storage.Internal.Pixi.TransformVertex = .{
-            .{ .position = zmath.mul(transform_texture.vertices[0].position - centroid, rotation_matrix) + centroid },
-            .{ .position = zmath.mul(transform_texture.vertices[1].position - centroid, rotation_matrix) + centroid },
-            .{ .position = zmath.mul(transform_texture.vertices[2].position - centroid, rotation_matrix) + centroid },
-            .{ .position = zmath.mul(transform_texture.vertices[3].position - centroid, rotation_matrix) + centroid },
-        };
 
         if (transform_texture.parent) |parent| {
-            var parent_centroid = if (parent.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
+            var parent_pivot = if (parent.pivot) |p| p.position else zmath.f32x4s(0.0);
             if (parent.pivot == null) {
                 for (&parent.vertices) |*vertex| {
-                    parent_centroid += vertex.position; // Collect centroid
+                    parent_pivot += vertex.position; // Collect centroid
                 }
-                parent_centroid /= zmath.f32x4s(4.0); // Average position
+                parent_pivot /= zmath.f32x4s(4.0); // Average position
             }
-            camera.drawLine(.{ centroid[0] + offset[0], centroid[1] + offset[1] }, .{ parent_centroid[0] + offset[0], parent_centroid[1] + offset[1] }, pixi.state.theme.text.toU32(), 1.0);
+
+            const diff = parent_pivot - pivot;
+
+            const angle = std.math.atan2(diff[1], diff[0]);
+
+            offset_rotation -= std.math.radiansToDegrees(angle) - 90.0;
+
+            camera.drawLine(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, .{ parent_pivot[0] + offset[0], parent_pivot[1] + offset[1] }, pixi.state.theme.text.toU32(), 1.0);
         }
+
+        const radians = std.math.degreesToRadians(-offset_rotation);
+        const rotation_matrix = zmath.rotationZ(radians);
+
+        var rotated_vertices: [4]pixi.storage.Internal.Pixi.TransformVertex = .{
+            .{ .position = zmath.mul(transform_texture.vertices[0].position - pivot, rotation_matrix) + pivot },
+            .{ .position = zmath.mul(transform_texture.vertices[1].position - pivot, rotation_matrix) + pivot },
+            .{ .position = zmath.mul(transform_texture.vertices[2].position - pivot, rotation_matrix) + pivot },
+            .{ .position = zmath.mul(transform_texture.vertices[3].position - pivot, rotation_matrix) + pivot },
+        };
+
+        // if (transform_texture.parent) |parent| {
+        //     var parent_centroid = if (parent.pivot) |p| p.position else zmath.f32x4s(0.0);
+        //     if (parent.pivot == null) {
+        //         for (&parent.vertices) |*vertex| {
+        //             parent_centroid += vertex.position; // Collect centroid
+        //         }
+        //         parent_centroid /= zmath.f32x4s(4.0); // Average position
+        //     }
+        // }
 
         if (transform_texture.pivot_move) {
             if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
@@ -847,19 +866,19 @@ pub const Pixi = struct {
                     .width = file.width,
                     .height = file.height,
                 });
-                const pivot = .{ .position = zmath.loadArr2(current_pixel_coords) };
-                transform_texture.pivot = pivot;
+                const p = .{ .position = zmath.loadArr2(current_pixel_coords) };
+                transform_texture.pivot = p;
             }
         }
 
-        if (transform_texture.pivot) |pivot| {
+        if (transform_texture.pivot) |p| {
             const rotation_control_height = transform_texture.rotation_grip_height;
             const control_offset = zmath.loadArr2(.{ 0.0, rotation_control_height });
 
             const midpoint = (transform_texture.vertices[0].position + transform_texture.vertices[1].position) / zmath.f32x4s(2.0);
             const control_center = midpoint - control_offset;
 
-            const diff = pivot.position - control_center;
+            const diff = p.position - control_center;
 
             const direction = pixi.math.Direction.find(8, -diff[0], -diff[1]);
             const angle: f32 = if (modifier_secondary) switch (direction) {
@@ -916,14 +935,14 @@ pub const Pixi = struct {
             if (transform_texture.rotate or hovered or transform_texture.pivot_move) {
                 control_color = highlight_color;
 
-                const dist = @sqrt(std.math.pow(f32, control_center[0] - centroid[0], 2) + std.math.pow(f32, control_center[1] - centroid[1], 2));
-                camera.drawCircle(.{ centroid[0] + offset[0], centroid[1] + offset[1] }, dist * camera.zoom, 1.0, default_color);
+                const dist = @sqrt(std.math.pow(f32, control_center[0] - pivot[0], 2) + std.math.pow(f32, control_center[1] - pivot[1], 2));
+                camera.drawCircle(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, dist * camera.zoom, 1.0, default_color);
 
                 camera.drawTextWithShadow("{d}°", .{
                     transform_texture.rotation,
                 }, .{
-                    centroid[0] + offset[0] + (dist),
-                    centroid[1] + offset[1] - (dist),
+                    pivot[0] + offset[0] + (dist),
+                    pivot[1] + offset[1] - (dist),
                 }, default_color, 0xFF000000);
 
                 // if (transform_texture.rotate) {
@@ -987,7 +1006,7 @@ pub const Pixi = struct {
 
         { // Handle hovering over transform texture
 
-            const pivot_rect: [4]f32 = .{ centroid[0] + offset[0] - half_grip_size, centroid[1] + offset[1] - half_grip_size, grip_size, grip_size };
+            const pivot_rect: [4]f32 = .{ pivot[0] + offset[0] - half_grip_size, pivot[1] + offset[1] - half_grip_size, grip_size, grip_size };
             const pivot_hovered = camera.isHovered(pivot_rect);
 
             const triangle_a: [3]zmath.F32x4 = .{
@@ -1017,7 +1036,7 @@ pub const Pixi = struct {
             }
 
             const centroid_color = if (pan_hovered or transform_texture.pan or pivot_hovered or transform_texture.pivot_move) highlight_color else default_color;
-            camera.drawCircleFilled(.{ centroid[0] + offset[0], centroid[1] + offset[1] }, half_grip_size * camera.zoom, centroid_color);
+            camera.drawCircleFilled(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, half_grip_size * camera.zoom, centroid_color);
         }
 
         { // Handle setting the mouse cursor based on controls
@@ -1076,8 +1095,8 @@ pub const Pixi = struct {
                         v.position[1] += delta[1];
                     }
 
-                    if (transform_texture.pivot) |*pivot|
-                        pivot.position += zmath.loadArr2(delta);
+                    if (transform_texture.pivot) |*p|
+                        p.position += zmath.loadArr2(delta);
                 }
             }
         }
@@ -1093,9 +1112,9 @@ pub const Pixi = struct {
                         .height = file.height,
                     });
 
-                    const diff = zmath.loadArr2(current_pixel_coords) - centroid;
+                    const diff = zmath.loadArr2(current_pixel_coords) - pivot;
                     const direction = pixi.math.Direction.find(8, -diff[0], diff[1]);
-                    const angle: f32 = if (modifier_secondary) switch (direction) {
+                    var angle: f32 = if (modifier_secondary) switch (direction) {
                         .n => 180.0,
                         .ne => 225.0,
                         .e => 270.0,
@@ -1106,6 +1125,22 @@ pub const Pixi = struct {
                         .nw => 135.0,
                         else => 180.0,
                     } else @trunc(std.math.radiansToDegrees(std.math.atan2(diff[1], diff[0])) + 90.0);
+
+                    if (transform_texture.parent) |parent| {
+                        var parent_pivot = if (parent.pivot) |p| p.position else zmath.f32x4s(0.0);
+                        if (parent.pivot == null) {
+                            for (&parent.vertices) |*vertex| {
+                                parent_pivot += vertex.position; // Collect centroid
+                            }
+                            parent_pivot /= zmath.f32x4s(4.0); // Average position
+                        }
+
+                        const parent_diff = parent_pivot - pivot;
+
+                        const parent_angle = std.math.atan2(parent_diff[1], parent_diff[0]);
+
+                        angle -= std.math.radiansToDegrees(parent_angle) - 90.0;
+                    }
 
                     var rotation = angle + if (transform_texture.pivot != null) -transform_texture.pivot_offset_angle else 0.0;
 
@@ -1199,7 +1234,7 @@ pub const Pixi = struct {
                             }
 
                             // Recalculate the centroid with new vertex positions
-                            var rotated_centroid = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
+                            var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
                             if (transform_texture.pivot == null) {
                                 for (rotated_vertices) |vertex| {
                                     rotated_centroid += vertex.position; // Collect centroid
@@ -1222,7 +1257,7 @@ pub const Pixi = struct {
                             const position = @trunc(zmath.loadArr2(current_pixel_coords));
                             control_vert.position = position;
 
-                            var rotated_centroid = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
+                            var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
                             if (transform_texture.pivot == null) {
                                 for (rotated_vertices) |vertex| {
                                     rotated_centroid += vertex.position; // Collect centroid
