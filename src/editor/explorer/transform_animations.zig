@@ -6,6 +6,9 @@ const imgui = @import("zig-imgui");
 
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+        // Make sure we can see the timeline for animation previews
+        file.flipbook_view = .timeline;
+
         // imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
         // defer imgui.popStyleVar();
         // imgui.spacing();
