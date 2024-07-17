@@ -441,6 +441,17 @@ pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
     if (file.transform_texture) |*texture| {
         texture.texture.deinit();
     }
+
+    for (file.transform_animations.items) |*animation| {
+        for (animation.transforms.items) |*transform| {
+            transform.transform_bindgroup.release();
+        }
+        // TODO: uncomment this when names are allocated
+        //pixi.state.allocator.free(animation.name);
+        animation.transforms.deinit();
+    }
+    file.transform_animations.deinit();
+
     if (file.transform_bindgroup) |bindgroup| {
         bindgroup.release();
     }
@@ -474,6 +485,8 @@ pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
     for (file.deleted_animations.items) |*animation| {
         pixi.state.allocator.free(animation.name);
     }
+
+    file.transform_animation_texture.deinit();
     file.layers.deinit();
     file.deleted_layers.deinit();
     file.deleted_heightmap_layers.deinit();

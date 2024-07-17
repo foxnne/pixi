@@ -234,7 +234,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
 
         // Draw grid
-        file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32());
+        file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.state.theme.text_secondary.toU32(), false);
 
         if (file.transform_texture) |*transform_texture|
             file.processTransformTextureControls(transform_texture, .{});

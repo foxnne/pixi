@@ -13,6 +13,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const canvas_center_offset: [2]f32 = file.canvasCenterOffset(.flipbook);
     const window_position = imgui.getWindowPos();
 
+    const grip_size: f32 = 10.0;
+    const half_grip_size = grip_size / 2.0;
+    const scaled_grip_size = grip_size / file.flipbook_camera.zoom;
+
     imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.state.theme.foreground.toImguiVec4());
 
     const timeline_height = imgui.getWindowHeight() * 0.25;
@@ -131,7 +135,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         const grid_width: f32 = tile_width * grid_columns;
         const grid_height: f32 = tile_height * grid_rows;
 
-        file.flipbook_camera.drawGrid(.{ -grid_width / 2.0, -grid_height / 2.0 }, grid_width, grid_height, @intFromFloat(grid_columns), @intFromFloat(grid_rows), pixi.state.theme.text_background.toU32());
+        file.flipbook_camera.drawGrid(.{ -grid_width / 2.0, -grid_height / 2.0 }, grid_width, grid_height, @intFromFloat(grid_columns), @intFromFloat(grid_rows), pixi.state.theme.text_background.toU32(), true);
+        file.flipbook_camera.drawCircleFilled(.{ 0.0, 0.0 }, half_grip_size, pixi.state.theme.text_background.toU32());
 
         const l: f32 = 2000;
         file.flipbook_camera.drawLine(.{ 0.0, l / 2.0 }, .{ 0.0, -l / 2.0 }, 0x5500FF00, 1.0);
@@ -264,10 +269,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     }
                     pivot /= zmath.f32x4s(4.0); // Average position
                 }
-
-                const grip_size: f32 = 10.0;
-                const half_grip_size = grip_size / 2.0;
-                const scaled_grip_size = grip_size / file.flipbook_camera.zoom;
 
                 if (file.flipbook_camera.isHovered(.{ pivot[0] - scaled_grip_size / 2.0, pivot[1] - scaled_grip_size / 2.0, scaled_grip_size, scaled_grip_size })) {
                     if (pixi.state.mouse.button(.primary)) |bt| {
