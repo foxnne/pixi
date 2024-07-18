@@ -104,7 +104,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     var new_layer: pixi.storage.Internal.Layer = .{
         .name = try std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{"Layer 0"}),
         .texture = undefined,
-        .id = internal.id(),
+        .id = internal.newId(),
     };
 
     if (import_path) |import| {
@@ -235,7 +235,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                     var new_layer: pixi.storage.Internal.Layer = .{
                         .name = try pixi.state.allocator.dupeZ(u8, layer.name),
                         .texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
-                        .id = internal.id(),
+                        .id = internal.newId(),
                         .visible = layer.visible,
                         .collapse = layer.collapse,
                         .transform_bindgroup = undefined,
@@ -283,7 +283,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                 };
 
                 new_layer.texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{});
-                new_layer.id = internal.id();
+                new_layer.id = internal.newId();
 
                 internal.heightmap.layer = new_layer;
             }

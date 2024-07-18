@@ -148,7 +148,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const origin = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y });
 
                     const new_frame: pixi.storage.Internal.Frame = .{
-                        .id = file.id(),
+                        .id = file.newId(),
                         .sprite_index = file.selected_sprite_index,
                         .layer_id = file.layers.items[file.selected_layer_index].id,
                         .pivot = .{ .position = zmath.f32x4s(0.0) },
@@ -162,14 +162,14 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                     var new_keyframe: pixi.storage.Internal.Keyframe = .{
                         .frames = std.ArrayList(pixi.storage.Internal.Frame).init(pixi.state.allocator),
-                        .id = file.id(),
+                        .id = file.newId(),
                         .active_frame_id = new_frame.id,
                     };
 
                     var new_animation: pixi.storage.Internal.KeyframeAnimation = .{
                         .keyframes = std.ArrayList(pixi.storage.Internal.Keyframe).init(pixi.state.allocator),
                         .name = "New Transform Animation",
-                        .id = file.id(),
+                        .id = file.newId(),
                         .active_keyframe_id = new_keyframe.id,
                     };
 
@@ -180,7 +180,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const origin = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y });
 
                     const new_frame: pixi.storage.Internal.Frame = .{
-                        .id = file.id(),
+                        .id = file.newId(),
                         .sprite_index = file.selected_sprite_index,
                         .layer_id = file.layers.items[file.selected_layer_index].id,
                         .pivot = .{ .position = zmath.f32x4s(0.0) },
@@ -226,141 +226,147 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 zmath.orthographicLh(width, height, -100, 100),
             ) };
 
-            for (selected_keyframe.frames.items, 0..) |*frame, i| {
-                _ = i; // autofix
-                var layer_index: usize = 0;
-                for (file.layers.items, 0..) |layer, layer_i| {
-                    if (layer.id == frame.layer_id)
-                        layer_index = layer_i;
-                }
+            for (selected_keyframe.frames.items) |*frame| {
+                if (file.layer(frame.layer_id)) |layer| {
+                    if (layer.transform_bindgroup) |transform_bindgroup| {
+                        pixi.state.batcher.begin(.{
+                            .pipeline_handle = pixi.state.pipeline_default,
+                            .bind_group_handle = transform_bindgroup,
+                            .output_texture = &file.keyframe_animation_texture,
+                            .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+                        }) catch unreachable;
 
-                if (file.layers.items[layer_index].transform_bindgroup) |transform_bindgroup| {
-                    pixi.state.batcher.begin(.{
-                        .pipeline_handle = pixi.state.pipeline_default,
-                        .bind_group_handle = transform_bindgroup,
-                        .output_texture = &file.keyframe_animation_texture,
-                        .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
-                    }) catch unreachable;
+                        if (file.flipbook_camera.isHovered(.{
+                            frame.pivot.position[0] - scaled_grip_size / 2.0,
+                            frame.pivot.position[1] - scaled_grip_size / 2.0,
+                            scaled_grip_size,
+                            scaled_grip_size,
+                        })) {
+                            if (pixi.state.mouse.button(.primary)) |bt| {
+                                if (bt.pressed()) {
+                                    var change: bool = true;
 
-                    if (file.flipbook_camera.isHovered(.{ frame.pivot.position[0] - scaled_grip_size / 2.0, frame.pivot.position[1] - scaled_grip_size / 2.0, scaled_grip_size, scaled_grip_size })) {
-                        if (pixi.state.mouse.button(.primary)) |bt| {
-                            if (bt.pressed()) {
-                                var change: bool = true;
-
-                                if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
-                                    if (hk.down()) {
-                                        frame.parent_id = null;
-                                        change = false;
-                                    }
-                                }
-
-                                if (frame.id != selected_keyframe.active_frame_id) {
-                                    if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                    if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
                                         if (hk.down()) {
-                                            for (selected_keyframe.frames.items) |*current_frame| {
-                                                if (current_frame.id == selected_keyframe.active_frame_id)
-                                                    current_frame.parent_id = frame.id;
-                                            }
-
+                                            frame.parent_id = null;
                                             change = false;
                                         }
                                     }
-                                    if (change) {
-                                        selected_keyframe.active_frame_id = frame.id;
+
+                                    if (frame.id != selected_keyframe.active_frame_id) {
+                                        if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                            if (hk.down()) {
+                                                if (selected_keyframe.frame(selected_keyframe.active_frame_id)) |active_frame| {
+                                                    active_frame.parent_id = frame.id;
+                                                }
+
+                                                change = false;
+                                            }
+                                        }
+                                        if (change) {
+                                            selected_keyframe.active_frame_id = frame.id;
+                                        }
                                     }
                                 }
                             }
+                            file.flipbook_camera.drawCircleFilled(
+                                .{ frame.pivot.position[0], frame.pivot.position[1] },
+                                half_grip_size,
+                                pixi.state.theme.highlight_primary.toU32(),
+                            );
+                        } else {
+                            file.flipbook_camera.drawCircleFilled(
+                                .{ frame.pivot.position[0], frame.pivot.position[1] },
+                                half_grip_size,
+                                pixi.state.theme.text.toU32(),
+                            );
                         }
-                        file.flipbook_camera.drawCircleFilled(.{ frame.pivot.position[0], frame.pivot.position[1] }, half_grip_size, pixi.state.theme.highlight_primary.toU32());
-                    } else {
-                        file.flipbook_camera.drawCircleFilled(.{ frame.pivot.position[0], frame.pivot.position[1] }, half_grip_size, pixi.state.theme.text.toU32());
-                    }
 
-                    const tiles_wide = @divExact(file.width, file.tile_width);
+                        const tiles_wide = @divExact(file.width, file.tile_width);
 
-                    const src_col = @mod(@as(u32, @intCast(frame.sprite_index)), tiles_wide);
-                    const src_row = @divTrunc(@as(u32, @intCast(frame.sprite_index)), tiles_wide);
+                        const src_col = @mod(@as(u32, @intCast(frame.sprite_index)), tiles_wide);
+                        const src_row = @divTrunc(@as(u32, @intCast(frame.sprite_index)), tiles_wide);
 
-                    const src_x = src_col * file.tile_width;
-                    const src_y = src_row * file.tile_height;
+                        const src_x = src_col * file.tile_width;
+                        const src_y = src_row * file.tile_height;
 
-                    const sprite: pixi.gfx.Sprite = .{
-                        .name = "",
-                        .origin = .{ 0, 0 },
-                        .source = .{
-                            src_x,
-                            src_y,
-                            file.tile_width,
-                            file.tile_height,
-                        },
-                    };
+                        const sprite: pixi.gfx.Sprite = .{
+                            .name = "",
+                            .origin = .{ 0, 0 },
+                            .source = .{
+                                src_x,
+                                src_y,
+                                file.tile_width,
+                                file.tile_height,
+                            },
+                        };
 
-                    var rotation = -frame.rotation;
+                        var rotation = -frame.rotation;
 
-                    if (frame.parent_id) |parent_id| {
-                        for (selected_keyframe.frames.items) |parent_frame| {
-                            if (parent_frame.id == parent_id) {
-                                const diff = parent_frame.pivot.position - frame.pivot.position;
+                        if (frame.parent_id) |parent_id| {
+                            for (selected_keyframe.frames.items) |parent_frame| {
+                                if (parent_frame.id == parent_id) {
+                                    const diff = parent_frame.pivot.position - frame.pivot.position;
 
-                                const angle = std.math.atan2(diff[1], diff[0]);
+                                    const angle = std.math.atan2(diff[1], diff[0]);
 
-                                rotation -= std.math.radiansToDegrees(angle) - 90.0;
+                                    rotation -= std.math.radiansToDegrees(angle) - 90.0;
 
-                                file.flipbook_camera.drawLine(.{ frame.pivot.position[0], frame.pivot.position[1] }, .{ parent_frame.pivot.position[0], parent_frame.pivot.position[1] }, pixi.state.theme.text.toU32(), 1.0);
+                                    file.flipbook_camera.drawLine(
+                                        .{ frame.pivot.position[0], frame.pivot.position[1] },
+                                        .{ parent_frame.pivot.position[0], parent_frame.pivot.position[1] },
+                                        pixi.state.theme.text.toU32(),
+                                        1.0,
+                                    );
+                                }
                             }
                         }
+
+                        pixi.state.batcher.transformSprite(
+                            &layer.texture,
+                            sprite,
+                            frame.vertices,
+                            .{ 0.0, 0.0 },
+                            .{ frame.pivot.position[0], -frame.pivot.position[1] },
+                            .{
+                                .rotation = rotation,
+                            },
+                        ) catch unreachable;
+
+                        pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
                     }
 
-                    pixi.state.batcher.transformSprite(
-                        &file.layers.items[layer_index].texture,
-                        sprite,
-                        frame.vertices,
-                        .{ 0.0, 0.0 },
-                        .{ frame.pivot.position[0], -frame.pivot.position[1] },
-                        .{
-                            .rotation = rotation,
-                        },
-                    ) catch unreachable;
+                    if (selected_keyframe.active_frame_id == frame.id) {
+                        // Write from the frame to the transform texture
+                        @memcpy(&file.keyframe_transform_texture.vertices, &frame.vertices);
+                        file.keyframe_transform_texture.pivot = frame.pivot;
+                        file.keyframe_transform_texture.rotation = frame.rotation;
 
-                    pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
-                }
+                        // Write parent id
+                        if (frame.parent_id) |parent_id| {
+                            file.keyframe_transform_texture.keyframe_parent_id = parent_id;
+                        }
 
-                if (selected_keyframe.active_frame_id == frame.id) {
-                    // Write from the frame to the transform texture
-                    @memcpy(&file.keyframe_transform_texture.vertices, &frame.vertices);
-                    file.keyframe_transform_texture.pivot = frame.pivot;
-                    file.keyframe_transform_texture.rotation = frame.rotation;
+                        // Process transform texture controls
+                        file.processTransformTextureControls(&file.keyframe_transform_texture, .{
+                            .canvas = .flipbook,
+                            .allow_pivot_move = false,
+                            .allow_vert_move = false,
+                        });
 
-                    if (frame.parent_id) |parent_id| {
-                        file.keyframe_transform_texture.keyframe_parent_id = parent_id;
+                        // Clear the parent
+                        file.keyframe_transform_texture.keyframe_parent_id = null;
+
+                        // Write back to the frame
+                        @memcpy(&frame.vertices, &file.keyframe_transform_texture.vertices);
+                        frame.pivot = file.keyframe_transform_texture.pivot.?;
+                        frame.rotation = file.keyframe_transform_texture.rotation;
                     }
 
-                    // if (frame.parent_id) |parent_id| {
-                    //     for (selected_keyframe.frames.items) |*parent_frame| {
-                    //         if (parent_frame.id == parent_id)
-                    //             file.keyframe_transform_texture.parent = parent_frame;
-                    //     }
-                    // }
-
-                    // Process transform texture controls
-                    file.processTransformTextureControls(&file.keyframe_transform_texture, .{
-                        .canvas = .flipbook,
-                        .allow_pivot_move = false,
-                        .allow_vert_move = false,
-                    });
-
-                    // Clear the parent
-                    file.keyframe_transform_texture.keyframe_parent_id = null;
-
-                    // Write back to the frame
-                    @memcpy(&frame.vertices, &file.keyframe_transform_texture.vertices);
-                    frame.pivot = file.keyframe_transform_texture.pivot.?;
-                    frame.rotation = file.keyframe_transform_texture.rotation;
+                    // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
+                    @memset(file.keyframe_animation_texture.image.data, 0.0);
+                    file.keyframe_animation_texture.update(core.device);
                 }
-
-                // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
-                @memset(file.keyframe_animation_texture.image.data, 0.0);
-                file.keyframe_animation_texture.update(core.device);
             }
         }
     }

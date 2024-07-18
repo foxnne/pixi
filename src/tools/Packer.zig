@@ -63,7 +63,7 @@ pub fn init(allocator: std.mem.Allocator) !Packer {
     };
 }
 
-pub fn id(self: *Packer) u32 {
+pub fn newId(self: *Packer) u32 {
     const i = self.id_counter;
     self.id_counter += 1;
     return i;
@@ -267,7 +267,7 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                     .origin = .{ @as(i32, @intFromFloat(sprite.origin_x)) - @as(i32, @intCast(offset[0])), @as(i32, @intFromFloat(sprite.origin_y)) - @as(i32, @intCast(offset[1])) },
                 });
 
-                try self.frames.append(.{ .id = self.id(), .w = @as(c_ushort, @intCast(image.width)), .h = @as(c_ushort, @intCast(image.height)) });
+                try self.frames.append(.{ .id = self.newId(), .w = @as(c_ushort, @intCast(image.width)), .h = @as(c_ushort, @intCast(image.height)) });
             } else {
                 for (file.animations.items) |animation| {
                     if (sprite_index >= animation.start and sprite_index < animation.start + animation.length) {
@@ -280,7 +280,7 @@ pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
                         });
 
                         try self.frames.append(.{
-                            .id = self.id(),
+                            .id = self.newId(),
                             .w = 2,
                             .h = 2,
                         });
