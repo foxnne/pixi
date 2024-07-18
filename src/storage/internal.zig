@@ -21,8 +21,9 @@ pub const Pixi = struct {
     layers: std.ArrayList(Layer),
     sprites: std.ArrayList(Sprite),
     animations: std.ArrayList(Animation),
-    transform_animations: std.ArrayList(TransformAnimation),
-    transform_animation_texture: pixi.gfx.Texture,
+    keyframe_animations: std.ArrayList(KeyframeAnimation),
+    keyframe_animation_texture: pixi.gfx.Texture,
+    keyframe_transform_texture: TransformTexture,
     deleted_layers: std.ArrayList(Layer),
     deleted_heightmap_layers: std.ArrayList(Layer),
     deleted_animations: std.ArrayList(Animation),
@@ -36,10 +37,10 @@ pub const Pixi = struct {
     selected_animation_index: usize = 0,
     selected_animation_state: AnimationState = .pause,
     selected_animation_elapsed: f32 = 0.0,
-    selected_transform_animation_index: usize = 0,
-    selected_transform_index: usize = 0,
-    selected_transform_animation_state: AnimationState = .pause,
-    selected_transform_animation_elapsed: f32 = 0.0,
+    selected_keyframe_animation_index: usize = 0,
+    selected_keyframe_index: usize = 0,
+    selected_keyframe_animation_state: AnimationState = .pause,
+    selected_keyframe_animation_elapsed: f32 = 0.0,
     background: pixi.gfx.Texture,
     temporary_layer: Layer,
     transform_texture: ?TransformTexture = null,
@@ -50,7 +51,7 @@ pub const Pixi = struct {
     heightmap: Heightmap = .{},
     history: History,
     buffers: Buffers,
-    counter: usize = 0,
+    counter: u32 = 0,
     saving: bool = false,
 
     pub const ScrollRequest = struct {
@@ -73,7 +74,7 @@ pub const Pixi = struct {
         pivot_move: bool = false,
         pivot_offset_angle: f32 = 0.0,
         temporary: bool = false,
-        parent: ?*TransformTexture = null,
+        keyframe_parent_id: ?u32 = null,
     };
 
     pub const TransformVertex = struct {
@@ -140,7 +141,7 @@ pub const Pixi = struct {
         return .{ -width / 2.0, -height / 2.0 };
     }
 
-    pub fn id(file: *Pixi) usize {
+    pub fn id(file: *Pixi) u32 {
         file.counter += 1;
         return file.counter;
     }
@@ -818,22 +819,22 @@ pub const Pixi = struct {
             pivot /= zmath.f32x4s(4.0); // Average position
         }
 
-        if (transform_texture.parent) |parent| {
-            var parent_pivot = if (parent.pivot) |p| p.position else zmath.f32x4s(0.0);
-            if (parent.pivot == null) {
-                for (&parent.vertices) |*vertex| {
-                    parent_pivot += vertex.position; // Collect centroid
+        if (transform_texture.keyframe_parent_id) |parent_id| {
+            for (file.keyframe_animations.items) |animation| {
+                for (animation.keyframes.items) |keyframe| {
+                    for (keyframe.frames.items) |parent_frame| {
+                        if (parent_frame.id == parent_id) {
+                            const diff = parent_frame.pivot.position - pivot;
+
+                            const angle = std.math.atan2(diff[1], diff[0]);
+
+                            offset_rotation -= std.math.radiansToDegrees(angle) - 90.0;
+
+                            camera.drawLine(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, .{ parent_frame.pivot.position[0] + offset[0], parent_frame.pivot.position[1] + offset[1] }, pixi.state.theme.text.toU32(), 1.0);
+                        }
+                    }
                 }
-                parent_pivot /= zmath.f32x4s(4.0); // Average position
             }
-
-            const diff = parent_pivot - pivot;
-
-            const angle = std.math.atan2(diff[1], diff[0]);
-
-            offset_rotation -= std.math.radiansToDegrees(angle) - 90.0;
-
-            camera.drawLine(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, .{ parent_pivot[0] + offset[0], parent_pivot[1] + offset[1] }, pixi.state.theme.text.toU32(), 1.0);
         }
 
         const radians = std.math.degreesToRadians(-offset_rotation);
@@ -1126,20 +1127,20 @@ pub const Pixi = struct {
                         else => 180.0,
                     } else @trunc(std.math.radiansToDegrees(std.math.atan2(diff[1], diff[0])) + 90.0);
 
-                    if (transform_texture.parent) |parent| {
-                        var parent_pivot = if (parent.pivot) |p| p.position else zmath.f32x4s(0.0);
-                        if (parent.pivot == null) {
-                            for (&parent.vertices) |*vertex| {
-                                parent_pivot += vertex.position; // Collect centroid
+                    if (transform_texture.keyframe_parent_id) |parent_id| {
+                        for (file.keyframe_animations.items) |animation| {
+                            for (animation.keyframes.items) |keyframe| {
+                                for (keyframe.frames.items) |parent_frame| {
+                                    if (parent_frame.id == parent_id) {
+                                        const parent_diff = parent_frame.pivot.position - pivot;
+
+                                        const parent_angle = std.math.atan2(parent_diff[1], parent_diff[0]);
+
+                                        angle -= std.math.radiansToDegrees(parent_angle) - 90.0;
+                                    }
+                                }
                             }
-                            parent_pivot /= zmath.f32x4s(4.0); // Average position
                         }
-
-                        const parent_diff = parent_pivot - pivot;
-
-                        const parent_angle = std.math.atan2(parent_diff[1], parent_diff[0]);
-
-                        angle -= std.math.radiansToDegrees(parent_angle) - 90.0;
                     }
 
                     var rotation = angle + if (transform_texture.pivot != null) -transform_texture.pivot_offset_angle else 0.0;
@@ -1695,8 +1696,8 @@ pub const Pixi = struct {
     }
 
     pub fn deleteTransformAnimation(self: *Pixi, index: usize) !void {
-        if (index >= self.transform_animations.items.len) return;
-        const animation = self.transform_animations.swapRemove(index);
+        if (index >= self.keyframe_animations.items.len) return;
+        const animation = self.keyframe_animations.swapRemove(index);
         _ = animation; // autofix
         //pixi.state.allocator.free(animation.name);
     }
@@ -1704,12 +1705,12 @@ pub const Pixi = struct {
     pub fn setSelectedSpritesOriginX(self: *Pixi, origin_x: f32) void {
         for (self.selected_sprites.items) |sprite_index| {
             if (self.sprites.items[sprite_index].origin_x != origin_x) {
-                for (self.transform_animations.items) |*animation| {
-                    for (animation.transforms.items) |*transform| {
-                        if (sprite_index == transform.sprite_index) {
-                            if (transform.transform_texture.pivot) |*pivot| {
+                for (self.keyframe_animations.items) |*animation| {
+                    for (animation.keyframes.items) |*keyframe| {
+                        for (keyframe.frames.items) |*frame| {
+                            if (sprite_index == frame.sprite_index) {
                                 const diff = origin_x - self.sprites.items[sprite_index].origin_x;
-                                pivot.position += zmath.loadArr2(.{ diff, 0.0 });
+                                frame.pivot.position += zmath.loadArr2(.{ diff, 0.0 });
                             }
                         }
                     }
@@ -1723,12 +1724,12 @@ pub const Pixi = struct {
     pub fn setSelectedSpritesOriginY(self: *Pixi, origin_y: f32) void {
         for (self.selected_sprites.items) |sprite_index| {
             if (self.sprites.items[sprite_index].origin_y != origin_y) {
-                for (self.transform_animations.items) |*animation| {
-                    for (animation.transforms.items) |*transform| {
-                        if (sprite_index == transform.sprite_index) {
-                            if (transform.transform_texture.pivot) |*pivot| {
+                for (self.keyframe_animations.items) |*animation| {
+                    for (animation.keyframes.items) |*keyframe| {
+                        for (keyframe.frames.items) |*frame| {
+                            if (sprite_index == frame.sprite_index) {
                                 const diff = origin_y - self.sprites.items[sprite_index].origin_y;
-                                pivot.position += zmath.loadArr2(.{ 0.0, diff });
+                                frame.pivot.position += zmath.loadArr2(.{ 0.0, diff });
                             }
                         }
                     }
@@ -1758,11 +1759,11 @@ pub const Pixi = struct {
             if (current_origin[0] != origin[0] or current_origin[1] != origin[1]) {
                 const diff: [2]f32 = .{ origin[0] - current_origin[0], origin[1] - current_origin[1] };
 
-                for (self.transform_animations.items) |*animation| {
-                    for (animation.transforms.items) |*transform| {
-                        if (sprite_index == transform.sprite_index) {
-                            if (transform.transform_texture.pivot) |*pivot| {
-                                pivot.position += zmath.loadArr2(diff);
+                for (self.keyframe_animations.items) |*animation| {
+                    for (animation.keyframes.items) |*keyframe| {
+                        for (keyframe.frames.items) |*frame| {
+                            if (sprite_index == frame.sprite_index) {
+                                frame.pivot.position += zmath.loadArr2(diff);
                             }
                         }
                     }
@@ -2144,7 +2145,8 @@ pub const Layer = struct {
     texture: pixi.gfx.Texture,
     visible: bool = true,
     collapse: bool = false,
-    id: usize = 0,
+    id: u32 = 0,
+    transform_bindgroup: ?*gpu.BindGroup = null,
 
     pub fn pixels(self: *Layer) [][4]u8 {
         return @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
@@ -2311,18 +2313,29 @@ pub const Animation = struct {
     fps: usize,
 };
 
-pub const TransformAnimation = struct {
+pub const KeyframeAnimation = struct {
     name: [:0]const u8,
-    transforms: std.ArrayList(SpriteTransform),
+    id: u32,
+    keyframes: std.ArrayList(Keyframe),
+    elapsed_time: f32 = 0.0,
+    active_keyframe_id: u32,
 };
 
-pub const SpriteTransform = struct {
-    sprite_index: usize,
-    layer_index: usize,
-    transform_texture: Pixi.TransformTexture,
-    transform_bindgroup: *gpu.BindGroup,
-    parent_index: ?usize = null,
+pub const Keyframe = struct {
+    frames: std.ArrayList(Frame),
     time: f32 = 0.0,
+    id: u32,
+    active_frame_id: u32,
+};
+
+pub const Frame = struct {
+    vertices: [4]Pixi.TransformVertex,
+    pivot: Pixi.TransformVertex,
+    rotation: f32 = 0.0,
+    id: u32,
+    sprite_index: usize,
+    layer_id: u32,
+    parent_id: ?u32 = null,
 };
 
 pub const Palette = struct {

@@ -63,34 +63,46 @@ pub fn draw() void {
             imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * pixi.content_scale[0]);
             imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
             defer imgui.popStyleVarEx(5);
-            for (file.transform_animations.items, 0..) |animation, animation_index| {
-                const header_color = if (file.selected_transform_animation_index == animation_index) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
-                imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
-                defer imgui.popStyleColor();
+            for (file.keyframe_animations.items, 0..) |animation, animation_index| {
+                const header_color = if (file.selected_keyframe_animation_index == animation_index) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
+
                 const animation_name = std.fmt.allocPrintZ(pixi.state.allocator, " {s}  {s}", .{ pixi.fa.film, animation.name }) catch unreachable;
                 defer pixi.state.allocator.free(animation_name);
 
+                imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
+                defer imgui.popStyleColor();
                 if (imgui.treeNode(animation_name)) {
-                    for (animation.transforms.items, 0..) |transform, i| {
-                        const sprite = file.sprites.items[transform.sprite_index];
+                    defer imgui.treePop();
 
-                        const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s} - time: {d}##{d}", .{ sprite.name, transform.time, i }) catch unreachable;
-                        defer pixi.state.allocator.free(sprite_name);
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+                    defer imgui.popStyleColor();
+                    for (animation.keyframes.items, 0..) |*keyframe, keyframe_i| {
+                        const keyframe_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_Keyframe_{d}", .{ animation.name, keyframe_i }) catch unreachable;
+                        defer pixi.state.allocator.free(keyframe_name);
 
-                        if (i == file.selected_transform_index) {
-                            imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text.toU32());
-                        } else {
-                            imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text_secondary.toU32());
-                        }
-                        defer imgui.popStyleColor();
+                        if (imgui.treeNode(keyframe_name)) {
+                            defer imgui.treePop();
 
-                        if (imgui.selectable(sprite_name)) {
-                            file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
-                            file.selected_transform_index = i;
+                            for (keyframe.frames.items, 0..) |frame, i| {
+                                const sprite = file.sprites.items[frame.sprite_index];
+
+                                const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}##{d}", .{ sprite.name, i }) catch unreachable;
+                                defer pixi.state.allocator.free(sprite_name);
+
+                                if (keyframe.active_frame_id == frame.id) {
+                                    imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text.toU32());
+                                } else {
+                                    imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text_secondary.toU32());
+                                }
+                                defer imgui.popStyleColor();
+
+                                if (imgui.selectable(sprite_name)) {
+                                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
+                                    keyframe.active_frame_id = frame.id;
+                                }
+                            }
                         }
                     }
-
-                    imgui.treePop();
                 }
                 imgui.pushID(animation.name);
                 contextMenu(animation_index, file);
@@ -122,8 +134,8 @@ fn contextMenu(animation_index: usize, file: *pixi.storage.Internal.Pixi) void {
         defer imgui.popStyleColor();
         if (imgui.menuItem("Delete")) {
             file.deleteTransformAnimation(animation_index) catch unreachable;
-            if (animation_index == file.selected_transform_animation_index)
-                file.selected_transform_animation_index = 0;
+            if (animation_index == file.selected_keyframe_animation_index)
+                file.selected_keyframe_animation_index = 0;
         }
     }
 }
