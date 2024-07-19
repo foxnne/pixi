@@ -323,7 +323,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 zmath.orthographicLh(width, height, -100, 100),
             ) };
 
-            for (selected_keyframe.frames.items, 0..) |*frame, frame_index| {
+            for (selected_keyframe.frames.items) |*frame| {
                 if (file.layer(frame.layer_id)) |layer| {
                     if (layer.transform_bindgroup) |transform_bindgroup| {
                         pixi.state.batcher.begin(.{
@@ -333,7 +333,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
                         }) catch unreachable;
 
-                        const color_index: usize = @mod(frame_index * 2, 35);
+                        const color_index: usize = @mod(frame.id * 2, 35);
 
                         const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
                             palette.colors[color_index][0],

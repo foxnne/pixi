@@ -72,9 +72,6 @@ pub fn draw() void {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
                 defer imgui.popStyleColor();
 
-                // if (imgui.selectable(animation_name)) {
-                //     file.selected_keyframe_animation_index = animation_index;
-                // }
                 if (imgui.treeNode(animation_name)) {
                     defer imgui.treePop();
 
@@ -93,8 +90,10 @@ pub fn draw() void {
                             imgui.indentEx(30.0);
                             defer imgui.unindent();
 
-                            for (keyframe.frames.items, 0..) |frame, i| {
-                                const color_index: usize = @mod(i * 2, 35);
+                            var i: usize = 0;
+                            while (i < keyframe.frames.items.len) : (i += 1) {
+                                const frame = keyframe.frames.items[i];
+                                const color_index: usize = @mod(frame.id * 2, 35);
 
                                 const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
                                     palette.colors[color_index][0],
@@ -105,7 +104,7 @@ pub fn draw() void {
 
                                 const sprite = file.sprites.items[frame.sprite_index];
 
-                                const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}##{d}", .{ sprite.name, i }) catch unreachable;
+                                const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}##{d}", .{ sprite.name, frame.id }) catch unreachable;
                                 defer pixi.state.allocator.free(sprite_name);
 
                                 imgui.pushStyleColor(imgui.Col_Text, color);
@@ -123,6 +122,16 @@ pub fn draw() void {
                                 if (imgui.selectable(sprite_name)) {
                                     file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
                                     keyframe.active_frame_id = frame.id;
+                                }
+
+                                if (imgui.isItemActive() and !imgui.isItemHovered(imgui.HoveredFlags_None) and imgui.isAnyItemHovered()) {
+                                    const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0).y < 0.0) @as(i32, -1) else @as(i32, 1)), 0, std.math.maxInt(i32))));
+                                    if (i_next >= 0 and i_next < keyframe.frames.items.len) {
+                                        keyframe.frames.items[i] = keyframe.frames.items[i_next];
+                                        keyframe.frames.items[i_next] = frame;
+                                        keyframe.active_frame_id = keyframe.frames.items[i_next].id;
+                                    }
+                                    imgui.resetMouseDragDeltaEx(imgui.MouseButton_Left);
                                 }
                             }
                         }
