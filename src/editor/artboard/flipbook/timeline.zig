@@ -203,9 +203,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                 var scale_mult: f32 = 1.0;
 
                                 if (rel_mouse_x) |mouse_x| {
-                                    if (@abs(x - mouse_x) <= frame_circle_radius) {
+                                    if (@abs((x - window_position.x - scroll_x) - mouse_x) <= frame_circle_radius) {
                                         if (rel_mouse_y) |mouse_y| {
-                                            if (@abs(y - mouse_y) <= frame_circle_radius) {
+                                            if (@abs((y - window_position.y + scroll_y) - mouse_y) <= frame_circle_radius) {
                                                 scale_mult = 2.0;
                                             }
                                         }
@@ -289,62 +289,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         file.flipbook_camera.drawLine(.{ 0.0, l / 2.0 }, .{ 0.0, -l / 2.0 }, 0x5500FF00, 1.0);
         file.flipbook_camera.drawLine(.{ -l / 2.0, 0.0 }, .{ l / 2.0, 0.0 }, 0x550000FF, 1.0);
 
-        if (pixi.state.hotkeys.hotkey(.{ .proc = .play_pause })) |hk| {
-            if (hk.pressed()) {
-                if (file.keyframe_animations.items.len == 0) {
-                    const origin = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y });
-
-                    const new_frame: pixi.storage.Internal.Frame = .{
-                        .id = file.newId(),
-                        .sprite_index = file.selected_sprite_index,
-                        .layer_id = file.layers.items[file.selected_layer_index].id,
-                        .pivot = .{ .position = zmath.f32x4s(0.0) },
-                        .vertices = .{
-                            .{ .position = -origin }, // TL
-                            .{ .position = zmath.loadArr2(.{ tile_width, 0.0 }) - origin }, // TR
-                            .{ .position = zmath.loadArr2(.{ tile_width, tile_height }) - origin }, //BR
-                            .{ .position = zmath.loadArr2(.{ 0.0, tile_height }) - origin }, // BL
-                        },
-                    };
-
-                    var new_keyframe: pixi.storage.Internal.Keyframe = .{
-                        .frames = std.ArrayList(pixi.storage.Internal.Frame).init(pixi.state.allocator),
-                        .id = file.newId(),
-                        .active_frame_id = new_frame.id,
-                    };
-
-                    var new_animation: pixi.storage.Internal.KeyframeAnimation = .{
-                        .keyframes = std.ArrayList(pixi.storage.Internal.Keyframe).init(pixi.state.allocator),
-                        .name = "New Transform Animation",
-                        .id = file.newId(),
-                        .active_keyframe_id = new_keyframe.id,
-                    };
-
-                    new_keyframe.frames.append(new_frame) catch unreachable;
-                    new_animation.keyframes.append(new_keyframe) catch unreachable;
-                    file.keyframe_animations.append(new_animation) catch unreachable;
-                } else {
-                    const origin = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y });
-
-                    const new_frame: pixi.storage.Internal.Frame = .{
-                        .id = file.newId(),
-                        .sprite_index = file.selected_sprite_index,
-                        .layer_id = file.layers.items[file.selected_layer_index].id,
-                        .pivot = .{ .position = zmath.f32x4s(0.0) },
-                        .vertices = .{
-                            .{ .position = -origin }, // TL
-                            .{ .position = zmath.loadArr2(.{ tile_width, 0.0 }) - origin }, // TR
-                            .{ .position = zmath.loadArr2(.{ tile_width, tile_height }) - origin }, //BR
-                            .{ .position = zmath.loadArr2(.{ 0.0, tile_height }) - origin }, // BL
-                        },
-                    };
-
-                    file.keyframe_animations.items[0].keyframes.items[0].frames.append(new_frame) catch unreachable;
-                    file.keyframe_animations.items[0].keyframes.items[0].active_frame_id = new_frame.id;
-                }
-            }
-        }
-
         file.flipbook_camera.drawTexture(
             file.keyframe_animation_texture.view_handle,
             file.keyframe_animation_texture.image.width,
@@ -427,8 +371,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             }
                             file.flipbook_camera.drawCircleFilled(
                                 .{ frame.pivot.position[0], frame.pivot.position[1] },
-                                half_grip_size,
-                                pixi.state.theme.highlight_primary.toU32(),
+                                half_grip_size * 2.0,
+                                color,
                             );
                         } else {
                             file.flipbook_camera.drawCircleFilled(

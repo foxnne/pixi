@@ -933,7 +933,8 @@ pub const Pixi = struct {
             camera.drawLine(.{ midpoint[0] + offset[0], midpoint[1] + offset[1] }, .{ control_center[0] + offset[0], control_center[1] + offset[1] }, default_color, 1.0);
 
             var hovered: bool = false;
-            var control_color: u32 = default_color;
+
+            var control_scale: f32 = 1.0;
             if (camera.isHovered(.{ control_center[0] + offset[0] - half_grip_size, control_center[1] + offset[1] - half_grip_size, grip_size, grip_size })) {
                 hovered = true;
                 cursor = imgui.MouseCursor_Hand;
@@ -945,7 +946,7 @@ pub const Pixi = struct {
             }
 
             if (transform_texture.rotate or hovered or transform_texture.pivot_move) {
-                control_color = highlight_color;
+                control_scale = 1.5;
 
                 const dist = @sqrt(std.math.pow(f32, control_center[0] - pivot[0], 2) + std.math.pow(f32, control_center[1] - pivot[1], 2));
                 camera.drawCircle(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, dist * camera.zoom, 1.0, default_color);
@@ -962,7 +963,7 @@ pub const Pixi = struct {
                 // }
             }
 
-            camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * camera.zoom, control_color);
+            camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * camera.zoom * control_scale, default_color);
         }
 
         if (options.allow_vert_move) {
@@ -1047,8 +1048,8 @@ pub const Pixi = struct {
                 transform_texture.control = null;
             }
 
-            const centroid_color = if (pan_hovered or transform_texture.pan or pivot_hovered or transform_texture.pivot_move) highlight_color else default_color;
-            camera.drawCircleFilled(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, half_grip_size * camera.zoom, centroid_color);
+            const centroid_scale: f32 = if (pan_hovered or transform_texture.pan or pivot_hovered or transform_texture.pivot_move) 1.5 else 1.0;
+            camera.drawCircleFilled(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, half_grip_size * camera.zoom * centroid_scale, default_color);
         }
 
         { // Handle setting the mouse cursor based on controls
@@ -1074,7 +1075,7 @@ pub const Pixi = struct {
             if (transform_texture.pan or transform_texture.rotate or transform_texture.pivot_move)
                 cursor = imgui.MouseCursor_ResizeAll;
 
-            if (cursor != imgui.MouseCursor_None)
+            if (cursor != imgui.MouseCursor_None and cursor != imgui.MouseCursor_Arrow)
                 imgui.setMouseCursor(cursor);
         }
 
