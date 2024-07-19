@@ -172,6 +172,8 @@ pub fn init(app: *App) !void {
     state.open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
     state.open_references = std.ArrayList(storage.Internal.Reference).init(allocator);
 
+    state.colors.keyframe_palette = try storage.Internal.Palette.loadFromFile(assets.pear36_hex.path);
+
     state.hotkeys = try input.Hotkeys.initDefault(allocator);
     state.assets = try Assets.init(allocator);
     state.mouse = try input.Mouse.initDefault(allocator);

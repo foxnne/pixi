@@ -19,7 +19,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
     imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.state.theme.foreground.toImguiVec4());
 
-    const timeline_height = imgui.getWindowHeight() * 0.25;
+    const timeline_height = imgui.getWindowHeight() * 0.33;
 
     const test_animation_length: f32 = 1.37;
 
@@ -31,6 +31,29 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (imgui.beginChild("FlipbookTimeline", .{ .x = -1.0, .y = timeline_height }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow | imgui.WindowFlags_HorizontalScrollbar)) {
             defer imgui.endChild();
 
+            // if (file.keyframe_animations.items.len > 0) {
+            //     const active_animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
+
+            //     for (active_animation.keyframes.items) |keyframe| {
+
+            //     }
+
+            //     // if (imgui.beginTable("TestTable", window_width /, imgui.TableFlags_Borders)) {
+            //     //     defer imgui.endTable();
+
+            //     //     for (active_animation.keyframes.items) |keyframe| {
+            //     //         _ = imgui.tableNextColumn();
+
+            //     //         for (keyframe.frames.items) |*frame| {
+            //     //             imgui.pushIDInt(@intCast(frame.id));
+            //     //             defer imgui.popID();
+
+            //     //             _ = imgui.checkbox(file.sprites.items[frame.sprite_index].name, &frame.visible);
+            //     //         }
+            //     //     }
+            //     // }
+            // }
+
             const scroll_x = imgui.getScrollX();
 
             if (imgui.beginChild("FlipbookTimelineScroll", .{ .x = animation_ms * zoom, .y = timeline_height }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
@@ -38,35 +61,109 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                 if (imgui.getWindowDrawList()) |draw_list| {
                     var rel_mouse_x: ?f32 = null;
+                    var window_hovered: bool = false;
                     if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
                         const mouse_position = pixi.state.mouse.position;
                         rel_mouse_x = mouse_position[0] - window_position.x + scroll_x;
+                        window_hovered = true;
                     }
                     for (0..animation_ms) |index_ms| {
-                        var thickness: f32 = 1.0;
-
                         var width: f32 = @floatFromInt(index_ms);
-                        const color = if (rel_mouse_x) |mouse_x| if (@abs(width - (mouse_x / zoom)) < 5.0) pixi.state.theme.highlight_primary.toU32() else pixi.state.theme.background.toU32() else pixi.state.theme.background.toU32();
+                        const hovered: bool = if (rel_mouse_x) |mouse_x| @abs(width - (mouse_x / zoom)) < 5.0 else false;
 
+                        var thickness: f32 = 1.0;
+                        const color = if (hovered) pixi.state.theme.highlight_primary.toU32() else pixi.state.theme.background.toU32();
                         width *= zoom;
 
                         if (@mod(index_ms, 100) == 0) thickness = 2.0;
                         if (@mod(index_ms, 1000) == 0) thickness = 4.0;
 
                         if (@mod(index_ms, 10) == 0) {
-                            draw_list.addLineEx(.{ .x = window_position.x + width - scroll_x, .y = window_position.y }, .{ .x = window_position.x + width - scroll_x, .y = window_position.y + timeline_height - imgui.getTextLineHeight() }, color, thickness);
+                            draw_list.addLineEx(
+                                .{ .x = window_position.x + width - scroll_x, .y = window_position.y },
+                                .{ .x = window_position.x + width - scroll_x, .y = window_position.y + timeline_height - imgui.getTextLineHeight() },
+                                color,
+                                thickness,
+                            );
+
+                            if (hovered and window_hovered) {
+                                if (pixi.state.mouse.button(.primary)) |bt| {
+                                    if (bt.pressed()) {
+                                        if (file.keyframe_animations.items.len == 0) {
+                                            const origin = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y });
+
+                                            const new_frame: pixi.storage.Internal.Frame = .{
+                                                .id = file.newId(),
+                                                .sprite_index = file.selected_sprite_index,
+                                                .layer_id = file.layers.items[file.selected_layer_index].id,
+                                                .pivot = .{ .position = zmath.f32x4s(0.0) },
+                                                .vertices = .{
+                                                    .{ .position = -origin }, // TL
+                                                    .{ .position = zmath.loadArr2(.{ tile_width, 0.0 }) - origin }, // TR
+                                                    .{ .position = zmath.loadArr2(.{ tile_width, tile_height }) - origin }, //BR
+                                                    .{ .position = zmath.loadArr2(.{ 0.0, tile_height }) - origin }, // BL
+                                                },
+                                            };
+
+                                            var new_keyframe: pixi.storage.Internal.Keyframe = .{
+                                                .frames = std.ArrayList(pixi.storage.Internal.Frame).init(pixi.state.allocator),
+                                                .id = file.newId(),
+                                                .active_frame_id = new_frame.id,
+                                                .time = @as(f32, @floatFromInt(index_ms)) / 1000.0,
+                                            };
+
+                                            var new_animation: pixi.storage.Internal.KeyframeAnimation = .{
+                                                .keyframes = std.ArrayList(pixi.storage.Internal.Keyframe).init(pixi.state.allocator),
+                                                .name = "New Transform Animation",
+                                                .id = file.newId(),
+                                                .active_keyframe_id = new_keyframe.id,
+                                            };
+
+                                            new_keyframe.frames.append(new_frame) catch unreachable;
+                                            new_animation.keyframes.append(new_keyframe) catch unreachable;
+                                            file.keyframe_animations.append(new_animation) catch unreachable;
+                                        } else {
+                                            const origin = zmath.loadArr2(.{ file.sprites.items[file.selected_sprite_index].origin_x, file.sprites.items[file.selected_sprite_index].origin_y });
+
+                                            const new_frame: pixi.storage.Internal.Frame = .{
+                                                .id = file.newId(),
+                                                .sprite_index = file.selected_sprite_index,
+                                                .layer_id = file.layers.items[file.selected_layer_index].id,
+                                                .pivot = .{ .position = zmath.f32x4s(0.0) },
+                                                .vertices = .{
+                                                    .{ .position = -origin }, // TL
+                                                    .{ .position = zmath.loadArr2(.{ tile_width, 0.0 }) - origin }, // TR
+                                                    .{ .position = zmath.loadArr2(.{ tile_width, tile_height }) - origin }, //BR
+                                                    .{ .position = zmath.loadArr2(.{ 0.0, tile_height }) - origin }, // BL
+                                                },
+                                            };
+
+                                            file.keyframe_animations.items[0].keyframes.items[0].frames.append(new_frame) catch unreachable;
+                                            file.keyframe_animations.items[0].keyframes.items[0].active_frame_id = new_frame.id;
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         if (@mod(index_ms, 1000) == 0) {
                             const fmt = std.fmt.allocPrintZ(pixi.state.allocator, "{d} s", .{@divTrunc(index_ms, 1000)}) catch unreachable;
                             defer pixi.state.allocator.free(fmt);
 
-                            draw_list.addText(.{ .x = window_position.x + width - scroll_x, .y = window_position.y + timeline_height - imgui.getTextLineHeight() }, pixi.state.theme.text.toU32(), fmt.ptr);
+                            draw_list.addText(
+                                .{ .x = window_position.x + width - scroll_x, .y = window_position.y + timeline_height - imgui.getTextLineHeight() },
+                                pixi.state.theme.text.toU32(),
+                                fmt.ptr,
+                            );
                         } else if (@mod(index_ms, 100) == 0) {
                             const fmt = std.fmt.allocPrintZ(pixi.state.allocator, "{d} ms", .{index_ms}) catch unreachable;
                             defer pixi.state.allocator.free(fmt);
 
-                            draw_list.addText(.{ .x = window_position.x + width - scroll_x, .y = window_position.y + timeline_height - imgui.getTextLineHeight() }, pixi.state.theme.text.toU32(), fmt.ptr);
+                            draw_list.addText(
+                                .{ .x = window_position.x + width - scroll_x, .y = window_position.y + timeline_height - imgui.getTextLineHeight() },
+                                pixi.state.theme.text.toU32(),
+                                fmt.ptr,
+                            );
                         }
                     }
                 }
@@ -226,7 +323,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 zmath.orthographicLh(width, height, -100, 100),
             ) };
 
-            for (selected_keyframe.frames.items) |*frame| {
+            for (selected_keyframe.frames.items, 0..) |*frame, frame_index| {
                 if (file.layer(frame.layer_id)) |layer| {
                     if (layer.transform_bindgroup) |transform_bindgroup| {
                         pixi.state.batcher.begin(.{
@@ -235,6 +332,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             .output_texture = &file.keyframe_animation_texture,
                             .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
                         }) catch unreachable;
+
+                        const color_index: usize = @mod(frame_index * 2, 35);
+
+                        const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
+                            palette.colors[color_index][0],
+                            palette.colors[color_index][1],
+                            palette.colors[color_index][2],
+                            palette.colors[color_index][3],
+                        ).toU32() else pixi.state.theme.text.toU32();
 
                         if (file.flipbook_camera.isHovered(.{
                             frame.pivot.position[0] - scaled_grip_size / 2.0,
@@ -278,7 +384,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             file.flipbook_camera.drawCircleFilled(
                                 .{ frame.pivot.position[0], frame.pivot.position[1] },
                                 half_grip_size,
-                                pixi.state.theme.text.toU32(),
+                                color,
                             );
                         }
 

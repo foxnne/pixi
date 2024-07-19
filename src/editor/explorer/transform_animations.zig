@@ -59,7 +59,7 @@ pub fn draw() void {
 
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
             imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
-            imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.3, .y = 0.5 });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.0, .y = 0.5 });
             imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * pixi.content_scale[0]);
             imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
             defer imgui.popStyleVarEx(5);
@@ -71,8 +71,15 @@ pub fn draw() void {
 
                 imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
                 defer imgui.popStyleColor();
+
+                // if (imgui.selectable(animation_name)) {
+                //     file.selected_keyframe_animation_index = animation_index;
+                // }
                 if (imgui.treeNode(animation_name)) {
                     defer imgui.treePop();
+
+                    imgui.indentEx(20.0);
+                    defer imgui.unindent();
 
                     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
                     defer imgui.popStyleColor();
@@ -83,18 +90,35 @@ pub fn draw() void {
                         if (imgui.treeNode(keyframe_name)) {
                             defer imgui.treePop();
 
+                            imgui.indentEx(30.0);
+                            defer imgui.unindent();
+
                             for (keyframe.frames.items, 0..) |frame, i| {
+                                const color_index: usize = @mod(i * 2, 35);
+
+                                const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
+                                    palette.colors[color_index][0],
+                                    palette.colors[color_index][1],
+                                    palette.colors[color_index][2],
+                                    palette.colors[color_index][3],
+                                ).toU32() else pixi.state.theme.text.toU32();
+
                                 const sprite = file.sprites.items[frame.sprite_index];
 
                                 const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}##{d}", .{ sprite.name, i }) catch unreachable;
                                 defer pixi.state.allocator.free(sprite_name);
+
+                                imgui.pushStyleColor(imgui.Col_Text, color);
+                                imgui.bullet();
 
                                 if (keyframe.active_frame_id == frame.id) {
                                     imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text.toU32());
                                 } else {
                                     imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text_secondary.toU32());
                                 }
-                                defer imgui.popStyleColor();
+                                defer imgui.popStyleColorEx(2);
+
+                                imgui.sameLine();
 
                                 if (imgui.selectable(sprite_name)) {
                                     file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };

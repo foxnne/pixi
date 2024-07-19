@@ -2360,6 +2360,7 @@ pub const Frame = struct {
     sprite_index: usize,
     layer_id: u32,
     parent_id: ?u32 = null,
+    visible: bool = true,
 };
 
 pub const Palette = struct {
