@@ -368,7 +368,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const thickness: f32 = if (i == file.selected_animation_index and (if (pixi.state.mouse.button(.primary)) |primary| primary.up() else false and !pixi.state.popups.animation)) 4.0 else 2.0;
                     file.camera.drawAnimationRect(start_rect, end_rect, thickness, pixi.state.theme.highlight_primary.toU32(), pixi.state.theme.text_red.toU32());
                 }
-            } else if (pixi.state.sidebar != .pack and !transforming) {
+            } else if (pixi.state.sidebar != .pack and !transforming and pixi.state.sidebar != .keyframe_animations) {
                 const animation = file.animations.items[file.selected_animation_index];
 
                 const start_column = @mod(@as(u32, @intCast(animation.start)), tiles_wide);

@@ -76,7 +76,7 @@ pub fn draw() void {
                     defer imgui.treePop();
 
                     imgui.indentEx(20.0);
-                    defer imgui.unindent();
+                    defer imgui.unindentEx(20.0);
 
                     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
                     defer imgui.popStyleColor();
@@ -88,7 +88,7 @@ pub fn draw() void {
                             defer imgui.treePop();
 
                             imgui.indentEx(30.0);
-                            defer imgui.unindent();
+                            defer imgui.unindentEx(30.0);
 
                             var i: usize = 0;
                             while (i < keyframe.frames.items.len) : (i += 1) {

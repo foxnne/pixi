@@ -771,6 +771,7 @@ pub const Pixi = struct {
         canvas: Canvas = .primary,
         allow_vert_move: bool = true,
         allow_pivot_move: bool = true,
+        color: ?u32 = null,
     };
 
     pub fn processTransformTextureControls(file: *Pixi, transform_texture: *pixi.storage.Internal.Pixi.TransformTexture, options: TransformTextureControlsOptions) void {
@@ -790,7 +791,7 @@ pub const Pixi = struct {
 
         var cursor: imgui.MouseCursor = imgui.MouseCursor_Arrow;
 
-        const default_color = pixi.state.theme.text.toU32();
+        const default_color = if (options.color) |color| color else pixi.state.theme.text.toU32();
         const highlight_color = pixi.state.theme.highlight_primary.toU32();
 
         const offset = zmath.loadArr2(if (canvas == .flipbook) .{ 0.0, 0.0 } else file.canvasCenterOffset(canvas));
@@ -830,7 +831,12 @@ pub const Pixi = struct {
 
                             offset_rotation -= std.math.radiansToDegrees(angle) - 90.0;
 
-                            camera.drawLine(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, .{ parent_frame.pivot.position[0] + offset[0], parent_frame.pivot.position[1] + offset[1] }, pixi.state.theme.text.toU32(), 1.0);
+                            camera.drawLine(
+                                .{ pivot[0] + offset[0], pivot[1] + offset[1] },
+                                .{ parent_frame.pivot.position[0] + offset[0], parent_frame.pivot.position[1] + offset[1] },
+                                default_color,
+                                1.0,
+                            );
                         }
                     }
                 }
@@ -907,7 +913,12 @@ pub const Pixi = struct {
 
             const previous_position = rotated_vertices[previous_index].position;
 
-            camera.drawLine(.{ offset[0] + previous_position[0], offset[1] + previous_position[1] }, .{ offset[0] + vertex.position[0], offset[1] + vertex.position[1] }, default_color, 3.0);
+            camera.drawLine(
+                .{ offset[0] + previous_position[0], offset[1] + previous_position[1] },
+                .{ offset[0] + vertex.position[0], offset[1] + vertex.position[1] },
+                default_color,
+                3.0,
+            );
         }
 
         { // Draw controls for rotating
