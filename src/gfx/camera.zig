@@ -167,7 +167,7 @@ pub const Camera = struct {
         const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
 
         if (imgui.getWindowDrawList()) |draw_list|
-            draw_list.addCircleFilled(pos_vec, radius, color, 10);
+            draw_list.addCircleFilled(pos_vec, radius, color, 20);
     }
 
     pub fn drawRect(camera: Camera, rect: [4]f32, thickness: f32, color: u32) void {

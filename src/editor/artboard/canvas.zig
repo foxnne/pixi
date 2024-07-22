@@ -141,7 +141,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     const tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
                     const tile_index = tile_column + tile_row * tiles_wide;
 
-                    if (pixi.state.sidebar == .sprites) {
+                    if (pixi.state.sidebar == .sprites or file.flipbook_view == .timeline) {
                         file.makeSpriteSelection(tile_index);
                     } else if (pixi.state.tools.current != .animation) {
                         // Ensure we only set the request state on the first set.
@@ -158,7 +158,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         } else {
             if (pixi.state.mouse.button(.primary)) |primary| {
                 if (primary.released()) {
-                    if (pixi.state.sidebar == .sprites) {
+                    if (pixi.state.sidebar == .sprites or file.flipbook_view == .timeline) {
                         file.selected_sprites.clearAndFree();
                     }
                 }
@@ -293,7 +293,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     {
         const tiles_wide = @divExact(file.width, file.tile_width);
 
-        if (pixi.state.sidebar == .sprites and !transforming) {
+        if (pixi.state.sidebar == .sprites and !transforming or file.flipbook_view == .timeline) {
             if (file.selected_sprites.items.len > 0) {
                 for (file.selected_sprites.items) |sprite_index| {
                     const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);

@@ -777,6 +777,8 @@ pub const Pixi = struct {
     pub fn processTransformTextureControls(file: *Pixi, transform_texture: *pixi.storage.Internal.Pixi.TransformTexture, options: TransformTextureControlsOptions) void {
         const canvas = options.canvas;
 
+        const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
+
         const modifier_primary: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
         const modifier_secondary: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
@@ -864,7 +866,7 @@ pub const Pixi = struct {
         // }
 
         if (transform_texture.pivot_move) {
-            if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
+            if (window_hovered) {
                 const mouse_position = pixi.state.mouse.position;
 
                 const current_pixel_coords = camera.pixelCoordinatesRaw(.{
@@ -935,7 +937,7 @@ pub const Pixi = struct {
             var hovered: bool = false;
 
             var control_scale: f32 = 1.0;
-            if (camera.isHovered(.{ control_center[0] + offset[0] - half_grip_size, control_center[1] + offset[1] - half_grip_size, grip_size, grip_size })) {
+            if (camera.isHovered(.{ control_center[0] + offset[0] - half_grip_size, control_center[1] + offset[1] - half_grip_size, grip_size, grip_size }) and window_hovered) {
                 hovered = true;
                 cursor = imgui.MouseCursor_Hand;
                 if (pixi.state.mouse.button(.primary)) |bt| {
@@ -971,7 +973,7 @@ pub const Pixi = struct {
             for (&rotated_vertices, 0..) |*vertex, vertex_index| {
                 const grip_rect: [4]f32 = .{ offset[0] + vertex.position[0] - half_grip_size, offset[1] + vertex.position[1] - half_grip_size, grip_size, grip_size };
 
-                if (camera.isHovered(grip_rect) and options.allow_vert_move) {
+                if (camera.isHovered(grip_rect) and options.allow_vert_move and window_hovered) {
                     hovered_index = vertex_index;
                     if (pixi.state.mouse.button(.primary)) |bt| {
                         if (bt.pressed()) {
@@ -1033,7 +1035,7 @@ pub const Pixi = struct {
                 rotated_vertices[0].position + offset,
             };
 
-            const pan_hovered: bool = hovered_index == null and transform_texture.control == null and (camera.isHoveredTriangle(triangle_a) or camera.isHoveredTriangle(triangle_b));
+            const pan_hovered: bool = window_hovered and hovered_index == null and transform_texture.control == null and (camera.isHoveredTriangle(triangle_a) or camera.isHoveredTriangle(triangle_b));
             const mouse_pressed = if (pixi.state.mouse.button(.primary)) |bt| bt.pressed() else false;
 
             if (pan_hovered or pivot_hovered) {

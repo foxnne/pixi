@@ -63,28 +63,31 @@ pub fn draw() void {
             imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * pixi.content_scale[0]);
             imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
             defer imgui.popStyleVarEx(5);
-            for (file.keyframe_animations.items, 0..) |animation, animation_index| {
-                const header_color = if (file.selected_keyframe_animation_index == animation_index) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
+            for (file.keyframe_animations.items, 0..) |*animation, animation_index| {
+                const animation_color = if (file.selected_keyframe_animation_index == animation_index) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
 
-                const animation_name = std.fmt.allocPrintZ(pixi.state.allocator, " {s}  {s}", .{ pixi.fa.film, animation.name }) catch unreachable;
+                const animation_name = std.fmt.allocPrintZ(pixi.state.allocator, " {s}  {s}##{d}", .{ pixi.fa.film, animation.name, animation.id }) catch unreachable;
                 defer pixi.state.allocator.free(animation_name);
 
-                imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
+                imgui.pushStyleColorImVec4(imgui.Col_Text, animation_color);
                 defer imgui.popStyleColor();
 
-                if (imgui.treeNode(animation_name)) {
+                if (imgui.treeNodeEx(animation_name, imgui.TreeNodeFlags_DefaultOpen)) {
                     defer imgui.treePop();
 
                     imgui.indentEx(20.0);
                     defer imgui.unindentEx(20.0);
 
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-                    defer imgui.popStyleColor();
-                    for (animation.keyframes.items, 0..) |*keyframe, keyframe_i| {
-                        const keyframe_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}_Keyframe_{d}", .{ animation.name, keyframe_i }) catch unreachable;
+                    for (animation.keyframes.items) |*keyframe| {
+                        const keyframe_name = std.fmt.allocPrintZ(pixi.state.allocator, "Keyframe ID:{d}", .{keyframe.id}) catch unreachable;
                         defer pixi.state.allocator.free(keyframe_name);
 
-                        if (imgui.treeNode(keyframe_name)) {
+                        const keyframe_color = if (animation.active_keyframe_id == keyframe.id) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
+
+                        imgui.pushStyleColorImVec4(imgui.Col_Text, keyframe_color);
+                        defer imgui.popStyleColor();
+
+                        if (imgui.treeNodeEx(keyframe_name, imgui.TreeNodeFlags_DefaultOpen)) {
                             defer imgui.treePop();
 
                             imgui.indentEx(30.0);
@@ -104,13 +107,13 @@ pub fn draw() void {
 
                                 const sprite = file.sprites.items[frame.sprite_index];
 
-                                const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}##{d}", .{ sprite.name, frame.id }) catch unreachable;
+                                const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id }) catch unreachable;
                                 defer pixi.state.allocator.free(sprite_name);
 
                                 imgui.pushStyleColor(imgui.Col_Text, color);
                                 imgui.bullet();
 
-                                if (keyframe.active_frame_id == frame.id) {
+                                if (keyframe.active_frame_id == frame.id and animation.active_keyframe_id == keyframe.id) {
                                     imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text.toU32());
                                 } else {
                                     imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text_secondary.toU32());
@@ -120,7 +123,14 @@ pub fn draw() void {
                                 imgui.sameLine();
 
                                 if (imgui.selectable(sprite_name)) {
-                                    file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
+                                    for (file.selected_sprites.items) |selected_sprite| {
+                                        if (selected_sprite != sprite.index or file.selected_sprites.items.len > 1) {
+                                            file.selected_sprites.clearAndFree();
+                                            file.selected_sprites.append(sprite.index) catch unreachable;
+                                        }
+                                    }
+                                    file.selected_keyframe_animation_index = animation_index;
+                                    animation.active_keyframe_id = keyframe.id;
                                     keyframe.active_frame_id = frame.id;
                                 }
 
@@ -137,9 +147,12 @@ pub fn draw() void {
                         }
                     }
                 }
-                imgui.pushID(animation.name);
+
+                if (imgui.isItemClicked()) {
+                    file.selected_keyframe_animation_index = animation_index;
+                }
+
                 contextMenu(animation_index, file);
-                imgui.popID();
             }
         }
     } else {
