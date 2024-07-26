@@ -331,43 +331,57 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                 scaled_grip_size,
                                 scaled_grip_size,
                             })) {
-                                if (pixi.state.mouse.button(.primary)) |bt| {
-                                    if (bt.pressed()) {
-                                        var change: bool = true;
+                                if (frame.id != selected_keyframe.active_frame_id) {
+                                    if (pixi.state.mouse.button(.primary)) |bt| {
+                                        if (bt.pressed()) {
+                                            var change: bool = true;
 
-                                        if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
-                                            if (hk.down()) {
-                                                frame.parent_id = null;
-                                                change = false;
-                                            }
-                                        }
-
-                                        if (frame.id != selected_keyframe.active_frame_id) {
-                                            if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                            if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
                                                 if (hk.down()) {
-                                                    if (selected_keyframe.frame(selected_keyframe.active_frame_id)) |active_frame| {
-                                                        active_frame.parent_id = frame.id;
-                                                    }
-
+                                                    frame.parent_id = null;
                                                     change = false;
                                                 }
                                             }
-                                            if (change) {
-                                                selected_keyframe.active_frame_id = frame.id;
+
+                                            if (frame.id != selected_keyframe.active_frame_id) {
+                                                if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                                    if (hk.down()) {
+                                                        if (selected_keyframe.frame(selected_keyframe.active_frame_id)) |active_frame| {
+                                                            active_frame.parent_id = frame.id;
+                                                        }
+
+                                                        change = false;
+                                                    }
+                                                }
+                                                if (change) {
+                                                    selected_keyframe.active_frame_id = frame.id;
+                                                }
                                             }
                                         }
                                     }
+                                    file.flipbook_camera.drawCircleFilled(
+                                        .{ frame.pivot.position[0], frame.pivot.position[1] },
+                                        half_grip_size * 1.5,
+                                        color,
+                                    );
+                                    file.flipbook_camera.drawCircle(
+                                        .{ frame.pivot.position[0], frame.pivot.position[1] },
+                                        half_grip_size * 1.5 + 1.0,
+                                        1.0,
+                                        pixi.state.theme.text_background.toU32(),
+                                    );
                                 }
-                                file.flipbook_camera.drawCircleFilled(
-                                    .{ frame.pivot.position[0], frame.pivot.position[1] },
-                                    half_grip_size * 2.0,
-                                    color,
-                                );
                             } else {
                                 file.flipbook_camera.drawCircleFilled(
                                     .{ frame.pivot.position[0], frame.pivot.position[1] },
                                     half_grip_size,
                                     color,
+                                );
+                                file.flipbook_camera.drawCircle(
+                                    .{ frame.pivot.position[0], frame.pivot.position[1] },
+                                    half_grip_size + 1.0,
+                                    1.0,
+                                    pixi.state.theme.text_background.toU32(),
                                 );
                             }
 
