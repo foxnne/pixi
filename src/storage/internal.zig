@@ -2368,11 +2368,29 @@ pub const KeyframeAnimation = struct {
         return null;
     }
 
+    pub fn keyframeIndex(self: KeyframeAnimation, id: u32) ?usize {
+        for (self.keyframes.items, 0..) |fr, i| {
+            if (fr.id == id)
+                return i;
+        }
+        return null;
+    }
+
     pub fn getKeyframeMilliseconds(self: KeyframeAnimation, ms: usize) ?*Keyframe {
         for (self.keyframes.items) |*kf| {
             const kf_ms: usize = @intFromFloat(kf.time * 1000.0);
             if (ms == kf_ms)
                 return kf;
+        }
+
+        return null;
+    }
+
+    pub fn getKeyframeFromFrame(self: KeyframeAnimation, frame_id: u32) ?*Keyframe {
+        for (self.keyframes.items) |*kf| {
+            if (kf.frame(frame_id) != null) {
+                return kf;
+            }
         }
 
         return null;

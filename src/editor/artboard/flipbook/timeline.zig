@@ -7,6 +7,11 @@ const zmath = @import("zmath");
 
 pub var selected_frame_id: ?u32 = null;
 
+var frame_node_hovered: ?u32 = null;
+var frame_node_dragging: ?u32 = null;
+var keyframe_dragging: ?u32 = null;
+var time_hovered_ms: ?usize = null;
+
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const window_height = imgui.getWindowHeight();
     const window_width = imgui.getWindowWidth();
@@ -39,8 +44,6 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
     const scroll_bar_height: f32 = imgui.getStyle().scrollbar_size;
 
-    var frame_node_hovered: ?u32 = null;
-    var time_hovered_ms: ?usize = null;
     {
         imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.state.theme.foreground.toImguiVec4());
         defer imgui.popStyleColor();
@@ -162,6 +165,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             if (imgui.getWindowDrawList()) |draw_list| {
                                 for (0..animation_ms) |ms| {
                                     const ms_float: f32 = @floatFromInt(ms);
+
+                                    const line_hovered: bool = if (rel_mouse_x) |mouse_x| @abs(mouse_x - (ms_float + work_area_offset)) < frame_node_radius else false;
+
                                     var x: f32 = @floatFromInt(ms);
                                     x += work_area_offset - scroll_x + window_position.x;
 
@@ -184,23 +190,78 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                                 if (rel_mouse_y) |mouse_y| {
                                                     if (@abs(mouse_x - (ms_float + work_area_offset)) < frame_node_radius) {
                                                         const diff_y = @abs(mouse_y + window_position.y - y);
-
-                                                        // if (diff_y < frame_node_radius) {
-                                                        //     frame_node_hovered = fr.id;
-                                                        //     frame_node_scale = 2.0;
-                                                        // }
-
                                                         const diff_radius = diff_y - frame_node_radius;
-                                                        if (diff_radius < 0.0) {
+
+                                                        if (diff_y < frame_node_radius)
                                                             frame_node_hovered = fr.id;
-                                                        }
+
                                                         frame_node_scale = std.math.clamp(2.0 - diff_radius / 4.0, 1.0, 2.0);
+                                                    }
+                                                }
+                                            }
+
+                                            if (pixi.state.mouse.button(.primary)) |bt| {
+                                                if (bt.pressed()) {
+                                                    if (frame_node_hovered) |frame_hovered| {
+                                                        frame_node_dragging = frame_hovered;
+                                                    } else {
+                                                        keyframe_dragging = kf.id;
                                                     }
                                                 }
                                             }
 
                                             draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale, color, 20);
                                             draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale + 1.0, pixi.state.theme.text_background.toU32());
+                                        }
+                                    }
+
+                                    if (@mod(ms, 10) == 0 and line_hovered) {
+                                        if (pixi.state.mouse.button(.primary)) |bt| {
+                                            if (bt.released()) {
+                                                if (frame_node_dragging) |frame_id| {
+                                                    defer frame_node_dragging = null;
+                                                    if (animation.getKeyframeFromFrame(frame_id)) |frame_keyframe| {
+                                                        if (animation.getKeyframeMilliseconds(ms)) |new_keyframe| {
+                                                            if (new_keyframe.id != frame_keyframe.id) {
+                                                                if (frame_keyframe.frameIndex(frame_id)) |frame_index| {
+                                                                    const drag_frame = frame_keyframe.frames.orderedRemove(frame_index);
+
+                                                                    new_keyframe.frames.append(drag_frame) catch unreachable;
+
+                                                                    if (frame_keyframe.frames.items.len == 0) {
+                                                                        if (animation.keyframeIndex(frame_keyframe.id)) |empty_kf_index| {
+                                                                            var empty_kf = animation.keyframes.orderedRemove(empty_kf_index);
+                                                                            empty_kf.frames.clearAndFree();
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        } else {
+                                                            var new_keyframe: pixi.storage.Internal.Keyframe = .{
+                                                                .active_frame_id = frame_id,
+                                                                .id = file.newKeyframeId(),
+                                                                .frames = std.ArrayList(pixi.storage.Internal.Frame).init(pixi.state.allocator),
+                                                                .time = ms_float / 1000.0,
+                                                            };
+
+                                                            if (frame_keyframe.frameIndex(frame_id)) |frame_index| {
+                                                                const drag_frame = frame_keyframe.frames.orderedRemove(frame_index);
+
+                                                                if (frame_keyframe.frames.items.len == 0) {
+                                                                    if (animation.keyframeIndex(frame_keyframe.id)) |empty_kf_index| {
+                                                                        var empty_kf = animation.keyframes.orderedRemove(empty_kf_index);
+                                                                        empty_kf.frames.clearAndFree();
+                                                                    }
+                                                                }
+
+                                                                new_keyframe.frames.append(drag_frame) catch unreachable;
+                                                            }
+
+                                                            animation.keyframes.append(new_keyframe) catch unreachable;
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -474,5 +535,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 }
             }
         }
+
+        time_hovered_ms = null;
     }
 }
