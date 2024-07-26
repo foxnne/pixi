@@ -173,6 +173,9 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                                     if (animation.getKeyframeMilliseconds(ms)) |kf| {
                                         for (kf.frames.items, 0..) |fr, fr_index| {
+                                            if (fr.id == frame_node_dragging and !line_hovered)
+                                                continue;
+
                                             const color_index: usize = @mod(fr.id * 2, 35);
 
                                             const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
@@ -201,7 +204,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                             }
 
                                             if (pixi.state.mouse.button(.primary)) |bt| {
-                                                if (bt.pressed()) {
+                                                if (bt.pressed() and window_hovered and line_hovered) {
                                                     if (frame_node_hovered) |frame_hovered| {
                                                         frame_node_dragging = frame_hovered;
                                                     } else {
@@ -215,10 +218,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                         }
                                     }
 
-                                    if (@mod(ms, 10) == 0 and line_hovered) {
-                                        if (pixi.state.mouse.button(.primary)) |bt| {
-                                            if (bt.released()) {
-                                                if (frame_node_dragging) |frame_id| {
+                                    if (@mod(ms, 10) == 0 and line_hovered and window_hovered) {
+                                        if (frame_node_dragging) |frame_id| {
+                                            if (pixi.state.mouse.button(.primary)) |bt| {
+                                                if (bt.released()) {
                                                     defer frame_node_dragging = null;
                                                     if (animation.getKeyframeFromFrame(frame_id)) |frame_keyframe| {
                                                         if (animation.getKeyframeMilliseconds(ms)) |new_keyframe| {
@@ -259,6 +262,33 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                                                             animation.keyframes.append(new_keyframe) catch unreachable;
                                                         }
+                                                    }
+                                                } else {
+                                                    var draw_temp_node: bool = true;
+
+                                                    if (animation.getKeyframeFromFrame(frame_id)) |frame_kf| {
+                                                        if (animation.getKeyframeMilliseconds(ms)) |ms_kf| {
+                                                            if (ms_kf.id == frame_kf.id)
+                                                                draw_temp_node = false;
+                                                        }
+                                                    }
+
+                                                    if (draw_temp_node) {
+                                                        const index_float: f32 = @floatFromInt(if (animation.getKeyframeMilliseconds(ms)) |kf| kf.frames.items.len else 0);
+
+                                                        const y: f32 = imgui.getWindowPos().y + (index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;
+
+                                                        const color_index: usize = @mod(frame_id * 2, 35);
+
+                                                        const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
+                                                            palette.colors[color_index][0],
+                                                            palette.colors[color_index][1],
+                                                            palette.colors[color_index][2],
+                                                            palette.colors[color_index][3],
+                                                        ).toU32() else pixi.state.theme.text.toU32();
+
+                                                        draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * 2.0, color, 20);
+                                                        draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * 2.0 + 1.0, pixi.state.theme.text_background.toU32());
                                                     }
                                                 }
                                             }
