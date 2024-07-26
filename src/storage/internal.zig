@@ -52,6 +52,9 @@ pub const Pixi = struct {
     history: History,
     buffers: Buffers,
     counter: u32 = 0,
+    layer_counter: u32 = 0,
+    keyframe_counter: u32 = 0,
+    frame_counter: u32 = 0,
     saving: bool = false,
 
     pub const ScrollRequest = struct {
@@ -144,6 +147,21 @@ pub const Pixi = struct {
     pub fn newId(file: *Pixi) u32 {
         file.counter += 1;
         return file.counter;
+    }
+
+    pub fn newLayerId(file: *Pixi) u32 {
+        file.layer_counter += 1;
+        return file.layer_counter;
+    }
+
+    pub fn newKeyframeId(file: *Pixi) u32 {
+        file.keyframe_counter += 1;
+        return file.keyframe_counter;
+    }
+
+    pub fn newFrameId(file: *Pixi) u32 {
+        file.frame_counter += 1;
+        return file.frame_counter;
     }
 
     pub const SampleToolOptions = struct {
@@ -2342,12 +2360,42 @@ pub const KeyframeAnimation = struct {
     elapsed_time: f32 = 0.0,
     active_keyframe_id: u32,
 
-    pub fn keyframe(self: Keyframe, id: u32) ?*Keyframe {
+    pub fn keyframe(self: KeyframeAnimation, id: u32) ?*Keyframe {
         for (self.keyframes.items) |fr| {
             if (fr.id == id)
                 return &fr;
         }
         return null;
+    }
+
+    pub fn getKeyframeMilliseconds(self: KeyframeAnimation, ms: usize) ?*Keyframe {
+        for (self.keyframes.items) |*kf| {
+            const kf_ms: usize = @intFromFloat(kf.time * 1000.0);
+            if (ms == kf_ms)
+                return kf;
+        }
+
+        return null;
+    }
+
+    /// Returns the length of the animation in seconds
+    pub fn length(self: KeyframeAnimation) f32 {
+        var len: f32 = 0.0;
+        for (self.keyframes.items) |kf| {
+            if (kf.time > len)
+                len = kf.time;
+        }
+        return len;
+    }
+
+    /// Returns the number of frames in the largest keyframe
+    pub fn maxNodes(self: KeyframeAnimation) usize {
+        var nodes: usize = 0;
+        for (self.keyframes.items) |kf| {
+            if (kf.frames.items.len > nodes)
+                nodes = kf.frames.items.len;
+        }
+        return nodes;
     }
 };
 
@@ -2361,6 +2409,14 @@ pub const Keyframe = struct {
         for (self.frames.items) |*fr| {
             if (fr.id == id)
                 return fr;
+        }
+        return null;
+    }
+
+    pub fn frameIndex(self: Keyframe, id: u32) ?usize {
+        for (self.frames.items, 0..) |*fr, i| {
+            if (fr.id == id)
+                return i;
         }
         return null;
     }
