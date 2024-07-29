@@ -173,8 +173,16 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                                     if (animation.getKeyframeMilliseconds(ms)) |kf| {
                                         for (kf.frames.items, 0..) |fr, fr_index| {
-                                            if (kf.id == keyframe_dragging)
-                                                continue;
+                                            if (keyframe_dragging) |drag_kf_id| {
+                                                if (kf.id == keyframe_dragging) {
+                                                    if (animation.keyframe(drag_kf_id)) |drag_kf| {
+                                                        if (drag_kf.frames.items.len == 1) {
+                                                            keyframe_dragging = null;
+                                                            frame_node_dragging = drag_kf.frames.items[0].id;
+                                                        }
+                                                    }
+                                                }
+                                            }
 
                                             if (fr.id == frame_node_dragging and !line_hovered)
                                                 continue;
@@ -208,6 +216,8 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                                             if (pixi.state.mouse.button(.primary)) |bt| {
                                                 if (bt.pressed() and line_hovered and window_hovered) {
+                                                    animation.active_keyframe_id = kf.id;
+
                                                     if (frame_node_hovered) |frame_hovered| {
                                                         frame_node_dragging = frame_hovered;
                                                     } else {
