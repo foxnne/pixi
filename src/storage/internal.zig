@@ -2361,9 +2361,9 @@ pub const KeyframeAnimation = struct {
     active_keyframe_id: u32,
 
     pub fn keyframe(self: KeyframeAnimation, id: u32) ?*Keyframe {
-        for (self.keyframes.items) |fr| {
+        for (self.keyframes.items) |*fr| {
             if (fr.id == id)
-                return &fr;
+                return fr;
         }
         return null;
     }
