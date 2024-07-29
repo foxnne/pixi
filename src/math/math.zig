@@ -11,6 +11,7 @@ pub const RectF = rect.RectF;
 const color = @import("color.zig");
 pub const Color = color.Color;
 pub const Colors = color.Colors;
+pub const Tween = @import("tween.zig").Tween;
 
 pub const Point = struct { x: i32, y: i32 };
 

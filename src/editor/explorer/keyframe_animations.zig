@@ -20,30 +20,42 @@ pub fn draw() void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.8 });
         defer imgui.popStyleVarEx(2);
 
-        // imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.foreground.toImguiVec4());
-        // imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.foreground.toImguiVec4());
-        // imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.foreground.toImguiVec4());
-        // defer imgui.popStyleColorEx(3);
-        // if (imgui.beginChild("AnimationTools", .{
-        //     .x = imgui.getWindowWidth(),
-        //     .y = pixi.state.settings.animation_edit_height * pixi.content_scale[1],
-        // }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-        //     defer imgui.endChild();
+        imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.foreground.toImguiVec4());
+        defer imgui.popStyleColorEx(3);
+        if (imgui.beginChild("SelectedFrame", .{
+            .x = imgui.getWindowWidth(),
+            .y = 100,
+        }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+            defer imgui.endChild();
 
-        //     const style = imgui.getStyle();
-        //     const window_size = imgui.getWindowSize();
+            imgui.pushItemWidth(imgui.getWindowWidth() / 2.0);
+            defer imgui.popItemWidth();
 
-        //     const button_width = window_size.x / 4.0;
-        //     const button_height = button_width / 2.0;
+            if (file.keyframe_animations.items.len > 0) {
+                const animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
 
-        //     { // Draw tools for animation editing
-        //         imgui.setCursorPosX(style.item_spacing.x);
-        //         tools.drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+                if (animation.keyframes.items.len > 0) {
+                    if (animation.keyframe(animation.active_keyframe_id)) |keyframe| {
+                        if (keyframe.frames.items.len > 0) {
+                            if (keyframe.frame(keyframe.active_frame_id)) |frame| {
+                                var time: f32 = keyframe.time;
+                                if (imgui.inputFloatEx("Keyframe time (s)", &time, 0.01, 0.01, "%.2f", imgui.InputTextFlags_CharsDecimal)) {
+                                    keyframe.time = std.math.clamp(time, 0.0, std.math.floatMax(f32));
+                                }
 
-        //         imgui.sameLine();
-        //         tools.drawTool("[]", button_width, button_height, .animation);
-        //     }
-        // }
+                                var sprite_index: c_int = @intCast(frame.sprite_index);
+
+                                if (imgui.inputInt("Frame Sprite Index", &sprite_index)) {
+                                    frame.sprite_index = @intCast(std.math.clamp(sprite_index, 0, @as(c_int, @intCast(file.sprites.items.len - 1))));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         imgui.spacing();
         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
@@ -96,7 +108,11 @@ pub fn draw() void {
                             var i: usize = 0;
                             while (i < keyframe.frames.items.len) : (i += 1) {
                                 const frame = keyframe.frames.items[i];
-                                const color_index: usize = @mod(frame.id * 2, 35);
+                                var color_index: usize = @mod(frame.id * 2, 35);
+
+                                if (animation.getTweenStartFrame(frame.id)) |tween_start_frame| {
+                                    color_index = @mod(tween_start_frame.id * 2, 35);
+                                }
 
                                 const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
                                     palette.colors[color_index][0],

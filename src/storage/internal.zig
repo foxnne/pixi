@@ -2396,6 +2396,19 @@ pub const KeyframeAnimation = struct {
         return null;
     }
 
+    pub fn getTweenStartFrame(self: KeyframeAnimation, frame_id: u32) ?*Frame {
+        for (self.keyframes.items) |kf| {
+            for (kf.frames.items) |*fr| {
+                if (fr.tween_id) |tween_id| {
+                    if (tween_id == frame_id) {
+                        return fr;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     /// Returns the length of the animation in seconds
     pub fn length(self: KeyframeAnimation) f32 {
         var len: f32 = 0.0;
@@ -2449,6 +2462,8 @@ pub const Frame = struct {
     layer_id: u32,
     parent_id: ?u32 = null,
     visible: bool = true,
+    tween_id: ?u32 = null,
+    tween: pixi.math.Tween = .none,
 };
 
 pub const Palette = struct {

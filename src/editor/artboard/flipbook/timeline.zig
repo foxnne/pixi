@@ -172,63 +172,102 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                                     x += work_area_offset - scroll_x + window_position.x;
 
                                     if (animation.getKeyframeMilliseconds(ms)) |kf| {
-                                        for (kf.frames.items, 0..) |fr, fr_index| {
-                                            if (keyframe_dragging) |drag_kf_id| {
-                                                if (kf.id == keyframe_dragging) {
-                                                    if (animation.keyframe(drag_kf_id)) |drag_kf| {
-                                                        if (drag_kf.frames.items.len == 1) {
-                                                            keyframe_dragging = null;
-                                                            frame_node_dragging = drag_kf.frames.items[0].id;
+                                        if (kf.id != keyframe_dragging) {
+                                            for (kf.frames.items, 0..) |fr, fr_index| {
+                                                if (keyframe_dragging) |drag_kf_id| {
+                                                    if (kf.id == keyframe_dragging) {
+                                                        if (animation.keyframe(drag_kf_id)) |drag_kf| {
+                                                            if (drag_kf.frames.items.len == 1) {
+                                                                keyframe_dragging = null;
+                                                                frame_node_dragging = drag_kf.frames.items[0].id;
+                                                            }
                                                         }
                                                     }
                                                 }
-                                            }
 
-                                            if (fr.id == frame_node_dragging and !line_hovered)
-                                                continue;
+                                                if (fr.id == frame_node_dragging and !line_hovered)
+                                                    continue;
 
-                                            const color_index: usize = @mod(fr.id * 2, 35);
+                                                var color_index: usize = @mod(fr.id * 2, 35);
 
-                                            const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
-                                                palette.colors[color_index][0],
-                                                palette.colors[color_index][1],
-                                                palette.colors[color_index][2],
-                                                palette.colors[color_index][3],
-                                            ).toU32() else pixi.state.theme.text.toU32();
+                                                if (animation.getTweenStartFrame(fr.id)) |tween_start_frame| {
+                                                    color_index = @mod(tween_start_frame.id * 2, 35);
+                                                }
 
-                                            const index_float: f32 = @floatFromInt(fr_index);
-                                            const y: f32 = imgui.getWindowPos().y + (index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;
+                                                const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
+                                                    palette.colors[color_index][0],
+                                                    palette.colors[color_index][1],
+                                                    palette.colors[color_index][2],
+                                                    palette.colors[color_index][3],
+                                                ).toU32() else pixi.state.theme.text.toU32();
 
-                                            var frame_node_scale: f32 = 1.0;
-                                            if (rel_mouse_x) |mouse_x| {
-                                                if (rel_mouse_y) |mouse_y| {
-                                                    if (@abs(mouse_x - (ms_float + work_area_offset)) < frame_node_radius) {
-                                                        const diff_y = @abs(mouse_y + window_position.y - y);
-                                                        const diff_radius = diff_y - frame_node_radius;
+                                                const index_float: f32 = @floatFromInt(fr_index);
+                                                const y: f32 = imgui.getWindowPos().y + (index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;
 
-                                                        if (diff_y < frame_node_radius)
-                                                            frame_node_hovered = fr.id;
+                                                var frame_node_scale: f32 = if (kf.active_frame_id == fr.id and animation.active_keyframe_id == kf.id) 2.0 else 1.0;
+                                                if (rel_mouse_x) |mouse_x| {
+                                                    if (rel_mouse_y) |mouse_y| {
+                                                        if (@abs(mouse_x - (ms_float + work_area_offset)) < frame_node_radius) {
+                                                            const diff_y = @abs(mouse_y + window_position.y - y);
+                                                            const diff_radius = diff_y - frame_node_radius;
 
-                                                        frame_node_scale = std.math.clamp(2.0 - diff_radius / 4.0, 1.0, 2.0);
+                                                            if (diff_y < frame_node_radius)
+                                                                frame_node_hovered = fr.id;
+
+                                                            frame_node_scale = std.math.clamp(2.0 - diff_radius / 4.0, 1.0, 2.0);
+                                                        }
                                                     }
                                                 }
-                                            }
 
-                                            if (pixi.state.mouse.button(.primary)) |bt| {
-                                                if (bt.pressed() and line_hovered and window_hovered) {
-                                                    animation.active_keyframe_id = kf.id;
+                                                if (pixi.state.mouse.button(.primary)) |bt| {
+                                                    if (bt.pressed() and line_hovered and window_hovered) {
+                                                        const secondary_down: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
-                                                    if (frame_node_hovered) |frame_hovered| {
-                                                        frame_node_dragging = frame_hovered;
-                                                    } else {
-                                                        if (frame_node_dragging == null)
-                                                            keyframe_dragging = kf.id;
+                                                        if (!secondary_down) {
+                                                            animation.active_keyframe_id = kf.id;
+
+                                                            if (frame_node_hovered) |frame_hovered| {
+                                                                frame_node_dragging = frame_hovered;
+                                                                kf.active_frame_id = frame_hovered;
+                                                                keyframe_dragging = null;
+                                                            } else {
+                                                                if (frame_node_dragging == null)
+                                                                    keyframe_dragging = kf.id;
+                                                            }
+                                                        } else {
+                                                            if (animation.keyframe(animation.active_keyframe_id)) |active_kf| {
+                                                                if (frame_node_hovered) |frame_hovered_id| {
+                                                                    if (active_kf.frame(active_kf.active_frame_id)) |active_frame| {
+                                                                        if (kf.frame(frame_hovered_id)) |hovered_frame| {
+                                                                            active_frame.tween_id = hovered_frame.id;
+
+                                                                            std.log.debug("active: {d}, hovered: {d}", .{ active_frame.id, hovered_frame.id });
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
-                                            }
 
-                                            draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale, color, 20);
-                                            draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale + 1.0, pixi.state.theme.text_background.toU32());
+                                                if (fr.tween_id) |tween_id| {
+                                                    const from_x = x;
+                                                    const from_y = y;
+
+                                                    if (animation.getKeyframeFromFrame(tween_id)) |tween_kf| {
+                                                        if (tween_kf.frameIndex(tween_id)) |tween_index| {
+                                                            const tween_index_float: f32 = @floatFromInt(tween_index);
+                                                            const to_x: f32 = imgui.getWindowPos().x + tween_kf.time * 1000.0 + work_area_offset;
+                                                            const to_y: f32 = imgui.getWindowPos().y + (tween_index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;
+
+                                                            draw_list.addLine(.{ .x = from_x, .y = from_y }, .{ .x = to_x, .y = to_y }, color);
+                                                        }
+                                                    }
+                                                }
+
+                                                draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale, color, 20);
+                                                draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale + 1.0, pixi.state.theme.text_background.toU32());
+                                            }
                                         }
                                     }
 
@@ -297,7 +336,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                                                         const y: f32 = imgui.getWindowPos().y + (index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;
 
-                                                        const color_index: usize = @mod(frame_id * 2, 35);
+                                                        var color_index: usize = @mod(frame_id * 2, 35);
+
+                                                        if (animation.getTweenStartFrame(frame_id)) |tween_start_frame| {
+                                                            color_index = @mod(tween_start_frame.id * 2, 35);
+                                                        }
 
                                                         const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
                                                             palette.colors[color_index][0],
@@ -328,7 +371,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                                                         const y: f32 = imgui.getWindowPos().y + (index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;
 
-                                                        const color_index: usize = @mod(fr.id * 2, 35);
+                                                        var color_index: usize = @mod(fr.id * 2, 35);
+
+                                                        if (animation.getTweenStartFrame(fr.id)) |tween_start_frame| {
+                                                            color_index = @mod(tween_start_frame.id * 2, 35);
+                                                        }
 
                                                         const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
                                                             palette.colors[color_index][0],
@@ -448,7 +495,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 ) };
 
                 for (selected_keyframe.frames.items) |*frame| {
-                    const color_index: usize = @mod(frame.id * 2, 35);
+                    var color_index: usize = @mod(frame.id * 2, 35);
+
+                    if (selected_animation.getTweenStartFrame(frame.id)) |tween_start_frame| {
+                        color_index = @mod(tween_start_frame.id * 2, 35);
+                    }
 
                     const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
                         palette.colors[color_index][0],
