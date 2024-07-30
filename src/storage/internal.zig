@@ -41,6 +41,7 @@ pub const Pixi = struct {
     selected_keyframe_index: usize = 0,
     selected_keyframe_animation_state: AnimationState = .pause,
     selected_keyframe_animation_elapsed: f32 = 0.0,
+    selected_keyframe_animation_loop: bool = false,
     background: pixi.gfx.Texture,
     temporary_layer: Layer,
     transform_texture: ?TransformTexture = null,

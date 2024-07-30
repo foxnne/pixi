@@ -8,9 +8,17 @@ const zmath = @import("zmath");
 pub var selected_frame_id: ?u32 = null;
 var frame_node_dragging: ?u32 = null;
 var keyframe_dragging: ?u32 = null;
-var time_hovered_ms: ?usize = null;
 
 pub fn draw(file: *pixi.storage.Internal.Pixi) void {
+
+    // Draw transform texture on gpu to temporary texture
+    const file_width: f32 = @floatFromInt(file.width);
+    const file_height: f32 = @floatFromInt(file.height);
+
+    const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
+        zmath.orthographicLh(file_width, file_height, -100, 100),
+    ) };
+
     const window_height = imgui.getWindowHeight();
     const window_width = imgui.getWindowWidth();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -18,6 +26,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     const canvas_center_offset: [2]f32 = file.canvasCenterOffset(.flipbook);
     const window_position = imgui.getWindowPos();
 
+    var time_hovered_ms: ?usize = null;
     var frame_node_hovered: ?u32 = null;
 
     const grip_size: f32 = 10.0;
@@ -37,8 +46,21 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         latest_time = animation.length();
     }
 
-    const length: f32 = latest_time + 2.0;
-    const animation_ms: usize = @intFromFloat(length * 1000.0);
+    if (animation_opt) |animation| {
+        if (file.selected_keyframe_animation_state == .play) {
+            animation.elapsed_time += pixi.state.delta_time;
+
+            if (animation.elapsed_time > animation.length()) {
+                animation.elapsed_time = 0.0;
+                if (!file.selected_keyframe_animation_loop) {
+                    file.selected_keyframe_animation_state = .pause;
+                }
+            }
+        }
+    }
+
+    const timeline_length: f32 = latest_time + 2.0;
+    const animation_ms: usize = @intFromFloat(timeline_length * 1000.0);
     const zoom: f32 = 1.0;
     _ = zoom; // autofix
 
@@ -55,7 +77,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             defer imgui.endChild();
 
             const work_area_offset: f32 = 12.0;
-            const work_area_width: f32 = length * 1000.0 + work_area_offset;
+            const work_area_width: f32 = timeline_length * 1000.0 + work_area_offset;
 
             const scroll_x: f32 = imgui.getScrollX();
             const scroll_y: f32 = imgui.getScrollY();
@@ -225,6 +247,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                                                         if (!secondary_down) {
                                                             animation.active_keyframe_id = kf.id;
+                                                            animation.elapsed_time = @as(f32, @floatFromInt(ms)) / 1000.0;
 
                                                             if (frame_node_hovered) |frame_hovered| {
                                                                 frame_node_dragging = frame_hovered;
@@ -476,197 +499,306 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         if (file.keyframe_animations.items.len > 0) {
             const selected_animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
 
-            var active_keyframe_index: usize = 0;
-            for (selected_animation.keyframes.items, 0..) |keyframe, i| {
-                if (keyframe.id == selected_animation.active_keyframe_id)
-                    active_keyframe_index = i;
-            }
-
             if (selected_animation.keyframes.items.len > 0) {
-                var selected_keyframe: *pixi.storage.Internal.Keyframe = &selected_animation.keyframes.items[active_keyframe_index];
+                const current_ms: usize = if (time_hovered_ms) |ms| ms else @intFromFloat(selected_animation.elapsed_time * 1000.0);
 
-                // Draw transform texture on gpu to temporary texture
+                // if (time_hovered_ms) |ms| {
 
-                const width: f32 = @floatFromInt(file.width);
-                const height: f32 = @floatFromInt(file.height);
+                //     // If we have a keyframe for this time, go ahead and draw it normally
+                if (selected_animation.getKeyframeMilliseconds(current_ms)) |selected_keyframe| {
+                    for (selected_keyframe.frames.items) |*frame| {
+                        var color_index: usize = @mod(frame.id * 2, 35);
 
-                const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
-                    zmath.orthographicLh(width, height, -100, 100),
-                ) };
+                        if (selected_animation.getTweenStartFrame(frame.id)) |tween_start_frame| {
+                            color_index = @mod(tween_start_frame.id * 2, 35);
+                        }
 
-                for (selected_keyframe.frames.items) |*frame| {
-                    var color_index: usize = @mod(frame.id * 2, 35);
+                        const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
+                            palette.colors[color_index][0],
+                            palette.colors[color_index][1],
+                            palette.colors[color_index][2],
+                            palette.colors[color_index][3],
+                        ).toU32() else pixi.state.theme.text.toU32();
 
-                    if (selected_animation.getTweenStartFrame(frame.id)) |tween_start_frame| {
-                        color_index = @mod(tween_start_frame.id * 2, 35);
-                    }
+                        if (file.layer(frame.layer_id)) |layer| {
+                            if (layer.transform_bindgroup) |transform_bindgroup| {
+                                pixi.state.batcher.begin(.{
+                                    .pipeline_handle = pixi.state.pipeline_default,
+                                    .bind_group_handle = transform_bindgroup,
+                                    .output_texture = &file.keyframe_animation_texture,
+                                    .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+                                }) catch unreachable;
 
-                    const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
-                        palette.colors[color_index][0],
-                        palette.colors[color_index][1],
-                        palette.colors[color_index][2],
-                        palette.colors[color_index][3],
-                    ).toU32() else pixi.state.theme.text.toU32();
+                                if (file.flipbook_camera.isHovered(.{
+                                    frame.pivot.position[0] - scaled_grip_size / 2.0,
+                                    frame.pivot.position[1] - scaled_grip_size / 2.0,
+                                    scaled_grip_size,
+                                    scaled_grip_size,
+                                })) {
+                                    if (frame.id != selected_keyframe.active_frame_id) {
+                                        if (pixi.state.mouse.button(.primary)) |bt| {
+                                            if (bt.pressed()) {
+                                                var change: bool = true;
 
-                    if (file.layer(frame.layer_id)) |layer| {
-                        if (layer.transform_bindgroup) |transform_bindgroup| {
-                            pixi.state.batcher.begin(.{
-                                .pipeline_handle = pixi.state.pipeline_default,
-                                .bind_group_handle = transform_bindgroup,
-                                .output_texture = &file.keyframe_animation_texture,
-                                .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
-                            }) catch unreachable;
-
-                            if (file.flipbook_camera.isHovered(.{
-                                frame.pivot.position[0] - scaled_grip_size / 2.0,
-                                frame.pivot.position[1] - scaled_grip_size / 2.0,
-                                scaled_grip_size,
-                                scaled_grip_size,
-                            })) {
-                                if (frame.id != selected_keyframe.active_frame_id) {
-                                    if (pixi.state.mouse.button(.primary)) |bt| {
-                                        if (bt.pressed()) {
-                                            var change: bool = true;
-
-                                            if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
-                                                if (hk.down()) {
-                                                    frame.parent_id = null;
-                                                    change = false;
-                                                }
-                                            }
-
-                                            if (frame.id != selected_keyframe.active_frame_id) {
-                                                if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                                if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
                                                     if (hk.down()) {
-                                                        if (selected_keyframe.frame(selected_keyframe.active_frame_id)) |active_frame| {
-                                                            active_frame.parent_id = frame.id;
-                                                        }
-
+                                                        frame.parent_id = null;
                                                         change = false;
                                                     }
                                                 }
-                                                if (change) {
-                                                    selected_keyframe.active_frame_id = frame.id;
+
+                                                if (frame.id != selected_keyframe.active_frame_id) {
+                                                    if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                                        if (hk.down()) {
+                                                            if (selected_keyframe.frame(selected_keyframe.active_frame_id)) |active_frame| {
+                                                                active_frame.parent_id = frame.id;
+                                                            }
+
+                                                            change = false;
+                                                        }
+                                                    }
+                                                    if (change) {
+                                                        selected_keyframe.active_frame_id = frame.id;
+                                                    }
                                                 }
                                             }
                                         }
+                                        file.flipbook_camera.drawCircleFilled(
+                                            .{ frame.pivot.position[0], frame.pivot.position[1] },
+                                            half_grip_size * 1.5,
+                                            color,
+                                        );
+                                        file.flipbook_camera.drawCircle(
+                                            .{ frame.pivot.position[0], frame.pivot.position[1] },
+                                            half_grip_size * 1.5 + 1.0,
+                                            1.0,
+                                            pixi.state.theme.text_background.toU32(),
+                                        );
                                     }
+                                } else {
                                     file.flipbook_camera.drawCircleFilled(
                                         .{ frame.pivot.position[0], frame.pivot.position[1] },
-                                        half_grip_size * 1.5,
+                                        half_grip_size,
                                         color,
                                     );
                                     file.flipbook_camera.drawCircle(
                                         .{ frame.pivot.position[0], frame.pivot.position[1] },
-                                        half_grip_size * 1.5 + 1.0,
+                                        half_grip_size + 1.0,
                                         1.0,
                                         pixi.state.theme.text_background.toU32(),
                                     );
                                 }
-                            } else {
-                                file.flipbook_camera.drawCircleFilled(
-                                    .{ frame.pivot.position[0], frame.pivot.position[1] },
-                                    half_grip_size,
-                                    color,
-                                );
-                                file.flipbook_camera.drawCircle(
-                                    .{ frame.pivot.position[0], frame.pivot.position[1] },
-                                    half_grip_size + 1.0,
-                                    1.0,
-                                    pixi.state.theme.text_background.toU32(),
-                                );
+
+                                const tiles_wide = @divExact(file.width, file.tile_width);
+
+                                const src_col = @mod(@as(u32, @intCast(frame.sprite_index)), tiles_wide);
+                                const src_row = @divTrunc(@as(u32, @intCast(frame.sprite_index)), tiles_wide);
+
+                                const src_x = src_col * file.tile_width;
+                                const src_y = src_row * file.tile_height;
+
+                                const sprite: pixi.gfx.Sprite = .{
+                                    .name = "",
+                                    .origin = .{ 0, 0 },
+                                    .source = .{
+                                        src_x,
+                                        src_y,
+                                        file.tile_width,
+                                        file.tile_height,
+                                    },
+                                };
+
+                                var rotation = -frame.rotation;
+
+                                if (frame.parent_id) |parent_id| {
+                                    for (selected_keyframe.frames.items) |parent_frame| {
+                                        if (parent_frame.id == parent_id) {
+                                            const diff = parent_frame.pivot.position - frame.pivot.position;
+
+                                            const angle = std.math.atan2(diff[1], diff[0]);
+
+                                            rotation -= std.math.radiansToDegrees(angle) - 90.0;
+
+                                            file.flipbook_camera.drawLine(
+                                                .{ frame.pivot.position[0], frame.pivot.position[1] },
+                                                .{ parent_frame.pivot.position[0], parent_frame.pivot.position[1] },
+                                                color,
+                                                1.0,
+                                            );
+                                        }
+                                    }
+                                }
+
+                                pixi.state.batcher.transformSprite(
+                                    &layer.texture,
+                                    sprite,
+                                    frame.vertices,
+                                    .{ 0.0, 0.0 },
+                                    .{ frame.pivot.position[0], -frame.pivot.position[1] },
+                                    .{
+                                        .rotation = rotation,
+                                    },
+                                ) catch unreachable;
+
+                                pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
                             }
 
-                            const tiles_wide = @divExact(file.width, file.tile_width);
+                            if (selected_keyframe.active_frame_id == frame.id and file.selected_keyframe_animation_state == .pause) {
+                                // Write from the frame to the transform texture
+                                @memcpy(&file.keyframe_transform_texture.vertices, &frame.vertices);
+                                file.keyframe_transform_texture.pivot = frame.pivot;
+                                file.keyframe_transform_texture.rotation = frame.rotation;
 
-                            const src_col = @mod(@as(u32, @intCast(frame.sprite_index)), tiles_wide);
-                            const src_row = @divTrunc(@as(u32, @intCast(frame.sprite_index)), tiles_wide);
+                                // Write parent id
+                                if (frame.parent_id) |parent_id| {
+                                    file.keyframe_transform_texture.keyframe_parent_id = parent_id;
+                                }
 
-                            const src_x = src_col * file.tile_width;
-                            const src_y = src_row * file.tile_height;
+                                // Process transform texture controls
+                                file.processTransformTextureControls(&file.keyframe_transform_texture, .{
+                                    .canvas = .flipbook,
+                                    .allow_pivot_move = false,
+                                    .allow_vert_move = false,
+                                    .color = color,
+                                });
 
-                            const sprite: pixi.gfx.Sprite = .{
-                                .name = "",
-                                .origin = .{ 0, 0 },
-                                .source = .{
-                                    src_x,
-                                    src_y,
-                                    file.tile_width,
-                                    file.tile_height,
-                                },
-                            };
+                                // Clear the parent
+                                file.keyframe_transform_texture.keyframe_parent_id = null;
 
-                            var rotation = -frame.rotation;
+                                // Write back to the frame
+                                @memcpy(&frame.vertices, &file.keyframe_transform_texture.vertices);
+                                frame.pivot = file.keyframe_transform_texture.pivot.?;
+                                frame.rotation = file.keyframe_transform_texture.rotation;
+                            }
 
-                            if (frame.parent_id) |parent_id| {
-                                for (selected_keyframe.frames.items) |parent_frame| {
-                                    if (parent_frame.id == parent_id) {
-                                        const diff = parent_frame.pivot.position - frame.pivot.position;
+                            // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
+                            @memset(file.keyframe_animation_texture.image.data, 0.0);
+                            file.keyframe_animation_texture.update(core.device);
+                        }
+                    }
+                } else {
 
-                                        const angle = std.math.atan2(diff[1], diff[0]);
+                    // We dont have a keyframe for this time, so we need to search the keyframes for tweens and blend
 
-                                        rotation -= std.math.radiansToDegrees(angle) - 90.0;
+                    const current_time: f32 = @as(f32, @floatFromInt(current_ms)) / 1000.0;
 
-                                        file.flipbook_camera.drawLine(
-                                            .{ frame.pivot.position[0], frame.pivot.position[1] },
-                                            .{ parent_frame.pivot.position[0], parent_frame.pivot.position[1] },
-                                            color,
-                                            1.0,
-                                        );
+                    var from_keyframe_opt: ?*pixi.storage.Internal.Keyframe = null;
+
+                    // Find the "from" keyframe, which will have the highest time while still being less than hovered time
+                    for (selected_animation.keyframes.items) |*keyframe| {
+                        if (keyframe.time <= current_time) {
+                            if (from_keyframe_opt) |from| {
+                                if (from.time < keyframe.time)
+                                    from_keyframe_opt = keyframe;
+                            } else {
+                                from_keyframe_opt = keyframe;
+                            }
+                        }
+                    }
+
+                    if (from_keyframe_opt) |from_keyframe| {
+                        for (from_keyframe.frames.items) |from_frame| {
+                            if (from_frame.tween_id) |from_tween_id| {
+                                if (selected_animation.getKeyframeFromFrame(from_tween_id)) |to_keyframe| {
+                                    if (to_keyframe.frame(from_tween_id)) |to_frame| {
+                                        const begin_time = from_keyframe.time;
+                                        const end_time = to_keyframe.time;
+
+                                        const progress = current_time - begin_time;
+                                        const total = end_time - begin_time;
+
+                                        const t: f32 = progress / total;
+
+                                        const tween_vertices: [4]pixi.storage.Internal.Pixi.TransformVertex = .{
+                                            .{ .position = zmath.lerp(from_frame.vertices[0].position, to_frame.vertices[0].position, t) },
+                                            .{ .position = zmath.lerp(from_frame.vertices[1].position, to_frame.vertices[1].position, t) },
+                                            .{ .position = zmath.lerp(from_frame.vertices[2].position, to_frame.vertices[2].position, t) },
+                                            .{ .position = zmath.lerp(from_frame.vertices[3].position, to_frame.vertices[3].position, t) },
+                                        };
+
+                                        const tween_pivot: pixi.storage.Internal.Pixi.TransformVertex = .{ .position = zmath.lerp(from_frame.pivot.position, to_frame.pivot.position, t) };
+
+                                        var from_rotation: f32 = from_frame.rotation;
+
+                                        if (from_frame.parent_id) |parent_id| {
+                                            if (from_keyframe.frame(parent_id)) |parent_frame| {
+                                                const diff = parent_frame.pivot.position - from_frame.pivot.position;
+                                                const angle = std.math.atan2(diff[1], diff[0]);
+
+                                                const rotation = std.math.radiansToDegrees(angle) - 90.0;
+
+                                                from_rotation += rotation;
+                                            }
+                                        }
+
+                                        var to_rotation: f32 = to_frame.rotation;
+
+                                        if (to_frame.parent_id) |parent_id| {
+                                            if (to_keyframe.frame(parent_id)) |parent_frame| {
+                                                const diff = parent_frame.pivot.position - to_frame.pivot.position;
+                                                const angle = std.math.atan2(diff[1], diff[0]);
+
+                                                const rotation = std.math.radiansToDegrees(angle) - 90.0;
+
+                                                to_rotation += rotation;
+                                            }
+                                        }
+
+                                        const tween_rotation = pixi.math.lerp(from_rotation, to_rotation, t);
+
+                                        if (file.layer(from_frame.layer_id)) |layer| {
+                                            if (layer.transform_bindgroup) |transform_bindgroup| {
+                                                pixi.state.batcher.begin(.{
+                                                    .pipeline_handle = pixi.state.pipeline_default,
+                                                    .bind_group_handle = transform_bindgroup,
+                                                    .output_texture = &file.keyframe_animation_texture,
+                                                    .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+                                                }) catch unreachable;
+
+                                                const tiles_wide = @divExact(file.width, file.tile_width);
+
+                                                const src_col = @mod(@as(u32, @intCast(from_frame.sprite_index)), tiles_wide);
+                                                const src_row = @divTrunc(@as(u32, @intCast(from_frame.sprite_index)), tiles_wide);
+
+                                                const src_x = src_col * file.tile_width;
+                                                const src_y = src_row * file.tile_height;
+
+                                                const sprite: pixi.gfx.Sprite = .{
+                                                    .name = "",
+                                                    .origin = .{ 0, 0 },
+                                                    .source = .{
+                                                        src_x,
+                                                        src_y,
+                                                        file.tile_width,
+                                                        file.tile_height,
+                                                    },
+                                                };
+
+                                                pixi.state.batcher.transformSprite(
+                                                    &layer.texture,
+                                                    sprite,
+                                                    tween_vertices,
+                                                    .{ 0.0, 0.0 },
+                                                    .{ tween_pivot.position[0], -tween_pivot.position[1] },
+                                                    .{
+                                                        .rotation = -tween_rotation,
+                                                    },
+                                                ) catch unreachable;
+
+                                                pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
+
+                                                // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
+                                                @memset(file.keyframe_animation_texture.image.data, 0.0);
+                                                file.keyframe_animation_texture.update(core.device);
+                                            }
+                                        }
                                     }
                                 }
                             }
-
-                            pixi.state.batcher.transformSprite(
-                                &layer.texture,
-                                sprite,
-                                frame.vertices,
-                                .{ 0.0, 0.0 },
-                                .{ frame.pivot.position[0], -frame.pivot.position[1] },
-                                .{
-                                    .rotation = rotation,
-                                },
-                            ) catch unreachable;
-
-                            pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
                         }
-
-                        if (selected_keyframe.active_frame_id == frame.id) {
-                            // Write from the frame to the transform texture
-                            @memcpy(&file.keyframe_transform_texture.vertices, &frame.vertices);
-                            file.keyframe_transform_texture.pivot = frame.pivot;
-                            file.keyframe_transform_texture.rotation = frame.rotation;
-
-                            // Write parent id
-                            if (frame.parent_id) |parent_id| {
-                                file.keyframe_transform_texture.keyframe_parent_id = parent_id;
-                            }
-
-                            // Process transform texture controls
-                            file.processTransformTextureControls(&file.keyframe_transform_texture, .{
-                                .canvas = .flipbook,
-                                .allow_pivot_move = false,
-                                .allow_vert_move = false,
-                                .color = color,
-                            });
-
-                            // Clear the parent
-                            file.keyframe_transform_texture.keyframe_parent_id = null;
-
-                            // Write back to the frame
-                            @memcpy(&frame.vertices, &file.keyframe_transform_texture.vertices);
-                            frame.pivot = file.keyframe_transform_texture.pivot.?;
-                            frame.rotation = file.keyframe_transform_texture.rotation;
-                        }
-
-                        // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
-                        @memset(file.keyframe_animation_texture.image.data, 0.0);
-                        file.keyframe_animation_texture.update(core.device);
                     }
                 }
             }
         }
-
-        time_hovered_ms = null;
     }
 }
