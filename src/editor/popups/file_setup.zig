@@ -137,7 +137,7 @@ pub fn draw() void {
         }
 
         if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
-            if (std.mem.eql(u8, ".pixi", ext[0..5])) {
+            if (ext.len > 0 and std.mem.eql(u8, ".pixi", ext[0..5])) {
                 switch (pixi.state.popups.file_setup_state) {
                     .new => {
                         if (pixi.editor.newFile(pixi.state.allocator.dupeZ(u8, file_setup_path) catch unreachable, null) catch unreachable) {
