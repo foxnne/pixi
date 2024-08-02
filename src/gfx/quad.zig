@@ -30,6 +30,7 @@ pub const Quad = struct {
         self.vertices[1].uv = [_]f32{ (x + width) * inv_w - w_tol, y * inv_h + h_tol };
         self.vertices[2].uv = [_]f32{ (x + width) * inv_w - w_tol, (y + height) * inv_h - h_tol };
         self.vertices[3].uv = [_]f32{ x * inv_w + w_tol, (y + height) * inv_h - h_tol };
+        self.vertices[4].uv = [_]f32{ (self.vertices[0].uv[0] + self.vertices[1].uv[0]) / 2.0, (self.vertices[0].uv[1] + self.vertices[2].uv[1]) / 2.0 };
     }
 
     pub fn flipHorizontally(self: *Quad) void {
@@ -68,7 +69,7 @@ pub const Quad = struct {
         }
     }
 
-    pub fn rotate(self: *Quad, rotation: f32, centroid: zm.F32x4) void {
+    pub fn rotate(self: *Quad, rotation: f32, pivot: zm.F32x4) void {
         for (0..5) |i| {
             const vert = self.vertices[i];
             var position = zm.loadArr3(vert.position);
@@ -76,9 +77,9 @@ pub const Quad = struct {
 
             const rotation_matrix = zm.rotationZ(radians);
 
-            position -= centroid;
+            position -= pivot;
             position = zm.mul(position, rotation_matrix);
-            position += centroid;
+            position += pivot;
 
             zm.storeArr3(&self.vertices[i].position, position);
         }

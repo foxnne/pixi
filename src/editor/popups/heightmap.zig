@@ -52,7 +52,7 @@ pub fn draw() void {
                 file.heightmap.layer = .{
                     .name = pixi.state.allocator.dupeZ(u8, "heightmap") catch unreachable,
                     .texture = pixi.gfx.Texture.createEmpty(file.width, file.height, .{}) catch unreachable,
-                    .id = file.id(),
+                    .id = file.newId(),
                 };
                 file.history.append(.{ .heightmap_restore_delete = .{ .action = .delete } }) catch unreachable;
                 pixi.state.popups.heightmap = false;

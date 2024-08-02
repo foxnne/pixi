@@ -29,6 +29,7 @@ pub const Proc = enum(u32) {
     redo,
     primary,
     secondary,
+    escape,
     sample,
     zoom,
     folder,
@@ -145,6 +146,14 @@ pub fn process(self: *Self) !void {
 
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
         if (file.transform_texture != null) return;
+
+        if (self.hotkey(.{ .proc = .escape })) |hk| {
+            if (hk.pressed()) {
+                if (file.selected_sprites.items.len > 0) {
+                    file.selected_sprites.clearAndFree();
+                }
+            }
+        }
 
         if (self.hotkey(.{ .proc = .save })) |hk| {
             if (hk.pressed()) {
@@ -346,7 +355,9 @@ pub fn process(self: *Self) !void {
         if (hk.pressed()) {
             switch (hk.action) {
                 .tool => |tool| pixi.state.tools.set(tool),
-                .sidebar => |sidebar| pixi.state.sidebar = sidebar,
+                .sidebar => |sidebar| {
+                    pixi.state.sidebar = sidebar;
+                },
                 else => {},
             }
         }
@@ -391,6 +402,13 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .num_lock = false,
             },
             .action = .{ .proc = Proc.secondary },
+        });
+
+        // Escape
+        try hotkeys.append(.{
+            .shortcut = "esc",
+            .key = Key.escape,
+            .action = .{ .proc = Proc.escape },
         });
     }
 

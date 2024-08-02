@@ -232,9 +232,7 @@ pub fn draw() void {
                 const flipbook_height = window_height - artboard_height - pixi.state.settings.info_bar_height * pixi.content_scale[1];
 
                 var flipbook_flags: imgui.WindowFlags = 0;
-                if (pixi.editor.getFile(pixi.state.open_file_index)) |_| {
-                    flipbook_flags |= imgui.WindowFlags_MenuBar;
-                }
+                flipbook_flags |= imgui.WindowFlags_MenuBar;
 
                 if (imgui.beginChild("Flipbook", .{
                     .x = 0.0,
@@ -242,11 +240,14 @@ pub fn draw() void {
                 }, imgui.ChildFlags_None, flipbook_flags)) {
                     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
                         flipbook.menu.draw(file, artboard_flipbook_ratio);
-
-                        if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-                            flipbook.canvas.draw(file);
+                        if (pixi.state.sidebar == .keyframe_animations or file.flipbook_view == .timeline) {
+                            flipbook.timeline.draw(file);
+                        } else {
+                            if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+                                defer imgui.endChild();
+                                flipbook.canvas.draw(file);
+                            }
                         }
-                        imgui.endChild();
                     }
                 }
                 imgui.endChild();

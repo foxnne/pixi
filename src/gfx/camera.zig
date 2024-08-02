@@ -34,7 +34,7 @@ pub const Camera = struct {
         return transform;
     }
 
-    pub fn drawGrid(camera: Camera, position: [2]f32, width: f32, height: f32, columns: usize, rows: usize, color: u32) void {
+    pub fn drawGrid(camera: Camera, position: [2]f32, width: f32, height: f32, columns: usize, rows: usize, color: u32, skip_centers: bool) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], width, height });
 
         const tile_width = width / @as(f32, @floatFromInt(columns));
@@ -43,6 +43,11 @@ pub const Camera = struct {
         if (imgui.getWindowDrawList()) |draw_list| {
             var i: usize = 0;
             while (i < columns + 1) : (i += 1) {
+                if (skip_centers) {
+                    if (@divFloor(columns, 2) == i)
+                        continue;
+                }
+
                 const p1: imgui.Vec2 = .{ .x = rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, .y = rect_min_max[0][1] };
                 const p2: imgui.Vec2 = .{ .x = rect_min_max[0][0] + @as(f32, @floatFromInt(i)) * tile_width * camera.zoom, .y = rect_min_max[0][1] + height * camera.zoom };
                 draw_list.addLineEx(
@@ -55,6 +60,10 @@ pub const Camera = struct {
 
             i = 0;
             while (i < rows + 1) : (i += 1) {
+                if (skip_centers) {
+                    if (@divFloor(rows, 2) == i)
+                        continue;
+                }
                 const p1: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
                 const p2: imgui.Vec2 = .{ .x = rect_min_max[0][0] + width * camera.zoom, .y = rect_min_max[0][1] + @as(f32, @floatFromInt(i)) * tile_height * camera.zoom };
                 draw_list.addLineEx(
@@ -158,7 +167,7 @@ pub const Camera = struct {
         const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
 
         if (imgui.getWindowDrawList()) |draw_list|
-            draw_list.addCircleFilled(pos_vec, radius, color, 10);
+            draw_list.addCircleFilled(pos_vec, radius, color, 20);
     }
 
     pub fn drawRect(camera: Camera, rect: [4]f32, thickness: f32, color: u32) void {

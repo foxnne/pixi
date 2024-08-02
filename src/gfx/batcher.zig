@@ -26,12 +26,12 @@ pub const Batcher = struct {
     /// Contains instructions on pipeline and binding for the current batch
     pub const Context = struct {
         pipeline_handle: *gpu.RenderPipeline,
-        compute_pipeline_handle: *gpu.ComputePipeline,
         bind_group_handle: *gpu.BindGroup,
-        compute_bind_group_handle: *gpu.BindGroup,
-        compute_buffer: *gpu.Buffer,
-        staging_buffer: *gpu.Buffer,
-        buffer_size: usize,
+        compute_pipeline_handle: ?*gpu.ComputePipeline = null,
+        compute_bind_group_handle: ?*gpu.BindGroup = null,
+        compute_buffer: ?*gpu.Buffer = null,
+        staging_buffer: ?*gpu.Buffer = null,
+        buffer_size: usize = 0,
         // If output handle is null, render to the back buffer
         // otherwise, render to offscreen texture view handle
         //output_handle: ?*gpu.TextureView = null,
@@ -52,18 +52,18 @@ pub const Batcher = struct {
         // Arrange index buffer for quads
         var i: usize = 0;
         while (i < max_quads) : (i += 1) {
-            indices[i * num_indices + 0] = @as(u32, @intCast(i * num_triangles + 0));
-            indices[i * num_indices + 1] = @as(u32, @intCast(i * num_triangles + 1));
-            indices[i * num_indices + 2] = @as(u32, @intCast(i * num_triangles + 4));
-            indices[i * num_indices + 3] = @as(u32, @intCast(i * num_triangles + 1));
-            indices[i * num_indices + 4] = @as(u32, @intCast(i * num_triangles + 2));
-            indices[i * num_indices + 5] = @as(u32, @intCast(i * num_triangles + 4));
-            indices[i * num_indices + 6] = @as(u32, @intCast(i * num_triangles + 2));
-            indices[i * num_indices + 7] = @as(u32, @intCast(i * num_triangles + 3));
-            indices[i * num_indices + 8] = @as(u32, @intCast(i * num_triangles + 4));
-            indices[i * num_indices + 9] = @as(u32, @intCast(i * num_triangles + 3));
-            indices[i * num_indices + 10] = @as(u32, @intCast(i * num_triangles + 0));
-            indices[i * num_indices + 11] = @as(u32, @intCast(i * num_triangles + 4));
+            indices[i * num_indices + 0] = @as(u32, @intCast(i * num_verts + 0));
+            indices[i * num_indices + 1] = @as(u32, @intCast(i * num_verts + 1));
+            indices[i * num_indices + 2] = @as(u32, @intCast(i * num_verts + 4));
+            indices[i * num_indices + 3] = @as(u32, @intCast(i * num_verts + 1));
+            indices[i * num_indices + 4] = @as(u32, @intCast(i * num_verts + 2));
+            indices[i * num_indices + 5] = @as(u32, @intCast(i * num_verts + 4));
+            indices[i * num_indices + 6] = @as(u32, @intCast(i * num_verts + 2));
+            indices[i * num_indices + 7] = @as(u32, @intCast(i * num_verts + 3));
+            indices[i * num_indices + 8] = @as(u32, @intCast(i * num_verts + 4));
+            indices[i * num_indices + 9] = @as(u32, @intCast(i * num_verts + 3));
+            indices[i * num_indices + 10] = @as(u32, @intCast(i * num_verts + 0));
+            indices[i * num_indices + 11] = @as(u32, @intCast(i * num_verts + 4));
         }
 
         const vertex_buffer_descriptor = .{
@@ -101,7 +101,7 @@ pub const Batcher = struct {
 
     /// Returns true if vertices array has room for another quad
     pub fn hasCapacity(self: Batcher) bool {
-        return self.quad_count * num_verts < self.vertices.len - 1;
+        return self.quad_count * num_verts < self.vertices.len - num_verts;
     }
 
     /// Attempts to resize the buffers to hold a larger capacity
@@ -114,18 +114,18 @@ pub const Batcher = struct {
         // Arrange index buffer for quads
         var i: usize = 0;
         while (i < max_quads) : (i += 1) {
-            self.indices[i * num_indices + 0] = @as(u32, @intCast(i * num_triangles + 0));
-            self.indices[i * num_indices + 1] = @as(u32, @intCast(i * num_triangles + 1));
-            self.indices[i * num_indices + 2] = @as(u32, @intCast(i * num_triangles + 4));
-            self.indices[i * num_indices + 3] = @as(u32, @intCast(i * num_triangles + 1));
-            self.indices[i * num_indices + 4] = @as(u32, @intCast(i * num_triangles + 2));
-            self.indices[i * num_indices + 5] = @as(u32, @intCast(i * num_triangles + 4));
-            self.indices[i * num_indices + 6] = @as(u32, @intCast(i * num_triangles + 2));
-            self.indices[i * num_indices + 7] = @as(u32, @intCast(i * num_triangles + 4));
-            self.indices[i * num_indices + 8] = @as(u32, @intCast(i * num_triangles + 3));
-            self.indices[i * num_indices + 9] = @as(u32, @intCast(i * num_triangles + 3));
-            self.indices[i * num_indices + 10] = @as(u32, @intCast(i * num_triangles + 4));
-            self.indices[i * num_indices + 11] = @as(u32, @intCast(i * num_triangles + 0));
+            self.indices[i * num_indices + 0] = @as(u32, @intCast(i * num_verts + 0));
+            self.indices[i * num_indices + 1] = @as(u32, @intCast(i * num_verts + 1));
+            self.indices[i * num_indices + 2] = @as(u32, @intCast(i * num_verts + 4));
+            self.indices[i * num_indices + 3] = @as(u32, @intCast(i * num_verts + 1));
+            self.indices[i * num_indices + 4] = @as(u32, @intCast(i * num_verts + 2));
+            self.indices[i * num_indices + 5] = @as(u32, @intCast(i * num_verts + 4));
+            self.indices[i * num_indices + 6] = @as(u32, @intCast(i * num_verts + 2));
+            self.indices[i * num_indices + 7] = @as(u32, @intCast(i * num_verts + 4));
+            self.indices[i * num_indices + 8] = @as(u32, @intCast(i * num_verts + 3));
+            self.indices[i * num_indices + 9] = @as(u32, @intCast(i * num_verts + 3));
+            self.indices[i * num_indices + 10] = @as(u32, @intCast(i * num_verts + 4));
+            self.indices[i * num_indices + 11] = @as(u32, @intCast(i * num_verts + 0));
         }
 
         std.log.warn("[{s}] Batcher buffers resized, previous size: {d} - new size: {d}", .{ pixi.name, self.quad_count, max_quads });
@@ -295,6 +295,76 @@ pub const Batcher = struct {
         return self.append(quad);
     }
 
+    /// Appends a quad at the passed position set to the size needed to render the target sprite.
+    pub fn transformSprite(self: *Batcher, t: *gfx.Texture, s: gfx.Sprite, vertices: [4]pixi.storage.Internal.Pixi.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
+        var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
+        zmath.store(&color, options.color, 4);
+
+        const x = @as(f32, @floatFromInt(s.source[0]));
+        const y = @as(f32, @floatFromInt(s.source[1]));
+        const width = @as(f32, @floatFromInt(s.source[2]));
+        const height = @as(f32, @floatFromInt(s.source[3]));
+
+        const tex_width = @as(f32, @floatFromInt(t.image.width));
+        const tex_height = @as(f32, @floatFromInt(t.image.height));
+
+        var centroid = zmath.f32x4(0.0, 0.0, 0.0, 0.0);
+        for (vertices) |v| {
+            centroid += v.position;
+        }
+        centroid = centroid / zmath.f32x4s(4.0);
+
+        const max: f32 = if (!options.flip_y) 1.0 else 0.0;
+        const min: f32 = if (!options.flip_y) 0.0 else 1.0;
+
+        var quad = gfx.Quad{
+            .vertices = [_]gfx.Vertex{
+                .{
+                    .position = [3]f32{ vertices[0].position[0] + offset[0], -vertices[0].position[1] + offset[1], vertices[0].position[2] },
+                    .uv = [2]f32{ if (options.flip_x) max else min, min },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Bl
+                .{
+                    .position = [3]f32{ vertices[1].position[0] + offset[0], -vertices[1].position[1] + offset[1], vertices[1].position[2] },
+                    .uv = [2]f32{ if (options.flip_x) min else max, min },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Br
+                .{
+                    .position = [3]f32{ vertices[2].position[0] + offset[0], -vertices[2].position[1] + offset[1], vertices[2].position[2] },
+                    .uv = [2]f32{ if (options.flip_x) min else max, max },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Tr
+                .{
+                    .position = [3]f32{ vertices[3].position[0] + offset[0], -vertices[3].position[1] + offset[1], vertices[3].position[2] },
+                    .uv = [2]f32{ if (options.flip_x) max else min, max },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Tl
+                .{
+                    .position = [3]f32{ centroid[0] + offset[0], -centroid[1] + offset[1], 0.0 },
+                    .uv = [2]f32{ 0.5, 0.5 },
+                    .color = color,
+                    .data = [3]f32{ options.data_0, options.data_1, options.data_2 },
+                }, //Center
+            },
+        };
+
+        // Set viewport of quad to the sprite
+        quad.setViewport(x, y, width, height, tex_width, tex_height);
+
+        // Apply mirroring
+        if (options.flip_x) quad.flipHorizontally();
+        if (options.flip_y) quad.flipVertically();
+
+        // Apply rotation
+        if (options.rotation > 0.0 or options.rotation < 0.0) quad.rotate(options.rotation, zmath.loadArr2(pivot) + zmath.loadArr2(offset));
+
+        return self.append(quad);
+    }
+
     pub const SpriteOptions = struct {
         color: [4]f32 = .{ 1.0, 1.0, 1.0, 1.0 },
         flip_x: bool = false,
@@ -406,7 +476,7 @@ pub const Batcher = struct {
 
             const color_attachments = [_]gpu.RenderPassColorAttachment{.{
                 .view = if (self.context.output_texture) |out_texture| out_texture.view_handle else back_buffer_view,
-                .load_op = .clear,
+                .load_op = .load,
                 .store_op = .store,
                 .clear_value = self.context.clear_color,
             }};
@@ -440,40 +510,48 @@ pub const Batcher = struct {
         }
 
         pass_blk: {
-            const encoder = self.encoder orelse break :pass_blk;
-            { // Compute pass for blur shader to blur bloom texture
-                const compute_pass = encoder.beginComputePass(null);
-                defer {
-                    compute_pass.end();
-                    compute_pass.release();
+            if (self.context.compute_bind_group_handle) |compute_bind_group_handle| {
+                if (self.context.compute_pipeline_handle) |compute_pipeline_handle| {
+                    if (self.context.compute_buffer) |compute_buffer| {
+                        if (self.context.staging_buffer) |staging_buffer| {
+                            const encoder = self.encoder orelse break :pass_blk;
+                            { // Compute pass for blur shader to blur bloom texture
+                                const compute_pass = encoder.beginComputePass(null);
+                                defer {
+                                    compute_pass.end();
+                                    compute_pass.release();
+                                }
+                                compute_pass.setPipeline(compute_pipeline_handle);
+                                compute_pass.setBindGroup(0, compute_bind_group_handle, &.{});
+
+                                compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
+                            }
+
+                            encoder.copyBufferToBuffer(compute_buffer, 0, staging_buffer, 0, self.context.buffer_size);
+
+                            // TODO: The below method is not implemented in sysgpu yet. In the meantime, we are using a compute shader to copy the
+                            // TODO: data to the staging buffer. If this gets implemented, we can skip the compute shader and use this.
+
+                            // encoder.copyTextureToBuffer(
+                            //     &.{
+                            //         .texture = self.context.output_texture.?.handle,
+                            //     },
+                            //     &.{
+                            //         .buffer = self.context.staging_buffer,
+                            //         .layout = .{
+                            //             .bytes_per_row = @sizeOf([4]u8) * self.context.output_texture.?.image.width,
+                            //             .rows_per_image = self.context.output_texture.?.image.height,
+                            //         },
+                            //     },
+                            //     &.{
+                            //         .width = self.context.output_texture.?.image.width,
+                            //         .height = self.context.output_texture.?.image.height,
+                            //     },
+                            // );
+                        }
+                    }
                 }
-                compute_pass.setPipeline(self.context.compute_pipeline_handle);
-                compute_pass.setBindGroup(0, self.context.compute_bind_group_handle, &.{});
-
-                compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
             }
-
-            encoder.copyBufferToBuffer(self.context.compute_buffer, 0, self.context.staging_buffer, 0, self.context.buffer_size);
-
-            // TODO: The below method is not implemented in sysgpu yet. In the meantime, we are using a compute shader to copy the
-            // TODO: data to the staging buffer. If this gets implemented, we can skip the compute shader and use this.
-
-            // encoder.copyTextureToBuffer(
-            //     &.{
-            //         .texture = self.context.output_texture.?.handle,
-            //     },
-            //     &.{
-            //         .buffer = self.context.staging_buffer,
-            //         .layout = .{
-            //             .bytes_per_row = @sizeOf([4]u8) * self.context.output_texture.?.image.width,
-            //             .rows_per_image = self.context.output_texture.?.image.height,
-            //         },
-            //     },
-            //     &.{
-            //         .width = self.context.output_texture.?.image.width,
-            //         .height = self.context.output_texture.?.image.height,
-            //     },
-            // );
         }
     }
 

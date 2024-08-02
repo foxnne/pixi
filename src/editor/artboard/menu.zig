@@ -84,12 +84,34 @@ pub fn draw() void {
             if (imgui.beginMenu("Flipbook")) {
                 defer imgui.endMenu();
 
-                if (imgui.menuItemEx("Sequential", null, pixi.state.settings.flipbook_view == .sequential, true)) {
-                    pixi.state.settings.flipbook_view = .sequential;
-                }
+                if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                    if (imgui.beginCombo("Flipbook View", switch (file.flipbook_view) {
+                        .canvas => "Canvas",
+                        .timeline => "Timeline",
+                    }, imgui.ComboFlags_None)) {
+                        defer imgui.endCombo();
 
-                if (imgui.menuItemEx("Grid", null, pixi.state.settings.flipbook_view == .grid, true)) {
-                    pixi.state.settings.flipbook_view = .grid;
+                        if (imgui.selectableEx("Canvas", file.flipbook_view == .canvas, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
+                            file.flipbook_view = .canvas;
+                        }
+
+                        if (imgui.selectableEx("Timeline", file.flipbook_view == .timeline, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
+                            file.flipbook_view = .timeline;
+                        }
+                    }
+
+                    if (file.flipbook_view == .canvas) {
+                        if (imgui.beginMenu("Flipbook Canvas View")) {
+                            defer imgui.endMenu();
+                            if (imgui.menuItemEx("Sequential", null, pixi.state.settings.flipbook_view == .sequential, true)) {
+                                pixi.state.settings.flipbook_view = .sequential;
+                            }
+
+                            if (imgui.menuItemEx("Grid", null, pixi.state.settings.flipbook_view == .grid, true)) {
+                                pixi.state.settings.flipbook_view = .grid;
+                            }
+                        }
+                    }
                 }
             }
 

@@ -9,6 +9,7 @@ pub const tools = @import("tools.zig");
 pub const layers = @import("layers.zig");
 pub const sprites = @import("sprites.zig");
 pub const animations = @import("animations.zig");
+pub const keyframe_animations = @import("keyframe_animations.zig");
 pub const pack = @import("pack.zig");
 pub const settings = @import("settings.zig");
 
@@ -131,6 +132,22 @@ pub fn draw() void {
                 imgui.spacing();
                 imgui.spacing();
                 animations.draw();
+            },
+            .keyframe_animations => {
+                if (imgui.beginMenuBar()) {
+                    if (pixi.state.hotkeys.hotkey(.{ .sidebar = .keyframe_animations })) |hotkey| {
+                        const title = std.fmt.allocPrintZ(pixi.state.allocator, "Keyframe Animations ({s})", .{hotkey.shortcut}) catch unreachable;
+                        defer pixi.state.allocator.free(title);
+
+                        imgui.separatorText(title);
+                    } else {
+                        imgui.separatorText("Keyframe Animations");
+                    }
+                    imgui.endMenuBar();
+                }
+                imgui.spacing();
+                imgui.spacing();
+                keyframe_animations.draw();
             },
             .pack => {
                 if (imgui.beginMenuBar()) {
