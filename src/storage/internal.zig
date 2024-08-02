@@ -706,11 +706,11 @@ pub const Pixi = struct {
     };
 
     // Internal dfs function for flood fill
-    fn fillToolDFS(file: *Pixi, layer: Layer, pixels: ([][4]u8), x: usize, y: usize, width: usize, height: usize, original_color: [4]u8, new_color: [4]u8) !void {
-        if (x >= width or y >= height) {
+    fn fillToolDFS(file: *Pixi, fill_layer: Layer, pixels: ([][4]u8), x: usize, y: usize, bounds: [4]usize, original_color: [4]u8, new_color: [4]u8) !void {
+        if (x >= bounds[0] + bounds[2] or y >= bounds[1] + bounds[3] or x < bounds[0] or y < bounds[1]) {
             return;
         }
-        const pixel_index = layer.getPixelIndex(.{ x, y });
+        const pixel_index = fill_layer.getPixelIndex(.{ x, y });
         const color = pixels[pixel_index];
         if (!std.mem.eql(u8, &color, &original_color)) {
             return;
@@ -719,10 +719,10 @@ pub const Pixi = struct {
         pixels[pixel_index] = new_color;
 
         // Recursively fill adjacent pixels
-        if (@as(i32, @intCast(x)) - 1 >= 0) try fillToolDFS(file, layer, pixels, x - 1, y, width, height, original_color, new_color);
-        try fillToolDFS(file, layer, pixels, x + 1, y, width, height, original_color, new_color);
-        if (@as(i32, @intCast(y)) - 1 >= 0) try fillToolDFS(file, layer, pixels, x, y - 1, width, height, original_color, new_color);
-        try fillToolDFS(file, layer, pixels, x, y + 1, width, height, original_color, new_color);
+        if (@as(i32, @intCast(x)) - 1 >= 0) try fillToolDFS(file, fill_layer, pixels, x - 1, y, bounds, original_color, new_color);
+        try fillToolDFS(file, fill_layer, pixels, x + 1, y, bounds, original_color, new_color);
+        if (@as(i32, @intCast(y)) - 1 >= 0) try fillToolDFS(file, fill_layer, pixels, x, y - 1, bounds, original_color, new_color);
+        try fillToolDFS(file, fill_layer, pixels, x, y + 1, bounds, original_color, new_color);
         try file.buffers.stroke.append(pixel_index, original_color);
     }
 
@@ -775,8 +775,13 @@ pub const Pixi = struct {
                 const index = selected_layer.getPixelIndex(pixel);
                 var pixels = @as([*][4]u8, @ptrCast(selected_layer.texture.image.data.ptr))[0 .. selected_layer.texture.image.data.len / 4];
 
-                const tile_width: usize = @intCast(file.tile_width);
-                const tile_height: usize = @intCast(file.tile_height);
+                const tile_column = @divTrunc(pixel[0], @as(usize, @intCast(file.tile_width)));
+                const tile_row = @divTrunc(pixel[1], @as(usize, @intCast(file.tile_height)));
+
+                const bounds_x: usize = tile_column * @as(usize, @intCast(file.tile_width));
+                const bounds_y: usize = tile_row * @as(usize, @intCast(file.tile_width));
+
+                const bounds: [4]usize = .{ bounds_x, bounds_y, @as(usize, @intCast(file.tile_width)), @as(usize, @intCast(file.tile_height)) };
 
                 // create a copy of the old color
                 var old_color = [_]u8{ 0, 0, 0, 0 };
@@ -787,7 +792,7 @@ pub const Pixi = struct {
                     return;
                 }
 
-                try fillToolDFS(file, layer, pixels, pixel[0], pixel[1], tile_width, tile_height, old_color, new_color);
+                try fillToolDFS(file, selected_layer, pixels, pixel[0], pixel[1], bounds, old_color, new_color);
 
                 selected_layer.texture.update(core.device);
 
