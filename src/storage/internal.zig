@@ -781,7 +781,10 @@ pub const Pixi = struct {
                 const bounds_x: usize = tile_column * @as(usize, @intCast(file.tile_width));
                 const bounds_y: usize = tile_row * @as(usize, @intCast(file.tile_width));
 
-                const bounds: [4]usize = .{ bounds_x, bounds_y, @as(usize, @intCast(file.tile_width)), @as(usize, @intCast(file.tile_height)) };
+                const bounds_width: usize = @intCast(file.tile_width);
+                const bounds_height: usize = @intCast(file.tile_height);
+
+                const bounds: [4]usize = .{ bounds_x, bounds_y, bounds_width, bounds_height };
 
                 // create a copy of the old color
                 var old_color = [_]u8{ 0, 0, 0, 0 };
@@ -792,7 +795,21 @@ pub const Pixi = struct {
                     return;
                 }
 
-                try fillToolDFS(file, selected_layer, pixels, pixel[0], pixel[1], bounds, old_color, new_color);
+                if (if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false) {
+                    for (bounds_x..bounds_x + bounds_width) |x| {
+                        for (bounds_y..bounds_y + bounds_height) |y| {
+                            if (std.mem.eql(u8, &selected_layer.getPixel(.{ x, y }), &old_color)) {
+                                selected_layer.setPixel(.{ x, y }, new_color, false);
+
+                                const pixel_index = selected_layer.getPixelIndex(.{ x, y });
+
+                                try file.buffers.stroke.append(pixel_index, old_color);
+                            }
+                        }
+                    }
+                } else {
+                    try fillToolDFS(file, selected_layer, pixels, pixel[0], pixel[1], bounds, old_color, new_color);
+                }
 
                 selected_layer.texture.update(core.device);
 
