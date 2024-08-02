@@ -38,7 +38,6 @@ pub const Pixi = struct {
     selected_animation_state: AnimationState = .pause,
     selected_animation_elapsed: f32 = 0.0,
     selected_keyframe_animation_index: usize = 0,
-    selected_keyframe_index: usize = 0,
     selected_keyframe_animation_state: AnimationState = .pause,
     selected_keyframe_animation_elapsed: f32 = 0.0,
     selected_keyframe_animation_loop: bool = false,
@@ -908,16 +907,6 @@ pub const Pixi = struct {
             .{ .position = zmath.mul(transform_texture.vertices[2].position - pivot, rotation_matrix) + pivot },
             .{ .position = zmath.mul(transform_texture.vertices[3].position - pivot, rotation_matrix) + pivot },
         };
-
-        // if (transform_texture.parent) |parent| {
-        //     var parent_centroid = if (parent.pivot) |p| p.position else zmath.f32x4s(0.0);
-        //     if (parent.pivot == null) {
-        //         for (&parent.vertices) |*vertex| {
-        //             parent_centroid += vertex.position; // Collect centroid
-        //         }
-        //         parent_centroid /= zmath.f32x4s(4.0); // Average position
-        //     }
-        // }
 
         if (transform_texture.pivot_move) {
             if (window_hovered) {
