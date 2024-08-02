@@ -520,15 +520,15 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         );
 
         if (file.keyframe_animations.items.len > 0) {
-            const selected_animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
+            const animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
 
-            if (selected_animation.keyframes.items.len > 0) {
-                const current_ms: usize = if (ms_hovered) |ms| ms else @intFromFloat(selected_animation.elapsed_time * 1000.0);
+            if (animation.keyframes.items.len > 0) {
+                const current_ms: usize = if (ms_hovered) |ms| ms else @intFromFloat(animation.elapsed_time * 1000.0);
 
                 // If we have a keyframe for this time, go ahead and draw it normally
-                if (selected_animation.getKeyframeMilliseconds(current_ms)) |selected_keyframe| {
+                if (animation.getKeyframeMilliseconds(current_ms)) |selected_keyframe| {
                     for (selected_keyframe.frames.items) |*frame| {
-                        const color = selected_animation.getFrameNodeColor(frame.id);
+                        const color = animation.getFrameNodeColor(frame.id);
 
                         if (file.layer(frame.layer_id)) |layer| {
                             if (layer.transform_bindgroup) |transform_bindgroup| {
@@ -686,124 +686,115 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                             file.keyframe_animation_texture.update(core.device);
                         }
                     }
-                } else {
+                }
 
+                {
                     // We dont have a keyframe for this time, so we need to search the keyframes for tweens and blend
                     const current_time: f32 = @as(f32, @floatFromInt(current_ms)) / 1000.0;
 
-                    var from_keyframe_opt: ?*pixi.storage.Internal.Keyframe = null;
-
                     // Find the "from" keyframe, which will have the highest time while still being less than hovered time
-                    for (selected_animation.keyframes.items) |*keyframe| {
+                    for (animation.keyframes.items) |*keyframe| {
                         if (keyframe.time <= current_time) {
-                            if (from_keyframe_opt) |from| {
-                                if (from.time < keyframe.time)
-                                    from_keyframe_opt = keyframe;
-                            } else {
-                                from_keyframe_opt = keyframe;
-                            }
-                        }
-                    }
+                            for (keyframe.frames.items) |from_frame| {
+                                if (from_frame.tween_id) |from_tween_id| {
+                                    if (animation.getKeyframeFromFrame(from_tween_id)) |to_keyframe| {
+                                        if (to_keyframe.time < current_time) continue;
+                                        if (to_keyframe.frame(from_tween_id)) |to_frame| {
+                                            const begin_time = keyframe.time;
+                                            const end_time = to_keyframe.time;
 
-                    if (from_keyframe_opt) |from_keyframe| {
-                        for (from_keyframe.frames.items) |from_frame| {
-                            if (from_frame.tween_id) |from_tween_id| {
-                                if (selected_animation.getKeyframeFromFrame(from_tween_id)) |to_keyframe| {
-                                    if (to_keyframe.frame(from_tween_id)) |to_frame| {
-                                        const begin_time = from_keyframe.time;
-                                        const end_time = to_keyframe.time;
+                                            const progress = current_time - begin_time;
+                                            const total = end_time - begin_time;
 
-                                        const progress = current_time - begin_time;
-                                        const total = end_time - begin_time;
+                                            const t: f32 = progress / total;
 
-                                        const t: f32 = progress / total;
+                                            const tween_vertices: [4]pixi.storage.Internal.Pixi.TransformVertex = .{
+                                                .{ .position = zmath.lerp(from_frame.vertices[0].position, to_frame.vertices[0].position, t) },
+                                                .{ .position = zmath.lerp(from_frame.vertices[1].position, to_frame.vertices[1].position, t) },
+                                                .{ .position = zmath.lerp(from_frame.vertices[2].position, to_frame.vertices[2].position, t) },
+                                                .{ .position = zmath.lerp(from_frame.vertices[3].position, to_frame.vertices[3].position, t) },
+                                            };
 
-                                        const tween_vertices: [4]pixi.storage.Internal.Pixi.TransformVertex = .{
-                                            .{ .position = zmath.lerp(from_frame.vertices[0].position, to_frame.vertices[0].position, t) },
-                                            .{ .position = zmath.lerp(from_frame.vertices[1].position, to_frame.vertices[1].position, t) },
-                                            .{ .position = zmath.lerp(from_frame.vertices[2].position, to_frame.vertices[2].position, t) },
-                                            .{ .position = zmath.lerp(from_frame.vertices[3].position, to_frame.vertices[3].position, t) },
-                                        };
+                                            const tween_pivot: pixi.storage.Internal.Pixi.TransformVertex = .{ .position = zmath.lerp(from_frame.pivot.position, to_frame.pivot.position, t) };
 
-                                        const tween_pivot: pixi.storage.Internal.Pixi.TransformVertex = .{ .position = zmath.lerp(from_frame.pivot.position, to_frame.pivot.position, t) };
+                                            var from_rotation: f32 = from_frame.rotation;
 
-                                        var from_rotation: f32 = from_frame.rotation;
+                                            if (from_frame.parent_id) |parent_id| {
+                                                if (keyframe.frame(parent_id)) |parent_frame| {
+                                                    const diff = parent_frame.pivot.position - from_frame.pivot.position;
+                                                    const angle = std.math.atan2(diff[1], diff[0]);
 
-                                        if (from_frame.parent_id) |parent_id| {
-                                            if (from_keyframe.frame(parent_id)) |parent_frame| {
-                                                const diff = parent_frame.pivot.position - from_frame.pivot.position;
-                                                const angle = std.math.atan2(diff[1], diff[0]);
+                                                    const rotation = std.math.radiansToDegrees(angle) - 90.0;
 
-                                                const rotation = std.math.radiansToDegrees(angle) - 90.0;
-
-                                                from_rotation += rotation;
+                                                    from_rotation += rotation;
+                                                }
                                             }
-                                        }
 
-                                        var to_rotation: f32 = to_frame.rotation;
+                                            var to_rotation: f32 = to_frame.rotation;
 
-                                        if (to_frame.parent_id) |parent_id| {
-                                            if (to_keyframe.frame(parent_id)) |parent_frame| {
-                                                const diff = parent_frame.pivot.position - to_frame.pivot.position;
-                                                const angle = std.math.atan2(diff[1], diff[0]);
+                                            if (to_frame.parent_id) |parent_id| {
+                                                if (to_keyframe.frame(parent_id)) |parent_frame| {
+                                                    const diff = parent_frame.pivot.position - to_frame.pivot.position;
+                                                    const angle = std.math.atan2(diff[1], diff[0]);
 
-                                                const rotation = std.math.radiansToDegrees(angle) - 90.0;
+                                                    const rotation = std.math.radiansToDegrees(angle) - 90.0;
 
-                                                to_rotation += rotation;
+                                                    to_rotation += rotation;
+                                                }
                                             }
-                                        }
 
-                                        const tween_rotation = pixi.math.lerp(from_rotation, to_rotation, t);
+                                            const tween_rotation = pixi.math.lerp(from_rotation, to_rotation, t);
 
-                                        if (file.layer(from_frame.layer_id)) |layer| {
-                                            if (layer.transform_bindgroup) |transform_bindgroup| {
-                                                pixi.state.batcher.begin(.{
-                                                    .pipeline_handle = pixi.state.pipeline_default,
-                                                    .bind_group_handle = transform_bindgroup,
-                                                    .output_texture = &file.keyframe_animation_texture,
-                                                    .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
-                                                }) catch unreachable;
+                                            if (file.layer(from_frame.layer_id)) |layer| {
+                                                if (layer.transform_bindgroup) |transform_bindgroup| {
+                                                    pixi.state.batcher.begin(.{
+                                                        .pipeline_handle = pixi.state.pipeline_default,
+                                                        .bind_group_handle = transform_bindgroup,
+                                                        .output_texture = &file.keyframe_animation_texture,
+                                                        .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+                                                    }) catch unreachable;
 
-                                                const tiles_wide = @divExact(file.width, file.tile_width);
+                                                    const tiles_wide = @divExact(file.width, file.tile_width);
 
-                                                const src_col = @mod(@as(u32, @intCast(from_frame.sprite_index)), tiles_wide);
-                                                const src_row = @divTrunc(@as(u32, @intCast(from_frame.sprite_index)), tiles_wide);
+                                                    const src_col = @mod(@as(u32, @intCast(from_frame.sprite_index)), tiles_wide);
+                                                    const src_row = @divTrunc(@as(u32, @intCast(from_frame.sprite_index)), tiles_wide);
 
-                                                const src_x = src_col * file.tile_width;
-                                                const src_y = src_row * file.tile_height;
+                                                    const src_x = src_col * file.tile_width;
+                                                    const src_y = src_row * file.tile_height;
 
-                                                const sprite: pixi.gfx.Sprite = .{
-                                                    .name = "",
-                                                    .origin = .{ 0, 0 },
-                                                    .source = .{
-                                                        src_x,
-                                                        src_y,
-                                                        file.tile_width,
-                                                        file.tile_height,
-                                                    },
-                                                };
+                                                    const sprite: pixi.gfx.Sprite = .{
+                                                        .name = "",
+                                                        .origin = .{ 0, 0 },
+                                                        .source = .{
+                                                            src_x,
+                                                            src_y,
+                                                            file.tile_width,
+                                                            file.tile_height,
+                                                        },
+                                                    };
 
-                                                pixi.state.batcher.transformSprite(
-                                                    &layer.texture,
-                                                    sprite,
-                                                    tween_vertices,
-                                                    .{ 0.0, 0.0 },
-                                                    .{ tween_pivot.position[0], -tween_pivot.position[1] },
-                                                    .{
-                                                        .rotation = -tween_rotation,
-                                                    },
-                                                ) catch unreachable;
+                                                    pixi.state.batcher.transformSprite(
+                                                        &layer.texture,
+                                                        sprite,
+                                                        tween_vertices,
+                                                        .{ 0.0, 0.0 },
+                                                        .{ tween_pivot.position[0], -tween_pivot.position[1] },
+                                                        .{
+                                                            .rotation = -tween_rotation,
+                                                        },
+                                                    ) catch unreachable;
 
-                                                pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
-
-                                                // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
-                                                @memset(file.keyframe_animation_texture.image.data, 0.0);
-                                                file.keyframe_animation_texture.update(core.device);
+                                                    pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
+
+                            // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
+                            @memset(file.keyframe_animation_texture.image.data, 0.0);
+                            file.keyframe_animation_texture.update(core.device);
                         }
                     }
                 }
