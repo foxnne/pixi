@@ -2397,6 +2397,30 @@ pub const KeyframeAnimation = struct {
         return null;
     }
 
+    pub fn getFrameNodeColor(self: KeyframeAnimation, frame_id: u32) u32 {
+        var color_index: usize = @mod(frame_id * 2, 35);
+
+        if (self.getTweenStartFrame(frame_id)) |tween_start_frame| {
+            var last_frame = tween_start_frame;
+            while (true) {
+                if (self.getTweenStartFrame(last_frame.id)) |fr| {
+                    last_frame = fr;
+                } else {
+                    break;
+                }
+            }
+
+            color_index = @mod(last_frame.id * 2, 35);
+        }
+
+        return if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
+            palette.colors[color_index][0],
+            palette.colors[color_index][1],
+            palette.colors[color_index][2],
+            palette.colors[color_index][3],
+        ).toU32() else pixi.state.theme.text.toU32();
+    }
+
     pub fn getTweenStartFrame(self: KeyframeAnimation, frame_id: u32) ?*Frame {
         for (self.keyframes.items) |kf| {
             for (kf.frames.items) |*fr| {

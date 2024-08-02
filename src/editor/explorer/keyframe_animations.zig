@@ -108,19 +108,8 @@ pub fn draw() void {
                             var i: usize = 0;
                             while (i < keyframe.frames.items.len) : (i += 1) {
                                 const frame = keyframe.frames.items[i];
-                                var color_index: usize = @mod(frame.id * 2, 35);
 
-                                if (animation.getTweenStartFrame(frame.id)) |tween_start_frame| {
-                                    color_index = @mod(tween_start_frame.id * 2, 35);
-                                }
-
-                                const color = if (pixi.state.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
-                                    palette.colors[color_index][0],
-                                    palette.colors[color_index][1],
-                                    palette.colors[color_index][2],
-                                    palette.colors[color_index][3],
-                                ).toU32() else pixi.state.theme.text.toU32();
-
+                                const color = animation.getFrameNodeColor(frame.id);
                                 const sprite = file.sprites.items[frame.sprite_index];
 
                                 const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id }) catch unreachable;
