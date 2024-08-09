@@ -513,6 +513,7 @@ pub fn deinit(_: *App) void {
     if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
     if (state.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (state.colors.palette) |*palette| palette.deinit();
+    if (state.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();
 
     if (state.clipboard_image) |*image| image.deinit();
 
