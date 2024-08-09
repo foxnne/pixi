@@ -614,6 +614,21 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.Pixi, animation_length: usize, 
                 var x: f32 = @floatFromInt(ms);
                 x += work_area_offset - scroll[0] + window_position.x;
 
+                if (frame_node_dragging) |frame_dragging_id| {
+                    if (secondary_down and line_hovered) { // Shift is pressed, so we need to link the dragged node to the target node
+                        if (animation.getKeyframeFromFrame(frame_dragging_id)) |dragging_kf| {
+                            if (dragging_kf.frameIndex(frame_dragging_id)) |start_index| {
+                                const color = animation.getFrameNodeColor(frame_dragging_id);
+                                const start_index_float: f32 = @floatFromInt(start_index);
+                                const start_x = (dragging_kf.time * 1000.0) + work_area_offset - scroll[0] + window_position.x;
+                                const start_y: f32 = imgui.getWindowPos().y + (start_index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;
+                                const end_y: f32 = if (rel_mouse_y) |y| imgui.getWindowPos().y + y else start_y;
+                                draw_list.addLine(.{ .x = start_x, .y = start_y }, .{ .x = x, .y = end_y }, color);
+                            }
+                        }
+                    }
+                }
+
                 if (animation.getKeyframeMilliseconds(ms)) |hovered_kf| {
                     if (hovered_kf.id != keyframe_dragging or secondary_down) {
                         for (hovered_kf.frames.items, 0..) |fr, fr_index| {
@@ -675,10 +690,8 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.Pixi, animation_length: usize, 
 
                                 if (frame_node_dragging) |frame_dragging_id| {
                                     if (secondary_down) { // Shift is pressed, so we need to link the dragged node to the target node
-                                        if (animation.getKeyframeFromFrame(frame_dragging_id)) |dragging_kf| {
-                                            const start_x = (dragging_kf.time * 1000.0) + work_area_offset - scroll[0] + window_position.x;
-                                            draw_list.addLine(.{ .x = start_x, .y = y }, .{ .x = x, .y = y }, color);
 
+                                        if (animation.getKeyframeFromFrame(frame_dragging_id)) |dragging_kf| {
                                             if (bt.released() and line_hovered and window_hovered) {
                                                 animation.active_keyframe_id = hovered_kf.id;
                                                 animation.elapsed_time = @as(f32, @floatFromInt(ms)) / 1000.0;

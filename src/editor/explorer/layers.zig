@@ -59,9 +59,12 @@ pub fn draw() void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 5.0, .y = 10.0 });
         defer imgui.popStyleVar();
 
+        if (imgui.getContentRegionAvail().y < 5.0)
+            return;
+
         if (imgui.beginChild("LayersChild", .{
             .x = -1.0,
-            .y = 100.0,
+            .y = 150.0,
         }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
 

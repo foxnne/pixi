@@ -143,13 +143,6 @@ pub fn draw() void {
             imgui.spacing();
             imgui.spacing();
             imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-            imgui.separatorText("Layers  " ++ pixi.fa.layer_group);
-            imgui.popStyleColor();
-            layers.draw();
-
-            imgui.spacing();
-            imgui.spacing();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
             imgui.separatorText("Palettes  " ++ pixi.fa.palette);
             imgui.popStyleColor();
 
@@ -159,40 +152,51 @@ pub fn draw() void {
                 searchPalettes() catch unreachable;
             }
 
-            if (pixi.state.colors.palette) |palette| {
-                for (palette.colors, 0..) |color, i| {
-                    const c: imgui.Vec4 = .{
-                        .x = @as(f32, @floatFromInt(color[0])) / 255.0,
-                        .y = @as(f32, @floatFromInt(color[1])) / 255.0,
-                        .z = @as(f32, @floatFromInt(color[2])) / 255.0,
-                        .w = @as(f32, @floatFromInt(color[3])) / 255.0,
-                    };
-                    imgui.pushIDInt(@as(c_int, @intCast(i)));
-                    if (imgui.colorButton(palette.name, .{ .x = c.x, .y = c.y, .z = c.z, .w = c.w }, imgui.ColorEditFlags_None)) {
-                        pixi.state.colors.primary = color;
+            if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = 175.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+                defer imgui.endChild();
+
+                if (pixi.state.colors.palette) |palette| {
+                    for (palette.colors, 0..) |color, i| {
+                        const c: imgui.Vec4 = .{
+                            .x = @as(f32, @floatFromInt(color[0])) / 255.0,
+                            .y = @as(f32, @floatFromInt(color[1])) / 255.0,
+                            .z = @as(f32, @floatFromInt(color[2])) / 255.0,
+                            .w = @as(f32, @floatFromInt(color[3])) / 255.0,
+                        };
+                        imgui.pushIDInt(@as(c_int, @intCast(i)));
+                        if (imgui.colorButton(palette.name, .{ .x = c.x, .y = c.y, .z = c.z, .w = c.w }, imgui.ColorEditFlags_None)) {
+                            pixi.state.colors.primary = color;
+                        }
+                        imgui.popID();
+
+                        const min_width = 32.0 * pixi.content_scale[0];
+                        const columns: usize = @intFromFloat(@ceil((imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]) / (min_width + style.item_spacing.x)));
+
+                        if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)
+                            imgui.sameLine();
                     }
-                    imgui.popID();
+                } else {
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                    defer imgui.popStyleColor();
+                    imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette");
 
-                    const min_width = 32.0 * pixi.content_scale[0];
-                    const columns: usize = @intFromFloat(@ceil((imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]) / (min_width + style.item_spacing.x)));
+                    const new_palette_text = std.fmt.allocPrintZ(pixi.state.allocator, "To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{
+                        pixi.state.root_path,
+                        std.fs.path.sep,
+                        pixi.assets.palettes,
+                    }) catch unreachable;
+                    defer pixi.state.allocator.free(new_palette_text);
 
-                    if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)
-                        imgui.sameLine();
+                    imgui.textWrapped(new_palette_text);
                 }
-            } else {
-                imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-                defer imgui.popStyleColor();
-                imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette");
-
-                const new_palette_text = std.fmt.allocPrintZ(pixi.state.allocator, "To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{
-                    pixi.state.root_path,
-                    std.fs.path.sep,
-                    pixi.assets.palettes,
-                }) catch unreachable;
-                defer pixi.state.allocator.free(new_palette_text);
-
-                imgui.textWrapped(new_palette_text);
             }
+
+            imgui.spacing();
+            imgui.spacing();
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.separatorText("Layers  " ++ pixi.fa.layer_group);
+            imgui.popStyleColor();
+            layers.draw();
         }
     }
 }
