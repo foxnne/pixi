@@ -28,6 +28,7 @@ pub fn draw() void {
             imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.highlight_secondary.toImguiVec4());
             imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.hover_secondary.toImguiVec4());
             defer imgui.popStyleColorEx(3);
+
             if (imgui.checkbox("Edit Heightmap Layer", &file.heightmap.visible)) {}
             if (imgui.button("Delete Heightmap Layer")) {
                 file.deleted_heightmap_layers.append(file.heightmap.layer.?) catch unreachable;
@@ -59,8 +60,8 @@ pub fn draw() void {
         defer imgui.popStyleVar();
 
         if (imgui.beginChild("LayersChild", .{
-            .x = imgui.getWindowWidth(),
-            .y = 0.0,
+            .x = -1.0,
+            .y = 100.0,
         }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
 
@@ -178,9 +179,10 @@ pub fn draw() void {
                 }
             }
         }
-    } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-        imgui.textWrapped("Open a file to begin editing.");
-        imgui.popStyleColor();
     }
+    // } else {
+    //     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+    //     imgui.textWrapped("Open a file to begin editing.");
+    //     imgui.popStyleColor();
+    // }
 }

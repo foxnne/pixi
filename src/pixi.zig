@@ -111,7 +111,6 @@ pub const Assets = struct {
 pub const Sidebar = enum(u32) {
     files,
     tools,
-    layers,
     sprites,
     animations,
     keyframe_animations,

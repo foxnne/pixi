@@ -83,23 +83,8 @@ pub fn draw() void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                tools.draw();
-            },
-            .layers => {
-                if (imgui.beginMenuBar()) {
-                    if (pixi.state.hotkeys.hotkey(.{ .sidebar = .layers })) |hotkey| {
-                        const title = std.fmt.allocPrintZ(pixi.state.allocator, "Layers ({s})", .{hotkey.shortcut}) catch unreachable;
-                        defer pixi.state.allocator.free(title);
 
-                        imgui.separatorText(title);
-                    } else {
-                        imgui.separatorText("Layers");
-                    }
-                    imgui.endMenuBar();
-                }
-                imgui.spacing();
-                imgui.spacing();
-                layers.draw();
+                tools.draw();
             },
             .sprites => {
                 if (imgui.beginMenuBar()) {
