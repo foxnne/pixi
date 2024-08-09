@@ -2,6 +2,7 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
+const layers = @import("layers.zig");
 
 pub fn draw() void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 8.0 * pixi.content_scale[0], .y = 8.0 * pixi.content_scale[1] });
@@ -18,137 +19,146 @@ pub fn draw() void {
     }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
         defer imgui.endChild();
 
-        const style = imgui.getStyle();
-        const window_size = imgui.getWindowSize();
-
-        const button_width = imgui.getWindowWidth() / 3.6;
-        const button_height = button_width / 2.0;
-
-        const color_width = window_size.x / 2.2;
-
-        // Row 1
-        {
-            imgui.setCursorPosX(style.item_spacing.x);
-            drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
-            imgui.sameLine();
-            drawTool(pixi.fa.pencil_alt, button_width, button_height, .pencil);
-            imgui.sameLine();
-            drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
-        }
-
-        // Row 2
-        {
-            imgui.setCursorPosX(style.item_spacing.x);
-            drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
-            imgui.sameLine();
-            drawTool(pixi.fa.fill_drip, button_width, button_height, .bucket);
-        }
-
-        imgui.spacing();
-        imgui.spacing();
-        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-        imgui.separatorText("Colors  " ++ pixi.fa.paint_brush);
-        imgui.popStyleColor();
-
-        var heightmap_visible: bool = false;
-        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-            heightmap_visible = file.heightmap.visible;
-        }
-
-        if (heightmap_visible) {
-            var height: i32 = @as(i32, @intCast(pixi.state.colors.height));
-            if (imgui.sliderInt("Height", &height, 0, 255)) {
-                pixi.state.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
-            }
-        } else {
-            var disable_hotkeys: bool = false;
-
-            const primary: imgui.Vec4 = if (pixi.state.tools.current == .heightmap) .{ .x = 255, .y = 255, .z = 255, .w = 255 } else .{
-                .x = @as(f32, @floatFromInt(pixi.state.colors.primary[0])) / 255.0,
-                .y = @as(f32, @floatFromInt(pixi.state.colors.primary[1])) / 255.0,
-                .z = @as(f32, @floatFromInt(pixi.state.colors.primary[2])) / 255.0,
-                .w = @as(f32, @floatFromInt(pixi.state.colors.primary[3])) / 255.0,
-            };
-
-            const secondary: imgui.Vec4 = .{
-                .x = @as(f32, @floatFromInt(pixi.state.colors.secondary[0])) / 255.0,
-                .y = @as(f32, @floatFromInt(pixi.state.colors.secondary[1])) / 255.0,
-                .z = @as(f32, @floatFromInt(pixi.state.colors.secondary[2])) / 255.0,
-                .w = @as(f32, @floatFromInt(pixi.state.colors.secondary[3])) / 255.0,
-            };
-
-            if (imgui.colorButtonEx("Primary", primary, imgui.ColorEditFlags_AlphaPreview, .{
-                .x = color_width,
-                .y = 64 * pixi.content_scale[1],
-            })) {
-                const color = pixi.state.colors.primary;
-                pixi.state.colors.primary = pixi.state.colors.secondary;
-                pixi.state.colors.secondary = color;
-            }
-            if (imgui.beginItemTooltip()) {
-                defer imgui.endTooltip();
-                imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click to edit color.");
-            }
-            if (imgui.beginPopupContextItem()) {
-                defer imgui.endPopup();
-                var c = pixi.math.Color.initFloats(primary.x, primary.y, primary.z, primary.w).toSlice();
-                if (imgui.colorPicker4("Primary", &c, imgui.ColorEditFlags_None, null)) {
-                    pixi.state.colors.primary = .{
-                        @as(u8, @intFromFloat(c[0] * 255.0)),
-                        @as(u8, @intFromFloat(c[1] * 255.0)),
-                        @as(u8, @intFromFloat(c[2] * 255.0)),
-                        @as(u8, @intFromFloat(c[3] * 255.0)),
-                    };
-                }
-                disable_hotkeys = true;
-            }
-            imgui.sameLine();
-
-            if (imgui.colorButtonEx("Secondary", secondary, imgui.ColorEditFlags_AlphaPreview, .{
-                .x = color_width,
-                .y = 64 * pixi.content_scale[1],
-            })) {
-                const color = pixi.state.colors.primary;
-                pixi.state.colors.primary = pixi.state.colors.secondary;
-                pixi.state.colors.secondary = color;
-            }
-
-            if (imgui.beginItemTooltip()) {
-                defer imgui.endTooltip();
-                imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click to edit color.");
-            }
-
-            if (imgui.beginPopupContextItem()) {
-                defer imgui.endPopup();
-                var c = pixi.math.Color.initFloats(secondary.x, secondary.y, secondary.z, secondary.w).toSlice();
-                if (imgui.colorPicker4("Secondary", &c, imgui.ColorEditFlags_None, null)) {
-                    pixi.state.colors.secondary = .{
-                        @as(u8, @intFromFloat(c[0] * 255.0)),
-                        @as(u8, @intFromFloat(c[1] * 255.0)),
-                        @as(u8, @intFromFloat(c[2] * 255.0)),
-                        @as(u8, @intFromFloat(c[3] * 255.0)),
-                    };
-                }
-
-                disable_hotkeys = true;
-            }
-
-            pixi.state.hotkeys.disable = disable_hotkeys;
-        }
-
-        imgui.spacing();
-        imgui.spacing();
-        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-        imgui.separatorText("Palette  " ++ pixi.fa.palette);
-        imgui.popStyleColor();
-
-        imgui.setNextItemWidth(-1.0);
-        if (imgui.beginCombo("##PaletteCombo", if (pixi.state.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {
-            defer imgui.endCombo();
-            searchPalettes() catch unreachable;
-        }
-        if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+        if (imgui.beginChild("ToolsScrollable", .{ .x = imgui.getWindowWidth(), .y = -1.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
+
+            const style = imgui.getStyle();
+            const window_size = imgui.getWindowSize();
+
+            const button_width = imgui.getWindowWidth() / 3.6;
+            const button_height = button_width / 2.0;
+
+            const color_width = window_size.x / 2.2;
+
+            // Row 1
+            {
+                imgui.setCursorPosX(style.item_spacing.x);
+                drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+                imgui.sameLine();
+                drawTool(pixi.fa.pencil_alt, button_width, button_height, .pencil);
+                imgui.sameLine();
+                drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
+            }
+
+            // Row 2
+            {
+                imgui.setCursorPosX(style.item_spacing.x);
+                drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
+                imgui.sameLine();
+                drawTool(pixi.fa.fill_drip, button_width, button_height, .bucket);
+            }
+
+            imgui.spacing();
+            imgui.spacing();
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.separatorText("Colors  " ++ pixi.fa.paint_brush);
+            imgui.popStyleColor();
+
+            var heightmap_visible: bool = false;
+            if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+                heightmap_visible = file.heightmap.visible;
+            }
+
+            if (heightmap_visible) {
+                var height: i32 = @as(i32, @intCast(pixi.state.colors.height));
+                if (imgui.sliderInt("Height", &height, 0, 255)) {
+                    pixi.state.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
+                }
+            } else {
+                var disable_hotkeys: bool = false;
+
+                const primary: imgui.Vec4 = if (pixi.state.tools.current == .heightmap) .{ .x = 255, .y = 255, .z = 255, .w = 255 } else .{
+                    .x = @as(f32, @floatFromInt(pixi.state.colors.primary[0])) / 255.0,
+                    .y = @as(f32, @floatFromInt(pixi.state.colors.primary[1])) / 255.0,
+                    .z = @as(f32, @floatFromInt(pixi.state.colors.primary[2])) / 255.0,
+                    .w = @as(f32, @floatFromInt(pixi.state.colors.primary[3])) / 255.0,
+                };
+
+                const secondary: imgui.Vec4 = .{
+                    .x = @as(f32, @floatFromInt(pixi.state.colors.secondary[0])) / 255.0,
+                    .y = @as(f32, @floatFromInt(pixi.state.colors.secondary[1])) / 255.0,
+                    .z = @as(f32, @floatFromInt(pixi.state.colors.secondary[2])) / 255.0,
+                    .w = @as(f32, @floatFromInt(pixi.state.colors.secondary[3])) / 255.0,
+                };
+
+                if (imgui.colorButtonEx("Primary", primary, imgui.ColorEditFlags_AlphaPreview, .{
+                    .x = color_width,
+                    .y = 64 * pixi.content_scale[1],
+                })) {
+                    const color = pixi.state.colors.primary;
+                    pixi.state.colors.primary = pixi.state.colors.secondary;
+                    pixi.state.colors.secondary = color;
+                }
+                if (imgui.beginItemTooltip()) {
+                    defer imgui.endTooltip();
+                    imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click to edit color.");
+                }
+                if (imgui.beginPopupContextItem()) {
+                    defer imgui.endPopup();
+                    var c = pixi.math.Color.initFloats(primary.x, primary.y, primary.z, primary.w).toSlice();
+                    if (imgui.colorPicker4("Primary", &c, imgui.ColorEditFlags_None, null)) {
+                        pixi.state.colors.primary = .{
+                            @as(u8, @intFromFloat(c[0] * 255.0)),
+                            @as(u8, @intFromFloat(c[1] * 255.0)),
+                            @as(u8, @intFromFloat(c[2] * 255.0)),
+                            @as(u8, @intFromFloat(c[3] * 255.0)),
+                        };
+                    }
+                    disable_hotkeys = true;
+                }
+                imgui.sameLine();
+
+                if (imgui.colorButtonEx("Secondary", secondary, imgui.ColorEditFlags_AlphaPreview, .{
+                    .x = color_width,
+                    .y = 64 * pixi.content_scale[1],
+                })) {
+                    const color = pixi.state.colors.primary;
+                    pixi.state.colors.primary = pixi.state.colors.secondary;
+                    pixi.state.colors.secondary = color;
+                }
+
+                if (imgui.beginItemTooltip()) {
+                    defer imgui.endTooltip();
+                    imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click to edit color.");
+                }
+
+                if (imgui.beginPopupContextItem()) {
+                    defer imgui.endPopup();
+                    var c = pixi.math.Color.initFloats(secondary.x, secondary.y, secondary.z, secondary.w).toSlice();
+                    if (imgui.colorPicker4("Secondary", &c, imgui.ColorEditFlags_None, null)) {
+                        pixi.state.colors.secondary = .{
+                            @as(u8, @intFromFloat(c[0] * 255.0)),
+                            @as(u8, @intFromFloat(c[1] * 255.0)),
+                            @as(u8, @intFromFloat(c[2] * 255.0)),
+                            @as(u8, @intFromFloat(c[3] * 255.0)),
+                        };
+                    }
+
+                    disable_hotkeys = true;
+                }
+
+                pixi.state.hotkeys.disable = disable_hotkeys;
+            }
+
+            imgui.spacing();
+            imgui.spacing();
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.separatorText("Layers  " ++ pixi.fa.layer_group);
+            imgui.popStyleColor();
+            layers.draw();
+
+            imgui.spacing();
+            imgui.spacing();
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.separatorText("Palettes  " ++ pixi.fa.palette);
+            imgui.popStyleColor();
+
+            imgui.setNextItemWidth(-1.0);
+            if (imgui.beginCombo("##PaletteCombo", if (pixi.state.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {
+                defer imgui.endCombo();
+                searchPalettes() catch unreachable;
+            }
+
             if (pixi.state.colors.palette) |palette| {
                 for (palette.colors, 0..) |color, i| {
                     const c: imgui.Vec4 = .{

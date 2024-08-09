@@ -328,7 +328,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                     layer_restore_delete.action = .restore;
                 },
             }
-            pixi.state.sidebar = .layers;
+            pixi.state.sidebar = .tools;
         },
         .layer_name => |*layer_name| {
             var name = [_:0]u8{0} ** 128;
@@ -337,7 +337,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             @memcpy(layer_name.name[0..file.layers.items[layer_name.index].name.len], file.layers.items[layer_name.index].name);
             pixi.state.allocator.free(file.layers.items[layer_name.index].name);
             file.layers.items[layer_name.index].name = try pixi.state.allocator.dupeZ(u8, &name);
-            pixi.state.sidebar = .layers;
+            pixi.state.sidebar = .tools;
         },
         .layer_settings => |*layer_settings| {
             const visible = file.layers.items[layer_settings.index].visible;
@@ -346,7 +346,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
             file.layers.items[layer_settings.index].collapse = layer_settings.collapse;
             layer_settings.visible = visible;
             layer_settings.collapse = collapse;
-            pixi.state.sidebar = .layers;
+            pixi.state.sidebar = .tools;
         },
         .animation => |*animation| {
             // Set sprite names to generic

@@ -825,13 +825,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .action = .{ .sidebar = Sidebar.tools },
         });
 
-        // Layers
-        try hotkeys.append(.{
-            .shortcut = "l",
-            .key = Key.l,
-            .action = .{ .sidebar = Sidebar.layers },
-        });
-
         // Sprites
         try hotkeys.append(.{
             .shortcut = "s",
