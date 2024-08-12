@@ -112,7 +112,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 const max_nodes: f32 = if (animation_opt) |animation| @floatFromInt(animation.maxNodes()) else 0.0;
                 const node_area_height = @max(max_nodes * (frame_node_radius * 2.0 + frame_node_spacing) + work_area_offset, imgui.getWindowHeight());
 
-                drawVerticalLines(file, animation_ms, .{ scroll_x, scroll_y });
+                drawVerticalLines(file, animation_ms, .{ 0.0, scroll_y });
 
                 {
                     imgui.pushStyleColor(imgui.Col_ChildBg, 0x00000000);
@@ -121,12 +121,12 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     if (imgui.beginChild("FlipbookTimelineNodeArea", .{ .x = work_area_width, .y = node_area_height }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                         defer imgui.endChild();
 
-                        drawNodeArea(file, animation_ms, .{ scroll_x, scroll_y });
+                        drawNodeArea(file, animation_ms, .{ 0.0, scroll_y });
                     }
                 }
             }
 
-            if (imgui.beginChild("FlipbookTimelineTextArea", .{ .x = work_area_width, .y = text_area_height }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+            if (imgui.beginChild("FlipbookTimelineTextArea", .{ .x = work_area_width, .y = text_area_height }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow | imgui.WindowFlags_NoScrollWithMouse)) {
                 defer imgui.endChild();
 
                 if (imgui.getWindowDrawList()) |draw_list| {
@@ -716,7 +716,7 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.Pixi, animation_length: usize, 
                                 if (animation.getKeyframeFromFrame(tween_id)) |tween_kf| {
                                     if (tween_kf.frameIndex(tween_id)) |tween_index| {
                                         const tween_index_float: f32 = @floatFromInt(tween_index);
-                                        const to_x: f32 = imgui.getWindowPos().x + tween_kf.time * 1000.0 + work_area_offset;
+                                        const to_x: f32 = imgui.getWindowPos().x + tween_kf.time * 1000.0 + work_area_offset - scroll[0];
                                         const to_y: f32 = imgui.getWindowPos().y + (tween_index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;
 
                                         draw_list.addLine(.{ .x = from_x, .y = from_y }, .{ .x = to_x, .y = to_y }, color);
@@ -843,7 +843,6 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.Pixi, animation_length: usize, 
 
                             if (line_hovered and window_hovered and frame_node_dragging == null) {
                                 for (dragging_keyframe.frames.items, 0..) |fr, fr_i| {
-
                                     const index_float: f32 = @floatFromInt(fr_i);
 
                                     const y: f32 = imgui.getWindowPos().y + (index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;

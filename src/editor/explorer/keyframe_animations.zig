@@ -9,20 +9,14 @@ pub fn draw() void {
         // Make sure we can see the timeline for animation previews
         file.flipbook_view = .timeline;
 
-        // imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
-        // defer imgui.popStyleVar();
-        // imgui.spacing();
-        // imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-        // imgui.separatorText("Tools  " ++ pixi.fa.screwdriver);
-        // imgui.popStyleColor();
-        // imgui.spacing();
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 8.0 * pixi.content_scale[0], .y = 4.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
         imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.8 });
-        defer imgui.popStyleVarEx(2);
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 6.0 });
+        defer imgui.popStyleVarEx(3);
 
-        imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.background.toImguiVec4());
         defer imgui.popStyleColorEx(3);
         if (imgui.beginChild("SelectedFrame", .{
             .x = imgui.getWindowWidth(),
@@ -57,107 +51,106 @@ pub fn draw() void {
             }
         }
 
-        imgui.spacing();
-        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-        imgui.separatorText("Animations  " ++ pixi.fa.film);
-        imgui.popStyleColor();
-        imgui.spacing();
+        if (imgui.collapsingHeader(pixi.fa.film ++ "  Animations", imgui.TreeNodeFlags_DefaultOpen)) {
+            imgui.indent();
+            defer imgui.unindent();
 
-        if (imgui.beginChild("Animations", .{
-            .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
-            .y = 0.0,
-        }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-            defer imgui.endChild();
+            if (imgui.beginChild("Animations", .{
+                .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0],
+                .y = 0.0,
+            }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+                defer imgui.endChild();
 
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
-            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
-            imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.0, .y = 0.5 });
-            imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * pixi.content_scale[0]);
-            imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
-            defer imgui.popStyleVarEx(5);
-            for (file.keyframe_animations.items, 0..) |*animation, animation_index| {
-                const animation_color = if (file.selected_keyframe_animation_index == animation_index) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
+                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.0, .y = 0.5 });
+                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * pixi.content_scale[0]);
+                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+                defer imgui.popStyleVarEx(5);
+                for (file.keyframe_animations.items, 0..) |*animation, animation_index| {
+                    const animation_color = if (file.selected_keyframe_animation_index == animation_index) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
 
-                const animation_name = std.fmt.allocPrintZ(pixi.state.allocator, " {s}  {s}##{d}", .{ pixi.fa.film, animation.name, animation.id }) catch unreachable;
-                defer pixi.state.allocator.free(animation_name);
+                    const animation_name = std.fmt.allocPrintZ(pixi.state.allocator, " {s}  {s}##{d}", .{ pixi.fa.film, animation.name, animation.id }) catch unreachable;
+                    defer pixi.state.allocator.free(animation_name);
 
-                imgui.pushStyleColorImVec4(imgui.Col_Text, animation_color);
-                defer imgui.popStyleColor();
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, animation_color);
+                    defer imgui.popStyleColor();
 
-                if (imgui.treeNodeEx(animation_name, imgui.TreeNodeFlags_DefaultOpen)) {
-                    defer imgui.treePop();
+                    if (imgui.treeNodeEx(animation_name, imgui.TreeNodeFlags_DefaultOpen)) {
+                        defer imgui.treePop();
 
-                    imgui.indentEx(20.0);
-                    defer imgui.unindentEx(20.0);
+                        imgui.indentEx(20.0);
+                        defer imgui.unindentEx(20.0);
 
-                    for (animation.keyframes.items) |*keyframe| {
-                        const keyframe_name = std.fmt.allocPrintZ(pixi.state.allocator, "Keyframe ID:{d}", .{keyframe.id}) catch unreachable;
-                        defer pixi.state.allocator.free(keyframe_name);
+                        for (animation.keyframes.items) |*keyframe| {
+                            const keyframe_name = std.fmt.allocPrintZ(pixi.state.allocator, "Keyframe ID:{d}", .{keyframe.id}) catch unreachable;
+                            defer pixi.state.allocator.free(keyframe_name);
 
-                        const keyframe_color = if (animation.active_keyframe_id == keyframe.id) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
+                            const keyframe_color = if (animation.active_keyframe_id == keyframe.id) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
 
-                        imgui.pushStyleColorImVec4(imgui.Col_Text, keyframe_color);
-                        defer imgui.popStyleColor();
+                            imgui.pushStyleColorImVec4(imgui.Col_Text, keyframe_color);
+                            defer imgui.popStyleColor();
 
-                        if (imgui.treeNodeEx(keyframe_name, imgui.TreeNodeFlags_DefaultOpen)) {
-                            defer imgui.treePop();
+                            if (imgui.treeNodeEx(keyframe_name, imgui.TreeNodeFlags_DefaultOpen)) {
+                                defer imgui.treePop();
 
-                            imgui.indentEx(30.0);
-                            defer imgui.unindentEx(30.0);
+                                imgui.indentEx(30.0);
+                                defer imgui.unindentEx(30.0);
 
-                            var i: usize = 0;
-                            while (i < keyframe.frames.items.len) : (i += 1) {
-                                const frame = keyframe.frames.items[i];
+                                var i: usize = 0;
+                                while (i < keyframe.frames.items.len) : (i += 1) {
+                                    const frame = keyframe.frames.items[i];
 
-                                const color = animation.getFrameNodeColor(frame.id);
-                                const sprite = file.sprites.items[frame.sprite_index];
+                                    const color = animation.getFrameNodeColor(frame.id);
+                                    const sprite = file.sprites.items[frame.sprite_index];
 
-                                const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id }) catch unreachable;
-                                defer pixi.state.allocator.free(sprite_name);
+                                    const sprite_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id }) catch unreachable;
+                                    defer pixi.state.allocator.free(sprite_name);
 
-                                imgui.pushStyleColor(imgui.Col_Text, color);
-                                imgui.bullet();
+                                    imgui.pushStyleColor(imgui.Col_Text, color);
+                                    imgui.bullet();
 
-                                if (keyframe.active_frame_id == frame.id and animation.active_keyframe_id == keyframe.id) {
-                                    imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text.toU32());
-                                } else {
-                                    imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text_secondary.toU32());
-                                }
-                                defer imgui.popStyleColorEx(2);
+                                    if (keyframe.active_frame_id == frame.id and animation.active_keyframe_id == keyframe.id) {
+                                        imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text.toU32());
+                                    } else {
+                                        imgui.pushStyleColor(imgui.Col_Text, pixi.state.theme.text_secondary.toU32());
+                                    }
+                                    defer imgui.popStyleColorEx(2);
 
-                                imgui.sameLine();
+                                    imgui.sameLine();
 
-                                if (imgui.selectable(sprite_name)) {
-                                    for (file.selected_sprites.items) |selected_sprite| {
-                                        if (selected_sprite != sprite.index or file.selected_sprites.items.len > 1) {
-                                            file.selected_sprites.clearAndFree();
-                                            file.selected_sprites.append(sprite.index) catch unreachable;
+                                    if (imgui.selectable(sprite_name)) {
+                                        for (file.selected_sprites.items) |selected_sprite| {
+                                            if (selected_sprite != sprite.index or file.selected_sprites.items.len > 1) {
+                                                file.selected_sprites.clearAndFree();
+                                                file.selected_sprites.append(sprite.index) catch unreachable;
+                                            }
                                         }
+                                        file.selected_keyframe_animation_index = animation_index;
+                                        animation.active_keyframe_id = keyframe.id;
+                                        keyframe.active_frame_id = frame.id;
                                     }
-                                    file.selected_keyframe_animation_index = animation_index;
-                                    animation.active_keyframe_id = keyframe.id;
-                                    keyframe.active_frame_id = frame.id;
-                                }
 
-                                if (imgui.isItemActive() and !imgui.isItemHovered(imgui.HoveredFlags_None) and imgui.isAnyItemHovered()) {
-                                    const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0).y < 0.0) @as(i32, -1) else @as(i32, 1)), 0, std.math.maxInt(i32))));
-                                    if (i_next >= 0 and i_next < keyframe.frames.items.len) {
-                                        keyframe.frames.items[i] = keyframe.frames.items[i_next];
-                                        keyframe.frames.items[i_next] = frame;
-                                        keyframe.active_frame_id = keyframe.frames.items[i_next].id;
+                                    if (imgui.isItemActive() and !imgui.isItemHovered(imgui.HoveredFlags_None) and imgui.isAnyItemHovered()) {
+                                        const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0).y < 0.0) @as(i32, -1) else @as(i32, 1)), 0, std.math.maxInt(i32))));
+                                        if (i_next >= 0 and i_next < keyframe.frames.items.len) {
+                                            keyframe.frames.items[i] = keyframe.frames.items[i_next];
+                                            keyframe.frames.items[i_next] = frame;
+                                            keyframe.active_frame_id = keyframe.frames.items[i_next].id;
+                                        }
+                                        imgui.resetMouseDragDeltaEx(imgui.MouseButton_Left);
                                     }
-                                    imgui.resetMouseDragDeltaEx(imgui.MouseButton_Left);
                                 }
                             }
                         }
                     }
-                }
 
-                if (imgui.isItemClicked()) {
-                    file.selected_keyframe_animation_index = animation_index;
-                }
+                    if (imgui.isItemClicked()) {
+                        file.selected_keyframe_animation_index = animation_index;
+                    }
 
-                contextMenu(animation_index, file);
+                    contextMenu(animation_index, file);
+                }
             }
         }
     } else {
