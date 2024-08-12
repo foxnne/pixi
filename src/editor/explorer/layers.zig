@@ -59,12 +59,13 @@ pub fn draw() void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 5.0, .y = 10.0 });
         defer imgui.popStyleVar();
 
-        if (imgui.getContentRegionAvail().y < 5.0)
-            return;
+        const layers_min_height: f32 = 150.0;
+        const line_height: f32 = imgui.getTextLineHeightWithSpacing();
+        const min_lines_height: f32 = line_height * @as(f32, @floatFromInt(file.layers.items.len));
 
         if (imgui.beginChild("LayersChild", .{
             .x = -1.0,
-            .y = 150.0,
+            .y = @min(min_lines_height, layers_min_height),
         }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
 
@@ -183,9 +184,4 @@ pub fn draw() void {
             }
         }
     }
-    // } else {
-    //     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-    //     imgui.textWrapped("Open a file to begin editing.");
-    //     imgui.popStyleColor();
-    // }
 }

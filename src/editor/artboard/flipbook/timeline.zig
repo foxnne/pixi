@@ -614,6 +614,7 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.Pixi, animation_length: usize, 
                 var x: f32 = @floatFromInt(ms);
                 x += work_area_offset - scroll[0] + window_position.x;
 
+                // Draw temporary line from the node we are dragging to the mouse position
                 if (frame_node_dragging) |frame_dragging_id| {
                     if (secondary_down and line_hovered) { // Shift is pressed, so we need to link the dragged node to the target node
                         if (animation.getKeyframeFromFrame(frame_dragging_id)) |dragging_kf| {
@@ -690,7 +691,6 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.Pixi, animation_length: usize, 
 
                                 if (frame_node_dragging) |frame_dragging_id| {
                                     if (secondary_down) { // Shift is pressed, so we need to link the dragged node to the target node
-
                                         if (animation.getKeyframeFromFrame(frame_dragging_id)) |dragging_kf| {
                                             if (bt.released() and line_hovered and window_hovered) {
                                                 animation.active_keyframe_id = hovered_kf.id;
@@ -843,6 +843,7 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.Pixi, animation_length: usize, 
 
                             if (line_hovered and window_hovered and frame_node_dragging == null) {
                                 for (dragging_keyframe.frames.items, 0..) |fr, fr_i| {
+
                                     const index_float: f32 = @floatFromInt(fr_i);
 
                                     const y: f32 = imgui.getWindowPos().y + (index_float * ((frame_node_radius * 2.0) + frame_node_spacing)) + work_area_offset;

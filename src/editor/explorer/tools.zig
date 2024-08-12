@@ -5,54 +5,56 @@ const imgui = @import("zig-imgui");
 const layers = @import("layers.zig");
 
 pub fn draw() void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 8.0 * pixi.content_scale[0], .y = 8.0 * pixi.content_scale[1] });
-    imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.8 });
-    defer imgui.popStyleVarEx(2);
-
     imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.foreground.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.foreground.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.foreground.toImguiVec4());
     defer imgui.popStyleColorEx(3);
+
+    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.8 });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 6.0 });
+    defer imgui.popStyleVarEx(3);
+
     if (imgui.beginChild("Tools", .{
         .x = imgui.getWindowWidth(),
         .y = -1.0,
     }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
         defer imgui.endChild();
 
-        if (imgui.beginChild("ToolsScrollable", .{ .x = imgui.getWindowWidth(), .y = -1.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-            defer imgui.endChild();
+        const style = imgui.getStyle();
+        const window_size = imgui.getWindowSize();
 
-            const style = imgui.getStyle();
-            const window_size = imgui.getWindowSize();
+        const button_width = imgui.getWindowWidth() / 3.6;
+        const button_height = button_width / 2.0;
 
-            const button_width = imgui.getWindowWidth() / 3.6;
-            const button_height = button_width / 2.0;
+        const color_width = window_size.x / 2.2;
 
-            const color_width = window_size.x / 2.2;
+        // Row 1
+        {
+            imgui.setCursorPosX(style.item_spacing.x * 2.0);
+            drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+            imgui.sameLine();
+            drawTool(pixi.fa.pencil_alt, button_width, button_height, .pencil);
+            imgui.sameLine();
+            drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
+        }
 
-            // Row 1
-            {
-                imgui.setCursorPosX(style.item_spacing.x);
-                drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
-                imgui.sameLine();
-                drawTool(pixi.fa.pencil_alt, button_width, button_height, .pencil);
-                imgui.sameLine();
-                drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
-            }
+        // Row 2
+        {
+            imgui.setCursorPosX(style.item_spacing.x * 2.0);
+            drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
+            imgui.sameLine();
+            drawTool(pixi.fa.fill_drip, button_width, button_height, .bucket);
+        }
 
-            // Row 2
-            {
-                imgui.setCursorPosX(style.item_spacing.x);
-                drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
-                imgui.sameLine();
-                drawTool(pixi.fa.fill_drip, button_width, button_height, .bucket);
-            }
+        imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.background.toImguiVec4());
+        defer imgui.popStyleColorEx(3);
 
-            imgui.spacing();
-            imgui.spacing();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-            imgui.separatorText("Colors  " ++ pixi.fa.paint_brush);
-            imgui.popStyleColor();
+        if (imgui.collapsingHeader(pixi.fa.paint_brush ++ "  Colors", imgui.TreeNodeFlags_DefaultOpen)) {
+            imgui.indent();
+            defer imgui.unindent();
 
             var heightmap_visible: bool = false;
             if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
@@ -139,12 +141,17 @@ pub fn draw() void {
 
                 pixi.state.hotkeys.disable = disable_hotkeys;
             }
+        }
 
-            imgui.spacing();
-            imgui.spacing();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-            imgui.separatorText("Palettes  " ++ pixi.fa.palette);
-            imgui.popStyleColor();
+        if (imgui.collapsingHeader(pixi.fa.layer_group ++ "  Layers", imgui.TreeNodeFlags_SpanAvailWidth | imgui.TreeNodeFlags_DefaultOpen)) {
+            imgui.indent();
+            defer imgui.unindent();
+            layers.draw();
+        }
+
+        if (imgui.collapsingHeader(pixi.fa.palette ++ "  Palettes", imgui.TreeNodeFlags_SpanFullWidth | imgui.TreeNodeFlags_DefaultOpen)) {
+            imgui.indent();
+            defer imgui.unindent();
 
             imgui.setNextItemWidth(-1.0);
             if (imgui.beginCombo("##PaletteCombo", if (pixi.state.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {
@@ -152,9 +159,13 @@ pub fn draw() void {
                 searchPalettes() catch unreachable;
             }
 
-            if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = 175.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-                defer imgui.endChild();
+            const min_width = 24.0;
+            const columns: usize = @intFromFloat(@floor((imgui.getContentRegionAvail().x - pixi.state.settings.explorer_grip) / (min_width + style.item_spacing.x)));
 
+            const content_region_avail = imgui.getContentRegionAvail().y;
+
+            defer imgui.endChild(); // This can get cut off and causes a crash if begin child is not called because its off screen.
+            if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = @max(content_region_avail, min_width) }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 if (pixi.state.colors.palette) |palette| {
                     for (palette.colors, 0..) |color, i| {
                         const c: imgui.Vec4 = .{
@@ -164,13 +175,10 @@ pub fn draw() void {
                             .w = @as(f32, @floatFromInt(color[3])) / 255.0,
                         };
                         imgui.pushIDInt(@as(c_int, @intCast(i)));
-                        if (imgui.colorButton(palette.name, .{ .x = c.x, .y = c.y, .z = c.z, .w = c.w }, imgui.ColorEditFlags_None)) {
+                        if (imgui.colorButtonEx(palette.name, .{ .x = c.x, .y = c.y, .z = c.z, .w = c.w }, imgui.ColorEditFlags_None, .{ .x = min_width, .y = min_width })) {
                             pixi.state.colors.primary = color;
                         }
                         imgui.popID();
-
-                        const min_width = 32.0 * pixi.content_scale[0];
-                        const columns: usize = @intFromFloat(@ceil((imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0]) / (min_width + style.item_spacing.x)));
 
                         if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)
                             imgui.sameLine();
@@ -190,13 +198,6 @@ pub fn draw() void {
                     imgui.textWrapped(new_palette_text);
                 }
             }
-
-            imgui.spacing();
-            imgui.spacing();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_secondary.toImguiVec4());
-            imgui.separatorText("Layers  " ++ pixi.fa.layer_group);
-            imgui.popStyleColor();
-            layers.draw();
         }
     }
 }
