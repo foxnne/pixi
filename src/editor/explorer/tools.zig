@@ -22,12 +22,11 @@ pub fn draw() void {
         defer imgui.endChild();
 
         const style = imgui.getStyle();
-        const window_size = imgui.getWindowSize();
 
         const button_width = imgui.getWindowWidth() / 3.6;
         const button_height = button_width / 2.0;
 
-        const color_width = window_size.x / 2.2;
+        const color_width = imgui.getContentRegionAvail().x / 2.0 - style.item_spacing.x - style.indent_spacing;
 
         // Row 1
         {
@@ -51,6 +50,8 @@ pub fn draw() void {
         imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
         imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.background.toImguiVec4());
         defer imgui.popStyleColorEx(3);
+
+        imgui.spacing();
 
         if (imgui.collapsingHeader(pixi.fa.paint_brush ++ "  Colors", imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
