@@ -26,7 +26,7 @@ pub fn draw() void {
         const button_width = imgui.getWindowWidth() / 3.6;
         const button_height = button_width / 2.0;
 
-        const color_width = imgui.getContentRegionAvail().x / 2.0 - style.item_spacing.x - style.indent_spacing;
+        const color_width = (imgui.getContentRegionAvail().x - style.indent_spacing) / 2.0 - style.item_spacing.x;
 
         // Row 1
         {
@@ -86,7 +86,7 @@ pub fn draw() void {
 
                 if (imgui.colorButtonEx("Primary", primary, imgui.ColorEditFlags_AlphaPreview, .{
                     .x = color_width,
-                    .y = 64 * pixi.content_scale[1],
+                    .y = 64,
                 })) {
                     const color = pixi.state.colors.primary;
                     pixi.state.colors.primary = pixi.state.colors.secondary;
@@ -113,7 +113,7 @@ pub fn draw() void {
 
                 if (imgui.colorButtonEx("Secondary", secondary, imgui.ColorEditFlags_AlphaPreview, .{
                     .x = color_width,
-                    .y = 64 * pixi.content_scale[1],
+                    .y = 64,
                 })) {
                     const color = pixi.state.colors.primary;
                     pixi.state.colors.primary = pixi.state.colors.secondary;
@@ -278,7 +278,7 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
                     }
                 },
                 .pencil, .eraser => {
-                    imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click for options");
+                    imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click for size/shape options");
                 },
                 else => {},
             }

@@ -192,6 +192,7 @@ pub fn draw() void {
     grip_flags |= imgui.WindowFlags_NoMove;
     grip_flags |= imgui.WindowFlags_NoCollapse;
     grip_flags |= imgui.WindowFlags_NoScrollbar;
+    grip_flags |= imgui.WindowFlags_NoScrollWithMouse;
 
     if (imgui.begin("Grip", null, grip_flags)) {
         defer imgui.end();

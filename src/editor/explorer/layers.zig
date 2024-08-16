@@ -59,8 +59,8 @@ pub fn draw() void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 5.0, .y = 10.0 });
         defer imgui.popStyleVar();
 
-        const layers_min_height: f32 = 150.0;
         const line_height: f32 = imgui.getTextLineHeightWithSpacing();
+        const layers_min_height: f32 = line_height * 10.0;
         const min_lines_height: f32 = line_height * @as(f32, @floatFromInt(file.layers.items.len));
 
         if (imgui.beginChild("LayersChild", .{

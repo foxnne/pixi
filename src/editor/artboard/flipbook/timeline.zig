@@ -137,10 +137,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                         const y: f32 = imgui.getWindowPos().y;
 
                         if (@mod(ms, 100) == 0) {
-                            const template = if (@mod(ms, 1000) == 0) "s" else "ms";
+                            const unit = if (@mod(ms, 1000) == 0) "s" else "ms";
                             const value = if (@mod(ms, 1000) == 0) @divExact(ms, 1000) else ms;
 
-                            const text = std.fmt.allocPrintZ(pixi.state.allocator, "{d} {s}", .{ value, template }) catch unreachable;
+                            const text = std.fmt.allocPrintZ(pixi.state.allocator, "{d} {s}", .{ value, unit }) catch unreachable;
                             defer pixi.state.allocator.free(text);
 
                             draw_list.addText(.{ .x = x, .y = y }, pixi.state.theme.text_background.toU32(), text);
