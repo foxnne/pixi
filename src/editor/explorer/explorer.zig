@@ -20,10 +20,10 @@ pub fn draw() void {
     imgui.pushStyleColorImVec4(imgui.Col_WindowBg, pixi.state.theme.foreground.toImguiVec4());
     defer imgui.popStyleColor();
 
-    const explorer_width = (pixi.state.settings.explorer_width) * pixi.content_scale[0];
+    const explorer_width = pixi.state.settings.explorer_width;
 
     imgui.setNextWindowPos(.{
-        .x = pixi.state.settings.sidebar_width * pixi.content_scale[0],
+        .x = pixi.state.settings.sidebar_width,
         .y = 0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
@@ -44,8 +44,8 @@ pub fn draw() void {
         defer imgui.end();
         imgui.popStyleVarEx(3);
 
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 });
         defer imgui.popStyleVarEx(2);
 
         imgui.pushStyleColorImVec4(imgui.Col_Separator, pixi.state.theme.text_background.toImguiVec4());
@@ -232,7 +232,7 @@ pub fn draw() void {
 
             imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
             pixi.state.settings.explorer_width = std.math.clamp(
-                pixi.state.settings.explorer_width + diff / pixi.content_scale[0],
+                pixi.state.settings.explorer_width + diff,
                 200,
                 pixi.window_size[0] / 2.0 - pixi.state.settings.sidebar_width,
             );

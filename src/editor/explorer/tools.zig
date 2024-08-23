@@ -165,9 +165,15 @@ pub fn draw() void {
 
             const content_region_avail = imgui.getContentRegionAvail().y;
 
+            const shadow_min: imgui.Vec2 = .{ .x = imgui.getCursorPosX() + imgui.getWindowPos().x, .y = imgui.getCursorPosY() + imgui.getWindowPos().y };
+            const shadow_max: imgui.Vec2 = .{ .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (min_width + style.item_spacing.x) - style.item_spacing.x, .y = shadow_min.y + pixi.state.settings.shadow_length };
+            const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity * 4.0).toU32();
+            var scroll_y: f32 = 0.0;
+
             defer imgui.endChild(); // This can get cut off and causes a crash if begin child is not called because its off screen.
             if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = @max(content_region_avail, min_width) }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 if (pixi.state.colors.palette) |palette| {
+                    scroll_y = imgui.getScrollY();
                     for (palette.colors, 0..) |color, i| {
                         const c: imgui.Vec4 = .{
                             .x = @as(f32, @floatFromInt(color[0])) / 255.0,
@@ -197,6 +203,13 @@ pub fn draw() void {
                     defer pixi.state.allocator.free(new_palette_text);
 
                     imgui.textWrapped(new_palette_text);
+                }
+            }
+
+            if (pixi.state.colors.palette != null and scroll_y != 0.0) {
+                if (imgui.getWindowDrawList()) |draw_list| {
+                    draw_list.addRectFilledMultiColor(shadow_min, shadow_max, shadow_color, shadow_color, 0x00000000, 0x00000000);
+                    //draw_list.addRectFilled(shadow_min, shadow_max, 0xFFFFFFFF);
                 }
             }
         }

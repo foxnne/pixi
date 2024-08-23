@@ -6,7 +6,7 @@ const History = pixi.storage.Internal.Pixi.History;
 
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
         defer imgui.popStyleVar();
 
         imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.foreground.toImguiVec4());
@@ -22,7 +22,7 @@ pub fn draw() void {
         }
 
         if (file.heightmap.layer != null) {
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
             defer imgui.popStyleVar();
             imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.highlight_secondary.toImguiVec4());
             imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.highlight_secondary.toImguiVec4());
@@ -103,7 +103,6 @@ pub fn draw() void {
                     } };
 
                     file.layers.items[i].collapse = !file.layers.items[i].collapse;
-
                     file.history.append(change) catch unreachable;
                 }
                 if (imgui.beginItemTooltip()) {
@@ -127,10 +126,10 @@ pub fn draw() void {
                     file.selected_layer_index = i;
                 }
 
-                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 2.0 * pixi.content_scale[1] });
-                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
-                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * pixi.content_scale[0]);
-                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
+                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0);
+                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
                 defer imgui.popStyleVarEx(4);
 
                 if (imgui.beginPopupContextItem()) {

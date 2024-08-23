@@ -378,7 +378,19 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     for (animation.keyframes.items) |*keyframe| {
                         if (keyframe.time <= current_time) {
                             for (keyframe.frames.items) |from_frame| {
-                                if (from_frame.tween_id) |from_tween_id| {
+                                var from_tween_id_opt: ?u32 = if (from_frame.tween_id) |from_tween_id| from_tween_id else null;
+
+                                if (from_tween_id_opt == null) {
+                                    for (animation.keyframes.items) |kf| {
+                                        for (kf.frames.items) |f| {
+                                            if (f.tween_id == from_frame.id) {
+                                                from_tween_id_opt = f.tween_id;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (from_tween_id_opt) |from_tween_id| {
                                     if (animation.getKeyframeFromFrame(from_tween_id)) |to_keyframe| {
                                         if (to_keyframe.time < current_time) continue;
                                         if (to_keyframe.frame(from_tween_id)) |to_frame| {
