@@ -1634,6 +1634,7 @@ pub const Pixi = struct {
                     }
 
                     src_layer.texture.update(core.device);
+                    self.selection_layer.clear(true);
 
                     if (append_history) {
                         // Submit the stroke change buffer
