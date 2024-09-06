@@ -14,6 +14,15 @@ pub var bucket_default = [_]usize {
 pub var dropper_default = [_]usize {
     assets.pixi_atlas.dropper_0_default,
 };
+pub var selection_default = [_]usize {
+    assets.pixi_atlas.selection_0_default,
+};
+pub var selection_add_default = [_]usize {
+    assets.pixi_atlas.selection_add_0_default,
+};
+pub var selection_rem_default = [_]usize {
+    assets.pixi_atlas.selection_rem_0_default,
+};
 pub var fox_default = [_]usize {
     assets.pixi_atlas.fox_0_default,
 };

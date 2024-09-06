@@ -279,12 +279,7 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .transform })) |hk| {
             if (hk.pressed()) {
                 try file.cut(false);
-                //try file.eraseSprite(file.selected_sprite_index, false);
                 try file.paste();
-
-                // if (file.transform_texture) |*tt| {
-                //     tt.temporary = true;
-                // }
             }
         }
 
@@ -629,6 +624,20 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .num_lock = false,
             },
             .action = .{ .proc = Proc.copy },
+        });
+
+        try hotkeys.append(.{
+            .shortcut = if (windows_or_linux) "ctrl+x" else "cmd+x",
+            .key = Key.x,
+            .mods = .{
+                .control = windows_or_linux,
+                .super = !windows_or_linux,
+                .shift = false,
+                .alt = false,
+                .caps_lock = false,
+                .num_lock = false,
+            },
+            .action = .{ .proc = Proc.cut },
         });
 
         try hotkeys.append(.{

@@ -13,8 +13,11 @@ pub const pixi_atlas = struct {
   pub const eraser_0_default = 1;
   pub const bucket_0_default = 2;
   pub const dropper_0_default = 3;
-  pub const fox_0_default = 4;
-  pub const logo_0_default = 5;
+  pub const selection_0_default = 4;
+  pub const selection_add_0_default = 5;
+  pub const selection_rem_0_default = 6;
+  pub const fox_0_default = 7;
+  pub const logo_0_default = 8;
 };
 
 pub const pixi_png = struct {

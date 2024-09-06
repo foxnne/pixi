@@ -211,7 +211,6 @@ pub fn draw() void {
             if (pixi.state.colors.palette != null and scroll_y != 0.0) {
                 if (imgui.getWindowDrawList()) |draw_list| {
                     draw_list.addRectFilledMultiColor(shadow_min, shadow_max, shadow_color, shadow_color, 0x00000000, 0x00000000);
-                    //draw_list.addRectFilled(shadow_min, shadow_max, 0xFFFFFFFF);
                 }
             }
         }
@@ -293,8 +292,22 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
                         imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), second_text);
                     }
                 },
-                .pencil, .eraser, .selection => {
+                .pencil, .eraser => {
                     imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click for size/shape options");
+                },
+                .selection => {
+                    if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |primary_hk| {
+                        if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |secondary_hk| {
+                            imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click for size/shape options");
+                            const first_text = std.fmt.allocPrintZ(pixi.state.allocator, "Click and drag while holding ({s}) to add to selection.", .{primary_hk.shortcut}) catch unreachable;
+                            defer pixi.state.allocator.free(first_text);
+
+                            const second_text = std.fmt.allocPrintZ(pixi.state.allocator, "Click and drag while holding ({s}) to remove from selection", .{secondary_hk.shortcut}) catch unreachable;
+                            defer pixi.state.allocator.free(second_text);
+                            imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), first_text);
+                            imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), second_text);
+                        }
+                    }
                 },
                 else => {},
             }

@@ -610,19 +610,15 @@ pub const Pixi = struct {
         const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
         const sample_button = if (pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
 
+        const add: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+        const rem: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+        const pressed: bool = if (pixi.state.mouse.button(.primary)) |bt| bt.pressed() else false;
+
         if (sample_key or sample_button) return;
 
-        switch (pixi.state.tools.current) {
-            .pencil, .heightmap => {
-                imgui.setMouseCursor(imgui.MouseCursor_None);
-                file.camera.drawCursor(pixi.assets.pixi_atlas.pencil_0_default, 0xFFFFFFFF);
-            },
-            .eraser => {
-                imgui.setMouseCursor(imgui.MouseCursor_None);
-                file.camera.drawCursor(pixi.assets.pixi_atlas.eraser_0_default, 0xFFFFFFFF);
-            },
-            else => {},
-        }
+        const cursor_sprite_index: usize = if (add) pixi.assets.pixi_atlas.selection_add_0_default else if (rem) pixi.assets.pixi_atlas.selection_rem_0_default else pixi.assets.pixi_atlas.selection_0_default;
+        imgui.setMouseCursor(imgui.MouseCursor_None);
+        file.camera.drawCursor(cursor_sprite_index, 0xFFFFFFFF);
 
         var canvas_center_offset = canvasCenterOffset(file, canvas);
         canvas_center_offset[0] += options.texture_position_offset[0];
@@ -656,10 +652,6 @@ pub const Pixi = struct {
         };
 
         if (pixel_coords_opt) |pixel_coord| {
-            const add: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
-            const rem: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
-            const pressed: bool = if (pixi.state.mouse.button(.primary)) |bt| bt.pressed() else false;
-
             const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
             const stroke_size: u32 = @intCast(pixi.state.tools.stroke_size);
 
@@ -676,7 +668,7 @@ pub const Pixi = struct {
                             if (pixi.state.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
                         else if (pixi.state.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
 
-                        if (rem) color = .{ 0, 0, 0, 0 };
+                        if (rem) @memset(&color, 0);
 
                         if (file.layers.items[file.selected_layer_index].pixels()[result.index][3] != 0)
                             file.selection_layer.setPixelIndex(result.index, color, false);

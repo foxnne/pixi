@@ -37,6 +37,9 @@ pub fn set(self: *Self, tool: Tool) void {
                 },
                 .pointer => {
                     file.heightmap.disable();
+
+                    if (self.current == .selection)
+                        file.selection_layer.clear(true);
                 },
                 else => {},
             }
