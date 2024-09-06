@@ -98,14 +98,14 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                     dst_width = @round(dst_width);
                     dst_height = @round(dst_height);
                 }
-                const offset = (1.0 - sprite_scale) * (dst_height / 5.0);
-                const offset_x = (1.0 - sprite_scale) * dst_width * 0.5;
+                const offset_y = (1.0 - sprite_scale) * (dst_height / 5.0);
+                const offset_x = (1.0 - sprite_scale) * (dst_width * 0.5);
                 const flip = if (dst_x + dst_width > 0) false else true;
-                const dst_rect: [4]f32 = .{ dst_x + offset_x, dst_y + offset, dst_width, dst_height };
-                const dst_p1: [2]f32 = if (flip) .{ dst_x + offset_x, dst_y } else .{ dst_x + offset_x, dst_y + offset };
-                const dst_p2: [2]f32 = if (flip) .{ dst_x + dst_width + offset_x, dst_y + offset } else .{ dst_x + dst_width + offset_x, dst_y };
-                const dst_p3: [2]f32 = if (flip) .{ dst_x + dst_width + offset_x, dst_y + dst_height - offset } else .{ dst_x + dst_width + offset_x, dst_y + dst_height };
-                const dst_p4: [2]f32 = if (flip) .{ dst_x + offset_x, dst_y + dst_height } else .{ dst_x + offset_x, dst_y + dst_height - offset };
+                const dst_rect: [4]f32 = .{ dst_x + offset_x, dst_y + offset_y, dst_width, dst_height };
+                const dst_p1: [2]f32 = if (flip) .{ dst_x + offset_x, dst_y } else .{ dst_x + offset_x, dst_y + offset_y };
+                const dst_p2: [2]f32 = if (flip) .{ dst_x + dst_width + offset_x, dst_y + offset_y } else .{ dst_x + dst_width + offset_x, dst_y };
+                const dst_p3: [2]f32 = if (flip) .{ dst_x + dst_width + offset_x, dst_y + dst_height - offset_y } else .{ dst_x + dst_width + offset_x, dst_y + dst_height };
+                const dst_p4: [2]f32 = if (flip) .{ dst_x + offset_x, dst_y + dst_height } else .{ dst_x + offset_x, dst_y + dst_height - offset_y };
 
                 if (sprite_scale >= 1.0) {
                     // TODO: Make background texture opacity available through settings.

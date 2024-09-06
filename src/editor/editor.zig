@@ -92,12 +92,18 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
         .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
         .temporary_layer = undefined,
+        .selection_layer = undefined,
     };
 
     try internal.createBackground();
 
     internal.temporary_layer = .{
         .name = "Temporary",
+        .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
+    };
+
+    internal.selection_layer = .{
+        .name = "Selection",
         .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
     };
 
@@ -208,12 +214,19 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
             .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
             .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
             .temporary_layer = undefined,
+            .selection_layer = undefined,
         };
 
         try internal.createBackground();
 
         internal.temporary_layer = .{
-            .name = "temporary",
+            .name = "Temporary",
+            .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
+            .visible = true,
+        };
+
+        internal.selection_layer = .{
+            .name = "Selection",
             .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
             .visible = true,
         };
@@ -464,6 +477,7 @@ pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
     file.buffers.deinit();
     file.background.deinit();
     file.temporary_layer.texture.deinit();
+    file.selection_layer.texture.deinit();
     if (file.heightmap.layer) |*layer| {
         layer.texture.deinit();
         pixi.state.allocator.free(layer.name);
@@ -473,8 +487,6 @@ pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
     }
 
     for (file.keyframe_animations.items) |*animation| {
-        //animation.transform_bindgroup.release();
-
         // TODO: uncomment this when names are allocated
         //pixi.state.allocator.free(animation.name);
 

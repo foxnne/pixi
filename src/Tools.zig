@@ -10,6 +10,7 @@ pub const Tool = enum(u32) {
     animation,
     heightmap,
     bucket,
+    selection,
 };
 
 pub const Shape = enum(u32) {

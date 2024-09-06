@@ -111,6 +111,20 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     //if (file.transform_texture == null)
     file.temporary_layer.clear(true);
 
+    pixi.state.selection_time += pixi.state.delta_time;
+    if (pixi.state.selection_time >= 0.3) {
+        for (file.selection_layer.pixels()) |*pixel| {
+            if (pixel[3] != 0) {
+                if (pixel[0] != 0) pixel[0] = 0 else pixel[0] = 255;
+                if (pixel[1] != 0) pixel[1] = 0 else pixel[1] = 255;
+                if (pixel[2] != 0) pixel[2] = 0 else pixel[2] = 255;
+            }
+        }
+        file.selection_layer.texture.update(core.device);
+        pixi.state.selection_time = 0.0;
+        pixi.state.selection_invert = !pixi.state.selection_invert;
+    }
+
     if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
         const mouse_position = pixi.state.mouse.position;
 
@@ -135,6 +149,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
             file.processFillTool(.primary, .{}) catch unreachable;
             file.processAnimationTool() catch unreachable;
             file.processSampleTool(.primary, .{});
+            file.processSelectionTool(.primary, .{}) catch unreachable;
 
             if (pixi.state.mouse.button(.primary)) |primary| {
                 if (primary.pressed()) {
@@ -245,6 +260,10 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 file.camera.drawLayer(layer, canvas_center_offset);
             }
         }
+    }
+
+    if (pixi.state.tools.current == .selection) {
+        file.camera.drawLayer(file.selection_layer, canvas_center_offset);
     }
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient

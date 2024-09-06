@@ -82,9 +82,13 @@ pub const PixiState = struct {
     fonts: Fonts = .{},
     colors: Colors = .{},
     delta_time: f32 = 0.0,
+    total_time: f32 = 0.0,
+    selection_time: f32 = 0.0,
+    selection_invert: bool = false,
     json_allocator: std.heap.ArenaAllocator = undefined,
     assets: Assets = undefined,
     clipboard_image: ?zstbi.Image = null,
+    clipboard_position: [2]u32 = .{ 0, 0 },
     batcher: gfx.Batcher = undefined,
     pipeline_default: *gpu.RenderPipeline = undefined,
     pipeline_compute: *gpu.ComputePipeline = undefined,
@@ -255,6 +259,7 @@ pub fn update(app: *App) !bool {
     try imgui_mach.newFrame();
     imgui.newFrame();
     state.delta_time = app.timer.lap();
+    state.total_time += state.delta_time;
 
     const descriptor = core.descriptor;
     window_size = .{ @floatFromInt(core.size().width), @floatFromInt(core.size().height) };

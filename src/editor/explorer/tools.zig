@@ -44,6 +44,8 @@ pub fn draw() void {
             drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
             imgui.sameLine();
             drawTool(pixi.fa.fill_drip, button_width, button_height, .bucket);
+            imgui.sameLine();
+            drawTool(pixi.fa.clipboard_check, button_width, button_height, .selection);
         }
 
         imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.background.toImguiVec4());
@@ -228,7 +230,7 @@ pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tools.Tool) void
         pixi.state.tools.set(tool);
     }
 
-    if (tool == .pencil or tool == .eraser) {
+    if (tool == .pencil or tool == .eraser or tool == .selection) {
         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
         defer imgui.popStyleColor();
         if (imgui.beginPopupContextItem()) {
@@ -267,6 +269,7 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
                 .animation => "Animation",
                 .heightmap => "Heightmap",
                 .bucket => "Bucket",
+                .selection => "Selection",
             };
 
             if (pixi.state.hotkeys.hotkey(.{ .tool = tool })) |hotkey| {
@@ -290,7 +293,7 @@ pub fn drawTooltip(tool: pixi.Tools.Tool) void {
                         imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), second_text);
                     }
                 },
-                .pencil, .eraser => {
+                .pencil, .eraser, .selection => {
                     imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click for size/shape options");
                 },
                 else => {},

@@ -53,6 +53,7 @@ pub const Proc = enum(u32) {
     shift_up,
     shift_down,
     copy,
+    cut,
     paste,
     transform,
     toggle_heightmap,
@@ -179,7 +180,7 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .size_up })) |hk| {
             if (hk.pressed()) {
                 switch (pixi.state.tools.current) {
-                    .pencil, .eraser => {
+                    .pencil, .eraser, .selection => {
                         if (pixi.state.tools.stroke_size < pixi.state.settings.stroke_max_size)
                             pixi.state.tools.stroke_size += 1;
                     },
@@ -191,7 +192,7 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .size_down })) |hk| {
             if (hk.pressed()) {
                 switch (pixi.state.tools.current) {
-                    .pencil, .eraser => {
+                    .pencil, .eraser, .selection => {
                         if (pixi.state.tools.stroke_size > 1)
                             pixi.state.tools.stroke_size -= 1;
                     },
@@ -263,6 +264,12 @@ pub fn process(self: *Self) !void {
             }
         }
 
+        if (self.hotkey(.{ .proc = .cut })) |hk| {
+            if (hk.pressed()) {
+                try file.cut(true);
+            }
+        }
+
         if (self.hotkey(.{ .proc = .paste })) |hk| {
             if (hk.pressed()) {
                 try file.paste();
@@ -271,8 +278,8 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .transform })) |hk| {
             if (hk.pressed()) {
-                try file.copy();
-                try file.eraseSprite(file.selected_sprite_index, false);
+                try file.cut(false);
+                //try file.eraseSprite(file.selected_sprite_index, false);
                 try file.paste();
 
                 // if (file.transform_texture) |*tt| {
@@ -808,6 +815,13 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .key = Key.b,
             .action = .{ .tool = Tool.bucket },
         });
+
+        // Selection
+        try hotkeys.append(.{
+            .shortcut = "s",
+            .key = Key.s,
+            .action = .{ .tool = Tool.selection },
+        });
     }
 
     { // Sidebars
@@ -826,11 +840,11 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         // Sprites
-        try hotkeys.append(.{
-            .shortcut = "s",
-            .key = Key.s,
-            .action = .{ .sidebar = Sidebar.sprites },
-        });
+        // try hotkeys.append(.{
+        //     .shortcut = "s",
+        //     .key = Key.s,
+        //     .action = .{ .sidebar = Sidebar.sprites },
+        // });
 
         // Animations
         try hotkeys.append(.{

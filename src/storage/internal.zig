@@ -43,6 +43,7 @@ pub const Pixi = struct {
     selected_keyframe_animation_loop: bool = false,
     background: pixi.gfx.Texture,
     temporary_layer: Layer,
+    selection_layer: Layer,
     transform_texture: ?TransformTexture = null,
     transform_bindgroup: ?*gpu.BindGroup = null,
     transform_compute_buffer: ?*gpu.Buffer = null,
@@ -596,6 +597,104 @@ pub const Pixi = struct {
                 const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
                 const change = try file.buffers.stroke.toChange(layer_index);
                 try file.history.append(change);
+            }
+        }
+    }
+
+    pub fn processSelectionTool(file: *Pixi, canvas: Canvas, options: StrokeToolOptions) !void {
+        if (switch (pixi.state.tools.current) {
+            .selection => false,
+            else => true,
+        }) return;
+
+        const sample_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+
+        if (sample_key or sample_button) return;
+
+        switch (pixi.state.tools.current) {
+            .pencil, .heightmap => {
+                imgui.setMouseCursor(imgui.MouseCursor_None);
+                file.camera.drawCursor(pixi.assets.pixi_atlas.pencil_0_default, 0xFFFFFFFF);
+            },
+            .eraser => {
+                imgui.setMouseCursor(imgui.MouseCursor_None);
+                file.camera.drawCursor(pixi.assets.pixi_atlas.eraser_0_default, 0xFFFFFFFF);
+            },
+            else => {},
+        }
+
+        var canvas_center_offset = canvasCenterOffset(file, canvas);
+        canvas_center_offset[0] += options.texture_position_offset[0];
+        canvas_center_offset[1] += options.texture_position_offset[1];
+        const mouse_position = pixi.state.mouse.position;
+        const previous_mouse_position = pixi.state.mouse.previous_position;
+        _ = previous_mouse_position; // autofix
+
+        const selected_layer: pixi.storage.Internal.Layer = if (file.heightmap.visible) if (file.heightmap.layer) |hml| hml else file.layers.items[file.selected_layer_index] else file.layers.items[file.selected_layer_index];
+        _ = selected_layer; // autofix
+
+        const camera = switch (canvas) {
+            .primary => file.camera,
+            .flipbook => file.flipbook_camera,
+        };
+
+        const pixel_coords_opt = switch (canvas) {
+            .primary => camera.pixelCoordinates(.{
+                .texture_position = canvas_center_offset,
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            }),
+
+            .flipbook => camera.flipbookPixelCoordinates(file, .{
+                .sprite_position = canvas_center_offset,
+                .position = mouse_position,
+                .width = file.width,
+                .height = file.height,
+            }),
+        };
+
+        if (pixel_coords_opt) |pixel_coord| {
+            const add: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+            const rem: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+            const pressed: bool = if (pixi.state.mouse.button(.primary)) |bt| bt.pressed() else false;
+
+            const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
+            const stroke_size: u32 = @intCast(pixi.state.tools.stroke_size);
+
+            if (!add and !rem and pressed) {
+                file.selection_layer.clear(false);
+            }
+
+            const selection_opacity: u8 = 200;
+
+            if (if (pixi.state.mouse.button(.primary)) |primary| primary.down() else false) {
+                for (0..(stroke_size * stroke_size)) |index| {
+                    if (file.selection_layer.getIndexShapeOffset(pixel, index)) |result| {
+                        var color: [4]u8 = if (@mod(@divTrunc(result.index, file.width) + result.index, 2) == 0)
+                            if (pixi.state.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
+                        else if (pixi.state.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
+
+                        if (rem) color = .{ 0, 0, 0, 0 };
+
+                        if (file.layers.items[file.selected_layer_index].pixels()[result.index][3] != 0)
+                            file.selection_layer.setPixelIndex(result.index, color, false);
+                    }
+                }
+                file.selection_layer.texture.update(core.device);
+            } else {
+                for (0..(stroke_size * stroke_size)) |index| {
+                    if (file.temporary_layer.getIndexShapeOffset(pixel, index)) |result| {
+                        const color: [4]u8 = if (@mod(@divTrunc(result.index, file.width) + result.index, 2) == 0)
+                            if (pixi.state.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
+                        else if (pixi.state.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
+
+                        if (file.layers.items[file.selected_layer_index].pixels()[result.index][3] != 0)
+                            file.temporary_layer.setPixelIndex(result.index, color, false);
+                    }
+                }
+                file.temporary_layer.texture.update(core.device);
             }
         }
     }
@@ -1511,13 +1610,108 @@ pub const Pixi = struct {
         return self.history.undoRedo(self, .redo);
     }
 
+    pub fn cut(self: *Pixi, append_history: bool) !void {
+        if (self.transform_texture == null) {
+            if (pixi.state.tools.current == .selection) {
+                if (pixi.Packer.reduce(&self.selection_layer.texture, .{ 0, 0, self.width, self.height })) |reduced_rect| {
+                    const copy_image = try zstbi.Image.createEmpty(@intCast(reduced_rect[2]), @intCast(reduced_rect[3]), 4, .{});
+                    const dst_pixels = @as([*][4]u8, @ptrCast(copy_image.data.ptr))[0 .. copy_image.data.len / 4];
+
+                    const src_layer = &self.layers.items[self.selected_layer_index];
+                    const src_pixels = @as([*][4]u8, @ptrCast(src_layer.texture.image.data.ptr))[0 .. src_layer.texture.image.data.len / 4];
+                    const mask_pixels = @as([*][4]u8, @ptrCast(self.selection_layer.texture.image.data.ptr))[0 .. self.selection_layer.texture.image.data.len / 4];
+
+                    // Copy pixels to image
+                    {
+                        var y: usize = reduced_rect[1];
+                        while (y < reduced_rect[1] + reduced_rect[3]) : (y += 1) {
+                            const start = reduced_rect[0] + y * self.width;
+                            const src = src_pixels[start .. start + reduced_rect[2]];
+                            const dst = dst_pixels[(y - reduced_rect[1]) * copy_image.width .. (y - reduced_rect[1]) * copy_image.width + copy_image.width];
+                            const msk = mask_pixels[start .. start + reduced_rect[2]];
+
+                            for (src, dst, msk, 0..) |*src_pixel, *dst_pixel, msk_pixel, i| {
+                                if (msk_pixel[3] != 0) {
+                                    @memcpy(dst_pixel, src_pixel);
+
+                                    try self.buffers.stroke.append(start + i, src_pixel.*);
+                                    @memset(src_pixel, 0);
+                                }
+                            }
+                        }
+                    }
+
+                    src_layer.texture.update(core.device);
+
+                    if (append_history) {
+                        // Submit the stroke change buffer
+                        if (self.buffers.stroke.indices.items.len > 0 and append_history) {
+                            const change = try self.buffers.stroke.toChange(@intCast(self.selected_layer_index));
+                            try self.history.append(change);
+                        }
+                    }
+
+                    if (pixi.state.clipboard_image) |*image| {
+                        image.deinit();
+                    }
+
+                    pixi.state.clipboard_image = copy_image;
+                    pixi.state.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
+                }
+            } else {
+                if (pixi.state.clipboard_image) |*image| {
+                    image.deinit();
+                }
+
+                pixi.state.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
+
+                try self.eraseSprite(self.selected_sprite_index, append_history);
+            }
+        }
+    }
+
     pub fn copy(self: *Pixi) !void {
         if (self.transform_texture == null) {
-            if (pixi.state.clipboard_image) |*image| {
-                image.deinit();
-            }
+            if (pixi.state.tools.current == .selection) {
+                if (pixi.Packer.reduce(&self.selection_layer.texture, .{ 0, 0, self.width, self.height })) |reduced_rect| {
+                    const copy_image = try zstbi.Image.createEmpty(@intCast(reduced_rect[2]), @intCast(reduced_rect[3]), 4, .{});
+                    const dst_pixels = @as([*][4]u8, @ptrCast(copy_image.data.ptr))[0 .. copy_image.data.len / 4];
 
-            pixi.state.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
+                    const src_layer = &self.layers.items[self.selected_layer_index];
+                    const src_pixels = @as([*][4]u8, @ptrCast(src_layer.texture.image.data.ptr))[0 .. src_layer.texture.image.data.len / 4];
+                    const mask_pixels = @as([*][4]u8, @ptrCast(self.selection_layer.texture.image.data.ptr))[0 .. self.selection_layer.texture.image.data.len / 4];
+
+                    // Copy pixels to image
+                    {
+                        var y: usize = reduced_rect[1];
+                        while (y < reduced_rect[1] + reduced_rect[3]) : (y += 1) {
+                            const start = reduced_rect[0] + y * self.width;
+                            const src = src_pixels[start .. start + reduced_rect[2]];
+                            const dst = dst_pixels[(y - reduced_rect[1]) * copy_image.width .. (y - reduced_rect[1]) * copy_image.width + copy_image.width];
+                            const msk = mask_pixels[start .. start + reduced_rect[2]];
+
+                            for (src, dst, msk) |*src_pixel, *dst_pixel, msk_pixel| {
+                                if (msk_pixel[3] != 0) {
+                                    @memcpy(dst_pixel, src_pixel);
+                                }
+                            }
+                        }
+                    }
+
+                    if (pixi.state.clipboard_image) |*image| {
+                        image.deinit();
+                    }
+
+                    pixi.state.clipboard_image = copy_image;
+                    pixi.state.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
+                }
+            } else {
+                if (pixi.state.clipboard_image) |*image| {
+                    image.deinit();
+                }
+
+                pixi.state.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
+            }
         }
     }
 
@@ -1559,7 +1753,7 @@ pub const Pixi = struct {
             );
             @memcpy(image_copy.data, image.data);
 
-            const transform_position = self.pixelCoordinatesFromIndex(self.selected_sprite_index);
+            const transform_position: [2]f32 = if (pixi.state.tools.current == .selection) .{ @floatFromInt(pixi.state.clipboard_position[0]), @floatFromInt(pixi.state.clipboard_position[1]) } else self.pixelCoordinatesFromIndex(self.selected_sprite_index);
             const transform_width: f32 = @floatFromInt(image.width);
             const transform_height: f32 = @floatFromInt(image.height);
 
