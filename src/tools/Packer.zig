@@ -427,7 +427,7 @@ pub fn packAndClear(self: *Packer) !void {
     }
 }
 
-/// Takes a layer and a src rect and reduces the rect removing all fully transparent pixels
+/// Takes a texture and a src rect and reduces the rect removing all fully transparent pixels
 /// If the src rect doesn't contain any opaque pixels, returns null
 pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     const pixels = @as([*][4]u8, @ptrCast(texture.image.data.ptr))[0 .. texture.image.data.len / 4];
@@ -474,10 +474,12 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     if (height == 0)
         return null;
 
+    const new_top: usize = if (top > 0) top - 1 else 0;
+
     left: {
         while (left < right) : (left += 1) {
             var y = bottom;
-            while (y > top - 1) : (y -= 1) {
+            while (y > new_top) : (y -= 1) {
                 if (pixels[left + y * layer_width][3] != 0) {
                     break :left;
                 }
@@ -488,7 +490,7 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     right: {
         while (right > left) : (right -= 1) {
             var y = bottom;
-            while (y > top - 1) : (y -= 1) {
+            while (y > new_top) : (y -= 1) {
                 if (pixels[right + y * layer_width][3] != 0) {
                     if (right < src_x + src_width)
                         right += 1;
