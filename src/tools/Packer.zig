@@ -462,8 +462,8 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
             const row = pixels[start .. start + src_width];
             for (row) |pixel| {
                 if (pixel[3] != 0) {
-                    if (bottom < src_y + src_height - 1)
-                        bottom += 1;
+                    if (bottom < src_y + src_height)
+                        bottom += 0; // Replace with 1 if needed
                     break :bottom;
                 }
             }
@@ -477,7 +477,7 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     left: {
         while (left < right) : (left += 1) {
             var y = bottom;
-            while (y > top) : (y -= 1) {
+            while (y > top - 1) : (y -= 1) {
                 if (pixels[left + y * layer_width][3] != 0) {
                     break :left;
                 }
@@ -488,7 +488,7 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     right: {
         while (right > left) : (right -= 1) {
             var y = bottom;
-            while (y > top) : (y -= 1) {
+            while (y > top - 1) : (y -= 1) {
                 if (pixels[right + y * layer_width][3] != 0) {
                     if (right < src_x + src_width)
                         right += 1;
