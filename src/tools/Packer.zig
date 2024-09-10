@@ -481,6 +481,8 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
             var y = bottom;
             while (y > new_top) : (y -= 1) {
                 if (pixels[left + y * layer_width][3] != 0) {
+                    if (left < src_x)
+                        left -= 1;
                     break :left;
                 }
             }
@@ -489,8 +491,9 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
 
     right: {
         while (right > left) : (right -= 1) {
-            var y = bottom;
-            while (y > new_top) : (y -= 1) {
+            var y = bottom + 1;
+            while (y > new_top) {
+                y -= 1;
                 if (pixels[right + y * layer_width][3] != 0) {
                     if (right < src_x + src_width)
                         right += 1;
