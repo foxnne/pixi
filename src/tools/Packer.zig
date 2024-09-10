@@ -478,11 +478,10 @@ pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
 
     left: {
         while (left < right) : (left += 1) {
-            var y = bottom;
-            while (y > new_top) : (y -= 1) {
+            var y = bottom + 1;
+            while (y > new_top) {
+                y -= 1;
                 if (pixels[left + y * layer_width][3] != 0) {
-                    if (left < src_x)
-                        left -= 1;
                     break :left;
                 }
             }
