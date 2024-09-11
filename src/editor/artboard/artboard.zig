@@ -89,7 +89,7 @@ pub fn draw() void {
                     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
                     const mouse_clicked: bool = pixi.state.mouse.anyButtonDown();
 
-                    {
+                    defer {
                         const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
                         // Draw a shadow fading from bottom to top
                         const pos = imgui.getWindowPos();
@@ -268,11 +268,11 @@ pub fn draw() void {
             const pos = imgui.getWindowPos();
             const height = imgui.getWindowHeight();
 
-            if (imgui.getWindowDrawList()) |draw_list|
+            if (imgui.getForegroundDrawList()) |draw_list|
                 // Draw a shadow fading from left to right
                 draw_list.addRectFilledMultiColor(
                     pos,
-                    .{ .x = pos.x + pixi.state.settings.shadow_length * pixi.content_scale[0], .y = height + pos.x },
+                    .{ .x = pos.x + pixi.state.settings.shadow_length, .y = height + pos.x },
                     shadow_color,
                     0x0,
                     shadow_color,
