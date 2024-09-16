@@ -3,6 +3,7 @@ const pixi = @import("../../pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 const layers = @import("layers.zig");
+const zmath = @import("zmath");
 
 pub fn draw() void {
     imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.foreground.toImguiVec4());
@@ -28,24 +29,26 @@ pub fn draw() void {
 
         const color_width = (imgui.getContentRegionAvail().x - style.indent_spacing) / 2.0 - style.item_spacing.x;
 
-        // Row 1
         {
-            imgui.setCursorPosX(style.item_spacing.x * 2.0);
-            drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
-            imgui.sameLine();
-            drawTool(pixi.fa.pencil_alt, button_width, button_height, .pencil);
-            imgui.sameLine();
-            drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
-        }
+            // Row 1
+            {
+                imgui.setCursorPosX(style.item_spacing.x * 3.0);
+                drawTool(pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+                imgui.sameLine();
+                drawTool(pixi.fa.pencil_alt, button_width, button_height, .pencil);
+                imgui.sameLine();
+                drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
+            }
 
-        // Row 2
-        {
-            imgui.setCursorPosX(style.item_spacing.x * 2.0);
-            drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
-            imgui.sameLine();
-            drawTool(pixi.fa.fill_drip, button_width, button_height, .bucket);
-            imgui.sameLine();
-            drawTool(pixi.fa.clipboard_check, button_width, button_height, .selection);
+            // Row 2
+            {
+                imgui.setCursorPosX(style.item_spacing.x * 3.0);
+                drawTool(pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
+                imgui.sameLine();
+                drawTool(pixi.fa.fill_drip, button_width, button_height, .bucket);
+                imgui.sameLine();
+                drawTool(pixi.fa.clipboard_check, button_width, button_height, .selection);
+            }
         }
 
         imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.background.toImguiVec4());
@@ -146,6 +149,60 @@ pub fn draw() void {
             }
         }
 
+        const chip_width = 24.0;
+
+        {
+            imgui.indent();
+            defer imgui.unindent();
+
+            defer imgui.endChild();
+            if (imgui.beginChild("ColorVariations", .{ .x = -1.0, .y = 28.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow | imgui.WindowFlags_NoScrollWithMouse)) {
+                defer {
+                    const shadow_min_left: imgui.Vec2 = .{ .x = imgui.getWindowPos().x, .y = imgui.getWindowPos().y };
+                    const shadow_max_left: imgui.Vec2 = .{ .x = shadow_min_left.x + pixi.state.settings.shadow_length, .y = shadow_min_left.y + imgui.getWindowHeight() };
+
+                    const shadow_max_right: imgui.Vec2 = .{ .x = imgui.getWindowPos().x + imgui.getWindowWidth(), .y = imgui.getWindowPos().y + imgui.getWindowHeight() };
+                    const shadow_min_right: imgui.Vec2 = .{ .x = shadow_max_right.x - pixi.state.settings.shadow_length, .y = imgui.getWindowPos().y };
+                    const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity * 3.0).toU32();
+
+                    if (imgui.getWindowDrawList()) |draw_list| {
+                        draw_list.addRectFilledMultiColor(shadow_min_left, shadow_max_left, shadow_color, 0x00000000, 0x00000000, shadow_color);
+                        draw_list.addRectFilledMultiColor(shadow_min_right, shadow_max_right, 0x00000000, shadow_color, shadow_color, 0x00000000);
+                    }
+
+                    if (imgui.getScrollMaxX() > 0.0)
+                        imgui.setScrollX(imgui.getScrollMaxX() / 2.0);
+                }
+
+                var count: usize = @intFromFloat((imgui.getWindowWidth()) / (chip_width + style.item_spacing.x) + 1.0);
+                if (@mod(count, 2) == 0) count += 1;
+
+                for (0..count) |i| {
+                    const altered_color = zmath.loadArr4(.{ 1.0, 1.0, 1.0, 1.0 });
+
+                    imgui.pushIDInt(@intCast(i));
+                    defer imgui.popID();
+                    if (imgui.colorButton("##color", .{
+                        .x = altered_color[0],
+                        .y = altered_color[1],
+                        .z = altered_color[2],
+                        .w = altered_color[3],
+                    }, imgui.ColorEditFlags_None)) {
+                        pixi.state.colors.primary = .{
+                            @as(u8, @intFromFloat(altered_color[0] * 255.0)),
+                            @as(u8, @intFromFloat(altered_color[1] * 255.0)),
+                            @as(u8, @intFromFloat(altered_color[2] * 255.0)),
+                            @as(u8, @intFromFloat(altered_color[3] * 255.0)),
+                        };
+                    }
+
+                    if (i != count - 1) {
+                        imgui.sameLine();
+                    }
+                }
+            }
+        }
+
         if (imgui.collapsingHeader(pixi.fa.layer_group ++ "  Layers", imgui.TreeNodeFlags_SpanAvailWidth | imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
             defer imgui.unindent();
@@ -162,18 +219,17 @@ pub fn draw() void {
                 searchPalettes() catch unreachable;
             }
 
-            const min_width = 24.0;
-            const columns: usize = @intFromFloat(@floor((imgui.getContentRegionAvail().x - pixi.state.settings.explorer_grip) / (min_width + style.item_spacing.x)));
+            const columns: usize = @intFromFloat(@floor((imgui.getContentRegionAvail().x - pixi.state.settings.explorer_grip) / (chip_width + style.item_spacing.x)));
 
             const content_region_avail = imgui.getContentRegionAvail().y;
 
             const shadow_min: imgui.Vec2 = .{ .x = imgui.getCursorPosX() + imgui.getWindowPos().x, .y = imgui.getCursorPosY() + imgui.getWindowPos().y };
-            const shadow_max: imgui.Vec2 = .{ .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (min_width + style.item_spacing.x) - style.item_spacing.x, .y = shadow_min.y + pixi.state.settings.shadow_length };
+            const shadow_max: imgui.Vec2 = .{ .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x) - style.item_spacing.x, .y = shadow_min.y + pixi.state.settings.shadow_length };
             const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity * 4.0).toU32();
             var scroll_y: f32 = 0.0;
 
             defer imgui.endChild(); // This can get cut off and causes a crash if begin child is not called because its off screen.
-            if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = @max(content_region_avail, min_width) }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+            if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = @max(content_region_avail, chip_width) }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 if (pixi.state.colors.palette) |palette| {
                     scroll_y = imgui.getScrollY();
                     for (palette.colors, 0..) |color, i| {
@@ -184,7 +240,7 @@ pub fn draw() void {
                             .w = @as(f32, @floatFromInt(color[3])) / 255.0,
                         };
                         imgui.pushIDInt(@as(c_int, @intCast(i)));
-                        if (imgui.colorButtonEx(palette.name, .{ .x = c.x, .y = c.y, .z = c.z, .w = c.w }, imgui.ColorEditFlags_None, .{ .x = min_width, .y = min_width })) {
+                        if (imgui.colorButtonEx(palette.name, .{ .x = c.x, .y = c.y, .z = c.z, .w = c.w }, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width })) {
                             pixi.state.colors.primary = color;
                         }
                         imgui.popID();
@@ -218,6 +274,9 @@ pub fn draw() void {
 }
 
 pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: pixi.Tools.Tool) void {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
+    defer imgui.popStyleVar();
+
     const selected = pixi.state.tools.current == tool;
     if (selected) {
         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
