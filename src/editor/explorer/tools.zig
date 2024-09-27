@@ -158,47 +158,72 @@ pub fn draw() void {
             defer imgui.endChild();
             if (imgui.beginChild("ColorVariations", .{ .x = -1.0, .y = 28.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow | imgui.WindowFlags_NoScrollWithMouse)) {
                 defer {
-                    const shadow_min_left: imgui.Vec2 = .{ .x = imgui.getWindowPos().x, .y = imgui.getWindowPos().y };
-                    const shadow_max_left: imgui.Vec2 = .{ .x = shadow_min_left.x + pixi.state.settings.shadow_length, .y = shadow_min_left.y + imgui.getWindowHeight() };
+                    // const shadow_min_left: imgui.Vec2 = .{ .x = imgui.getWindowPos().x, .y = imgui.getWindowPos().y };
+                    // const shadow_max_left: imgui.Vec2 = .{ .x = shadow_min_left.x + pixi.state.settings.shadow_length, .y = shadow_min_left.y + imgui.getWindowHeight() };
 
-                    const shadow_max_right: imgui.Vec2 = .{ .x = imgui.getWindowPos().x + imgui.getWindowWidth(), .y = imgui.getWindowPos().y + imgui.getWindowHeight() };
-                    const shadow_min_right: imgui.Vec2 = .{ .x = shadow_max_right.x - pixi.state.settings.shadow_length, .y = imgui.getWindowPos().y };
-                    const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity * 3.0).toU32();
+                    // const shadow_max_right: imgui.Vec2 = .{ .x = imgui.getWindowPos().x + imgui.getWindowWidth(), .y = imgui.getWindowPos().y + imgui.getWindowHeight() };
+                    // const shadow_min_right: imgui.Vec2 = .{ .x = shadow_max_right.x - pixi.state.settings.shadow_length, .y = imgui.getWindowPos().y };
+                    // const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity * 3.0).toU32();
 
-                    if (imgui.getWindowDrawList()) |draw_list| {
-                        draw_list.addRectFilledMultiColor(shadow_min_left, shadow_max_left, shadow_color, 0x00000000, 0x00000000, shadow_color);
-                        draw_list.addRectFilledMultiColor(shadow_min_right, shadow_max_right, 0x00000000, shadow_color, shadow_color, 0x00000000);
-                    }
+                    // if (imgui.getWindowDrawList()) |draw_list| {
+                    //     draw_list.addRectFilledMultiColor(shadow_min_left, shadow_max_left, shadow_color, 0x00000000, 0x00000000, shadow_color);
+                    //     draw_list.addRectFilledMultiColor(shadow_min_right, shadow_max_right, 0x00000000, shadow_color, shadow_color, 0x00000000);
+                    // }
 
                     if (imgui.getScrollMaxX() > 0.0)
                         imgui.setScrollX(imgui.getScrollMaxX() / 2.0);
                 }
 
-                var count: usize = @intFromFloat((imgui.getWindowWidth()) / (chip_width + style.item_spacing.x) + 1.0);
+                var count: usize = @intFromFloat((imgui.getWindowWidth()) / (chip_width + style.item_spacing.x) + 1);
                 if (@mod(count, 2) == 0) count += 1;
 
+                const step: f32 = 0.5 / @as(f32, @floatFromInt(count));
+
+                imgui.spacing();
+                _ = imgui.colorButtonEx("##dummy", .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 }, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width });
+                imgui.sameLine();
+                _ = imgui.colorButtonEx("##dummy", .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 }, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width });
+                imgui.sameLine();
+
+                const red = @as(f32, @floatFromInt(pixi.state.colors.primary[0])) / 255.0;
+                const green = @as(f32, @floatFromInt(pixi.state.colors.primary[1])) / 255.0;
+                const blue = @as(f32, @floatFromInt(pixi.state.colors.primary[2])) / 255.0;
+                const alpha = @as(f32, @floatFromInt(pixi.state.colors.primary[3])) / 255.0;
+
+                const primary_hsl = zmath.rgbToHsl(.{ red, green, blue, alpha });
+
+                const lightness_index: usize = @intFromFloat(@floor(primary_hsl[2] * @as(f32, @floatFromInt(count))));
+
                 for (0..count) |i| {
-                    const altered_color = zmath.loadArr4(.{ 1.0, 1.0, 1.0, 1.0 });
+                    const towards_purple: f32 = std.math.sign(primary_hsl[0] - 270.0);
+                    const towards_yellow: f32 = std.math.sign(primary_hsl[0] - 60.0) * 2.0;
+                    const purple_half: f32 = if (i < @divFloor(count, 2)) towards_purple else towards_yellow;
+                    const difference: f32 = @as(f32, @floatFromInt(lightness_index)) - @as(f32, @floatFromInt(i));
+
+                    const hue: f32 = primary_hsl[0] + (difference * (step / 3.0) * (purple_half));
+                    const saturation: f32 = primary_hsl[1] + difference * (step * 1.5 * purple_half);
+                    const lightness: f32 = primary_hsl[2] - (difference * step * 2.0);
+
+                    var variation_hsl = zmath.hslToRgb(.{ hue, saturation, lightness, alpha });
+                    variation_hsl = zmath.clampFast(variation_hsl, zmath.f32x4s(0.0), zmath.f32x4s(1.0));
+
+                    const variation_color: imgui.Vec4 = .{ .x = variation_hsl[0], .y = variation_hsl[1], .z = variation_hsl[2], .w = variation_hsl[3] };
 
                     imgui.pushIDInt(@intCast(i));
                     defer imgui.popID();
-                    if (imgui.colorButton("##color", .{
-                        .x = altered_color[0],
-                        .y = altered_color[1],
-                        .z = altered_color[2],
-                        .w = altered_color[3],
-                    }, imgui.ColorEditFlags_None)) {
+                    if (imgui.colorButtonEx("##color", variation_color, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width })) {
                         pixi.state.colors.primary = .{
-                            @as(u8, @intFromFloat(altered_color[0] * 255.0)),
-                            @as(u8, @intFromFloat(altered_color[1] * 255.0)),
-                            @as(u8, @intFromFloat(altered_color[2] * 255.0)),
-                            @as(u8, @intFromFloat(altered_color[3] * 255.0)),
+                            @intFromFloat(variation_color.x * 255.0),
+                            @intFromFloat(variation_color.y * 255.0),
+                            @intFromFloat(variation_color.z * 255.0),
+                            @intFromFloat(variation_color.w * 255.0),
                         };
                     }
 
-                    if (i != count - 1) {
-                        imgui.sameLine();
-                    }
+                    imgui.sameLine();
+
+                    if (i == count - 1)
+                        _ = imgui.colorButtonEx("##dummy", variation_color, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width });
                 }
             }
         }
@@ -219,7 +244,7 @@ pub fn draw() void {
                 searchPalettes() catch unreachable;
             }
 
-            const columns: usize = @intFromFloat(@floor((imgui.getContentRegionAvail().x - pixi.state.settings.explorer_grip) / (chip_width + style.item_spacing.x)));
+            const columns: usize = @intFromFloat(@floor((imgui.getContentRegionAvail().x - pixi.state.settings.explorer_grip) / (chip_width + style.item_spacing.x)) + 1.0);
 
             const content_region_avail = imgui.getContentRegionAvail().y;
 
