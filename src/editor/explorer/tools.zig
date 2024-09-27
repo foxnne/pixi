@@ -195,8 +195,8 @@ pub fn draw() void {
                 const lightness_index: usize = @intFromFloat(@floor(primary_hsl[2] * @as(f32, @floatFromInt(count))));
 
                 for (0..count) |i| {
-                    const towards_purple: f32 = std.math.sign(primary_hsl[0] - 270.0);
-                    const towards_yellow: f32 = std.math.sign(primary_hsl[0] - 60.0) * 2.0;
+                    const towards_purple: f32 = std.math.sign((primary_hsl[0] * 360.0) - 270.0);
+                    const towards_yellow: f32 = std.math.sign((primary_hsl[0] * 360.0) - 60.0);
                     const purple_half: f32 = if (i < @divFloor(count, 2)) towards_purple else towards_yellow;
                     const difference: f32 = @as(f32, @floatFromInt(lightness_index)) - @as(f32, @floatFromInt(i));
 
