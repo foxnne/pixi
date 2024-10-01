@@ -202,7 +202,7 @@ pub fn draw() void {
 
                     const hue: f32 = primary_hsl[0] + (difference * (step / 3.0) * (purple_half));
                     const saturation: f32 = primary_hsl[1] + difference * (step * 1.5 * purple_half);
-                    const lightness: f32 = primary_hsl[2] - (difference * step * 2.0);
+                    const lightness: f32 = primary_hsl[2] - (difference * step * 1.5);
 
                     var variation_hsl = zmath.hslToRgb(.{ hue, saturation, lightness, alpha });
                     variation_hsl = zmath.clampFast(variation_hsl, zmath.f32x4s(0.0), zmath.f32x4s(1.0));
