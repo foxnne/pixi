@@ -40,6 +40,8 @@ pub fn draw() void {
                 drawTool(pixi.fa.eraser, button_width, button_height, .eraser);
             }
 
+            imgui.spacing();
+
             // Row 2
             {
                 imgui.setCursorPosX(style.item_spacing.x * 3.0);
@@ -157,33 +159,19 @@ pub fn draw() void {
 
             defer imgui.endChild();
             if (imgui.beginChild("ColorVariations", .{ .x = -1.0, .y = 28.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow | imgui.WindowFlags_NoScrollWithMouse)) {
-                defer {
-                    // const shadow_min_left: imgui.Vec2 = .{ .x = imgui.getWindowPos().x, .y = imgui.getWindowPos().y };
-                    // const shadow_max_left: imgui.Vec2 = .{ .x = shadow_min_left.x + pixi.state.settings.shadow_length, .y = shadow_min_left.y + imgui.getWindowHeight() };
-
-                    // const shadow_max_right: imgui.Vec2 = .{ .x = imgui.getWindowPos().x + imgui.getWindowWidth(), .y = imgui.getWindowPos().y + imgui.getWindowHeight() };
-                    // const shadow_min_right: imgui.Vec2 = .{ .x = shadow_max_right.x - pixi.state.settings.shadow_length, .y = imgui.getWindowPos().y };
-                    // const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity * 3.0).toU32();
-
-                    // if (imgui.getWindowDrawList()) |draw_list| {
-                    //     draw_list.addRectFilledMultiColor(shadow_min_left, shadow_max_left, shadow_color, 0x00000000, 0x00000000, shadow_color);
-                    //     draw_list.addRectFilledMultiColor(shadow_min_right, shadow_max_right, 0x00000000, shadow_color, shadow_color, 0x00000000);
-                    // }
-
-                    if (imgui.getScrollMaxX() > 0.0)
-                        imgui.setScrollX(imgui.getScrollMaxX() / 2.0);
-                }
-
-                var count: usize = @intFromFloat((imgui.getWindowWidth()) / (chip_width + style.item_spacing.x) + 1);
-                if (@mod(count, 2) == 0) count += 1;
+                const count: usize = @intFromFloat((imgui.getContentRegionAvail().x) / (chip_width + style.item_spacing.x));
 
                 const step: f32 = 0.5 / @as(f32, @floatFromInt(count));
 
                 imgui.spacing();
-                _ = imgui.colorButtonEx("##dummy", .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 }, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width });
-                imgui.sameLine();
-                _ = imgui.colorButtonEx("##dummy", .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 }, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width });
-                imgui.sameLine();
+
+                const chip_bar_width = @as(f32, @floatFromInt(count)) * (chip_width + style.item_spacing.x);
+
+                const width_difference = imgui.getContentRegionAvail().x - chip_bar_width;
+
+                if (width_difference > 0.0) {
+                    imgui.indentEx(width_difference / 2.0);
+                }
 
                 const red = @as(f32, @floatFromInt(pixi.state.colors.primary[0])) / 255.0;
                 const green = @as(f32, @floatFromInt(pixi.state.colors.primary[1])) / 255.0;
@@ -221,9 +209,6 @@ pub fn draw() void {
                     }
 
                     imgui.sameLine();
-
-                    if (i == count - 1)
-                        _ = imgui.colorButtonEx("##dummy", variation_color, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width });
                 }
             }
         }
