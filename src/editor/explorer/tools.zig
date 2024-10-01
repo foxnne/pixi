@@ -188,7 +188,7 @@ pub fn draw() void {
                     const purple_half: f32 = if (i < @divFloor(count, 2)) towards_purple else towards_yellow;
                     const difference: f32 = @as(f32, @floatFromInt(lightness_index)) - @as(f32, @floatFromInt(i));
 
-                    const hue: f32 = primary_hsl[0] + (difference * (step / 3.0) * (purple_half));
+                    const hue: f32 = primary_hsl[0] + (difference * (step / 2.5) * (purple_half));
                     const saturation: f32 = primary_hsl[1] + difference * (step * 1.5 * purple_half);
                     const lightness: f32 = primary_hsl[2] - (difference * step * 1.5);
 
