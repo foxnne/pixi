@@ -268,7 +268,7 @@ pub fn draw() void {
             const pos = imgui.getWindowPos();
             const height = imgui.getWindowHeight();
 
-            if (imgui.getForegroundDrawList()) |draw_list|
+            if (imgui.getWindowDrawList()) |draw_list|
                 // Draw a shadow fading from left to right
                 draw_list.addRectFilledMultiColor(
                     pos,
