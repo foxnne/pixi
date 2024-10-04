@@ -25,7 +25,7 @@ pub fn draw() void {
         const style = imgui.getStyle();
 
         const button_width = imgui.getWindowWidth() / 3.6;
-        const button_height = button_width / 2.0;
+        const button_height = 36.0;
 
         const color_width = (imgui.getContentRegionAvail().x - style.indent_spacing) / 2.0 - style.item_spacing.x;
 
