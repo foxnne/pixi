@@ -218,7 +218,7 @@ pub fn draw() void {
 
                     if (imgui.beginItemTooltip()) {
                         defer imgui.endTooltip();
-                        imgui.text("Right click for suggested color options");
+                        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Right click for suggested color options.");
                     }
 
                     if (imgui.beginPopupContextItem()) {
