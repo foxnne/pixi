@@ -250,7 +250,15 @@ pub fn draw() void {
                 searchPalettes() catch unreachable;
             }
 
-            const columns: usize = @intFromFloat(@floor((imgui.getContentRegionAvail().x - pixi.state.settings.explorer_grip) / (chip_width + style.item_spacing.x)) + 1.0);
+            const columns: usize = @intFromFloat(@floor(imgui.getContentRegionAvail().x / (chip_width + style.item_spacing.x)));
+
+            const chip_row_width: f32 = @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x);
+
+            const width_difference = imgui.getContentRegionAvail().x - chip_row_width;
+
+            if (width_difference > 0.0) {
+                imgui.indentEx(width_difference / 2.0);
+            }
 
             const content_region_avail = imgui.getContentRegionAvail().y;
 
