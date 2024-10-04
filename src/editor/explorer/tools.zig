@@ -161,7 +161,14 @@ pub fn draw() void {
             if (imgui.beginChild("ColorVariations", .{ .x = -1.0, .y = 28.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow | imgui.WindowFlags_NoScrollWithMouse)) {
                 const count: usize = @intFromFloat((imgui.getContentRegionAvail().x) / (chip_width + style.item_spacing.x));
 
-                const step: f32 = 0.5 / @as(f32, @floatFromInt(count));
+                const hue_shift: f32 = pixi.state.settings.suggested_hue_shift;
+                const hue_step: f32 = hue_shift / @as(f32, @floatFromInt(count));
+
+                const sat_shift: f32 = pixi.state.settings.suggested_sat_shift;
+                const sat_step: f32 = sat_shift / @as(f32, @floatFromInt(count));
+
+                const lit_shift: f32 = pixi.state.settings.suggested_lit_shift;
+                const lit_step: f32 = lit_shift / @as(f32, @floatFromInt(count));
 
                 imgui.spacing();
 
@@ -188,9 +195,9 @@ pub fn draw() void {
                     const purple_half: f32 = if (i < @divFloor(count, 2)) towards_purple else towards_yellow;
                     const difference: f32 = @as(f32, @floatFromInt(lightness_index)) - @as(f32, @floatFromInt(i));
 
-                    const hue: f32 = primary_hsl[0] + (difference * (step / 2.5) * (purple_half));
-                    const saturation: f32 = primary_hsl[1] + difference * (step * 1.5 * purple_half);
-                    const lightness: f32 = primary_hsl[2] - (difference * step * 1.5);
+                    const hue: f32 = primary_hsl[0] + std.math.clamp(difference * hue_step * purple_half, -hue_shift, hue_shift);
+                    const saturation: f32 = primary_hsl[1] + difference * sat_step * purple_half;
+                    const lightness: f32 = primary_hsl[2] - difference * lit_step;
 
                     var variation_hsl = zmath.hslToRgb(.{ hue, saturation, lightness, alpha });
                     variation_hsl = zmath.clampFast(variation_hsl, zmath.f32x4s(0.0), zmath.f32x4s(1.0));
@@ -207,8 +214,22 @@ pub fn draw() void {
                             @intFromFloat(variation_color.w * 255.0),
                         };
                     }
-
                     imgui.sameLine();
+
+                    if (imgui.beginItemTooltip()) {
+                        defer imgui.endTooltip();
+                        imgui.text("Right click for suggested color options");
+                    }
+
+                    if (imgui.beginPopupContextItem()) {
+                        defer imgui.endPopup();
+
+                        imgui.separatorText("Suggested Colors");
+
+                        _ = imgui.sliderFloat("Hue Shift", &pixi.state.settings.suggested_hue_shift, 0.0, 1.0);
+                        _ = imgui.sliderFloat("Saturation Shift", &pixi.state.settings.suggested_sat_shift, 0.0, 1.0);
+                        _ = imgui.sliderFloat("Lightness Shift", &pixi.state.settings.suggested_lit_shift, 0.0, 1.0);
+                    }
                 }
             }
         }

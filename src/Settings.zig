@@ -158,6 +158,11 @@ shadow_length: f32 = 14.0,
 /// Stroke
 stroke_max_size: i32 = 64,
 
+/// Suggested colors settings
+suggested_hue_shift: f32 = 0.25,
+suggested_sat_shift: f32 = 0.65,
+suggested_lit_shift: f32 = 0.75,
+
 /// Opacity of the reference window background
 reference_window_opacity: f32 = 50.0,
 
