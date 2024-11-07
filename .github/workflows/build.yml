@@ -51,8 +51,8 @@ jobs:
           mirror: 'https://pkg.machengine.org/zig'
       - name: build
         run: zig build
-  x86_64-macos:
-    runs-on: macos-12
+  arm64-macos:
+    runs-on: macos-14
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
     # to the branch.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
