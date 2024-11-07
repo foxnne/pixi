@@ -4,6 +4,8 @@
   <h3 align=center></h3>
 </p>
 
+![buildworkflow](https://github.com/foxnne/pixi/actions/workflows/build.yml/badge.svg)
+
 # 
 **Pixi** is an cross-platform open-source pixel art editor and animation editor written in [Zig](https://github.com/ziglang/zig).
 
