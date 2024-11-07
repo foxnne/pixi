@@ -66,3 +66,18 @@ jobs:
           mirror: 'https://pkg.machengine.org/zig'
       - name: build
         run: zig build -Duse_sysgpu=true
+  x86_64-macos:
+      runs-on: macos-12
+      # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
+      # to the branch.
+      if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+        - name: Setup Zig
+          uses: mlugg/setup-zig@v1
+          with:
+            version: 2024.5.0-mach
+            mirror: 'https://pkg.machengine.org/zig'
+        - name: build
+          run: zig build -Duse_sysgpu=true
