@@ -22,7 +22,7 @@ jobs:
       DISPLAY: ':99.0'
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Setup Zig
         uses: mlugg/setup-zig@v1
         with:
@@ -35,7 +35,12 @@ jobs:
       - name: x86_64-linux -> x86_64-windows
         run: zig build -Dtarget=x86_64-windows-gnu
       - name: build
+        uses: actions/upload-artifact@v4
+        with: 
+          name: x86_64-linux
+          path: zig-out/bin
         run: zig build
+      
   x86_64-windows:
     runs-on: windows-latest
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
@@ -43,13 +48,17 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Setup Zig
         uses: mlugg/setup-zig@v1
         with:
           version: 2024.5.0-mach
           mirror: 'https://pkg.machengine.org/zig'
       - name: build
+        uses: actions/upload-artifact@v4
+        with: 
+          name: x86_64-windows
+          path: zig-out/bin
         run: zig build
   arm64-macos:
     runs-on: macos-14
@@ -58,13 +67,17 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Setup Zig
         uses: mlugg/setup-zig@v1
         with:
           version: 2024.5.0-mach
           mirror: 'https://pkg.machengine.org/zig'
       - name: build
+        uses: actions/upload-artifact@v4
+        with: 
+          name: arm64-macos
+          path: zig-out/bin
         run: zig build -Duse_sysgpu=true
   x86_64-macos:
       runs-on: macos-12
@@ -73,11 +86,15 @@ jobs:
       if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
       steps:
         - name: Checkout
-          uses: actions/checkout@v2
+          uses: actions/checkout@v4
         - name: Setup Zig
           uses: mlugg/setup-zig@v1
           with:
             version: 2024.5.0-mach
             mirror: 'https://pkg.machengine.org/zig'
         - name: build
+          uses: actions/upload-artifact@v4
+          with: 
+            name: x86_64-macos
+            path: zig-out/bin
           run: zig build -Duse_sysgpu=true
