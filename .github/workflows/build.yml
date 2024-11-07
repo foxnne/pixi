@@ -30,17 +30,17 @@ jobs:
           mirror: 'https://pkg.machengine.org/zig'
       - name: Get GTK3
         run: sudo apt install libgtk-3-dev
-      - name: launch xvfb
+      - name: Launch xvfb
         run: Xvfb :99 -screen 0 1680x720x24 > /dev/null 2>&1 &
       - name: x86_64-linux -> x86_64-windows
         run: zig build -Dtarget=x86_64-windows-gnu
-      - name: build
+      - name: Build
+        run: zig build
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with: 
           name: x86_64-linux
           path: zig-out/bin
-        run: zig build
-      
   x86_64-windows:
     runs-on: windows-latest
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
@@ -54,12 +54,13 @@ jobs:
         with:
           version: 2024.5.0-mach
           mirror: 'https://pkg.machengine.org/zig'
-      - name: build
+      - name: Build
+        run: zig build
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with: 
           name: x86_64-windows
           path: zig-out/bin
-        run: zig build
   arm64-macos:
     runs-on: macos-14
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
@@ -74,11 +75,12 @@ jobs:
           version: 2024.5.0-mach
           mirror: 'https://pkg.machengine.org/zig'
       - name: build
+        run: zig build -Duse_sysgpu=true
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with: 
           name: arm64-macos
           path: zig-out/bin
-        run: zig build -Duse_sysgpu=true
   x86_64-macos:
       runs-on: macos-12
       # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
@@ -92,9 +94,10 @@ jobs:
           with:
             version: 2024.5.0-mach
             mirror: 'https://pkg.machengine.org/zig'
-        - name: build
+        - name: Build
+          run: zig build -Duse_sysgpu=true
+        - name: Upload Artifacts
           uses: actions/upload-artifact@v4
           with: 
-            name: x86_64-macos
+            name: x86_64-linux
             path: zig-out/bin
-          run: zig build -Duse_sysgpu=true
