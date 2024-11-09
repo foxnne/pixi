@@ -22,8 +22,8 @@ pub fn draw() void {
             defer imgui.unindent();
 
             if (imgui.beginChild("Sprite", .{
-                .x = imgui.getWindowWidth(),
-                .y = pixi.state.settings.sprite_edit_height * pixi.content_scale[1],
+                .x = -1.0,
+                .y = pixi.state.settings.sprite_edit_height,
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
@@ -96,7 +96,7 @@ pub fn draw() void {
         if (imgui.collapsingHeader(pixi.fa.atlas ++ "  Sprites", imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
             defer imgui.popStyleVar();
-            if (imgui.beginChild("Sprites", .{ .x = imgui.getWindowWidth() - pixi.state.settings.explorer_grip * pixi.content_scale[0], .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+            if (imgui.beginChild("Sprites", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
                 for (file.sprites.items) |sprite| {

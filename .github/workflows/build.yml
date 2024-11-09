@@ -1,0 +1,103 @@
+name: build
+on:
+  push:
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+      - "**.md"
+      - "LICENSE**"
+  pull_request:
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+      - "**.md"
+      - "LICENSE**"
+jobs:
+  x86_64-linux:
+    runs-on: ubuntu-latest
+    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
+    # to the branch.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    env:
+      DISPLAY: ':99.0'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 2024.5.0-mach
+          mirror: 'https://pkg.machengine.org/zig'
+      - name: Get GTK3
+        run: sudo apt install libgtk-3-dev
+      - name: Launch xvfb
+        run: Xvfb :99 -screen 0 1680x720x24 > /dev/null 2>&1 &
+      - name: Build
+        run: zig build
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with: 
+          name: x86_64-linux
+          path: zig-out/bin
+      - name: x86_64-linux -> x86_64-windows
+        run: zig build -Dtarget=x86_64-windows-gnu
+  x86_64-windows:
+    runs-on: windows-latest
+    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
+    # to the branch.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 2024.5.0-mach
+          mirror: 'https://pkg.machengine.org/zig'
+      - name: Build
+        run: zig build
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with: 
+          name: x86_64-windows
+          path: zig-out/bin
+  arm64-macos:
+    runs-on: macos-14
+    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
+    # to the branch.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 2024.5.0-mach
+          mirror: 'https://pkg.machengine.org/zig'
+      - name: build
+        run: zig build -Duse_sysgpu=true
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with: 
+          name: arm64-macos
+          path: zig-out/bin
+  x86_64-macos:
+      runs-on: macos-12
+      # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
+      # to the branch.
+      if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+        - name: Setup Zig
+          uses: mlugg/setup-zig@v1
+          with:
+            version: 2024.5.0-mach
+            mirror: 'https://pkg.machengine.org/zig'
+        - name: Build
+          run: zig build -Duse_sysgpu=true
+        - name: Upload Artifacts
+          uses: actions/upload-artifact@v4
+          with: 
+            name: x86_64-macos
+            path: zig-out/bin

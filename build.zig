@@ -3,7 +3,6 @@ const builtin = @import("builtin");
 
 const mach = @import("mach");
 const mach_gpu_dawn = @import("mach_gpu_dawn");
-const xcode_frameworks = @import("xcode_frameworks");
 
 const nfd = @import("src/deps/nfd-zig/build.zig");
 const zip = @import("src/deps/zip/build.zig");
@@ -91,13 +90,14 @@ pub fn build(b: *std.Build) !void {
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
     app.compile.root_module.addImport("nfd", nfd_lib);
-    // if (nfd_lib.target_info.target.os.tag == .macos) {
-    //     // MacOS: this must be defined for macOS 13.3 and older.
-    //     // Critically, this MUST NOT be included as a -D__kernel_ptr_semantics flag. If it is,
-    //     // then this macro will not be defined even if `defineCMacro` was also called!
-    //     nfd_lib.defineCMacro("__kernel_ptr_semantics", "");
-    //     xcode_frameworks.addPaths(nfd_lib);
-    // }
+    if (target.result.isDarwin()) {
+        //     // MacOS: this must be defined for macOS 13.3 and older.
+        //     // Critically, this MUST NOT be included as a -D__kernel_ptr_semantics flag. If it is,
+        //     // then this macro will not be defined even if `defineCMacro` was also called!
+        nfd_lib.addCMacro("__kernel_ptr_semantics", "");
+        //     xcode_frameworks.addPaths(nfd_lib);
+        mach.addPaths(nfd_lib);
+    }
     app.compile.linkLibrary(zig_imgui_dep.artifact("imgui"));
     app.compile.linkLibrary(zstbi.artifact("zstbi"));
     zip.link(app.compile);
