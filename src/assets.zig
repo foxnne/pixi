@@ -11,8 +11,8 @@ pub const fox_png = struct {
   pub const path = "assets/fox.png";
 };
 
-pub const fox_old_png = struct {
-  pub const path = "assets/fox_old.png";
+pub const fox_bg_png = struct {
+  pub const path = "assets/fox_bg.png";
 };
 
 pub const apollo_hex = struct {
