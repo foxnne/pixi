@@ -1,6 +1,6 @@
 const std = @import("std");
 const zstbi = @import("zstbi");
-const pixi = @import("../pixi.zig");
+const pixi = @import("../Pixi.zig");
 const Core = @import("mach").Core;
 
 pub const LDTKTileset = @import("LDTKTileset.zig");

@@ -1,6 +1,6 @@
 const std = @import("std");
 const Popups = @This();
-const pixi = @import("../../pixi.zig");
+const pixi = @import("../../Pixi.zig");
 const editor = pixi.editor;
 const zstbi = @import("zstbi");
 

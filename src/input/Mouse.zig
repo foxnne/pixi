@@ -1,7 +1,7 @@
 const std = @import("std");
 const zm = @import("zmath");
 const math = @import("../math/math.zig");
-const pixi = @import("../pixi.zig");
+const pixi = @import("../Pixi.zig");
 const mach = @import("mach");
 
 const builtin = @import("builtin");

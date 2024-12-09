@@ -4,7 +4,7 @@ const zgpu = @import("zgpu");
 const zstbi = @import("zstbi");
 const wgpu = zgpu.wgpu;
 const zm = @import("zmath");
-const pixi = @import("../pixi.zig");
+const pixi = @import("../Pixi.zig");
 
 const Core = @import("mach").Core;
 const gpu = @import("mach").gpu;

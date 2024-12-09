@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
+const pixi = @import("../../Pixi.zig");
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 const Core = @import("mach").Core;

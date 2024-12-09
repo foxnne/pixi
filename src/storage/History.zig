@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("../pixi.zig");
+const pixi = @import("../Pixi.zig");
 const zgui = @import("zgui");
 const History = @This();
 const Core = @import("mach").Core;

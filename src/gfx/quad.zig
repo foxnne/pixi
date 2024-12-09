@@ -1,6 +1,6 @@
 const std = @import("std");
 const zm = @import("zmath");
-const pixi = @import("../pixi.zig");
+const pixi = @import("../Pixi.zig");
 const gfx = pixi.gfx;
 
 pub const Quad = struct {

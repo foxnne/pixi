@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const core = @import("mach").core;
-const pixi = @import("../pixi.zig");
+const pixi = @import("../Pixi.zig");
 const Color = pixi.math.Color;
 
 const imgui = @import("zig-imgui");

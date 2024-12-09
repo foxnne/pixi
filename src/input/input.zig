@@ -1,4 +1,4 @@
-const pixi = @import("../pixi.zig");
+const pixi = @import("../Pixi.zig");
 
 pub const Mouse = @import("Mouse.zig");
 pub const Hotkeys = @import("Hotkeys.zig");
