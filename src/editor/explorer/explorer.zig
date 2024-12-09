@@ -1,8 +1,8 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
-const core = @import("mach").core;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
+const Core = @import("mach").Core;
 
 pub const files = @import("files.zig");
 pub const tools = @import("tools.zig");
@@ -13,7 +13,7 @@ pub const keyframe_animations = @import("keyframe_animations.zig");
 pub const pack = @import("pack.zig");
 pub const settings = @import("settings.zig");
 
-pub fn draw() void {
+pub fn draw(core: *Core) void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     imgui.pushStyleVar(imgui.StyleVar_WindowBorderSize, 0.0);
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
@@ -164,7 +164,7 @@ pub fn draw() void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                settings.draw();
+                settings.draw(core);
             },
         }
     }

@@ -1,7 +1,7 @@
 const std = @import("std");
 const pixi = @import("../pixi.zig");
 const mach = @import("mach");
-const core = mach.core;
+const Core = mach.Core;
 const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
@@ -25,13 +25,13 @@ pub const popup_animation = @import("popups/animation.zig");
 pub const popup_heightmap = @import("popups/heightmap.zig");
 pub const popup_references = @import("popups/references.zig");
 
-pub fn draw() void {
+pub fn draw(core: *Core) void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = pixi.state.settings.explorer_title_align, .y = 0.5 });
     defer imgui.popStyleVar();
 
     sidebar.draw();
-    explorer.draw();
-    artboard.draw();
+    explorer.draw(core);
+    artboard.draw(core);
 
     popup_rename.draw();
     popup_file_setup.draw();
@@ -254,16 +254,13 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                         .transform_bindgroup = undefined,
                     };
 
-                    new_layer.transform_bindgroup = core.device.createBindGroup(
+                    new_layer.transform_bindgroup = pixi.state.device.createBindGroup(
                         &mach.gpu.BindGroup.Descriptor.init(.{
                             .layout = pipeline_layout_default,
                             .entries = &.{
-                                if (pixi.build_options.use_sysgpu)
-                                    mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
-                                else
-                                    mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
-                                mach.gpu.BindGroup.Entry.textureView(1, new_layer.texture.view_handle),
-                                mach.gpu.BindGroup.Entry.sampler(2, new_layer.texture.sampler_handle),
+                                mach.gpu.BindGroup.Entry.initBuffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0),
+                                mach.gpu.BindGroup.Entry.initTextureView(1, new_layer.texture.view_handle),
+                                mach.gpu.BindGroup.Entry.initSampler(2, new_layer.texture.sampler_handle),
                             },
                         }),
                     );

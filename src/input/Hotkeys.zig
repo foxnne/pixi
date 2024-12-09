@@ -4,10 +4,10 @@ const math = @import("../math/math.zig");
 const pixi = @import("../pixi.zig");
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 
-const Key = core.Key;
-const Mods = core.KeyMods;
+const Key = Core.Key;
+const Mods = Core.KeyMods;
 
 const builtin = @import("builtin");
 
@@ -71,7 +71,7 @@ disable: bool = false,
 
 pub const Hotkey = struct {
     shortcut: [:0]const u8 = undefined,
-    key: core.Key,
+    key: Core.Key,
     mods: ?Mods = null,
     action: Action,
     state: bool = false,

@@ -9,20 +9,24 @@
     .version = "0.0.1",
     .dependencies = .{
         .mach = .{
-            .url = "https://pkg.machengine.org/mach/b72f0e11b6d292c2b60789359a61f7ee6d7dc371.tar.gz",
-            .hash = "122015e1dac4afaf275f7f2adde3814e6a27f5799cbef96bb487ee305f7e33f4dca3",
+            //.path = "../mach-dev/",
+            .url = "https://pkg.machengine.org/mach/a10cbc34197e8ebcca2ccb1d67e44a2cee186909.tar.gz",
+            .hash = "1220bd4662837adfb6110a7aa90fe60eebc1e4aba8b3fdfd5c1e366b210257c8a758",
         },
         .zig_imgui = .{
-            .url = "https://github.com/foxnne/zig-imgui/archive/d5790495da5ec0282aa65e7eecf541f951afb44f.tar.gz",
-            .hash = "1220b58e522bd5c9995ababaf50771bab62cd9e1a3908dcb1b25ec42510770854cc1",
+            //.path = "../zig-imgui/",
+            .url = "https://github.com/foxnne/zig-imgui/archive/0b4e451da96ce5d24e48bca6d8463ab418c75827.tar.gz",
+            .hash = "1220ca59c74c701238146166de27e2f0dfe1568b21a138db90875358a2711b5b3ec6",
         },
         .zstbi = .{
+            //.path = "../zstbi/",
             .url = "https://github.com/foxnne/zstbi/archive/d9a0947365b1ee8131fcf518feac8dfe896cfcfa.tar.gz",
             .hash = "1220ce381d38f9ce6db428405b7884d139cab8173d3bf7d950582991d941c868423a",
         },
         .zmath = .{
-            .url = "https://github.com/foxnne/zmath/archive/fbaa671892f8562742356a6d6135a209b4ad05a0.tar.gz",
-            .hash = "1220a0e58646047a1322c89b4ff29829623290a6875d363cd35b377757c66510132c",
+            //.path = "../zmath/",
+            .url = "https://github.com/foxnne/zmath/archive/9620a611a8c039711dc780bf296d8dc100d16d3a.tar.gz",
+            .hash = "12201b9f28adb918c2ffaf75b57a4b714a864038f8ba3e2d9f730187d0a852b952e1",
         },
     },
 }

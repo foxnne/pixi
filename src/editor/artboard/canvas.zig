@@ -1,10 +1,10 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-pub fn draw(file: *pixi.storage.Internal.Pixi) void {
+pub fn draw(file: *pixi.storage.Internal.Pixi, core: *Core) void {
     const transforming = file.transform_texture != null;
 
     {
@@ -67,11 +67,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                 imgui.text("Transformation");
                 imgui.separator();
-                if (imgui.button("Confirm") or (core.keyPressed(core.Key.enter) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Confirm") or (core.keyPressed(Core.Key.enter) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
                     transform_texture.confirm = true;
                 }
                 imgui.sameLine();
-                if (imgui.button("Cancel") or (core.keyPressed(core.Key.escape) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and pixi.state.open_file_index == pixi.editor.getFileIndex(file.path).?)) {
                     var change = file.buffers.stroke.toChange(@intCast(file.selected_layer_index)) catch unreachable;
                     change.pixels.temporary = true;
                     file.history.append(change) catch unreachable;
@@ -120,7 +120,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
                 if (pixel[2] != 0) pixel[2] = 0 else pixel[2] = 255;
             }
         }
-        file.selection_layer.texture.update(core.device);
+        file.selection_layer.texture.update(pixi.state.device);
         pixi.state.selection_time = 0.0;
         pixi.state.selection_invert = !pixi.state.selection_invert;
     }

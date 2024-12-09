@@ -2,7 +2,7 @@ const std = @import("std");
 const pixi = @import("../pixi.zig");
 const zgui = @import("zgui");
 const History = @This();
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 
 pub const Action = enum { undo, redo };
 pub const RestoreDelete = enum { restore, delete };
@@ -271,7 +271,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                 pixi.state.tools.set(.pencil);
             }
 
-            layer.texture.update(core.device);
+            layer.texture.update(pixi.state.device);
             if (pixi.state.sidebar == .sprites)
                 pixi.state.sidebar = .tools;
         },

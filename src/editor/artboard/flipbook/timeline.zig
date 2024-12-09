@@ -1,7 +1,7 @@
 const std = @import("std");
 const pixi = @import("../../../pixi.zig");
 const mach = @import("mach");
-const core = mach.core;
+const Core = mach.Core;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
@@ -365,7 +365,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(core.device);
+                            file.keyframe_animation_texture.update(pixi.state.device);
                         }
                     }
                 }
@@ -488,7 +488,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(core.device);
+                            file.keyframe_animation_texture.update(pixi.state.device);
                         }
                     }
                 }

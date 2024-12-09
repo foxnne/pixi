@@ -2,7 +2,7 @@ const std = @import("std");
 const pixi = @import("../pixi.zig");
 const gfx = pixi.gfx;
 const zmath = @import("zmath");
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 const gpu = @import("mach").gpu;
 
 const num_triangles: usize = 4;
@@ -71,14 +71,14 @@ pub const Batcher = struct {
             .size = vertices.len * @sizeOf(gfx.Vertex),
         };
 
-        const vertex_buffer_handle = core.device.createBuffer(&vertex_buffer_descriptor);
+        const vertex_buffer_handle = pixi.state.device.createBuffer(&vertex_buffer_descriptor);
 
         const index_buffer_descriptor = .{
             .usage = .{ .copy_dst = true, .index = true },
             .size = indices.len * @sizeOf(u32),
         };
 
-        const index_buffer_handle = core.device.createBuffer(&index_buffer_descriptor);
+        const index_buffer_handle = pixi.state.device.createBuffer(&index_buffer_descriptor);
 
         return Batcher{
             .allocator = allocator,
@@ -95,7 +95,7 @@ pub const Batcher = struct {
         self.state = .progress;
         self.start_count = self.quad_count;
         if (self.encoder == null) {
-            self.encoder = core.device.createCommandEncoder(null);
+            self.encoder = pixi.state.device.createCommandEncoder(null);
         }
     }
 
@@ -128,17 +128,17 @@ pub const Batcher = struct {
             self.indices[i * num_indices + 11] = @as(u32, @intCast(i * num_verts + 0));
         }
 
-        std.log.warn("[{s}] Batcher buffers resized, previous size: {d} - new size: {d}", .{ pixi.name, self.quad_count, max_quads });
+        std.log.warn("[{s}] Batcher buffers resized, previous size: {d} - new size: {d}", .{ "Pixi", self.quad_count, max_quads });
 
         self.vertex_buffer_handle.release();
         self.index_buffer_handle.release();
 
-        const vertex_buffer_handle = core.device.createBuffer(&.{
+        const vertex_buffer_handle = pixi.state.device.createBuffer(&.{
             .usage = .{ .copy_dst = true, .vertex = true },
             .size = self.vertices.len * @sizeOf(gfx.Vertex),
         });
 
-        const index_buffer_handle = core.device.createBuffer(&.{
+        const index_buffer_handle = pixi.state.device.createBuffer(&.{
             .usage = .{ .copy_dst = true, .index = true },
             .size = self.indices.len * @sizeOf(u32),
         });
@@ -456,10 +456,10 @@ pub const Batcher = struct {
     pub fn end(self: *Batcher, uniforms: anytype, uniform_buffer: *gpu.Buffer) !void {
         const UniformsType = @TypeOf(uniforms);
         const uniforms_type_info = @typeInfo(UniformsType);
-        if (uniforms_type_info != .Struct) {
+        if (uniforms_type_info != .@"struct") {
             @compileError("Expected tuple or struct argument, found " ++ @typeName(UniformsType));
         }
-        const uniforms_fields_info = uniforms_type_info.Struct.fields;
+        const uniforms_fields_info = uniforms_type_info.@"struct".fields;
 
         if (self.state == .idle) return error.EndCalledTwice;
         self.state = .idle;
@@ -471,7 +471,7 @@ pub const Batcher = struct {
         // Begin the render pass
         pass_blk: {
             const encoder = self.encoder orelse break :pass_blk;
-            const back_buffer_view = core.swap_chain.getCurrentTextureView() orelse break :pass_blk;
+            const back_buffer_view = pixi.state.swap_chain.getCurrentTextureView() orelse break :pass_blk;
             defer back_buffer_view.release();
 
             const color_attachments = [_]gpu.RenderPassColorAttachment{.{
@@ -559,8 +559,8 @@ pub const Batcher = struct {
         if (self.encoder) |encoder| {
             self.empty = true;
             // Write the current vertex and index buffers to the queue.
-            core.queue.writeBuffer(self.vertex_buffer_handle, 0, self.vertices[0 .. self.quad_count * num_verts]);
-            core.queue.writeBuffer(self.index_buffer_handle, 0, self.indices[0 .. self.quad_count * num_indices]);
+            pixi.state.queue.writeBuffer(self.vertex_buffer_handle, 0, self.vertices[0 .. self.quad_count * num_verts]);
+            pixi.state.queue.writeBuffer(self.index_buffer_handle, 0, self.indices[0 .. self.quad_count * num_indices]);
             // Reset the Batcher for the next time begin is called.
             self.quad_count = 0;
             self.vert_index = 0;

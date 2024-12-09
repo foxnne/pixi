@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("root");
+const pixi = @import("Pixi.zig");
 
 const Self = @This();
 

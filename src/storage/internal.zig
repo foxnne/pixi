@@ -5,7 +5,7 @@ const storage = @import("storage.zig");
 const zip = @import("zip");
 const mach = @import("mach");
 const imgui = @import("zig-imgui");
-const core = mach.core;
+const Core = mach.Core;
 const gpu = mach.gpu;
 const zmath = @import("zmath");
 
@@ -447,7 +447,7 @@ pub const Pixi = struct {
                                     }
                                 }
 
-                                selected_layer.texture.update(core.device);
+                                selected_layer.texture.update(pixi.state.device);
 
                                 // if (color[3] == 0) {
                                 //     if (file.heightmap.layer) |*working_layer| {
@@ -457,7 +457,7 @@ pub const Pixi = struct {
                             }
                         }
 
-                        selected_layer.texture.update(core.device);
+                        selected_layer.texture.update(pixi.state.device);
                         pixi.state.allocator.free(pixel_coords);
                     }
                 }
@@ -538,7 +538,7 @@ pub const Pixi = struct {
                                 }
                             }
 
-                            selected_layer.texture.update(core.device);
+                            selected_layer.texture.update(pixi.state.device);
                         }
                     } else {
                         const size: u32 = pixi.state.tools.stroke_size;
@@ -556,11 +556,11 @@ pub const Pixi = struct {
                             }
                         }
 
-                        selected_layer.texture.update(core.device);
+                        selected_layer.texture.update(pixi.state.device);
 
                         if (color[3] == 0) {
                             if (file.heightmap.layer) |*working_layer| {
-                                working_layer.texture.update(core.device);
+                                working_layer.texture.update(pixi.state.device);
                             }
                         }
                     }
@@ -584,7 +584,7 @@ pub const Pixi = struct {
                                 file.temporary_layer.setPixelIndex(result.index, color, false);
                             }
                         }
-                        file.temporary_layer.texture.update(core.device);
+                        file.temporary_layer.texture.update(pixi.state.device);
                     },
                     else => {
                         file.temporary_layer.setPixel(pixel, color, true);
@@ -674,7 +674,7 @@ pub const Pixi = struct {
                             file.selection_layer.setPixelIndex(result.index, color, false);
                     }
                 }
-                file.selection_layer.texture.update(core.device);
+                file.selection_layer.texture.update(pixi.state.device);
             } else {
                 for (0..(stroke_size * stroke_size)) |index| {
                     if (file.temporary_layer.getIndexShapeOffset(pixel, index)) |result| {
@@ -686,7 +686,7 @@ pub const Pixi = struct {
                             file.temporary_layer.setPixelIndex(result.index, color, false);
                     }
                 }
-                file.temporary_layer.texture.update(core.device);
+                file.temporary_layer.texture.update(pixi.state.device);
             }
         }
     }
@@ -901,7 +901,7 @@ pub const Pixi = struct {
                     try fillToolDFS(file, selected_layer, pixels, pixel[0], pixel[1], bounds, old_color, new_color);
                 }
 
-                selected_layer.texture.update(core.device);
+                selected_layer.texture.update(pixi.state.device);
 
                 if (file.buffers.stroke.indices.items.len > 0) {
                     const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
@@ -1633,7 +1633,7 @@ pub const Pixi = struct {
                         }
                     }
 
-                    src_layer.texture.update(core.device);
+                    src_layer.texture.update(pixi.state.device);
                     self.selection_layer.clear(true);
 
                     if (append_history) {
@@ -1720,7 +1720,7 @@ pub const Pixi = struct {
                 bindgroup.release();
 
             if (self.transform_compute_buffer == null) {
-                self.transform_compute_buffer = core.device.createBuffer(&.{
+                self.transform_compute_buffer = pixi.state.device.createBuffer(&.{
                     .usage = .{ .copy_src = true, .storage = true },
                     .size = @sizeOf([4]f32) * (self.width * self.height),
                     .mapped_at_creation = .false,
@@ -1728,7 +1728,7 @@ pub const Pixi = struct {
             }
 
             if (self.transform_staging_buffer == null) {
-                self.transform_staging_buffer = core.device.createBuffer(&.{
+                self.transform_staging_buffer = pixi.state.device.createBuffer(&.{
                     .usage = .{ .copy_dst = true, .map_read = true },
                     .size = @sizeOf([4]f32) * (self.width * self.height),
                     .mapped_at_creation = .false,
@@ -1764,16 +1764,13 @@ pub const Pixi = struct {
             const pipeline_layout_default = pixi.state.pipeline_default.getBindGroupLayout(0);
             defer pipeline_layout_default.release();
 
-            self.transform_bindgroup = core.device.createBindGroup(
+            self.transform_bindgroup = pixi.state.device.createBindGroup(
                 &gpu.BindGroup.Descriptor.init(.{
                     .layout = pipeline_layout_default,
                     .entries = &.{
-                        if (pixi.build_options.use_sysgpu)
-                            gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
-                        else
-                            gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
-                        gpu.BindGroup.Entry.textureView(1, self.transform_texture.?.texture.view_handle),
-                        gpu.BindGroup.Entry.sampler(2, self.transform_texture.?.texture.sampler_handle),
+                        gpu.BindGroup.Entry.initBuffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0),
+                        gpu.BindGroup.Entry.initTextureView(1, self.transform_texture.?.texture.view_handle),
+                        gpu.BindGroup.Entry.initSampler(2, self.transform_texture.?.texture.sampler_handle),
                     },
                 }),
             );
@@ -1781,15 +1778,12 @@ pub const Pixi = struct {
             const compute_layout_default = pixi.state.pipeline_compute.getBindGroupLayout(0);
             defer compute_layout_default.release();
 
-            self.transform_compute_bindgroup = core.device.createBindGroup(
+            self.transform_compute_bindgroup = pixi.state.device.createBindGroup(
                 &mach.gpu.BindGroup.Descriptor.init(.{
                     .layout = compute_layout_default,
                     .entries = &.{
-                        mach.gpu.BindGroup.Entry.textureView(0, self.temporary_layer.texture.view_handle),
-                        if (pixi.build_options.use_sysgpu)
-                            mach.gpu.BindGroup.Entry.buffer(1, self.transform_compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height), 0)
-                        else
-                            mach.gpu.BindGroup.Entry.buffer(1, self.transform_compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height)),
+                        mach.gpu.BindGroup.Entry.initTextureView(0, self.temporary_layer.texture.view_handle),
+                        mach.gpu.BindGroup.Entry.initBuffer(1, self.transform_compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height), 0),
                     },
                 }),
             );
@@ -1862,7 +1856,7 @@ pub const Pixi = struct {
         const src = self.layers.items[src_index];
         var texture = try pixi.gfx.Texture.createEmpty(self.width, self.height, .{});
         @memcpy(texture.image.data, src.texture.image.data);
-        texture.update(core.device);
+        texture.update(pixi.state.device);
         try self.layers.insert(0, .{
             .name = try pixi.state.allocator.dupeZ(u8, name),
             .texture = texture,
@@ -2274,7 +2268,7 @@ pub const Pixi = struct {
             }
         }
 
-        working_layer.texture.update(core.device);
+        working_layer.texture.update(pixi.state.device);
 
         // Submit the stroke change buffer
         if (file.buffers.stroke.indices.items.len > 0) {
@@ -2347,7 +2341,7 @@ pub const Pixi = struct {
             }
         }
 
-        selected_layer.texture.update(core.device);
+        selected_layer.texture.update(pixi.state.device);
 
         // Submit the stroke change buffer
         if (file.buffers.stroke.indices.items.len > 0) {
@@ -2382,7 +2376,7 @@ pub const Pixi = struct {
             }
         }
 
-        selected_layer.texture.update(core.device);
+        selected_layer.texture.update(pixi.state.device);
 
         // Submit the stroke change buffer
         if (file.buffers.stroke.indices.items.len > 0 and append_history) {
@@ -2419,14 +2413,14 @@ pub const Layer = struct {
         var p = self.pixels();
         p[index] = color;
         if (update)
-            self.texture.update(core.device);
+            self.texture.update(pixi.state.device);
     }
 
     pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8, update: bool) void {
         var p = self.pixels();
         p[index] = color;
         if (update)
-            self.texture.update(core.device);
+            self.texture.update(pixi.state.device);
     }
 
     pub const ShapeOffsetResult = struct {
@@ -2487,7 +2481,7 @@ pub const Layer = struct {
             pixel.* = .{ 0, 0, 0, 0 };
         }
         if (update)
-            self.texture.update(core.device);
+            self.texture.update(pixi.state.device);
     }
 };
 

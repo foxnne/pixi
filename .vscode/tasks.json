@@ -40,7 +40,7 @@
         {
             "label": "Build and Run Project (sysgpu)",
             "type": "shell",
-            "command": "zig build run -Duse_sysgpu=true",
+            "command": "zig build run",
             "group": {
                 "kind": "build",
                 "isDefault": true

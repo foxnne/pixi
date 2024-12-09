@@ -1,6 +1,6 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 const editor = pixi.editor;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
@@ -16,7 +16,7 @@ pub const infobar = @import("infobar.zig");
 pub var artboard_0_open_file_index: usize = 0;
 pub var artboard_1_open_file_index: usize = 0;
 
-pub fn draw() void {
+pub fn draw(core: *Core) void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -206,7 +206,7 @@ pub fn draw() void {
                                     imgui.ChildFlags_None,
                                     canvas_flags,
                                 )) {
-                                    canvas.draw(file);
+                                    canvas.draw(file, core);
                                 }
                                 imgui.endChild();
 

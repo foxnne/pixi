@@ -358,8 +358,8 @@ fn contextMenuFile(file: [:0]const u8) void {
     imgui.separator();
 
     if (imgui.menuItem("Rename...")) {
-        pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
-        pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+        pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
         @memcpy(pixi.state.popups.rename_path[0..file.len], file);
         @memcpy(pixi.state.popups.rename_old_path[0..file.len], file);
         pixi.state.popups.rename = true;
@@ -367,8 +367,8 @@ fn contextMenuFile(file: [:0]const u8) void {
     }
 
     if (imgui.menuItem("Duplicate...")) {
-        pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
-        pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.MAX_PATH_BYTES;
+        pixi.state.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        pixi.state.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
         @memcpy(pixi.state.popups.rename_old_path[0..file.len], file);
 
         const ex = std.fs.path.extension(file);

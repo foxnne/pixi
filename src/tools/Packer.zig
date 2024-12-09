@@ -1,7 +1,7 @@
 const std = @import("std");
 const zstbi = @import("zstbi");
 const pixi = @import("../pixi.zig");
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 
 pub const LDTKTileset = @import("LDTKTileset.zig");
 
@@ -360,7 +360,7 @@ pub fn packAndClear(self: *Packer) !void {
             if (sprite.diffuse_image) |image|
                 atlas_texture.blit(image.pixels, frame.slice());
         }
-        atlas_texture.update(core.device);
+        atlas_texture.update(pixi.state.device);
 
         if (pixi.state.atlas.diffusemap) |*diffusemap| {
             diffusemap.deinit();
@@ -376,7 +376,7 @@ pub fn packAndClear(self: *Packer) !void {
                 if (sprite.heightmap_image) |image|
                     atlas_texture_h.blit(image.pixels, frame.slice());
             }
-            atlas_texture_h.update(core.device);
+            atlas_texture_h.update(pixi.state.device);
 
             if (pixi.state.atlas.heightmap) |*heightmap| {
                 heightmap.deinit();
