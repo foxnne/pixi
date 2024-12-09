@@ -174,7 +174,8 @@ pub fn init(app: *App, core: *Core, app_mod: mach.Mod(App)) !void {
 }
 
 fn lateInit(app: *App, core: *Core) !void {
-    const window = core.windows.getValue(app.window);
+    var window = core.windows.getValue(app.window);
+    defer core.windows.setValue(app.window, window);
 
     state.device = window.device;
     state.queue = window.queue;
@@ -189,7 +190,7 @@ fn lateInit(app: *App, core: *Core) !void {
     state.theme = try editor.Theme.loadFromFile(theme_path);
 
     window_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
-    framebuffer_size = .{ window_size[0], window_size[1] };
+    framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
     content_scale = .{
         framebuffer_size[0] / window_size[0],
         framebuffer_size[1] / window_size[1],
@@ -255,7 +256,17 @@ fn lateInit(app: *App, core: *Core) !void {
     state.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
     state.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
-    //state.theme.init();
+    state.theme.init();
+
+    window.color = .{ .transparent = .{
+        .color = .{
+            .r = state.theme.foreground.value[0],
+            .g = state.theme.foreground.value[1],
+            .b = state.theme.foreground.value[2],
+            .a = 1.0,
+        },
+        .titlebar = true,
+    } };
 }
 
 pub fn updateMainThread(_: *App) !bool {
@@ -320,6 +331,15 @@ pub fn tick(app: *App, core: *Core) !void {
                 }
                 state.should_close = should_close;
             },
+            .window_resize => |resize| {
+                const window = core.windows.getValue(app.window);
+                window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.width) };
+                framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
+                content_scale = .{
+                    framebuffer_size[0] / window_size[0],
+                    framebuffer_size[1] / window_size[1],
+                };
+            },
             .window_open => {
                 try lateInit(app, core);
             },
@@ -329,21 +349,15 @@ pub fn tick(app: *App, core: *Core) !void {
         if (!state.should_close)
             _ = imgui_mach.processEvent(event);
     }
+    const window = core.windows.getValue(app.window);
+    _ = window; // autofix
 
     try imgui_mach.newFrame();
     imgui.newFrame();
     state.delta_time = app.timer.lap();
     state.total_time += state.delta_time;
 
-    const window = core.windows.getValue(app.window);
-
-    window_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
-    framebuffer_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
-    content_scale = .{
-        framebuffer_size[0] / window_size[0],
-        framebuffer_size[1] / window_size[1],
-    };
-    content_scale = .{ 1.0, 1.0 };
+    // content_scale = .{ 1.0, 1.0 };
 
     try input.process();
 

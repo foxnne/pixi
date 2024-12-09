@@ -89,23 +89,23 @@ pub fn draw(core: *Core) void {
                     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
                     const mouse_clicked: bool = pixi.state.mouse.anyButtonDown();
 
-                    defer {
-                        const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
-                        // Draw a shadow fading from bottom to top
-                        const pos = imgui.getWindowPos();
-                        const width = imgui.getWindowWidth();
+                    // defer {
+                    //     const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
+                    //     // Draw a shadow fading from bottom to top
+                    //     const pos = imgui.getWindowPos();
+                    //     const width = imgui.getWindowWidth();
 
-                        if (imgui.getWindowDrawList()) |draw_list| {
-                            draw_list.addRectFilledMultiColor(
-                                .{ .x = pos.x, .y = pos.y },
-                                .{ .x = pos.x + width, .y = pos.y + pixi.state.settings.shadow_length },
-                                shadow_color,
-                                shadow_color,
-                                0x0,
-                                0x0,
-                            );
-                        }
-                    }
+                    //     if (imgui.getWindowDrawList()) |draw_list| {
+                    //         draw_list.addRectFilledMultiColor(
+                    //             .{ .x = pos.x, .y = pos.y },
+                    //             .{ .x = pos.x + width, .y = pos.y + pixi.state.settings.shadow_length },
+                    //             shadow_color,
+                    //             shadow_color,
+                    //             0x0,
+                    //             0x0,
+                    //         );
+                    //     }
+                    // }
 
                     if (pixi.state.sidebar == .pack) {
                         drawCanvasPack();
@@ -263,22 +263,22 @@ pub fn draw(core: *Core) void {
             }
         }
 
-        {
-            const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
-            const pos = imgui.getWindowPos();
-            const height = imgui.getWindowHeight();
+        // {
+        //     const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
+        //     const pos = imgui.getWindowPos();
+        //     const height = imgui.getWindowHeight();
 
-            if (imgui.getWindowDrawList()) |draw_list|
-                // Draw a shadow fading from left to right
-                draw_list.addRectFilledMultiColor(
-                    pos,
-                    .{ .x = pos.x + pixi.state.settings.shadow_length, .y = height + pos.x },
-                    shadow_color,
-                    0x0,
-                    shadow_color,
-                    0x0,
-                );
-        }
+        //     if (imgui.getWindowDrawList()) |draw_list|
+        //         // Draw a shadow fading from left to right
+        //         draw_list.addRectFilledMultiColor(
+        //             pos,
+        //             .{ .x = pos.x + pixi.state.settings.shadow_length, .y = height + pos.x },
+        //             shadow_color,
+        //             0x0,
+        //             shadow_color,
+        //             0x0,
+        //         );
+        // }
     }
     imgui.end();
 }
