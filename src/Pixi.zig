@@ -173,9 +173,9 @@ pub fn init(app: *App, core: *Core, app_mod: mach.Mod(App)) !void {
     //core.setSizeLimit(.{ .min = .{ .width = @divTrunc(state.settings.initial_window_width, 2), .height = @divTrunc(state.settings.initial_window_height, 2) }, .max = .{ .width = null, .height = null } });
 }
 
-fn lateInit(app: *App, core: *Core) !void {
-    var window = core.windows.getValue(app.window);
-    defer core.windows.setValue(app.window, window);
+fn lateInit(pixi: *App, core: *Core) !void {
+    const window = core.windows.getValue(pixi.window);
+    //defer core.windows.setValue(app.window, window);
 
     state.device = window.device;
     state.queue = window.queue;
@@ -259,17 +259,7 @@ fn lateInit(app: *App, core: *Core) !void {
     state.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
     state.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
-    state.theme.init();
-
-    window.color = .{ .transparent = .{
-        .color = .{
-            .r = state.theme.foreground.value[0],
-            .g = state.theme.foreground.value[1],
-            .b = state.theme.foreground.value[2],
-            .a = 1.0,
-        },
-        .titlebar = true,
-    } };
+    state.theme.init(core, pixi);
 }
 
 pub fn tick(app: *App, core: *Core) !void {
@@ -354,7 +344,6 @@ pub fn tick(app: *App, core: *Core) !void {
             _ = imgui_mach.processEvent(event);
     }
     var window = core.windows.getValue(app.window);
-    defer core.windows.setValue(app.window, window);
     state.swap_chain = window.swap_chain;
 
     try imgui_mach.newFrame();
@@ -364,7 +353,7 @@ pub fn tick(app: *App, core: *Core) !void {
 
     try input.process();
 
-    state.theme.set();
+    state.theme.set(core, app);
 
     //imgui.showDemoWindow(null);
 
