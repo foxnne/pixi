@@ -671,6 +671,20 @@ pub const Camera = struct {
                 }
                 pixi.state.mouse.scroll_y = null;
             }
+            if (pixi.state.mouse.magnify) |magnification| {
+                camera.zoom_timer = 0.0;
+                camera.zoom_wait_timer = 0.0;
+
+                const nearest_zoom_index = camera.nearestZoomIndex();
+                const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(pixi.state.settings.zoom_steps.len - 1));
+                const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity * 10, pixi.state.settings.zoom_max_sensitivity * 10, t) * (pixi.state.settings.zoom_sensitivity / 100.0);
+                const zoom_delta = magnification * sensitivity;
+
+                camera.zoom += zoom_delta;
+
+                pixi.state.mouse.magnify = null;
+            }
+
             const mouse_drag_delta = imgui.getMouseDragDelta(imgui.MouseButton_Middle, 0.0);
             if (mouse_drag_delta.x != 0.0 or mouse_drag_delta.y != 0.0) {
                 camera.position[0] -= mouse_drag_delta.x * (1.0 / camera.zoom);
@@ -759,7 +773,7 @@ pub const Camera = struct {
 
     pub fn processZoomTooltip(camera: *Camera) void {
         const zoom_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
-        const zooming = pixi.state.mouse.scroll_y != null and zoom_key;
+        const zooming = (pixi.state.mouse.scroll_y != null and zoom_key) or pixi.state.mouse.magnify != null;
 
         // Draw current zoom tooltip
         if (camera.zoom_tooltip_timer < pixi.state.settings.zoom_tooltip_time) {

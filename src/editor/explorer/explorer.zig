@@ -23,12 +23,12 @@ pub fn draw(core: *Core) void {
     const explorer_width = pixi.state.settings.explorer_width;
 
     imgui.setNextWindowPos(.{
-        .x = pixi.state.settings.sidebar_width,
+        .x = pixi.state.settings.sidebar_width * pixi.content_scale[0],
         .y = 0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = explorer_width,
-        .y = pixi.window_size[1],
+        .x = explorer_width * pixi.content_scale[0],
+        .y = pixi.framebuffer_size[1],
     }, imgui.Cond_None);
 
     var explorer_flags: imgui.WindowFlags = 0;
@@ -44,8 +44,8 @@ pub fn draw(core: *Core) void {
         defer imgui.end();
         imgui.popStyleVarEx(3);
 
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * pixi.content_scale[1] });
         defer imgui.popStyleVarEx(2);
 
         imgui.pushStyleColorImVec4(imgui.Col_Separator, pixi.state.theme.text_background.toImguiVec4());

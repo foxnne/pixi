@@ -24,8 +24,8 @@ pub fn draw(core: *Core) void {
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = pixi.window_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width + pixi.state.settings.explorer_grip) * pixi.content_scale[0]),
-        .y = pixi.window_size[1] + 5.0,
+        .x = (pixi.window_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width + pixi.state.settings.explorer_grip)) * pixi.content_scale[0]),
+        .y = (pixi.window_size[1] + 5.0) * pixi.content_scale[1],
     }, imgui.Cond_None);
 
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.5 });

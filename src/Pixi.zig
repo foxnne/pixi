@@ -195,6 +195,7 @@ fn lateInit(app: *App, core: *Core) !void {
         framebuffer_size[0] / window_size[0],
         framebuffer_size[1] / window_size[1],
     };
+    content_scale = .{ 1.0, 1.0 };
 
     const scale_factor = content_scale[1];
 
@@ -218,6 +219,7 @@ fn lateInit(app: *App, core: *Core) !void {
     try gfx.init(state);
 
     imgui.setZigAllocator(&state.allocator);
+
     _ = imgui.createContext(null);
     try imgui_mach.init(core, state.allocator, window.device, .{
         .mag_filter = .nearest,
@@ -228,7 +230,8 @@ fn lateInit(app: *App, core: *Core) !void {
 
     var io = imgui.getIO();
     io.config_flags |= imgui.ConfigFlags_NavEnableKeyboard;
-    io.font_global_scale = 1.0 / io.display_framebuffer_scale.y;
+    io.display_framebuffer_scale = .{ .x = content_scale[0], .y = content_scale[1] };
+    io.font_global_scale = 1.0;
     var cozette_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     cozette_config.font_data_owned_by_atlas = true;
     cozette_config.oversample_h = 2;
@@ -269,7 +272,7 @@ fn lateInit(app: *App, core: *Core) !void {
     } };
 }
 
-pub fn updateMainThread(_: *App) !bool {
+pub fn tick(app: *App, core: *Core) !void {
     if (state.popups.file_dialog_request) |request| {
         const initial = if (request.initial) |initial| initial else state.project_folder;
 
@@ -286,12 +289,11 @@ pub fn updateMainThread(_: *App) !bool {
         state.popups.file_dialog_request = null;
     }
 
-    return false;
-}
-
-pub fn tick(app: *App, core: *Core) !void {
     while (core.nextEvent()) |event| {
         switch (event) {
+            .window_open => {
+                try lateInit(app, core);
+            },
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
             },
@@ -306,6 +308,10 @@ pub fn tick(app: *App, core: *Core) !void {
                     state.mouse.scroll_x = mouse_scroll.xoffset;
                     state.mouse.scroll_y = mouse_scroll.yoffset;
                 }
+            },
+            .magnify => |magnify| {
+                state.mouse.magnify = magnify.magnification;
+                std.log.debug("magnify!", .{});
             },
             .mouse_motion => |mouse_motion| {
                 state.mouse.position = .{ @floatCast(mouse_motion.pos.x * content_scale[0]), @floatCast(mouse_motion.pos.y * content_scale[1]) };
@@ -333,31 +339,29 @@ pub fn tick(app: *App, core: *Core) !void {
             },
             .window_resize => |resize| {
                 const window = core.windows.getValue(app.window);
-                window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.width) };
+                window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.height) };
                 framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
                 content_scale = .{
                     framebuffer_size[0] / window_size[0],
                     framebuffer_size[1] / window_size[1],
                 };
+                content_scale = .{ 1.0, 1.0 };
             },
-            .window_open => {
-                try lateInit(app, core);
-            },
+
             else => {},
         }
 
         if (!state.should_close)
             _ = imgui_mach.processEvent(event);
     }
-    const window = core.windows.getValue(app.window);
-    _ = window; // autofix
+    var window = core.windows.getValue(app.window);
+    defer core.windows.setValue(app.window, window);
+    state.swap_chain = window.swap_chain;
 
     try imgui_mach.newFrame();
     imgui.newFrame();
     state.delta_time = app.timer.lap();
     state.total_time += state.delta_time;
-
-    // content_scale = .{ 1.0, 1.0 };
 
     try input.process();
 
@@ -366,6 +370,7 @@ pub fn tick(app: *App, core: *Core) !void {
     //imgui.showDemoWindow(null);
 
     editor.draw(core);
+
     state.theme.unset();
 
     imgui.render();
@@ -382,12 +387,11 @@ pub fn tick(app: *App, core: *Core) !void {
     //     @memcpy(core.title[0..name.len], name);
     //     core.setTitle(&core.title);
     // }
-
-    if (state.swap_chain.getCurrentTextureView()) |back_buffer_view| {
+    if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
         const imgui_commands = commands: {
-            const encoder = state.device.createCommandEncoder(null);
+            const encoder = window.device.createCommandEncoder(null);
             defer encoder.release();
 
             const background: gpu.Color = .{
@@ -410,6 +414,7 @@ pub fn tick(app: *App, core: *Core) !void {
                     .color_attachments = &.{color_attachment},
                 });
                 const pass = encoder.beginRenderPass(&render_pass_info);
+
                 imgui_mach.renderDrawData(imgui.getDrawData().?, pass) catch {};
                 pass.end();
                 pass.release();
@@ -420,14 +425,12 @@ pub fn tick(app: *App, core: *Core) !void {
         defer imgui_commands.release();
 
         if (state.batcher.empty) {
-            state.queue.submit(&.{imgui_commands});
+            window.queue.submit(&.{imgui_commands});
         } else {
             const batcher_commands = try state.batcher.finish();
             defer batcher_commands.release();
-            state.queue.submit(&.{ batcher_commands, imgui_commands });
+            window.queue.submit(&.{ batcher_commands, imgui_commands });
         }
-
-        state.swap_chain.present();
     }
 
     // Accept transformations
@@ -505,6 +508,7 @@ pub fn tick(app: *App, core: *Core) !void {
 
     if (state.should_close and !editor.saving()) {
         // Close!
+        core.exit();
     }
 }
 

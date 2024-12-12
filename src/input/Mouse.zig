@@ -53,6 +53,7 @@ pub const Action = enum {
 buttons: []Button,
 position: [2]f32 = .{ 0.0, 0.0 },
 previous_position: [2]f32 = .{ 0.0, 0.0 },
+magnify: ?f32 = null,
 scroll_x: ?f32 = null,
 scroll_y: ?f32 = null,
 

@@ -58,6 +58,8 @@ pub fn init(self: Self) void {
     style.separator_text_border_size = 1.0;
     style.separator_text_padding = .{ .x = 20.0, .y = 10.0 };
 
+    style.scaleAllSizes(pixi.content_scale[0]);
+
     const bg = self.background.toImguiVec4();
     const fg = self.foreground.toImguiVec4();
     const text = self.text.toImguiVec4();
