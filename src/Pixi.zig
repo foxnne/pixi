@@ -79,7 +79,7 @@ pub const PixiState = struct {
     root_path: [:0]const u8 = undefined,
     recents: Recents = undefined,
     previous_atlas_export: ?[:0]const u8 = null,
-    open_files: std.ArrayList(storage.Internal.Pixi) = undefined,
+    open_files: std.ArrayList(storage.Internal.PixiFile) = undefined,
     open_references: std.ArrayList(storage.Internal.Reference) = undefined,
     pack_target: PackTarget = .project,
     pack_camera: gfx.Camera = .{},
@@ -201,7 +201,7 @@ fn lateInit(pixi: *App, core: *Core) !void {
 
     zstbi.init(core.allocator);
 
-    state.open_files = std.ArrayList(storage.Internal.Pixi).init(state.allocator);
+    state.open_files = std.ArrayList(storage.Internal.PixiFile).init(state.allocator);
     state.open_references = std.ArrayList(storage.Internal.Reference).init(state.allocator);
 
     state.colors.keyframe_palette = try storage.Internal.Palette.loadFromFile(assets.pear36_hex.path);

@@ -4,7 +4,7 @@ const Core = @import("mach").Core;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-pub fn draw(file: *pixi.storage.Internal.Pixi, core: *Core) void {
+pub fn draw(file: *pixi.storage.Internal.PixiFile, core: *Core) void {
     const transforming = file.transform_texture != null;
 
     {

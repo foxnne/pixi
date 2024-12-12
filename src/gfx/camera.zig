@@ -605,7 +605,7 @@ pub const Camera = struct {
         height: u32,
     };
 
-    pub fn flipbookPixelCoordinates(camera: Camera, file: *pixi.storage.Internal.Pixi, options: FlipbookPixelCoordinatesOptions) ?[2]f32 {
+    pub fn flipbookPixelCoordinates(camera: Camera, file: *pixi.storage.Internal.PixiFile, options: FlipbookPixelCoordinatesOptions) ?[2]f32 {
         const i = file.selected_sprite_index;
         const tile_width = @as(f32, @floatFromInt(file.tile_width));
         const tile_height = @as(f32, @floatFromInt(file.tile_height));

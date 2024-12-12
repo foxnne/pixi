@@ -21,7 +21,7 @@ var ms_hovered: ?usize = null;
 var keyframe_dragging: ?u32 = null;
 var mouse_scroll_delta_y: f32 = 0.0;
 
-pub fn draw(file: *pixi.storage.Internal.Pixi) void {
+pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
     const window_height = imgui.getWindowHeight();
     const window_width = imgui.getWindowWidth();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -402,14 +402,14 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
 
                                             const t: f32 = progress / total;
 
-                                            const tween_vertices: [4]pixi.storage.Internal.Pixi.TransformVertex = .{
+                                            const tween_vertices: [4]pixi.storage.Internal.PixiFile.TransformVertex = .{
                                                 .{ .position = zmath.lerp(from_frame.vertices[0].position, to_frame.vertices[0].position, t) },
                                                 .{ .position = zmath.lerp(from_frame.vertices[1].position, to_frame.vertices[1].position, t) },
                                                 .{ .position = zmath.lerp(from_frame.vertices[2].position, to_frame.vertices[2].position, t) },
                                                 .{ .position = zmath.lerp(from_frame.vertices[3].position, to_frame.vertices[3].position, t) },
                                             };
 
-                                            const tween_pivot: pixi.storage.Internal.Pixi.TransformVertex = .{ .position = zmath.lerp(from_frame.pivot.position, to_frame.pivot.position, t) };
+                                            const tween_pivot: pixi.storage.Internal.PixiFile.TransformVertex = .{ .position = zmath.lerp(from_frame.pivot.position, to_frame.pivot.position, t) };
 
                                             var from_rotation: f32 = from_frame.rotation;
 
@@ -497,7 +497,7 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
     }
 }
 
-pub fn drawVerticalLines(file: *pixi.storage.Internal.Pixi, animation_length: usize, scroll: [2]f32) void {
+pub fn drawVerticalLines(file: *pixi.storage.Internal.PixiFile, animation_length: usize, scroll: [2]f32) void {
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
@@ -592,7 +592,7 @@ pub fn drawVerticalLines(file: *pixi.storage.Internal.Pixi, animation_length: us
     }
 }
 
-pub fn drawNodeArea(file: *pixi.storage.Internal.Pixi, animation_length: usize, scroll: [2]f32) void {
+pub fn drawNodeArea(file: *pixi.storage.Internal.PixiFile, animation_length: usize, scroll: [2]f32) void {
     const window_position = imgui.getWindowPos();
     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
 

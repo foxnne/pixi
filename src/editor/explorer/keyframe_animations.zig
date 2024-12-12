@@ -160,7 +160,7 @@ pub fn draw() void {
     }
 }
 
-fn contextMenu(animation_index: usize, file: *pixi.storage.Internal.Pixi) void {
+fn contextMenu(animation_index: usize, file: *pixi.storage.Internal.PixiFile) void {
     if (imgui.beginPopupContextItem()) {
         defer imgui.endPopup();
 

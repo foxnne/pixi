@@ -4,9 +4,9 @@ const core = @import("mach").core;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-const History = pixi.storage.Internal.Pixi.History;
+const History = pixi.storage.Internal.PixiFile.History;
 
-pub fn draw(file: *pixi.storage.Internal.Pixi, mouse_ratio: f32) void {
+pub fn draw(file: *pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
