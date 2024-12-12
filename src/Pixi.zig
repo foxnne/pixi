@@ -311,7 +311,6 @@ pub fn tick(app: *App, core: *Core) !void {
             },
             .magnify => |magnify| {
                 state.mouse.magnify = magnify.magnification;
-                std.log.debug("magnify!", .{});
             },
             .mouse_motion => |mouse_motion| {
                 state.mouse.position = .{ @floatCast(mouse_motion.pos.x * content_scale[0]), @floatCast(mouse_motion.pos.y * content_scale[1]) };
