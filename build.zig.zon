@@ -9,14 +9,14 @@
     .version = "0.0.1",
     .dependencies = .{
         .mach = .{
-            //.path = "../mach-dev/",
-            .url = "https://pkg.machengine.org/mach/a10cbc34197e8ebcca2ccb1d67e44a2cee186909.tar.gz",
-            .hash = "1220bd4662837adfb6110a7aa90fe60eebc1e4aba8b3fdfd5c1e366b210257c8a758",
+            .path = "../mach-dev/",
+            // .url = "https://pkg.machengine.org/mach/a10cbc34197e8ebcca2ccb1d67e44a2cee186909.tar.gz",
+            // .hash = "1220bd4662837adfb6110a7aa90fe60eebc1e4aba8b3fdfd5c1e366b210257c8a758",
         },
         .zig_imgui = .{
-            //.path = "../zig-imgui/",
-            .url = "https://github.com/foxnne/zig-imgui/archive/0b4e451da96ce5d24e48bca6d8463ab418c75827.tar.gz",
-            .hash = "1220ca59c74c701238146166de27e2f0dfe1568b21a138db90875358a2711b5b3ec6",
+            .path = "../zig-imgui/",
+            // .url = "https://github.com/foxnne/zig-imgui/archive/0b4e451da96ce5d24e48bca6d8463ab418c75827.tar.gz",
+            // .hash = "1220ca59c74c701238146166de27e2f0dfe1568b21a138db90875358a2711b5b3ec6",
         },
         .zstbi = .{
             //.path = "../zstbi/",

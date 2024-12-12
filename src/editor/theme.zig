@@ -103,7 +103,7 @@ pub fn init(self: Self, core: *mach.Core, pixi: *Pixi) void {
     core.windows.set(pixi.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
-pub fn set(self: *Self, core: *mach.Core, pixi: *Pixi) void {
+pub fn push(self: *Self, core: *mach.Core, pixi: *Pixi) void {
     const bg = self.background.toImguiVec4();
     const fg = self.foreground.toImguiVec4();
     const text = self.text.toImguiVec4();
@@ -184,7 +184,7 @@ pub fn save(self: Self, path: [:0]const u8) !void {
     try std.json.stringify(self, options, out_stream);
 }
 
-pub fn unset(self: Self) void {
+pub fn pop(self: Self) void {
     _ = self;
     imgui.popStyleColorEx(28);
 }

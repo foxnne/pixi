@@ -353,13 +353,13 @@ pub fn tick(app: *App, core: *Core) !void {
 
     try input.process();
 
-    state.theme.set(core, app);
+    state.theme.push(core, app);
 
     //imgui.showDemoWindow(null);
 
     editor.draw(core);
 
-    state.theme.unset();
+    state.theme.pop();
 
     imgui.render();
 
