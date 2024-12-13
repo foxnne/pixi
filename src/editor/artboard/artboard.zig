@@ -285,10 +285,11 @@ pub fn draw(core: *Core) void {
 
 pub fn drawLogoScreen() void {
     imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Border, pixi.state.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-    defer imgui.popStyleColorEx(4);
+    defer imgui.popStyleColorEx(5);
     { // Draw semi-transparent logo
         const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_default];
 
