@@ -299,8 +299,8 @@ pub fn tick(app: *App, core: *Core) !void {
                     state.mouse.scroll_y = mouse_scroll.yoffset;
                 }
             },
-            .magnify => |magnify| {
-                state.mouse.magnify = magnify.magnification;
+            .zoom_gesture => |gesture| {
+                state.mouse.magnify = gesture.zoom;
             },
             .mouse_motion => |mouse_motion| {
                 state.mouse.position = .{ @floatCast(mouse_motion.pos.x * content_scale[0]), @floatCast(mouse_motion.pos.y * content_scale[1]) };

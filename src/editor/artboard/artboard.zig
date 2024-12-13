@@ -316,7 +316,7 @@ pub fn drawLogoScreen() void {
             .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
             .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
         );
-        imgui.spacing();
+        imgui.dummy(.{ .x = 1.0, .y = 15.0 });
     }
     { // Draw `Open Folder` button
         const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
