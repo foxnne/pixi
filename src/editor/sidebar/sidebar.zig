@@ -11,7 +11,7 @@ pub fn draw() void {
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
         .x = pixi.state.settings.sidebar_width * pixi.content_scale[0],
-        .y = pixi.framebuffer_size[1],
+        .y = pixi.window_size[1],
     }, imgui.Cond_None);
     imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
     imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.foreground.toImguiVec4());

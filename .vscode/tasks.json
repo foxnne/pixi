@@ -26,7 +26,7 @@
             }
         },
         {
-            "label": "Build and Run Project (dawn)",
+            "label": "Build and Run Project",
             "type": "shell",
             "command": "zig build run",
             "group": {
@@ -38,9 +38,9 @@
             }
         },
         {
-            "label": "Build and Run Project (sysgpu)",
+            "label": "Build and Run Project (release-fast)",
             "type": "shell",
-            "command": "zig build run",
+            "command": "zig build run -Doptimize=ReleaseFast",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -50,9 +50,9 @@
             }
         },
         {
-            "label": "Build and Run Project (sysgpu/release-fast)",
+            "label": "Build and Run Project (release-small)",
             "type": "shell",
-            "command": "zig build run -Doptimize=ReleaseFast -Duse_sysgpu=true",
+            "command": "zig build run -Doptimize=ReleaseSmall",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -62,21 +62,9 @@
             }
         },
         {
-            "label": "Build and Run Project (sysgpu/release-small)",
+            "label": "Build and Run Project (release-safe)",
             "type": "shell",
-            "command": "zig build run -Doptimize=ReleaseSmall -Duse_sysgpu=true",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "presentation": {
-                "clear": true
-            }
-        },
-        {
-            "label": "Build and Run Project (sysgpu/release-safe)",
-            "type": "shell",
-            "command": "zig build run -Doptimize=ReleaseSafe -Duse_sysgpu=true",
+            "command": "zig build run -Doptimize=ReleaseSafe",
             "group": {
                 "kind": "build",
                 "isDefault": true

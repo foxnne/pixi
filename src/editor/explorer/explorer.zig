@@ -28,7 +28,7 @@ pub fn draw(core: *Core) void {
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
         .x = explorer_width * pixi.content_scale[0],
-        .y = pixi.framebuffer_size[1],
+        .y = pixi.window_size[1],
     }, imgui.Cond_None);
 
     var explorer_flags: imgui.WindowFlags = 0;
