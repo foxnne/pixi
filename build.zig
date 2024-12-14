@@ -42,9 +42,11 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    switch (target.result.os.tag) {
-        .windows => exe.subsystem = .Windows,
-        else => exe.subsystem = .Posix,
+    if (optimize != .Debug) {
+        switch (target.result.os.tag) {
+            .windows => exe.subsystem = .Windows,
+            else => exe.subsystem = .Posix,
+        }
     }
 
     const run_step = b.step("run", "Run the example");
