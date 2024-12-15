@@ -1783,7 +1783,7 @@ pub const PixiFile = struct {
                     .layout = compute_layout_default,
                     .entries = &.{
                         mach.gpu.BindGroup.Entry.initTextureView(0, self.temporary_layer.texture.view_handle),
-                        mach.gpu.BindGroup.Entry.initBuffer(1, self.transform_compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height), 0),
+                        mach.gpu.BindGroup.Entry.initBuffer(1, self.transform_compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height), @sizeOf([4]f32)),
                     },
                 }),
             );
