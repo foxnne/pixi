@@ -97,7 +97,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile, core: *Core) void {
         sprite_camera.setNearestZoomFloor();
         const min_zoom = @min(sprite_camera.zoom, 1.0);
 
-        file.camera.processPanZoom();
+        file.camera.processPanZoom(.primary);
 
         // Lock camera from zooming in or out too far for the flipbook
         file.camera.zoom = std.math.clamp(file.camera.zoom, min_zoom, pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);

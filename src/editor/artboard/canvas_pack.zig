@@ -35,7 +35,7 @@ pub fn draw(mode: PackTexture) void {
             sprite_camera.setNearestZoomFloor();
             const min_zoom = @min(sprite_camera.zoom, 1.0);
 
-            camera.processPanZoom();
+            camera.processPanZoom(.primary);
 
             // Lock camera from zooming in or out too far for the flipbook
             camera.zoom = std.math.clamp(camera.zoom, min_zoom, pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);

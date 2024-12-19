@@ -111,7 +111,7 @@ pub fn draw() void {
                         camera.setNearestZoomFloor();
                         const min_zoom = @min(camera.zoom, pixi.state.settings.zoom_steps[0]);
 
-                        reference.camera.processPanZoom();
+                        reference.camera.processPanZoom(.reference);
 
                         // Lock camera from zooming in or out too far for the flipbook
                         reference.camera.zoom = std.math.clamp(reference.camera.zoom, min_zoom, pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
