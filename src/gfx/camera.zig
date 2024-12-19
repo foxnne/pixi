@@ -659,6 +659,28 @@ pub const Camera = struct {
         var zoom_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
         if (pixi.state.settings.input_scheme != .trackpad) zoom_key = true;
 
+        const previous_zoom = camera.zoom;
+
+        const previous_mouse = switch (target) {
+            .primary => camera.coordinatesRaw(.{
+                .texture_position = pixi.state.open_files.items[pixi.state.open_file_index].canvasCenterOffset(.primary),
+                .position = pixi.state.mouse.position,
+                .width = pixi.state.open_files.items[pixi.state.open_file_index].width,
+                .height = pixi.state.open_files.items[pixi.state.open_file_index].height,
+            }),
+            .flipbook => camera.coordinatesRaw(.{
+                .texture_position = pixi.state.open_files.items[pixi.state.open_file_index].canvasCenterOffset(.flipbook),
+                .position = pixi.state.mouse.position,
+                .width = pixi.state.open_files.items[pixi.state.open_file_index].width,
+                .height = pixi.state.open_files.items[pixi.state.open_file_index].height,
+            }),
+            .reference => camera.coordinatesRaw(.{
+                .texture_position = pixi.state.open_references.items[pixi.state.open_reference_index].canvasCenterOffset(),
+                .position = pixi.state.mouse.position,
+                .width = pixi.state.open_references.items[pixi.state.open_reference_index].texture.image.width,
+                .height = pixi.state.open_references.items[pixi.state.open_reference_index].texture.image.height,
+            }),
+        };
         // Handle controls while canvas is hovered
         if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
             camera.processZoomTooltip();
@@ -668,28 +690,6 @@ pub const Camera = struct {
                 }
                 pixi.state.mouse.scroll_x = null;
             }
-            const previous_zoom = camera.zoom;
-
-            const previous_mouse = switch (target) {
-                .primary => camera.coordinatesRaw(.{
-                    .texture_position = pixi.state.open_files.items[pixi.state.open_file_index].canvasCenterOffset(.primary),
-                    .position = pixi.state.mouse.position,
-                    .width = pixi.state.open_files.items[pixi.state.open_file_index].width,
-                    .height = pixi.state.open_files.items[pixi.state.open_file_index].height,
-                }),
-                .flipbook => camera.coordinatesRaw(.{
-                    .texture_position = pixi.state.open_files.items[pixi.state.open_file_index].canvasCenterOffset(.flipbook),
-                    .position = pixi.state.mouse.position,
-                    .width = pixi.state.open_files.items[pixi.state.open_file_index].width,
-                    .height = pixi.state.open_files.items[pixi.state.open_file_index].height,
-                }),
-                .reference => camera.coordinatesRaw(.{
-                    .texture_position = pixi.state.open_references.items[pixi.state.open_reference_index].canvasCenterOffset(),
-                    .position = pixi.state.mouse.position,
-                    .width = pixi.state.open_references.items[pixi.state.open_reference_index].texture.image.width,
-                    .height = pixi.state.open_references.items[pixi.state.open_reference_index].texture.image.height,
-                }),
-            };
 
             if (pixi.state.mouse.scroll_y) |y| {
                 if (zoom_key) {
@@ -720,47 +720,19 @@ pub const Camera = struct {
                 }
                 pixi.state.mouse.scroll_y = null;
             }
+
             if (pixi.state.mouse.magnify) |magnification| {
                 camera.zoom_timer = 0.0;
                 camera.zoom_wait_timer = 0.0;
 
                 const nearest_zoom_index = camera.nearestZoomIndex();
                 const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(pixi.state.settings.zoom_steps.len - 1));
-                const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity * 80, t) * (pixi.state.settings.zoom_sensitivity / 100.0);
-                const zoom_delta = magnification * sensitivity;
+                const sensitivity = pixi.math.lerp(pixi.state.settings.zoom_min_sensitivity, pixi.state.settings.zoom_max_sensitivity, t) * (pixi.state.settings.zoom_sensitivity / 100.0);
+                const zoom_delta = magnification * 100 * sensitivity;
 
                 camera.zoom += zoom_delta;
 
                 pixi.state.mouse.magnify = null;
-            }
-
-            const zoom_delta = camera.zoom - previous_zoom;
-            if (@abs(zoom_delta) > 0.0) {
-                // Get the distance to the mouse from camera center before the zoom
-                const current_mouse = switch (target) {
-                    .primary => camera.coordinatesRaw(.{
-                        .texture_position = pixi.state.open_files.items[pixi.state.open_file_index].canvasCenterOffset(.primary),
-                        .position = pixi.state.mouse.position,
-                        .width = pixi.state.open_files.items[pixi.state.open_file_index].width,
-                        .height = pixi.state.open_files.items[pixi.state.open_file_index].height,
-                    }),
-                    .flipbook => camera.coordinatesRaw(.{
-                        .texture_position = pixi.state.open_files.items[pixi.state.open_file_index].canvasCenterOffset(.flipbook),
-                        .position = pixi.state.mouse.position,
-                        .width = pixi.state.open_files.items[pixi.state.open_file_index].width,
-                        .height = pixi.state.open_files.items[pixi.state.open_file_index].height,
-                    }),
-                    .reference => camera.coordinatesRaw(.{
-                        .texture_position = pixi.state.open_references.items[pixi.state.open_reference_index].canvasCenterOffset(),
-                        .position = pixi.state.mouse.position,
-                        .width = pixi.state.open_references.items[pixi.state.open_reference_index].texture.image.width,
-                        .height = pixi.state.open_references.items[pixi.state.open_reference_index].texture.image.height,
-                    }),
-                };
-                const difference: [2]f32 = .{ previous_mouse[0] - current_mouse[0], previous_mouse[1] - current_mouse[1] };
-
-                camera.position[0] += difference[0];
-                camera.position[1] += difference[1];
             }
 
             const mouse_drag_delta = imgui.getMouseDragDelta(imgui.MouseButton_Middle, 0.0);
@@ -792,6 +764,35 @@ pub const Camera = struct {
             camera.zoom = pixi.math.lerp(camera.zoom, pixi.state.settings.zoom_steps[nearest_zoom_index], camera.zoom_timer / pixi.state.settings.zoom_time);
         } else {
             camera.zoom = pixi.state.settings.zoom_steps[nearest_zoom_index];
+        }
+
+        // Move camera position to maintain mouse position
+        const zoom_delta = camera.zoom - previous_zoom;
+        if (@abs(zoom_delta) > 0.0) {
+            const current_mouse = switch (target) {
+                .primary => camera.coordinatesRaw(.{
+                    .texture_position = pixi.state.open_files.items[pixi.state.open_file_index].canvasCenterOffset(.primary),
+                    .position = pixi.state.mouse.position,
+                    .width = pixi.state.open_files.items[pixi.state.open_file_index].width,
+                    .height = pixi.state.open_files.items[pixi.state.open_file_index].height,
+                }),
+                .flipbook => camera.coordinatesRaw(.{
+                    .texture_position = pixi.state.open_files.items[pixi.state.open_file_index].canvasCenterOffset(.flipbook),
+                    .position = pixi.state.mouse.position,
+                    .width = pixi.state.open_files.items[pixi.state.open_file_index].width,
+                    .height = pixi.state.open_files.items[pixi.state.open_file_index].height,
+                }),
+                .reference => camera.coordinatesRaw(.{
+                    .texture_position = pixi.state.open_references.items[pixi.state.open_reference_index].canvasCenterOffset(),
+                    .position = pixi.state.mouse.position,
+                    .width = pixi.state.open_references.items[pixi.state.open_reference_index].texture.image.width,
+                    .height = pixi.state.open_references.items[pixi.state.open_reference_index].texture.image.height,
+                }),
+            };
+            const difference: [2]f32 = .{ previous_mouse[0] - current_mouse[0], previous_mouse[1] - current_mouse[1] };
+
+            camera.position[0] += difference[0];
+            camera.position[1] += difference[1];
         }
     }
 
