@@ -95,16 +95,9 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile, core: *Core) void {
             file.camera.zoom = sprite_camera.zoom;
         }
         sprite_camera.setNearestZoomFloor();
-        const min_zoom = @min(sprite_camera.zoom, 1.0);
+        file.camera.min_zoom = @min(sprite_camera.zoom, 1.0);
 
         file.camera.processPanZoom(.primary);
-
-        // Lock camera from zooming in or out too far for the flipbook
-        file.camera.zoom = std.math.clamp(file.camera.zoom, min_zoom, pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
-
-        // Lock camera from moving too far away from canvas
-        file.camera.position[0] = std.math.clamp(file.camera.position[0], -(canvas_center_offset[0] + file_width), canvas_center_offset[0] + file_width);
-        file.camera.position[1] = std.math.clamp(file.camera.position[1], -(canvas_center_offset[1] + file_height), canvas_center_offset[1] + file_height);
     }
 
     // TODO: Only clear and update if we need to?

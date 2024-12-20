@@ -20,8 +20,6 @@ pub fn draw(mode: PackTexture) void {
 
         var camera = &pixi.state.pack_camera;
 
-        const canvas_center_offset: [2]f32 = .{ -file_width / 2.0, -file_height / 2.0 };
-
         // Handle zooming, panning and extents
         {
             var sprite_camera: pixi.gfx.Camera = .{
@@ -33,16 +31,9 @@ pub fn draw(mode: PackTexture) void {
                 camera.zoom = sprite_camera.zoom;
             }
             sprite_camera.setNearestZoomFloor();
-            const min_zoom = @min(sprite_camera.zoom, 1.0);
+            camera.min_zoom = @min(sprite_camera.zoom, 1.0);
 
             camera.processPanZoom(.primary);
-
-            // Lock camera from zooming in or out too far for the flipbook
-            camera.zoom = std.math.clamp(camera.zoom, min_zoom, pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
-
-            // Lock camera from moving too far away from canvas
-            camera.position[0] = std.math.clamp(camera.position[0], -(canvas_center_offset[0] + file_width), canvas_center_offset[0] + file_width);
-            camera.position[1] = std.math.clamp(camera.position[1], -(canvas_center_offset[1] + file_height), canvas_center_offset[1] + file_height);
         }
 
         if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
