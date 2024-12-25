@@ -1,8 +1,7 @@
 const std = @import("std");
-pub const build_options = @import("build-options");
 
 const mach = @import("mach");
-const core = mach.core;
+const Core = mach.Core;
 const gpu = mach.gpu;
 
 const zstbi = @import("zstbi");
@@ -14,11 +13,20 @@ const imgui_mach = imgui.backends.mach;
 
 pub const App = @This();
 
-pub const use_sysgpu = build_options.use_sysgpu;
+pub const mach_module = .app;
 
-timer: core.Timer,
+pub const mach_systems = .{ .main, .init, .tick, .deinit };
 
-pub const name: [:0]const u8 = "Pixi";
+pub const main = mach.schedule(.{
+    .{ Core, .init },
+    .{ App, .init },
+    .{ Core, .main },
+});
+
+timer: mach.time.Timer,
+window: mach.ObjectID,
+
+//pub const name: [:0]const u8 = "Pixi";
 pub const version: std.SemanticVersion = .{ .major = 0, .minor = 1, .patch = 0 };
 
 pub const Popups = @import("editor/popups/Popups.zig");
@@ -59,6 +67,9 @@ pub const Settings = @import("Settings.zig");
 /// Holds the global game state.
 pub const PixiState = struct {
     allocator: std.mem.Allocator = undefined,
+    device: *gpu.Device = undefined,
+    queue: *gpu.Queue = undefined,
+    swap_chain: *gpu.SwapChain = undefined,
     settings: Settings = undefined,
     hotkeys: input.Hotkeys = undefined,
     mouse: input.Mouse = undefined,
@@ -68,7 +79,7 @@ pub const PixiState = struct {
     root_path: [:0]const u8 = undefined,
     recents: Recents = undefined,
     previous_atlas_export: ?[:0]const u8 = null,
-    open_files: std.ArrayList(storage.Internal.Pixi) = undefined,
+    open_files: std.ArrayList(storage.Internal.PixiFile) = undefined,
     open_references: std.ArrayList(storage.Internal.Reference) = undefined,
     pack_target: PackTarget = .project,
     pack_camera: gfx.Camera = .{},
@@ -135,7 +146,10 @@ pub const PackTarget = enum {
     single_open,
 };
 
-pub fn init(app: *App) !void {
+pub fn init(app: *App, core: *Core, app_mod: mach.Mod(App)) !void {
+    core.on_tick = app_mod.id.tick;
+    core.on_exit = app_mod.id.deinit;
+
     const allocator = gpa.allocator();
 
     var buffer: [1024]u8 = undefined;
@@ -146,65 +160,75 @@ pub fn init(app: *App) !void {
 
     state.allocator = allocator;
 
-    state.json_allocator = std.heap.ArenaAllocator.init(allocator);
+    const window = try core.windows.new(.{
+        .title = "Pixi",
+        .vsync_mode = .double,
+    });
+
+    app.* = .{
+        .timer = try mach.time.Timer.start(),
+        .window = window,
+    };
+}
+
+fn lateInit(pixi: *App, core: *Core) !void {
+    const window = core.windows.getValue(pixi.window);
+
+    state.device = window.device;
+    state.queue = window.queue;
+    state.swap_chain = window.swap_chain;
+
+    state.json_allocator = std.heap.ArenaAllocator.init(state.allocator);
     state.settings = try Settings.init(state.json_allocator.allocator());
-    const theme_path = try std.fs.path.joinZ(allocator, &.{ assets.themes, state.settings.theme });
-    defer allocator.free(theme_path);
+
+    const theme_path = try std.fs.path.joinZ(state.allocator, &.{ assets.themes, state.settings.theme });
+    defer state.allocator.free(theme_path);
 
     state.theme = try editor.Theme.loadFromFile(theme_path);
 
-    try core.init(.{
-        .title = name,
-        .size = .{ .width = state.settings.initial_window_width, .height = state.settings.initial_window_height },
-    });
-
-    core.setSizeLimit(.{ .min = .{ .width = @divTrunc(state.settings.initial_window_width, 2), .height = @divTrunc(state.settings.initial_window_height, 2) }, .max = .{ .width = null, .height = null } });
-
-    const descriptor = core.descriptor;
-    window_size = .{ @floatFromInt(core.size().width), @floatFromInt(core.size().height) };
-    framebuffer_size = .{ @floatFromInt(descriptor.width), @floatFromInt(descriptor.height) };
+    window_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
+    framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
     content_scale = .{
         framebuffer_size[0] / window_size[0],
         framebuffer_size[1] / window_size[1],
     };
+    content_scale = .{ 1.0, 1.0 };
 
     const scale_factor = content_scale[1];
 
-    zstbi.init(allocator);
+    zstbi.init(core.allocator);
 
-    state.open_files = std.ArrayList(storage.Internal.Pixi).init(allocator);
-    state.open_references = std.ArrayList(storage.Internal.Reference).init(allocator);
+    state.open_files = std.ArrayList(storage.Internal.PixiFile).init(state.allocator);
+    state.open_references = std.ArrayList(storage.Internal.Reference).init(state.allocator);
 
     state.colors.keyframe_palette = try storage.Internal.Palette.loadFromFile(assets.pear36_hex.path);
 
-    state.hotkeys = try input.Hotkeys.initDefault(allocator);
-    state.assets = try Assets.init(allocator);
-    state.mouse = try input.Mouse.initDefault(allocator);
+    state.hotkeys = try input.Hotkeys.initDefault(state.allocator);
 
-    state.packer = try Packer.init(allocator);
-    state.recents = try Recents.init(allocator);
+    state.assets = try Assets.init(state.allocator);
+    state.mouse = try input.Mouse.initDefault(state.allocator);
 
-    state.batcher = try gfx.Batcher.init(allocator, 1000);
+    state.packer = try Packer.init(state.allocator);
+    state.recents = try Recents.init(state.allocator);
 
-    state.allocator = allocator;
-
-    app.* = .{
-        .timer = try core.Timer.start(),
-    };
+    state.batcher = try gfx.Batcher.init(state.allocator, 1000);
 
     try gfx.init(state);
 
     imgui.setZigAllocator(&state.allocator);
+
     _ = imgui.createContext(null);
-    try imgui_mach.init(allocator, core.device, .{
+    try imgui_mach.init(core, state.allocator, window.device, .{
         .mag_filter = .nearest,
         .min_filter = .nearest,
         .mipmap_filter = .nearest,
+        .color_format = window.framebuffer_format,
     });
 
     var io = imgui.getIO();
     io.config_flags |= imgui.ConfigFlags_NavEnableKeyboard;
-    io.font_global_scale = 1.0 / io.display_framebuffer_scale.y;
+    io.display_framebuffer_scale = .{ .x = content_scale[0], .y = content_scale[1] };
+    io.font_global_scale = 1.0;
     var cozette_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     cozette_config.font_data_owned_by_atlas = true;
     cozette_config.oversample_h = 2;
@@ -232,10 +256,10 @@ pub fn init(app: *App) !void {
     state.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
     state.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
-    state.theme.init();
+    state.theme.init(core, pixi);
 }
 
-pub fn updateMainThread(_: *App) !bool {
+pub fn tick(app: *App, core: *Core) !void {
     if (state.popups.file_dialog_request) |request| {
         const initial = if (request.initial) |initial| initial else state.project_folder;
 
@@ -252,29 +276,11 @@ pub fn updateMainThread(_: *App) !bool {
         state.popups.file_dialog_request = null;
     }
 
-    return false;
-}
-
-pub fn update(app: *App) !bool {
-    try imgui_mach.newFrame();
-    imgui.newFrame();
-    state.delta_time = app.timer.lap();
-    state.total_time += state.delta_time;
-
-    const descriptor = core.descriptor;
-    window_size = .{ @floatFromInt(core.size().width), @floatFromInt(core.size().height) };
-    framebuffer_size = .{ @floatFromInt(descriptor.width), @floatFromInt(descriptor.height) };
-    content_scale = .{
-        framebuffer_size[0] / window_size[0],
-        framebuffer_size[1] / window_size[1],
-    };
-    content_scale = .{ 1.0, 1.0 };
-
-    var set_vsync: bool = false;
-
-    var iter = core.pollEvents();
-    while (iter.next()) |event| {
+    while (core.nextEvent()) |event| {
         switch (event) {
+            .window_open => {
+                try lateInit(app, core);
+            },
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
             },
@@ -289,6 +295,9 @@ pub fn update(app: *App) !bool {
                     state.mouse.scroll_x = mouse_scroll.xoffset;
                     state.mouse.scroll_y = mouse_scroll.yoffset;
                 }
+            },
+            .zoom_gesture => |gesture| {
+                state.mouse.magnify = gesture.zoom;
             },
             .mouse_motion => |mouse_motion| {
                 state.mouse.position = .{ @floatCast(mouse_motion.pos.x * content_scale[0]), @floatCast(mouse_motion.pos.y * content_scale[1]) };
@@ -314,50 +323,60 @@ pub fn update(app: *App) !bool {
                 }
                 state.should_close = should_close;
             },
-            .framebuffer_resize => |_| {
-                core.setVSync(.none);
-                set_vsync = true;
+            .window_resize => |resize| {
+                const window = core.windows.getValue(app.window);
+                window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.height) };
+                framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
+                content_scale = .{
+                    framebuffer_size[0] / window_size[0],
+                    framebuffer_size[1] / window_size[1],
+                };
+                content_scale = .{ 1.0, 1.0 };
             },
+
             else => {},
         }
 
         if (!state.should_close)
             _ = imgui_mach.processEvent(event);
     }
+    var window = core.windows.getValue(app.window);
+    state.swap_chain = window.swap_chain;
+
+    try imgui_mach.newFrame();
+    imgui.newFrame();
+    state.delta_time = app.timer.lap();
+    state.total_time += state.delta_time;
 
     try input.process();
 
-    state.theme.set();
+    state.theme.push(core, app);
 
     //imgui.showDemoWindow(null);
 
-    editor.draw();
-    state.theme.unset();
+    editor.draw(core);
+
+    state.theme.pop();
 
     imgui.render();
 
-    if (set_vsync) {
-        core.setVSync(.double);
-        set_vsync = false;
-    }
-
-    if (editor.getFile(state.open_file_index)) |file| {
-        @memset(core.title[0..], 0);
-        @memcpy(core.title[0 .. name.len + 3], name ++ " - ");
-        const base_name = std.fs.path.basename(file.path);
-        @memcpy(core.title[name.len + 3 .. base_name.len + name.len + 3], base_name);
-        core.setTitle(&core.title);
-    } else {
-        @memset(core.title[0..], 0);
-        @memcpy(core.title[0..name.len], name);
-        core.setTitle(&core.title);
-    }
-
-    if (core.swap_chain.getCurrentTextureView()) |back_buffer_view| {
+    // TODO: Fix title when mach supports it
+    // if (editor.getFile(state.open_file_index)) |file| {
+    //     @memset(core.title[0..], 0);
+    //     @memcpy(core.title[0 .. name.len + 3], name ++ " - ");
+    //     const base_name = std.fs.path.basename(file.path);
+    //     @memcpy(core.title[name.len + 3 .. base_name.len + name.len + 3], base_name);
+    //     core.setTitle(&core.title);
+    // } else {
+    //     @memset(core.title[0..], 0);
+    //     @memcpy(core.title[0..name.len], name);
+    //     core.setTitle(&core.title);
+    // }
+    if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
         const imgui_commands = commands: {
-            const encoder = core.device.createCommandEncoder(null);
+            const encoder = window.device.createCommandEncoder(null);
             defer encoder.release();
 
             const background: gpu.Color = .{
@@ -380,6 +399,7 @@ pub fn update(app: *App) !bool {
                     .color_attachments = &.{color_attachment},
                 });
                 const pass = encoder.beginRenderPass(&render_pass_info);
+
                 imgui_mach.renderDrawData(imgui.getDrawData().?, pass) catch {};
                 pass.end();
                 pass.release();
@@ -390,14 +410,12 @@ pub fn update(app: *App) !bool {
         defer imgui_commands.release();
 
         if (state.batcher.empty) {
-            core.queue.submit(&.{imgui_commands});
+            window.queue.submit(&.{imgui_commands});
         } else {
             const batcher_commands = try state.batcher.finish();
             defer batcher_commands.release();
-            core.queue.submit(&.{ batcher_commands, imgui_commands });
+            window.queue.submit(&.{ batcher_commands, imgui_commands });
         }
-
-        core.swap_chain.present();
     }
 
     // Accept transformations
@@ -422,7 +440,7 @@ pub fn update(app: *App) !bool {
                             if (response == gpu.Buffer.MapAsyncStatus.success) {
                                 break;
                             } else {
-                                mach.core.device.tick();
+                                state.device.tick();
                             }
                         }
 
@@ -453,7 +471,7 @@ pub fn update(app: *App) !bool {
 
                         staging_buffer.unmap();
 
-                        write_layer.texture.update(core.device);
+                        write_layer.texture.update(state.device);
                     }
 
                     transform_texture.texture.deinit();
@@ -474,13 +492,12 @@ pub fn update(app: *App) !bool {
     state.mouse.previous_position = state.mouse.position;
 
     if (state.should_close and !editor.saving()) {
-        return true;
+        // Close!
+        core.exit();
     }
-
-    return false;
 }
 
-pub fn deinit(_: *App) void {
+pub fn deinit(_: *App, _: *Core) void {
     //deinit and save settings
     state.settings.deinit(state.json_allocator.allocator());
 
@@ -532,8 +549,6 @@ pub fn deinit(_: *App) void {
     zstbi.deinit();
     state.allocator.free(state.root_path);
     state.allocator.destroy(state);
-
-    core.deinit();
 
     //uncomment this line to check for memory leaks on program shutdown
     _ = gpa.detectLeaks();

@@ -1,7 +1,7 @@
 const std = @import("std");
 const zstbi = @import("zstbi");
-const pixi = @import("../pixi.zig");
-const core = @import("mach").core;
+const pixi = @import("../Pixi.zig");
+const Core = @import("mach").Core;
 
 pub const LDTKTileset = @import("LDTKTileset.zig");
 
@@ -40,7 +40,7 @@ animations: std.ArrayList(pixi.storage.External.Animation),
 id_counter: u32 = 0,
 placeholder: Image,
 contains_height: bool = false,
-open_files: std.ArrayList(pixi.storage.Internal.Pixi),
+open_files: std.ArrayList(pixi.storage.Internal.PixiFile),
 allocator: std.mem.Allocator,
 
 ldtk: bool = false,
@@ -56,7 +56,7 @@ pub fn init(allocator: std.mem.Allocator) !Packer {
         .sprites = std.ArrayList(Sprite).init(allocator),
         .frames = std.ArrayList(zstbi.Rect).init(allocator),
         .animations = std.ArrayList(pixi.storage.External.Animation).init(allocator),
-        .open_files = std.ArrayList(pixi.storage.Internal.Pixi).init(allocator),
+        .open_files = std.ArrayList(pixi.storage.Internal.PixiFile).init(allocator),
         .placeholder = .{ .width = 2, .height = 2, .pixels = pixels },
         .allocator = allocator,
         .ldtk_tilesets = std.ArrayList(LDTKTileset).init(allocator),
@@ -108,7 +108,7 @@ pub fn clearAndFree(self: *Packer) void {
     self.open_files.clearAndFree();
 }
 
-pub fn append(self: *Packer, file: *pixi.storage.Internal.Pixi) !void {
+pub fn append(self: *Packer, file: *pixi.storage.Internal.PixiFile) !void {
     if (self.ldtk) {
         if (pixi.state.project_folder) |project_folder_path| {
             const ldtk_path = try std.fs.path.joinZ(pixi.state.allocator, &.{ project_folder_path, "pixi-ldtk" });
@@ -360,7 +360,7 @@ pub fn packAndClear(self: *Packer) !void {
             if (sprite.diffuse_image) |image|
                 atlas_texture.blit(image.pixels, frame.slice());
         }
-        atlas_texture.update(core.device);
+        atlas_texture.update(pixi.state.device);
 
         if (pixi.state.atlas.diffusemap) |*diffusemap| {
             diffusemap.deinit();
@@ -376,7 +376,7 @@ pub fn packAndClear(self: *Packer) !void {
                 if (sprite.heightmap_image) |image|
                     atlas_texture_h.blit(image.pixels, frame.slice());
             }
-            atlas_texture_h.update(core.device);
+            atlas_texture_h.update(pixi.state.device);
 
             if (pixi.state.atlas.heightmap) |*heightmap| {
                 heightmap.deinit();

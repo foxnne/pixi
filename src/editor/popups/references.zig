@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
+const pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
@@ -109,16 +109,9 @@ pub fn draw() void {
                             reference.camera.zoom = camera.zoom;
                         }
                         camera.setNearestZoomFloor();
-                        const min_zoom = @min(camera.zoom, pixi.state.settings.zoom_steps[0]);
+                        reference.camera.min_zoom = @min(camera.zoom, pixi.state.settings.zoom_steps[0]);
 
-                        reference.camera.processPanZoom();
-
-                        // Lock camera from zooming in or out too far for the flipbook
-                        reference.camera.zoom = std.math.clamp(reference.camera.zoom, min_zoom, pixi.state.settings.zoom_steps[pixi.state.settings.zoom_steps.len - 1]);
-
-                        // Lock camera from moving too far away from canvas
-                        reference.camera.position[0] = std.math.clamp(reference.camera.position[0], -(canvas_center_offset[0] + file_width), canvas_center_offset[0] + file_width);
-                        reference.camera.position[1] = std.math.clamp(reference.camera.position[1], -(canvas_center_offset[1] + file_height), canvas_center_offset[1] + file_height);
+                        reference.camera.processPanZoom(.reference);
                     }
 
                     { // Draw reference texture

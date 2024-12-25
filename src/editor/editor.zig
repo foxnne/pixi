@@ -1,7 +1,7 @@
 const std = @import("std");
-const pixi = @import("../pixi.zig");
+const pixi = @import("../Pixi.zig");
 const mach = @import("mach");
-const core = mach.core;
+const Core = mach.Core;
 const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
@@ -25,13 +25,13 @@ pub const popup_animation = @import("popups/animation.zig");
 pub const popup_heightmap = @import("popups/heightmap.zig");
 pub const popup_references = @import("popups/references.zig");
 
-pub fn draw() void {
+pub fn draw(core: *Core) void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = pixi.state.settings.explorer_title_align, .y = 0.5 });
     defer imgui.popStyleVar();
 
     sidebar.draw();
-    explorer.draw();
-    artboard.draw();
+    explorer.draw(core);
+    artboard.draw(core);
 
     popup_rename.draw();
     popup_file_setup.draw();
@@ -72,7 +72,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         }
     }
 
-    var internal: pixi.storage.Internal.Pixi = .{
+    var internal: pixi.storage.Internal.PixiFile = .{
         .path = try pixi.state.allocator.dupeZ(u8, path),
         .width = @as(u32, @intCast(pixi.state.popups.file_setup_tiles[0] * pixi.state.popups.file_setup_tile_size[0])),
         .height = @as(u32, @intCast(pixi.state.popups.file_setup_tiles[1] * pixi.state.popups.file_setup_tile_size[1])),
@@ -89,8 +89,8 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .keyframe_transform_texture = undefined,
         .deleted_animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
         .background = undefined,
-        .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
-        .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
+        .history = pixi.storage.Internal.PixiFile.History.init(pixi.state.allocator),
+        .buffers = pixi.storage.Internal.PixiFile.Buffers.init(pixi.state.allocator),
         .temporary_layer = undefined,
         .selection_layer = undefined,
     };
@@ -164,12 +164,12 @@ pub fn importPng(path: [:0]const u8, new_file_path: [:0]const u8) !bool {
     return try newFile(new_file_path, path);
 }
 
-pub fn loadFileAsync(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
+pub fn loadFileAsync(path: [:0]const u8) !?pixi.storage.Internal.PixiFile {
     std.log.warn("loadFileAsync not implemented!", .{});
     _ = path;
 }
 
-pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
+pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.PixiFile {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return null;
 
@@ -194,7 +194,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
 
         const external = parsed.value;
 
-        var internal: pixi.storage.Internal.Pixi = .{
+        var internal: pixi.storage.Internal.PixiFile = .{
             .path = try pixi.state.allocator.dupeZ(u8, path),
             .width = external.width,
             .height = external.height,
@@ -211,8 +211,8 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
             .keyframe_transform_texture = undefined,
             .deleted_animations = std.ArrayList(pixi.storage.Internal.Animation).init(pixi.state.allocator),
             .background = undefined,
-            .history = pixi.storage.Internal.Pixi.History.init(pixi.state.allocator),
-            .buffers = pixi.storage.Internal.Pixi.Buffers.init(pixi.state.allocator),
+            .history = pixi.storage.Internal.PixiFile.History.init(pixi.state.allocator),
+            .buffers = pixi.storage.Internal.PixiFile.Buffers.init(pixi.state.allocator),
             .temporary_layer = undefined,
             .selection_layer = undefined,
         };
@@ -254,16 +254,13 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.Pixi {
                         .transform_bindgroup = undefined,
                     };
 
-                    new_layer.transform_bindgroup = core.device.createBindGroup(
+                    new_layer.transform_bindgroup = pixi.state.device.createBindGroup(
                         &mach.gpu.BindGroup.Descriptor.init(.{
                             .layout = pipeline_layout_default,
                             .entries = &.{
-                                if (pixi.build_options.use_sysgpu)
-                                    mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0)
-                                else
-                                    mach.gpu.BindGroup.Entry.buffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject)),
-                                mach.gpu.BindGroup.Entry.textureView(1, new_layer.texture.view_handle),
-                                mach.gpu.BindGroup.Entry.sampler(2, new_layer.texture.sampler_handle),
+                                mach.gpu.BindGroup.Entry.initBuffer(0, pixi.state.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0),
+                                mach.gpu.BindGroup.Entry.initTextureView(1, new_layer.texture.view_handle),
+                                mach.gpu.BindGroup.Entry.initSampler(2, new_layer.texture.sampler_handle),
                             },
                         }),
                     );
@@ -405,7 +402,7 @@ pub fn getFileIndex(path: [:0]const u8) ?usize {
     return null;
 }
 
-pub fn getFile(index: usize) ?*pixi.storage.Internal.Pixi {
+pub fn getFile(index: usize) ?*pixi.storage.Internal.PixiFile {
     if (pixi.state.open_files.items.len == 0) return null;
     if (index >= pixi.state.open_files.items.len) return null;
 
@@ -457,7 +454,7 @@ pub fn closeFile(index: usize) !void {
 
 pub fn rawCloseFile(index: usize) !void {
     pixi.state.open_file_index = 0;
-    var file: pixi.storage.Internal.Pixi = pixi.state.open_files.orderedRemove(index);
+    var file: pixi.storage.Internal.PixiFile = pixi.state.open_files.orderedRemove(index);
     deinitFile(&file);
 }
 
@@ -472,7 +469,7 @@ pub fn deinitReference(reference: *pixi.storage.Internal.Reference) void {
     pixi.state.allocator.free(reference.path);
 }
 
-pub fn deinitFile(file: *pixi.storage.Internal.Pixi) void {
+pub fn deinitFile(file: *pixi.storage.Internal.PixiFile) void {
     file.history.deinit();
     file.buffers.deinit();
     file.background.deinit();

@@ -1,8 +1,8 @@
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
-const core = @import("mach").core;
+const pixi = @import("../../Pixi.zig");
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
+const Core = @import("mach").Core;
 
 pub const files = @import("files.zig");
 pub const tools = @import("tools.zig");
@@ -13,7 +13,7 @@ pub const keyframe_animations = @import("keyframe_animations.zig");
 pub const pack = @import("pack.zig");
 pub const settings = @import("settings.zig");
 
-pub fn draw() void {
+pub fn draw(core: *Core) void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     imgui.pushStyleVar(imgui.StyleVar_WindowBorderSize, 0.0);
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
@@ -23,11 +23,11 @@ pub fn draw() void {
     const explorer_width = pixi.state.settings.explorer_width;
 
     imgui.setNextWindowPos(.{
-        .x = pixi.state.settings.sidebar_width,
+        .x = pixi.state.settings.sidebar_width * pixi.content_scale[0],
         .y = 0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = explorer_width,
+        .x = explorer_width * pixi.content_scale[0],
         .y = pixi.window_size[1],
     }, imgui.Cond_None);
 
@@ -44,8 +44,8 @@ pub fn draw() void {
         defer imgui.end();
         imgui.popStyleVarEx(3);
 
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * pixi.content_scale[0], .y = 6.0 * pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * pixi.content_scale[1] });
         defer imgui.popStyleVarEx(2);
 
         imgui.pushStyleColorImVec4(imgui.Col_Separator, pixi.state.theme.text_background.toImguiVec4());
@@ -164,7 +164,7 @@ pub fn draw() void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                settings.draw();
+                settings.draw(core);
             },
         }
     }

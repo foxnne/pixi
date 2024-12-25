@@ -24,8 +24,8 @@ pub const ProcessAssetsStep = struct {
         return self;
     }
 
-    fn process(step: *Step, prog_node: std.Progress.Node) anyerror!void {
-        const progress = prog_node.start("Processing assets...", 100);
+    fn process(step: *Step, options: Step.MakeOptions) anyerror!void {
+        const progress = options.progress_node.start("Processing assets...", 100);
         defer progress.end();
         const self = @as(*ProcessAssetsStep, @fieldParentPtr("step", step));
         const root = self.assets_root_path;

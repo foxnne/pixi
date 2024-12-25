@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
+const pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const tools = @import("tools.zig");
 const imgui = @import("zig-imgui");
@@ -115,7 +115,7 @@ pub fn draw() void {
     }
 }
 
-fn contextMenu(animation_index: usize, file: *pixi.storage.Internal.Pixi) void {
+fn contextMenu(animation_index: usize, file: *pixi.storage.Internal.PixiFile) void {
     if (imgui.beginPopupContextItem()) {
         defer imgui.endPopup();
 

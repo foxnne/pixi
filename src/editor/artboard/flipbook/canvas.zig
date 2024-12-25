@@ -1,9 +1,9 @@
 const std = @import("std");
-const pixi = @import("../../../pixi.zig");
+const pixi = @import("../../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *pixi.storage.Internal.Pixi) void {
+pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
     const window_height = imgui.getWindowHeight();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
@@ -28,33 +28,11 @@ pub fn draw(file: *pixi.storage.Internal.Pixi) void {
         var sprite_camera: pixi.gfx.Camera = .{
             .zoom = window_height / tile_height,
         };
-        const zoom_index = sprite_camera.nearestZoomIndex();
-        const max_zoom_index = if (zoom_index < pixi.state.settings.zoom_steps.len - 2) zoom_index + 2 else zoom_index;
-        const max_zoom = pixi.state.settings.zoom_steps[max_zoom_index];
+
         if (pixi.state.settings.flipbook_view == .sequential) sprite_camera.setNearestZoomFloor() else sprite_camera.setNearZoomFloor();
-        const min_zoom = sprite_camera.zoom;
+        file.flipbook_camera.min_zoom = sprite_camera.zoom;
 
-        file.flipbook_camera.processPanZoom();
-
-        // Lock camera from zooming in or out too far for the flipbook
-        file.flipbook_camera.zoom = std.math.clamp(file.flipbook_camera.zoom, min_zoom, max_zoom);
-
-        const view_width: f32 = if (pixi.state.settings.flipbook_view == .grid) tile_width * 3.0 else tile_width;
-        const view_height: f32 = if (pixi.state.settings.flipbook_view == .grid) tile_height * 3.0 else tile_height;
-
-        // Lock camera from moving too far away from canvas
-        const min_position: [2]f32 = .{ -(canvas_center_offset[0] + view_width) - view_width / 2.0, -(canvas_center_offset[1] + view_height) };
-        const max_position: [2]f32 = .{ canvas_center_offset[0] + view_width - view_width / 2.0, canvas_center_offset[1] + view_height };
-
-        var scroll_delta: f32 = 0.0;
-        if (file.selected_animation_state != .play) {
-            if (file.flipbook_camera.position[0] < min_position[0]) scroll_delta = file.flipbook_camera.position[0] - min_position[0];
-            if (file.flipbook_camera.position[0] > max_position[0]) scroll_delta = file.flipbook_camera.position[0] - max_position[0];
-        }
-        file.flipbook_scroll = std.math.clamp(file.flipbook_scroll - scroll_delta, file.flipbookScrollFromSpriteIndex(file.sprites.items.len - 1), 0.0);
-
-        file.flipbook_camera.position[0] = std.math.clamp(file.flipbook_camera.position[0], min_position[0], max_position[0]);
-        file.flipbook_camera.position[1] = std.math.clamp(file.flipbook_camera.position[1], min_position[1], max_position[1]);
+        file.flipbook_camera.processPanZoom(.flipbook);
     }
 
     // Handle playing animations and locking the current extents

@@ -1,12 +1,12 @@
 const std = @import("std");
 const zm = @import("zmath");
-const pixi = @import("../pixi.zig");
+const Pixi = @import("../Pixi.zig");
 const zstbi = @import("zstbi");
 
 const build_options = @import("build-options");
 
 const mach = @import("mach");
-const core = mach.core;
+const Core = mach.Core;
 const gpu = mach.gpu;
 
 pub const Quad = @import("quad.zig").Quad;
@@ -27,14 +27,14 @@ pub const UniformBufferObject = struct {
     mvp: zm.Mat,
 };
 
-pub fn init(state: *pixi.PixiState) !void {
+pub fn init(state: *Pixi.PixiState) !void {
     const default_shader = @embedFile("../shaders/default.wgsl");
-    const default_shader_module = core.device.createShaderModuleWGSL("default.wgsl", default_shader);
+    const default_shader_module = Pixi.state.device.createShaderModuleWGSL("default.wgsl", default_shader);
 
     defer default_shader_module.release();
 
     const compute_shader = @embedFile("../shaders/compute.wgsl");
-    const compute_shader_module = core.device.createShaderModuleWGSL("compute.wgsl", compute_shader);
+    const compute_shader_module = Pixi.state.device.createShaderModuleWGSL("compute.wgsl", compute_shader);
 
     defer compute_shader_module.release();
 
@@ -86,9 +86,9 @@ pub fn init(state: *pixi.PixiState) !void {
         .vertex = default_vertex,
     };
 
-    state.pipeline_default = core.device.createRenderPipeline(&default_pipeline_descriptor);
+    state.pipeline_default = Pixi.state.device.createRenderPipeline(&default_pipeline_descriptor);
 
-    state.uniform_buffer_default = core.device.createBuffer(&.{
+    state.uniform_buffer_default = Pixi.state.device.createBuffer(&.{
         .usage = .{ .copy_dst = true, .uniform = true },
         .size = @sizeOf(UniformBufferObject),
         .mapped_at_creation = .false,
@@ -101,5 +101,5 @@ pub fn init(state: *pixi.PixiState) !void {
         },
     };
 
-    state.pipeline_compute = core.device.createComputePipeline(&compute_pipeline_descriptor);
+    state.pipeline_compute = Pixi.state.device.createComputePipeline(&compute_pipeline_descriptor);
 }

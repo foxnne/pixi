@@ -1,8 +1,8 @@
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
+const pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
-const History = pixi.storage.Internal.Pixi.History;
+const History = pixi.storage.Internal.PixiFile.History;
 
 pub fn draw() void {
     if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {

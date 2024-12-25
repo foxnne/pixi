@@ -1,8 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const core = @import("mach").core;
-const pixi = @import("../pixi.zig");
-const Color = pixi.math.Color;
+const mach = @import("mach");
+const Pixi = @import("../Pixi.zig");
+const Color = Pixi.math.Color;
 
 const imgui = @import("zig-imgui");
 
@@ -32,7 +32,7 @@ checkerboard_secondary: Color = Color.initBytes(100, 100, 100, 255),
 
 modal_dim: Color = Color.initBytes(0, 0, 0, 48),
 
-pub fn init(self: Self) void {
+pub fn init(self: Self, core: *mach.Core, pixi: *Pixi) void {
     var style = imgui.getStyle();
     style.window_border_size = 1.0;
     style.window_rounding = 8.0;
@@ -54,9 +54,11 @@ pub fn init(self: Self) void {
     style.hover_delay_normal = 0.5;
     style.hover_delay_short = 0.25;
     style.popup_rounding = 8.0;
-    style.separator_text_align = .{ .x = pixi.state.settings.explorer_title_align, .y = 0.5 };
+    style.separator_text_align = .{ .x = Pixi.state.settings.explorer_title_align, .y = 0.5 };
     style.separator_text_border_size = 1.0;
     style.separator_text_padding = .{ .x = 20.0, .y = 10.0 };
+
+    //style.scaleAllSizes(Pixi.content_scale[0]);
 
     const bg = self.background.toImguiVec4();
     const fg = self.foreground.toImguiVec4();
@@ -96,9 +98,12 @@ pub fn init(self: Self) void {
     style.colors[imgui.Col_ButtonHovered] = hover_secondary;
     style.colors[imgui.Col_ButtonActive] = highlight_secondary;
     style.colors[imgui.Col_ModalWindowDimBg] = modal_dim;
+
+    // Set the window decoration color to match
+    core.windows.set(pixi.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
-pub fn set(self: *Self) void {
+pub fn push(self: *Self, core: *mach.Core, pixi: *Pixi) void {
     const bg = self.background.toImguiVec4();
     const fg = self.foreground.toImguiVec4();
     const text = self.text.toImguiVec4();
@@ -137,6 +142,13 @@ pub fn set(self: *Self) void {
     imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, hover_secondary);
     imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, highlight_secondary);
     imgui.pushStyleColorImVec4(imgui.Col_ModalWindowDimBg, modal_dim);
+
+    // Set the window decoration color to match
+    if (core.windows.get(pixi.window, .decoration_color)) |color| {
+        if (color.r == fg.x and color.g == fg.y and color.b == fg.z and color.a == fg.w)
+            return;
+    }
+    core.windows.set(pixi.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
 pub fn loadFromFile(file: [:0]const u8) !Self {
@@ -144,21 +156,21 @@ pub fn loadFromFile(file: [:0]const u8) !Self {
     const ext = std.fs.path.extension(file);
 
     if (std.mem.eql(u8, ext, ".json")) {
-        const read_opt: ?[]const u8 = pixi.fs.read(pixi.state.allocator, file) catch null;
+        const read_opt: ?[]const u8 = Pixi.fs.read(Pixi.state.allocator, file) catch null;
         if (read_opt) |read| {
-            defer pixi.state.allocator.free(read);
+            defer Pixi.state.allocator.free(read);
 
             const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-            const parsed = try std.json.parseFromSlice(Self, pixi.state.allocator, read, options);
+            const parsed = try std.json.parseFromSlice(Self, Pixi.state.allocator, read, options);
             defer parsed.deinit();
 
             var out = parsed.value;
-            out.name = try pixi.state.allocator.dupeZ(u8, base_name);
+            out.name = try Pixi.state.allocator.dupeZ(u8, base_name);
             return out;
         }
     }
     return Self{
-        .name = try pixi.state.allocator.dupeZ(u8, "pixi_dark.json"),
+        .name = try Pixi.state.allocator.dupeZ(u8, "pixi_dark.json"),
     };
 }
 
@@ -172,7 +184,7 @@ pub fn save(self: Self, path: [:0]const u8) !void {
     try std.json.stringify(self, options, out_stream);
 }
 
-pub fn unset(self: Self) void {
+pub fn pop(self: Self) void {
     _ = self;
     imgui.popStyleColorEx(28);
 }

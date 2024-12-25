@@ -1,13 +1,13 @@
 const std = @import("std");
 const zm = @import("zmath");
 const math = @import("../math/math.zig");
-const pixi = @import("../pixi.zig");
-const core = @import("mach").core;
+const pixi = @import("../Pixi.zig");
+const mach = @import("mach");
 
 const builtin = @import("builtin");
 
-const Mods = core.KeyMods;
-const MouseButton = core.MouseButton;
+const Mods = mach.Core.KeyMods;
+const MouseButton = mach.Core.MouseButton;
 
 const Self = @This();
 
@@ -53,6 +53,7 @@ pub const Action = enum {
 buttons: []Button,
 position: [2]f32 = .{ 0.0, 0.0 },
 previous_position: [2]f32 = .{ 0.0, 0.0 },
+magnify: ?f32 = null,
 scroll_x: ?f32 = null,
 scroll_y: ?f32 = null,
 

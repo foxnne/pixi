@@ -1,8 +1,8 @@
 const std = @import("std");
-const pixi = @import("../pixi.zig");
+const pixi = @import("../Pixi.zig");
 const zgui = @import("zgui");
 const History = @This();
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 
 pub const Action = enum { undo, redo };
 pub const RestoreDelete = enum { restore, delete };
@@ -227,7 +227,7 @@ pub fn append(self: *History, change: Change) !void {
 
 // Handling cases in this function details how an undo/redo action works, and must be symmetrical.
 // This means that `change` needs to be modified to contain the active state prior to changing the active state
-pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Action) !void {
+pub fn undoRedo(self: *History, file: *pixi.storage.Internal.PixiFile, action: Action) !void {
     var active_stack = switch (action) {
         .undo => &self.undo_stack,
         .redo => &self.redo_stack,
@@ -271,7 +271,7 @@ pub fn undoRedo(self: *History, file: *pixi.storage.Internal.Pixi, action: Actio
                 pixi.state.tools.set(.pencil);
             }
 
-            layer.texture.update(core.device);
+            layer.texture.update(pixi.state.device);
             if (pixi.state.sidebar == .sprites)
                 pixi.state.sidebar = .tools;
         },

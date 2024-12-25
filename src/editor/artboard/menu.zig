@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
+const pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const settings = pixi.settings;
 const zstbi = @import("zstbi");

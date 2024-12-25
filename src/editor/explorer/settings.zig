@@ -1,11 +1,11 @@
 const builtin = @import("builtin");
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
-const core = @import("mach").core;
+const pixi = @import("../../Pixi.zig");
+const Core = @import("mach").Core;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw(core: *Core) void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * pixi.content_scale[1], .y = 6.0 * pixi.content_scale[1] });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.highlight_secondary.toImguiVec4());
@@ -171,7 +171,7 @@ pub fn draw() void {
 
         imgui.spacing();
         imgui.separator();
-        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Framerate: %d", core.frameRate());
+        imgui.textColored(pixi.state.theme.text_background.toImguiVec4(), "Framerate: %d", core.frame.rate);
 
         imgui.popItemWidth();
     }

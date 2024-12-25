@@ -1,6 +1,6 @@
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
-const core = @import("mach").core;
+const pixi = @import("../../Pixi.zig");
+const Core = @import("mach").Core;
 const editor = pixi.editor;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
@@ -16,7 +16,7 @@ pub const infobar = @import("infobar.zig");
 pub var artboard_0_open_file_index: usize = 0;
 pub var artboard_1_open_file_index: usize = 0;
 
-pub fn draw() void {
+pub fn draw(core: *Core) void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -24,8 +24,8 @@ pub fn draw() void {
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = pixi.window_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width + pixi.state.settings.explorer_grip) * pixi.content_scale[0]),
-        .y = pixi.window_size[1] + 5.0,
+        .x = (pixi.window_size[0] - ((pixi.state.settings.explorer_width + pixi.state.settings.sidebar_width + pixi.state.settings.explorer_grip)) * pixi.content_scale[0]),
+        .y = (pixi.window_size[1] + 5.0) * pixi.content_scale[1],
     }, imgui.Cond_None);
 
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.5 });
@@ -89,23 +89,23 @@ pub fn draw() void {
                     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
                     const mouse_clicked: bool = pixi.state.mouse.anyButtonDown();
 
-                    defer {
-                        const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
-                        // Draw a shadow fading from bottom to top
-                        const pos = imgui.getWindowPos();
-                        const width = imgui.getWindowWidth();
+                    // defer {
+                    //     const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
+                    //     // Draw a shadow fading from bottom to top
+                    //     const pos = imgui.getWindowPos();
+                    //     const width = imgui.getWindowWidth();
 
-                        if (imgui.getWindowDrawList()) |draw_list| {
-                            draw_list.addRectFilledMultiColor(
-                                .{ .x = pos.x, .y = pos.y },
-                                .{ .x = pos.x + width, .y = pos.y + pixi.state.settings.shadow_length },
-                                shadow_color,
-                                shadow_color,
-                                0x0,
-                                0x0,
-                            );
-                        }
-                    }
+                    //     if (imgui.getWindowDrawList()) |draw_list| {
+                    //         draw_list.addRectFilledMultiColor(
+                    //             .{ .x = pos.x, .y = pos.y },
+                    //             .{ .x = pos.x + width, .y = pos.y + pixi.state.settings.shadow_length },
+                    //             shadow_color,
+                    //             shadow_color,
+                    //             0x0,
+                    //             0x0,
+                    //         );
+                    //     }
+                    // }
 
                     if (pixi.state.sidebar == .pack) {
                         drawCanvasPack();
@@ -206,7 +206,7 @@ pub fn draw() void {
                                     imgui.ChildFlags_None,
                                     canvas_flags,
                                 )) {
-                                    canvas.draw(file);
+                                    canvas.draw(file, core);
                                 }
                                 imgui.endChild();
 
@@ -263,32 +263,33 @@ pub fn draw() void {
             }
         }
 
-        {
-            const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
-            const pos = imgui.getWindowPos();
-            const height = imgui.getWindowHeight();
+        // {
+        //     const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
+        //     const pos = imgui.getWindowPos();
+        //     const height = imgui.getWindowHeight();
 
-            if (imgui.getWindowDrawList()) |draw_list|
-                // Draw a shadow fading from left to right
-                draw_list.addRectFilledMultiColor(
-                    pos,
-                    .{ .x = pos.x + pixi.state.settings.shadow_length, .y = height + pos.x },
-                    shadow_color,
-                    0x0,
-                    shadow_color,
-                    0x0,
-                );
-        }
+        //     if (imgui.getWindowDrawList()) |draw_list|
+        //         // Draw a shadow fading from left to right
+        //         draw_list.addRectFilledMultiColor(
+        //             pos,
+        //             .{ .x = pos.x + pixi.state.settings.shadow_length, .y = height + pos.x },
+        //             shadow_color,
+        //             0x0,
+        //             shadow_color,
+        //             0x0,
+        //         );
+        // }
     }
     imgui.end();
 }
 
 pub fn drawLogoScreen() void {
     imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Border, pixi.state.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
-    defer imgui.popStyleColorEx(4);
+    defer imgui.popStyleColorEx(5);
     { // Draw semi-transparent logo
         const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_default];
 
@@ -316,7 +317,7 @@ pub fn drawLogoScreen() void {
             .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
             .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
         );
-        imgui.spacing();
+        imgui.dummy(.{ .x = 1.0, .y = 15.0 });
     }
     { // Draw `Open Folder` button
         const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";

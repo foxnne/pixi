@@ -1,9 +1,9 @@
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
+const pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *pixi.storage.Internal.Pixi) void {
+pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
     const file_width = @as(f32, @floatFromInt(file.width));
     const file_height = @as(f32, @floatFromInt(file.height));
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
