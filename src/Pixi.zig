@@ -169,13 +169,10 @@ pub fn init(app: *App, core: *Core, app_mod: mach.Mod(App)) !void {
         .timer = try mach.time.Timer.start(),
         .window = window,
     };
-
-    //core.setSizeLimit(.{ .min = .{ .width = @divTrunc(state.settings.initial_window_width, 2), .height = @divTrunc(state.settings.initial_window_height, 2) }, .max = .{ .width = null, .height = null } });
 }
 
 fn lateInit(pixi: *App, core: *Core) !void {
     const window = core.windows.getValue(pixi.window);
-    //defer core.windows.setValue(app.window, window);
 
     state.device = window.device;
     state.queue = window.queue;
