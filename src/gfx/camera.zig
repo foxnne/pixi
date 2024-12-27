@@ -659,6 +659,7 @@ pub const Camera = struct {
     pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
         var zoom_key = if (pixi.state.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
         if (pixi.state.settings.input_scheme != .trackpad) zoom_key = true;
+        if (pixi.state.mouse.magnify != null) zoom_key = true;
 
         const canvas_center_offset = switch (target) {
             .primary => pixi.state.open_files.items[pixi.state.open_file_index].canvasCenterOffset(.primary),
@@ -746,13 +747,14 @@ pub const Camera = struct {
 
                 imgui.resetMouseDragDeltaEx(imgui.MouseButton_Middle);
             }
-            camera.zoom_wait_timer = @min(camera.zoom_wait_timer + pixi.state.delta_time, pixi.state.settings.zoom_wait_time);
         }
+
+        camera.zoom_wait_timer = @min(camera.zoom_wait_timer + pixi.state.delta_time, pixi.state.settings.zoom_wait_time);
 
         // Round to nearest pixel perfect zoom step when zoom key is released
         switch (pixi.state.settings.input_scheme) {
             .trackpad => {
-                if (!zoom_key) {
+                if (!zoom_key and camera.zoom_wait_timer >= pixi.state.settings.zoom_wait_time) {
                     camera.zoom_timer = @min(camera.zoom_timer + pixi.state.delta_time, pixi.state.settings.zoom_time);
                 }
             },
