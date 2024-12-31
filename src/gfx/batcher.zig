@@ -66,14 +66,14 @@ pub const Batcher = struct {
             indices[i * num_indices + 11] = @as(u32, @intCast(i * num_verts + 4));
         }
 
-        const vertex_buffer_descriptor = .{
+        const vertex_buffer_descriptor: gpu.Buffer.Descriptor = .{
             .usage = .{ .copy_dst = true, .vertex = true },
             .size = vertices.len * @sizeOf(gfx.Vertex),
         };
 
         const vertex_buffer_handle = pixi.state.device.createBuffer(&vertex_buffer_descriptor);
 
-        const index_buffer_descriptor = .{
+        const index_buffer_descriptor: gpu.Buffer.Descriptor = .{
             .usage = .{ .copy_dst = true, .index = true },
             .size = indices.len * @sizeOf(u32),
         };

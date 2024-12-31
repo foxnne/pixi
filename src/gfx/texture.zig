@@ -42,9 +42,9 @@ pub const Texture = struct {
     pub fn create(image: zstbi.Image, options: SamplerOptions) Texture {
         const device = pixi.state.device;
 
-        const image_size = .{ .width = image.width, .height = image.height };
+        const image_size: gpu.Extent3D = .{ .width = image.width, .height = image.height };
 
-        const texture_descriptor = .{
+        const texture_descriptor: gpu.Texture.Descriptor = .{
             .size = image_size,
             .format = options.format,
             .usage = .{
@@ -58,7 +58,7 @@ pub const Texture = struct {
 
         const texture = device.createTexture(&texture_descriptor);
 
-        const view_descriptor = .{
+        const view_descriptor: gpu.TextureView.Descriptor = .{
             .format = options.format,
             .dimension = .dimension_2d,
             .array_layer_count = 1,
@@ -75,7 +75,7 @@ pub const Texture = struct {
 
         queue.writeTexture(&.{ .texture = texture }, &data_layout, &image_size, image.data);
 
-        const sampler_descriptor = .{
+        const sampler_descriptor: gpu.Sampler.Descriptor = .{
             .address_mode_u = options.address_mode,
             .address_mode_v = options.address_mode,
             .address_mode_w = options.address_mode,

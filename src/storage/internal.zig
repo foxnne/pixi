@@ -1009,7 +1009,7 @@ pub const PixiFile = struct {
                     .width = file.width,
                     .height = file.height,
                 });
-                const p = .{ .position = zmath.loadArr2(current_pixel_coords) };
+                const p: pixi.storage.Internal.PixiFile.TransformVertex = .{ .position = zmath.loadArr2(current_pixel_coords) };
                 transform_texture.pivot = p;
             }
         }
@@ -1879,7 +1879,7 @@ pub const PixiFile = struct {
     }
 
     pub fn createAnimation(self: *PixiFile, name: []const u8, fps: usize, start: usize, length: usize) !void {
-        const animation = .{
+        const animation: pixi.storage.Internal.Animation = .{
             .name = try pixi.state.allocator.dupeZ(u8, name),
             .fps = fps,
             .start = start,

@@ -7,6 +7,42 @@ pub const palettes = "assets/palettes/";
 
 pub const themes = "assets/themes/";
 
+pub const fox_png = struct {
+  pub const path = "assets/fox.png";
+};
+
+pub const fox_bg_png = struct {
+  pub const path = "assets/fox_bg.png";
+};
+
+pub const apollo_hex = struct {
+  pub const path = "assets/palettes/apollo.hex";
+};
+
+pub const endesga_32_hex = struct {
+  pub const path = "assets/palettes/endesga-32.hex";
+};
+
+pub const journey_hex = struct {
+  pub const path = "assets/palettes/journey.hex";
+};
+
+pub const lospec500_hex = struct {
+  pub const path = "assets/palettes/lospec500.hex";
+};
+
+pub const pear36_hex = struct {
+  pub const path = "assets/palettes/pear36.hex";
+};
+
+pub const pico_8_hex = struct {
+  pub const path = "assets/palettes/pico-8.hex";
+};
+
+pub const resurrect_64_hex = struct {
+  pub const path = "assets/palettes/resurrect-64.hex";
+};
+
 pub const pixi_atlas = struct {
   pub const path = "assets/pixi.atlas";
   pub const pencil_0_default = 0;
@@ -22,41 +58,5 @@ pub const pixi_atlas = struct {
 
 pub const pixi_png = struct {
   pub const path = "assets/pixi.png";
-};
-
-pub const fox_png = struct {
-  pub const path = "assets/fox.png";
-};
-
-pub const fox_bg_png = struct {
-  pub const path = "assets/fox_bg.png";
-};
-
-pub const pear36_hex = struct {
-  pub const path = "assets/palettes/pear36.hex";
-};
-
-pub const pico_8_hex = struct {
-  pub const path = "assets/palettes/pico-8.hex";
-};
-
-pub const journey_hex = struct {
-  pub const path = "assets/palettes/journey.hex";
-};
-
-pub const lospec500_hex = struct {
-  pub const path = "assets/palettes/lospec500.hex";
-};
-
-pub const resurrect_64_hex = struct {
-  pub const path = "assets/palettes/resurrect-64.hex";
-};
-
-pub const endesga_32_hex = struct {
-  pub const path = "assets/palettes/endesga-32.hex";
-};
-
-pub const apollo_hex = struct {
-  pub const path = "assets/palettes/apollo.hex";
 };
 

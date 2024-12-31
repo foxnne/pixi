@@ -4,5 +4,6 @@ zig-out/
 buildrunner.zig
 .DS_Store
 imgui.ini
+recents.json
 
 .zig-cache/

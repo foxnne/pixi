@@ -123,7 +123,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 
     internal.keyframe_animation_texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
     internal.keyframe_transform_texture = .{
-        .vertices = .{.{ .position = zmath.f32x4s(0.0) }} ** 4,
+        .vertices = .{pixi.storage.Internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
         .texture = internal.layers.items[0].texture,
     };
 
@@ -273,7 +273,7 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.PixiFile {
         internal.keyframe_animation_texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
 
         internal.keyframe_transform_texture = .{
-            .vertices = .{.{ .position = zmath.f32x4s(0.0) }} ** 4,
+            .vertices = .{pixi.storage.Internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
             .texture = internal.layers.items[0].texture,
         };
 
