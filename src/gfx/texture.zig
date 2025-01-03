@@ -40,7 +40,7 @@ pub const Texture = struct {
     }
 
     pub fn create(image: zstbi.Image, options: SamplerOptions) Texture {
-        const device = pixi.state.device;
+        const device: *gpu.Device = pixi.core.windows.get(pixi.state.window, .device);
 
         const image_size: gpu.Extent3D = .{ .width = image.width, .height = image.height };
 

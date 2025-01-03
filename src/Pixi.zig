@@ -26,9 +26,9 @@ timer: mach.time.Timer,
 window: mach.ObjectID,
 
 allocator: std.mem.Allocator = undefined,
-device: *gpu.Device = undefined,
-queue: *gpu.Queue = undefined,
-swap_chain: *gpu.SwapChain = undefined,
+//device: *gpu.Device = undefined,
+//queue: *gpu.Queue = undefined,
+//swap_chain: *gpu.SwapChain = undefined,
 settings: Settings = undefined,
 hotkeys: input.Hotkeys = undefined,
 mouse: input.Mouse = undefined,
@@ -91,6 +91,7 @@ test {
 }
 
 pub var state: *App = undefined;
+pub var core: *Core = undefined;
 pub var content_scale: [2]f32 = undefined;
 pub var window_size: [2]f32 = undefined;
 pub var framebuffer_size: [2]f32 = undefined;
@@ -145,7 +146,10 @@ pub const PackTarget = enum {
     single_open,
 };
 
-pub fn init(app: *App, core: *Core, app_mod: mach.Mod(App)) !void {
+pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App)) !void {
+    state = app;
+    core = _core;
+
     core.on_tick = app_mod.id.tick;
     core.on_exit = app_mod.id.deinit;
 
@@ -165,25 +169,41 @@ pub fn init(app: *App, core: *Core, app_mod: mach.Mod(App)) !void {
         .window = window,
         .root_path = try allocator.dupeZ(u8, root_path),
     };
-
-    // Set our global state so its accessible outside of this module
-    state = app;
 }
 
-fn lateInit(pixi: *App, core: *Core) !void {
-    const window = core.windows.getValue(pixi.window);
+/// This is called from the event fired when the window is done being
+/// initialized by the platform
+fn lateInit(app: *App, _: *Core) !void {
+    const window = core.windows.getValue(app.window);
 
-    pixi.device = window.device;
-    pixi.queue = window.queue;
-    pixi.swap_chain = window.swap_chain;
+    //app.device = window.device;
+    //app.queue = window.queue;
+    //app.swap_chain = window.swap_chain;
 
-    pixi.json_allocator = std.heap.ArenaAllocator.init(pixi.allocator);
-    pixi.settings = try Settings.init(pixi.json_allocator.allocator());
+    app.json_allocator = std.heap.ArenaAllocator.init(app.allocator);
+    app.settings = try Settings.init(app.json_allocator.allocator());
 
-    const theme_path = try std.fs.path.joinZ(pixi.allocator, &.{ assets.themes, pixi.settings.theme });
-    defer pixi.allocator.free(theme_path);
+    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ assets.themes, app.settings.theme });
+    defer app.allocator.free(theme_path);
 
-    pixi.theme = try editor.Theme.loadFromFile(theme_path);
+    app.theme = try editor.Theme.loadFromFile(theme_path);
+
+    zstbi.init(app.allocator);
+
+    app.open_files = std.ArrayList(storage.Internal.PixiFile).init(app.allocator);
+    app.open_references = std.ArrayList(storage.Internal.Reference).init(app.allocator);
+
+    app.colors.keyframe_palette = try storage.Internal.Palette.loadFromFile(assets.pear36_hex.path);
+
+    app.hotkeys = try input.Hotkeys.initDefault(app.allocator);
+
+    app.loaded_assets = try LoadedAssets.init(app.allocator);
+    app.mouse = try input.Mouse.initDefault(app.allocator);
+
+    app.packer = try Packer.init(app.allocator);
+    app.recents = try Recents.init(app.allocator);
+
+    app.batcher = try gfx.Batcher.init(app.allocator, 1000);
 
     window_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
     framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
@@ -195,29 +215,12 @@ fn lateInit(pixi: *App, core: *Core) !void {
 
     const scale_factor = content_scale[1];
 
-    zstbi.init(pixi.allocator);
+    try gfx.init(app);
 
-    pixi.open_files = std.ArrayList(storage.Internal.PixiFile).init(pixi.allocator);
-    pixi.open_references = std.ArrayList(storage.Internal.Reference).init(pixi.allocator);
-
-    pixi.colors.keyframe_palette = try storage.Internal.Palette.loadFromFile(assets.pear36_hex.path);
-
-    pixi.hotkeys = try input.Hotkeys.initDefault(pixi.allocator);
-
-    pixi.loaded_assets = try LoadedAssets.init(pixi.allocator);
-    pixi.mouse = try input.Mouse.initDefault(pixi.allocator);
-
-    pixi.packer = try Packer.init(pixi.allocator);
-    pixi.recents = try Recents.init(pixi.allocator);
-
-    pixi.batcher = try gfx.Batcher.init(pixi.allocator, 1000);
-
-    try gfx.init(pixi);
-
-    imgui.setZigAllocator(&pixi.allocator);
+    imgui.setZigAllocator(&app.allocator);
 
     _ = imgui.createContext(null);
-    try imgui_mach.init(core, pixi.allocator, window.device, .{
+    try imgui_mach.init(core, app.allocator, window.device, .{
         .mag_filter = .nearest,
         .min_filter = .nearest,
         .mipmap_filter = .nearest,
@@ -250,15 +253,15 @@ fn lateInit(pixi: *App, core: *Core) !void {
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    pixi.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    pixi.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    pixi.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    pixi.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
-    pixi.theme.init(core, pixi);
+    app.theme.init(core, app);
 }
 
-pub fn tick(app: *App, core: *Core) !void {
+pub fn tick(app: *App, _: *Core) !void {
     if (state.popups.file_dialog_request) |request| {
         const initial = if (request.initial) |initial| initial else state.project_folder;
 
@@ -340,7 +343,6 @@ pub fn tick(app: *App, core: *Core) !void {
             _ = imgui_mach.processEvent(event);
     }
     var window = core.windows.getValue(app.window);
-    state.swap_chain = window.swap_chain;
 
     try imgui_mach.newFrame();
     imgui.newFrame();
@@ -439,7 +441,7 @@ pub fn tick(app: *App, core: *Core) !void {
                             if (response == gpu.Buffer.MapAsyncStatus.success) {
                                 break;
                             } else {
-                                state.device.tick();
+                                window.device.tick();
                             }
                         }
 
@@ -470,7 +472,7 @@ pub fn tick(app: *App, core: *Core) !void {
 
                         staging_buffer.unmap();
 
-                        write_layer.texture.update(state.device);
+                        write_layer.texture.update(window.device);
                     }
 
                     transform_texture.texture.deinit();

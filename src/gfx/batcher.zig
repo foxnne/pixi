@@ -1,6 +1,6 @@
 const std = @import("std");
-const pixi = @import("../Pixi.zig");
-const gfx = pixi.gfx;
+const Pixi = @import("../Pixi.zig");
+const gfx = Pixi.gfx;
 const zmath = @import("zmath");
 const Core = @import("mach").Core;
 const gpu = @import("mach").gpu;
@@ -71,14 +71,16 @@ pub const Batcher = struct {
             .size = vertices.len * @sizeOf(gfx.Vertex),
         };
 
-        const vertex_buffer_handle = pixi.state.device.createBuffer(&vertex_buffer_descriptor);
+        const device: *gpu.Device = Pixi.core.windows.get(Pixi.state.window, .device);
+
+        const vertex_buffer_handle = device.createBuffer(&vertex_buffer_descriptor);
 
         const index_buffer_descriptor: gpu.Buffer.Descriptor = .{
             .usage = .{ .copy_dst = true, .index = true },
             .size = indices.len * @sizeOf(u32),
         };
 
-        const index_buffer_handle = pixi.state.device.createBuffer(&index_buffer_descriptor);
+        const index_buffer_handle = device.createBuffer(&index_buffer_descriptor);
 
         return Batcher{
             .allocator = allocator,
@@ -95,7 +97,8 @@ pub const Batcher = struct {
         self.state = .progress;
         self.start_count = self.quad_count;
         if (self.encoder == null) {
-            self.encoder = pixi.state.device.createCommandEncoder(null);
+            const device: *gpu.Device = Pixi.core.windows.get(Pixi.state.window, .device);
+            self.encoder = device.createCommandEncoder(null);
         }
     }
 
@@ -133,12 +136,14 @@ pub const Batcher = struct {
         self.vertex_buffer_handle.release();
         self.index_buffer_handle.release();
 
-        const vertex_buffer_handle = pixi.state.device.createBuffer(&.{
+        const device: *gpu.Device = Pixi.core.windows.get(Pixi.state.window, .device);
+
+        const vertex_buffer_handle = device.createBuffer(&.{
             .usage = .{ .copy_dst = true, .vertex = true },
             .size = self.vertices.len * @sizeOf(gfx.Vertex),
         });
 
-        const index_buffer_handle = pixi.state.device.createBuffer(&.{
+        const index_buffer_handle = device.createBuffer(&.{
             .usage = .{ .copy_dst = true, .index = true },
             .size = self.indices.len * @sizeOf(u32),
         });
@@ -164,7 +169,7 @@ pub const Batcher = struct {
     }
 
     pub const TextureOptions = struct {
-        color: zmath.F32x4 = pixi.math.Colors.white.value,
+        color: zmath.F32x4 = Pixi.math.Colors.white.value,
         origin: [2]f32 = .{ 0.0, 0.0 }, //tl
         width: f32 = 0.0, // if not 0.0, will scale to use this width
         height: f32 = 0.0, // if not 0.0, will scale to use this height
@@ -228,7 +233,7 @@ pub const Batcher = struct {
     }
 
     pub const TransformTextureOptions = struct {
-        color: zmath.F32x4 = pixi.math.Colors.white.value,
+        color: zmath.F32x4 = Pixi.math.Colors.white.value,
         flip_y: bool = false,
         flip_x: bool = false,
         rotation: f32 = 0.0,
@@ -237,7 +242,7 @@ pub const Batcher = struct {
         data_2: f32 = 0.0,
     };
     /// Appends a quad at the passed position set to the size needed to render the target texture.
-    pub fn transformTexture(self: *Batcher, vertices: [4]pixi.storage.Internal.PixiFile.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
+    pub fn transformTexture(self: *Batcher, vertices: [4]Pixi.storage.Internal.PixiFile.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
         var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
         zmath.store(&color, options.color, 4);
 
@@ -296,7 +301,7 @@ pub const Batcher = struct {
     }
 
     /// Appends a quad at the passed position set to the size needed to render the target sprite.
-    pub fn transformSprite(self: *Batcher, t: *gfx.Texture, s: gfx.Sprite, vertices: [4]pixi.storage.Internal.PixiFile.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
+    pub fn transformSprite(self: *Batcher, t: *gfx.Texture, s: gfx.Sprite, vertices: [4]Pixi.storage.Internal.PixiFile.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
         var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
         zmath.store(&color, options.color, 4);
 
@@ -471,7 +476,8 @@ pub const Batcher = struct {
         // Begin the render pass
         pass_blk: {
             const encoder = self.encoder orelse break :pass_blk;
-            const back_buffer_view = pixi.state.swap_chain.getCurrentTextureView() orelse break :pass_blk;
+            const swap_chain: *gpu.SwapChain = Pixi.core.windows.get(Pixi.state.window, .swap_chain);
+            const back_buffer_view = swap_chain.getCurrentTextureView() orelse break :pass_blk;
             defer back_buffer_view.release();
 
             const color_attachments = [_]gpu.RenderPassColorAttachment{.{
@@ -558,9 +564,11 @@ pub const Batcher = struct {
     pub fn finish(self: *Batcher) !*gpu.CommandBuffer {
         if (self.encoder) |encoder| {
             self.empty = true;
+
+            const queue: *gpu.Queue = Pixi.core.windows.get(Pixi.state.window, .queue);
             // Write the current vertex and index buffers to the queue.
-            pixi.state.queue.writeBuffer(self.vertex_buffer_handle, 0, self.vertices[0 .. self.quad_count * num_verts]);
-            pixi.state.queue.writeBuffer(self.index_buffer_handle, 0, self.indices[0 .. self.quad_count * num_indices]);
+            queue.writeBuffer(self.vertex_buffer_handle, 0, self.vertices[0 .. self.quad_count * num_verts]);
+            queue.writeBuffer(self.index_buffer_handle, 0, self.indices[0 .. self.quad_count * num_indices]);
             // Reset the Batcher for the next time begin is called.
             self.quad_count = 0;
             self.vert_index = 0;

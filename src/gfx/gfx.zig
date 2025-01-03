@@ -28,13 +28,15 @@ pub const UniformBufferObject = struct {
 };
 
 pub fn init(state: *Pixi) !void {
+    const device: *gpu.Device = Pixi.core.windows.get(Pixi.state.window, .device);
+
     const default_shader = @embedFile("../shaders/default.wgsl");
-    const default_shader_module = state.device.createShaderModuleWGSL("default.wgsl", default_shader);
+    const default_shader_module = device.createShaderModuleWGSL("default.wgsl", default_shader);
 
     defer default_shader_module.release();
 
     const compute_shader = @embedFile("../shaders/compute.wgsl");
-    const compute_shader_module = state.device.createShaderModuleWGSL("compute.wgsl", compute_shader);
+    const compute_shader_module = device.createShaderModuleWGSL("compute.wgsl", compute_shader);
 
     defer compute_shader_module.release();
 
@@ -86,9 +88,9 @@ pub fn init(state: *Pixi) !void {
         .vertex = default_vertex,
     };
 
-    state.pipeline_default = Pixi.state.device.createRenderPipeline(&default_pipeline_descriptor);
+    state.pipeline_default = device.createRenderPipeline(&default_pipeline_descriptor);
 
-    state.uniform_buffer_default = Pixi.state.device.createBuffer(&.{
+    state.uniform_buffer_default = device.createBuffer(&.{
         .usage = .{ .copy_dst = true, .uniform = true },
         .size = @sizeOf(UniformBufferObject),
         .mapped_at_creation = .false,
@@ -101,5 +103,5 @@ pub fn init(state: *Pixi) !void {
         },
     };
 
-    state.pipeline_compute = Pixi.state.device.createComputePipeline(&compute_pipeline_descriptor);
+    state.pipeline_compute = device.createComputePipeline(&compute_pipeline_descriptor);
 }

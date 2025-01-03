@@ -254,7 +254,9 @@ pub fn loadFile(path: [:0]const u8) !?pixi.storage.Internal.PixiFile {
                         .transform_bindgroup = undefined,
                     };
 
-                    new_layer.transform_bindgroup = pixi.state.device.createBindGroup(
+                    const device: *mach.gpu.Device = pixi.core.windows.get(pixi.state.window, .device);
+
+                    new_layer.transform_bindgroup = device.createBindGroup(
                         &mach.gpu.BindGroup.Descriptor.init(.{
                             .layout = pipeline_layout_default,
                             .entries = &.{

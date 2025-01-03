@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("../../../Pixi.zig");
+const Pixi = @import("../../../Pixi.zig");
 const mach = @import("mach");
 const Core = mach.Core;
 const imgui = @import("zig-imgui");
@@ -13,7 +13,7 @@ const frame_node_spacing: f32 = 4.0;
 
 const work_area_offset: f32 = 12.0;
 
-var animation_opt: ?*pixi.storage.Internal.KeyframeAnimation = null;
+var animation_opt: ?*Pixi.storage.Internal.KeyframeAnimation = null;
 
 var frame_node_dragging: ?u32 = null;
 var frame_node_hovered: ?u32 = null;
@@ -21,7 +21,7 @@ var ms_hovered: ?usize = null;
 var keyframe_dragging: ?u32 = null;
 var mouse_scroll_delta_y: f32 = 0.0;
 
-pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
     const window_height = imgui.getWindowHeight();
     const window_width = imgui.getWindowWidth();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -31,7 +31,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
     const file_width: f32 = @floatFromInt(file.width);
     const file_height: f32 = @floatFromInt(file.height);
 
-    const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
+    const uniforms = Pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
         zmath.orthographicLh(file_width, file_height, -100, 100),
     ) };
 
@@ -55,7 +55,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
     if (animation_opt) |animation| {
         if (file.selected_keyframe_animation_state == .play) {
-            animation.elapsed_time += pixi.state.delta_time;
+            animation.elapsed_time += Pixi.state.delta_time;
 
             if (animation.elapsed_time > animation.length()) {
                 animation.elapsed_time = 0.0;
@@ -74,7 +74,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
     const scroll_bar_height: f32 = imgui.getStyle().scrollbar_size;
 
     {
-        imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ChildBg, Pixi.state.theme.foreground.toImguiVec4());
         defer imgui.popStyleColor();
 
         imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
@@ -94,7 +94,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
             var rel_mouse_y: ?f32 = null;
 
             if (window_hovered) {
-                const mouse_position = pixi.state.mouse.position;
+                const mouse_position = Pixi.state.mouse.position;
                 rel_mouse_x = mouse_position[0] - window_position.x + scroll_x;
                 rel_mouse_y = mouse_position[1] - window_position.y + scroll_y;
             }
@@ -104,8 +104,8 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
                 // Set the y scroll manually as allowing default scroll blocks x scroll on the parent window
                 if (window_hovered) {
-                    if (pixi.state.mouse.scroll_y) |scroll_delta_y| {
-                        imgui.setScrollY(imgui.getScrollY() - scroll_delta_y * if (pixi.state.settings.input_scheme == .trackpad) @as(f32, 10.0) else @as(f32, 1.0));
+                    if (Pixi.state.mouse.scroll_y) |scroll_delta_y| {
+                        imgui.setScrollY(imgui.getScrollY() - scroll_delta_y * if (Pixi.state.settings.input_scheme == .trackpad) @as(f32, 10.0) else @as(f32, 1.0));
                     }
                 }
 
@@ -140,10 +140,10 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                             const unit = if (@mod(ms, 1000) == 0) "s" else "ms";
                             const value = if (@mod(ms, 1000) == 0) @divExact(ms, 1000) else ms;
 
-                            const text = std.fmt.allocPrintZ(pixi.state.allocator, "{d} {s}", .{ value, unit }) catch unreachable;
-                            defer pixi.state.allocator.free(text);
+                            const text = std.fmt.allocPrintZ(Pixi.state.allocator, "{d} {s}", .{ value, unit }) catch unreachable;
+                            defer Pixi.state.allocator.free(text);
 
-                            draw_list.addText(.{ .x = x, .y = y }, pixi.state.theme.text_background.toU32(), text);
+                            draw_list.addText(.{ .x = x, .y = y }, Pixi.state.theme.text_background.toU32(), text);
                         }
                     }
                 }
@@ -156,12 +156,12 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
         // Handle zooming, panning and extents
         {
-            var sprite_camera: pixi.gfx.Camera = .{
+            var sprite_camera: Pixi.gfx.Camera = .{
                 .zoom = window_height / tile_height,
             };
             const zoom_index = sprite_camera.nearestZoomIndex();
-            const max_zoom_index = if (zoom_index < pixi.state.settings.zoom_steps.len - 2) zoom_index + 2 else zoom_index;
-            const max_zoom = pixi.state.settings.zoom_steps[max_zoom_index];
+            const max_zoom_index = if (zoom_index < Pixi.state.settings.zoom_steps.len - 2) zoom_index + 2 else zoom_index;
+            const max_zoom = Pixi.state.settings.zoom_steps[max_zoom_index];
             sprite_camera.setNearZoomFloor();
             const min_zoom = 1.0;
 
@@ -186,8 +186,8 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
         const grid_width: f32 = tile_width * grid_columns;
         const grid_height: f32 = tile_height * grid_rows;
 
-        file.flipbook_camera.drawGrid(.{ -grid_width / 2.0, -grid_height / 2.0 }, grid_width, grid_height, @intFromFloat(grid_columns), @intFromFloat(grid_rows), pixi.state.theme.text_background.toU32(), true);
-        file.flipbook_camera.drawCircleFilled(.{ 0.0, 0.0 }, node_radius, pixi.state.theme.text_background.toU32());
+        file.flipbook_camera.drawGrid(.{ -grid_width / 2.0, -grid_height / 2.0 }, grid_width, grid_height, @intFromFloat(grid_columns), @intFromFloat(grid_rows), Pixi.state.theme.text_background.toU32(), true);
+        file.flipbook_camera.drawCircleFilled(.{ 0.0, 0.0 }, node_radius, Pixi.state.theme.text_background.toU32());
 
         const l: f32 = 2000;
         file.flipbook_camera.drawLine(.{ 0.0, l / 2.0 }, .{ 0.0, -l / 2.0 }, 0x5500FF00, 1.0);
@@ -214,8 +214,8 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
                         if (file.layer(frame.layer_id)) |layer| {
                             if (layer.transform_bindgroup) |transform_bindgroup| {
-                                pixi.state.batcher.begin(.{
-                                    .pipeline_handle = pixi.state.pipeline_default,
+                                Pixi.state.batcher.begin(.{
+                                    .pipeline_handle = Pixi.state.pipeline_default,
                                     .bind_group_handle = transform_bindgroup,
                                     .output_texture = &file.keyframe_animation_texture,
                                     .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
@@ -228,11 +228,11 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                     scaled_node_size,
                                 })) {
                                     if (frame.id != selected_keyframe.active_frame_id) {
-                                        if (pixi.state.mouse.button(.primary)) |bt| {
+                                        if (Pixi.state.mouse.button(.primary)) |bt| {
                                             if (bt.pressed()) {
                                                 var change: bool = true;
 
-                                                if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
+                                                if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
                                                     if (hk.down()) {
                                                         frame.parent_id = null;
                                                         change = false;
@@ -240,7 +240,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                                 }
 
                                                 if (frame.id != selected_keyframe.active_frame_id) {
-                                                    if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                                    if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
                                                         if (hk.down()) {
                                                             if (selected_keyframe.frame(selected_keyframe.active_frame_id)) |active_frame| {
                                                                 active_frame.parent_id = frame.id;
@@ -264,7 +264,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                             .{ frame.pivot.position[0], frame.pivot.position[1] },
                                             node_radius * 1.5 + 1.0,
                                             1.0,
-                                            pixi.state.theme.text_background.toU32(),
+                                            Pixi.state.theme.text_background.toU32(),
                                         );
                                     }
                                 } else {
@@ -277,7 +277,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                         .{ frame.pivot.position[0], frame.pivot.position[1] },
                                         node_radius + 1.0,
                                         1.0,
-                                        pixi.state.theme.text_background.toU32(),
+                                        Pixi.state.theme.text_background.toU32(),
                                     );
                                 }
 
@@ -289,7 +289,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                 const src_x = src_col * file.tile_width;
                                 const src_y = src_row * file.tile_height;
 
-                                const sprite: pixi.gfx.Sprite = .{
+                                const sprite: Pixi.gfx.Sprite = .{
                                     .name = "",
                                     .origin = .{ 0, 0 },
                                     .source = .{
@@ -321,7 +321,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                     }
                                 }
 
-                                pixi.state.batcher.transformSprite(
+                                Pixi.state.batcher.transformSprite(
                                     &layer.texture,
                                     sprite,
                                     frame.vertices,
@@ -332,7 +332,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                     },
                                 ) catch unreachable;
 
-                                pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
+                                Pixi.state.batcher.end(uniforms, Pixi.state.uniform_buffer_default) catch unreachable;
                             }
 
                             if (selected_keyframe.active_frame_id == frame.id and file.selected_keyframe_animation_state == .pause) {
@@ -365,7 +365,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(pixi.state.device);
+                            file.keyframe_animation_texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
                         }
                     }
                 }
@@ -402,14 +402,14 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
                                             const t: f32 = progress / total;
 
-                                            const tween_vertices: [4]pixi.storage.Internal.PixiFile.TransformVertex = .{
+                                            const tween_vertices: [4]Pixi.storage.Internal.PixiFile.TransformVertex = .{
                                                 .{ .position = zmath.lerp(from_frame.vertices[0].position, to_frame.vertices[0].position, t) },
                                                 .{ .position = zmath.lerp(from_frame.vertices[1].position, to_frame.vertices[1].position, t) },
                                                 .{ .position = zmath.lerp(from_frame.vertices[2].position, to_frame.vertices[2].position, t) },
                                                 .{ .position = zmath.lerp(from_frame.vertices[3].position, to_frame.vertices[3].position, t) },
                                             };
 
-                                            const tween_pivot: pixi.storage.Internal.PixiFile.TransformVertex = .{ .position = zmath.lerp(from_frame.pivot.position, to_frame.pivot.position, t) };
+                                            const tween_pivot: Pixi.storage.Internal.PixiFile.TransformVertex = .{ .position = zmath.lerp(from_frame.pivot.position, to_frame.pivot.position, t) };
 
                                             var from_rotation: f32 = from_frame.rotation;
 
@@ -437,12 +437,12 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                                 }
                                             }
 
-                                            const tween_rotation = pixi.math.lerp(from_rotation, to_rotation, t);
+                                            const tween_rotation = Pixi.math.lerp(from_rotation, to_rotation, t);
 
                                             if (file.layer(from_frame.layer_id)) |layer| {
                                                 if (layer.transform_bindgroup) |transform_bindgroup| {
-                                                    pixi.state.batcher.begin(.{
-                                                        .pipeline_handle = pixi.state.pipeline_default,
+                                                    Pixi.state.batcher.begin(.{
+                                                        .pipeline_handle = Pixi.state.pipeline_default,
                                                         .bind_group_handle = transform_bindgroup,
                                                         .output_texture = &file.keyframe_animation_texture,
                                                         .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
@@ -456,7 +456,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                                     const src_x = src_col * file.tile_width;
                                                     const src_y = src_row * file.tile_height;
 
-                                                    const sprite: pixi.gfx.Sprite = .{
+                                                    const sprite: Pixi.gfx.Sprite = .{
                                                         .name = "",
                                                         .origin = .{ 0, 0 },
                                                         .source = .{
@@ -467,7 +467,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                                         },
                                                     };
 
-                                                    pixi.state.batcher.transformSprite(
+                                                    Pixi.state.batcher.transformSprite(
                                                         &layer.texture,
                                                         sprite,
                                                         tween_vertices,
@@ -478,7 +478,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                                         },
                                                     ) catch unreachable;
 
-                                                    pixi.state.batcher.end(uniforms, pixi.state.uniform_buffer_default) catch unreachable;
+                                                    Pixi.state.batcher.end(uniforms, Pixi.state.uniform_buffer_default) catch unreachable;
                                                 }
                                             }
                                         }
@@ -488,7 +488,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(pixi.state.device);
+                            file.keyframe_animation_texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
                         }
                     }
                 }
@@ -497,7 +497,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
     }
 }
 
-pub fn drawVerticalLines(file: *pixi.storage.Internal.PixiFile, animation_length: usize, scroll: [2]f32) void {
+pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length: usize, scroll: [2]f32) void {
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
@@ -508,7 +508,7 @@ pub fn drawVerticalLines(file: *pixi.storage.Internal.PixiFile, animation_length
     var rel_mouse_y: ?f32 = null;
 
     if (window_hovered) {
-        const mouse_position = pixi.state.mouse.position;
+        const mouse_position = Pixi.state.mouse.position;
         rel_mouse_x = mouse_position[0] - window_position.x + scroll[0];
         rel_mouse_y = mouse_position[1] - window_position.y + scroll[1];
     }
@@ -523,22 +523,22 @@ pub fn drawVerticalLines(file: *pixi.storage.Internal.PixiFile, animation_length
                 const thickness: f32 = if (@mod(ms, 1000) == 0) 3.0 else if (@mod(ms, 100) == 0) 2.0 else 1.0;
 
                 const line_hovered: bool = if (rel_mouse_x) |mouse_x| @abs(mouse_x - (ms_float + work_area_offset)) < frame_node_radius else false;
-                const color: u32 = if (line_hovered) pixi.state.theme.highlight_primary.toU32() else pixi.state.theme.text_background.toU32();
+                const color: u32 = if (line_hovered) Pixi.state.theme.highlight_primary.toU32() else Pixi.state.theme.text_background.toU32();
                 draw_list.addLineEx(.{ .x = x, .y = y }, .{ .x = x, .y = y + imgui.getWindowHeight() }, color, thickness);
 
                 if (line_hovered) {
                     ms_hovered = ms;
 
                     const hovered_time = ms_float / 1000.0;
-                    if (pixi.state.mouse.button(.primary)) |bt| {
+                    if (Pixi.state.mouse.button(.primary)) |bt| {
                         if (bt.released()) {
-                            const primary_hotkey_down: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+                            const primary_hotkey_down: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
 
                             if (primary_hotkey_down) {
                                 if (animation_opt == null) {
-                                    const new_animation: pixi.storage.Internal.KeyframeAnimation = .{
+                                    const new_animation: Pixi.storage.Internal.KeyframeAnimation = .{
                                         .name = "New Keyframe Animation",
-                                        .keyframes = std.ArrayList(pixi.storage.Internal.Keyframe).init(pixi.state.allocator),
+                                        .keyframes = std.ArrayList(Pixi.storage.Internal.Keyframe).init(Pixi.state.allocator),
                                         .active_keyframe_id = 0,
                                         .id = file.newId(),
                                     };
@@ -553,7 +553,7 @@ pub fn drawVerticalLines(file: *pixi.storage.Internal.PixiFile, animation_length
                                         const sprite = file.sprites.items[sprite_index];
                                         const origin = zmath.loadArr2(.{ sprite.origin_x, sprite.origin_y });
 
-                                        const new_frame: pixi.storage.Internal.Frame = .{
+                                        const new_frame: Pixi.storage.Internal.Frame = .{
                                             .id = file.newFrameId(),
                                             .layer_id = file.layers.items[file.selected_layer_index].id,
                                             .sprite_index = sprite_index,
@@ -570,10 +570,10 @@ pub fn drawVerticalLines(file: *pixi.storage.Internal.PixiFile, animation_length
                                             kf.frames.append(new_frame) catch unreachable;
                                             animation.active_keyframe_id = kf.id;
                                         } else {
-                                            var new_keyframe: pixi.storage.Internal.Keyframe = .{
+                                            var new_keyframe: Pixi.storage.Internal.Keyframe = .{
                                                 .id = file.newKeyframeId(),
                                                 .time = hovered_time,
-                                                .frames = std.ArrayList(pixi.storage.Internal.Frame).init(pixi.state.allocator),
+                                                .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.state.allocator),
                                                 .active_frame_id = new_frame.id,
                                             };
 
@@ -592,7 +592,7 @@ pub fn drawVerticalLines(file: *pixi.storage.Internal.PixiFile, animation_length
     }
 }
 
-pub fn drawNodeArea(file: *pixi.storage.Internal.PixiFile, animation_length: usize, scroll: [2]f32) void {
+pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usize, scroll: [2]f32) void {
     const window_position = imgui.getWindowPos();
     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
 
@@ -600,17 +600,17 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.PixiFile, animation_length: usi
     var rel_mouse_y: ?f32 = null;
 
     if (window_hovered) {
-        const mouse_position = pixi.state.mouse.position;
+        const mouse_position = Pixi.state.mouse.position;
         rel_mouse_x = mouse_position[0] - window_position.x + scroll[0];
         rel_mouse_y = mouse_position[1] - window_position.y + scroll[1];
     }
 
-    const secondary_down: bool = if (pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+    const secondary_down: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
     if (animation_opt) |animation| {
         if (imgui.getWindowDrawList()) |draw_list| {
             defer {
-                if (pixi.state.mouse.button(.primary)) |bt| {
+                if (Pixi.state.mouse.button(.primary)) |bt| {
                     if (bt.released()) {
                         keyframe_dragging = null;
                         frame_node_dragging = null;
@@ -686,7 +686,7 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.PixiFile, animation_length: usi
                             }
 
                             // Make changes to the current active frame id and elapsed time
-                            if (pixi.state.mouse.button(.primary)) |bt| {
+                            if (Pixi.state.mouse.button(.primary)) |bt| {
                                 if (bt.pressed() and line_hovered and window_hovered) {
                                     animation.active_keyframe_id = hovered_kf.id;
                                     animation.elapsed_time = @as(f32, @floatFromInt(ms)) / 1000.0;
@@ -737,14 +737,14 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.PixiFile, animation_length: usi
                             }
 
                             draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale, color, 20);
-                            draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale + 1.0, pixi.state.theme.text_background.toU32());
+                            draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale + 1.0, Pixi.state.theme.text_background.toU32());
                         }
                     }
                 }
 
                 if (@mod(ms, 10) == 0 and line_hovered and window_hovered) {
                     if (frame_node_dragging) |dragging_frame_id| {
-                        if (pixi.state.mouse.button(.primary)) |bt| {
+                        if (Pixi.state.mouse.button(.primary)) |bt| {
                             if (bt.released()) {
                                 if (!secondary_down) {
                                     if (animation.getKeyframeFromFrame(dragging_frame_id)) |dragging_keyframe| {
@@ -765,10 +765,10 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.PixiFile, animation_length: usi
                                             }
                                         } else {
                                             if (dragging_keyframe.frames.items.len > 1) {
-                                                var new_keyframe: pixi.storage.Internal.Keyframe = .{
+                                                var new_keyframe: Pixi.storage.Internal.Keyframe = .{
                                                     .active_frame_id = dragging_frame_id,
                                                     .id = file.newKeyframeId(),
-                                                    .frames = std.ArrayList(pixi.storage.Internal.Frame).init(pixi.state.allocator),
+                                                    .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.state.allocator),
                                                     .time = ms_float / 1000.0,
                                                 };
 
@@ -809,7 +809,7 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.PixiFile, animation_length: usi
                                 const color = animation.getFrameNodeColor(dragging_frame_id);
 
                                 draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * 2.0, color, 20);
-                                draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * 2.0 + 1.0, pixi.state.theme.text_background.toU32());
+                                draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * 2.0 + 1.0, Pixi.state.theme.text_background.toU32());
                             }
                         }
                     }
@@ -818,14 +818,14 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.PixiFile, animation_length: usi
                     // Also handle creating
                     if (keyframe_dragging) |dragging_keyframe_id| {
                         if (animation.keyframe(dragging_keyframe_id)) |dragging_keyframe| {
-                            if (pixi.state.mouse.button(.primary)) |bt| {
+                            if (Pixi.state.mouse.button(.primary)) |bt| {
                                 if (bt.released()) {
                                     if (line_hovered and window_hovered and animation.getKeyframeMilliseconds(ms) == null) {
                                         var dragged_keyframe = dragging_keyframe;
 
                                         if (secondary_down) {
                                             animation.keyframes.append(.{
-                                                .frames = std.ArrayList(pixi.storage.Internal.Frame).init(pixi.state.allocator),
+                                                .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.state.allocator),
                                                 .id = file.newKeyframeId(),
                                                 .time = ms_float / 1000.0,
                                                 .active_frame_id = dragging_keyframe.active_frame_id,
@@ -862,7 +862,7 @@ pub fn drawNodeArea(file: *pixi.storage.Internal.PixiFile, animation_length: usi
                                     const color = animation.getFrameNodeColor(fr.id);
 
                                     draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * 2.0, color, 20);
-                                    draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * 2.0 + 1.0, pixi.state.theme.text_background.toU32());
+                                    draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * 2.0 + 1.0, Pixi.state.theme.text_background.toU32());
                                 }
                             }
                         }
