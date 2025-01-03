@@ -8,7 +8,7 @@ const imgui = @import("zig-imgui");
 pub fn draw(core: *Core) void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * Pixi.content_scale[1], .y = 6.0 * Pixi.content_scale[1] });
     defer imgui.popStyleVar();
-    imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.state.theme.highlight_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.highlight_secondary.toImguiVec4());
     defer imgui.popStyleColor();
 
     if (imgui.beginChild("SettingsChild", .{
@@ -124,7 +124,7 @@ pub fn draw(core: *Core) void {
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * Pixi.content_scale[1], .y = 4.0 * Pixi.content_scale[1] });
             defer imgui.popStyleVarEx(2);
 
-            imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.state.theme.highlight_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.highlight_secondary.toImguiVec4());
             defer imgui.popStyleColor();
 
             imgui.pushItemWidth(imgui.getWindowWidth() * 0.7);
@@ -134,15 +134,15 @@ pub fn draw(core: *Core) void {
             }
             imgui.separator();
 
-            _ = Pixi.Editor.Theme.styleColorEdit("Background", .{ .col = &Pixi.state.theme.background });
-            _ = Pixi.Editor.Theme.styleColorEdit("Foreground", .{ .col = &Pixi.state.theme.foreground });
-            _ = Pixi.Editor.Theme.styleColorEdit("Text", .{ .col = &Pixi.state.theme.text });
-            _ = Pixi.Editor.Theme.styleColorEdit("Secondary Text", .{ .col = &Pixi.state.theme.text_secondary });
-            _ = Pixi.Editor.Theme.styleColorEdit("Background Text", .{ .col = &Pixi.state.theme.text_background });
-            _ = Pixi.Editor.Theme.styleColorEdit("Primary Highlight", .{ .col = &Pixi.state.theme.highlight_primary });
-            _ = Pixi.Editor.Theme.styleColorEdit("Secondary Highlight", .{ .col = &Pixi.state.theme.highlight_secondary });
-            _ = Pixi.Editor.Theme.styleColorEdit("Primary Hover", .{ .col = &Pixi.state.theme.hover_primary });
-            _ = Pixi.Editor.Theme.styleColorEdit("Secondary Hover", .{ .col = &Pixi.state.theme.hover_secondary });
+            _ = Pixi.Editor.Theme.styleColorEdit("Background", .{ .col = &Pixi.editor.theme.background });
+            _ = Pixi.Editor.Theme.styleColorEdit("Foreground", .{ .col = &Pixi.editor.theme.foreground });
+            _ = Pixi.Editor.Theme.styleColorEdit("Text", .{ .col = &Pixi.editor.theme.text });
+            _ = Pixi.Editor.Theme.styleColorEdit("Secondary Text", .{ .col = &Pixi.editor.theme.text_secondary });
+            _ = Pixi.Editor.Theme.styleColorEdit("Background Text", .{ .col = &Pixi.editor.theme.text_background });
+            _ = Pixi.Editor.Theme.styleColorEdit("Primary Highlight", .{ .col = &Pixi.editor.theme.highlight_primary });
+            _ = Pixi.Editor.Theme.styleColorEdit("Secondary Highlight", .{ .col = &Pixi.editor.theme.highlight_secondary });
+            _ = Pixi.Editor.Theme.styleColorEdit("Primary Hover", .{ .col = &Pixi.editor.theme.hover_primary });
+            _ = Pixi.Editor.Theme.styleColorEdit("Secondary Hover", .{ .col = &Pixi.editor.theme.hover_secondary });
 
             imgui.spacing();
 
@@ -157,10 +157,10 @@ pub fn draw(core: *Core) void {
 
             if (Pixi.state.popups.file_dialog_response) |response| {
                 if (response.type == .export_theme) {
-                    Pixi.state.theme.save(response.path) catch unreachable;
-                    Pixi.state.allocator.free(Pixi.state.theme.name);
-                    Pixi.state.theme = Pixi.Editor.Theme.loadFromFile(response.path) catch unreachable;
-                    Pixi.state.settings.theme = Pixi.state.theme.name;
+                    Pixi.editor.theme.save(response.path) catch unreachable;
+                    Pixi.state.allocator.free(Pixi.editor.theme.name);
+                    Pixi.editor.theme = Pixi.Editor.Theme.loadFromFile(response.path) catch unreachable;
+                    Pixi.state.settings.theme = Pixi.editor.theme.name;
                 }
                 nfd.freePath(response.path);
                 Pixi.state.popups.file_dialog_response = null;
@@ -171,7 +171,7 @@ pub fn draw(core: *Core) void {
 
         imgui.spacing();
         imgui.separator();
-        imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), "Framerate: %d", core.frame.rate);
+        imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Framerate: %d", core.frame.rate);
 
         imgui.popItemWidth();
     }
@@ -191,9 +191,9 @@ fn searchThemes() !void {
                     if (imgui.selectable(label)) {
                         const abs_path = try std.fs.path.joinZ(Pixi.state.allocator, &.{ Pixi.assets.themes, entry.name });
                         defer Pixi.state.allocator.free(abs_path);
-                        Pixi.state.allocator.free(Pixi.state.theme.name);
-                        Pixi.state.theme = try Pixi.Editor.Theme.loadFromFile(abs_path);
-                        Pixi.state.settings.theme = Pixi.state.theme.name;
+                        Pixi.state.allocator.free(Pixi.editor.theme.name);
+                        Pixi.editor.theme = try Pixi.Editor.Theme.loadFromFile(abs_path);
+                        Pixi.state.settings.theme = Pixi.editor.theme.name;
                     }
                 }
             }

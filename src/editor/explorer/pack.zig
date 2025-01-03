@@ -7,9 +7,9 @@ const imgui = @import("zig-imgui");
 pub fn draw() void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * Pixi.content_scale[0], .y = 5.0 * Pixi.content_scale[1] });
     defer imgui.popStyleVar();
-    imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.state.theme.highlight_secondary.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.state.theme.highlight_secondary.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.state.theme.hover_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.highlight_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.highlight_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.hover_secondary.toImguiVec4());
     defer imgui.popStyleColorEx(3);
 
     const window_size = imgui.getContentRegionAvail();
@@ -58,7 +58,7 @@ pub fn draw() void {
     // if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
     //     if (imgui.beginTooltip()) {
     //         defer imgui.endTooltip();
-    //         imgui.textColored(pixi.state.theme.text_secondary.toImguiVec4(), "Do not tightly pack sprites, pack a uniform grid");
+    //         imgui.textColored(Pixi.editor.theme.text_secondary.toImguiVec4(), "Do not tightly pack sprites, pack a uniform grid");
     //     }
     // }
 
@@ -67,7 +67,7 @@ pub fn draw() void {
         if (Pixi.state.pack_target == .project and Pixi.state.project_folder == null) packable = false;
         if (Pixi.state.pack_target == .all_open and Pixi.state.open_files.items.len <= 1) packable = false;
         if (Pixi.Editor.saving()) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
             imgui.textWrapped("Please wait until all files are done saving.");
             packable = false;
@@ -101,7 +101,7 @@ pub fn draw() void {
             imgui.endDisabled();
 
         if (Pixi.state.pack_target == .project and Pixi.state.project_folder == null) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
             imgui.textWrapped("Select a project folder to pack.");
         }
@@ -139,7 +139,7 @@ pub fn draw() void {
 
                 imgui.spacing();
                 imgui.separatorText("Recents");
-                imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_secondary.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
                 defer imgui.popStyleColor();
                 if (imgui.beginChild("Recents", .{
                     .x = imgui.getWindowWidth() - Pixi.state.settings.explorer_grip * Pixi.content_scale[0],
@@ -159,7 +159,7 @@ pub fn draw() void {
                             Pixi.state.recents.appendExport(exp_out) catch unreachable;
                         }
                         imgui.sameLineEx(0.0, 5.0 * Pixi.content_scale[0]);
-                        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+                        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
                         imgui.text(exp);
                         imgui.popStyleColor();
                     }

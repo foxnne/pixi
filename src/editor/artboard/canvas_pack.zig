@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("../../Pixi.zig");
+const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
@@ -10,19 +10,19 @@ pub const PackTexture = enum {
 
 pub fn draw(mode: PackTexture) void {
     if (switch (mode) {
-        .diffusemap => pixi.state.atlas.diffusemap,
-        .heightmap => pixi.state.atlas.heightmap,
+        .diffusemap => Pixi.state.atlas.diffusemap,
+        .heightmap => Pixi.state.atlas.heightmap,
     }) |texture| {
         const window_width = imgui.getWindowWidth();
         const window_height = imgui.getWindowHeight();
         const file_width = @as(f32, @floatFromInt(texture.image.width));
         const file_height = @as(f32, @floatFromInt(texture.image.height));
 
-        var camera = &pixi.state.pack_camera;
+        var camera = &Pixi.state.pack_camera;
 
         // Handle zooming, panning and extents
         {
-            var sprite_camera: pixi.gfx.Camera = .{
+            var sprite_camera: Pixi.gfx.Camera = .{
                 .zoom = @min(window_width / file_width, window_height / file_height),
             };
             sprite_camera.setNearestZoomFloor();
@@ -47,7 +47,7 @@ pub fn draw(mode: PackTexture) void {
 
             const center_offset: [2]f32 = .{ -width / 2.0, -height / 2.0 };
             camera.drawTexture(texture.view_handle, texture.image.width, texture.image.height, center_offset, 0xFFFFFFFF);
-            camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, pixi.state.theme.text_secondary.toU32());
+            camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, Pixi.editor.theme.text_secondary.toU32());
         }
     }
 }

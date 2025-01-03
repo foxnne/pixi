@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("root");
+const Pixi = @import("root");
 
 const History = @import("History.zig");
 const Buffers = @This();

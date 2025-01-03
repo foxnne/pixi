@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("../Pixi.zig");
+const Pixi = @import("../Pixi.zig");
 const core = @import("mach").core;
 
 pub const LDTKCompatibility = struct {

@@ -6,9 +6,9 @@ const layers = @import("layers.zig");
 const zmath = @import("zmath");
 
 pub fn draw() void {
-    imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.state.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.state.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColorEx(3);
 
     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
@@ -53,9 +53,9 @@ pub fn draw() void {
             }
         }
 
-        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.state.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
         imgui.spacing();
@@ -101,7 +101,7 @@ pub fn draw() void {
                 }
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();
-                    imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), "Right click to edit color.");
+                    imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click to edit color.");
                 }
                 if (imgui.beginPopupContextItem()) {
                     defer imgui.endPopup();
@@ -129,7 +129,7 @@ pub fn draw() void {
 
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();
-                    imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), "Right click to edit color.");
+                    imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click to edit color.");
                 }
 
                 if (imgui.beginPopupContextItem()) {
@@ -218,7 +218,7 @@ pub fn draw() void {
 
                     if (imgui.beginItemTooltip()) {
                         defer imgui.endTooltip();
-                        imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), "Right click for suggested color options.");
+                        imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click for suggested color options.");
                     }
 
                     if (imgui.beginPopupContextItem()) {
@@ -288,7 +288,7 @@ pub fn draw() void {
                             imgui.sameLine();
                     }
                 } else {
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
                     defer imgui.popStyleColor();
                     imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette");
 
@@ -318,9 +318,9 @@ pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: Pixi.Tools.Tool) void
 
     const selected = Pixi.state.tools.current == tool;
     if (selected) {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
     } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
     }
     defer imgui.popStyleColor();
     if (imgui.selectableEx(label, selected, imgui.SelectableFlags_None, .{ .x = w, .y = h })) {
@@ -328,7 +328,7 @@ pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: Pixi.Tools.Tool) void
     }
 
     if (tool == .pencil or tool == .eraser or tool == .selection) {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
         defer imgui.popStyleColor();
         if (imgui.beginPopupContextItem()) {
             defer imgui.endPopup();
@@ -386,24 +386,24 @@ pub fn drawTooltip(tool: Pixi.Tools.Tool) void {
                         const second_text = std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut}) catch unreachable;
                         defer Pixi.state.allocator.free(second_text);
 
-                        imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), first_text);
-                        imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), second_text);
+                        imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), first_text);
+                        imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), second_text);
                     }
                 },
                 .pencil, .eraser => {
-                    imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), "Right click for size/shape options");
+                    imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
                 },
                 .selection => {
                     if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |primary_hk| {
                         if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |secondary_hk| {
-                            imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), "Right click for size/shape options");
+                            imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
                             const first_text = std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag while holding ({s}) to add to selection.", .{primary_hk.shortcut}) catch unreachable;
                             defer Pixi.state.allocator.free(first_text);
 
                             const second_text = std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag while holding ({s}) to remove from selection", .{secondary_hk.shortcut}) catch unreachable;
                             defer Pixi.state.allocator.free(second_text);
-                            imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), first_text);
-                            imgui.textColored(Pixi.state.theme.text_background.toImguiVec4(), second_text);
+                            imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), first_text);
+                            imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), second_text);
                         }
                     }
                 },

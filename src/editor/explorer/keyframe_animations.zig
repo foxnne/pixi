@@ -14,9 +14,9 @@ pub fn draw() void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 6.0 });
         defer imgui.popStyleVarEx(3);
 
-        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.state.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
         defer imgui.popStyleColorEx(3);
         if (imgui.beginChild("SelectedFrame", .{
             .x = imgui.getWindowWidth(),
@@ -68,7 +68,7 @@ pub fn draw() void {
                 imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 10.0 * Pixi.content_scale[1] });
                 defer imgui.popStyleVarEx(5);
                 for (file.keyframe_animations.items, 0..) |*animation, animation_index| {
-                    const animation_color = if (file.selected_keyframe_animation_index == animation_index) Pixi.state.theme.text.toImguiVec4() else Pixi.state.theme.text_secondary.toImguiVec4();
+                    const animation_color = if (file.selected_keyframe_animation_index == animation_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
 
                     const animation_name = std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s}##{d}", .{ Pixi.fa.film, animation.name, animation.id }) catch unreachable;
                     defer Pixi.state.allocator.free(animation_name);
@@ -86,7 +86,7 @@ pub fn draw() void {
                             const keyframe_name = std.fmt.allocPrintZ(Pixi.state.allocator, "Keyframe ID:{d}", .{keyframe.id}) catch unreachable;
                             defer Pixi.state.allocator.free(keyframe_name);
 
-                            const keyframe_color = if (animation.active_keyframe_id == keyframe.id) Pixi.state.theme.text.toImguiVec4() else Pixi.state.theme.text_secondary.toImguiVec4();
+                            const keyframe_color = if (animation.active_keyframe_id == keyframe.id) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
 
                             imgui.pushStyleColorImVec4(imgui.Col_Text, keyframe_color);
                             defer imgui.popStyleColor();
@@ -111,9 +111,9 @@ pub fn draw() void {
                                     imgui.bullet();
 
                                     if (keyframe.active_frame_id == frame.id and animation.active_keyframe_id == keyframe.id) {
-                                        imgui.pushStyleColor(imgui.Col_Text, Pixi.state.theme.text.toU32());
+                                        imgui.pushStyleColor(imgui.Col_Text, Pixi.editor.theme.text.toU32());
                                     } else {
-                                        imgui.pushStyleColor(imgui.Col_Text, Pixi.state.theme.text_secondary.toU32());
+                                        imgui.pushStyleColor(imgui.Col_Text, Pixi.editor.theme.text_secondary.toU32());
                                     }
                                     defer imgui.popStyleColorEx(2);
 
@@ -154,7 +154,7 @@ pub fn draw() void {
             }
         }
     } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
         imgui.textWrapped("Open a file to begin editing.");
         imgui.popStyleColor();
     }
@@ -174,7 +174,7 @@ fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) vo
         //     pixi.state.popups.animation = true;
         // }
 
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_red.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
         defer imgui.popStyleColor();
         if (imgui.menuItem("Delete")) {
             file.deleteTransformAnimation(animation_index) catch unreachable;

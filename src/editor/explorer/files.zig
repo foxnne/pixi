@@ -24,8 +24,8 @@ pub const Extension = enum {
 };
 
 pub fn draw() void {
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
     defer imgui.popStyleColorEx(2);
 
     if (Pixi.state.project_folder) |path| {
@@ -35,7 +35,7 @@ pub fn draw() void {
         // Open files
         const file_count = Pixi.state.open_files.items.len;
         if (file_count > 0) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
             imgui.separatorText("Open Files  " ++ Pixi.fa.file_powerpoint);
             imgui.popStyleColor();
 
@@ -47,7 +47,7 @@ pub fn draw() void {
                 imgui.spacing();
 
                 for (Pixi.state.open_files.items, 0..) |file, i| {
-                    imgui.textColored(Pixi.state.theme.text_orange.toImguiVec4(), " " ++ Pixi.fa.file_powerpoint ++ " ");
+                    imgui.textColored(Pixi.editor.theme.text_orange.toImguiVec4(), " " ++ Pixi.fa.file_powerpoint ++ " ");
                     imgui.sameLine();
                     const name = std.fs.path.basename(file.path);
                     const label = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}", .{name}) catch unreachable;
@@ -72,7 +72,7 @@ pub fn draw() void {
                         if (imgui.beginTooltip()) {
                             defer imgui.endTooltip();
 
-                            imgui.textColored(Pixi.state.theme.text_secondary.toImguiVec4(), file.path);
+                            imgui.textColored(Pixi.editor.theme.text_secondary.toImguiVec4(), file.path);
                         }
                     }
                 }
@@ -82,7 +82,7 @@ pub fn draw() void {
         const index = if (std.mem.indexOf(u8, path, folder)) |i| i else 0;
 
         imgui.spacing();
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_secondary.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
         imgui.separatorText("Project Folder  " ++ Pixi.fa.folder_open);
         imgui.popStyleColor();
 
@@ -128,16 +128,16 @@ pub fn draw() void {
             Pixi.state.project_folder = null;
         }
     } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
         imgui.textWrapped("Open a folder to begin editing.");
         imgui.popStyleColor();
 
         if (Pixi.state.recents.folders.items.len > 0) {
             imgui.spacing();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
             imgui.separatorText("Recents  " ++ Pixi.fa.clock);
             imgui.popStyleColor();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
             defer imgui.popStyleColor();
             if (imgui.beginChild("Recents", .{
                 .x = imgui.getWindowWidth() - Pixi.state.settings.explorer_grip * Pixi.content_scale[0],
@@ -170,7 +170,7 @@ pub fn draw() void {
                     }
 
                     imgui.sameLineEx(0.0, 5.0 * Pixi.content_scale[0]);
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
                     imgui.text(folder);
                     imgui.popStyleColor();
                 }
@@ -208,19 +208,19 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     };
 
                     const icon_color = switch (ext) {
-                        .pixi, .zig => Pixi.state.theme.text_orange.toImguiVec4(),
-                        .png, .psd => Pixi.state.theme.text_blue.toImguiVec4(),
-                        .jpg => Pixi.state.theme.highlight_primary.toImguiVec4(),
-                        .pdf => Pixi.state.theme.text_red.toImguiVec4(),
-                        .json, .atlas => Pixi.state.theme.text_yellow.toImguiVec4(),
-                        .txt, .zip, ._7z, .tar => Pixi.state.theme.text_background.toImguiVec4(),
-                        else => Pixi.state.theme.text_background.toImguiVec4(),
+                        .pixi, .zig => Pixi.editor.theme.text_orange.toImguiVec4(),
+                        .png, .psd => Pixi.editor.theme.text_blue.toImguiVec4(),
+                        .jpg => Pixi.editor.theme.highlight_primary.toImguiVec4(),
+                        .pdf => Pixi.editor.theme.text_red.toImguiVec4(),
+                        .json, .atlas => Pixi.editor.theme.text_yellow.toImguiVec4(),
+                        .txt, .zip, ._7z, .tar => Pixi.editor.theme.text_background.toImguiVec4(),
+                        else => Pixi.editor.theme.text_background.toImguiVec4(),
                     };
 
                     const text_color = switch (ext) {
-                        .pixi => Pixi.state.theme.text.toImguiVec4(),
-                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => Pixi.state.theme.text_secondary.toImguiVec4(),
-                        else => Pixi.state.theme.text_background.toImguiVec4(),
+                        .pixi => Pixi.editor.theme.text.toImguiVec4(),
+                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => Pixi.editor.theme.text_secondary.toImguiVec4(),
+                        else => Pixi.editor.theme.text_background.toImguiVec4(),
                     };
 
                     const icon_spaced = std.fmt.allocPrintZ(Pixi.state.allocator, " {s} ", .{icon}) catch unreachable;
@@ -266,7 +266,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     defer alloc.free(abs_path);
                     const folder = std.fmt.allocPrintZ(alloc, "{s}  {s}", .{ Pixi.fa.folder, entry.name }) catch unreachable;
                     defer alloc.free(folder);
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_secondary.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
                     defer imgui.popStyleColor();
 
                     if (imgui.treeNode(folder)) {
@@ -299,8 +299,8 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 }
 
 fn contextMenuFolder(folder: [:0]const u8) void {
-    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.state.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
     defer imgui.popStyleColorEx(2);
     if (imgui.menuItem("New File...")) {
         const new_file_path = std.fs.path.joinZ(Pixi.state.allocator, &[_][]const u8{ folder, "New_file.pixi" }) catch unreachable;
@@ -333,8 +333,8 @@ fn contextMenuFolder(folder: [:0]const u8) void {
 }
 
 fn contextMenuFile(file: [:0]const u8) void {
-    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.state.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
 
     const ext = extension(file);
 
@@ -382,7 +382,7 @@ fn contextMenuFile(file: [:0]const u8) void {
         }
     }
     imgui.separator();
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_red.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
     if (imgui.menuItem("Delete")) {
         std.fs.deleteFileAbsolute(file) catch unreachable;
         if (Pixi.Editor.getFileIndex(file)) |index| {

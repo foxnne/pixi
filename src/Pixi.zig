@@ -31,7 +31,7 @@ settings: Settings = undefined,
 hotkeys: input.Hotkeys = undefined,
 mouse: input.Mouse = undefined,
 sidebar: Sidebar = .files,
-theme: Editor.Theme = undefined,
+//theme: Editor.Theme = undefined,
 project_folder: ?[:0]const u8 = null,
 root_path: [:0]const u8 = undefined,
 recents: Recents = undefined,
@@ -88,6 +88,8 @@ test {
 
 pub var state: *App = undefined;
 pub var core: *Core = undefined;
+pub var editor: *Editor = undefined;
+
 pub var content_scale: [2]f32 = undefined;
 pub var window_size: [2]f32 = undefined;
 pub var framebuffer_size: [2]f32 = undefined;
@@ -139,9 +141,10 @@ pub const PackTarget = enum {
     single_open,
 };
 
-pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App)) !void {
+pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !void {
     state = app;
     core = _core;
+    editor = _editor;
 
     core.on_tick = app_mod.id.tick;
     core.on_exit = app_mod.id.deinit;
@@ -166,16 +169,11 @@ pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App)) !void {
 
 /// This is called from the event fired when the window is done being
 /// initialized by the platform
-fn lateInit(app: *App, _: *Core) !void {
+fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     const window = core.windows.getValue(app.window);
 
     app.json_allocator = std.heap.ArenaAllocator.init(app.allocator);
     app.settings = try Settings.init(app.json_allocator.allocator());
-
-    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ assets.themes, app.settings.theme });
-    defer app.allocator.free(theme_path);
-
-    app.theme = try Editor.Theme.loadFromFile(theme_path);
 
     zstbi.init(app.allocator);
 
@@ -247,7 +245,7 @@ fn lateInit(app: *App, _: *Core) !void {
     app.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
     app.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
-    app.theme.init(core, app);
+    editor_mod.call(.init);
 }
 
 pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
@@ -270,7 +268,7 @@ pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
     while (core.nextEvent()) |event| {
         switch (event) {
             .window_open => {
-                try lateInit(app, core);
+                try lateInit(app, editor_mod);
             },
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
@@ -340,13 +338,7 @@ pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
 
     try input.process();
 
-    state.theme.push(core, app);
-
-    //imgui.showDemoWindow(null);
-
     editor_mod.call(.tick);
-
-    state.theme.pop();
 
     imgui.render();
 
@@ -370,9 +362,9 @@ pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
             defer encoder.release();
 
             const background: gpu.Color = .{
-                .r = @floatCast(state.theme.foreground.value[0]),
-                .g = @floatCast(state.theme.foreground.value[1]),
-                .b = @floatCast(state.theme.foreground.value[2]),
+                .r = @floatCast(editor.theme.foreground.value[0]),
+                .g = @floatCast(editor.theme.foreground.value[1]),
+                .b = @floatCast(editor.theme.foreground.value[2]),
                 .a = 1.0,
             };
 
@@ -494,7 +486,7 @@ pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
     //free everything allocated by the json_allocator
     state.json_allocator.deinit();
 
-    state.allocator.free(state.theme.name);
+    state.allocator.free(editor.theme.name);
 
     state.allocator.free(state.hotkeys.hotkeys);
     state.allocator.free(state.mouse.buttons);

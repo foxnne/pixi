@@ -71,7 +71,7 @@ pub fn draw(core: *Core) void {
 
             const not_active: bool = (artboard_0 and artboard_0_open_file_index != Pixi.state.open_file_index) or (!artboard_0 and !artboard_grip and artboard_1_open_file_index != Pixi.state.open_file_index);
 
-            const artboard_color: Pixi.math.Color = if (artboard_grip or (not_active and Pixi.state.settings.split_artboard)) Pixi.state.theme.foreground else Pixi.state.theme.background;
+            const artboard_color: Pixi.math.Color = if (artboard_grip or (not_active and Pixi.state.settings.split_artboard)) Pixi.editor.theme.foreground else Pixi.editor.theme.background;
 
             imgui.pushStyleColor(imgui.Col_ChildBg, artboard_color.toU32());
             defer imgui.popStyleColor();
@@ -161,7 +161,7 @@ pub fn draw(core: *Core) void {
                                     defer imgui.popStyleVar();
                                     if (imgui.beginTooltip()) {
                                         defer imgui.endTooltip();
-                                        imgui.textColored(Pixi.state.theme.text_secondary.toImguiVec4(), file.path);
+                                        imgui.textColored(Pixi.editor.theme.text_secondary.toImguiVec4(), file.path);
                                     }
                                 }
                             }
@@ -253,7 +253,7 @@ pub fn draw(core: *Core) void {
                 imgui.endChild();
 
                 if (Pixi.state.project_folder != null or Pixi.state.open_files.items.len > 0) {
-                    imgui.pushStyleColorImVec4(imgui.Col_ChildBg, Pixi.state.theme.highlight_primary.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_ChildBg, Pixi.editor.theme.highlight_primary.toImguiVec4());
                     defer imgui.popStyleColor();
                     if (imgui.beginChild("InfoBar", .{ .x = -1.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                         infobar.draw();
@@ -284,11 +284,11 @@ pub fn draw(core: *Core) void {
 }
 
 pub fn drawLogoScreen() void {
-    imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.state.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Border, Pixi.state.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.state.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.state.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Border, Pixi.editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
     defer imgui.popStyleColorEx(5);
     { // Draw semi-transparent logo
         const logo_sprite = Pixi.state.loaded_assets.atlas.sprites[Pixi.assets.pixi_atlas.logo_0_default];
@@ -346,7 +346,7 @@ pub fn drawGrip(window_width: f32) void {
     const avail = imgui.getContentRegionAvail().y;
     const curs_y = imgui.getCursorPosY();
 
-    var color = Pixi.state.theme.text_background.toImguiVec4();
+    var color = Pixi.editor.theme.text_background.toImguiVec4();
 
     _ = imgui.invisibleButton("ArtboardGripButton", .{
         .x = Pixi.state.settings.explorer_grip,
@@ -359,7 +359,7 @@ pub fn drawGrip(window_width: f32) void {
 
     if (imgui.isItemHovered(hovered_flags)) {
         imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
-        color = Pixi.state.theme.text.toImguiVec4();
+        color = Pixi.editor.theme.text.toImguiVec4();
 
         if (imgui.isMouseDoubleClicked(imgui.MouseButton_Left)) {
             Pixi.state.settings.split_artboard = !Pixi.state.settings.split_artboard;
@@ -367,7 +367,7 @@ pub fn drawGrip(window_width: f32) void {
     }
 
     if (imgui.isItemActive()) {
-        color = Pixi.state.theme.text.toImguiVec4();
+        color = Pixi.editor.theme.text.toImguiVec4();
         const prev = Pixi.state.mouse.previous_position;
         const cur = Pixi.state.mouse.position;
 

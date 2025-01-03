@@ -9,16 +9,16 @@ pub fn draw() void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 10.0 * Pixi.content_scale[1] });
     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 6.0 * Pixi.content_scale[0], .y = 6.0 * Pixi.content_scale[1] });
     defer imgui.popStyleVarEx(2);
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_secondary.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, Pixi.state.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.state.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.state.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.background.toImguiVec4());
     defer imgui.popStyleColorEx(5);
     if (imgui.beginMenuBar()) {
         defer imgui.endMenuBar();
         if (imgui.beginMenu("File")) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
             if (imgui.menuItemEx("Open Folder...", if (Pixi.state.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "", false, true)) {
                 Pixi.state.popups.file_dialog_request = .{
                     .state = .folder,
@@ -73,7 +73,7 @@ pub fn draw() void {
         if (imgui.beginMenu("View")) {
             defer imgui.endMenu();
 
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
             defer imgui.popStyleColor();
 
             if (imgui.menuItemEx("Split Artboard", null, Pixi.state.settings.split_artboard, true)) {
@@ -121,7 +121,7 @@ pub fn draw() void {
         if (imgui.beginMenu("Edit")) {
             defer imgui.endMenu();
 
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
             defer imgui.popStyleColor();
 
             if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
@@ -143,7 +143,7 @@ pub fn draw() void {
             }
         }
         if (imgui.beginMenu("Tools")) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
             imgui.popStyleColor();
             imgui.endMenu();
         }

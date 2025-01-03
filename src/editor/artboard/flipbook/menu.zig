@@ -1,38 +1,38 @@
 const std = @import("std");
-const pixi = @import("../../../Pixi.zig");
+const Pixi = @import("../../../Pixi.zig");
 const core = @import("mach").core;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-const History = pixi.storage.Internal.PixiFile.History;
+const History = Pixi.storage.Internal.PixiFile.History;
 
-pub fn draw(file: *pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * pixi.content_scale[0], .y = 10.0 * pixi.content_scale[1] });
+pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 10.0 * Pixi.content_scale[1] });
     defer imgui.popStyleVar();
-    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, pixi.state.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColorEx(3);
     if (imgui.beginMenuBar()) {
         defer imgui.endMenuBar();
 
         if (file.flipbook_view == .canvas) {
             if (file.animations.items.len > 0) {
-                if (imgui.button(if (file.selected_animation_state == .play) " " ++ pixi.fa.pause ++ " " else " " ++ pixi.fa.play ++ " ")) {
+                if (imgui.button(if (file.selected_animation_state == .play) " " ++ Pixi.fa.pause ++ " " else " " ++ Pixi.fa.play ++ " ")) {
                     file.selected_animation_state = switch (file.selected_animation_state) {
                         .play => .pause,
                         .pause => .play,
                     };
                 }
 
-                imgui.pushStyleColorImVec4(imgui.Col_FrameBgHovered, pixi.state.theme.background.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_FrameBg, pixi.state.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_FrameBgHovered, Pixi.editor.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_FrameBg, Pixi.editor.theme.background.toImguiVec4());
                 defer imgui.popStyleColorEx(2);
 
                 var animation = &file.animations.items[file.selected_animation_index];
 
                 { // Animation Selection
-                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * pixi.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.content_scale[0]);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
                         for (file.animations.items, 0..) |a, i| {
@@ -46,15 +46,15 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
 
                 { // Frame Selection
                     const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-                    const frame = std.fmt.allocPrintZ(pixi.state.allocator, "{d}/{d}", .{ current_frame + 1, animation.length }) catch unreachable;
-                    defer pixi.state.allocator.free(frame);
+                    const frame = std.fmt.allocPrintZ(Pixi.state.allocator, "{d}/{d}", .{ current_frame + 1, animation.length }) catch unreachable;
+                    defer Pixi.state.allocator.free(frame);
 
-                    imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40 * pixi.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40 * Pixi.content_scale[0]);
                     if (imgui.beginCombo("Frame  ", frame, imgui.ComboFlags_None)) {
                         defer imgui.endCombo();
                         for (0..animation.length) |i| {
-                            const other_frame = std.fmt.allocPrintZ(pixi.state.allocator, "{d}/{d}", .{ i + 1, animation.length }) catch unreachable;
-                            defer pixi.state.allocator.free(other_frame);
+                            const other_frame = std.fmt.allocPrintZ(Pixi.state.allocator, "{d}/{d}", .{ i + 1, animation.length }) catch unreachable;
+                            defer Pixi.state.allocator.free(other_frame);
 
                             if (imgui.selectableEx(other_frame, animation.start + i == file.selected_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
                                 file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(animation.start + i), .state = file.selected_animation_state };
@@ -64,7 +64,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
                 }
 
                 { // FPS Selection
-                    imgui.setNextItemWidth(100 * pixi.content_scale[0]);
+                    imgui.setNextItemWidth(100 * Pixi.content_scale[0]);
                     var fps = @as(i32, @intCast(animation.fps));
                     var changed: bool = false;
                     if (imgui.sliderInt(
@@ -96,21 +96,21 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
             }
         } else {
             if (file.keyframe_animations.items.len > 0) {
-                if (imgui.button(if (file.selected_keyframe_animation_state == .play) " " ++ pixi.fa.pause ++ " " else " " ++ pixi.fa.play ++ " ")) {
+                if (imgui.button(if (file.selected_keyframe_animation_state == .play) " " ++ Pixi.fa.pause ++ " " else " " ++ Pixi.fa.play ++ " ")) {
                     file.selected_keyframe_animation_state = switch (file.selected_keyframe_animation_state) {
                         .play => .pause,
                         .pause => .play,
                     };
                 }
 
-                imgui.pushStyleColorImVec4(imgui.Col_FrameBgHovered, pixi.state.theme.background.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_FrameBg, pixi.state.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_FrameBgHovered, Pixi.editor.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_FrameBg, Pixi.editor.theme.background.toImguiVec4());
                 defer imgui.popStyleColorEx(2);
 
                 const animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
 
                 { // Animation Selection
-                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * pixi.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.content_scale[0]);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
                         for (file.keyframe_animations.items, 0..) |a, i| {
@@ -131,7 +131,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
             // Draw horizontal grip with remaining menu space
             const cursor_x = imgui.getCursorPosX();
             const avail = imgui.getContentRegionAvail();
-            var color = pixi.state.theme.text_background.toImguiVec4();
+            var color = Pixi.editor.theme.text_background.toImguiVec4();
 
             _ = imgui.invisibleButton("FlipbookGrip", .{
                 .x = -1.0,
@@ -140,17 +140,17 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
 
             if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
                 imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
-                color = pixi.state.theme.text.toImguiVec4();
+                color = Pixi.editor.theme.text.toImguiVec4();
             }
 
             if (imgui.isItemActive()) {
-                color = pixi.state.theme.text.toImguiVec4();
+                color = Pixi.editor.theme.text.toImguiVec4();
                 imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
-                pixi.state.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
+                Pixi.state.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
             }
 
             imgui.setCursorPosX(cursor_x + (avail.x / 2.0));
-            imgui.textColored(color, pixi.fa.grip_lines);
+            imgui.textColored(color, Pixi.fa.grip_lines);
         }
     }
 }

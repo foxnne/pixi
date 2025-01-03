@@ -24,7 +24,7 @@ pub fn draw() void {
     var popup_flags: imgui.WindowFlags = 0;
     popup_flags |= imgui.WindowFlags_None;
 
-    var background_color = Pixi.state.theme.foreground;
+    var background_color = Pixi.editor.theme.foreground;
     background_color.value[3] = Pixi.state.settings.reference_window_opacity / 100.0;
 
     imgui.pushStyleColorImVec4(imgui.Col_WindowBg, background_color.toImguiVec4());

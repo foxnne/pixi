@@ -119,11 +119,11 @@ pub fn draw() void {
         const ext = std.fs.path.extension(&Pixi.state.popups.file_setup_path);
 
         if (!sizes_match) {
-            imgui.textColored(Pixi.state.theme.text_red.toImguiVec4(), "Tile sizes and count do not match image size! %dx%d", combined_size[0], combined_size[1]);
+            imgui.textColored(Pixi.editor.theme.text_red.toImguiVec4(), "Tile sizes and count do not match image size! %dx%d", combined_size[0], combined_size[1]);
         } else if (ext.len < 5 or !std.mem.eql(u8, ".pixi", ext[0..5])) {
-            imgui.textColored(Pixi.state.theme.text_red.toImguiVec4(), "File name must end with .pixi extension!");
+            imgui.textColored(Pixi.editor.theme.text_red.toImguiVec4(), "File name must end with .pixi extension!");
         } else {
-            imgui.textColored(Pixi.state.theme.highlight_primary.toImguiVec4(), " " ++ Pixi.fa.check);
+            imgui.textColored(Pixi.editor.theme.highlight_primary.toImguiVec4(), " " ++ Pixi.fa.check);
         }
 
         const spacing = 5.0 * Pixi.content_scale[0];

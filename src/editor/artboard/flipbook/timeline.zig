@@ -74,7 +74,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
     const scroll_bar_height: f32 = imgui.getStyle().scrollbar_size;
 
     {
-        imgui.pushStyleColorImVec4(imgui.Col_ChildBg, Pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ChildBg, Pixi.editor.theme.foreground.toImguiVec4());
         defer imgui.popStyleColor();
 
         imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
@@ -143,7 +143,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
                             const text = std.fmt.allocPrintZ(Pixi.state.allocator, "{d} {s}", .{ value, unit }) catch unreachable;
                             defer Pixi.state.allocator.free(text);
 
-                            draw_list.addText(.{ .x = x, .y = y }, Pixi.state.theme.text_background.toU32(), text);
+                            draw_list.addText(.{ .x = x, .y = y }, Pixi.editor.theme.text_background.toU32(), text);
                         }
                     }
                 }
@@ -186,8 +186,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
         const grid_width: f32 = tile_width * grid_columns;
         const grid_height: f32 = tile_height * grid_rows;
 
-        file.flipbook_camera.drawGrid(.{ -grid_width / 2.0, -grid_height / 2.0 }, grid_width, grid_height, @intFromFloat(grid_columns), @intFromFloat(grid_rows), Pixi.state.theme.text_background.toU32(), true);
-        file.flipbook_camera.drawCircleFilled(.{ 0.0, 0.0 }, node_radius, Pixi.state.theme.text_background.toU32());
+        file.flipbook_camera.drawGrid(.{ -grid_width / 2.0, -grid_height / 2.0 }, grid_width, grid_height, @intFromFloat(grid_columns), @intFromFloat(grid_rows), Pixi.editor.theme.text_background.toU32(), true);
+        file.flipbook_camera.drawCircleFilled(.{ 0.0, 0.0 }, node_radius, Pixi.editor.theme.text_background.toU32());
 
         const l: f32 = 2000;
         file.flipbook_camera.drawLine(.{ 0.0, l / 2.0 }, .{ 0.0, -l / 2.0 }, 0x5500FF00, 1.0);
@@ -264,7 +264,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
                                             .{ frame.pivot.position[0], frame.pivot.position[1] },
                                             node_radius * 1.5 + 1.0,
                                             1.0,
-                                            Pixi.state.theme.text_background.toU32(),
+                                            Pixi.editor.theme.text_background.toU32(),
                                         );
                                     }
                                 } else {
@@ -277,7 +277,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
                                         .{ frame.pivot.position[0], frame.pivot.position[1] },
                                         node_radius + 1.0,
                                         1.0,
-                                        Pixi.state.theme.text_background.toU32(),
+                                        Pixi.editor.theme.text_background.toU32(),
                                     );
                                 }
 
@@ -523,7 +523,7 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
                 const thickness: f32 = if (@mod(ms, 1000) == 0) 3.0 else if (@mod(ms, 100) == 0) 2.0 else 1.0;
 
                 const line_hovered: bool = if (rel_mouse_x) |mouse_x| @abs(mouse_x - (ms_float + work_area_offset)) < frame_node_radius else false;
-                const color: u32 = if (line_hovered) Pixi.state.theme.highlight_primary.toU32() else Pixi.state.theme.text_background.toU32();
+                const color: u32 = if (line_hovered) Pixi.editor.theme.highlight_primary.toU32() else Pixi.editor.theme.text_background.toU32();
                 draw_list.addLineEx(.{ .x = x, .y = y }, .{ .x = x, .y = y + imgui.getWindowHeight() }, color, thickness);
 
                 if (line_hovered) {
@@ -737,7 +737,7 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
                             }
 
                             draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale, color, 20);
-                            draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale + 1.0, Pixi.state.theme.text_background.toU32());
+                            draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * frame_node_scale + 1.0, Pixi.editor.theme.text_background.toU32());
                         }
                     }
                 }
@@ -809,7 +809,7 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
                                 const color = animation.getFrameNodeColor(dragging_frame_id);
 
                                 draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * 2.0, color, 20);
-                                draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * 2.0 + 1.0, Pixi.state.theme.text_background.toU32());
+                                draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * 2.0 + 1.0, Pixi.editor.theme.text_background.toU32());
                             }
                         }
                     }
@@ -862,7 +862,7 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
                                     const color = animation.getFrameNodeColor(fr.id);
 
                                     draw_list.addCircleFilled(.{ .x = x, .y = y }, frame_node_radius * 2.0, color, 20);
-                                    draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * 2.0 + 1.0, Pixi.state.theme.text_background.toU32());
+                                    draw_list.addCircle(.{ .x = x, .y = y }, frame_node_radius * 2.0 + 1.0, Pixi.editor.theme.text_background.toU32());
                                 }
                             }
                         }

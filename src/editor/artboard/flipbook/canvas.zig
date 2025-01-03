@@ -1,9 +1,9 @@
 const std = @import("std");
-const pixi = @import("../../../Pixi.zig");
+const Pixi = @import("../../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
     const window_height = imgui.getWindowHeight();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
@@ -14,8 +14,8 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
     if (file.flipbook_scroll_request) |*request| {
         if (request.elapsed < 0.5) {
             file.selected_animation_state = .pause;
-            request.elapsed += pixi.state.delta_time;
-            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed / 0.5, .ease_in_out);
+            request.elapsed += Pixi.state.delta_time;
+            file.flipbook_scroll = Pixi.math.ease(request.from, request.to, request.elapsed / 0.5, .ease_in_out);
         } else {
             file.flipbook_scroll = request.to;
             file.selected_animation_state = request.state;
@@ -25,11 +25,11 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
     // Handle zooming, panning and extents
     {
-        var sprite_camera: pixi.gfx.Camera = .{
+        var sprite_camera: Pixi.gfx.Camera = .{
             .zoom = window_height / tile_height,
         };
 
-        if (pixi.state.settings.flipbook_view == .sequential) sprite_camera.setNearestZoomFloor() else sprite_camera.setNearZoomFloor();
+        if (Pixi.state.settings.flipbook_view == .sequential) sprite_camera.setNearestZoomFloor() else sprite_camera.setNearZoomFloor();
         file.flipbook_camera.min_zoom = sprite_camera.zoom;
 
         file.flipbook_camera.processPanZoom(.flipbook);
@@ -37,8 +37,8 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
     // Handle playing animations and locking the current extents
     if (file.selected_animation_state == .play and file.animations.items.len > 0) {
-        const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
-        file.selected_animation_elapsed += pixi.state.delta_time;
+        const animation: Pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
+        file.selected_animation_elapsed += Pixi.state.delta_time;
         if (file.selected_animation_elapsed > 1.0 / @as(f32, @floatFromInt(animation.fps))) {
             file.selected_animation_elapsed = 0.0;
 
@@ -52,7 +52,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
         file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(file.selected_sprite_index);
     }
 
-    switch (pixi.state.settings.flipbook_view) {
+    switch (Pixi.state.settings.flipbook_view) {
         .sequential => {
             // Draw all sprites sequentially
             const tiles_wide = @divExact(file.width, file.tile_width);
@@ -92,7 +92,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                         dst_p2,
                         dst_p3,
                         dst_p4,
-                        pixi.state.theme.background.toU32(),
+                        Pixi.editor.theme.background.toU32(),
                     );
                     // Draw background
                     file.flipbook_camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
@@ -129,12 +129,12 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
 
                     if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
                         if (i != file.selected_sprite_index) {
-                            file.flipbook_camera.drawQuad(dst_p1, dst_p2, dst_p3, dst_p4, pixi.state.theme.text.toU32(), 2.0);
-                            if (if (pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != i) {
+                            file.flipbook_camera.drawQuad(dst_p1, dst_p2, dst_p3, dst_p4, Pixi.editor.theme.text.toU32(), 2.0);
+                            if (if (Pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != i) {
                                 file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
                             }
                         } else {
-                            file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
+                            file.flipbook_camera.drawRect(dst_rect, 1, Pixi.editor.theme.text.toU32());
 
                             file.processStrokeTool(.flipbook, .{}) catch unreachable;
                             file.processFillTool(.flipbook, .{}) catch unreachable;
@@ -147,7 +147,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                 dst_p2,
                                 dst_p3,
                                 dst_p4,
-                                pixi.state.theme.text_secondary.toU32(),
+                                Pixi.editor.theme.text_secondary.toU32(),
                                 1.0,
                             );
                         } else {
@@ -156,7 +156,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                 dst_p2,
                                 dst_p3,
                                 dst_p4,
-                                pixi.state.theme.text.toU32(),
+                                Pixi.editor.theme.text.toU32(),
                                 1.0,
                             );
                         }
@@ -220,7 +220,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                                 file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
 
                             if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
-                                file.flipbook_camera.drawRect(dst_rect, 1, pixi.state.theme.text.toU32());
+                                file.flipbook_camera.drawRect(dst_rect, 1, Pixi.editor.theme.text.toU32());
 
                                 file.processStrokeTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } }) catch unreachable;
                                 file.processFillTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } }) catch unreachable;
@@ -229,14 +229,14 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                         }
                     }
 
-                    file.flipbook_camera.drawRect(.{ dst_x - tile_width, dst_y - tile_height, dst_width * 3.0, dst_height * 3.0 }, 1.0, pixi.state.theme.text_background.toU32());
+                    file.flipbook_camera.drawRect(.{ dst_x - tile_width, dst_y - tile_height, dst_width * 3.0, dst_height * 3.0 }, 1.0, Pixi.editor.theme.text_background.toU32());
                 }
             }
         },
     }
 
     if (file.selected_animation_state == .play) {
-        const animation: pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
+        const animation: Pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
         // Draw progress bar
         {
             const window_position = imgui.getWindowPos();
@@ -253,7 +253,7 @@ pub fn draw(file: *pixi.storage.Internal.PixiFile) void {
                 draw_list.addLineEx(
                     progress_start,
                     progress_end,
-                    pixi.state.theme.text_background.toU32(),
+                    Pixi.editor.theme.text_background.toU32(),
                     3.0,
                 );
             }

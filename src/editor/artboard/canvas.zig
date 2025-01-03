@@ -57,8 +57,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
             imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0);
             defer imgui.popStyleVarEx(3);
 
-            imgui.pushStyleColorImVec4(imgui.Col_WindowBg, Pixi.state.theme.foreground.toImguiVec4());
-            imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.state.theme.background.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_WindowBg, Pixi.editor.theme.foreground.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.background.toImguiVec4());
             defer imgui.popStyleColorEx(2);
 
             var open: bool = true;
@@ -242,7 +242,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
         file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
 
         // Draw grid
-        file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), Pixi.state.theme.text_secondary.toU32(), false);
+        file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), Pixi.editor.theme.text_secondary.toU32(), false);
 
         if (file.transform_texture) |*transform_texture|
             file.processTransformTextureControls(transform_texture, .{});
@@ -314,20 +314,20 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
                     const y = @as(f32, @floatFromInt(row)) * tile_height + canvas_center_offset[1];
                     const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
-                    file.camera.drawRect(rect, 3.0, Pixi.state.theme.text.toU32());
+                    file.camera.drawRect(rect, 3.0, Pixi.editor.theme.text.toU32());
 
                     // Draw the origin
                     const sprite: Pixi.storage.Internal.Sprite = file.sprites.items[sprite_index];
                     file.camera.drawLine(
                         .{ x + sprite.origin_x, y },
                         .{ x + sprite.origin_x, y + tile_height },
-                        Pixi.state.theme.text_red.toU32(),
+                        Pixi.editor.theme.text_red.toU32(),
                         2.0,
                     );
                     file.camera.drawLine(
                         .{ x, y + sprite.origin_y },
                         .{ x + tile_width, y + sprite.origin_y },
-                        Pixi.state.theme.text_red.toU32(),
+                        Pixi.editor.theme.text_red.toU32(),
                         2.0,
                     );
                 }
@@ -339,7 +339,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
             const y = @as(f32, @floatFromInt(row)) * tile_height + canvas_center_offset[1];
             const rect: [4]f32 = .{ x, y, tile_width, tile_height };
 
-            file.camera.drawRect(rect, 3.0, Pixi.state.theme.text.toU32());
+            file.camera.drawRect(rect, 3.0, Pixi.editor.theme.text.toU32());
         }
 
         if (Pixi.state.popups.animation_length > 0 and Pixi.state.tools.current == .animation and !transforming) {
@@ -357,7 +357,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
                     const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-                    file.camera.drawAnimationRect(start_rect, end_rect, 6.0, Pixi.state.theme.highlight_primary.toU32(), Pixi.state.theme.text_red.toU32());
+                    file.camera.drawAnimationRect(start_rect, end_rect, 6.0, Pixi.editor.theme.highlight_primary.toU32(), Pixi.editor.theme.text_red.toU32());
                 }
             }
         }
@@ -378,7 +378,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
                     const thickness: f32 = if (i == file.selected_animation_index and (if (Pixi.state.mouse.button(.primary)) |primary| primary.up() else false and !Pixi.state.popups.animation)) 4.0 else 2.0;
-                    file.camera.drawAnimationRect(start_rect, end_rect, thickness, Pixi.state.theme.highlight_primary.toU32(), Pixi.state.theme.text_red.toU32());
+                    file.camera.drawAnimationRect(start_rect, end_rect, thickness, Pixi.editor.theme.highlight_primary.toU32(), Pixi.editor.theme.text_red.toU32());
                 }
             } else if (Pixi.state.sidebar != .pack and !transforming and Pixi.state.sidebar != .keyframe_animations) {
                 const animation = file.animations.items[file.selected_animation_index];
@@ -395,7 +395,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
                 const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                 const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-                file.camera.drawAnimationRect(start_rect, end_rect, 4.0, Pixi.state.theme.highlight_primary.toU32(), Pixi.state.theme.text_red.toU32());
+                file.camera.drawAnimationRect(start_rect, end_rect, 4.0, Pixi.editor.theme.highlight_primary.toU32(), Pixi.editor.theme.text_red.toU32());
             }
         }
     }

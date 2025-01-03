@@ -9,12 +9,14 @@ const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-pub const Theme = @import("theme_temp.zig");
-
 pub const Editor = @This();
 
 pub const mach_module = .editor;
-pub const mach_systems = .{ .tick, .deinit };
+pub const mach_systems = .{ .init, .tick, .deinit };
+
+pub const Theme = @import("Theme.zig");
+
+theme: Theme,
 
 pub const sidebar = @import("sidebar/sidebar.zig");
 pub const explorer = @import("explorer/explorer.zig");
@@ -30,9 +32,21 @@ pub const popup_animation = @import("popups/animation.zig");
 pub const popup_heightmap = @import("popups/heightmap.zig");
 pub const popup_references = @import("popups/references.zig");
 
-pub fn tick(core: *Core) void {
+pub fn init(app: *Pixi, editor: *Editor) !void {
+    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ Pixi.assets.themes, app.settings.theme });
+    defer app.allocator.free(theme_path);
+
+    editor.* = .{
+        .theme = try Editor.Theme.loadFromFile(theme_path),
+    };
+}
+
+pub fn tick(app: *Pixi, core: *Core, editor: *Editor) void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = Pixi.state.settings.explorer_title_align, .y = 0.5 });
     defer imgui.popStyleVar();
+
+    editor.theme.push(core, app);
+    defer editor.theme.pop();
 
     sidebar.draw();
     explorer.draw(core);

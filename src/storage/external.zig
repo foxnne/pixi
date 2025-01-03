@@ -1,5 +1,4 @@
 const std = @import("std");
-const pixi = @import("root");
 const storage = @import("storage.zig");
 const zip = @import("zip");
 const fs = @import("../tools/fs.zig");

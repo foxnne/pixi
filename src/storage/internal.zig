@@ -932,8 +932,8 @@ pub const PixiFile = struct {
 
         var cursor: imgui.MouseCursor = imgui.MouseCursor_Arrow;
 
-        const default_color = if (options.color) |color| color else Pixi.state.theme.text.toU32();
-        const highlight_color = Pixi.state.theme.highlight_primary.toU32();
+        const default_color = if (options.color) |color| color else Pixi.editor.theme.text.toU32();
+        const highlight_color = Pixi.editor.theme.highlight_primary.toU32();
 
         const offset = zmath.loadArr2(if (canvas == .flipbook) .{ 0.0, 0.0 } else file.canvasCenterOffset(canvas));
 
@@ -1799,8 +1799,8 @@ pub const PixiFile = struct {
                 const g = i + 1;
                 const b = i + 2;
                 const a = i + 3;
-                const primary = Pixi.state.theme.checkerboard_primary.bytes();
-                const secondary = Pixi.state.theme.checkerboard_secondary.bytes();
+                const primary = Pixi.editor.theme.checkerboard_primary.bytes();
+                const secondary = Pixi.editor.theme.checkerboard_secondary.bytes();
                 if (i % 3 == 0) {
                     image.data[r] = primary[0];
                     image.data[g] = primary[1];
@@ -2620,7 +2620,7 @@ pub const KeyframeAnimation = struct {
             palette.colors[color_index][1],
             palette.colors[color_index][2],
             palette.colors[color_index][3],
-        ).toU32() else Pixi.state.theme.text.toU32();
+        ).toU32() else Pixi.editor.theme.text.toU32();
     }
 
     pub fn getTweenStartFrame(self: KeyframeAnimation, frame_id: u32) ?*Frame {

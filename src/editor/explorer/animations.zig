@@ -6,9 +6,9 @@ const imgui = @import("zig-imgui");
 
 pub fn draw() void {
     if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
-        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.state.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
@@ -27,9 +27,9 @@ pub fn draw() void {
             imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.8 });
             defer imgui.popStyleVarEx(2);
 
-            imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.state.theme.foreground.toImguiVec4());
-            imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.foreground.toImguiVec4());
-            imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.state.theme.foreground.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.foreground.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.foreground.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.foreground.toImguiVec4());
             defer imgui.popStyleColorEx(3);
             if (imgui.beginChild("AnimationTools", .{
                 .x = imgui.getWindowWidth(),
@@ -69,7 +69,7 @@ pub fn draw() void {
                 imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 10.0 * Pixi.content_scale[1] });
                 defer imgui.popStyleVarEx(4);
                 for (file.animations.items, 0..) |animation, animation_index| {
-                    const header_color = if (file.selected_animation_index == animation_index) Pixi.state.theme.text.toImguiVec4() else Pixi.state.theme.text_secondary.toImguiVec4();
+                    const header_color = if (file.selected_animation_index == animation_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
                     imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
                     defer imgui.popStyleColor();
                     const animation_name = std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s}", .{ Pixi.fa.film, animation.name }) catch unreachable;
@@ -80,13 +80,13 @@ pub fn draw() void {
                         contextMenu(animation_index, file);
                         imgui.popID();
 
-                        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_secondary.toImguiVec4());
+                        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
                         defer imgui.popStyleColor();
                         var i: usize = animation.start;
                         while (i < animation.start + animation.length) : (i += 1) {
                             for (file.sprites.items) |sprite| {
                                 if (i == sprite.index) {
-                                    const color = if (file.selected_sprite_index == sprite.index) Pixi.state.theme.text.toImguiVec4() else Pixi.state.theme.text_secondary.toImguiVec4();
+                                    const color = if (file.selected_sprite_index == sprite.index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
                                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                                     defer imgui.popStyleColor();
 
@@ -109,7 +109,7 @@ pub fn draw() void {
             }
         }
     } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
         imgui.textWrapped("Open a file to begin editing.");
         imgui.popStyleColor();
     }
@@ -129,7 +129,7 @@ fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) vo
             Pixi.state.popups.animation = true;
         }
 
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_red.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
         defer imgui.popStyleColor();
         if (imgui.menuItem("Delete")) {
             file.deleteAnimation(animation_index) catch unreachable;

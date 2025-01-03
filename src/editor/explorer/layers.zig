@@ -8,9 +8,9 @@ pub fn draw() void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
         defer imgui.popStyleVar();
 
-        imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.state.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.state.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
         imgui.pushFont(Pixi.state.fonts.fa_small_regular);
@@ -23,9 +23,9 @@ pub fn draw() void {
         if (file.heightmap.layer != null) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
             defer imgui.popStyleVar();
-            imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.state.theme.highlight_secondary.toImguiVec4());
-            imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.state.theme.highlight_secondary.toImguiVec4());
-            imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.state.theme.hover_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.highlight_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.highlight_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.hover_secondary.toImguiVec4());
             defer imgui.popStyleColorEx(3);
 
             if (imgui.checkbox("Edit Heightmap Layer", &file.heightmap.visible)) {}
@@ -73,9 +73,9 @@ pub fn draw() void {
                 i -= 1;
                 const layer = file.layers.items[i];
 
-                imgui.pushStyleColorImVec4(imgui.Col_Text, if (i == file.selected_layer_index) Pixi.state.theme.text.toImguiVec4() else Pixi.state.theme.text_secondary.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_Header, if (i == file.selected_layer_index) Pixi.state.theme.highlight_secondary.toImguiVec4() else Pixi.state.theme.foreground.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_Text, if (i == file.selected_layer_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_Header, if (i == file.selected_layer_index) Pixi.editor.theme.highlight_secondary.toImguiVec4() else Pixi.editor.theme.foreground.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
                 defer imgui.popStyleColorEx(3);
 
                 imgui.pushID(layer.name);
@@ -107,7 +107,7 @@ pub fn draw() void {
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();
                     imgui.text("Collapse");
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
                     defer imgui.popStyleColor();
                     imgui.text("If " ++ collapse_true ++ ", layer will be drawn onto the layer above it (lower in the layer stack) prior to packing.");
                     imgui.text("If " ++ collapse_false ++ ", layer will remain independent and will be packed separately.");
@@ -151,8 +151,8 @@ pub fn draw() void {
                         Pixi.state.popups.layer_setup_state = .duplicate;
                         Pixi.state.popups.layer_setup = true;
                     }
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_red.toImguiVec4());
-                    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.state.theme.foreground.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.foreground.toImguiVec4());
                     defer imgui.popStyleColorEx(2);
 
                     imgui.separator();

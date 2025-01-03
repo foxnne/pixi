@@ -184,7 +184,7 @@ pub fn save(theme: Theme, path: [:0]const u8) !void {
     try std.json.stringify(theme, options, out_stream);
 }
 
-pub fn pop(theme: Theme) void {
+pub fn pop(theme: *Theme) void {
     _ = theme;
     imgui.popStyleColorEx(28);
 }
