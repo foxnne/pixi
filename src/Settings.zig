@@ -1,5 +1,5 @@
 const builtin = @import("builtin");
-const pixi = @import("Pixi.zig");
+const Pixi = @import("Pixi.zig");
 const std = @import("std");
 
 pub const settings_filename = "settings.json";

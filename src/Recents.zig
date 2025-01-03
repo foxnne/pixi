@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("Pixi.zig");
+const Pixi = @import("Pixi.zig");
 
 const Self = @This();
 
@@ -10,7 +10,7 @@ pub fn init(allocator: std.mem.Allocator) !Self {
     var folders = std.ArrayList([:0]const u8).init(allocator);
     var exports = std.ArrayList([:0]const u8).init(allocator);
 
-    const read_opt: ?[]const u8 = pixi.fs.read(allocator, "recents.json") catch null;
+    const read_opt: ?[]const u8 = Pixi.fs.read(allocator, "recents.json") catch null;
     if (read_opt) |read| {
         defer allocator.free(read);
 
@@ -58,13 +58,13 @@ pub fn indexOfExport(self: *Self, path: [:0]const u8) ?usize {
 
 pub fn appendFolder(self: *Self, path: [:0]const u8) !void {
     if (self.indexOfFolder(path)) |index| {
-        pixi.state.allocator.free(path);
+        Pixi.state.allocator.free(path);
         const folder = self.folders.swapRemove(index);
         try self.folders.append(folder);
     } else {
-        if (self.folders.items.len >= pixi.state.settings.max_recents) {
+        if (self.folders.items.len >= Pixi.state.settings.max_recents) {
             const folder = self.folders.swapRemove(0);
-            pixi.state.allocator.free(folder);
+            Pixi.state.allocator.free(folder);
         }
 
         try self.folders.append(path);
@@ -76,9 +76,9 @@ pub fn appendExport(self: *Self, path: [:0]const u8) !void {
         const exp = self.exports.swapRemove(index);
         try self.exports.append(exp);
     } else {
-        if (self.exports.items.len >= pixi.state.settings.max_recents) {
+        if (self.exports.items.len >= Pixi.state.settings.max_recents) {
             const exp = self.folders.swapRemove(0);
-            pixi.state.allocator.free(exp);
+            Pixi.state.allocator.free(exp);
         }
         try self.exports.append(path);
     }
@@ -96,11 +96,11 @@ pub fn save(self: *Self) !void {
 
 pub fn deinit(self: *Self) void {
     for (self.folders.items) |folder| {
-        pixi.state.allocator.free(folder);
+        Pixi.state.allocator.free(folder);
     }
 
     for (self.exports.items) |exp| {
-        pixi.state.allocator.free(exp);
+        Pixi.state.allocator.free(exp);
     }
 
     self.folders.clearAndFree();

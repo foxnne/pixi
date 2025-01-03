@@ -27,14 +27,14 @@ pub const UniformBufferObject = struct {
     mvp: zm.Mat,
 };
 
-pub fn init(state: *Pixi.PixiState) !void {
+pub fn init(state: *Pixi) !void {
     const default_shader = @embedFile("../shaders/default.wgsl");
-    const default_shader_module = Pixi.state.device.createShaderModuleWGSL("default.wgsl", default_shader);
+    const default_shader_module = state.device.createShaderModuleWGSL("default.wgsl", default_shader);
 
     defer default_shader_module.release();
 
     const compute_shader = @embedFile("../shaders/compute.wgsl");
-    const compute_shader_module = Pixi.state.device.createShaderModuleWGSL("compute.wgsl", compute_shader);
+    const compute_shader_module = state.device.createShaderModuleWGSL("compute.wgsl", compute_shader);
 
     defer compute_shader_module.release();
 

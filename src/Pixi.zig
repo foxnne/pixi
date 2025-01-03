@@ -3,7 +3,6 @@ const std = @import("std");
 const mach = @import("mach");
 const Core = mach.Core;
 const gpu = mach.gpu;
-
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
 const nfd = @import("nfd");
@@ -26,8 +25,47 @@ pub const main = mach.schedule(.{
 timer: mach.time.Timer,
 window: mach.ObjectID,
 
+allocator: std.mem.Allocator = undefined,
+device: *gpu.Device = undefined,
+queue: *gpu.Queue = undefined,
+swap_chain: *gpu.SwapChain = undefined,
+settings: Settings = undefined,
+hotkeys: input.Hotkeys = undefined,
+mouse: input.Mouse = undefined,
+sidebar: Sidebar = .files,
+theme: editor.Theme = undefined,
+project_folder: ?[:0]const u8 = null,
+root_path: [:0]const u8 = undefined,
+recents: Recents = undefined,
+previous_atlas_export: ?[:0]const u8 = null,
+open_files: std.ArrayList(storage.Internal.PixiFile) = undefined,
+open_references: std.ArrayList(storage.Internal.Reference) = undefined,
+pack_target: PackTarget = .project,
+pack_camera: gfx.Camera = .{},
+packer: Packer = undefined,
+atlas: storage.Internal.Atlas = .{},
+open_file_index: usize = 0,
+open_reference_index: usize = 0,
+tools: Tools = .{},
+popups: Popups = .{},
+should_close: bool = false,
+fonts: Fonts = .{},
+colors: Colors = .{},
+delta_time: f32 = 0.0,
+total_time: f32 = 0.0,
+selection_time: f32 = 0.0,
+selection_invert: bool = false,
+json_allocator: std.heap.ArenaAllocator = undefined,
+loaded_assets: LoadedAssets = undefined,
+clipboard_image: ?zstbi.Image = null,
+clipboard_position: [2]u32 = .{ 0, 0 },
+batcher: gfx.Batcher = undefined,
+pipeline_default: *gpu.RenderPipeline = undefined,
+pipeline_compute: *gpu.ComputePipeline = undefined,
+uniform_buffer_default: *gpu.Buffer = undefined,
+
 //pub const name: [:0]const u8 = "Pixi";
-pub const version: std.SemanticVersion = .{ .major = 0, .minor = 1, .patch = 0 };
+pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 };
 
 pub const Popups = @import("editor/popups/Popups.zig");
 pub const Packer = @import("tools/Packer.zig");
@@ -52,7 +90,7 @@ test {
     _ = input;
 }
 
-pub var state: *PixiState = undefined;
+pub var state: *App = undefined;
 pub var content_scale: [2]f32 = undefined;
 pub var window_size: [2]f32 = undefined;
 pub var framebuffer_size: [2]f32 = undefined;
@@ -65,59 +103,20 @@ pub const Tools = @import("Tools.zig");
 pub const Settings = @import("Settings.zig");
 
 /// Holds the global game state.
-pub const PixiState = struct {
-    allocator: std.mem.Allocator = undefined,
-    device: *gpu.Device = undefined,
-    queue: *gpu.Queue = undefined,
-    swap_chain: *gpu.SwapChain = undefined,
-    settings: Settings = undefined,
-    hotkeys: input.Hotkeys = undefined,
-    mouse: input.Mouse = undefined,
-    sidebar: Sidebar = .files,
-    theme: editor.Theme = undefined,
-    project_folder: ?[:0]const u8 = null,
-    root_path: [:0]const u8 = undefined,
-    recents: Recents = undefined,
-    previous_atlas_export: ?[:0]const u8 = null,
-    open_files: std.ArrayList(storage.Internal.PixiFile) = undefined,
-    open_references: std.ArrayList(storage.Internal.Reference) = undefined,
-    pack_target: PackTarget = .project,
-    pack_camera: gfx.Camera = .{},
-    packer: Packer = undefined,
-    atlas: storage.Internal.Atlas = .{},
-    open_file_index: usize = 0,
-    open_reference_index: usize = 0,
-    tools: Tools = .{},
-    popups: Popups = .{},
-    should_close: bool = false,
-    fonts: Fonts = .{},
-    colors: Colors = .{},
-    delta_time: f32 = 0.0,
-    total_time: f32 = 0.0,
-    selection_time: f32 = 0.0,
-    selection_invert: bool = false,
-    json_allocator: std.heap.ArenaAllocator = undefined,
-    assets: Assets = undefined,
-    clipboard_image: ?zstbi.Image = null,
-    clipboard_position: [2]u32 = .{ 0, 0 },
-    batcher: gfx.Batcher = undefined,
-    pipeline_default: *gpu.RenderPipeline = undefined,
-    pipeline_compute: *gpu.ComputePipeline = undefined,
-    uniform_buffer_default: *gpu.Buffer = undefined,
-};
+//pub const PixiState = struct {};
 
-pub const Assets = struct {
+pub const LoadedAssets = struct {
     atlas_png: gfx.Texture,
     atlas: gfx.Atlas,
 
-    pub fn init(allocator: std.mem.Allocator) !Assets {
+    pub fn init(allocator: std.mem.Allocator) !LoadedAssets {
         return .{
             .atlas_png = try gfx.Texture.loadFromFile(assets.pixi_png.path, .{}),
             .atlas = try gfx.Atlas.loadFromFile(allocator, assets.pixi_atlas.path),
         };
     }
 
-    pub fn deinit(self: *Assets, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *LoadedAssets, allocator: std.mem.Allocator) void {
         self.atlas_png.deinit();
         self.atlas.deinit(allocator);
     }
@@ -155,36 +154,36 @@ pub fn init(app: *App, core: *Core, app_mod: mach.Mod(App)) !void {
     var buffer: [1024]u8 = undefined;
     const root_path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
 
-    state = try allocator.create(PixiState);
-    state.* = .{ .root_path = try allocator.dupeZ(u8, root_path) };
-
-    state.allocator = allocator;
-
     const window = try core.windows.new(.{
         .title = "Pixi",
         .vsync_mode = .double,
     });
 
     app.* = .{
+        .allocator = allocator,
         .timer = try mach.time.Timer.start(),
         .window = window,
+        .root_path = try allocator.dupeZ(u8, root_path),
     };
+
+    // Set our global state so its accessible outside of this module
+    state = app;
 }
 
 fn lateInit(pixi: *App, core: *Core) !void {
     const window = core.windows.getValue(pixi.window);
 
-    state.device = window.device;
-    state.queue = window.queue;
-    state.swap_chain = window.swap_chain;
+    pixi.device = window.device;
+    pixi.queue = window.queue;
+    pixi.swap_chain = window.swap_chain;
 
-    state.json_allocator = std.heap.ArenaAllocator.init(state.allocator);
-    state.settings = try Settings.init(state.json_allocator.allocator());
+    pixi.json_allocator = std.heap.ArenaAllocator.init(pixi.allocator);
+    pixi.settings = try Settings.init(pixi.json_allocator.allocator());
 
-    const theme_path = try std.fs.path.joinZ(state.allocator, &.{ assets.themes, state.settings.theme });
-    defer state.allocator.free(theme_path);
+    const theme_path = try std.fs.path.joinZ(pixi.allocator, &.{ assets.themes, pixi.settings.theme });
+    defer pixi.allocator.free(theme_path);
 
-    state.theme = try editor.Theme.loadFromFile(theme_path);
+    pixi.theme = try editor.Theme.loadFromFile(theme_path);
 
     window_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
     framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
@@ -196,29 +195,29 @@ fn lateInit(pixi: *App, core: *Core) !void {
 
     const scale_factor = content_scale[1];
 
-    zstbi.init(core.allocator);
+    zstbi.init(pixi.allocator);
 
-    state.open_files = std.ArrayList(storage.Internal.PixiFile).init(state.allocator);
-    state.open_references = std.ArrayList(storage.Internal.Reference).init(state.allocator);
+    pixi.open_files = std.ArrayList(storage.Internal.PixiFile).init(pixi.allocator);
+    pixi.open_references = std.ArrayList(storage.Internal.Reference).init(pixi.allocator);
 
-    state.colors.keyframe_palette = try storage.Internal.Palette.loadFromFile(assets.pear36_hex.path);
+    pixi.colors.keyframe_palette = try storage.Internal.Palette.loadFromFile(assets.pear36_hex.path);
 
-    state.hotkeys = try input.Hotkeys.initDefault(state.allocator);
+    pixi.hotkeys = try input.Hotkeys.initDefault(pixi.allocator);
 
-    state.assets = try Assets.init(state.allocator);
-    state.mouse = try input.Mouse.initDefault(state.allocator);
+    pixi.loaded_assets = try LoadedAssets.init(pixi.allocator);
+    pixi.mouse = try input.Mouse.initDefault(pixi.allocator);
 
-    state.packer = try Packer.init(state.allocator);
-    state.recents = try Recents.init(state.allocator);
+    pixi.packer = try Packer.init(pixi.allocator);
+    pixi.recents = try Recents.init(pixi.allocator);
 
-    state.batcher = try gfx.Batcher.init(state.allocator, 1000);
+    pixi.batcher = try gfx.Batcher.init(pixi.allocator, 1000);
 
-    try gfx.init(state);
+    try gfx.init(pixi);
 
-    imgui.setZigAllocator(&state.allocator);
+    imgui.setZigAllocator(&pixi.allocator);
 
     _ = imgui.createContext(null);
-    try imgui_mach.init(core, state.allocator, window.device, .{
+    try imgui_mach.init(core, pixi.allocator, window.device, .{
         .mag_filter = .nearest,
         .min_filter = .nearest,
         .mipmap_filter = .nearest,
@@ -251,12 +250,12 @@ fn lateInit(pixi: *App, core: *Core) !void {
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    state.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    state.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    state.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    state.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    pixi.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    pixi.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    pixi.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    pixi.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
-    state.theme.init(core, pixi);
+    pixi.theme.init(core, pixi);
 }
 
 pub fn tick(app: *App, core: *Core) !void {
@@ -540,7 +539,7 @@ pub fn deinit(_: *App, _: *Core) void {
     if (state.clipboard_image) |*image| image.deinit();
 
     editor.deinit();
-    state.assets.deinit(state.allocator);
+    state.loaded_assets.deinit(state.allocator);
 
     imgui_mach.shutdown();
     imgui.getIO().fonts.?.clear();

@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("Pixi.zig");
+const Pixi = @import("Pixi.zig");
 
 const Self = @This();
 
@@ -25,7 +25,7 @@ stroke_shape: Shape = .circle,
 
 pub fn set(self: *Self, tool: Tool) void {
     if (self.current != tool) {
-        if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+        if (Pixi.editor.getFile(Pixi.state.open_file_index)) |file| {
             if (file.transform_texture != null and tool != .pointer)
                 return;
 

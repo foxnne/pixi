@@ -291,7 +291,7 @@ pub fn drawLogoScreen() void {
     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
     defer imgui.popStyleColorEx(5);
     { // Draw semi-transparent logo
-        const logo_sprite = pixi.state.assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_default];
+        const logo_sprite = pixi.state.loaded_assets.atlas.sprites[pixi.assets.pixi_atlas.logo_0_default];
 
         const src: [4]f32 = .{
             @floatFromInt(logo_sprite.source[0]),
@@ -304,13 +304,13 @@ pub fn drawLogoScreen() void {
         const h = src[3] * 32.0 * pixi.content_scale[0];
         const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
 
-        const inv_w = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.width));
-        const inv_h = 1.0 / @as(f32, @floatFromInt(pixi.state.assets.atlas_png.image.height));
+        const inv_w = 1.0 / @as(f32, @floatFromInt(pixi.state.loaded_assets.atlas_png.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(pixi.state.loaded_assets.atlas_png.image.height));
 
         imgui.setCursorPosX(center[0] - w / 2.0);
         imgui.setCursorPosY(center[1] - h / 2.0);
         imgui.imageEx(
-            pixi.state.assets.atlas_png.view_handle,
+            pixi.state.loaded_assets.atlas_png.view_handle,
             .{ .x = w, .y = h },
             .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
             .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
