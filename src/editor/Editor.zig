@@ -9,7 +9,7 @@ const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-pub const Theme = @import("theme.zig");
+pub const Theme = @import("theme_temp.zig");
 
 pub const Editor = @This();
 

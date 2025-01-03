@@ -1,12 +1,12 @@
 const std = @import("std");
 const Pixi = @import("Pixi.zig");
 
-const Self = @This();
+const Recents = @This();
 
 folders: std.ArrayList([:0]const u8),
 exports: std.ArrayList([:0]const u8),
 
-pub fn init(allocator: std.mem.Allocator) !Self {
+pub fn init(allocator: std.mem.Allocator) !Recents {
     var folders = std.ArrayList([:0]const u8).init(allocator);
     var exports = std.ArrayList([:0]const u8).init(allocator);
 
@@ -36,78 +36,78 @@ pub fn init(allocator: std.mem.Allocator) !Self {
     return .{ .folders = folders, .exports = exports };
 }
 
-pub fn indexOfFolder(self: *Self, path: [:0]const u8) ?usize {
-    if (self.folders.items.len == 0) return null;
+pub fn indexOfFolder(recents: *Recents, path: [:0]const u8) ?usize {
+    if (recents.folders.items.len == 0) return null;
 
-    for (self.folders.items, 0..) |folder, i| {
+    for (recents.folders.items, 0..) |folder, i| {
         if (std.mem.eql(u8, folder, path))
             return i;
     }
     return null;
 }
 
-pub fn indexOfExport(self: *Self, path: [:0]const u8) ?usize {
-    if (self.exports.items.len == 0) return null;
+pub fn indexOfExport(recents: *Recents, path: [:0]const u8) ?usize {
+    if (recents.exports.items.len == 0) return null;
 
-    for (self.exports.items, 0..) |exp, i| {
+    for (recents.exports.items, 0..) |exp, i| {
         if (std.mem.eql(u8, exp, path))
             return i;
     }
     return null;
 }
 
-pub fn appendFolder(self: *Self, path: [:0]const u8) !void {
-    if (self.indexOfFolder(path)) |index| {
+pub fn appendFolder(recents: *Recents, path: [:0]const u8) !void {
+    if (recents.indexOfFolder(path)) |index| {
         Pixi.state.allocator.free(path);
-        const folder = self.folders.swapRemove(index);
-        try self.folders.append(folder);
+        const folder = recents.folders.swapRemove(index);
+        try recents.folders.append(folder);
     } else {
-        if (self.folders.items.len >= Pixi.state.settings.max_recents) {
-            const folder = self.folders.swapRemove(0);
+        if (recents.folders.items.len >= Pixi.state.settings.max_recents) {
+            const folder = recents.folders.swapRemove(0);
             Pixi.state.allocator.free(folder);
         }
 
-        try self.folders.append(path);
+        try recents.folders.append(path);
     }
 }
 
-pub fn appendExport(self: *Self, path: [:0]const u8) !void {
-    if (self.indexOfExport(path)) |index| {
-        const exp = self.exports.swapRemove(index);
-        try self.exports.append(exp);
+pub fn appendExport(recents: *Recents, path: [:0]const u8) !void {
+    if (recents.indexOfExport(path)) |index| {
+        const exp = recents.exports.swapRemove(index);
+        try recents.exports.append(exp);
     } else {
-        if (self.exports.items.len >= Pixi.state.settings.max_recents) {
-            const exp = self.folders.swapRemove(0);
+        if (recents.exports.items.len >= Pixi.state.settings.max_recents) {
+            const exp = recents.folders.swapRemove(0);
             Pixi.state.allocator.free(exp);
         }
-        try self.exports.append(path);
+        try recents.exports.append(path);
     }
 }
 
-pub fn save(self: *Self) !void {
+pub fn save(recents: *Recents) !void {
     var handle = try std.fs.cwd().createFile("recents.json", .{});
     defer handle.close();
 
     const out_stream = handle.writer();
     const options = std.json.StringifyOptions{};
 
-    try std.json.stringify(RecentsJson{ .folders = self.folders.items, .exports = self.exports.items }, options, out_stream);
+    try std.json.stringify(RecentsJson{ .folders = recents.folders.items, .exports = recents.exports.items }, options, out_stream);
 }
 
-pub fn deinit(self: *Self) void {
-    for (self.folders.items) |folder| {
+pub fn deinit(recents: *Recents) void {
+    for (recents.folders.items) |folder| {
         Pixi.state.allocator.free(folder);
     }
 
-    for (self.exports.items) |exp| {
+    for (recents.exports.items) |exp| {
         Pixi.state.allocator.free(exp);
     }
 
-    self.folders.clearAndFree();
-    self.folders.deinit();
+    recents.folders.clearAndFree();
+    recents.folders.deinit();
 
-    self.exports.clearAndFree();
-    self.exports.deinit();
+    recents.exports.clearAndFree();
+    recents.exports.deinit();
 }
 
 const RecentsJson = struct {

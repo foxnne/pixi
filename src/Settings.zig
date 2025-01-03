@@ -4,7 +4,7 @@ const std = @import("std");
 
 pub const settings_filename = "settings.json";
 
-const Self = @This();
+const Settings = @This();
 
 //get the path to the settings file
 fn getSettingsPath(allocator: std.mem.Allocator) ![]const u8 {
@@ -17,7 +17,7 @@ fn getSettingsPath(allocator: std.mem.Allocator) ![]const u8 {
 }
 
 ///Reads in default settings or reads from the settings file
-pub fn init(allocator: std.mem.Allocator) !Self {
+pub fn init(allocator: std.mem.Allocator) !Settings {
     const path = try getSettingsPath(allocator);
     defer allocator.free(path);
 
@@ -31,7 +31,7 @@ pub fn init(allocator: std.mem.Allocator) !Self {
 
         const parsed_settings = std.json.parseFromSlice(@This(), allocator, str, .{}) catch null;
         if (parsed_settings) |settings| {
-            var s: Self = settings.value;
+            var s: Settings = settings.value;
             s.theme = try allocator.dupeZ(u8, s.theme);
             return s;
         }

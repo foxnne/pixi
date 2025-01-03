@@ -6,7 +6,7 @@ const Color = Pixi.math.Color;
 
 const imgui = @import("zig-imgui");
 
-const Self = @This();
+const Theme = @This();
 
 name: [:0]const u8,
 
@@ -32,7 +32,7 @@ checkerboard_secondary: Color = Color.initBytes(100, 100, 100, 255),
 
 modal_dim: Color = Color.initBytes(0, 0, 0, 48),
 
-pub fn init(self: Self, core: *mach.Core, pixi: *Pixi) void {
+pub fn init(theme: *Theme, core: *mach.Core, pixi: *Pixi) void {
     var style = imgui.getStyle();
     style.window_border_size = 1.0;
     style.window_rounding = 8.0;
@@ -60,15 +60,15 @@ pub fn init(self: Self, core: *mach.Core, pixi: *Pixi) void {
 
     //style.scaleAllSizes(Pixi.content_scale[0]);
 
-    const bg = self.background.toImguiVec4();
-    const fg = self.foreground.toImguiVec4();
-    const text = self.text.toImguiVec4();
-    const bg_text = self.text_background.toImguiVec4();
-    const highlight_primary = self.highlight_primary.toImguiVec4();
-    const hover_primary = self.hover_primary.toImguiVec4();
-    const highlight_secondary = self.highlight_secondary.toImguiVec4();
-    const hover_secondary = self.hover_secondary.toImguiVec4();
-    const modal_dim = self.modal_dim.toImguiVec4();
+    const bg = theme.background.toImguiVec4();
+    const fg = theme.foreground.toImguiVec4();
+    const text = theme.text.toImguiVec4();
+    const bg_text = theme.text_background.toImguiVec4();
+    const highlight_primary = theme.highlight_primary.toImguiVec4();
+    const hover_primary = theme.hover_primary.toImguiVec4();
+    const highlight_secondary = theme.highlight_secondary.toImguiVec4();
+    const hover_secondary = theme.hover_secondary.toImguiVec4();
+    const modal_dim = theme.modal_dim.toImguiVec4();
 
     style.colors[imgui.Col_WindowBg] = bg;
     style.colors[imgui.Col_Border] = fg;
@@ -103,16 +103,16 @@ pub fn init(self: Self, core: *mach.Core, pixi: *Pixi) void {
     core.windows.set(pixi.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
-pub fn push(self: *Self, core: *mach.Core, pixi: *Pixi) void {
-    const bg = self.background.toImguiVec4();
-    const fg = self.foreground.toImguiVec4();
-    const text = self.text.toImguiVec4();
-    const bg_text = self.text_background.toImguiVec4();
-    const highlight_primary = self.highlight_primary.toImguiVec4();
-    const hover_primary = self.hover_primary.toImguiVec4();
-    const highlight_secondary = self.highlight_secondary.toImguiVec4();
-    const hover_secondary = self.hover_secondary.toImguiVec4();
-    const modal_dim = self.modal_dim.toImguiVec4();
+pub fn push(theme: *Theme, core: *mach.Core, pixi: *Pixi) void {
+    const bg = theme.background.toImguiVec4();
+    const fg = theme.foreground.toImguiVec4();
+    const text = theme.text.toImguiVec4();
+    const bg_text = theme.text_background.toImguiVec4();
+    const highlight_primary = theme.highlight_primary.toImguiVec4();
+    const hover_primary = theme.hover_primary.toImguiVec4();
+    const highlight_secondary = theme.highlight_secondary.toImguiVec4();
+    const hover_secondary = theme.hover_secondary.toImguiVec4();
+    const modal_dim = theme.modal_dim.toImguiVec4();
 
     imgui.pushStyleColorImVec4(imgui.Col_WindowBg, bg);
     imgui.pushStyleColorImVec4(imgui.Col_Border, fg);
@@ -151,7 +151,7 @@ pub fn push(self: *Self, core: *mach.Core, pixi: *Pixi) void {
     core.windows.set(pixi.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
-pub fn loadFromFile(file: [:0]const u8) !Self {
+pub fn loadFromFile(file: [:0]const u8) !Theme {
     const base_name = std.fs.path.basename(file);
     const ext = std.fs.path.extension(file);
 
@@ -161,7 +161,7 @@ pub fn loadFromFile(file: [:0]const u8) !Self {
             defer Pixi.state.allocator.free(read);
 
             const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-            const parsed = try std.json.parseFromSlice(Self, Pixi.state.allocator, read, options);
+            const parsed = try std.json.parseFromSlice(Theme, Pixi.state.allocator, read, options);
             defer parsed.deinit();
 
             var out = parsed.value;
@@ -169,23 +169,23 @@ pub fn loadFromFile(file: [:0]const u8) !Self {
             return out;
         }
     }
-    return Self{
+    return Theme{
         .name = try Pixi.state.allocator.dupeZ(u8, "pixi_dark.json"),
     };
 }
 
-pub fn save(self: Self, path: [:0]const u8) !void {
+pub fn save(theme: Theme, path: [:0]const u8) !void {
     var handle = try std.fs.cwd().createFile(path, .{});
     defer handle.close();
 
     const out_stream = handle.writer();
     const options = std.json.StringifyOptions{};
 
-    try std.json.stringify(self, options, out_stream);
+    try std.json.stringify(theme, options, out_stream);
 }
 
-pub fn pop(self: Self) void {
-    _ = self;
+pub fn pop(theme: Theme) void {
+    _ = theme;
     imgui.popStyleColorEx(28);
 }
 
