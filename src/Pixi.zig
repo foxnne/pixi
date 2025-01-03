@@ -31,7 +31,6 @@ settings: Settings = undefined,
 hotkeys: input.Hotkeys = undefined,
 mouse: input.Mouse = undefined,
 sidebar: Sidebar = .files,
-//theme: Editor.Theme = undefined,
 project_folder: ?[:0]const u8 = null,
 root_path: [:0]const u8 = undefined,
 recents: Recents = undefined,
@@ -245,6 +244,7 @@ fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     app.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
     app.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
+    // Initialize the editor which loads our theme
     editor_mod.call(.init);
 }
 
