@@ -1,21 +1,20 @@
 const std = @import("std");
-const pixi = @import("../../Pixi.zig");
-const core = @import("mach").core;
+const Pixi = @import("../../Pixi.zig");
 const imgui = @import("zig-imgui");
-const History = pixi.storage.Internal.PixiFile.History;
+const History = Pixi.storage.Internal.PixiFile.History;
 
 pub fn draw() void {
-    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+    if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
         defer imgui.popStyleVar();
 
-        imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.state.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.state.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
-        imgui.pushFont(pixi.state.fonts.fa_small_regular);
-        imgui.pushFont(pixi.state.fonts.fa_small_solid);
+        imgui.pushFont(Pixi.state.fonts.fa_small_regular);
+        imgui.pushFont(Pixi.state.fonts.fa_small_solid);
         defer {
             imgui.popFont();
             imgui.popFont();
@@ -24,9 +23,9 @@ pub fn draw() void {
         if (file.heightmap.layer != null) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
             defer imgui.popStyleVar();
-            imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.highlight_secondary.toImguiVec4());
-            imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.highlight_secondary.toImguiVec4());
-            imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.hover_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.state.theme.highlight_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.state.theme.highlight_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.state.theme.hover_secondary.toImguiVec4());
             defer imgui.popStyleColorEx(3);
 
             if (imgui.checkbox("Edit Heightmap Layer", &file.heightmap.visible)) {}
@@ -34,22 +33,22 @@ pub fn draw() void {
                 file.deleted_heightmap_layers.append(file.heightmap.layer.?) catch unreachable;
                 file.heightmap.layer = null;
                 file.history.append(.{ .heightmap_restore_delete = .{ .action = .restore } }) catch unreachable;
-                if (pixi.state.tools.current == .heightmap)
-                    pixi.state.tools.current = .pointer;
+                if (Pixi.state.tools.current == .heightmap)
+                    Pixi.state.tools.current = .pointer;
             }
         }
 
         imgui.spacing();
-        if (imgui.smallButton(pixi.fa.plus)) {
-            pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
-            std.mem.copyForwards(u8, &pixi.state.popups.layer_setup_name, "New Layer");
-            pixi.state.popups.layer_setup_state = .none;
-            pixi.state.popups.layer_setup = true;
+        if (imgui.smallButton(Pixi.fa.plus)) {
+            Pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
+            std.mem.copyForwards(u8, &Pixi.state.popups.layer_setup_name, "New Layer");
+            Pixi.state.popups.layer_setup_state = .none;
+            Pixi.state.popups.layer_setup = true;
         }
         imgui.sameLine();
 
-        const file_name = std.fmt.allocPrintZ(pixi.state.allocator, "{s}", .{std.fs.path.basename(file.path)}) catch unreachable;
-        defer pixi.state.allocator.free(file_name);
+        const file_name = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}", .{std.fs.path.basename(file.path)}) catch unreachable;
+        defer Pixi.state.allocator.free(file_name);
 
         imgui.text(file_name);
 
@@ -74,13 +73,13 @@ pub fn draw() void {
                 i -= 1;
                 const layer = file.layers.items[i];
 
-                imgui.pushStyleColorImVec4(imgui.Col_Text, if (i == file.selected_layer_index) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_Header, if (i == file.selected_layer_index) pixi.state.theme.highlight_secondary.toImguiVec4() else pixi.state.theme.foreground.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_Text, if (i == file.selected_layer_index) Pixi.state.theme.text.toImguiVec4() else Pixi.state.theme.text_secondary.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_Header, if (i == file.selected_layer_index) Pixi.state.theme.highlight_secondary.toImguiVec4() else Pixi.state.theme.foreground.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.background.toImguiVec4());
                 defer imgui.popStyleColorEx(3);
 
                 imgui.pushID(layer.name);
-                if (imgui.smallButton(if (layer.visible) pixi.fa.eye else pixi.fa.eye_slash)) {
+                if (imgui.smallButton(if (layer.visible) Pixi.fa.eye else Pixi.fa.eye_slash)) {
                     const change: History.Change = .{ .layer_settings = .{
                         .collapse = file.layers.items[i].collapse,
                         .visible = file.layers.items[i].visible,
@@ -93,8 +92,8 @@ pub fn draw() void {
                 }
                 imgui.sameLineEx(0.0, 0.0);
 
-                const collapse_true = pixi.fa.arrow_up;
-                const collapse_false = pixi.fa.box_open;
+                const collapse_true = Pixi.fa.arrow_up;
+                const collapse_false = Pixi.fa.box_open;
                 if (imgui.smallButton(if (layer.collapse) collapse_true else collapse_false)) {
                     const change: History.Change = .{ .layer_settings = .{
                         .collapse = file.layers.items[i].collapse,
@@ -108,7 +107,7 @@ pub fn draw() void {
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();
                     imgui.text("Collapse");
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
                     defer imgui.popStyleColor();
                     imgui.text("If " ++ collapse_true ++ ", layer will be drawn onto the layer above it (lower in the layer stack) prior to packing.");
                     imgui.text("If " ++ collapse_false ++ ", layer will remain independent and will be packed separately.");
@@ -136,24 +135,24 @@ pub fn draw() void {
                     defer imgui.endPopup();
 
                     if (imgui.menuItem("Rename...")) {
-                        pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
-                        @memcpy(pixi.state.popups.layer_setup_name[0..layer.name.len], layer.name);
-                        pixi.state.popups.layer_setup_index = i;
-                        pixi.state.popups.layer_setup_state = .rename;
-                        pixi.state.popups.layer_setup = true;
+                        Pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(Pixi.state.popups.layer_setup_name[0..layer.name.len], layer.name);
+                        Pixi.state.popups.layer_setup_index = i;
+                        Pixi.state.popups.layer_setup_state = .rename;
+                        Pixi.state.popups.layer_setup = true;
                     }
 
                     if (imgui.menuItem("Duplicate...")) {
-                        const new_name = std.fmt.allocPrint(pixi.state.allocator, "{s}_copy", .{layer.name}) catch unreachable;
-                        defer pixi.state.allocator.free(new_name);
-                        pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
-                        @memcpy(pixi.state.popups.layer_setup_name[0..new_name.len], new_name);
-                        pixi.state.popups.layer_setup_index = i;
-                        pixi.state.popups.layer_setup_state = .duplicate;
-                        pixi.state.popups.layer_setup = true;
+                        const new_name = std.fmt.allocPrint(Pixi.state.allocator, "{s}_copy", .{layer.name}) catch unreachable;
+                        defer Pixi.state.allocator.free(new_name);
+                        Pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(Pixi.state.popups.layer_setup_name[0..new_name.len], new_name);
+                        Pixi.state.popups.layer_setup_index = i;
+                        Pixi.state.popups.layer_setup_state = .duplicate;
+                        Pixi.state.popups.layer_setup = true;
                     }
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_red.toImguiVec4());
-                    imgui.pushStyleColorImVec4(imgui.Col_Separator, pixi.state.theme.foreground.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_red.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.state.theme.foreground.toImguiVec4());
                     defer imgui.popStyleColorEx(2);
 
                     imgui.separator();
@@ -165,7 +164,7 @@ pub fn draw() void {
                 if (imgui.isItemActive() and !imgui.isItemHovered(imgui.HoveredFlags_None) and imgui.isAnyItemHovered()) {
                     const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0).y < 0.0) @as(i32, 1) else @as(i32, -1)), 0, std.math.maxInt(i32))));
                     if (i_next >= 0.0 and i_next < file.layers.items.len) {
-                        var change = History.Change.create(pixi.state.allocator, .layers_order, file.layers.items.len) catch unreachable;
+                        var change = History.Change.create(Pixi.state.allocator, .layers_order, file.layers.items.len) catch unreachable;
                         for (file.layers.items, 0..) |l, layer_i| {
                             change.layers_order.order[layer_i] = l.id;
                             if (file.selected_layer_index == layer_i) {

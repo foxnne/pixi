@@ -67,11 +67,11 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
 
                 imgui.text("Transformation");
                 imgui.separator();
-                if (imgui.button("Confirm") or (core.keyPressed(Core.Key.enter) and Pixi.state.open_file_index == Pixi.editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Confirm") or (core.keyPressed(Core.Key.enter) and Pixi.state.open_file_index == Pixi.Editor.getFileIndex(file.path).?)) {
                     transform_texture.confirm = true;
                 }
                 imgui.sameLine();
-                if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and Pixi.state.open_file_index == Pixi.editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and Pixi.state.open_file_index == Pixi.Editor.getFileIndex(file.path).?)) {
                     var change = file.buffers.stroke.toChange(@intCast(file.selected_layer_index)) catch unreachable;
                     change.pixels.temporary = true;
                     file.history.append(change) catch unreachable;

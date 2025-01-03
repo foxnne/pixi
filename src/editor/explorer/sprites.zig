@@ -1,13 +1,13 @@
 const std = @import("std");
-const pixi = @import("../../Pixi.zig");
+const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
 pub fn draw() void {
-    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
-        imgui.pushStyleColorImVec4(imgui.Col_Header, pixi.state.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, pixi.state.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, pixi.state.theme.background.toImguiVec4());
+    if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
+        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.state.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.state.theme.background.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
@@ -17,24 +17,24 @@ pub fn draw() void {
 
         const selection = file.selected_sprites.items.len > 0;
 
-        if (imgui.collapsingHeader(pixi.fa.wrench ++ "  Tools", imgui.TreeNodeFlags_DefaultOpen)) {
+        if (imgui.collapsingHeader(Pixi.fa.wrench ++ "  Tools", imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
             defer imgui.unindent();
 
             if (imgui.beginChild("Sprite", .{
                 .x = -1.0,
-                .y = pixi.state.settings.sprite_edit_height,
+                .y = Pixi.state.settings.sprite_edit_height,
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
                 if (!selection) {
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
                     defer imgui.popStyleColor();
                     imgui.textWrapped("Make a selection to begin editing sprite origins.");
                 } else {
-                    imgui.pushStyleColorImVec4(imgui.Col_Button, pixi.state.theme.background.toImguiVec4());
-                    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, pixi.state.theme.foreground.toImguiVec4());
-                    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, pixi.state.theme.background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.state.theme.background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.state.theme.foreground.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.state.theme.background.toImguiVec4());
                     defer imgui.popStyleColorEx(3);
                     var x_same: bool = true;
                     var y_same: bool = true;
@@ -58,7 +58,7 @@ pub fn draw() void {
                         }
                     }
 
-                    const label_origin_x = "X  " ++ if (x_same) pixi.fa.link else pixi.fa.unlink;
+                    const label_origin_x = "X  " ++ if (x_same) Pixi.fa.link else Pixi.fa.unlink;
                     var changed_origin_x: bool = false;
                     if (imgui.sliderFloatEx(label_origin_x, &origin_x, 0.0, tile_width, "%.0f", imgui.SliderFlags_None)) {
                         changed_origin_x = true;
@@ -71,7 +71,7 @@ pub fn draw() void {
                     if (changed_origin_x)
                         file.setSelectedSpritesOriginX(origin_x);
 
-                    const label_origin_y = "Y  " ++ if (y_same) pixi.fa.link else pixi.fa.unlink;
+                    const label_origin_y = "Y  " ++ if (y_same) Pixi.fa.link else Pixi.fa.unlink;
                     var changed_origin_y: bool = false;
                     if (imgui.sliderFloatEx(label_origin_y, &origin_y, 0.0, tile_height, "%.0f", imgui.SliderFlags_None)) {
                         changed_origin_y = true;
@@ -93,8 +93,8 @@ pub fn draw() void {
             }
         }
 
-        if (imgui.collapsingHeader(pixi.fa.atlas ++ "  Sprites", imgui.TreeNodeFlags_DefaultOpen)) {
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * pixi.content_scale[0], .y = 5.0 * pixi.content_scale[1] });
+        if (imgui.collapsingHeader(Pixi.fa.atlas ++ "  Sprites", imgui.TreeNodeFlags_DefaultOpen)) {
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.content_scale[0], .y = 5.0 * Pixi.content_scale[1] });
             defer imgui.popStyleVar();
             if (imgui.beginChild("Sprites", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
@@ -102,12 +102,12 @@ pub fn draw() void {
                 for (file.sprites.items) |sprite| {
                     const selected_sprite_index = file.spriteSelectionIndex(sprite.index);
                     const contains = selected_sprite_index != null;
-                    const color = if (contains) pixi.state.theme.text.toImguiVec4() else pixi.state.theme.text_secondary.toImguiVec4();
+                    const color = if (contains) Pixi.state.theme.text.toImguiVec4() else Pixi.state.theme.text_secondary.toImguiVec4();
                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                     defer imgui.popStyleColor();
 
-                    const name = std.fmt.allocPrintZ(pixi.state.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index }) catch unreachable;
-                    defer pixi.state.allocator.free(name);
+                    const name = std.fmt.allocPrintZ(Pixi.state.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index }) catch unreachable;
+                    defer Pixi.state.allocator.free(name);
 
                     if (imgui.selectableEx(name, contains, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
                         file.makeSpriteSelection(sprite.index);
@@ -116,7 +116,7 @@ pub fn draw() void {
             }
         }
     } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.state.theme.text_background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.state.theme.text_background.toImguiVec4());
         imgui.textWrapped("Open a file to begin editing.");
         imgui.popStyleColor();
     }

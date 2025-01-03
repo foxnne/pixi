@@ -1,7 +1,7 @@
 const std = @import("std");
 const zm = @import("zmath");
 const math = @import("../math/math.zig");
-const pixi = @import("../Pixi.zig");
+const Pixi = @import("../Pixi.zig");
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 const Core = @import("mach").Core;
@@ -13,8 +13,8 @@ const builtin = @import("builtin");
 
 const Self = @This();
 
-pub const Tool = pixi.Tools.Tool;
-pub const Sidebar = pixi.Sidebar;
+pub const Tool = Pixi.Tools.Tool;
+pub const Sidebar = Pixi.Sidebar;
 
 pub const KeyState = enum {
     press,
@@ -145,7 +145,7 @@ pub fn process(self: *Self) !void {
         return;
     }
 
-    if (pixi.editor.getFile(pixi.state.open_file_index)) |file| {
+    if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
         if (file.transform_texture != null) return;
 
         if (self.hotkey(.{ .proc = .escape })) |hk| {
@@ -174,15 +174,15 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .export_png })) |hk| {
             if (hk.pressed())
-                pixi.state.popups.export_to_png = true;
+                Pixi.state.popups.export_to_png = true;
         }
 
         if (self.hotkey(.{ .proc = .size_up })) |hk| {
             if (hk.pressed()) {
-                switch (pixi.state.tools.current) {
+                switch (Pixi.state.tools.current) {
                     .pencil, .eraser, .selection => {
-                        if (pixi.state.tools.stroke_size < pixi.state.settings.stroke_max_size)
-                            pixi.state.tools.stroke_size += 1;
+                        if (Pixi.state.tools.stroke_size < Pixi.state.settings.stroke_max_size)
+                            Pixi.state.tools.stroke_size += 1;
                     },
                     else => {},
                 }
@@ -191,10 +191,10 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .size_down })) |hk| {
             if (hk.pressed()) {
-                switch (pixi.state.tools.current) {
+                switch (Pixi.state.tools.current) {
                     .pencil, .eraser, .selection => {
-                        if (pixi.state.tools.stroke_size > 1)
-                            pixi.state.tools.stroke_size -= 1;
+                        if (Pixi.state.tools.stroke_size > 1)
+                            Pixi.state.tools.stroke_size -= 1;
                     },
                     else => {},
                 }
@@ -204,8 +204,8 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .height_up })) |hk| {
             if (hk.pressed()) {
                 if (file.heightmap.visible) {
-                    if (pixi.state.colors.height < 255)
-                        pixi.state.colors.height += 1;
+                    if (Pixi.state.colors.height < 255)
+                        Pixi.state.colors.height += 1;
                 }
             }
         }
@@ -213,8 +213,8 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .height_down })) |hk| {
             if (hk.pressed()) {
                 if (file.heightmap.visible) {
-                    if (pixi.state.colors.height > 0)
-                        pixi.state.colors.height -= 1;
+                    if (Pixi.state.colors.height > 0)
+                        Pixi.state.colors.height -= 1;
                 }
             }
         }
@@ -340,7 +340,7 @@ pub fn process(self: *Self) !void {
 
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
-            pixi.state.popups.file_dialog_request = .{
+            Pixi.state.popups.file_dialog_request = .{
                 .state = .folder,
                 .type = .project,
             };
@@ -349,16 +349,16 @@ pub fn process(self: *Self) !void {
 
     if (self.hotkey(.{ .proc = .toggle_references })) |hk| {
         if (hk.pressed()) {
-            pixi.state.popups.references = !pixi.state.popups.references;
+            Pixi.state.popups.references = !Pixi.state.popups.references;
         }
     }
 
     for (self.hotkeys) |hk| {
         if (hk.pressed()) {
             switch (hk.action) {
-                .tool => |tool| pixi.state.tools.set(tool),
+                .tool => |tool| Pixi.state.tools.set(tool),
                 .sidebar => |sidebar| {
-                    pixi.state.sidebar = sidebar;
+                    Pixi.state.sidebar = sidebar;
                 },
                 else => {},
             }
@@ -477,10 +477,10 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Zoom
         try hotkeys.append(.{
-            .key = if (windows_or_linux or pixi.state.settings.zoom_ctrl) Key.left_control else Key.left_super,
+            .key = if (windows_or_linux or Pixi.state.settings.zoom_ctrl) Key.left_control else Key.left_super,
             .mods = .{
-                .control = windows_or_linux or pixi.state.settings.zoom_ctrl,
-                .super = !windows_or_linux and !pixi.state.settings.zoom_ctrl,
+                .control = windows_or_linux or Pixi.state.settings.zoom_ctrl,
+                .super = !windows_or_linux and !Pixi.state.settings.zoom_ctrl,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,

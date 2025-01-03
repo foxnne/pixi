@@ -5,7 +5,7 @@ const mach = @import("mach");
 const Modules = mach.Modules(.{
     mach.Core,
     @import("Pixi.zig"),
-    @import("editor/editor_temp.zig"),
+    @import("editor/Editor.zig"),
 });
 
 // TODO: move this to a mach "entrypoint" zig module which handles nuances like WASM requires.

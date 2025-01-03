@@ -1,7 +1,6 @@
 const std = @import("std");
 const Popups = @This();
-const pixi = @import("../../Pixi.zig");
-const editor = pixi.editor;
+const Pixi = @import("../../Pixi.zig");
 const zstbi = @import("zstbi");
 
 // Renaming
@@ -103,8 +102,8 @@ pub fn fileSetupSlice(popups: *Popups, path: [:0]const u8) void {
     popups.file_setup_path = [_:0]u8{0} ** std.fs.max_path_bytes;
     @memcpy(popups.file_setup_path[0..path.len :0], path);
 
-    if (editor.getFileIndex(path)) |index| {
-        if (editor.getFile(index)) |file| {
+    if (Pixi.Editor.getFileIndex(path)) |index| {
+        if (Pixi.Editor.getFile(index)) |file| {
             popups.file_setup_tile_size = .{ @as(i32, @intCast(file.tile_width)), @as(i32, @intCast(file.tile_height)) };
             popups.file_setup_tiles = .{ @as(i32, @intCast(@divExact(file.width, file.tile_width))), @as(i32, @intCast(@divExact(file.height, file.tile_height))) };
             popups.file_setup_width = @as(i32, @intCast(file.width));

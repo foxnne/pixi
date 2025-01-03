@@ -103,7 +103,7 @@ pub fn clearAndFree(self: *Packer) void {
     self.ldtk_tilesets.clearAndFree();
 
     for (self.open_files.items) |*file| {
-        Pixi.editor.deinitFile(file);
+        Pixi.Editor.deinitFile(file);
     }
     self.open_files.clearAndFree();
 }
@@ -327,12 +327,12 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         const abs_path = try std.fs.path.joinZ(alloc, &.{ directory, entry.name });
                         defer alloc.free(abs_path);
 
-                        if (Pixi.editor.getFileIndex(abs_path)) |index| {
-                            if (Pixi.editor.getFile(index)) |file| {
+                        if (Pixi.Editor.getFileIndex(abs_path)) |index| {
+                            if (Pixi.Editor.getFile(index)) |file| {
                                 try Pixi.state.packer.append(file);
                             }
                         } else {
-                            if (try Pixi.editor.loadFile(abs_path)) |file| {
+                            if (try Pixi.Editor.loadFile(abs_path)) |file| {
                                 try Pixi.state.packer.open_files.append(file);
                                 try Pixi.state.packer.append(&Pixi.state.packer.open_files.items[Pixi.state.packer.open_files.items.len - 1]);
                             }

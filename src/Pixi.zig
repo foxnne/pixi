@@ -10,11 +10,11 @@ const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 const imgui_mach = imgui.backends.mach;
 
+// Modules
 pub const App = @This();
-pub const Editor = @import("editor/editor_temp.zig");
+pub const Editor = @import("editor/Editor.zig");
 
 pub const mach_module = .app;
-
 pub const mach_systems = .{ .main, .init, .tick, .deinit };
 
 pub const main = mach.schedule(.{
@@ -31,7 +31,7 @@ settings: Settings = undefined,
 hotkeys: input.Hotkeys = undefined,
 mouse: input.Mouse = undefined,
 sidebar: Sidebar = .files,
-theme: editor.Theme = undefined,
+theme: Editor.Theme = undefined,
 project_folder: ?[:0]const u8 = null,
 root_path: [:0]const u8 = undefined,
 recents: Recents = undefined,
@@ -67,8 +67,6 @@ pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 }
 
 pub const Popups = @import("editor/popups/Popups.zig");
 pub const Packer = @import("tools/Packer.zig");
-
-pub const editor = @import("editor/editor_temp.zig");
 
 pub const assets = @import("assets.zig");
 pub const shaders = @import("shaders.zig");
@@ -177,7 +175,7 @@ fn lateInit(app: *App, _: *Core) !void {
     const theme_path = try std.fs.path.joinZ(app.allocator, &.{ assets.themes, app.settings.theme });
     defer app.allocator.free(theme_path);
 
-    app.theme = try editor.Theme.loadFromFile(theme_path);
+    app.theme = try Editor.Theme.loadFromFile(theme_path);
 
     zstbi.init(app.allocator);
 
@@ -483,13 +481,13 @@ pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
 
     state.mouse.previous_position = state.mouse.position;
 
-    if (state.should_close and !editor.saving()) {
+    if (state.should_close and !Editor.saving()) {
         // Close!
         core.exit();
     }
 }
 
-pub fn deinit(_: *App, _: *Core) !void {
+pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
     //deinit and save settings
     state.settings.deinit(state.json_allocator.allocator());
 
@@ -531,7 +529,7 @@ pub fn deinit(_: *App, _: *Core) !void {
 
     if (state.clipboard_image) |*image| image.deinit();
 
-    try editor.deinit();
+    editor_mod.call(.deinit);
     state.loaded_assets.deinit(state.allocator);
 
     imgui_mach.shutdown();

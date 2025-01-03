@@ -14,7 +14,6 @@ pub const Theme = @import("theme.zig");
 pub const Editor = @This();
 
 pub const mach_module = .editor;
-
 pub const mach_systems = .{ .tick, .deinit };
 
 pub const sidebar = @import("sidebar/sidebar.zig");
@@ -151,7 +150,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     }
 
     try Pixi.state.open_files.insert(0, internal);
-    Pixi.editor.setActiveFile(0);
+    Pixi.Editor.setActiveFile(0);
 
     Pixi.state.allocator.free(path);
 
