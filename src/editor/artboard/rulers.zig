@@ -30,7 +30,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
                     defer Pixi.state.allocator.free(text);
 
                     draw_list.addText(
-                        .{ .x = tl[0] + offset[0] + (tile_width / 2.0 * file.camera.zoom) - (text_size.x / 2.0), .y = tl[1] + 4.0 * Pixi.content_scale[1] },
+                        .{ .x = tl[0] + offset[0] + (tile_width / 2.0 * file.camera.zoom) - (text_size.x / 2.0), .y = tl[1] + 4.0 * Pixi.state.content_scale[1] },
                         Pixi.editor.theme.text_secondary.toU32(),
                         text.ptr,
                     );

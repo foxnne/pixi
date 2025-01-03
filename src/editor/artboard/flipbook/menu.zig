@@ -7,7 +7,7 @@ const imgui = @import("zig-imgui");
 const History = Pixi.storage.Internal.PixiFile.History;
 
 pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 10.0 * Pixi.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_PopupBg, Pixi.editor.theme.foreground.toImguiVec4());
@@ -32,7 +32,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
                 var animation = &file.animations.items[file.selected_animation_index];
 
                 { // Animation Selection
-                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.state.content_scale[0]);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
                         for (file.animations.items, 0..) |a, i| {
@@ -49,7 +49,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
                     const frame = std.fmt.allocPrintZ(Pixi.state.allocator, "{d}/{d}", .{ current_frame + 1, animation.length }) catch unreachable;
                     defer Pixi.state.allocator.free(frame);
 
-                    imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40 * Pixi.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40 * Pixi.state.content_scale[0]);
                     if (imgui.beginCombo("Frame  ", frame, imgui.ComboFlags_None)) {
                         defer imgui.endCombo();
                         for (0..animation.length) |i| {
@@ -64,7 +64,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
                 }
 
                 { // FPS Selection
-                    imgui.setNextItemWidth(100 * Pixi.content_scale[0]);
+                    imgui.setNextItemWidth(100 * Pixi.state.content_scale[0]);
                     var fps = @as(i32, @intCast(animation.fps));
                     var changed: bool = false;
                     if (imgui.sliderInt(
@@ -110,7 +110,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
                 const animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
 
                 { // Animation Selection
-                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.state.content_scale[0]);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
                         for (file.keyframe_animations.items, 0..) |a, i| {

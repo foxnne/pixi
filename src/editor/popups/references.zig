@@ -8,9 +8,9 @@ var open: bool = false;
 pub fn draw() void {
     if (!Pixi.state.popups.references) return;
 
-    const popup_size = 200 * Pixi.content_scale[0];
+    const popup_size = 200 * Pixi.state.content_scale[0];
 
-    const window_size = Pixi.window_size;
+    const window_size = Pixi.state.window_size;
 
     imgui.setNextWindowPos(.{
         .x = window_size[0] - popup_size - 30.0,

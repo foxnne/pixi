@@ -6,8 +6,8 @@ const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
 pub fn draw() void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 10.0 * Pixi.content_scale[1] });
-    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 6.0 * Pixi.content_scale[0], .y = 6.0 * Pixi.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 6.0 * Pixi.state.content_scale[0], .y = 6.0 * Pixi.state.content_scale[1] });
     defer imgui.popStyleVarEx(2);
     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_PopupBg, Pixi.editor.theme.foreground.toImguiVec4());

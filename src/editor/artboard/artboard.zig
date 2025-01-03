@@ -20,12 +20,12 @@ pub fn draw(core: *Core) void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
-        .x = (Pixi.state.settings.sidebar_width + Pixi.state.settings.explorer_width + Pixi.state.settings.explorer_grip) * Pixi.content_scale[0],
+        .x = (Pixi.state.settings.sidebar_width + Pixi.state.settings.explorer_width + Pixi.state.settings.explorer_grip) * Pixi.state.content_scale[0],
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = (Pixi.window_size[0] - ((Pixi.state.settings.explorer_width + Pixi.state.settings.sidebar_width + Pixi.state.settings.explorer_grip)) * Pixi.content_scale[0]),
-        .y = (Pixi.window_size[1] + 5.0) * Pixi.content_scale[1],
+        .x = (Pixi.state.window_size[0] - ((Pixi.state.settings.explorer_width + Pixi.state.settings.sidebar_width + Pixi.state.settings.explorer_grip)) * Pixi.state.content_scale[0]),
+        .y = (Pixi.state.window_size[1] + 5.0) * Pixi.state.content_scale[1],
     }, imgui.Cond_None);
 
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.5 });
@@ -157,7 +157,7 @@ pub fn draw(core: *Core) void {
                                 }
 
                                 if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
-                                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 4.0 * Pixi.content_scale[0], .y = 4.0 * Pixi.content_scale[1] });
+                                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 4.0 * Pixi.state.content_scale[1] });
                                     defer imgui.popStyleVar();
                                     if (imgui.beginTooltip()) {
                                         defer imgui.endTooltip();
@@ -229,7 +229,7 @@ pub fn draw(core: *Core) void {
 
         if (Pixi.state.sidebar != .pack) {
             if (Pixi.state.open_files.items.len > 0) {
-                const flipbook_height = window_height - artboard_height - Pixi.state.settings.info_bar_height * Pixi.content_scale[1];
+                const flipbook_height = window_height - artboard_height - Pixi.state.settings.info_bar_height * Pixi.state.content_scale[1];
 
                 var flipbook_flags: imgui.WindowFlags = 0;
                 flipbook_flags |= imgui.WindowFlags_MenuBar;
@@ -300,8 +300,8 @@ pub fn drawLogoScreen() void {
             @floatFromInt(logo_sprite.source[3]),
         };
 
-        const w = src[2] * 32.0 * Pixi.content_scale[0];
-        const h = src[3] * 32.0 * Pixi.content_scale[0];
+        const w = src[2] * 32.0 * Pixi.state.content_scale[0];
+        const h = src[3] * 32.0 * Pixi.state.content_scale[0];
         const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
 
         const inv_w = 1.0 / @as(f32, @floatFromInt(Pixi.state.loaded_assets.atlas_png.image.width));

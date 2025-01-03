@@ -30,7 +30,7 @@ pub fn draw() void {
 
     if (Pixi.state.project_folder) |path| {
         const folder = std.fs.path.basename(path);
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.content_scale[0], .y = 5.0 * Pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.state.content_scale[0], .y = 5.0 * Pixi.state.content_scale[1] });
 
         // Open files
         const file_count = Pixi.state.open_files.items.len;
@@ -41,7 +41,7 @@ pub fn draw() void {
 
             if (imgui.beginChild("OpenFiles", .{
                 .x = -1.0,
-                .y = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (imgui.getTextLineHeight() + 6.0 * Pixi.content_scale[0]),
+                .y = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (imgui.getTextLineHeight() + 6.0 * Pixi.state.content_scale[0]),
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
                 imgui.spacing();
@@ -56,10 +56,10 @@ pub fn draw() void {
                         Pixi.Editor.setActiveFile(i);
                     }
 
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.content_scale[0], .y = 2.0 * Pixi.content_scale[1] });
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.content_scale[0], .y = 6.0 * Pixi.content_scale[1] });
-                    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * Pixi.content_scale[0]);
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 10.0 * Pixi.content_scale[1] });
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.state.content_scale[0], .y = 2.0 * Pixi.state.content_scale[1] });
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 6.0 * Pixi.state.content_scale[1] });
+                    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * Pixi.state.content_scale[0]);
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
                     imgui.pushID(file.path);
                     if (imgui.beginPopupContextItem()) {
                         contextMenuFile(file.path);
@@ -96,10 +96,10 @@ pub fn draw() void {
             imgui.indent();
             defer imgui.unindent();
 
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.content_scale[0], .y = 2.0 * Pixi.content_scale[1] });
-            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.content_scale[0], .y = 6.0 * Pixi.content_scale[1] });
-            imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * Pixi.content_scale[0]);
-            imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 4.0 * Pixi.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.state.content_scale[0], .y = 2.0 * Pixi.state.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 6.0 * Pixi.state.content_scale[1] });
+            imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * Pixi.state.content_scale[0]);
+            imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 4.0 * Pixi.state.content_scale[1] });
             imgui.pushID(path);
             if (imgui.beginPopupContextItem()) {
                 contextMenuFolder(path);
@@ -140,7 +140,7 @@ pub fn draw() void {
             imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
             defer imgui.popStyleColor();
             if (imgui.beginChild("Recents", .{
-                .x = imgui.getWindowWidth() - Pixi.state.settings.explorer_grip * Pixi.content_scale[0],
+                .x = imgui.getWindowWidth() - Pixi.state.settings.explorer_grip * Pixi.state.content_scale[0],
                 .y = 0.0,
             }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) {
                 defer imgui.endChild();
@@ -155,10 +155,10 @@ pub fn draw() void {
                     if (imgui.selectable(label)) {
                         Pixi.Editor.setProjectFolder(folder);
                     }
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.content_scale[0], .y = 2.0 * Pixi.content_scale[1] });
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.content_scale[0], .y = 6.0 * Pixi.content_scale[1] });
-                    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * Pixi.content_scale[0]);
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 10.0 * Pixi.content_scale[1] });
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.state.content_scale[0], .y = 2.0 * Pixi.state.content_scale[1] });
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 6.0 * Pixi.state.content_scale[1] });
+                    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * Pixi.state.content_scale[0]);
+                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
                     defer imgui.popStyleVarEx(4);
                     if (imgui.beginPopupContextItem()) {
                         defer imgui.endPopup();
@@ -169,7 +169,7 @@ pub fn draw() void {
                         }
                     }
 
-                    imgui.sameLineEx(0.0, 5.0 * Pixi.content_scale[0]);
+                    imgui.sameLineEx(0.0, 5.0 * Pixi.state.content_scale[0]);
                     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
                     imgui.text(folder);
                     imgui.popStyleColor();
@@ -180,10 +180,10 @@ pub fn draw() void {
 }
 
 pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.content_scale[0], .y = 2.0 * Pixi.content_scale[1] });
-    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.content_scale[0], .y = 6.0 * Pixi.content_scale[1] });
-    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * Pixi.content_scale[0]);
-    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.content_scale[0], .y = 10.0 * Pixi.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.state.content_scale[0], .y = 2.0 * Pixi.state.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 6.0 * Pixi.state.content_scale[1] });
+    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0 * Pixi.state.content_scale[0]);
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
     defer imgui.popStyleVarEx(4);
 
     const recursor = struct {

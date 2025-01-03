@@ -23,12 +23,12 @@ pub fn draw(core: *Core) void {
     const explorer_width = Pixi.state.settings.explorer_width;
 
     imgui.setNextWindowPos(.{
-        .x = Pixi.state.settings.sidebar_width * Pixi.content_scale[0],
+        .x = Pixi.state.settings.sidebar_width * Pixi.state.content_scale[0],
         .y = 0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = explorer_width * Pixi.content_scale[0],
-        .y = Pixi.window_size[1],
+        .x = explorer_width * Pixi.state.content_scale[0],
+        .y = Pixi.state.window_size[1],
     }, imgui.Cond_None);
 
     var explorer_flags: imgui.WindowFlags = 0;
@@ -44,8 +44,8 @@ pub fn draw(core: *Core) void {
         defer imgui.end();
         imgui.popStyleVarEx(3);
 
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.content_scale[0], .y = 6.0 * Pixi.content_scale[1] });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * Pixi.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 6.0 * Pixi.state.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * Pixi.state.content_scale[1] });
         defer imgui.popStyleVarEx(2);
 
         imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.text_background.toImguiVec4());
@@ -183,7 +183,7 @@ pub fn draw(core: *Core) void {
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
         .x = Pixi.state.settings.explorer_grip,
-        .y = Pixi.window_size[1],
+        .y = Pixi.state.window_size[1],
     }, imgui.Cond_Always);
 
     var grip_flags: imgui.WindowFlags = 0;
@@ -234,7 +234,7 @@ pub fn draw(core: *Core) void {
             Pixi.state.settings.explorer_width = std.math.clamp(
                 Pixi.state.settings.explorer_width + diff,
                 200,
-                Pixi.window_size[0] / 2.0 - Pixi.state.settings.sidebar_width,
+                Pixi.state.window_size[0] / 2.0 - Pixi.state.settings.sidebar_width,
             );
         }
 

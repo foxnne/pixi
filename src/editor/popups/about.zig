@@ -8,10 +8,10 @@ pub fn draw() void {
         imgui.openPopup("About", imgui.PopupFlags_None);
     } else return;
 
-    const popup_width = 450 * Pixi.content_scale[0];
-    const popup_height = 450 * Pixi.content_scale[1];
+    const popup_width = 450 * Pixi.state.content_scale[0];
+    const popup_height = 450 * Pixi.state.content_scale[1];
 
-    const window_size = Pixi.window_size;
+    const window_size = Pixi.state.window_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     imgui.setNextWindowPos(.{
@@ -44,8 +44,8 @@ pub fn draw() void {
             @floatFromInt(fox_sprite.source[3]),
         };
 
-        const w = src[2] * 4.0 * Pixi.content_scale[0];
-        const h = src[3] * 4.0 * Pixi.content_scale[1];
+        const w = src[2] * 4.0 * Pixi.state.content_scale[0];
+        const h = src[3] * 4.0 * Pixi.state.content_scale[1];
         const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 4.0 };
 
         imgui.setCursorPosX(center[0] - w / 2.0);

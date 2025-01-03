@@ -9,14 +9,14 @@ pub fn draw() void {
     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColor();
 
-    const h = imgui.getTextLineHeightWithSpacing() + 6.0 * Pixi.content_scale[1];
+    const h = imgui.getTextLineHeightWithSpacing() + 6.0 * Pixi.state.content_scale[1];
     const y = (imgui.getContentRegionAvail().y - h) / 2;
-    const spacing: f32 = 3.0 * Pixi.content_scale[0];
+    const spacing: f32 = 3.0 * Pixi.state.content_scale[0];
     imgui.setCursorPosY(y);
-    imgui.setCursorPosX(5.0 * Pixi.content_scale[0]);
+    imgui.setCursorPosX(5.0 * Pixi.state.content_scale[0]);
 
     if (Pixi.state.project_folder) |path| {
-        imgui.setCursorPosY(y + 2.0 * Pixi.content_scale[1]);
+        imgui.setCursorPosY(y + 2.0 * Pixi.state.content_scale[1]);
         imgui.textColored(Pixi.editor.theme.foreground.toImguiVec4(), Pixi.fa.folder_open);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);

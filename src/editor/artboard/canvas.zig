@@ -16,7 +16,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
 
         if (imgui.getWindowDrawList()) |draw_list| {
             draw_list.addRectFilledMultiColor(
-                .{ .x = pos.x, .y = (pos.y + height) - Pixi.state.settings.shadow_length * Pixi.content_scale[1] },
+                .{ .x = pos.x, .y = (pos.y + height) - Pixi.state.settings.shadow_length * Pixi.state.content_scale[1] },
                 .{ .x = pos.x + width, .y = pos.y + height },
                 0x0,
                 0x0,

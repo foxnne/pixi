@@ -9,10 +9,10 @@ pub fn draw() void {
             imgui.openPopup("Heightmap", imgui.PopupFlags_None);
         } else return;
 
-        const popup_width = 350 * Pixi.content_scale[0];
-        const popup_height = 115 * Pixi.content_scale[1];
+        const popup_width = 350 * Pixi.state.content_scale[0];
+        const popup_height = 115 * Pixi.state.content_scale[1];
 
-        const window_size = Pixi.window_size;
+        const window_size = Pixi.state.window_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         imgui.setNextWindowPos(.{
@@ -38,7 +38,7 @@ pub fn draw() void {
 
             const style = imgui.getStyle();
             const spacing = style.item_spacing.x;
-            const half_width = (popup_width - (style.frame_padding.x * 2.0 * Pixi.content_scale[0]) - spacing) / 2.0;
+            const half_width = (popup_width - (style.frame_padding.x * 2.0 * Pixi.state.content_scale[0]) - spacing) / 2.0;
 
             imgui.textWrapped("There currently is no heightmap layer, would you like to create a heightmap layer?");
 

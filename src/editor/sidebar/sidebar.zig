@@ -10,8 +10,8 @@ pub fn draw() void {
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = Pixi.state.settings.sidebar_width * Pixi.content_scale[0],
-        .y = Pixi.window_size[1],
+        .x = Pixi.state.settings.sidebar_width * Pixi.state.content_scale[0],
+        .y = Pixi.state.window_size[1],
     }, imgui.Cond_None);
     imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
     imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.foreground.toImguiVec4());
@@ -47,8 +47,8 @@ pub fn draw() void {
 
 fn drawOption(option: Pixi.Sidebar, icon: [:0]const u8) void {
     const position = imgui.getCursorPos();
-    const selectable_width = (Pixi.state.settings.sidebar_width - 8) * Pixi.content_scale[0];
-    const selectable_height = (Pixi.state.settings.sidebar_width - 8) * Pixi.content_scale[1];
+    const selectable_width = (Pixi.state.settings.sidebar_width - 8) * Pixi.state.content_scale[0];
+    const selectable_height = (Pixi.state.settings.sidebar_width - 8) * Pixi.state.content_scale[1];
     imgui.dummy(.{
         .x = selectable_width,
         .y = selectable_height,

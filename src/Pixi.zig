@@ -60,8 +60,10 @@ batcher: gfx.Batcher = undefined,
 pipeline_default: *gpu.RenderPipeline = undefined,
 pipeline_compute: *gpu.ComputePipeline = undefined,
 uniform_buffer_default: *gpu.Buffer = undefined,
+content_scale: [2]f32 = undefined,
+window_size: [2]f32 = undefined,
+framebuffer_size: [2]f32 = undefined,
 
-//pub const name: [:0]const u8 = "Pixi";
 pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 };
 
 pub const Popups = @import("editor/popups/Popups.zig");
@@ -88,10 +90,6 @@ test {
 pub var state: *App = undefined;
 pub var core: *Core = undefined;
 pub var editor: *Editor = undefined;
-
-pub var content_scale: [2]f32 = undefined;
-pub var window_size: [2]f32 = undefined;
-pub var framebuffer_size: [2]f32 = undefined;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
@@ -191,15 +189,15 @@ fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
 
     app.batcher = try gfx.Batcher.init(app.allocator, 1000);
 
-    window_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
-    framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
-    content_scale = .{
-        framebuffer_size[0] / window_size[0],
-        framebuffer_size[1] / window_size[1],
+    app.window_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
+    app.framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
+    app.content_scale = .{
+        app.framebuffer_size[0] / app.window_size[0],
+        app.framebuffer_size[1] / app.window_size[1],
     };
-    content_scale = .{ 1.0, 1.0 };
+    app.content_scale = .{ 1.0, 1.0 };
 
-    const scale_factor = content_scale[1];
+    const scale_factor = app.content_scale[1];
 
     try gfx.init(app);
 
@@ -215,7 +213,7 @@ fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
 
     var io = imgui.getIO();
     io.config_flags |= imgui.ConfigFlags_NavEnableKeyboard;
-    io.display_framebuffer_scale = .{ .x = content_scale[0], .y = content_scale[1] };
+    io.display_framebuffer_scale = .{ .x = app.content_scale[0], .y = app.content_scale[1] };
     io.font_global_scale = 1.0;
     var cozette_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     cozette_config.font_data_owned_by_atlas = true;
@@ -289,7 +287,7 @@ pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
                 state.mouse.magnify = gesture.zoom;
             },
             .mouse_motion => |mouse_motion| {
-                state.mouse.position = .{ @floatCast(mouse_motion.pos.x * content_scale[0]), @floatCast(mouse_motion.pos.y * content_scale[1]) };
+                state.mouse.position = .{ @floatCast(mouse_motion.pos.x * app.content_scale[0]), @floatCast(mouse_motion.pos.y * app.content_scale[1]) };
             },
             .mouse_press => |mouse_press| {
                 state.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press);
@@ -314,13 +312,13 @@ pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
             },
             .window_resize => |resize| {
                 const window = core.windows.getValue(app.window);
-                window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.height) };
-                framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
-                content_scale = .{
-                    framebuffer_size[0] / window_size[0],
-                    framebuffer_size[1] / window_size[1],
+                app.window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.height) };
+                app.framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
+                app.content_scale = .{
+                    app.framebuffer_size[0] / app.window_size[0],
+                    app.framebuffer_size[1] / app.window_size[1],
                 };
-                content_scale = .{ 1.0, 1.0 };
+                app.content_scale = .{ 1.0, 1.0 };
             },
 
             else => {},
