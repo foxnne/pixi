@@ -11,6 +11,7 @@ const imgui = @import("zig-imgui");
 const imgui_mach = imgui.backends.mach;
 
 pub const App = @This();
+pub const Editor = @import("editor/editor_temp.zig");
 
 pub const mach_module = .app;
 
@@ -26,9 +27,6 @@ timer: mach.time.Timer,
 window: mach.ObjectID,
 
 allocator: std.mem.Allocator = undefined,
-//device: *gpu.Device = undefined,
-//queue: *gpu.Queue = undefined,
-//swap_chain: *gpu.SwapChain = undefined,
 settings: Settings = undefined,
 hotkeys: input.Hotkeys = undefined,
 mouse: input.Mouse = undefined,
@@ -70,7 +68,7 @@ pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 }
 pub const Popups = @import("editor/popups/Popups.zig");
 pub const Packer = @import("tools/Packer.zig");
 
-pub const editor = @import("editor/editor.zig");
+pub const editor = @import("editor/editor_temp.zig");
 
 pub const assets = @import("assets.zig");
 pub const shaders = @import("shaders.zig");
@@ -102,9 +100,6 @@ pub const Colors = @import("Colors.zig");
 pub const Recents = @import("Recents.zig");
 pub const Tools = @import("Tools.zig");
 pub const Settings = @import("Settings.zig");
-
-/// Holds the global game state.
-//pub const PixiState = struct {};
 
 pub const LoadedAssets = struct {
     atlas_png: gfx.Texture,
@@ -175,10 +170,6 @@ pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App)) !void {
 /// initialized by the platform
 fn lateInit(app: *App, _: *Core) !void {
     const window = core.windows.getValue(app.window);
-
-    //app.device = window.device;
-    //app.queue = window.queue;
-    //app.swap_chain = window.swap_chain;
 
     app.json_allocator = std.heap.ArenaAllocator.init(app.allocator);
     app.settings = try Settings.init(app.json_allocator.allocator());
@@ -261,7 +252,7 @@ fn lateInit(app: *App, _: *Core) !void {
     app.theme.init(core, app);
 }
 
-pub fn tick(app: *App, _: *Core) !void {
+pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
     if (state.popups.file_dialog_request) |request| {
         const initial = if (request.initial) |initial| initial else state.project_folder;
 
@@ -355,7 +346,7 @@ pub fn tick(app: *App, _: *Core) !void {
 
     //imgui.showDemoWindow(null);
 
-    editor.draw(core);
+    editor_mod.call(.tick);
 
     state.theme.pop();
 
@@ -498,7 +489,7 @@ pub fn tick(app: *App, _: *Core) !void {
     }
 }
 
-pub fn deinit(_: *App, _: *Core) void {
+pub fn deinit(_: *App, _: *Core) !void {
     //deinit and save settings
     state.settings.deinit(state.json_allocator.allocator());
 
@@ -540,7 +531,7 @@ pub fn deinit(_: *App, _: *Core) void {
 
     if (state.clipboard_image) |*image| image.deinit();
 
-    editor.deinit();
+    try editor.deinit();
     state.loaded_assets.deinit(state.allocator);
 
     imgui_mach.shutdown();
