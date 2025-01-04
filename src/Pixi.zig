@@ -15,7 +15,7 @@ pub const App = @This();
 pub const Editor = @import("editor/Editor.zig");
 
 pub const mach_module = .app;
-pub const mach_systems = .{ .main, .init, .tick, .deinit };
+pub const mach_systems = .{ .main, .init, .lateInit, .tick, .deinit };
 
 pub const main = mach.schedule(.{
     .{ Core, .init },
@@ -166,7 +166,7 @@ pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !
 
 /// This is called from the event fired when the window is done being
 /// initialized by the platform
-fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
+pub fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     const window = core.windows.getValue(app.window);
 
     app.json_allocator = std.heap.ArenaAllocator.init(app.allocator);
@@ -246,7 +246,7 @@ fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     editor_mod.call(.init);
 }
 
-pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
+pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     if (state.popups.file_dialog_request) |request| {
         const initial = if (request.initial) |initial| initial else state.project_folder;
 
@@ -266,7 +266,7 @@ pub fn tick(app: *App, editor_mod: mach.Mod(Editor)) !void {
     while (core.nextEvent()) |event| {
         switch (event) {
             .window_open => {
-                try lateInit(app, editor_mod);
+                app_mod.call(.lateInit);
             },
             .key_press => |key_press| {
                 state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
