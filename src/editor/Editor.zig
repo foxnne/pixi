@@ -39,6 +39,8 @@ pub fn init(app: *Pixi, editor: *Editor) !void {
     editor.* = .{
         .theme = try Editor.Theme.loadFromFile(theme_path),
     };
+
+    editor.theme.init(Pixi.core, app);
 }
 
 pub fn tick(app: *Pixi, core: *Core, editor: *Editor) void {
