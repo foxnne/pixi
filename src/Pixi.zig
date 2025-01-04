@@ -195,6 +195,7 @@ pub fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
         app.framebuffer_size[0] / app.window_size[0],
         app.framebuffer_size[1] / app.window_size[1],
     };
+    // TODO: Remove usage of content_scale if it isn't needed
     app.content_scale = .{ 1.0, 1.0 };
 
     const scale_factor = app.content_scale[1];
@@ -248,6 +249,7 @@ pub fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
 
 pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     if (state.popups.file_dialog_request) |request| {
+        defer state.popups.file_dialog_request = null;
         const initial = if (request.initial) |initial| initial else state.project_folder;
 
         if (switch (request.state) {
@@ -260,7 +262,6 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
                 .type = request.type,
             };
         }
-        state.popups.file_dialog_request = null;
     }
 
     while (core.nextEvent()) |event| {
