@@ -477,58 +477,58 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
     }
 }
 
-pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
+pub fn deinit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     //deinit and save settings
-    state.settings.deinit(state.json_allocator.allocator());
+    app.settings.deinit(app.json_allocator.allocator());
 
     //free everything allocated by the json_allocator
-    state.json_allocator.deinit();
+    app.json_allocator.deinit();
 
-    state.allocator.free(editor.theme.name);
+    app.allocator.free(editor.theme.name);
 
-    state.allocator.free(state.hotkeys.hotkeys);
-    state.allocator.free(state.mouse.buttons);
-    state.packer.deinit();
-    state.recents.deinit();
+    app.allocator.free(app.hotkeys.hotkeys);
+    app.allocator.free(app.mouse.buttons);
+    app.packer.deinit();
+    app.recents.deinit();
 
-    state.batcher.deinit();
-    state.pipeline_default.release();
-    state.uniform_buffer_default.release();
+    app.batcher.deinit();
+    app.pipeline_default.release();
+    app.uniform_buffer_default.release();
 
-    state.pipeline_compute.release();
+    app.pipeline_compute.release();
 
-    if (state.atlas.external) |*atlas| {
+    if (app.atlas.external) |*atlas| {
         for (atlas.sprites) |sprite| {
-            state.allocator.free(sprite.name);
+            app.allocator.free(sprite.name);
         }
 
         for (atlas.animations) |animation| {
-            state.allocator.free(animation.name);
+            app.allocator.free(animation.name);
         }
 
-        state.allocator.free(atlas.sprites);
-        state.allocator.free(atlas.animations);
+        app.allocator.free(atlas.sprites);
+        app.allocator.free(atlas.animations);
     }
-    if (state.previous_atlas_export) |path| {
-        state.allocator.free(path);
+    if (app.previous_atlas_export) |path| {
+        app.allocator.free(path);
     }
-    if (state.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
-    if (state.atlas.heightmap) |*heightmap| heightmap.deinit();
-    if (state.colors.palette) |*palette| palette.deinit();
-    if (state.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();
+    if (app.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
+    if (app.atlas.heightmap) |*heightmap| heightmap.deinit();
+    if (app.colors.palette) |*palette| palette.deinit();
+    if (app.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();
 
-    if (state.clipboard_image) |*image| image.deinit();
+    if (app.clipboard_image) |*image| image.deinit();
 
     editor_mod.call(.deinit);
-    state.loaded_assets.deinit(state.allocator);
+    app.loaded_assets.deinit(app.allocator);
 
     imgui_mach.shutdown();
     imgui.getIO().fonts.?.clear();
     imgui.destroyContext(null);
 
     zstbi.deinit();
-    state.allocator.free(state.root_path);
-    state.allocator.destroy(state);
+    app.allocator.free(app.root_path);
+    app.allocator.destroy(app);
 
     //uncomment this line to check for memory leaks on program shutdown
     _ = gpa.detectLeaks();
