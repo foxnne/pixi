@@ -193,7 +193,7 @@ pub fn draw() !void {
                         if (std.mem.eql(u8, ext, ".png")) {
                             full_path = response.path;
                         } else {
-                            const name = file.sprites.items[file.selected_sprite_index].name;
+                            const name = file.sprites.items(.name)[file.selected_sprite_index];
                             full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
                         }
 
@@ -211,13 +211,13 @@ pub fn draw() !void {
                     },
 
                     .export_animation => {
-                        const animation = file.animations.items[file.selected_animation_index];
+                        const animation = file.animations.slice().get(file.selected_animation_index);
 
                         var i: usize = animation.start;
                         while (i < animation.start + animation.length) : (i += 1) {
                             if (Pixi.state.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
-                                const name = file.sprites.items[i].name;
+                                const name = file.sprites.items(.name)[i];
                                 const full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
 
                                 var sprite_image = try file.spriteToImage(i, true);
@@ -266,22 +266,22 @@ pub fn draw() !void {
                         if (std.mem.eql(u8, ext, ".png")) {
                             full_path = response.path;
                         } else {
-                            const name = file.layers.items[file.selected_layer_index].name;
+                            const name = file.layers.items(.name)[file.selected_layer_index];
                             full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
                         }
 
-                        try file.layers.items[file.selected_layer_index].texture.image.writeToFile(full_path, .png);
+                        try file.layers.items(.texture)[file.selected_layer_index].image.writeToFile(full_path, .png);
                         Pixi.state.popups.export_to_png = false;
                     },
 
                     .export_all_layers => {
                         var i: usize = 0;
-                        while (i < file.layers.items.len) : (i += 1) {
+                        while (i < file.layers.slice().len) : (i += 1) {
                             if (Pixi.state.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
-                                const name = file.layers.items[i].name;
+                                const name = file.layers.items(.name)[i];
                                 const full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
-                                try file.layers.items[i].texture.image.writeToFile(full_path, .png);
+                                try file.layers.items(.texture)[i].image.writeToFile(full_path, .png);
                                 Pixi.state.popups.export_to_png = false;
                             } else {
                                 const base_name = std.fs.path.basename(response.path);
@@ -294,7 +294,7 @@ pub fn draw() !void {
                                             const name = base_name[0..ext_index];
                                             const full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{s}_{d}.png", .{ folder, name, i });
 
-                                            try file.layers.items[i].texture.image.writeToFile(full_path, .png);
+                                            try file.layers.items(.texture)[i].image.writeToFile(full_path, .png);
                                             Pixi.state.popups.export_to_png = false;
                                         }
                                     }
@@ -308,10 +308,10 @@ pub fn draw() !void {
                         defer dest_image.deinit();
                         var dest_pixels = @as([*][4]u8, @ptrCast(dest_image.data.ptr))[0 .. dest_image.data.len / 4];
 
-                        var i: usize = file.layers.items.len;
+                        var i: usize = file.layers.slice().len;
                         while (i > 0) {
                             i -= 1;
-                            const src_image = file.layers.items[i].texture.image;
+                            const src_image = file.layers.items(.texture)[i].image;
                             const src_pixels = @as([*][4]u8, @ptrCast(src_image.data.ptr))[0 .. src_image.data.len / 4];
                             for (src_pixels, 0..) |src, j| {
                                 if (src[3] != 0) dest_pixels[j] = src;

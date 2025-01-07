@@ -13,7 +13,9 @@ const frame_node_spacing: f32 = 4.0;
 
 const work_area_offset: f32 = 12.0;
 
-var animation_opt: ?*Pixi.storage.Internal.KeyframeAnimation = null;
+//var animation_opt: ?* Pixi.storage.Internal.KeyframeAnimation = null;
+
+var animation_index: ?usize = null;
 
 var frame_node_dragging: ?u32 = null;
 var frame_node_hovered: ?u32 = null;
@@ -43,22 +45,19 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
     const scaled_node_size = node_size / file.flipbook_camera.zoom;
 
-    animation_opt = if (file.keyframe_animations.items.len > 0) &file.keyframe_animations.items[file.selected_keyframe_animation_index] else null;
-
     const timeline_height = imgui.getWindowHeight() * 0.25;
     const text_area_height: f32 = imgui.getTextLineHeight();
 
     var latest_time: f32 = 0.0;
-    if (animation_opt) |animation| {
-        latest_time = animation.length();
-    }
 
-    if (animation_opt) |animation| {
+    if (file.keyframe_animations.slice().len > 0) {
+        latest_time = file.keyframe_animations.slice().get(file.selected_keyframe_animation_index).length();
+
         if (file.selected_keyframe_animation_state == .play) {
-            animation.elapsed_time += Pixi.state.delta_time;
+            file.keyframe_animations.items(.elapsed_time)[file.selected_keyframe_animation_index] += Pixi.state.delta_time;
 
-            if (animation.elapsed_time > animation.length()) {
-                animation.elapsed_time = 0.0;
+            if (file.keyframe_animations.items(.elapsed_time)[file.selected_keyframe_animation_index] > file.keyframe_animations.slice().get(file.selected_keyframe_animation_index).length()) {
+                file.keyframe_animations.items(.elapsed_time)[file.selected_keyframe_animation_index] = 0.0;
                 if (!file.selected_keyframe_animation_loop) {
                     file.selected_keyframe_animation_state = .pause;
                 }
@@ -109,7 +108,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                     }
                 }
 
-                const max_nodes: f32 = if (animation_opt) |animation| @floatFromInt(animation.maxNodes()) else 0.0;
+                const max_nodes: f32 = if (animation_index) |index| @floatFromInt(file.keyframe_animations.slice().get(index).maxNodes()) else 0.0;
                 const node_area_height = @max(max_nodes * (frame_node_radius * 2.0 + frame_node_spacing) + work_area_offset, imgui.getWindowHeight());
 
                 try drawVerticalLines(file, animation_ms, .{ 0.0, scroll_y });
@@ -201,8 +200,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
             0xFFFFFFFF,
         );
 
-        if (file.keyframe_animations.items.len > 0) {
-            const animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
+        if (file.keyframe_animations.slice().len > 0) {
+            const animation = file.keyframe_animations.slice().get(file.selected_keyframe_animation_index);
 
             if (animation.keyframes.items.len > 0) {
                 //const current_ms: usize = if (ms_hovered) |ms| ms else @intFromFloat(animation.elapsed_time * 1000.0);
@@ -535,7 +534,7 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
                             const primary_hotkey_down: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
 
                             if (primary_hotkey_down) {
-                                if (animation_opt == null) {
+                                if (animation_index == null) {
                                     const new_animation: Pixi.storage.Internal.KeyframeAnimation = .{
                                         .name = "New Keyframe Animation",
                                         .keyframes = std.ArrayList(Pixi.storage.Internal.Keyframe).init(Pixi.state.allocator),
@@ -543,19 +542,19 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
                                         .id = file.newId(),
                                     };
 
-                                    try file.keyframe_animations.append(new_animation);
-                                    animation_opt = &file.keyframe_animations.items[file.keyframe_animations.items.len - 1];
+                                    try file.keyframe_animations.append(Pixi.state.allocator, new_animation);
+                                    animation_index = file.keyframe_animations.slice().len - 1;
                                 }
 
-                                if (animation_opt) |animation| {
+                                if (animation_index) |index| {
                                     // add node to map, either create a new keyframe or add to existing keyframe
                                     for (file.selected_sprites.items) |sprite_index| {
-                                        const sprite = file.sprites.items[sprite_index];
+                                        const sprite = file.sprites.slice().get(sprite_index);
                                         const origin = zmath.loadArr2(.{ sprite.origin_x, sprite.origin_y });
 
                                         const new_frame: Pixi.storage.Internal.Frame = .{
                                             .id = file.newFrameId(),
-                                            .layer_id = file.layers.items[file.selected_layer_index].id,
+                                            .layer_id = file.layers.items(.id)[file.selected_layer_index],
                                             .sprite_index = sprite_index,
                                             .pivot = .{ .position = zmath.f32x4s(0.0) },
                                             .vertices = .{
@@ -566,9 +565,10 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
                                             },
                                         };
 
-                                        if (animation.getKeyframeMilliseconds(ms)) |kf| {
+                                        if (file.keyframe_animations.get(index).getKeyframeMilliseconds(ms)) |kf| {
                                             try kf.frames.append(new_frame);
-                                            animation.active_keyframe_id = kf.id;
+
+                                            file.keyframe_animations.items(.active_keyframe_id)[index] = kf.id;
                                         } else {
                                             var new_keyframe: Pixi.storage.Internal.Keyframe = .{
                                                 .id = file.newKeyframeId(),
@@ -578,8 +578,8 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
                                             };
 
                                             try new_keyframe.frames.append(new_frame);
-                                            try animation.keyframes.append(new_keyframe);
-                                            animation.active_keyframe_id = new_keyframe.id;
+                                            try file.keyframe_animations.items(.keyframes)[index].append(new_keyframe);
+                                            file.keyframe_animations.items(.active_keyframe_id)[index] = new_keyframe.id;
                                         }
                                     }
                                 }
@@ -607,7 +607,8 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
 
     const secondary_down: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
-    if (animation_opt) |animation| {
+    if (animation_index) |index| {
+        var animation = file.keyframe_animations.slice().get(index);
         if (imgui.getWindowDrawList()) |draw_list| {
             defer {
                 if (Pixi.state.mouse.button(.primary)) |bt| {
@@ -688,8 +689,8 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
                             // Make changes to the current active frame id and elapsed time
                             if (Pixi.state.mouse.button(.primary)) |bt| {
                                 if (bt.pressed() and line_hovered and window_hovered) {
-                                    animation.active_keyframe_id = hovered_kf.id;
-                                    animation.elapsed_time = @as(f32, @floatFromInt(ms)) / 1000.0;
+                                    file.keyframe_animations.items(.active_keyframe_id)[index] = hovered_kf.id;
+                                    file.keyframe_animations.items(.elapsed_time)[index] = @as(f32, @floatFromInt(ms)) / 1000.0;
 
                                     if (frame_node_hovered) |frame_hovered| {
                                         frame_node_dragging = frame_hovered;
@@ -705,8 +706,8 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
                                     if (secondary_down) { // Shift is pressed, so we need to link the dragged node to the target node
                                         if (animation.getKeyframeFromFrame(frame_dragging_id)) |dragging_kf| {
                                             if (bt.released() and line_hovered and window_hovered) {
-                                                animation.active_keyframe_id = hovered_kf.id;
-                                                animation.elapsed_time = @as(f32, @floatFromInt(ms)) / 1000.0;
+                                                file.keyframe_animations.items(.active_keyframe_id)[index] = hovered_kf.id;
+                                                file.keyframe_animations.items(.elapsed_time)[index] = @as(f32, @floatFromInt(ms)) / 1000.0;
                                                 if (dragging_kf.frame(frame_dragging_id)) |dragging_frame| {
                                                     if (frame_node_hovered) |hovered_frame_id| {
                                                         if (hovered_kf.frame(hovered_frame_id)) |hovered_frame| {

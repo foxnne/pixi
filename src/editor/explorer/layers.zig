@@ -30,7 +30,7 @@ pub fn draw() !void {
 
             if (imgui.checkbox("Edit Heightmap Layer", &file.heightmap.visible)) {}
             if (imgui.button("Delete Heightmap Layer")) {
-                try file.deleted_heightmap_layers.append(file.heightmap.layer.?);
+                try file.deleted_heightmap_layers.append(Pixi.state.allocator, file.heightmap.layer.?);
                 file.heightmap.layer = null;
                 try file.history.append(.{ .heightmap_restore_delete = .{ .action = .restore } });
                 if (Pixi.state.tools.current == .heightmap)
@@ -60,7 +60,7 @@ pub fn draw() !void {
 
         const line_height: f32 = imgui.getTextLineHeightWithSpacing();
         const layers_min_height: f32 = line_height * 10.0;
-        const min_lines_height: f32 = line_height * @as(f32, @floatFromInt(file.layers.items.len));
+        const min_lines_height: f32 = line_height * @as(f32, @floatFromInt(file.layers.slice().len));
 
         if (imgui.beginChild("LayersChild", .{
             .x = -1.0,
@@ -68,10 +68,10 @@ pub fn draw() !void {
         }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
             defer imgui.endChild();
 
-            var i: usize = file.layers.items.len;
+            var i: usize = file.layers.slice().len;
             while (i > 0) {
                 i -= 1;
-                const layer = file.layers.items[i];
+                var layer = file.layers.slice().get(i);
 
                 imgui.pushStyleColorImVec4(imgui.Col_Text, if (i == file.selected_layer_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4());
                 imgui.pushStyleColorImVec4(imgui.Col_Header, if (i == file.selected_layer_index) Pixi.editor.theme.highlight_secondary.toImguiVec4() else Pixi.editor.theme.foreground.toImguiVec4());
@@ -81,12 +81,14 @@ pub fn draw() !void {
                 imgui.pushID(layer.name);
                 if (imgui.smallButton(if (layer.visible) Pixi.fa.eye else Pixi.fa.eye_slash)) {
                     const change: History.Change = .{ .layer_settings = .{
-                        .collapse = file.layers.items[i].collapse,
-                        .visible = file.layers.items[i].visible,
+                        .collapse = layer.collapse,
+                        .visible = layer.visible,
                         .index = i,
                     } };
 
-                    file.layers.items[i].visible = !file.layers.items[i].visible;
+                    layer.visible = !layer.visible;
+
+                    file.layers.set(i, layer);
 
                     try file.history.append(change);
                 }
@@ -96,12 +98,13 @@ pub fn draw() !void {
                 const collapse_false = Pixi.fa.box_open;
                 if (imgui.smallButton(if (layer.collapse) collapse_true else collapse_false)) {
                     const change: History.Change = .{ .layer_settings = .{
-                        .collapse = file.layers.items[i].collapse,
-                        .visible = file.layers.items[i].visible,
+                        .collapse = layer.collapse,
+                        .visible = layer.visible,
                         .index = i,
                     } };
 
-                    file.layers.items[i].collapse = !file.layers.items[i].collapse;
+                    layer.collapse = !layer.collapse;
+                    file.layers.set(i, layer);
                     try file.history.append(change);
                 }
                 if (imgui.beginItemTooltip()) {
@@ -163,18 +166,20 @@ pub fn draw() !void {
 
                 if (imgui.isItemActive() and !imgui.isItemHovered(imgui.HoveredFlags_None) and imgui.isAnyItemHovered()) {
                     const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0).y < 0.0) @as(i32, 1) else @as(i32, -1)), 0, std.math.maxInt(i32))));
-                    if (i_next >= 0.0 and i_next < file.layers.items.len) {
-                        var change = try History.Change.create(Pixi.state.allocator, .layers_order, file.layers.items.len);
-                        for (file.layers.items, 0..) |l, layer_i| {
-                            change.layers_order.order[layer_i] = l.id;
-                            if (file.selected_layer_index == layer_i) {
+                    if (i_next >= 0.0 and i_next < file.layers.slice().len) {
+                        var change = try History.Change.create(Pixi.state.allocator, .layers_order, file.layers.slice().len);
+                        var index: usize = 0;
+                        while (index < file.layers.slice().len) : (index += 1) {
+                            const l = file.layers.slice().get(index);
+                            change.layers_order.order[index] = l.id;
+                            if (file.selected_layer_index == index) {
                                 change.layers_order.selected = l.id;
                             }
                         }
                         try file.history.append(change);
 
-                        file.layers.items[i] = file.layers.items[i_next];
-                        file.layers.items[i_next] = layer;
+                        file.layers.set(i, file.layers.slice().get(i_next));
+                        file.layers.set(i_next, layer);
                         file.selected_layer_index = i_next;
                     }
                     imgui.resetMouseDragDeltaEx(imgui.MouseButton_Left);

@@ -36,8 +36,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
     }
 
     // Handle playing animations and locking the current extents
-    if (file.selected_animation_state == .play and file.animations.items.len > 0) {
-        const animation: Pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
+    if (file.selected_animation_state == .play and file.animations.slice().len > 0) {
+        const animation: Pixi.storage.Internal.Animation = file.animations.slice().get(file.selected_animation_index);
         file.selected_animation_elapsed += Pixi.state.delta_time;
         if (file.selected_animation_elapsed > 1.0 / @as(f32, @floatFromInt(animation.fps))) {
             file.selected_animation_elapsed = 0.0;
@@ -56,16 +56,17 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
         .sequential => {
             // Draw all sprites sequentially
             const tiles_wide = @divExact(file.width, file.tile_width);
-            for (file.sprites.items, 0..) |_, i| {
-                const column = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(i)), tiles_wide)));
-                const row = @as(f32, @floatFromInt(@divTrunc(@as(u32, @intCast(i)), tiles_wide)));
+            var sprite_index: usize = 0;
+            while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
+                const column = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(sprite_index)), tiles_wide)));
+                const row = @as(f32, @floatFromInt(@divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide)));
 
                 const src_x = column * tile_width;
                 const src_y = row * tile_height;
                 const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
 
-                const sprite_scale = std.math.clamp(0.4 / @abs(@as(f32, @floatFromInt(i)) / 1.2 + (file.flipbook_scroll / tile_width / 1.2)), 0.4, 1.0);
-                var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(i)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
+                const sprite_scale = std.math.clamp(0.4 / @abs(@as(f32, @floatFromInt(sprite_index)) / 1.2 + (file.flipbook_scroll / tile_width / 1.2)), 0.4, 1.0);
+                var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(sprite_index)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
                 var dst_y: f32 = canvas_center_offset[1];
                 var dst_width: f32 = tile_width * sprite_scale;
                 var dst_height: f32 = tile_height;
@@ -96,7 +97,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                     );
                     // Draw background
                     file.flipbook_camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
-                    file.selected_sprite_index = i;
+                    file.selected_sprite_index = sprite_index;
                     if (!file.setAnimationFromSpriteIndex()) {
                         file.selected_animation_state = .pause;
                     }
@@ -104,13 +105,13 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
                 if (dst_rect[0] > -imgui.getWindowWidth() / 2 and dst_rect[0] + dst_rect[2] < imgui.getWindowWidth()) {
                     // Draw all layers in reverse order
-                    var j: usize = file.layers.items.len;
-                    while (j > 0) {
-                        j -= 1;
-                        if (!file.layers.items[j].visible) continue;
+                    var layer_index: usize = file.layers.slice().len;
+                    while (layer_index > 0) {
+                        layer_index -= 1;
+                        if (!file.layers.items(.visible)[layer_index]) continue;
 
                         file.flipbook_camera.drawSpriteQuad(
-                            file.layers.items[j],
+                            file.layers.slice().get(layer_index),
                             src_rect,
                             dst_p1,
                             dst_p2,
@@ -124,14 +125,14 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                         //file.flipbook_camera.drawSprite(file.heightmap.layer.?, src_rect, dst_rect);
                     }
 
-                    if (i == file.selected_sprite_index)
+                    if (sprite_index == file.selected_sprite_index)
                         file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
 
                     if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
-                        if (i != file.selected_sprite_index) {
+                        if (sprite_index != file.selected_sprite_index) {
                             file.flipbook_camera.drawQuad(dst_p1, dst_p2, dst_p3, dst_p4, Pixi.editor.theme.text.toU32(), 2.0);
-                            if (if (Pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != i) {
-                                file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(i), .state = file.selected_animation_state };
+                            if (if (Pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != sprite_index) {
+                                file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite_index), .state = file.selected_animation_state };
                             }
                         } else {
                             file.flipbook_camera.drawRect(dst_rect, 1, Pixi.editor.theme.text.toU32());
@@ -141,7 +142,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                             try file.processSampleTool(.flipbook, .{});
                         }
                     } else {
-                        if (i != file.selected_sprite_index) {
+                        if (sprite_index != file.selected_sprite_index) {
                             file.flipbook_camera.drawQuad(
                                 dst_p1,
                                 dst_p2,
@@ -167,20 +168,21 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
         .grid => {
             // Draw current sprite in 3x3 grid
             const tiles_wide = @divExact(file.width, file.tile_width);
-            for (file.sprites.items, 0..) |_, i| {
-                const column = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(i)), tiles_wide)));
-                const row = @as(f32, @floatFromInt(@divTrunc(@as(u32, @intCast(i)), tiles_wide)));
+            var sprite_index: usize = 0;
+            while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
+                const column = @as(f32, @floatFromInt(@mod(@as(u32, @intCast(sprite_index)), tiles_wide)));
+                const row = @as(f32, @floatFromInt(@divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide)));
 
                 const src_x = column * tile_width;
                 const src_y = row * tile_height;
                 const src_rect: [4]f32 = .{ src_x, src_y, tile_width, tile_height };
 
-                const sprite_scale = std.math.clamp(0.4 / @abs(@as(f32, @floatFromInt(i)) / 1.2 + (file.flipbook_scroll / tile_width / 1.2)), 0.4, 1.0);
+                const sprite_scale = std.math.clamp(0.4 / @abs(@as(f32, @floatFromInt(sprite_index)) / 1.2 + (file.flipbook_scroll / tile_width / 1.2)), 0.4, 1.0);
 
                 if (sprite_scale >= 1.0) {
                     var dst_col: i32 = -1;
 
-                    var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(i)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
+                    var dst_x: f32 = canvas_center_offset[0] + file.flipbook_scroll + (@as(f32, @floatFromInt(sprite_index)) / 1.2 * tile_width * 1.2) - (tile_width * sprite_scale / 1.2) - (1.0 - sprite_scale) * (tile_width * 0.5);
                     var dst_y: f32 = canvas_center_offset[1];
                     var dst_width: f32 = tile_width;
                     var dst_height: f32 = tile_height;
@@ -202,21 +204,21 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
                             // Draw background
                             file.flipbook_camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
-                            file.selected_sprite_index = i;
+                            file.selected_sprite_index = sprite_index;
                             if (!file.setAnimationFromSpriteIndex()) {
                                 file.selected_animation_state = .pause;
                             }
 
                             // Draw all layers in reverse order
-                            var j: usize = file.layers.items.len;
-                            while (j > 0) {
-                                j -= 1;
-                                if (!file.layers.items[j].visible) continue;
+                            var layer_index: usize = file.layers.slice().len;
+                            while (layer_index > 0) {
+                                layer_index -= 1;
+                                if (!file.layers.items(.visible)[layer_index]) continue;
 
-                                file.flipbook_camera.drawSprite(file.layers.items[j], src_rect, dst_rect);
+                                file.flipbook_camera.drawSprite(file.layers.slice().get(layer_index), src_rect, dst_rect);
                             }
 
-                            if (i == file.selected_sprite_index)
+                            if (sprite_index == file.selected_sprite_index)
                                 file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
 
                             if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
@@ -236,7 +238,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
     }
 
     if (file.selected_animation_state == .play) {
-        const animation: Pixi.storage.Internal.Animation = file.animations.items[file.selected_animation_index];
+        const animation: Pixi.storage.Internal.Animation = file.animations.slice().get(file.selected_animation_index);
         // Draw progress bar
         {
             const window_position = imgui.getWindowPos();

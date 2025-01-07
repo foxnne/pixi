@@ -27,8 +27,8 @@ pub fn draw() !void {
             imgui.pushItemWidth(imgui.getWindowWidth() / 2.0);
             defer imgui.popItemWidth();
 
-            if (file.keyframe_animations.items.len > 0) {
-                const animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
+            if (file.keyframe_animations.slice().len > 0) {
+                const animation = &file.keyframe_animations.slice().get(file.selected_keyframe_animation_index);
 
                 if (animation.keyframes.items.len > 0) {
                     if (animation.keyframe(animation.active_keyframe_id)) |keyframe| {
@@ -42,7 +42,7 @@ pub fn draw() !void {
                                 var sprite_index: c_int = @intCast(frame.sprite_index);
 
                                 if (imgui.inputInt("Frame Sprite Index", &sprite_index)) {
-                                    frame.sprite_index = @intCast(std.math.clamp(sprite_index, 0, @as(c_int, @intCast(file.sprites.items.len - 1))));
+                                    frame.sprite_index = @intCast(std.math.clamp(sprite_index, 0, @as(c_int, @intCast(file.sprites.slice().len - 1))));
                                 }
                             }
                         }
@@ -67,7 +67,9 @@ pub fn draw() !void {
                 imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * Pixi.state.content_scale[0]);
                 imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
                 defer imgui.popStyleVarEx(5);
-                for (file.keyframe_animations.items, 0..) |*animation, animation_index| {
+                var animation_index: usize = 0;
+                while (animation_index < file.keyframe_animations.slice().len) : (animation_index += 1) {
+                    const animation = file.keyframe_animations.slice().get(animation_index);
                     const animation_color = if (file.selected_keyframe_animation_index == animation_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
 
                     const animation_name = try std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s}##{d}", .{ Pixi.fa.film, animation.name, animation.id });
@@ -102,7 +104,7 @@ pub fn draw() !void {
                                     const frame = keyframe.frames.items[i];
 
                                     const color = animation.getFrameNodeColor(frame.id);
-                                    const sprite = file.sprites.items[frame.sprite_index];
+                                    const sprite = file.sprites.slice().get(frame.sprite_index);
 
                                     const sprite_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id });
                                     defer Pixi.state.allocator.free(sprite_name);
@@ -127,7 +129,7 @@ pub fn draw() !void {
                                             }
                                         }
                                         file.selected_keyframe_animation_index = animation_index;
-                                        animation.active_keyframe_id = keyframe.id;
+                                        file.keyframe_animations.items(.active_keyframe_id)[animation_index] = keyframe.id;
                                         keyframe.active_frame_id = frame.id;
                                     }
 

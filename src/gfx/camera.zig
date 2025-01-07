@@ -811,7 +811,7 @@ pub const Camera = struct {
                     if (camera.position[0] > max_position[0]) scroll_delta = camera.position[0] - max_position[0];
                 }
 
-                file.flipbook_scroll = std.math.clamp(file.flipbook_scroll - scroll_delta, file.flipbookScrollFromSpriteIndex(file.sprites.items.len - 1), 0.0);
+                file.flipbook_scroll = std.math.clamp(file.flipbook_scroll - scroll_delta, file.flipbookScrollFromSpriteIndex(file.sprites.slice().len - 1), 0.0);
 
                 camera.position[0] = std.math.clamp(camera.position[0], min_position[0], max_position[0]);
                 camera.position[1] = std.math.clamp(camera.position[1], min_position[1], max_position[1]);
@@ -847,7 +847,7 @@ pub const Camera = struct {
         _ = camera;
         if (imgui.beginTooltip()) {
             defer imgui.endTooltip();
-            const layer_name = Pixi.state.open_files.items[Pixi.state.open_file_index].layers.items[layer_index].name;
+            const layer_name = Pixi.state.open_files.items[Pixi.state.open_file_index].layers.items(.name)[layer_index];
             const label = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s} {s}", .{ Pixi.fa.layer_group, layer_name });
             defer Pixi.state.allocator.free(label);
             imgui.text(label);

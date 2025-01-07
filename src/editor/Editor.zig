@@ -99,16 +99,16 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         .height = @as(u32, @intCast(Pixi.state.popups.file_setup_tiles[1] * Pixi.state.popups.file_setup_tile_size[1])),
         .tile_width = @as(u32, @intCast(Pixi.state.popups.file_setup_tile_size[0])),
         .tile_height = @as(u32, @intCast(Pixi.state.popups.file_setup_tile_size[1])),
-        .layers = std.ArrayList(Pixi.storage.Internal.Layer).init(Pixi.state.allocator),
-        .deleted_layers = std.ArrayList(Pixi.storage.Internal.Layer).init(Pixi.state.allocator),
-        .deleted_heightmap_layers = std.ArrayList(Pixi.storage.Internal.Layer).init(Pixi.state.allocator),
-        .sprites = std.ArrayList(Pixi.storage.Internal.Sprite).init(Pixi.state.allocator),
+        .layers = .{},
+        .deleted_layers = .{},
+        .deleted_heightmap_layers = .{},
+        .sprites = .{},
         .selected_sprites = std.ArrayList(usize).init(Pixi.state.allocator),
-        .animations = std.ArrayList(Pixi.storage.Internal.Animation).init(Pixi.state.allocator),
-        .keyframe_animations = std.ArrayList(Pixi.storage.Internal.KeyframeAnimation).init(Pixi.state.allocator),
+        .animations = .{},
+        .keyframe_animations = .{},
         .keyframe_animation_texture = undefined,
         .keyframe_transform_texture = undefined,
-        .deleted_animations = std.ArrayList(Pixi.storage.Internal.Animation).init(Pixi.state.allocator),
+        .deleted_animations = .{},
         .background = undefined,
         .history = Pixi.storage.Internal.PixiFile.History.init(Pixi.state.allocator),
         .buffers = Pixi.storage.Internal.PixiFile.Buffers.init(Pixi.state.allocator),
@@ -140,12 +140,12 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         new_layer.texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
     }
 
-    try internal.layers.append(new_layer);
+    try internal.layers.append(Pixi.state.allocator, new_layer);
 
     internal.keyframe_animation_texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
     internal.keyframe_transform_texture = .{
         .vertices = .{Pixi.storage.Internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
-        .texture = internal.layers.items[0].texture,
+        .texture = internal.layers.items(.texture)[0],
     };
 
     // Create sprites for all tiles.
@@ -161,7 +161,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
                 .name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ base_name[0..ext_ind], i }),
                 .index = i,
             };
-            try internal.sprites.append(sprite);
+            try internal.sprites.append(Pixi.state.allocator, sprite);
         }
     }
 
@@ -221,16 +221,16 @@ pub fn loadFile(path: [:0]const u8) !?Pixi.storage.Internal.PixiFile {
             .height = external.height,
             .tile_width = external.tile_width,
             .tile_height = external.tile_height,
-            .layers = std.ArrayList(Pixi.storage.Internal.Layer).init(Pixi.state.allocator),
-            .deleted_layers = std.ArrayList(Pixi.storage.Internal.Layer).init(Pixi.state.allocator),
-            .deleted_heightmap_layers = std.ArrayList(Pixi.storage.Internal.Layer).init(Pixi.state.allocator),
-            .sprites = std.ArrayList(Pixi.storage.Internal.Sprite).init(Pixi.state.allocator),
+            .layers = .{},
+            .deleted_layers = .{},
+            .deleted_heightmap_layers = .{},
+            .sprites = .{},
             .selected_sprites = std.ArrayList(usize).init(Pixi.state.allocator),
-            .animations = std.ArrayList(Pixi.storage.Internal.Animation).init(Pixi.state.allocator),
-            .keyframe_animations = std.ArrayList(Pixi.storage.Internal.KeyframeAnimation).init(Pixi.state.allocator),
+            .animations = .{},
+            .keyframe_animations = .{},
             .keyframe_animation_texture = undefined,
             .keyframe_transform_texture = undefined,
-            .deleted_animations = std.ArrayList(Pixi.storage.Internal.Animation).init(Pixi.state.allocator),
+            .deleted_animations = .{},
             .background = undefined,
             .history = Pixi.storage.Internal.PixiFile.History.init(Pixi.state.allocator),
             .buffers = Pixi.storage.Internal.PixiFile.Buffers.init(Pixi.state.allocator),
@@ -253,8 +253,7 @@ pub fn loadFile(path: [:0]const u8) !?Pixi.storage.Internal.PixiFile {
         };
 
         for (external.layers) |layer| {
-            const layer_image_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}.png", .{layer.name});
-            defer Pixi.state.allocator.free(layer_image_name);
+            const layer_image_name = try std.fmt.allocPrintZ(Pixi.state.arena_allocator.allocator(), "{s}.png", .{layer.name});
 
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;
@@ -287,7 +286,7 @@ pub fn loadFile(path: [:0]const u8) !?Pixi.storage.Internal.PixiFile {
                             },
                         }),
                     );
-                    try internal.layers.append(new_layer);
+                    try internal.layers.append(Pixi.state.allocator, new_layer);
                 }
             }
             _ = zip.zip_entry_close(pixi_file);
@@ -297,13 +296,10 @@ pub fn loadFile(path: [:0]const u8) !?Pixi.storage.Internal.PixiFile {
 
         internal.keyframe_transform_texture = .{
             .vertices = .{Pixi.storage.Internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
-            .texture = internal.layers.items[0].texture,
+            .texture = internal.layers.items(.texture)[0],
         };
 
-        const heightmap_image_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}.png", .{"heightmap"});
-        defer Pixi.state.allocator.free(heightmap_image_name);
-
-        if (zip.zip_entry_open(pixi_file, heightmap_image_name.ptr) == 0) {
+        if (zip.zip_entry_open(pixi_file, "heightmap.png") == 0) {
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;
 
@@ -324,7 +320,7 @@ pub fn loadFile(path: [:0]const u8) !?Pixi.storage.Internal.PixiFile {
         _ = zip.zip_entry_close(pixi_file);
 
         for (external.sprites, 0..) |sprite, i| {
-            try internal.sprites.append(.{
+            try internal.sprites.append(Pixi.state.allocator, .{
                 .name = try Pixi.state.allocator.dupeZ(u8, sprite.name),
                 .index = i,
                 .origin_x = @as(f32, @floatFromInt(sprite.origin[0])),
@@ -333,7 +329,7 @@ pub fn loadFile(path: [:0]const u8) !?Pixi.storage.Internal.PixiFile {
         }
 
         for (external.animations) |animation| {
-            try internal.animations.append(.{
+            try internal.animations.append(Pixi.state.allocator, .{
                 .name = try Pixi.state.allocator.dupeZ(u8, animation.name),
                 .start = animation.start,
                 .length = animation.length,
@@ -506,16 +502,15 @@ pub fn deinitFile(file: *Pixi.storage.Internal.PixiFile) void {
         texture.texture.deinit();
     }
 
-    for (file.keyframe_animations.items) |*animation| {
+    for (file.keyframe_animations.items(.keyframes)) |*keyframes| {
         // TODO: uncomment this when names are allocated
         //pixi.state.allocator.free(animation.name);
 
-        for (animation.keyframes.items) |*keyframe| {
+        for (keyframes.items) |*keyframe| {
             keyframe.frames.deinit();
         }
-        animation.keyframes.deinit();
     }
-    file.keyframe_animations.deinit();
+    file.keyframe_animations.deinit(Pixi.state.allocator);
 
     if (file.transform_bindgroup) |bindgroup| {
         bindgroup.release();
@@ -529,40 +524,50 @@ pub fn deinitFile(file: *Pixi.storage.Internal.PixiFile) void {
     if (file.transform_staging_buffer) |buffer| {
         buffer.release();
     }
-    for (file.deleted_heightmap_layers.items) |*layer| {
-        layer.texture.deinit();
-        Pixi.state.allocator.free(layer.name);
+    for (file.deleted_heightmap_layers.items(.texture)) |*texture| {
+        texture.deinit();
     }
-    for (file.layers.items) |*layer| {
-        layer.texture.deinit();
-        Pixi.state.allocator.free(layer.name);
-        if (layer.transform_bindgroup) |bindgroup|
-            bindgroup.release();
+    for (file.deleted_layers.items(.texture)) |*texture| {
+        texture.deinit();
     }
-    for (file.deleted_layers.items) |*layer| {
-        layer.texture.deinit();
-        Pixi.state.allocator.free(layer.name);
-        if (layer.transform_bindgroup) |bindgroup|
-            bindgroup.release();
+    for (file.layers.items(.texture)) |*texture| {
+        texture.deinit();
     }
-    for (file.sprites.items) |*sprite| {
-        Pixi.state.allocator.free(sprite.name);
+    for (file.layers.items(.name), 0..) |_, index| {
+        Pixi.state.allocator.free(file.layers.items(.name)[index]);
     }
-    for (file.animations.items) |*animation| {
-        Pixi.state.allocator.free(animation.name);
+    for (file.layers.items(.transform_bindgroup)) |bindgroup| {
+        if (bindgroup) |b|
+            b.release();
     }
-    for (file.deleted_animations.items) |*animation| {
-        Pixi.state.allocator.free(animation.name);
+    for (file.deleted_layers.items(.name), 0..) |_, index| {
+        Pixi.state.allocator.free(file.deleted_layers.items(.name)[index]);
+    }
+    for (file.deleted_layers.items(.texture)) |*texture| {
+        texture.deinit();
+    }
+    for (file.deleted_layers.items(.transform_bindgroup)) |bindgroup| {
+        if (bindgroup) |b|
+            b.release();
+    }
+    for (file.sprites.items(.name), 0..) |_, index| {
+        Pixi.state.allocator.free(file.sprites.items(.name)[index]);
+    }
+    for (file.animations.items(.name), 0..) |_, index| {
+        Pixi.state.allocator.free(file.animations.items(.name)[index]);
+    }
+    for (file.deleted_animations.items(.name), 0..) |_, index| {
+        Pixi.state.allocator.free(file.deleted_animations.items(.name)[index]);
     }
 
     file.keyframe_animation_texture.deinit();
-    file.layers.deinit();
-    file.deleted_layers.deinit();
-    file.deleted_heightmap_layers.deinit();
-    file.sprites.deinit();
+    file.layers.deinit(Pixi.state.allocator);
+    file.deleted_layers.deinit(Pixi.state.allocator);
+    file.deleted_heightmap_layers.deinit(Pixi.state.allocator);
+    file.sprites.deinit(Pixi.state.allocator);
     file.selected_sprites.deinit();
-    file.animations.deinit();
-    file.deleted_animations.deinit();
+    file.animations.deinit(Pixi.state.allocator);
+    file.deleted_animations.deinit(Pixi.state.allocator);
     Pixi.state.allocator.free(file.path);
 }
 

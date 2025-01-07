@@ -17,7 +17,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
         defer imgui.endMenuBar();
 
         if (file.flipbook_view == .canvas) {
-            if (file.animations.items.len > 0) {
+            if (file.animations.slice().len > 0) {
                 if (imgui.button(if (file.selected_animation_state == .play) " " ++ Pixi.fa.pause ++ " " else " " ++ Pixi.fa.play ++ " ")) {
                     file.selected_animation_state = switch (file.selected_animation_state) {
                         .play => .pause,
@@ -29,15 +29,17 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
                 imgui.pushStyleColorImVec4(imgui.Col_FrameBg, Pixi.editor.theme.background.toImguiVec4());
                 defer imgui.popStyleColorEx(2);
 
-                var animation = &file.animations.items[file.selected_animation_index];
+                const animation = &file.animations.slice().get(file.selected_animation_index);
 
                 { // Animation Selection
                     imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.state.content_scale[0]);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
-                        for (file.animations.items, 0..) |a, i| {
-                            if (imgui.selectableEx(a.name, i == file.selected_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
-                                file.selected_animation_index = i;
+                        var animation_index: usize = 0;
+                        while (animation_index < file.animations.slice().len) : (animation_index += 1) {
+                            const a = &file.animations.slice().get(animation_index);
+                            if (imgui.selectableEx(a.name, animation_index == file.selected_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
+                                file.selected_animation_index = animation_index;
                                 file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(a.start), .state = file.selected_animation_state };
                             }
                         }
@@ -90,12 +92,12 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
                     }
 
                     if (changed) {
-                        animation.fps = @as(usize, @intCast(fps));
+                        file.animations.items(.fps)[file.selected_animation_index] = @as(usize, @intCast(fps));
                     }
                 }
             }
         } else {
-            if (file.keyframe_animations.items.len > 0) {
+            if (file.keyframe_animations.slice().len > 0) {
                 if (imgui.button(if (file.selected_keyframe_animation_state == .play) " " ++ Pixi.fa.pause ++ " " else " " ++ Pixi.fa.play ++ " ")) {
                     file.selected_keyframe_animation_state = switch (file.selected_keyframe_animation_state) {
                         .play => .pause,
@@ -107,15 +109,17 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
                 imgui.pushStyleColorImVec4(imgui.Col_FrameBg, Pixi.editor.theme.background.toImguiVec4());
                 defer imgui.popStyleColorEx(2);
 
-                const animation = &file.keyframe_animations.items[file.selected_keyframe_animation_index];
+                const animation = &file.keyframe_animations.slice().get(file.selected_keyframe_animation_index);
 
                 { // Animation Selection
                     imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.state.content_scale[0]);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
-                        for (file.keyframe_animations.items, 0..) |a, i| {
-                            if (imgui.selectableEx(a.name, i == file.selected_keyframe_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
-                                file.selected_keyframe_animation_index = i;
+                        var keyframe_animation_index: usize = 0;
+                        while (keyframe_animation_index < file.keyframe_animations.slice().len) : (keyframe_animation_index += 1) {
+                            const a = &file.keyframe_animations.slice().get(keyframe_animation_index);
+                            if (imgui.selectableEx(a.name, keyframe_animation_index == file.selected_keyframe_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
+                                file.selected_keyframe_animation_index = keyframe_animation_index;
                             }
                         }
                     }

@@ -27,6 +27,8 @@ timer: mach.time.Timer,
 window: mach.ObjectID,
 
 allocator: std.mem.Allocator = undefined,
+arena_allocator: std.heap.ArenaAllocator = undefined,
+
 settings: Settings = undefined,
 hotkeys: input.Hotkeys = undefined,
 mouse: input.Mouse = undefined,
@@ -52,7 +54,6 @@ delta_time: f32 = 0.0,
 total_time: f32 = 0.0,
 selection_time: f32 = 0.0,
 selection_invert: bool = false,
-json_allocator: std.heap.ArenaAllocator = undefined,
 loaded_assets: LoadedAssets = undefined,
 clipboard_image: ?zstbi.Image = null,
 clipboard_position: [2]u32 = .{ 0, 0 },
@@ -169,8 +170,8 @@ pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !
 pub fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     const window = core.windows.getValue(app.window);
 
-    app.json_allocator = std.heap.ArenaAllocator.init(app.allocator);
-    app.settings = try Settings.init(app.json_allocator.allocator());
+    app.arena_allocator = std.heap.ArenaAllocator.init(app.allocator);
+    app.settings = try Settings.init(app.arena_allocator.allocator());
 
     zstbi.init(app.allocator);
 
@@ -426,7 +427,7 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
                         }
 
                         const layer_index = file.selected_layer_index;
-                        const write_layer = &file.layers.items[file.selected_layer_index];
+                        const write_layer = file.layers.get(file.selected_layer_index);
 
                         if (staging_buffer.getConstMappedRange([4]f32, 0, buffer_size)) |buffer_mapped| {
                             for (write_layer.pixels(), buffer_mapped, 0..) |*p, b, i| {
@@ -452,7 +453,8 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
 
                         staging_buffer.unmap();
 
-                        write_layer.texture.update(window.device);
+                        var texture: *gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
+                        texture.update(window.device);
                     }
 
                     transform_texture.texture.deinit();
@@ -480,10 +482,7 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
 
 pub fn deinit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     //deinit and save settings
-    app.settings.deinit(app.json_allocator.allocator());
-
-    //free everything allocated by the json_allocator
-    app.json_allocator.deinit();
+    app.settings.deinit(app.arena_allocator.allocator());
 
     app.allocator.free(editor.theme.name);
 
@@ -529,7 +528,8 @@ pub fn deinit(app: *App, editor_mod: mach.Mod(Editor)) !void {
 
     zstbi.deinit();
     app.allocator.free(app.root_path);
-    app.allocator.destroy(app);
+
+    app.arena_allocator.deinit();
 
     //uncomment this line to check for memory leaks on program shutdown
     _ = gpa.detectLeaks();

@@ -38,14 +38,14 @@ pub fn draw() !void {
                     defer imgui.popStyleColorEx(3);
                     var x_same: bool = true;
                     var y_same: bool = true;
-                    const first_sprite = file.sprites.items[file.selected_sprites.items[0]];
+                    const first_sprite = file.sprites.slice().get(file.selected_sprites.items[0]);
                     var origin_x: f32 = first_sprite.origin_x;
                     var origin_y: f32 = first_sprite.origin_y;
                     const tile_width = @as(f32, @floatFromInt(file.tile_width));
                     const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
                     for (file.selected_sprites.items) |selected_index| {
-                        const sprite = file.sprites.items[selected_index];
+                        const sprite = file.sprites.slice().get(selected_index);
                         if (origin_x != sprite.origin_x) {
                             x_same = false;
                         }
@@ -99,7 +99,9 @@ pub fn draw() !void {
             if (imgui.beginChild("Sprites", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
-                for (file.sprites.items) |sprite| {
+                var sprite_index: usize = 0;
+                while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
+                    const sprite = file.sprites.slice().get(sprite_index);
                     const selected_sprite_index = file.spriteSelectionIndex(sprite.index);
                     const contains = selected_sprite_index != null;
                     const color = if (contains) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();

@@ -68,7 +68,9 @@ pub fn draw() !void {
                 imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * Pixi.state.content_scale[0]);
                 imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
                 defer imgui.popStyleVarEx(4);
-                for (file.animations.items, 0..) |animation, animation_index| {
+                var animation_index: usize = 0;
+                while (animation_index < file.animations.slice().len) : (animation_index += 1) {
+                    const animation = file.animations.slice().get(animation_index);
                     const header_color = if (file.selected_animation_index == animation_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
                     imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
                     defer imgui.popStyleColor();
@@ -84,7 +86,9 @@ pub fn draw() !void {
                         defer imgui.popStyleColor();
                         var i: usize = animation.start;
                         while (i < animation.start + animation.length) : (i += 1) {
-                            for (file.sprites.items) |sprite| {
+                            var sprite_index: usize = 0;
+                            while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
+                                const sprite = file.sprites.slice().get(sprite_index);
                                 if (i == sprite.index) {
                                     const color = if (file.selected_sprite_index == sprite.index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
                                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
@@ -120,7 +124,7 @@ fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) !v
         defer imgui.endPopup();
 
         if (imgui.menuItem("Rename...")) {
-            const animation = file.animations.items[animation_index];
+            const animation = file.animations.slice().get(animation_index);
             Pixi.state.popups.animation_name = [_:0]u8{0} ** 128;
             @memcpy(Pixi.state.popups.animation_name[0..animation.name.len], animation.name);
             Pixi.state.popups.animation_index = animation_index;

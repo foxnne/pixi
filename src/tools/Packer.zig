@@ -125,12 +125,16 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
                 var layer_names = std.ArrayList([:0]const u8).init(Pixi.state.allocator);
                 var sprites = std.ArrayList(LDTKTileset.LDTKSprite).init(Pixi.state.allocator);
 
-                for (file.layers.items) |layer| {
+                var index: usize = 0;
+                while (index < file.layers.slice().len) : (index += 1) {
+                    const layer = file.layers.slice().get(index);
                     const layer_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "pixi-ldtk{s}{c}{s}__{s}.png", .{ relative_path, std.fs.path.sep, base_name, layer.name });
                     try layer_names.append(layer_name);
                 }
 
-                for (file.sprites.items, 0..) |sprite, sprite_index| {
+                var sprite_index: usize = 0;
+                while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
+                    const sprite = file.sprites.slice().get(sprite_index);
                     const tiles_wide = @divExact(file.width, file.tile_width);
 
                     const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
@@ -156,13 +160,15 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
     }
 
     var texture_opt: ?Pixi.gfx.Texture = null;
-    for (file.layers.items, 0..) |*layer, i| {
+    var index: usize = 0;
+    while (index < file.layers.slice().len) : (index += 1) {
+        const layer = file.layers.slice().get(index);
         if (!layer.visible) continue;
 
-        const last_item: bool = i == file.layers.items.len - 1;
+        const last_item: bool = index == file.layers.slice().len - 1;
 
         // If this layer is collapsed, we need to record its texture to survive the next loop
-        if ((layer.collapse and !last_item) or ((i != 0 and file.layers.items[i - 1].collapse))) {
+        if ((layer.collapse and !last_item) or ((index != 0 and file.layers.slice().get(index - 1).collapse))) {
             const layer_read = layer;
 
             const texture = if (texture_opt) |carry_over_texture| carry_over_texture else try Pixi.gfx.Texture.createEmpty(file.width, file.height, .{});
@@ -185,7 +191,9 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
         var texture = if (texture_opt) |carry_over_texture| carry_over_texture else layer.texture;
 
         const layer_width = @as(usize, @intCast(texture.image.width));
-        for (file.sprites.items, 0..) |sprite, sprite_index| {
+        var sprite_index: usize = 0;
+        while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
+            const sprite = file.sprites.slice().get(sprite_index);
             const tiles_wide = @divExact(file.width, file.tile_width);
 
             const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
@@ -269,7 +277,9 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
 
                 try self.frames.append(.{ .id = self.newId(), .w = @as(c_ushort, @intCast(image.width)), .h = @as(c_ushort, @intCast(image.height)) });
             } else {
-                for (file.animations.items) |animation| {
+                var animation_index: usize = 0;
+                while (animation_index < file.animations.slice().len) : (animation_index += 1) {
+                    const animation = file.animations.slice().get(animation_index);
                     if (sprite_index >= animation.start and sprite_index < animation.start + animation.length) {
                         // Sprite contains no pixels but is part of an animation
                         // To preserve the animation, add a blank pixel to the sprites list
@@ -288,7 +298,9 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
                 }
             }
 
-            for (file.animations.items) |animation| {
+            var animation_index: usize = 0;
+            while (animation_index < file.animations.slice().len) : (animation_index += 1) {
+                const animation = file.animations.slice().get(animation_index);
                 if (sprite_index == animation.start) {
                     try self.animations.append(.{
                         .name = try std.fmt.allocPrintZ(self.allocator, "{s}_{s}", .{ animation.name, layer.name }),

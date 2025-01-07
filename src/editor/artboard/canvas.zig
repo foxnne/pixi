@@ -230,12 +230,12 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
 
     // Draw all layers in reverse order
     {
-        var i: usize = file.layers.items.len;
+        var i: usize = file.layers.slice().len;
         while (i > 0) {
             i -= 1;
 
-            if (file.layers.items[i].visible)
-                file.camera.drawLayer(file.layers.items[i], canvas_center_offset);
+            if (file.layers.items(.visible)[i])
+                file.camera.drawLayer(file.layers.slice().get(i), canvas_center_offset);
         }
 
         // Draw the temporary layer
@@ -317,7 +317,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                     file.camera.drawRect(rect, 3.0, Pixi.editor.theme.text.toU32());
 
                     // Draw the origin
-                    const sprite: Pixi.storage.Internal.Sprite = file.sprites.items[sprite_index];
+                    const sprite: Pixi.storage.Internal.Sprite = file.sprites.slice().get(sprite_index);
                     file.camera.drawLine(
                         .{ x + sprite.origin_x, y },
                         .{ x + sprite.origin_x, y + tile_height },
@@ -362,9 +362,11 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
             }
         }
 
-        if (file.animations.items.len > 0) {
+        if (file.animations.slice().len > 0) {
             if (Pixi.state.tools.current == .animation and !transforming) {
-                for (file.animations.items, 0..) |animation, i| {
+                var i: usize = 0;
+                while (i < file.animations.slice().len) : (i += 1) {
+                    const animation = &file.animations.slice().get(i);
                     const start_column = @mod(@as(u32, @intCast(animation.start)), tiles_wide);
                     const start_row = @divTrunc(@as(u32, @intCast(animation.start)), tiles_wide);
                     const start_x = @as(f32, @floatFromInt(start_column)) * tile_width + canvas_center_offset[0];
@@ -381,7 +383,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                     file.camera.drawAnimationRect(start_rect, end_rect, thickness, Pixi.editor.theme.highlight_primary.toU32(), Pixi.editor.theme.text_red.toU32());
                 }
             } else if (Pixi.state.sidebar != .pack and !transforming and Pixi.state.sidebar != .keyframe_animations) {
-                const animation = file.animations.items[file.selected_animation_index];
+                const animation = file.animations.slice().get(file.selected_animation_index);
 
                 const start_column = @mod(@as(u32, @intCast(animation.start)), tiles_wide);
                 const start_row = @divTrunc(@as(u32, @intCast(animation.start)), tiles_wide);
