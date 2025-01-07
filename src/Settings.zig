@@ -10,9 +10,7 @@ const Settings = @This();
 fn getSettingsPath(allocator: std.mem.Allocator) ![]const u8 {
 
     //get the cwd
-    const cwd = try std.fs.selfExeDirPathAlloc(allocator);
-    defer allocator.free(cwd);
-    const path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ cwd, settings_filename });
+    const path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ Pixi.state.root_path, settings_filename });
     return path;
 }
 
@@ -21,28 +19,29 @@ pub fn init(allocator: std.mem.Allocator) !Settings {
     const path = try getSettingsPath(allocator);
     defer allocator.free(path);
 
-    //attempt to read the file
+    // Attempt to read the file
     const max_bytes = 10000; //maximum bytes in settings file
     const settings_string = std.fs.cwd().readFileAlloc(allocator, path, max_bytes) catch null;
 
-    //check if the file was read, and if so, parse it
+    // Check if the file was read, and if so, parse it
     if (settings_string) |str| {
         defer allocator.free(settings_string.?);
 
         const parsed_settings = std.json.parseFromSlice(@This(), allocator, str, .{}) catch null;
         if (parsed_settings) |settings| {
+            // TODO: Fix this, we shouldnt have to allocate the theme name just because we need to free all later
             var s: Settings = settings.value;
             s.theme = try allocator.dupeZ(u8, s.theme);
             return s;
         }
     }
-    //return default if parsing failed or file does not exist
+    // Return default if parsing failed or file does not exist
     return @This(){
         .theme = try allocator.dupeZ(u8, "pixi_dark.json"),
     };
 }
 
-///saves the current settings to a file and deinitializes the memory
+/// Saves the current settings to a file and deinitializes the memory
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     const path = getSettingsPath(allocator) catch {
         std.debug.print("ERROR: Memory allocation error when saving settings\n", .{});
@@ -58,6 +57,7 @@ pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
         std.debug.print("ERROR: Failed to open settings file \"{s}\"\n", .{path});
         return;
     };
+    std.log.debug("Saving to path: {s}", .{path});
     file.writeAll(stringified) catch {
         std.debug.print("ERROR: Failed to write settings to file \"{s}\"\n", .{path});
         return;

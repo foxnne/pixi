@@ -524,6 +524,7 @@ pub fn deinitFile(file: *Pixi.storage.Internal.PixiFile) void {
     if (file.transform_staging_buffer) |buffer| {
         buffer.release();
     }
+
     for (file.deleted_heightmap_layers.items(.texture)) |*texture| {
         texture.deinit();
     }
