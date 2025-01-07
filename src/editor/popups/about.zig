@@ -3,7 +3,7 @@ const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw() !void {
     if (Pixi.state.popups.about) {
         imgui.openPopup("About", imgui.PopupFlags_None);
     } else return;

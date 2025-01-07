@@ -3,7 +3,7 @@ const Pixi = @import("../../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
     const window_height = imgui.getWindowHeight();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
@@ -136,9 +136,9 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
                         } else {
                             file.flipbook_camera.drawRect(dst_rect, 1, Pixi.editor.theme.text.toU32());
 
-                            file.processStrokeTool(.flipbook, .{}) catch unreachable;
-                            file.processFillTool(.flipbook, .{}) catch unreachable;
-                            file.processSampleTool(.flipbook, .{});
+                            try file.processStrokeTool(.flipbook, .{});
+                            try file.processFillTool(.flipbook, .{});
+                            try file.processSampleTool(.flipbook, .{});
                         }
                     } else {
                         if (i != file.selected_sprite_index) {
@@ -222,9 +222,9 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
                             if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
                                 file.flipbook_camera.drawRect(dst_rect, 1, Pixi.editor.theme.text.toU32());
 
-                                file.processStrokeTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } }) catch unreachable;
-                                file.processFillTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } }) catch unreachable;
-                                file.processSampleTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } });
+                                try file.processStrokeTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } });
+                                try file.processFillTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } });
+                                try file.processSampleTool(.flipbook, .{ .texture_position_offset = .{ offset_x, offset_y } });
                             }
                         }
                     }

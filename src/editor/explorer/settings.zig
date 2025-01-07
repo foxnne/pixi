@@ -5,7 +5,7 @@ const Core = @import("mach").Core;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-pub fn draw(core: *Core) void {
+pub fn draw(core: *Core) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * Pixi.state.content_scale[1], .y = 6.0 * Pixi.state.content_scale[1] });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.highlight_secondary.toImguiVec4());

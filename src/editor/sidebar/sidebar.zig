@@ -2,7 +2,7 @@ const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw() !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{

@@ -4,7 +4,7 @@ const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 const History = Pixi.storage.Internal.PixiFile.History;
 
-pub fn draw() void {
+pub fn draw() !void {
     if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
         const dialog_name = switch (Pixi.state.popups.animation_state) {
             .none => "None...",
@@ -80,17 +80,17 @@ pub fn draw() void {
                         const name = std.mem.trimRight(u8, &Pixi.state.popups.animation_name, "\u{0}");
 
                         if (std.mem.indexOf(u8, name, "\u{0}")) |index| {
-                            file.createAnimation(name[0..index], Pixi.state.popups.animation_fps, Pixi.state.popups.animation_start, Pixi.state.popups.animation_length) catch unreachable;
+                            try file.createAnimation(name[0..index], Pixi.state.popups.animation_fps, Pixi.state.popups.animation_start, Pixi.state.popups.animation_length);
                         } else {
-                            file.createAnimation(name, Pixi.state.popups.animation_fps, Pixi.state.popups.animation_start, Pixi.state.popups.animation_length) catch unreachable;
+                            try file.createAnimation(name, Pixi.state.popups.animation_fps, Pixi.state.popups.animation_start, Pixi.state.popups.animation_length);
                         }
                     },
                     .edit => {
                         const name = std.mem.trimRight(u8, &Pixi.state.popups.animation_name, "\u{0}");
                         if (std.mem.indexOf(u8, name, "\u{0}")) |index| {
-                            file.renameAnimation(name[0..index], Pixi.state.popups.animation_index) catch unreachable;
+                            try file.renameAnimation(name[0..index], Pixi.state.popups.animation_index);
                         } else {
-                            file.renameAnimation(name, Pixi.state.popups.animation_index) catch unreachable;
+                            try file.renameAnimation(name, Pixi.state.popups.animation_index);
                         }
                     },
                     else => unreachable,

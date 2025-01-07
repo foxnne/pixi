@@ -3,7 +3,7 @@ const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw() !void {
     if (Pixi.state.popups.file_confirm_close) {
         imgui.openPopup("Confirm close...", imgui.PopupFlags_None);
     } else return;
@@ -44,7 +44,7 @@ pub fn draw() void {
             .one => {
                 if (Pixi.Editor.getFile(Pixi.state.popups.file_confirm_close_index)) |file| {
                     const base_name = std.fs.path.basename(file.path);
-                    const file_name = std.fmt.allocPrintZ(Pixi.state.allocator, "The file {s} has unsaved changes, are you sure you want to close?", .{base_name}) catch unreachable;
+                    const file_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "The file {s} has unsaved changes, are you sure you want to close?", .{base_name});
                     defer Pixi.state.allocator.free(file_name);
                     imgui.textWrapped(file_name);
                 }
@@ -62,7 +62,7 @@ pub fn draw() void {
                     for (Pixi.state.open_files.items) |file| {
                         const base_name = std.fs.path.basename(file.path);
 
-                        const base_name_z = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}", .{base_name}) catch unreachable;
+                        const base_name_z = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}", .{base_name});
                         defer Pixi.state.allocator.free(base_name_z);
 
                         if (file.dirty()) imgui.bulletText(base_name_z);
@@ -86,13 +86,13 @@ pub fn draw() void {
         if (imgui.buttonEx(if (Pixi.state.popups.file_confirm_close_state == .one) "Close" else "Close All", .{ .x = third_width, .y = 0.0 })) {
             switch (Pixi.state.popups.file_confirm_close_state) {
                 .one => {
-                    Pixi.Editor.forceCloseFile(Pixi.state.popups.file_confirm_close_index) catch unreachable;
+                    try Pixi.Editor.forceCloseFile(Pixi.state.popups.file_confirm_close_index);
                 },
                 .all => {
                     const len = Pixi.state.open_files.items.len;
                     var i: usize = 0;
                     while (i < len) : (i += 1) {
-                        Pixi.Editor.forceCloseFile(0) catch unreachable;
+                        try Pixi.Editor.forceCloseFile(0);
                     }
                 },
                 else => unreachable,
@@ -106,11 +106,11 @@ pub fn draw() void {
                     if (Pixi.Editor.getFile(Pixi.state.popups.file_confirm_close_index)) |file| {
                         _ = file.save() catch unreachable;
                     }
-                    Pixi.Editor.closeFile(Pixi.state.popups.file_confirm_close_index) catch unreachable;
+                    try Pixi.Editor.closeFile(Pixi.state.popups.file_confirm_close_index);
                 },
                 .all => {
-                    Pixi.Editor.saveAllFiles() catch unreachable;
-                    Pixi.Editor.forceCloseAllFiles() catch unreachable;
+                    try Pixi.Editor.saveAllFiles();
+                    try Pixi.Editor.forceCloseAllFiles();
                 },
                 else => unreachable,
             }

@@ -43,35 +43,35 @@ pub fn init(app: *Pixi, editor: *Editor) !void {
     editor.theme.init(Pixi.core, app);
 }
 
-pub fn tick(app: *Pixi, core: *Core, editor: *Editor) void {
+pub fn tick(app: *Pixi, core: *Core, editor: *Editor) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = Pixi.state.settings.explorer_title_align, .y = 0.5 });
     defer imgui.popStyleVar();
 
     editor.theme.push(core, app);
     defer editor.theme.pop();
 
-    sidebar.draw();
-    explorer.draw(core);
-    artboard.draw(core);
+    try sidebar.draw();
+    try explorer.draw(core);
+    try artboard.draw(core);
 
-    popup_rename.draw();
-    popup_file_setup.draw();
-    popup_about.draw();
-    popup_file_confirm_close.draw();
-    popup_layer_setup.draw();
-    popup_export_to_png.draw();
-    popup_animation.draw();
-    popup_heightmap.draw();
-    popup_references.draw();
+    try popup_rename.draw();
+    try popup_file_setup.draw();
+    try popup_about.draw();
+    try popup_file_confirm_close.draw();
+    try popup_layer_setup.draw();
+    try popup_export_to_png.draw();
+    try popup_animation.draw();
+    try popup_heightmap.draw();
+    try popup_references.draw();
 }
 
-pub fn setProjectFolder(path: [:0]const u8) void {
+pub fn setProjectFolder(path: [:0]const u8) !void {
     if (Pixi.state.project_folder) |folder| {
         Pixi.state.allocator.free(folder);
     }
-    Pixi.state.project_folder = Pixi.state.allocator.dupeZ(u8, path) catch unreachable;
-    Pixi.state.recents.appendFolder(Pixi.state.allocator.dupeZ(u8, path) catch unreachable) catch unreachable;
-    Pixi.state.recents.save() catch unreachable;
+    Pixi.state.project_folder = try Pixi.state.allocator.dupeZ(u8, path);
+    try Pixi.state.recents.appendFolder(try Pixi.state.allocator.dupeZ(u8, path));
+    try Pixi.state.recents.save();
     Pixi.state.sidebar = .files;
 }
 

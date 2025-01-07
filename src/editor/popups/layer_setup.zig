@@ -3,7 +3,7 @@ const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw() !void {
     if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
         const dialog_name = switch (Pixi.state.popups.layer_setup_state) {
             .none => "New Layer...",
@@ -71,25 +71,25 @@ pub fn draw() void {
                     .none => {
                         const new_name = std.mem.trimRight(u8, Pixi.state.popups.layer_setup_name[0..], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
-                            file.createLayer(Pixi.state.popups.layer_setup_name[0..index :0]) catch unreachable;
+                            try file.createLayer(Pixi.state.popups.layer_setup_name[0..index :0]);
                         } else {
-                            file.createLayer(Pixi.state.popups.layer_setup_name[0..new_name.len :0]) catch unreachable;
+                            try file.createLayer(Pixi.state.popups.layer_setup_name[0..new_name.len :0]);
                         }
                     },
                     .rename => {
                         const new_name = std.mem.trimRight(u8, Pixi.state.popups.layer_setup_name[0..], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
-                            file.renameLayer(Pixi.state.popups.layer_setup_name[0..index :0], Pixi.state.popups.layer_setup_index) catch unreachable;
+                            try file.renameLayer(Pixi.state.popups.layer_setup_name[0..index :0], Pixi.state.popups.layer_setup_index);
                         } else {
-                            file.renameLayer(Pixi.state.popups.layer_setup_name[0..new_name.len :0], Pixi.state.popups.layer_setup_index) catch unreachable;
+                            try file.renameLayer(Pixi.state.popups.layer_setup_name[0..new_name.len :0], Pixi.state.popups.layer_setup_index);
                         }
                     },
                     .duplicate => {
                         const new_name = std.mem.trimRight(u8, Pixi.state.popups.layer_setup_name[0.. :0], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
-                            file.duplicateLayer(Pixi.state.popups.layer_setup_name[0..index :0], Pixi.state.popups.layer_setup_index) catch unreachable;
+                            try file.duplicateLayer(Pixi.state.popups.layer_setup_name[0..index :0], Pixi.state.popups.layer_setup_index);
                         } else {
-                            file.duplicateLayer(Pixi.state.popups.layer_setup_name[0..new_name.len :0], Pixi.state.popups.layer_setup_index) catch unreachable;
+                            try file.duplicateLayer(Pixi.state.popups.layer_setup_name[0..new_name.len :0], Pixi.state.popups.layer_setup_index);
                         }
                     },
                 }

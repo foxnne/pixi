@@ -3,7 +3,7 @@ const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw() !void {
     if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
         if (Pixi.state.popups.heightmap) {
             imgui.openPopup("Heightmap", imgui.PopupFlags_None);
@@ -50,11 +50,11 @@ pub fn draw() void {
             imgui.sameLine();
             if (imgui.buttonEx("Create", .{ .x = half_width, .y = 0.0 })) {
                 file.heightmap.layer = .{
-                    .name = Pixi.state.allocator.dupeZ(u8, "heightmap") catch unreachable,
-                    .texture = Pixi.gfx.Texture.createEmpty(file.width, file.height, .{}) catch unreachable,
+                    .name = try Pixi.state.allocator.dupeZ(u8, "heightmap"),
+                    .texture = try Pixi.gfx.Texture.createEmpty(file.width, file.height, .{}),
                     .id = file.newId(),
                 };
-                file.history.append(.{ .heightmap_restore_delete = .{ .action = .delete } }) catch unreachable;
+                try file.history.append(.{ .heightmap_restore_delete = .{ .action = .delete } });
                 Pixi.state.popups.heightmap = false;
                 Pixi.state.tools.set(.heightmap);
             }

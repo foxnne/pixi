@@ -13,7 +13,7 @@ pub const keyframe_animations = @import("keyframe_animations.zig");
 pub const pack = @import("pack.zig");
 pub const settings = @import("settings.zig");
 
-pub fn draw(core: *Core) void {
+pub fn draw(core: *Core) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     imgui.pushStyleVar(imgui.StyleVar_WindowBorderSize, 0.0);
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
@@ -67,7 +67,7 @@ pub fn draw(core: *Core) void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                files.draw();
+                try files.draw();
             },
             .tools => {
                 if (imgui.beginMenuBar()) {
@@ -84,7 +84,7 @@ pub fn draw(core: *Core) void {
                 imgui.spacing();
                 imgui.spacing();
 
-                tools.draw();
+                try tools.draw();
             },
             .sprites => {
                 if (imgui.beginMenuBar()) {
@@ -100,7 +100,7 @@ pub fn draw(core: *Core) void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                sprites.draw();
+                try sprites.draw();
             },
             .animations => {
                 if (imgui.beginMenuBar()) {
@@ -116,7 +116,7 @@ pub fn draw(core: *Core) void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                animations.draw();
+                try animations.draw();
             },
             .keyframe_animations => {
                 if (imgui.beginMenuBar()) {
@@ -132,7 +132,7 @@ pub fn draw(core: *Core) void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                keyframe_animations.draw();
+                try keyframe_animations.draw();
             },
             .pack => {
                 if (imgui.beginMenuBar()) {
@@ -148,7 +148,7 @@ pub fn draw(core: *Core) void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                pack.draw();
+                try pack.draw();
             },
             .settings => {
                 if (imgui.beginMenuBar()) {
@@ -164,7 +164,7 @@ pub fn draw(core: *Core) void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                settings.draw(core);
+                try settings.draw(core);
             },
         }
     }

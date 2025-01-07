@@ -5,7 +5,7 @@ const imgui = @import("zig-imgui");
 
 var open: bool = false;
 
-pub fn draw() void {
+pub fn draw() !void {
     if (!Pixi.state.popups.references) return;
 
     const popup_size = 200 * Pixi.state.content_scale[0];
@@ -50,7 +50,7 @@ pub fn draw() void {
                 imgui.pushIDInt(@as(c_int, @intCast(i)));
                 defer imgui.popID();
 
-                const label = std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s} ", .{ Pixi.fa.file_image, file_name }) catch unreachable;
+                const label = try std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s} ", .{ Pixi.fa.file_image, file_name });
                 defer Pixi.state.allocator.free(label);
 
                 var file_tab_flags: imgui.TabItemFlags = 0;
@@ -65,7 +65,7 @@ pub fn draw() void {
                 }
 
                 if (!tab_open) {
-                    Pixi.Editor.closeReference(i) catch unreachable;
+                    try Pixi.Editor.closeReference(i);
                     break;
                 }
 

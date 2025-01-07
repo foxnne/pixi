@@ -3,7 +3,7 @@ const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw() !void {
     if (Pixi.state.popups.file_setup) {
         imgui.openPopup("File Setup...", imgui.PopupFlags_None);
     } else return;
@@ -140,17 +140,17 @@ pub fn draw() void {
             if (ext.len > 0 and std.mem.eql(u8, ".pixi", ext[0..5])) {
                 switch (Pixi.state.popups.file_setup_state) {
                     .new => {
-                        if (Pixi.Editor.newFile(Pixi.state.allocator.dupeZ(u8, file_setup_path) catch unreachable, null) catch unreachable) {
+                        if (try Pixi.Editor.newFile(try Pixi.state.allocator.dupeZ(u8, file_setup_path), null)) {
                             if (Pixi.Editor.getFile(0)) |file| {
-                                file.save() catch unreachable;
+                                try file.save();
                             }
                         }
                     },
                     .import_png => {
                         const file_setup_png_path = std.mem.trimRight(u8, &Pixi.state.popups.file_setup_png_path, "\u{0}");
-                        if (Pixi.Editor.importPng(Pixi.state.allocator.dupeZ(u8, file_setup_png_path) catch unreachable, Pixi.state.allocator.dupeZ(u8, file_setup_path) catch unreachable) catch unreachable) {
+                        if (try Pixi.Editor.importPng(try Pixi.state.allocator.dupeZ(u8, file_setup_png_path), try Pixi.state.allocator.dupeZ(u8, file_setup_path))) {
                             if (Pixi.Editor.getFile(0)) |file| {
-                                file.save() catch unreachable;
+                                try file.save();
                             }
                         }
                     },

@@ -5,7 +5,7 @@ const imgui = @import("zig-imgui");
 const layers = @import("layers.zig");
 const zmath = @import("zmath");
 
-pub fn draw() void {
+pub fn draw() !void {
     imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.foreground.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.foreground.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.foreground.toImguiVec4());

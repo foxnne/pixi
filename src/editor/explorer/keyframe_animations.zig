@@ -4,7 +4,7 @@ const core = @import("mach").core;
 const tools = @import("tools.zig");
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw() !void {
     if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
         // Make sure we can see the timeline for animation previews
         file.flipbook_view = .timeline;

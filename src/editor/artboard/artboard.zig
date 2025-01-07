@@ -1,7 +1,6 @@
 const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
-const editor = Pixi.Editor;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
@@ -16,7 +15,7 @@ pub const infobar = @import("infobar.zig");
 pub var artboard_0_open_file_index: usize = 0;
 pub var artboard_1_open_file_index: usize = 0;
 
-pub fn draw(core: *Core) void {
+pub fn draw(core: *Core) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -42,7 +41,7 @@ pub fn draw(core: *Core) void {
     art_flags |= imgui.WindowFlags_NoBringToFrontOnFocus;
 
     if (imgui.begin("Art", null, art_flags)) {
-        menu.draw();
+        try menu.draw();
 
         const art_width = imgui.getWindowWidth();
 
@@ -88,24 +87,6 @@ pub fn draw(core: *Core) void {
                 if (!artboard_grip) {
                     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
                     const mouse_clicked: bool = Pixi.state.mouse.anyButtonDown();
-
-                    // defer {
-                    //     const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
-                    //     // Draw a shadow fading from bottom to top
-                    //     const pos = imgui.getWindowPos();
-                    //     const width = imgui.getWindowWidth();
-
-                    //     if (imgui.getWindowDrawList()) |draw_list| {
-                    //         draw_list.addRectFilledMultiColor(
-                    //             .{ .x = pos.x, .y = pos.y },
-                    //             .{ .x = pos.x + width, .y = pos.y + pixi.state.settings.shadow_length },
-                    //             shadow_color,
-                    //             shadow_color,
-                    //             0x0,
-                    //             0x0,
-                    //         );
-                    //     }
-                    // }
 
                     if (Pixi.state.sidebar == .pack) {
                         drawCanvasPack();
@@ -206,7 +187,7 @@ pub fn draw(core: *Core) void {
                                     imgui.ChildFlags_None,
                                     canvas_flags,
                                 )) {
-                                    canvas.draw(file, core);
+                                    try canvas.draw(file, core);
                                 }
                                 imgui.endChild();
 
@@ -217,7 +198,7 @@ pub fn draw(core: *Core) void {
                             }
                         }
                     } else {
-                        drawLogoScreen();
+                        try drawLogoScreen();
                     }
                 } else {
                     drawGrip(art_width);
@@ -245,7 +226,7 @@ pub fn draw(core: *Core) void {
                         } else {
                             if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                                 defer imgui.endChild();
-                                flipbook.canvas.draw(file);
+                                try flipbook.canvas.draw(file);
                             }
                         }
                     }
@@ -262,28 +243,11 @@ pub fn draw(core: *Core) void {
                 }
             }
         }
-
-        // {
-        //     const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.state.settings.shadow_opacity).toU32();
-        //     const pos = imgui.getWindowPos();
-        //     const height = imgui.getWindowHeight();
-
-        //     if (imgui.getWindowDrawList()) |draw_list|
-        //         // Draw a shadow fading from left to right
-        //         draw_list.addRectFilledMultiColor(
-        //             pos,
-        //             .{ .x = pos.x + pixi.state.settings.shadow_length, .y = height + pos.x },
-        //             shadow_color,
-        //             0x0,
-        //             shadow_color,
-        //             0x0,
-        //         );
-        // }
     }
     imgui.end();
 }
 
-pub fn drawLogoScreen() void {
+pub fn drawLogoScreen() !void {
     imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_Border, Pixi.editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.background.toImguiVec4());
@@ -331,7 +295,7 @@ pub fn drawLogoScreen() void {
         }
         if (Pixi.state.popups.file_dialog_response) |response| {
             if (response.type == .project) {
-                Pixi.Editor.setProjectFolder(response.path);
+                try Pixi.Editor.setProjectFolder(response.path);
                 nfd.freePath(response.path);
                 Pixi.state.popups.file_dialog_response = null;
             }

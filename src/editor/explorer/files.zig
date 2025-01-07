@@ -23,7 +23,7 @@ pub const Extension = enum {
     tar,
 };
 
-pub fn draw() void {
+pub fn draw() !void {
     imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
     defer imgui.popStyleColorEx(2);
@@ -153,7 +153,7 @@ pub fn draw() void {
                     defer Pixi.state.allocator.free(label);
 
                     if (imgui.selectable(label)) {
-                        Pixi.Editor.setProjectFolder(folder);
+                        try Pixi.Editor.setProjectFolder(folder);
                     }
                     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.state.content_scale[0], .y = 2.0 * Pixi.state.content_scale[1] });
                     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 6.0 * Pixi.state.content_scale[1] });
@@ -245,10 +245,14 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     )) {
                         switch (ext) {
                             .pixi => {
-                                _ = Pixi.Editor.openFile(abs_path) catch unreachable;
+                                _ = Pixi.Editor.openFile(abs_path) catch {
+                                    std.log.debug("Failed to open file: {s}", .{abs_path});
+                                };
                             },
                             .png, .jpg => {
-                                _ = Pixi.Editor.openReference(abs_path) catch unreachable;
+                                _ = Pixi.Editor.openReference(abs_path) catch {
+                                    std.log.debug("Failed to open file: {s}", .{abs_path});
+                                };
                             },
                             else => {},
                         }

@@ -169,7 +169,7 @@ pub const PixiFile = struct {
         texture_position_offset: [2]f32 = .{ 0.0, 0.0 },
     };
 
-    pub fn processSampleTool(file: *PixiFile, canvas: Canvas, options: SampleToolOptions) void {
+    pub fn processSampleTool(file: *PixiFile, canvas: Canvas, options: SampleToolOptions) !void {
         const sample_key = if (Pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
         const sample_button = if (Pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
 

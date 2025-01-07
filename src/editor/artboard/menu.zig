@@ -5,7 +5,7 @@ const zstbi = @import("zstbi");
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw() !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 6.0 * Pixi.state.content_scale[0], .y = 6.0 * Pixi.state.content_scale[1] });
     defer imgui.popStyleVarEx(2);
@@ -27,7 +27,7 @@ pub fn draw() void {
             }
             if (Pixi.state.popups.file_dialog_response) |response| {
                 if (response.type == .project) {
-                    Pixi.Editor.setProjectFolder(response.path);
+                    try Pixi.Editor.setProjectFolder(response.path);
                     nfd.freePath(response.path);
                     Pixi.state.popups.file_dialog_response = null;
                 }
@@ -38,7 +38,7 @@ pub fn draw() void {
 
                 for (Pixi.state.recents.folders.items) |folder| {
                     if (imgui.menuItem(folder)) {
-                        Pixi.Editor.setProjectFolder(folder);
+                        try Pixi.Editor.setProjectFolder(folder);
                     }
                 }
             }

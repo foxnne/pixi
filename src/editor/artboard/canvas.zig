@@ -4,7 +4,7 @@ const Core = @import("mach").Core;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
     const transforming = file.transform_texture != null;
 
     {
@@ -72,10 +72,10 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
                 }
                 imgui.sameLine();
                 if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and Pixi.state.open_file_index == Pixi.Editor.getFileIndex(file.path).?)) {
-                    var change = file.buffers.stroke.toChange(@intCast(file.selected_layer_index)) catch unreachable;
+                    var change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
                     change.pixels.temporary = true;
-                    file.history.append(change) catch unreachable;
-                    file.undo() catch unreachable;
+                    try file.history.append(change);
+                    try file.undo();
 
                     file.transform_texture.?.texture.deinit();
                     file.transform_texture = null;
@@ -138,11 +138,11 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
             if (Pixi.state.sidebar != .pack)
                 file.camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
-            file.processStrokeTool(.primary, .{}) catch unreachable;
-            file.processFillTool(.primary, .{}) catch unreachable;
-            file.processAnimationTool() catch unreachable;
-            file.processSampleTool(.primary, .{});
-            file.processSelectionTool(.primary, .{}) catch unreachable;
+            try file.processStrokeTool(.primary, .{});
+            try file.processFillTool(.primary, .{});
+            try file.processAnimationTool();
+            try file.processSampleTool(.primary, .{});
+            try file.processSelectionTool(.primary, .{});
 
             if (Pixi.state.mouse.button(.primary)) |primary| {
                 if (primary.pressed()) {
@@ -190,7 +190,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
                                 zmath.orthographicLh(width, height, -100, 100),
                             ) };
 
-                            Pixi.state.batcher.begin(.{
+                            try Pixi.state.batcher.begin(.{
                                 .pipeline_handle = Pixi.state.pipeline_default,
                                 .compute_pipeline_handle = Pixi.state.pipeline_compute,
                                 .bind_group_handle = transform_bindgroup,
@@ -200,7 +200,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
                                 .staging_buffer = staging_buffer,
                                 .buffer_size = buffer_size,
                                 .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
-                            }) catch unreachable;
+                            });
 
                             var pivot = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
                             if (transform_texture.pivot == null) {
@@ -211,16 +211,16 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) void {
                             }
                             //pivot += zmath.loadArr2(.{ canvas_center_offset[0], canvas_center_offset[1] });
 
-                            Pixi.state.batcher.transformTexture(
+                            try Pixi.state.batcher.transformTexture(
                                 transform_texture.vertices,
                                 .{ canvas_center_offset[0], -canvas_center_offset[1] },
                                 .{ pivot[0], -pivot[1] },
                                 .{
                                     .rotation = -transform_texture.rotation,
                                 },
-                            ) catch unreachable;
+                            );
 
-                            Pixi.state.batcher.end(uniforms, Pixi.state.uniform_buffer_default) catch unreachable;
+                            try Pixi.state.batcher.end(uniforms, Pixi.state.uniform_buffer_default);
                         }
                     }
                 }

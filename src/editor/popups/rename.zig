@@ -3,7 +3,7 @@ const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw() void {
+pub fn draw() !void {
     const dialog_name = switch (Pixi.state.popups.rename_state) {
         .none => "None...",
         .rename => "Rename...",
@@ -70,7 +70,7 @@ pub fn draw() void {
                     const old_path = std.mem.trimRight(u8, Pixi.state.popups.rename_old_path[0..], "\u{0}");
                     const new_path = std.mem.trimRight(u8, Pixi.state.popups.rename_path[0..], "\u{0}");
 
-                    std.fs.renameAbsolute(old_path[0..], new_path[0..]) catch unreachable;
+                    try std.fs.renameAbsolute(old_path[0..], new_path[0..]);
 
                     const old_path_z = Pixi.state.popups.rename_old_path[0..old_path.len :0];
                     for (Pixi.state.open_files.items) |*open_file| {
@@ -84,7 +84,7 @@ pub fn draw() void {
                     const original_path = std.mem.trimRight(u8, Pixi.state.popups.rename_old_path[0..], "\u{0}");
                     const new_path = std.mem.trimRight(u8, Pixi.state.popups.rename_path[0..], "\u{0}");
 
-                    std.fs.copyFileAbsolute(original_path, new_path, .{}) catch unreachable;
+                    try std.fs.copyFileAbsolute(original_path, new_path, .{});
                 },
                 else => unreachable,
             }
