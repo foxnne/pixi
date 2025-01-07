@@ -76,7 +76,7 @@ pub fn draw() !void {
                     for (Pixi.state.open_files.items) |*open_file| {
                         if (std.mem.eql(u8, open_file.path, old_path_z)) {
                             Pixi.state.allocator.free(open_file.path);
-                            open_file.path = Pixi.state.allocator.dupeZ(u8, new_path) catch unreachable;
+                            open_file.path = try Pixi.state.allocator.dupeZ(u8, new_path);
                         }
                     }
                 },

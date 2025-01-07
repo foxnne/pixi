@@ -104,7 +104,7 @@ pub fn draw() !void {
             switch (Pixi.state.popups.file_confirm_close_state) {
                 .one => {
                     if (Pixi.Editor.getFile(Pixi.state.popups.file_confirm_close_index)) |file| {
-                        _ = file.save() catch unreachable;
+                        _ = try file.save();
                     }
                     try Pixi.Editor.closeFile(Pixi.state.popups.file_confirm_close_index);
                 },

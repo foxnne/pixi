@@ -150,7 +150,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                     const tile_index = tile_column + tile_row * tiles_wide;
 
                     if (Pixi.state.sidebar == .sprites or file.flipbook_view == .timeline) {
-                        file.makeSpriteSelection(tile_index);
+                        try file.makeSpriteSelection(tile_index);
                     } else if (Pixi.state.tools.current != .animation) {
                         // Ensure we only set the request state on the first set.
                         if (file.flipbook_scroll_request) |*request| {
@@ -245,7 +245,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), Pixi.editor.theme.text_secondary.toU32(), false);
 
         if (file.transform_texture) |*transform_texture|
-            file.processTransformTextureControls(transform_texture, .{});
+            try file.processTransformTextureControls(transform_texture, .{});
 
         if (file.heightmap.visible) {
             file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
@@ -272,7 +272,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                     const temp_x = @as(usize, @intFromFloat(pixel_coord[0]));
                     const temp_y = @as(usize, @intFromFloat(pixel_coord[1]));
                     const position = .{ pixel_coord[0] + canvas_center_offset[0] + 0.2, pixel_coord[1] + canvas_center_offset[1] + 0.25 };
-                    file.camera.drawText("{d}", .{Pixi.state.colors.height}, position, 0xFFFFFFFF);
+                    try file.camera.drawText("{d}", .{Pixi.state.colors.height}, position, 0xFFFFFFFF);
 
                     const min: [2]u32 = .{
                         @intCast(@max(@as(i32, @intCast(temp_x)) - 5, 0)),
@@ -292,7 +292,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                             const pixel_color = file.heightmap.layer.?.getPixel(pixel);
                             if (pixel_color[3] != 0 and (pixel[0] != temp_x or pixel[1] != temp_y)) {
                                 const pixel_position = .{ canvas_center_offset[0] + @as(f32, @floatFromInt(x)) + 0.2, canvas_center_offset[1] + @as(f32, @floatFromInt(y)) + 0.25 };
-                                file.camera.drawText("{d}", .{pixel_color[0]}, pixel_position, 0xFFFFFFFF);
+                                try file.camera.drawText("{d}", .{pixel_color[0]}, pixel_position, 0xFFFFFFFF);
                             }
                         }
                     }

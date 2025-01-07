@@ -106,7 +106,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawText(camera: Camera, comptime fmt: []const u8, args: anytype, position: [2]f32, color: u32) void {
+    pub fn drawText(camera: Camera, comptime fmt: []const u8, args: anytype, position: [2]f32, color: u32) !void {
         const window_position = imgui.getWindowPos();
         const mat = camera.matrix();
 
@@ -116,14 +116,14 @@ pub const Camera = struct {
 
         const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
 
-        const text = std.fmt.allocPrintZ(Pixi.state.allocator, fmt, args) catch unreachable;
+        const text = try std.fmt.allocPrintZ(Pixi.state.allocator, fmt, args);
         defer Pixi.state.allocator.free(text);
 
         if (imgui.getWindowDrawList()) |draw_list|
             draw_list.addText(pos_vec, color, text.ptr);
     }
 
-    pub fn drawTextWithShadow(camera: Camera, comptime fmt: []const u8, args: anytype, position: [2]f32, color: u32, shadow_color: u32) void {
+    pub fn drawTextWithShadow(camera: Camera, comptime fmt: []const u8, args: anytype, position: [2]f32, color: u32, shadow_color: u32) !void {
         const window_position = imgui.getWindowPos();
         const mat = camera.matrix();
 
@@ -133,7 +133,7 @@ pub const Camera = struct {
 
         const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
 
-        const text = std.fmt.allocPrintZ(Pixi.state.allocator, fmt, args) catch unreachable;
+        const text = try std.fmt.allocPrintZ(Pixi.state.allocator, fmt, args);
         defer Pixi.state.allocator.free(text);
 
         if (imgui.getWindowDrawList()) |draw_list| {
@@ -839,7 +839,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawLayerTooltip(camera: Camera, layer_index: usize) void {
+    pub fn drawLayerTooltip(camera: Camera, layer_index: usize) !void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0 * Pixi.state.content_scale[0], .y = 8.0 * Pixi.state.content_scale[1] });
         imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0 * Pixi.state.content_scale[0]);
         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 4.0 * Pixi.state.content_scale[1] });
@@ -848,7 +848,7 @@ pub const Camera = struct {
         if (imgui.beginTooltip()) {
             defer imgui.endTooltip();
             const layer_name = Pixi.state.open_files.items[Pixi.state.open_file_index].layers.items[layer_index].name;
-            const label = std.fmt.allocPrintZ(Pixi.state.allocator, "{s} {s}", .{ Pixi.fa.layer_group, layer_name }) catch unreachable;
+            const label = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s} {s}", .{ Pixi.fa.layer_group, layer_name });
             defer Pixi.state.allocator.free(label);
             imgui.text(label);
         }
@@ -868,7 +868,7 @@ pub const Camera = struct {
         }
     }
 
-    pub fn drawColorTooltip(camera: Camera, color: [4]u8) void {
+    pub fn drawColorTooltip(camera: Camera, color: [4]u8) !void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0 * Pixi.state.content_scale[0], .y = 8.0 * Pixi.state.content_scale[1] });
         imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0 * Pixi.state.content_scale[0]);
         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 4.0 * Pixi.state.content_scale[1] });

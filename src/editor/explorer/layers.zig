@@ -3,7 +3,7 @@ const Pixi = @import("../../Pixi.zig");
 const imgui = @import("zig-imgui");
 const History = Pixi.storage.Internal.PixiFile.History;
 
-pub fn draw() void {
+pub fn draw() !void {
     if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
         defer imgui.popStyleVar();
@@ -30,9 +30,9 @@ pub fn draw() void {
 
             if (imgui.checkbox("Edit Heightmap Layer", &file.heightmap.visible)) {}
             if (imgui.button("Delete Heightmap Layer")) {
-                file.deleted_heightmap_layers.append(file.heightmap.layer.?) catch unreachable;
+                try file.deleted_heightmap_layers.append(file.heightmap.layer.?);
                 file.heightmap.layer = null;
-                file.history.append(.{ .heightmap_restore_delete = .{ .action = .restore } }) catch unreachable;
+                try file.history.append(.{ .heightmap_restore_delete = .{ .action = .restore } });
                 if (Pixi.state.tools.current == .heightmap)
                     Pixi.state.tools.current = .pointer;
             }
@@ -47,7 +47,7 @@ pub fn draw() void {
         }
         imgui.sameLine();
 
-        const file_name = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}", .{std.fs.path.basename(file.path)}) catch unreachable;
+        const file_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}", .{std.fs.path.basename(file.path)});
         defer Pixi.state.allocator.free(file_name);
 
         imgui.text(file_name);
@@ -88,7 +88,7 @@ pub fn draw() void {
 
                     file.layers.items[i].visible = !file.layers.items[i].visible;
 
-                    file.history.append(change) catch unreachable;
+                    try file.history.append(change);
                 }
                 imgui.sameLineEx(0.0, 0.0);
 
@@ -102,7 +102,7 @@ pub fn draw() void {
                     } };
 
                     file.layers.items[i].collapse = !file.layers.items[i].collapse;
-                    file.history.append(change) catch unreachable;
+                    try file.history.append(change);
                 }
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();
@@ -143,7 +143,7 @@ pub fn draw() void {
                     }
 
                     if (imgui.menuItem("Duplicate...")) {
-                        const new_name = std.fmt.allocPrint(Pixi.state.allocator, "{s}_copy", .{layer.name}) catch unreachable;
+                        const new_name = try std.fmt.allocPrint(Pixi.state.allocator, "{s}_copy", .{layer.name});
                         defer Pixi.state.allocator.free(new_name);
                         Pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
                         @memcpy(Pixi.state.popups.layer_setup_name[0..new_name.len], new_name);
@@ -157,21 +157,21 @@ pub fn draw() void {
 
                     imgui.separator();
                     if (imgui.menuItem("Delete")) {
-                        file.deleteLayer(i) catch unreachable;
+                        try file.deleteLayer(i);
                     }
                 }
 
                 if (imgui.isItemActive() and !imgui.isItemHovered(imgui.HoveredFlags_None) and imgui.isAnyItemHovered()) {
                     const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0).y < 0.0) @as(i32, 1) else @as(i32, -1)), 0, std.math.maxInt(i32))));
                     if (i_next >= 0.0 and i_next < file.layers.items.len) {
-                        var change = History.Change.create(Pixi.state.allocator, .layers_order, file.layers.items.len) catch unreachable;
+                        var change = try History.Change.create(Pixi.state.allocator, .layers_order, file.layers.items.len);
                         for (file.layers.items, 0..) |l, layer_i| {
                             change.layers_order.order[layer_i] = l.id;
                             if (file.selected_layer_index == layer_i) {
                                 change.layers_order.selected = l.id;
                             }
                         }
-                        file.history.append(change) catch unreachable;
+                        try file.history.append(change);
 
                         file.layers.items[i] = file.layers.items[i_next];
                         file.layers.items[i_next] = layer;

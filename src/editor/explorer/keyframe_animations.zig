@@ -70,7 +70,7 @@ pub fn draw() !void {
                 for (file.keyframe_animations.items, 0..) |*animation, animation_index| {
                     const animation_color = if (file.selected_keyframe_animation_index == animation_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
 
-                    const animation_name = std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s}##{d}", .{ Pixi.fa.film, animation.name, animation.id }) catch unreachable;
+                    const animation_name = try std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s}##{d}", .{ Pixi.fa.film, animation.name, animation.id });
                     defer Pixi.state.allocator.free(animation_name);
 
                     imgui.pushStyleColorImVec4(imgui.Col_Text, animation_color);
@@ -83,7 +83,7 @@ pub fn draw() !void {
                         defer imgui.unindentEx(20.0);
 
                         for (animation.keyframes.items) |*keyframe| {
-                            const keyframe_name = std.fmt.allocPrintZ(Pixi.state.allocator, "Keyframe ID:{d}", .{keyframe.id}) catch unreachable;
+                            const keyframe_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "Keyframe ID:{d}", .{keyframe.id});
                             defer Pixi.state.allocator.free(keyframe_name);
 
                             const keyframe_color = if (animation.active_keyframe_id == keyframe.id) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
@@ -104,7 +104,7 @@ pub fn draw() !void {
                                     const color = animation.getFrameNodeColor(frame.id);
                                     const sprite = file.sprites.items[frame.sprite_index];
 
-                                    const sprite_name = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id }) catch unreachable;
+                                    const sprite_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id });
                                     defer Pixi.state.allocator.free(sprite_name);
 
                                     imgui.pushStyleColor(imgui.Col_Text, color);
@@ -123,7 +123,7 @@ pub fn draw() !void {
                                         for (file.selected_sprites.items) |selected_sprite| {
                                             if (selected_sprite != sprite.index or file.selected_sprites.items.len > 1) {
                                                 file.selected_sprites.clearAndFree();
-                                                file.selected_sprites.append(sprite.index) catch unreachable;
+                                                try file.selected_sprites.append(sprite.index);
                                             }
                                         }
                                         file.selected_keyframe_animation_index = animation_index;
@@ -149,7 +149,7 @@ pub fn draw() !void {
                         file.selected_keyframe_animation_index = animation_index;
                     }
 
-                    contextMenu(animation_index, file);
+                    try contextMenu(animation_index, file);
                 }
             }
         }
@@ -160,7 +160,7 @@ pub fn draw() !void {
     }
 }
 
-fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) void {
+fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) !void {
     if (imgui.beginPopupContextItem()) {
         defer imgui.endPopup();
 
@@ -177,7 +177,7 @@ fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) vo
         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
         defer imgui.popStyleColor();
         if (imgui.menuItem("Delete")) {
-            file.deleteTransformAnimation(animation_index) catch unreachable;
+            try file.deleteTransformAnimation(animation_index);
             if (animation_index == file.selected_keyframe_animation_index)
                 file.selected_keyframe_animation_index = 0;
         }

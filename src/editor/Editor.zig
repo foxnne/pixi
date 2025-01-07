@@ -210,7 +210,7 @@ pub fn loadFile(path: [:0]const u8) !?Pixi.storage.Internal.PixiFile {
             .ignore_unknown_fields = true,
         };
 
-        var parsed = std.json.parseFromSlice(Pixi.storage.External.Pixi, Pixi.state.allocator, content, options) catch unreachable;
+        var parsed = try std.json.parseFromSlice(Pixi.storage.External.Pixi, Pixi.state.allocator, content, options);
         defer parsed.deinit();
 
         const external = parsed.value;

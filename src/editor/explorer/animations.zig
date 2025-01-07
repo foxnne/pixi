@@ -45,10 +45,10 @@ pub fn draw() !void {
 
                 { // Draw tools for animation editing
                     imgui.setCursorPosX(style.item_spacing.x * 2.0);
-                    tools.drawTool(Pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+                    try tools.drawTool(Pixi.fa.mouse_pointer, button_width, button_height, .pointer);
 
                     imgui.sameLine();
-                    tools.drawTool("[]", button_width, button_height, .animation);
+                    try tools.drawTool("[]", button_width, button_height, .animation);
                 }
             }
         }
@@ -72,12 +72,12 @@ pub fn draw() !void {
                     const header_color = if (file.selected_animation_index == animation_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
                     imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
                     defer imgui.popStyleColor();
-                    const animation_name = std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s}", .{ Pixi.fa.film, animation.name }) catch unreachable;
+                    const animation_name = try std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s}", .{ Pixi.fa.film, animation.name });
                     defer Pixi.state.allocator.free(animation_name);
 
                     if (imgui.treeNode(animation_name)) {
                         imgui.pushID(animation.name);
-                        contextMenu(animation_index, file);
+                        try contextMenu(animation_index, file);
                         imgui.popID();
 
                         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
@@ -90,7 +90,7 @@ pub fn draw() !void {
                                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                                     defer imgui.popStyleColor();
 
-                                    const sprite_name = std.fmt.allocPrintZ(Pixi.state.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index }) catch unreachable;
+                                    const sprite_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index });
                                     defer Pixi.state.allocator.free(sprite_name);
 
                                     if (imgui.selectable(sprite_name)) {
@@ -102,7 +102,7 @@ pub fn draw() !void {
                         imgui.treePop();
                     } else {
                         imgui.pushID(animation.name);
-                        contextMenu(animation_index, file);
+                        try contextMenu(animation_index, file);
                         imgui.popID();
                     }
                 }
@@ -115,7 +115,7 @@ pub fn draw() !void {
     }
 }
 
-fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) void {
+fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) !void {
     if (imgui.beginPopupContextItem()) {
         defer imgui.endPopup();
 
@@ -132,7 +132,7 @@ fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) vo
         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
         defer imgui.popStyleColor();
         if (imgui.menuItem("Delete")) {
-            file.deleteAnimation(animation_index) catch unreachable;
+            try file.deleteAnimation(animation_index);
             if (animation_index == file.selected_animation_index)
                 file.selected_animation_index = 0;
         }

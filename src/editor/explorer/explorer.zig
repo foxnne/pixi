@@ -56,7 +56,7 @@ pub fn draw(core: *Core) !void {
             .files => {
                 if (imgui.beginMenuBar()) {
                     if (Pixi.state.hotkeys.hotkey(.{ .sidebar = .files })) |hotkey| {
-                        const title = std.fmt.allocPrintZ(Pixi.state.allocator, "Explorer ({s})", .{hotkey.shortcut}) catch unreachable;
+                        const title = try std.fmt.allocPrintZ(Pixi.state.allocator, "Explorer ({s})", .{hotkey.shortcut});
                         defer Pixi.state.allocator.free(title);
 
                         imgui.separatorText(title);
@@ -72,7 +72,7 @@ pub fn draw(core: *Core) !void {
             .tools => {
                 if (imgui.beginMenuBar()) {
                     if (Pixi.state.hotkeys.hotkey(.{ .sidebar = .tools })) |hotkey| {
-                        const title = std.fmt.allocPrintZ(Pixi.state.allocator, "Tools ({s})", .{hotkey.shortcut}) catch unreachable;
+                        const title = try std.fmt.allocPrintZ(Pixi.state.allocator, "Tools ({s})", .{hotkey.shortcut});
                         defer Pixi.state.allocator.free(title);
 
                         imgui.separatorText(title);
@@ -89,7 +89,7 @@ pub fn draw(core: *Core) !void {
             .sprites => {
                 if (imgui.beginMenuBar()) {
                     if (Pixi.state.hotkeys.hotkey(.{ .sidebar = .sprites })) |hotkey| {
-                        const title = std.fmt.allocPrintZ(Pixi.state.allocator, "Sprites ({s})", .{hotkey.shortcut}) catch unreachable;
+                        const title = try std.fmt.allocPrintZ(Pixi.state.allocator, "Sprites ({s})", .{hotkey.shortcut});
                         defer Pixi.state.allocator.free(title);
 
                         imgui.separatorText(title);
@@ -105,7 +105,7 @@ pub fn draw(core: *Core) !void {
             .animations => {
                 if (imgui.beginMenuBar()) {
                     if (Pixi.state.hotkeys.hotkey(.{ .sidebar = .animations })) |hotkey| {
-                        const title = std.fmt.allocPrintZ(Pixi.state.allocator, "Animations ({s})", .{hotkey.shortcut}) catch unreachable;
+                        const title = try std.fmt.allocPrintZ(Pixi.state.allocator, "Animations ({s})", .{hotkey.shortcut});
                         defer Pixi.state.allocator.free(title);
 
                         imgui.separatorText(title);
@@ -121,7 +121,7 @@ pub fn draw(core: *Core) !void {
             .keyframe_animations => {
                 if (imgui.beginMenuBar()) {
                     if (Pixi.state.hotkeys.hotkey(.{ .sidebar = .keyframe_animations })) |hotkey| {
-                        const title = std.fmt.allocPrintZ(Pixi.state.allocator, "Keyframe Animations ({s})", .{hotkey.shortcut}) catch unreachable;
+                        const title = try std.fmt.allocPrintZ(Pixi.state.allocator, "Keyframe Animations ({s})", .{hotkey.shortcut});
                         defer Pixi.state.allocator.free(title);
 
                         imgui.separatorText(title);
@@ -137,7 +137,7 @@ pub fn draw(core: *Core) !void {
             .pack => {
                 if (imgui.beginMenuBar()) {
                     if (Pixi.state.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
-                        const title = std.fmt.allocPrintZ(Pixi.state.allocator, "Packing ({s})", .{hotkey.shortcut}) catch unreachable;
+                        const title = try std.fmt.allocPrintZ(Pixi.state.allocator, "Packing ({s})", .{hotkey.shortcut});
                         defer Pixi.state.allocator.free(title);
 
                         imgui.separatorText(title);
@@ -153,7 +153,7 @@ pub fn draw(core: *Core) !void {
             .settings => {
                 if (imgui.beginMenuBar()) {
                     if (Pixi.state.hotkeys.hotkey(.{ .sidebar = .settings })) |hotkey| {
-                        const title = std.fmt.allocPrintZ(Pixi.state.allocator, "Settings ({s})", .{hotkey.shortcut}) catch unreachable;
+                        const title = try std.fmt.allocPrintZ(Pixi.state.allocator, "Settings ({s})", .{hotkey.shortcut});
                         defer Pixi.state.allocator.free(title);
 
                         imgui.separatorText(title);

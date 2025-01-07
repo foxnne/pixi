@@ -76,7 +76,7 @@ pub fn build(b: *std.Build) !void {
     exe.linkLibrary(zstbi.artifact("zstbi"));
     zip.link(exe);
 
-    const assets = ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");
+    const assets = try ProcessAssetsStep.init(b, "assets", "src/assets.zig", "src/animations.zig");
     var process_assets_step = b.step("process-assets", "generates struct for all assets");
     process_assets_step.dependOn(&assets.step);
     exe.step.dependOn(process_assets_step);

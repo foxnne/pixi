@@ -42,7 +42,7 @@ pub fn draw(core: *Core) !void {
             if (builtin.os.tag == .macos) {
                 if (imgui.checkbox("Ctrl zoom", &Pixi.state.settings.zoom_ctrl)) {
                     Pixi.state.allocator.free(Pixi.state.hotkeys.hotkeys);
-                    Pixi.state.hotkeys = Pixi.input.Hotkeys.initDefault(Pixi.state.allocator) catch unreachable;
+                    Pixi.state.hotkeys = try Pixi.input.Hotkeys.initDefault(Pixi.state.allocator);
                 }
             }
 
@@ -130,7 +130,7 @@ pub fn draw(core: *Core) !void {
             imgui.pushItemWidth(imgui.getWindowWidth() * 0.7);
             if (imgui.beginCombo("Theme", Pixi.state.settings.theme, imgui.ComboFlags_None)) {
                 defer imgui.endCombo();
-                searchThemes() catch unreachable;
+                try searchThemes();
             }
             imgui.separator();
 
@@ -157,9 +157,9 @@ pub fn draw(core: *Core) !void {
 
             if (Pixi.state.popups.file_dialog_response) |response| {
                 if (response.type == .export_theme) {
-                    Pixi.editor.theme.save(response.path) catch unreachable;
+                    try Pixi.editor.theme.save(response.path);
                     Pixi.state.allocator.free(Pixi.editor.theme.name);
-                    Pixi.editor.theme = Pixi.Editor.Theme.loadFromFile(response.path) catch unreachable;
+                    Pixi.editor.theme = try Pixi.Editor.Theme.loadFromFile(response.path);
                     Pixi.state.settings.theme = Pixi.editor.theme.name;
                 }
                 nfd.freePath(response.path);

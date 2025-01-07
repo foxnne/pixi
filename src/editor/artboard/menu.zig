@@ -63,7 +63,7 @@ pub fn draw() !void {
                 file != null and file.?.dirty(),
             )) {
                 if (file) |f| {
-                    f.save() catch unreachable;
+                    try f.save();
                 }
             }
 
@@ -131,7 +131,7 @@ pub fn draw() !void {
                     false,
                     file.history.undo_stack.items.len > 0,
                 ))
-                    file.undo() catch unreachable;
+                    try file.undo();
 
                 if (imgui.menuItemEx(
                     "Redo",
@@ -139,7 +139,7 @@ pub fn draw() !void {
                     false,
                     file.history.redo_stack.items.len > 0,
                 ))
-                    file.redo() catch unreachable;
+                    try file.redo();
             }
         }
         if (imgui.beginMenu("Tools")) {

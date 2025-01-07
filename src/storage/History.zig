@@ -354,7 +354,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             var sprite_index = current_animation.start;
             while (sprite_index < current_animation.start + current_animation.length) : (sprite_index += 1) {
                 Pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(Pixi.state.allocator, "Sprite_{d}", .{sprite_index}) catch unreachable;
+                file.sprites.items[sprite_index].name = try std.fmt.allocPrintZ(Pixi.state.allocator, "Sprite_{d}", .{sprite_index});
             }
 
             // Set sprite names to specific animation
@@ -362,7 +362,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             var animation_index: usize = 0;
             while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
                 Pixi.state.allocator.free(file.sprites.items[sprite_index].name);
-                file.sprites.items[sprite_index].name = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &animation.name, "\u{0}"), animation_index }) catch unreachable;
+                file.sprites.items[sprite_index].name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &animation.name, "\u{0}"), animation_index });
                 animation_index += 1;
             }
 
@@ -400,7 +400,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
                     var animation_i: usize = 0;
                     while (i < animation.start + animation.length) : (i += 1) {
                         Pixi.state.allocator.free(file.sprites.items[i].name);
-                        file.sprites.items[i].name = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ animation.name[0..], animation_i }) catch unreachable;
+                        file.sprites.items[i].name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ animation.name[0..], animation_i });
                         animation_i += 1;
                     }
                 },
@@ -412,7 +412,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
                     var i: usize = animation.start;
                     while (i < animation.start + animation.length) : (i += 1) {
                         Pixi.state.allocator.free(file.sprites.items[i].name);
-                        file.sprites.items[i].name = std.fmt.allocPrintZ(Pixi.state.allocator, "Sprite_{d}", .{i}) catch unreachable;
+                        file.sprites.items[i].name = try std.fmt.allocPrintZ(Pixi.state.allocator, "Sprite_{d}", .{i});
                     }
 
                     if (file.selected_animation_index == animation_restore_delete.index)

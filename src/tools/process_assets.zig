@@ -11,8 +11,8 @@ pub const ProcessAssetsStep = struct {
     assets_output_path: []const u8,
     animations_output_path: []const u8,
 
-    pub fn init(builder: *std.Build, comptime assets_path: []const u8, comptime assets_output_path: []const u8, comptime animations_output_path: []const u8) *ProcessAssetsStep {
-        const self = builder.allocator.create(ProcessAssetsStep) catch unreachable;
+    pub fn init(builder: *std.Build, comptime assets_path: []const u8, comptime assets_output_path: []const u8, comptime animations_output_path: []const u8) !*ProcessAssetsStep {
+        const self = try builder.allocator.create(ProcessAssetsStep);
         self.* = .{
             .step = Step.init(.{ .id = .custom, .name = "process-assets", .owner = builder, .makeFn = process }),
             .builder = builder,
@@ -34,7 +34,7 @@ pub const ProcessAssetsStep = struct {
 
         if (std.fs.cwd().openDir(root, .{ .access_sub_paths = true })) |_| {
             // path passed is a directory
-            const files = getAllFiles(self.builder.allocator, root, true);
+            const files = try getAllFiles(self.builder.allocator, root, true);
 
             if (files.len > 0) {
                 var assets_array_list = std.ArrayList(u8).init(self.builder.allocator);
@@ -87,7 +87,7 @@ pub const ProcessAssetsStep = struct {
                         try assets_writer.print("pub const {s}{s} = struct {{\n", .{ name, "_atlas" });
                         try assets_writer.print("  pub const path = \"{s}\";\n", .{path_fixed});
 
-                        const atlas = Atlas.loadFromFile(self.builder.allocator, file) catch unreachable;
+                        const atlas = try Atlas.loadFromFile(self.builder.allocator, file);
 
                         for (atlas.sprites, 0..) |sprite, i| {
                             const sprite_name = try self.builder.allocator.alloc(u8, sprite.name.len);
@@ -149,30 +149,30 @@ pub const ProcessAssetsStep = struct {
         }
     }
 
-    fn getAllFiles(allocator: std.mem.Allocator, root_directory: []const u8, recurse: bool) [][:0]const u8 {
+    fn getAllFiles(allocator: std.mem.Allocator, root_directory: []const u8, recurse: bool) ![][:0]const u8 {
         var list = std.ArrayList([:0]const u8).init(allocator);
 
         const recursor = struct {
-            fn search(alloc: std.mem.Allocator, directory: []const u8, recursive: bool, filelist: *std.ArrayList([:0]const u8)) void {
-                var dir = std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true }) catch unreachable;
+            fn search(alloc: std.mem.Allocator, directory: []const u8, recursive: bool, filelist: *std.ArrayList([:0]const u8)) !void {
+                var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
                 defer dir.close();
 
                 var iter = dir.iterate();
-                while (iter.next() catch unreachable) |entry| {
+                while (try iter.next()) |entry| {
                     if (entry.kind == .file) {
-                        const name_null_term = std.mem.concat(alloc, u8, &[_][]const u8{ entry.name, "\x00" }) catch unreachable;
-                        const abs_path = std.fs.path.join(alloc, &[_][]const u8{ directory, name_null_term }) catch unreachable;
-                        filelist.append(abs_path[0 .. abs_path.len - 1 :0]) catch unreachable;
+                        const name_null_term = try std.mem.concat(alloc, u8, &[_][]const u8{ entry.name, "\x00" });
+                        const abs_path = try std.fs.path.join(alloc, &[_][]const u8{ directory, name_null_term });
+                        try filelist.append(abs_path[0 .. abs_path.len - 1 :0]);
                     } else if (entry.kind == .directory) {
-                        const abs_path = std.fs.path.join(alloc, &[_][]const u8{ directory, entry.name }) catch unreachable;
-                        search(alloc, abs_path, recursive, filelist);
+                        const abs_path = try std.fs.path.join(alloc, &[_][]const u8{ directory, entry.name });
+                        try search(alloc, abs_path, recursive, filelist);
                     }
                 }
             }
         }.search;
 
-        recursor(allocator, root_directory, recurse, &list);
+        try recursor(allocator, root_directory, recurse, &list);
 
-        return list.toOwnedSlice() catch unreachable;
+        return try list.toOwnedSlice();
     }
 };

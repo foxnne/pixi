@@ -33,11 +33,11 @@ pub fn draw() !void {
             // Row 1
             {
                 imgui.setCursorPosX(style.item_spacing.x * 3.0);
-                drawTool(Pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+                try drawTool(Pixi.fa.mouse_pointer, button_width, button_height, .pointer);
                 imgui.sameLine();
-                drawTool(Pixi.fa.pencil_alt, button_width, button_height, .pencil);
+                try drawTool(Pixi.fa.pencil_alt, button_width, button_height, .pencil);
                 imgui.sameLine();
-                drawTool(Pixi.fa.eraser, button_width, button_height, .eraser);
+                try drawTool(Pixi.fa.eraser, button_width, button_height, .eraser);
             }
 
             imgui.spacing();
@@ -45,11 +45,11 @@ pub fn draw() !void {
             // Row 2
             {
                 imgui.setCursorPosX(style.item_spacing.x * 3.0);
-                drawTool(Pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
+                try drawTool(Pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
                 imgui.sameLine();
-                drawTool(Pixi.fa.fill_drip, button_width, button_height, .bucket);
+                try drawTool(Pixi.fa.fill_drip, button_width, button_height, .bucket);
                 imgui.sameLine();
-                drawTool(Pixi.fa.clipboard_check, button_width, button_height, .selection);
+                try drawTool(Pixi.fa.clipboard_check, button_width, button_height, .selection);
             }
         }
 
@@ -237,7 +237,7 @@ pub fn draw() !void {
         if (imgui.collapsingHeader(Pixi.fa.layer_group ++ "  Layers", imgui.TreeNodeFlags_SpanAvailWidth | imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
             defer imgui.unindent();
-            layers.draw();
+            try layers.draw();
         }
 
         if (imgui.collapsingHeader(Pixi.fa.palette ++ "  Palettes", imgui.TreeNodeFlags_SpanFullWidth | imgui.TreeNodeFlags_DefaultOpen)) {
@@ -247,7 +247,7 @@ pub fn draw() !void {
             imgui.setNextItemWidth(-1.0);
             if (imgui.beginCombo("##PaletteCombo", if (Pixi.state.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {
                 defer imgui.endCombo();
-                searchPalettes() catch unreachable;
+                try searchPalettes();
             }
 
             const columns: usize = @intFromFloat(@floor(imgui.getContentRegionAvail().x / (chip_width + style.item_spacing.x)));
@@ -292,11 +292,11 @@ pub fn draw() !void {
                     defer imgui.popStyleColor();
                     imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette");
 
-                    const new_palette_text = std.fmt.allocPrintZ(Pixi.state.allocator, "To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{
+                    const new_palette_text = try std.fmt.allocPrintZ(Pixi.state.allocator, "To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{
                         Pixi.state.root_path,
                         std.fs.path.sep,
                         Pixi.assets.palettes,
-                    }) catch unreachable;
+                    });
                     defer Pixi.state.allocator.free(new_palette_text);
 
                     imgui.textWrapped(new_palette_text);
@@ -312,7 +312,7 @@ pub fn draw() !void {
     }
 }
 
-pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: Pixi.Tools.Tool) void {
+pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: Pixi.Tools.Tool) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
     defer imgui.popStyleVar();
 
@@ -351,10 +351,10 @@ pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: Pixi.Tools.Tool) void
             }
         }
     }
-    drawTooltip(tool);
+    try drawTooltip(tool);
 }
 
-pub fn drawTooltip(tool: Pixi.Tools.Tool) void {
+pub fn drawTooltip(tool: Pixi.Tools.Tool) !void {
     if (imgui.isItemHovered(imgui.HoveredFlags_DelayShort)) {
         if (imgui.beginTooltip()) {
             defer imgui.endTooltip();
@@ -370,7 +370,7 @@ pub fn drawTooltip(tool: Pixi.Tools.Tool) void {
             };
 
             if (Pixi.state.hotkeys.hotkey(.{ .tool = tool })) |hotkey| {
-                const hotkey_text = std.fmt.allocPrintZ(Pixi.state.allocator, "{s} ({s})", .{ text, hotkey.shortcut }) catch unreachable;
+                const hotkey_text = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s} ({s})", .{ text, hotkey.shortcut });
                 defer Pixi.state.allocator.free(hotkey_text);
                 imgui.text(hotkey_text);
             } else {
@@ -380,10 +380,10 @@ pub fn drawTooltip(tool: Pixi.Tools.Tool) void {
             switch (tool) {
                 .animation => {
                     if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| {
-                        const first_text = std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut}) catch unreachable;
+                        const first_text = try std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut});
                         defer Pixi.state.allocator.free(first_text);
 
-                        const second_text = std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut}) catch unreachable;
+                        const second_text = try std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut});
                         defer Pixi.state.allocator.free(second_text);
 
                         imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), first_text);
@@ -397,10 +397,10 @@ pub fn drawTooltip(tool: Pixi.Tools.Tool) void {
                     if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |primary_hk| {
                         if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |secondary_hk| {
                             imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
-                            const first_text = std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag while holding ({s}) to add to selection.", .{primary_hk.shortcut}) catch unreachable;
+                            const first_text = try std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag while holding ({s}) to add to selection.", .{primary_hk.shortcut});
                             defer Pixi.state.allocator.free(first_text);
 
-                            const second_text = std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag while holding ({s}) to remove from selection", .{secondary_hk.shortcut}) catch unreachable;
+                            const second_text = try std.fmt.allocPrintZ(Pixi.state.allocator, "Click and drag while holding ({s}) to remove from selection", .{secondary_hk.shortcut});
                             defer Pixi.state.allocator.free(second_text);
                             imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), first_text);
                             imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), second_text);

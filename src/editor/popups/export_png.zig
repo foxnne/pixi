@@ -218,7 +218,7 @@ pub fn draw() !void {
                             if (Pixi.state.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
                                 const name = file.sprites.items[i].name;
-                                const full_path = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name }) catch unreachable;
+                                const full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
 
                                 var sprite_image = try file.spriteToImage(i, true);
                                 defer sprite_image.deinit();
@@ -240,7 +240,7 @@ pub fn draw() !void {
                                     if (std.mem.eql(u8, ext, ".png")) {
                                         if (std.mem.indexOf(u8, base_name, ext)) |ext_index| {
                                             const name = base_name[0..ext_index];
-                                            const full_path = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{s}_{d}.png", .{ folder, name, i }) catch unreachable;
+                                            const full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{s}_{d}.png", .{ folder, name, i });
 
                                             var sprite_image = try file.spriteToImage(i, true);
                                             defer sprite_image.deinit();
@@ -267,7 +267,7 @@ pub fn draw() !void {
                             full_path = response.path;
                         } else {
                             const name = file.layers.items[file.selected_layer_index].name;
-                            full_path = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name }) catch unreachable;
+                            full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
                         }
 
                         try file.layers.items[file.selected_layer_index].texture.image.writeToFile(full_path, .png);
@@ -280,7 +280,7 @@ pub fn draw() !void {
                             if (Pixi.state.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
                                 const name = file.layers.items[i].name;
-                                const full_path = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name }) catch unreachable;
+                                const full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
                                 try file.layers.items[i].texture.image.writeToFile(full_path, .png);
                                 Pixi.state.popups.export_to_png = false;
                             } else {
@@ -292,7 +292,7 @@ pub fn draw() !void {
                                     if (std.mem.eql(u8, ext, ".png")) {
                                         if (std.mem.indexOf(u8, base_name, ext)) |ext_index| {
                                             const name = base_name[0..ext_index];
-                                            const full_path = std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{s}_{d}.png", .{ folder, name, i }) catch unreachable;
+                                            const full_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{s}_{d}.png", .{ folder, name, i });
 
                                             try file.layers.items[i].texture.image.writeToFile(full_path, .png);
                                             Pixi.state.popups.export_to_png = false;

@@ -84,7 +84,7 @@ pub fn draw() !void {
         centerText("Pixi Editor");
         centerText("https://github.com/foxnne/pixi");
 
-        const version = std.fmt.allocPrintZ(Pixi.state.allocator, "Version {d}.{d}.{d}", .{ Pixi.version.major, Pixi.version.minor, Pixi.version.patch }) catch unreachable;
+        const version = try std.fmt.allocPrintZ(Pixi.state.allocator, "Version {d}.{d}.{d}", .{ Pixi.version.major, Pixi.version.minor, Pixi.version.patch });
         defer Pixi.state.allocator.free(version);
 
         centerText(version);

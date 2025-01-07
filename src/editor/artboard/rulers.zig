@@ -3,7 +3,7 @@ const Pixi = @import("../../Pixi.zig");
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
     const file_width = @as(f32, @floatFromInt(file.width));
     const file_height = @as(f32, @floatFromInt(file.height));
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -26,7 +26,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
             while (i < @as(usize, @intCast(tiles_wide))) : (i += 1) {
                 const offset = .{ (@as(f32, @floatFromInt(i)) * tile_width) * file.camera.zoom, 0.0 };
                 if (tile_width * file.camera.zoom > text_size.x * 4.0) {
-                    const text = std.fmt.allocPrintZ(Pixi.state.allocator, "{d}", .{i}) catch unreachable;
+                    const text = try std.fmt.allocPrintZ(Pixi.state.allocator, "{d}", .{i});
                     defer Pixi.state.allocator.free(text);
 
                     draw_list.addText(
@@ -63,7 +63,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) void {
                 const offset = .{ 0.0, @as(f32, @floatFromInt(i)) * tile_height * file.camera.zoom };
 
                 if (tile_height * file.camera.zoom > text_size.x * 4.0) {
-                    const text = std.fmt.allocPrintZ(Pixi.state.allocator, "{d}", .{i}) catch unreachable;
+                    const text = try std.fmt.allocPrintZ(Pixi.state.allocator, "{d}", .{i});
                     defer Pixi.state.allocator.free(text);
 
                     draw_list.addText(.{ .x = tl[0], .y = tl[1] + offset[1] + (tile_height / 2.0 * file.camera.zoom) - (text_size.y / 2.0) }, Pixi.editor.theme.text_secondary.toU32(), text.ptr);

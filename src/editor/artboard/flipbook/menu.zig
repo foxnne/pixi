@@ -6,7 +6,7 @@ const imgui = @import("zig-imgui");
 
 const History = Pixi.storage.Internal.PixiFile.History;
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
@@ -46,14 +46,14 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
 
                 { // Frame Selection
                     const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-                    const frame = std.fmt.allocPrintZ(Pixi.state.allocator, "{d}/{d}", .{ current_frame + 1, animation.length }) catch unreachable;
+                    const frame = try std.fmt.allocPrintZ(Pixi.state.allocator, "{d}/{d}", .{ current_frame + 1, animation.length });
                     defer Pixi.state.allocator.free(frame);
 
                     imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40 * Pixi.state.content_scale[0]);
                     if (imgui.beginCombo("Frame  ", frame, imgui.ComboFlags_None)) {
                         defer imgui.endCombo();
                         for (0..animation.length) |i| {
-                            const other_frame = std.fmt.allocPrintZ(Pixi.state.allocator, "{d}/{d}", .{ i + 1, animation.length }) catch unreachable;
+                            const other_frame = try std.fmt.allocPrintZ(Pixi.state.allocator, "{d}/{d}", .{ i + 1, animation.length });
                             defer Pixi.state.allocator.free(other_frame);
 
                             if (imgui.selectableEx(other_frame, animation.start + i == file.selected_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
@@ -86,7 +86,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) void {
                             .length = animation.length,
                         } };
                         @memcpy(change.animation.name[0..animation.name.len], animation.name);
-                        file.history.append(change) catch unreachable;
+                        try file.history.append(change);
                     }
 
                     if (changed) {

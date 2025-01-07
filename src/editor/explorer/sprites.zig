@@ -65,7 +65,7 @@ pub fn draw() !void {
                     }
 
                     if (imgui.isItemActivated()) {
-                        file.newHistorySelectedSprites(.origins) catch unreachable;
+                        try file.newHistorySelectedSprites(.origins);
                     }
 
                     if (changed_origin_x)
@@ -78,7 +78,7 @@ pub fn draw() !void {
                     }
 
                     if (imgui.isItemActivated()) {
-                        file.newHistorySelectedSprites(.origins) catch unreachable;
+                        try file.newHistorySelectedSprites(.origins);
                     }
 
                     if (changed_origin_y) {
@@ -86,7 +86,7 @@ pub fn draw() !void {
                     }
 
                     if (imgui.buttonEx(" Center ", .{ .x = -1.0, .y = 0.0 })) {
-                        file.newHistorySelectedSprites(.origins) catch unreachable;
+                        try file.newHistorySelectedSprites(.origins);
                         file.setSelectedSpritesOrigin(.{ tile_width / 2.0, tile_height / 2.0 });
                     }
                 }
@@ -106,11 +106,11 @@ pub fn draw() !void {
                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                     defer imgui.popStyleColor();
 
-                    const name = std.fmt.allocPrintZ(Pixi.state.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index }) catch unreachable;
+                    const name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index });
                     defer Pixi.state.allocator.free(name);
 
                     if (imgui.selectableEx(name, contains, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
-                        file.makeSpriteSelection(sprite.index);
+                        try file.makeSpriteSelection(sprite.index);
                     }
                 }
             }

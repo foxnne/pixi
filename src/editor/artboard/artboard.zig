@@ -106,7 +106,7 @@ pub fn draw(core: *Core) !void {
                                 imgui.pushIDInt(@as(c_int, @intCast(i)));
                                 defer imgui.popID();
 
-                                const label = std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s} ", .{ Pixi.fa.file_powerpoint, file_name }) catch unreachable;
+                                const label = try std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s} ", .{ Pixi.fa.file_powerpoint, file_name });
                                 defer Pixi.state.allocator.free(label);
 
                                 var file_tab_flags: imgui.TabItemFlags = 0;
@@ -125,7 +125,7 @@ pub fn draw(core: *Core) !void {
                                     if (artboard_0_open_file_index == i) artboard_0_open_file_index = 0;
                                     if (artboard_1_open_file_index == i) artboard_1_open_file_index = 0;
 
-                                    Pixi.Editor.closeFile(i) catch unreachable;
+                                    try Pixi.Editor.closeFile(i);
                                     break; // This ensures we dont use after free
                                 }
 
@@ -193,7 +193,7 @@ pub fn draw(core: *Core) !void {
 
                                 // Now add to ruler children windows, since we have updated the camera.
                                 if (show_rulers) {
-                                    rulers.draw(file);
+                                    try rulers.draw(file);
                                 }
                             }
                         }
@@ -220,9 +220,9 @@ pub fn draw(core: *Core) !void {
                     .y = flipbook_height,
                 }, imgui.ChildFlags_None, flipbook_flags)) {
                     if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
-                        flipbook.menu.draw(file, artboard_flipbook_ratio);
+                        try flipbook.menu.draw(file, artboard_flipbook_ratio);
                         if (Pixi.state.sidebar == .keyframe_animations or file.flipbook_view == .timeline) {
-                            flipbook.timeline.draw(file);
+                            try flipbook.timeline.draw(file);
                         } else {
                             if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                                 defer imgui.endChild();

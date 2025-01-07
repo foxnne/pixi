@@ -79,20 +79,20 @@ pub fn draw() !void {
             switch (Pixi.state.pack_target) {
                 .project => {
                     if (Pixi.state.project_folder) |folder| {
-                        Pixi.Packer.recurseFiles(Pixi.state.allocator, folder) catch unreachable;
-                        Pixi.state.packer.packAndClear() catch unreachable;
+                        try Pixi.Packer.recurseFiles(Pixi.state.allocator, folder);
+                        try Pixi.state.packer.packAndClear();
                     }
                 },
                 .all_open => {
                     for (Pixi.state.open_files.items) |*file| {
-                        Pixi.state.packer.append(file) catch unreachable;
+                        try Pixi.state.packer.append(file);
                     }
-                    Pixi.state.packer.packAndClear() catch unreachable;
+                    try Pixi.state.packer.packAndClear();
                 },
                 .single_open => {
                     if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
-                        Pixi.state.packer.append(file) catch unreachable;
-                        Pixi.state.packer.packAndClear() catch unreachable;
+                        try Pixi.state.packer.append(file);
+                        try Pixi.state.packer.packAndClear();
                     }
                 },
             }
@@ -123,9 +123,9 @@ pub fn draw() !void {
 
             if (Pixi.state.popups.file_dialog_response) |response| {
                 if (response.type == .export_atlas) {
-                    Pixi.state.recents.appendExport(Pixi.state.allocator.dupeZ(u8, response.path) catch unreachable) catch unreachable;
-                    Pixi.state.recents.save() catch unreachable;
-                    Pixi.state.atlas.save(response.path) catch unreachable;
+                    try Pixi.state.recents.appendExport(try Pixi.state.allocator.dupeZ(u8, response.path));
+                    try Pixi.state.recents.save();
+                    try Pixi.state.atlas.save(response.path);
                     nfd.freePath(response.path);
                     Pixi.state.popups.file_dialog_response = null;
                 }
@@ -133,7 +133,7 @@ pub fn draw() !void {
 
             if (Pixi.state.recents.exports.items.len > 0) {
                 if (imgui.buttonEx("Repeat Last Export", .{ .x = window_size.x, .y = 0.0 })) {
-                    Pixi.state.atlas.save(Pixi.state.recents.exports.getLast()) catch unreachable;
+                    try Pixi.state.atlas.save(Pixi.state.recents.exports.getLast());
                 }
                 imgui.textWrapped(Pixi.state.recents.exports.getLast());
 
@@ -151,12 +151,12 @@ pub fn draw() !void {
                     while (i > 0) {
                         i -= 1;
                         const exp = Pixi.state.recents.exports.items[i];
-                        const label = std.fmt.allocPrintZ(Pixi.state.allocator, "{s} {s}", .{ Pixi.fa.file_download, std.fs.path.basename(exp) }) catch unreachable;
+                        const label = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s} {s}", .{ Pixi.fa.file_download, std.fs.path.basename(exp) });
                         defer Pixi.state.allocator.free(label);
 
                         if (imgui.selectable(label)) {
                             const exp_out = Pixi.state.recents.exports.swapRemove(i);
-                            Pixi.state.recents.appendExport(exp_out) catch unreachable;
+                            try Pixi.state.recents.appendExport(exp_out);
                         }
                         imgui.sameLineEx(0.0, 5.0 * Pixi.state.content_scale[0]);
                         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
