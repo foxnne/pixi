@@ -249,6 +249,10 @@ pub fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
 }
 
 pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
+    state.delta_time = app.timer.lap();
+    state.total_time += state.delta_time;
+
+    // Process file dialog requests
     if (state.popups.file_dialog_request) |request| {
         defer state.popups.file_dialog_request = null;
         const initial = if (request.initial) |initial| initial else state.project_folder;
@@ -265,6 +269,7 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
         }
     }
 
+    // Process events
     while (core.nextEvent()) |event| {
         switch (event) {
             .window_open => {
@@ -331,29 +336,20 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
     }
     var window = core.windows.getValue(app.window);
 
+    // New imgui frame
     try imgui_mach.newFrame();
     imgui.newFrame();
-    state.delta_time = app.timer.lap();
-    state.total_time += state.delta_time;
 
+    // Process input
     try input.process();
 
+    // Process editor tick
     editor_mod.call(.tick);
 
+    // Render imgui
     imgui.render();
 
-    // TODO: Fix title when mach supports it
-    // if (editor.getFile(state.open_file_index)) |file| {
-    //     @memset(core.title[0..], 0);
-    //     @memcpy(core.title[0 .. name.len + 3], name ++ " - ");
-    //     const base_name = std.fs.path.basename(file.path);
-    //     @memcpy(core.title[name.len + 3 .. base_name.len + name.len + 3], base_name);
-    //     core.setTitle(&core.title);
-    // } else {
-    //     @memset(core.title[0..], 0);
-    //     @memcpy(core.title[0..name.len], name);
-    //     core.setTitle(&core.title);
-    // }
+    // Render to back buffer
     if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
@@ -391,6 +387,7 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
         };
         defer imgui_commands.release();
 
+        // Since mach handles presenting, we only need to submit commands to the queue
         if (state.batcher.empty) {
             window.queue.submit(&.{imgui_commands});
         } else {
@@ -406,7 +403,6 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
             if (file.transform_texture) |*transform_texture| {
                 if (transform_texture.confirm) {
                     // Blit temp layer to selected layer
-
                     if (file.transform_staging_buffer) |staging_buffer| {
                         const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
 
@@ -464,18 +460,21 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
         }
     }
 
+    // Update hotkeys
     for (state.hotkeys.hotkeys) |*hotkey| {
         hotkey.previous_state = hotkey.state;
     }
 
+    // Update mouse buttons
     for (state.mouse.buttons) |*button| {
         button.previous_state = button.state;
     }
 
+    // Update mouse position
     state.mouse.previous_position = state.mouse.position;
 
+    // Exit if should close and not saving
     if (state.should_close and !Editor.saving()) {
-        // Close!
         core.exit();
     }
 }
