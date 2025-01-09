@@ -2,22 +2,11 @@ const builtin = @import("builtin");
 const Pixi = @import("Pixi.zig");
 const std = @import("std");
 
-pub const settings_filename = "settings.json";
-
 const Settings = @This();
-
-//get the path to the settings file
-fn getSettingsPath(allocator: std.mem.Allocator) ![]const u8 {
-
-    //get the cwd
-    const path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ Pixi.app.root_path, settings_filename });
-    return path;
-}
 
 ///Reads in default settings or reads from the settings file
 pub fn init(allocator: std.mem.Allocator) !Settings {
-    const path = try getSettingsPath(allocator);
-    defer allocator.free(path);
+    const path = "settings.json";
 
     // Attempt to read the file
     const max_bytes = 10000; //maximum bytes in settings file
@@ -41,27 +30,26 @@ pub fn init(allocator: std.mem.Allocator) !Settings {
     };
 }
 
-/// Saves the current settings to a file and deinitializes the memory
-pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-    const path = getSettingsPath(allocator) catch {
-        std.debug.print("ERROR: Memory allocation error when saving settings\n", .{});
-        return;
-    };
-    defer allocator.free(path);
+pub fn save(self: *@This(), allocator: std.mem.Allocator) void {
+    const path = "settings.json";
     const stringified = std.json.stringifyAlloc(allocator, self, .{}) catch {
         std.debug.print("ERROR: Failed to stringify settings\n", .{});
         return;
     };
     defer allocator.free(stringified);
-    var file = std.fs.createFileAbsolute(path, .{}) catch {
+    var file = std.fs.cwd().createFile(path, .{}) catch {
         std.debug.print("ERROR: Failed to open settings file \"{s}\"\n", .{path});
         return;
     };
-    std.log.debug("Saving to path: {s}", .{path});
     file.writeAll(stringified) catch {
         std.debug.print("ERROR: Failed to write settings to file \"{s}\"\n", .{path});
         return;
     };
+}
+
+/// Saves the current settings to a file and deinitializes the memory
+pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+    allocator.free(self.theme);
 }
 
 /// Width of the explorer bar.

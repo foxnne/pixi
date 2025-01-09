@@ -479,6 +479,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
 
 pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
     //deinit and save settings
+    app.settings.save(app.arena_allocator.allocator());
     app.settings.deinit(app.arena_allocator.allocator());
 
     app.allocator.free(editor.theme.name);
