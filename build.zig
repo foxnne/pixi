@@ -49,8 +49,8 @@ pub fn build(b: *std.Build) !void {
         }
     }
 
+    const run_cmd = b.addRunArtifact(exe);
     const run_step = b.step("run", "Run the example");
-    run_step.dependOn(&b.addRunArtifact(exe).step);
 
     exe.root_module.addImport("mach", mach_dep.module("mach"));
     exe.root_module.addImport("zstbi", zstbi.module("root"));
@@ -88,7 +88,9 @@ pub fn build(b: *std.Build) !void {
     });
     exe.step.dependOn(&install_content_step.step);
 
-    b.installArtifact(exe);
+    const installArtifact = b.addInstallArtifact(exe, .{});
+    run_cmd.step.dependOn(&installArtifact.step);
+    run_step.dependOn(&run_cmd.step);
 }
 
 inline fn thisDir() []const u8 {

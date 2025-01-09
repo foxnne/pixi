@@ -140,8 +140,12 @@ pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) 
 
     const allocator = gpa.allocator();
 
+    // Run from the directory where the executable is located so relative assets can be found.
     var buffer: [1024]u8 = undefined;
-    const root_path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
+    const path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
+    std.posix.chdir(path) catch {};
+
+    std.log.debug("Root path: {s}", .{path});
 
     const window = try core.windows.new(.{
         .title = "Pixi",
@@ -152,7 +156,7 @@ pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) 
         .allocator = allocator,
         .timer = try mach.time.Timer.start(),
         .window = window,
-        .root_path = try allocator.dupeZ(u8, root_path),
+        .root_path = try allocator.dupeZ(u8, path),
     };
 }
 
