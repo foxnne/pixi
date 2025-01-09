@@ -307,7 +307,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                 app.should_close = should_close;
             },
             .window_resize => |resize| {
-                const window = core.windows.gsetValue(app.window);
+                const window = core.windows.getValue(app.window);
                 app.window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.height) };
                 app.framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
                 app.content_scale = .{
