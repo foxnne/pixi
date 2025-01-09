@@ -91,6 +91,7 @@ pub fn build(b: *std.Build) !void {
     const installArtifact = b.addInstallArtifact(exe, .{});
     run_cmd.step.dependOn(&installArtifact.step);
     run_step.dependOn(&run_cmd.step);
+    b.getInstallStep().dependOn(&installArtifact.step);
 }
 
 inline fn thisDir() []const u8 {
