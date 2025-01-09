@@ -1,28 +1,33 @@
+// Imports
 const std = @import("std");
-
 const mach = @import("mach");
-const Core = mach.Core;
 const gpu = mach.gpu;
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
 const nfd = @import("nfd");
-
 const imgui = @import("zig-imgui");
 const imgui_mach = imgui.backends.mach;
 
 // Modules
+const Core = mach.Core;
 pub const App = @This();
 pub const Editor = @import("editor/Editor.zig");
 
+// Global pointers
+pub var core: *Core = undefined;
+pub var app: *App = undefined;
+pub var editor: *Editor = undefined;
+
+// Mach module, systems, and main
 pub const mach_module = .app;
 pub const mach_systems = .{ .main, .init, .lateInit, .tick, .deinit };
-
 pub const main = mach.schedule(.{
     .{ Core, .init },
     .{ App, .init },
     .{ Core, .main },
 });
 
+// App fields
 timer: mach.time.Timer,
 window: mach.ObjectID,
 
@@ -39,8 +44,6 @@ recents: Recents = undefined,
 previous_atlas_export: ?[:0]const u8 = null,
 open_files: std.ArrayList(storage.Internal.PixiFile) = undefined,
 open_references: std.ArrayList(storage.Internal.Reference) = undefined,
-pack_target: PackTarget = .project,
-pack_camera: gfx.Camera = .{},
 packer: Packer = undefined,
 atlas: storage.Internal.Atlas = .{},
 open_file_index: usize = 0,
@@ -88,10 +91,6 @@ test {
     _ = input;
 }
 
-pub var app: *App = undefined;
-pub var core: *Core = undefined;
-pub var editor: *Editor = undefined;
-
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
 pub const Colors = @import("Colors.zig");
@@ -131,12 +130,6 @@ pub const Fonts = struct {
     fa_standard_solid: *imgui.Font = undefined,
     fa_small_regular: *imgui.Font = undefined,
     fa_small_solid: *imgui.Font = undefined,
-};
-
-pub const PackTarget = enum {
-    project,
-    all_open,
-    single_open,
 };
 
 pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !void {

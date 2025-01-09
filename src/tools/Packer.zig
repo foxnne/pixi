@@ -41,10 +41,18 @@ id_counter: u32 = 0,
 placeholder: Image,
 contains_height: bool = false,
 open_files: std.ArrayList(Pixi.storage.Internal.PixiFile),
+target: PackTarget = .project,
+camera: Pixi.gfx.Camera = .{},
 allocator: std.mem.Allocator,
 
 ldtk: bool = false,
 ldtk_tilesets: std.ArrayList(LDTKTileset),
+
+pub const PackTarget = enum {
+    project,
+    all_open,
+    single_open,
+};
 
 pub fn init(allocator: std.mem.Allocator) !Packer {
     const pixels: [][4]u8 = try allocator.alloc([4]u8, 4);

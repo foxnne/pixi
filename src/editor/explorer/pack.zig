@@ -14,20 +14,20 @@ pub fn draw() !void {
 
     const window_size = imgui.getContentRegionAvail();
 
-    switch (Pixi.app.pack_target) {
+    switch (Pixi.app.packer.target) {
         .all_open => {
             if (Pixi.app.open_files.items.len <= 1) {
-                Pixi.app.pack_target = .project;
+                Pixi.app.packer.target = .project;
             }
         },
         .single_open => {
             if (Pixi.app.open_files.items.len == 0)
-                Pixi.app.pack_target = .project;
+                Pixi.app.packer.target = .project;
         },
         else => {},
     }
 
-    const preview_text = switch (Pixi.app.pack_target) {
+    const preview_text = switch (Pixi.app.packer.target) {
         .project => "Full Project",
         .all_open => "All Open Files",
         .single_open => "Current Open File",
@@ -36,20 +36,20 @@ pub fn draw() !void {
     if (imgui.beginCombo("Files", preview_text.ptr, imgui.ComboFlags_None)) {
         defer imgui.endCombo();
         if (imgui.menuItem("Full Project")) {
-            Pixi.app.pack_target = .project;
+            Pixi.app.packer.target = .project;
         }
 
         {
             const enabled = if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |_| true else false;
             if (imgui.menuItemEx("Current Open File", null, false, enabled)) {
-                Pixi.app.pack_target = .single_open;
+                Pixi.app.packer.target = .single_open;
             }
         }
 
         {
             const enabled = if (Pixi.app.open_files.items.len > 1) true else false;
             if (imgui.menuItemEx("All Open Files", null, false, enabled)) {
-                Pixi.app.pack_target = .all_open;
+                Pixi.app.packer.target = .all_open;
             }
         }
     }
@@ -64,8 +64,8 @@ pub fn draw() !void {
 
     {
         var packable: bool = true;
-        if (Pixi.app.pack_target == .project and Pixi.app.project_folder == null) packable = false;
-        if (Pixi.app.pack_target == .all_open and Pixi.app.open_files.items.len <= 1) packable = false;
+        if (Pixi.app.packer.target == .project and Pixi.app.project_folder == null) packable = false;
+        if (Pixi.app.packer.target == .all_open and Pixi.app.open_files.items.len <= 1) packable = false;
         if (Pixi.Editor.saving()) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
@@ -76,7 +76,7 @@ pub fn draw() !void {
         if (!packable)
             imgui.beginDisabled(true);
         if (imgui.buttonEx("Pack", .{ .x = window_size.x, .y = 0.0 })) {
-            switch (Pixi.app.pack_target) {
+            switch (Pixi.app.packer.target) {
                 .project => {
                     if (Pixi.app.project_folder) |folder| {
                         try Pixi.Packer.recurseFiles(Pixi.app.allocator, folder);
@@ -100,7 +100,7 @@ pub fn draw() !void {
         if (!packable)
             imgui.endDisabled();
 
-        if (Pixi.app.pack_target == .project and Pixi.app.project_folder == null) {
+        if (Pixi.app.packer.target == .project and Pixi.app.project_folder == null) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
             imgui.textWrapped("Select a project folder to pack.");

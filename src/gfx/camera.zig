@@ -654,6 +654,7 @@ pub const Camera = struct {
         primary,
         flipbook,
         reference,
+        packer,
     };
 
     pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
@@ -661,20 +662,25 @@ pub const Camera = struct {
         if (Pixi.app.settings.input_scheme != .trackpad) zoom_key = true;
         if (Pixi.app.mouse.magnify != null) zoom_key = true;
 
+        if (target == .packer and Pixi.app.atlas.diffusemap == null) return;
+
         const canvas_center_offset = switch (target) {
             .primary => Pixi.app.open_files.items[Pixi.app.open_file_index].canvasCenterOffset(.primary),
             .flipbook => Pixi.app.open_files.items[Pixi.app.open_file_index].canvasCenterOffset(.flipbook),
             .reference => Pixi.app.open_references.items[Pixi.app.open_reference_index].canvasCenterOffset(),
+            .packer => .{ -@as(f32, @floatFromInt(Pixi.app.atlas.diffusemap.?.image.width)) / 2.0, -@as(f32, @floatFromInt(Pixi.app.atlas.diffusemap.?.image.height)) / 2.0 },
         };
 
         const canvas_width = switch (target) {
             .primary, .flipbook => Pixi.app.open_files.items[Pixi.app.open_file_index].width,
             .reference => Pixi.app.open_references.items[Pixi.app.open_reference_index].texture.image.width,
+            .packer => Pixi.app.atlas.diffusemap.?.image.width,
         };
 
         const canvas_height = switch (target) {
             .primary, .flipbook => Pixi.app.open_files.items[Pixi.app.open_file_index].height,
             .reference => Pixi.app.open_references.items[Pixi.app.open_reference_index].texture.image.height,
+            .packer => Pixi.app.atlas.diffusemap.?.image.height,
         };
 
         const previous_zoom = camera.zoom;
@@ -773,7 +779,7 @@ pub const Camera = struct {
         }
 
         switch (target) {
-            .primary, .reference => {
+            .primary, .reference, .packer => {
                 // Lock camera from zooming in or out too far for the flipbook
                 camera.zoom = std.math.clamp(camera.zoom, camera.min_zoom, Pixi.app.settings.zoom_steps[Pixi.app.settings.zoom_steps.len - 1]);
 
