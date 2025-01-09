@@ -265,6 +265,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
         }
     }
 
+    // Process events
     while (core.nextEvent()) |event| {
         switch (event) {
             .window_open => {
@@ -331,15 +332,19 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     }
     var window = core.windows.getValue(app.window);
 
+    // New imgui frame
     try imgui_mach.newFrame();
     imgui.newFrame();
     app.delta_time = app.timer.lap();
     app.total_time += app.delta_time;
 
+    // Process input
     try input.process();
 
+    // Process editor tick
     editor_mod.call(.tick);
 
+    // Render imgui
     imgui.render();
 
     // TODO: Fix title when mach supports it
@@ -406,7 +411,6 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
             if (file.transform_texture) |*transform_texture| {
                 if (transform_texture.confirm) {
                     // Blit temp layer to selected layer
-
                     if (file.transform_staging_buffer) |staging_buffer| {
                         const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
 
