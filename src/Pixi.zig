@@ -307,13 +307,18 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                 app.should_close = should_close;
             },
             .window_resize => |resize| {
-                const window = core.windows.getValue(app.window);
+                const window = core.windows.gsetValue(app.window);
                 app.window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.height) };
                 app.framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
                 app.content_scale = .{
                     app.framebuffer_size[0] / app.window_size[0],
                     app.framebuffer_size[1] / app.window_size[1],
                 };
+
+                // TODO:
+                // Currently content scale is set to 1.0x1.0 because the scaling is handled by
+                // zig-imgui. Tested both on Windows (1.0 content scale) and macOS (2.0 content scale)
+                // If we can confirm that this is not needed, we can purge the use of content_scale from editor files
                 app.content_scale = .{ 1.0, 1.0 };
             },
 
@@ -340,18 +345,6 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     // Render imgui
     imgui.render();
 
-    // TODO: Fix title when mach supports it
-    // if (editor.getFile(app.open_file_index)) |file| {
-    //     @memset(core.title[0..], 0);
-    //     @memcpy(core.title[0 .. name.len + 3], name ++ " - ");
-    //     const base_name = std.fs.path.basename(file.path);
-    //     @memcpy(core.title[name.len + 3 .. base_name.len + name.len + 3], base_name);
-    //     core.setTitle(&core.title);
-    // } else {
-    //     @memset(core.title[0..], 0);
-    //     @memcpy(core.title[0..name.len], name);
-    //     core.setTitle(&core.title);
-    // }
     if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
@@ -529,7 +522,6 @@ pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
 
     app.arena_allocator.deinit();
 
-    //uncomment this line to check for memory leaks on program shutdown
     _ = gpa.detectLeaks();
     _ = gpa.deinit();
 }
