@@ -10,15 +10,15 @@ pub const PackTexture = enum {
 
 pub fn draw(mode: PackTexture) void {
     if (switch (mode) {
-        .diffusemap => Pixi.state.atlas.diffusemap,
-        .heightmap => Pixi.state.atlas.heightmap,
+        .diffusemap => Pixi.app.atlas.diffusemap,
+        .heightmap => Pixi.app.atlas.heightmap,
     }) |texture| {
         const window_width = imgui.getWindowWidth();
         const window_height = imgui.getWindowHeight();
         const file_width = @as(f32, @floatFromInt(texture.image.width));
         const file_height = @as(f32, @floatFromInt(texture.image.height));
 
-        var camera = &Pixi.state.pack_camera;
+        var camera = &Pixi.app.pack_camera;
 
         // Handle zooming, panning and extents
         {

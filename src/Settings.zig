@@ -10,7 +10,7 @@ const Settings = @This();
 fn getSettingsPath(allocator: std.mem.Allocator) ![]const u8 {
 
     //get the cwd
-    const path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ Pixi.state.root_path, settings_filename });
+    const path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ Pixi.app.root_path, settings_filename });
     return path;
 }
 

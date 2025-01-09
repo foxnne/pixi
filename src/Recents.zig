@@ -58,13 +58,13 @@ pub fn indexOfExport(recents: *Recents, path: [:0]const u8) ?usize {
 
 pub fn appendFolder(recents: *Recents, path: [:0]const u8) !void {
     if (recents.indexOfFolder(path)) |index| {
-        Pixi.state.allocator.free(path);
+        Pixi.app.allocator.free(path);
         const folder = recents.folders.swapRemove(index);
         try recents.folders.append(folder);
     } else {
-        if (recents.folders.items.len >= Pixi.state.settings.max_recents) {
+        if (recents.folders.items.len >= Pixi.app.settings.max_recents) {
             const folder = recents.folders.swapRemove(0);
-            Pixi.state.allocator.free(folder);
+            Pixi.app.allocator.free(folder);
         }
 
         try recents.folders.append(path);
@@ -76,9 +76,9 @@ pub fn appendExport(recents: *Recents, path: [:0]const u8) !void {
         const exp = recents.exports.swapRemove(index);
         try recents.exports.append(exp);
     } else {
-        if (recents.exports.items.len >= Pixi.state.settings.max_recents) {
+        if (recents.exports.items.len >= Pixi.app.settings.max_recents) {
             const exp = recents.folders.swapRemove(0);
-            Pixi.state.allocator.free(exp);
+            Pixi.app.allocator.free(exp);
         }
         try recents.exports.append(path);
     }
@@ -96,11 +96,11 @@ pub fn save(recents: *Recents) !void {
 
 pub fn deinit(recents: *Recents) void {
     for (recents.folders.items) |folder| {
-        Pixi.state.allocator.free(folder);
+        Pixi.app.allocator.free(folder);
     }
 
     for (recents.exports.items) |exp| {
-        Pixi.state.allocator.free(exp);
+        Pixi.app.allocator.free(exp);
     }
 
     recents.folders.clearAndFree();

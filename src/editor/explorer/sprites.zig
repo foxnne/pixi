@@ -4,7 +4,7 @@ const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
-    if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
+    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
         imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.background.toImguiVec4());
         imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
         imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
@@ -23,7 +23,7 @@ pub fn draw() !void {
 
             if (imgui.beginChild("Sprite", .{
                 .x = -1.0,
-                .y = Pixi.state.settings.sprite_edit_height,
+                .y = Pixi.app.settings.sprite_edit_height,
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
@@ -94,7 +94,7 @@ pub fn draw() !void {
         }
 
         if (imgui.collapsingHeader(Pixi.fa.atlas ++ "  Sprites", imgui.TreeNodeFlags_DefaultOpen)) {
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.state.content_scale[0], .y = 5.0 * Pixi.state.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.app.content_scale[0], .y = 5.0 * Pixi.app.content_scale[1] });
             defer imgui.popStyleVar();
             if (imgui.beginChild("Sprites", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
@@ -108,8 +108,8 @@ pub fn draw() !void {
                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                     defer imgui.popStyleColor();
 
-                    const name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index });
-                    defer Pixi.state.allocator.free(name);
+                    const name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index });
+                    defer Pixi.app.allocator.free(name);
 
                     if (imgui.selectableEx(name, contains, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
                         try file.makeSpriteSelection(sprite.index);

@@ -112,14 +112,14 @@ pub const PixiFile = struct {
             if (self.layer != null) {
                 self.visible = true;
             } else {
-                Pixi.state.popups.heightmap = true;
+                Pixi.app.popups.heightmap = true;
             }
         }
 
         pub fn disable(self: *Heightmap) void {
             self.visible = false;
-            if (Pixi.state.tools.current == .heightmap) {
-                Pixi.state.tools.swap();
+            if (Pixi.app.tools.current == .heightmap) {
+                Pixi.app.tools.swap();
             }
         }
 
@@ -170,15 +170,15 @@ pub const PixiFile = struct {
     };
 
     pub fn processSampleTool(file: *PixiFile, canvas: Canvas, options: SampleToolOptions) !void {
-        const sample_key = if (Pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-        const sample_button = if (Pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
         if (!sample_key and !sample_button) return;
 
         imgui.setMouseCursor(imgui.MouseCursor_None);
         file.camera.drawCursor(Pixi.assets.pixi_atlas.dropper_0_default, 0xFFFFFFFF);
 
-        const mouse_position = Pixi.state.mouse.position;
+        const mouse_position = Pixi.app.mouse.position;
         var camera = switch (canvas) {
             .primary => file.camera,
             .flipbook => file.flipbook_camera,
@@ -220,21 +220,21 @@ pub const PixiFile = struct {
                     if (p[3] > 0) {
                         color = p;
                         layer_index = i;
-                        if (Pixi.state.settings.eyedropper_auto_switch_layer)
+                        if (Pixi.app.settings.eyedropper_auto_switch_layer)
                             file.selected_layer_index = i;
                         break;
                     } else continue;
                 }
 
                 if (color[3] == 0) {
-                    if (Pixi.state.settings.eyedropper_auto_switch_layer)
-                        Pixi.state.tools.set(.eraser);
+                    if (Pixi.app.settings.eyedropper_auto_switch_layer)
+                        Pixi.app.tools.set(.eraser);
                 } else {
-                    if (Pixi.state.tools.current == .eraser) {
-                        if (Pixi.state.settings.eyedropper_auto_switch_layer)
-                            Pixi.state.tools.set(Pixi.state.tools.previous);
+                    if (Pixi.app.tools.current == .eraser) {
+                        if (Pixi.app.settings.eyedropper_auto_switch_layer)
+                            Pixi.app.tools.set(Pixi.app.tools.previous);
                     }
-                    Pixi.state.colors.primary = color;
+                    Pixi.app.colors.primary = color;
                 }
 
                 if (layer_index) |index| {
@@ -247,9 +247,9 @@ pub const PixiFile = struct {
                 if (file.heightmap.layer) |hml| {
                     const p = hml.getPixel(pixel);
                     if (p[3] > 0) {
-                        Pixi.state.colors.height = p[0];
+                        Pixi.app.colors.height = p[0];
                     } else {
-                        Pixi.state.tools.set(.eraser);
+                        Pixi.app.tools.set(.eraser);
                     }
                 }
             }
@@ -261,17 +261,17 @@ pub const PixiFile = struct {
     };
 
     pub fn processStrokeTool(file: *PixiFile, canvas: Canvas, options: StrokeToolOptions) !void {
-        if (switch (Pixi.state.tools.current) {
+        if (switch (Pixi.app.tools.current) {
             .pencil, .eraser, .heightmap => false,
             else => true,
         }) return;
 
-        const sample_key = if (Pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-        const sample_button = if (Pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
         if (sample_key or sample_button) return;
 
-        switch (Pixi.state.tools.current) {
+        switch (Pixi.app.tools.current) {
             .pencil, .heightmap => {
                 imgui.setMouseCursor(imgui.MouseCursor_None);
                 file.camera.drawCursor(Pixi.assets.pixi_atlas.pencil_0_default, 0xFFFFFFFF);
@@ -286,8 +286,8 @@ pub const PixiFile = struct {
         var canvas_center_offset = canvasCenterOffset(file, canvas);
         canvas_center_offset[0] += options.texture_position_offset[0];
         canvas_center_offset[1] += options.texture_position_offset[1];
-        const mouse_position = Pixi.state.mouse.position;
-        const previous_mouse_position = Pixi.state.mouse.previous_position;
+        const mouse_position = Pixi.app.mouse.position;
+        const previous_mouse_position = Pixi.app.mouse.previous_position;
 
         var selected_layer: Pixi.storage.Internal.Layer = if (file.heightmap.visible) if (file.heightmap.layer) |hml| hml else file.layers.slice().get(file.selected_layer_index) else file.layers.slice().get(file.selected_layer_index);
 
@@ -312,15 +312,15 @@ pub const PixiFile = struct {
             }),
         };
 
-        if (if (Pixi.state.mouse.button(.primary)) |primary| primary.down() else false) {
-            const color = switch (Pixi.state.tools.current) {
-                .pencil => if (file.heightmap.visible) [_]u8{ Pixi.state.colors.height, 0, 0, 255 } else Pixi.state.colors.primary,
+        if (if (Pixi.app.mouse.button(.primary)) |primary| primary.down() else false) {
+            const color = switch (Pixi.app.tools.current) {
+                .pencil => if (file.heightmap.visible) [_]u8{ Pixi.app.colors.height, 0, 0, 255 } else Pixi.app.colors.primary,
                 .eraser => [_]u8{ 0, 0, 0, 0 },
-                .heightmap => [_]u8{ Pixi.state.colors.height, 0, 0, 255 },
+                .heightmap => [_]u8{ Pixi.app.colors.height, 0, 0, 255 },
                 else => unreachable,
             };
 
-            if (!std.mem.eql(f32, &Pixi.state.mouse.position, &Pixi.state.mouse.previous_position)) {
+            if (!std.mem.eql(f32, &Pixi.app.mouse.position, &Pixi.app.mouse.previous_position)) {
                 if (pixel_coords_opt) |pixel_coord| {
                     const prev_pixel_coords_opt = switch (canvas) {
                         .primary => camera.pixelCoordinates(.{
@@ -345,7 +345,7 @@ pub const PixiFile = struct {
                             const pixel = .{ @as(usize, @intFromFloat(p_coord[0])), @as(usize, @intFromFloat(p_coord[1])) };
 
                             if (file.heightmap.visible) {
-                                if (Pixi.state.tools.current == .heightmap) {
+                                if (Pixi.app.tools.current == .heightmap) {
                                     const tile_width: usize = @intCast(file.tile_width);
                                     const tile_column = @divTrunc(pixel[0], tile_width);
                                     const min_column = tile_column * tile_width;
@@ -354,13 +354,13 @@ pub const PixiFile = struct {
                                     defer previous_pixel_opt = pixel;
                                     if (previous_pixel_opt) |previous_pixel| {
                                         if (pixel[1] != previous_pixel[1]) {
-                                            if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                            if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
                                                 if (hk.down()) {
                                                     const pixel_signed: i32 = @intCast(pixel[1]);
                                                     const previous_pixel_signed: i32 = @intCast(previous_pixel[1]);
                                                     const difference: i32 = pixel_signed - previous_pixel_signed;
-                                                    const sign: i32 = @intFromFloat(std.math.sign((Pixi.state.mouse.position[1] - Pixi.state.mouse.previous_position[1]) * -1.0));
-                                                    Pixi.state.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(Pixi.state.colors.height)) + difference * sign, 0, 255));
+                                                    const sign: i32 = @intFromFloat(std.math.sign((Pixi.app.mouse.position[1] - Pixi.app.mouse.previous_position[1]) * -1.0));
+                                                    Pixi.app.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(Pixi.app.colors.height)) + difference * sign, 0, 255));
                                                 }
                                             }
                                         } else {
@@ -412,7 +412,7 @@ pub const PixiFile = struct {
                                         } else break;
                                     }
                                 } else {
-                                    const size: u32 = Pixi.state.tools.stroke_size;
+                                    const size: u32 = Pixi.app.tools.stroke_size;
 
                                     for (0..(size * size)) |stroke_index| {
                                         var valid: bool = false;
@@ -439,7 +439,7 @@ pub const PixiFile = struct {
                                     }
                                 }
                             } else {
-                                const size: u32 = Pixi.state.tools.stroke_size;
+                                const size: u32 = Pixi.app.tools.stroke_size;
 
                                 for (0..(size * size)) |stroke_index| {
                                     if (selected_layer.getIndexShapeOffset(pixel, stroke_index)) |result| {
@@ -455,7 +455,7 @@ pub const PixiFile = struct {
                                     }
                                 }
 
-                                selected_layer.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                                selected_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
                                 // if (color[3] == 0) {
                                 //     if (file.heightmap.layer) |*working_layer| {
@@ -465,16 +465,16 @@ pub const PixiFile = struct {
                             }
                         }
 
-                        selected_layer.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
-                        Pixi.state.allocator.free(pixel_coords);
+                        selected_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
+                        Pixi.app.allocator.free(pixel_coords);
                     }
                 }
-            } else if (if (Pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false) {
+            } else if (if (Pixi.app.mouse.button(.primary)) |primary| primary.pressed() else false) {
                 if (pixel_coords_opt) |pixel_coord| {
                     const pixel: [2]usize = .{ @intFromFloat(pixel_coord[0]), @intFromFloat(pixel_coord[1]) };
 
                     if (file.heightmap.visible) {
-                        if (Pixi.state.tools.current == .heightmap) {
+                        if (Pixi.app.tools.current == .heightmap) {
                             const tile_width: usize = @intCast(file.tile_width);
 
                             const tile_column = @divTrunc(pixel[0], tile_width);
@@ -525,7 +525,7 @@ pub const PixiFile = struct {
                                 } else break;
                             }
                         } else {
-                            const size: u32 = Pixi.state.tools.stroke_size;
+                            const size: u32 = Pixi.app.tools.stroke_size;
 
                             for (0..(size * size)) |stroke_index| {
                                 var valid: bool = false;
@@ -551,10 +551,10 @@ pub const PixiFile = struct {
                                 }
                             }
 
-                            selected_layer.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                            selected_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
                         }
                     } else {
-                        const size: u32 = Pixi.state.tools.stroke_size;
+                        const size: u32 = Pixi.app.tools.stroke_size;
 
                         for (0..(size * size)) |stroke_index| {
                             if (selected_layer.getIndexShapeOffset(pixel, stroke_index)) |result| {
@@ -569,11 +569,11 @@ pub const PixiFile = struct {
                             }
                         }
 
-                        selected_layer.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                        selected_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
                         if (color[3] == 0) {
                             if (file.heightmap.layer) |*working_layer| {
-                                working_layer.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                                working_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
                             }
                         }
                     }
@@ -582,22 +582,22 @@ pub const PixiFile = struct {
         } else { // Not actively drawing, but hovering over canvas
             if (pixel_coords_opt) |pixel_coord| {
                 const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
-                const color: [4]u8 = switch (Pixi.state.tools.current) {
-                    .pencil => if (file.heightmap.visible) .{ Pixi.state.colors.height, 0, 0, 255 } else Pixi.state.colors.primary,
+                const color: [4]u8 = switch (Pixi.app.tools.current) {
+                    .pencil => if (file.heightmap.visible) .{ Pixi.app.colors.height, 0, 0, 255 } else Pixi.app.colors.primary,
                     .eraser => .{ 255, 255, 255, 255 },
-                    .heightmap => .{ Pixi.state.colors.height, 0, 0, 255 },
+                    .heightmap => .{ Pixi.app.colors.height, 0, 0, 255 },
                     else => unreachable,
                 };
 
-                switch (Pixi.state.tools.current) {
+                switch (Pixi.app.tools.current) {
                     .pencil, .eraser => {
-                        const size: u32 = @intCast(Pixi.state.tools.stroke_size);
+                        const size: u32 = @intCast(Pixi.app.tools.stroke_size);
                         for (0..(size * size)) |index| {
                             if (file.temporary_layer.getIndexShapeOffset(pixel, index)) |result| {
                                 file.temporary_layer.setPixelIndex(result.index, color, false);
                             }
                         }
-                        file.temporary_layer.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                        file.temporary_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
                     },
                     else => {
                         file.temporary_layer.setPixel(pixel, color, true);
@@ -606,7 +606,7 @@ pub const PixiFile = struct {
             }
 
             // Submit the stroke change buffer
-            if (file.buffers.stroke.indices.items.len > 0 and if (Pixi.state.mouse.button(.primary)) |primary| primary.released() else false) {
+            if (file.buffers.stroke.indices.items.len > 0 and if (Pixi.app.mouse.button(.primary)) |primary| primary.released() else false) {
                 const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
                 const change = try file.buffers.stroke.toChange(layer_index);
                 try file.history.append(change);
@@ -615,17 +615,17 @@ pub const PixiFile = struct {
     }
 
     pub fn processSelectionTool(file: *PixiFile, canvas: Canvas, options: StrokeToolOptions) !void {
-        if (switch (Pixi.state.tools.current) {
+        if (switch (Pixi.app.tools.current) {
             .selection => false,
             else => true,
         }) return;
 
-        const sample_key = if (Pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-        const sample_button = if (Pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
-        const add: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
-        const rem: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
-        const pressed: bool = if (Pixi.state.mouse.button(.primary)) |bt| bt.pressed() else false;
+        const add: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+        const rem: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+        const pressed: bool = if (Pixi.app.mouse.button(.primary)) |bt| bt.pressed() else false;
 
         if (sample_key or sample_button) return;
 
@@ -636,7 +636,7 @@ pub const PixiFile = struct {
         var canvas_center_offset = canvasCenterOffset(file, canvas);
         canvas_center_offset[0] += options.texture_position_offset[0];
         canvas_center_offset[1] += options.texture_position_offset[1];
-        const mouse_position = Pixi.state.mouse.position;
+        const mouse_position = Pixi.app.mouse.position;
 
         const camera = switch (canvas) {
             .primary => file.camera,
@@ -661,7 +661,7 @@ pub const PixiFile = struct {
 
         if (pixel_coords_opt) |pixel_coord| {
             const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
-            const stroke_size: u32 = @intCast(Pixi.state.tools.stroke_size);
+            const stroke_size: u32 = @intCast(Pixi.app.tools.stroke_size);
 
             if (!add and !rem and pressed) {
                 file.selection_layer.clear(false);
@@ -669,12 +669,12 @@ pub const PixiFile = struct {
 
             const selection_opacity: u8 = 200;
 
-            if (if (Pixi.state.mouse.button(.primary)) |primary| primary.down() else false) {
+            if (if (Pixi.app.mouse.button(.primary)) |primary| primary.down() else false) {
                 for (0..(stroke_size * stroke_size)) |index| {
                     if (file.selection_layer.getIndexShapeOffset(pixel, index)) |result| {
                         var color: [4]u8 = if (@mod(@divTrunc(result.index, file.width) + result.index, 2) == 0)
-                            if (Pixi.state.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
-                        else if (Pixi.state.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
+                            if (Pixi.app.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
+                        else if (Pixi.app.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
 
                         if (rem) @memset(&color, 0);
 
@@ -682,28 +682,28 @@ pub const PixiFile = struct {
                             file.selection_layer.setPixelIndex(result.index, color, false);
                     }
                 }
-                file.selection_layer.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                file.selection_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
             } else {
                 for (0..(stroke_size * stroke_size)) |index| {
                     if (file.temporary_layer.getIndexShapeOffset(pixel, index)) |result| {
                         const color: [4]u8 = if (@mod(@divTrunc(result.index, file.width) + result.index, 2) == 0)
-                            if (Pixi.state.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
-                        else if (Pixi.state.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
+                            if (Pixi.app.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
+                        else if (Pixi.app.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
 
                         if (file.layers.slice().get(file.selected_layer_index).pixels()[result.index][3] != 0)
                             file.temporary_layer.setPixelIndex(result.index, color, false);
                     }
                 }
-                file.temporary_layer.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                file.temporary_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
             }
         }
     }
 
     pub fn processAnimationTool(file: *PixiFile) !void {
-        if (Pixi.state.sidebar != .animations or Pixi.state.tools.current != .animation) return;
+        if (Pixi.app.sidebar != .animations or Pixi.app.tools.current != .animation) return;
 
         const canvas_center_offset = canvasCenterOffset(file, .primary);
-        const mouse_position = Pixi.state.mouse.position;
+        const mouse_position = Pixi.app.mouse.position;
 
         if (file.camera.pixelCoordinates(.{
             .texture_position = canvas_center_offset,
@@ -719,22 +719,22 @@ pub const PixiFile = struct {
             const tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
             const tile_index = tile_column + tile_row * tiles_wide;
 
-            if (tile_index >= Pixi.state.popups.animation_start) {
-                Pixi.state.popups.animation_length = (tile_index - Pixi.state.popups.animation_start) + 1;
+            if (tile_index >= Pixi.app.popups.animation_start) {
+                Pixi.app.popups.animation_length = (tile_index - Pixi.app.popups.animation_start) + 1;
             } else {
-                Pixi.state.popups.animation_start = tile_index;
-                Pixi.state.popups.animation_length = 1;
+                Pixi.app.popups.animation_start = tile_index;
+                Pixi.app.popups.animation_length = 1;
             }
 
-            if (if (Pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false)
-                Pixi.state.popups.animation_start = tile_index;
+            if (if (Pixi.app.mouse.button(.primary)) |primary| primary.pressed() else false)
+                Pixi.app.popups.animation_start = tile_index;
 
-            if (if (Pixi.state.mouse.button(.primary)) |primary| primary.released() else false) {
-                if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |primary| {
+            if (if (Pixi.app.mouse.button(.primary)) |primary| primary.released() else false) {
+                if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |primary| {
                     if (primary.down()) {
                         var valid: bool = true;
-                        var i: usize = Pixi.state.popups.animation_start;
-                        while (i < Pixi.state.popups.animation_start + Pixi.state.popups.animation_length) : (i += 1) {
+                        var i: usize = Pixi.app.popups.animation_start;
+                        while (i < Pixi.app.popups.animation_start + Pixi.app.popups.animation_length) : (i += 1) {
                             if (file.getAnimationIndexFromSpriteIndex(i)) |_| {
                                 valid = false;
                                 break;
@@ -742,19 +742,19 @@ pub const PixiFile = struct {
                         }
                         if (valid) {
                             // Create new animation
-                            Pixi.state.popups.animation_name = [_:0]u8{0} ** 128;
+                            Pixi.app.popups.animation_name = [_:0]u8{0} ** 128;
                             const new_name = "New_Animation";
-                            @memcpy(Pixi.state.popups.animation_name[0..new_name.len], new_name);
-                            Pixi.state.popups.animation_state = .create;
-                            Pixi.state.popups.animation_fps = Pixi.state.popups.animation_length;
-                            Pixi.state.popups.animation = true;
+                            @memcpy(Pixi.app.popups.animation_name[0..new_name.len], new_name);
+                            Pixi.app.popups.animation_state = .create;
+                            Pixi.app.popups.animation_fps = Pixi.app.popups.animation_length;
+                            Pixi.app.popups.animation = true;
                         }
                     } else {
                         if (file.animations.slice().len > 0) {
                             const animation = file.animations.slice().get(file.selected_animation_index);
                             var valid: bool = true;
-                            var i: usize = Pixi.state.popups.animation_start;
-                            while (i < Pixi.state.popups.animation_start + Pixi.state.popups.animation_length) : (i += 1) {
+                            var i: usize = Pixi.app.popups.animation_start;
+                            while (i < Pixi.app.popups.animation_start + Pixi.app.popups.animation_length) : (i += 1) {
                                 if (file.getAnimationIndexFromSpriteIndex(i)) |match_index| {
                                     if (match_index != file.selected_animation_index) {
                                         valid = false;
@@ -775,22 +775,22 @@ pub const PixiFile = struct {
 
                                 var sprite_index = animation.start;
                                 while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                                    Pixi.state.allocator.free(file.sprites.slice().get(sprite_index).name);
+                                    Pixi.app.allocator.free(file.sprites.slice().get(sprite_index).name);
                                     var sprite = file.sprites.slice().get(sprite_index);
-                                    sprite.name = try std.fmt.allocPrintZ(Pixi.state.allocator, "Sprite_{d}", .{sprite_index});
+                                    sprite.name = try std.fmt.allocPrintZ(Pixi.app.allocator, "Sprite_{d}", .{sprite_index});
 
                                     file.sprites.set(sprite_index, sprite);
                                 }
 
-                                file.animations.items(.start)[file.selected_animation_index] = Pixi.state.popups.animation_start;
-                                file.animations.items(.length)[file.selected_animation_index] = Pixi.state.popups.animation_length;
+                                file.animations.items(.start)[file.selected_animation_index] = Pixi.app.popups.animation_start;
+                                file.animations.items(.length)[file.selected_animation_index] = Pixi.app.popups.animation_length;
 
                                 sprite_index = animation.start;
                                 var animation_index: usize = 0;
                                 while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                                    Pixi.state.allocator.free(file.sprites.slice().get(sprite_index).name);
+                                    Pixi.app.allocator.free(file.sprites.slice().get(sprite_index).name);
                                     var sprite = file.sprites.slice().get(sprite_index);
-                                    sprite.name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ animation.name[0..], animation_index });
+                                    sprite.name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{d}", .{ animation.name[0..], animation_index });
 
                                     file.sprites.set(sprite_index, sprite);
                                     animation_index += 1;
@@ -831,13 +831,13 @@ pub const PixiFile = struct {
     }
 
     pub fn processFillTool(file: *PixiFile, canvas: Canvas, options: FillToolOptions) !void {
-        if (switch (Pixi.state.tools.current) {
+        if (switch (Pixi.app.tools.current) {
             .bucket => false,
             else => true,
         }) return;
 
-        const sample_key = if (Pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-        const sample_button = if (Pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
         if (sample_key or sample_button) return;
 
@@ -847,7 +847,7 @@ pub const PixiFile = struct {
         var canvas_center_offset = canvasCenterOffset(file, canvas);
         canvas_center_offset[0] += options.texture_position_offset[0];
         canvas_center_offset[1] += options.texture_position_offset[1];
-        const mouse_position = Pixi.state.mouse.position;
+        const mouse_position = Pixi.app.mouse.position;
 
         var selected_layer: Pixi.storage.Internal.Layer = file.layers.slice().get(file.selected_layer_index);
 
@@ -872,7 +872,7 @@ pub const PixiFile = struct {
             }),
         };
 
-        if (if (Pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false) {
+        if (if (Pixi.app.mouse.button(.primary)) |primary| primary.pressed() else false) {
             if (pixel_coords_opt) |pixel_coord| {
                 const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
@@ -894,12 +894,12 @@ pub const PixiFile = struct {
                 var old_color = [_]u8{ 0, 0, 0, 0 };
                 std.mem.copyForwards(u8, &old_color, pixels[index][0..4]);
 
-                const new_color = Pixi.state.colors.primary;
+                const new_color = Pixi.app.colors.primary;
                 if (std.mem.eql(u8, &new_color, &old_color)) {
                     return;
                 }
 
-                if (if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false) {
+                if (if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false) {
                     for (bounds_x..bounds_x + bounds_width) |x| {
                         for (bounds_y..bounds_y + bounds_height) |y| {
                             if (std.mem.eql(u8, &selected_layer.getPixel(.{ x, y }), &old_color)) {
@@ -915,7 +915,7 @@ pub const PixiFile = struct {
                     try fillToolDFS(file, selected_layer, pixels, pixel[0], pixel[1], bounds, old_color, new_color);
                 }
 
-                selected_layer.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                selected_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
                 if (file.buffers.stroke.indices.items.len > 0) {
                     const change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
@@ -937,8 +937,8 @@ pub const PixiFile = struct {
 
         const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
 
-        const modifier_primary: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
-        const modifier_secondary: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+        const modifier_primary: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+        const modifier_secondary: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
         if (transform_texture.control) |*control| {
             control.mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect;
@@ -956,7 +956,7 @@ pub const PixiFile = struct {
 
         const offset = zmath.loadArr2(if (canvas == .flipbook) .{ 0.0, 0.0 } else file.canvasCenterOffset(canvas));
 
-        if (Pixi.state.mouse.button(.primary)) |bt| {
+        if (Pixi.app.mouse.button(.primary)) |bt| {
             if (bt.released()) {
                 transform_texture.control = null;
                 transform_texture.pan = false;
@@ -1017,7 +1017,7 @@ pub const PixiFile = struct {
 
         if (transform_texture.pivot_move) {
             if (window_hovered) {
-                const mouse_position = Pixi.state.mouse.position;
+                const mouse_position = Pixi.app.mouse.position;
 
                 const current_pixel_coords = camera.pixelCoordinatesRaw(.{
                     .texture_position = .{ offset[0], offset[1] },
@@ -1090,7 +1090,7 @@ pub const PixiFile = struct {
             if (camera.isHovered(.{ control_center[0] + offset[0] - half_grip_size, control_center[1] + offset[1] - half_grip_size, grip_size, grip_size }) and window_hovered) {
                 hovered = true;
                 cursor = imgui.MouseCursor_Hand;
-                if (Pixi.state.mouse.button(.primary)) |bt| {
+                if (Pixi.app.mouse.button(.primary)) |bt| {
                     if (bt.pressed()) {
                         transform_texture.rotate = true;
                     }
@@ -1125,7 +1125,7 @@ pub const PixiFile = struct {
 
                 if (camera.isHovered(grip_rect) and options.allow_vert_move and window_hovered) {
                     hovered_index = vertex_index;
-                    if (Pixi.state.mouse.button(.primary)) |bt| {
+                    if (Pixi.app.mouse.button(.primary)) |bt| {
                         if (bt.pressed()) {
                             transform_texture.control = .{
                                 .index = vertex_index,
@@ -1186,7 +1186,7 @@ pub const PixiFile = struct {
             };
 
             const pan_hovered: bool = window_hovered and hovered_index == null and transform_texture.control == null and (camera.isHoveredTriangle(triangle_a) or camera.isHoveredTriangle(triangle_b));
-            const mouse_pressed = if (Pixi.state.mouse.button(.primary)) |bt| bt.pressed() else false;
+            const mouse_pressed = if (Pixi.app.mouse.button(.primary)) |bt| bt.pressed() else false;
 
             if (pan_hovered or pivot_hovered) {
                 cursor = imgui.MouseCursor_Hand;
@@ -1234,8 +1234,8 @@ pub const PixiFile = struct {
         { // Handle moving the vertices when panning
             if (transform_texture.pan) {
                 if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
-                    const mouse_position = Pixi.state.mouse.position;
-                    const prev_mouse_position = Pixi.state.mouse.previous_position;
+                    const mouse_position = Pixi.app.mouse.position;
+                    const prev_mouse_position = Pixi.app.mouse.previous_position;
                     const current_pixel_coords = camera.pixelCoordinatesRaw(.{
                         .texture_position = .{ offset[0], offset[1] },
                         .position = mouse_position,
@@ -1269,7 +1269,7 @@ pub const PixiFile = struct {
         { // Handle changing the rotation when rotating
             if (transform_texture.rotate) {
                 if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
-                    const mouse_position = Pixi.state.mouse.position;
+                    const mouse_position = Pixi.app.mouse.position;
                     const current_pixel_coords = camera.pixelCoordinatesRaw(.{
                         .texture_position = .{ offset[0], offset[1] },
                         .position = mouse_position,
@@ -1331,7 +1331,7 @@ pub const PixiFile = struct {
         blk_vert: { // Handle moving the vertices when moving a single control
             if (transform_texture.control) |control| {
                 if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
-                    const mouse_position = Pixi.state.mouse.position;
+                    const mouse_position = Pixi.app.mouse.position;
                     const current_pixel_coords = camera.pixelCoordinatesRaw(.{
                         .texture_position = .{ offset[0], offset[1] },
                         .position = mouse_position,
@@ -1494,19 +1494,19 @@ pub const PixiFile = struct {
         if (self.saving) return;
         self.saving = true;
         self.history.bookmark = 0;
-        var ext = try self.external(Pixi.state.allocator);
-        defer ext.deinit(Pixi.state.allocator);
+        var ext = try self.external(Pixi.app.allocator);
+        defer ext.deinit(Pixi.app.allocator);
         const zip_file = zip.zip_open(self.path, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
         if (zip_file) |z| {
-            var json = std.ArrayList(u8).init(Pixi.state.allocator);
+            var json = std.ArrayList(u8).init(Pixi.app.allocator);
             const out_stream = json.writer();
             const options = std.json.StringifyOptions{};
 
             try std.json.stringify(ext, options, out_stream);
 
             const json_output = try json.toOwnedSlice();
-            defer Pixi.state.allocator.free(json_output);
+            defer Pixi.app.allocator.free(json_output);
 
             _ = zip.zip_entry_open(z, "pixidata.json");
             _ = zip.zip_entry_write(z, json_output.ptr, json_output.len);
@@ -1515,16 +1515,16 @@ pub const PixiFile = struct {
             var index: usize = 0;
             while (index < self.layers.slice().len) : (index += 1) {
                 const name = self.layers.items(.name)[index];
-                const layer_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}.png", .{name});
-                defer Pixi.state.allocator.free(layer_name);
+                const layer_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}.png", .{name});
+                defer Pixi.app.allocator.free(layer_name);
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
                 try self.layers.items(.texture)[index].image.writeToFn(write, z, .png);
                 _ = zip.zip_entry_close(z);
             }
 
             if (self.heightmap.layer) |working_layer| {
-                const layer_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}.png", .{working_layer.name});
-                defer Pixi.state.allocator.free(layer_name);
+                const layer_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}.png", .{working_layer.name});
+                defer Pixi.app.allocator.free(layer_name);
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
                 try working_layer.texture.image.writeToFn(write, z, .png);
                 _ = zip.zip_entry_close(z);
@@ -1537,9 +1537,9 @@ pub const PixiFile = struct {
     }
 
     pub fn saveLDtk(self: *PixiFile) !void {
-        if (Pixi.state.project_folder) |project_folder_path| {
-            const ldtk_path = try std.fs.path.joinZ(Pixi.state.allocator, &.{ project_folder_path, "pixi-ldtk" });
-            defer Pixi.state.allocator.free(ldtk_path);
+        if (Pixi.app.project_folder) |project_folder_path| {
+            const ldtk_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
+            defer Pixi.app.allocator.free(ldtk_path);
 
             const base_name_w_ext = std.fs.path.basename(self.path);
             const ext = std.fs.path.extension(base_name_w_ext);
@@ -1547,14 +1547,14 @@ pub const PixiFile = struct {
             const base_name = base_name_w_ext[0 .. base_name_w_ext.len - ext.len];
 
             if (std.fs.path.dirname(self.path)) |self_dir_path| {
-                const file_folder_path = try std.fs.path.joinZ(Pixi.state.allocator, &.{ ldtk_path, self_dir_path[project_folder_path.len..] });
-                defer Pixi.state.allocator.free(file_folder_path);
+                const file_folder_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ ldtk_path, self_dir_path[project_folder_path.len..] });
+                defer Pixi.app.allocator.free(file_folder_path);
 
                 var index: usize = 0;
                 while (index < self.layers.slice().len) : (index += 1) {
                     const working_layer = self.layers.slice().get(index);
-                    var layer_save_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}{s}__{s}.png", .{ file_folder_path, std.fs.path.sep, base_name, working_layer.name });
-                    defer Pixi.state.allocator.free(layer_save_name);
+                    var layer_save_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{c}{s}__{s}.png", .{ file_folder_path, std.fs.path.sep, base_name, working_layer.name });
+                    defer Pixi.app.allocator.free(layer_save_name);
 
                     for (layer_save_name, 0..) |c, i| {
                         if (c == ' ') {
@@ -1568,12 +1568,12 @@ pub const PixiFile = struct {
                 }
             }
 
-            Pixi.state.packer.ldtk = true;
-            defer Pixi.state.packer.ldtk = false;
-            try Pixi.state.packer.appendProject();
+            Pixi.app.packer.ldtk = true;
+            defer Pixi.app.packer.ldtk = false;
+            try Pixi.app.packer.appendProject();
 
-            const ldtk_atlas_save_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{c}pixi-ldtk.json", .{ project_folder_path, std.fs.path.sep });
-            defer Pixi.state.allocator.free(ldtk_atlas_save_path);
+            const ldtk_atlas_save_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{c}pixi-ldtk.json", .{ project_folder_path, std.fs.path.sep });
+            defer Pixi.app.allocator.free(ldtk_atlas_save_path);
 
             var handle = try std.fs.cwd().createFile(ldtk_atlas_save_path, .{});
             defer handle.close();
@@ -1581,10 +1581,10 @@ pub const PixiFile = struct {
             const out_stream = handle.writer();
             const options: std.json.StringifyOptions = .{};
 
-            const output: Pixi.Packer.LDTKTileset.LDTKCompatibility = .{ .tilesets = Pixi.state.packer.ldtk_tilesets.items };
+            const output: Pixi.Packer.LDTKTileset.LDTKCompatibility = .{ .tilesets = Pixi.app.packer.ldtk_tilesets.items };
 
             try std.json.stringify(output, options, out_stream);
-            Pixi.state.packer.clearAndFree();
+            Pixi.app.packer.clearAndFree();
         }
     }
 
@@ -1593,7 +1593,7 @@ pub const PixiFile = struct {
         const thread = try std.Thread.spawn(.{}, save, .{self});
         thread.detach();
 
-        switch (Pixi.state.settings.compatibility) {
+        switch (Pixi.app.settings.compatibility) {
             .none => {},
             .ldtk => {
                 try self.saveLDtk();
@@ -1604,7 +1604,7 @@ pub const PixiFile = struct {
     pub fn newHistorySelectedSprites(file: *PixiFile, change_type: History.ChangeType) !void {
         switch (change_type) {
             .origins => {
-                var change = try Pixi.storage.Internal.PixiFile.History.Change.create(Pixi.state.allocator, change_type, file.selected_sprites.items.len);
+                var change = try Pixi.storage.Internal.PixiFile.History.Change.create(Pixi.app.allocator, change_type, file.selected_sprites.items.len);
                 for (file.selected_sprites.items, 0..) |sprite_index, i| {
                     const sprite = file.sprites.slice().get(sprite_index);
                     change.origins.indices[i] = sprite_index;
@@ -1626,7 +1626,7 @@ pub const PixiFile = struct {
 
     pub fn cut(self: *PixiFile, append_history: bool) !void {
         if (self.transform_texture == null) {
-            if (Pixi.state.tools.current == .selection) {
+            if (Pixi.app.tools.current == .selection) {
                 if (Pixi.Packer.reduce(&self.selection_layer.texture, .{ 0, 0, self.width, self.height })) |reduced_rect| {
                     const copy_image = try zstbi.Image.createEmpty(@intCast(reduced_rect[2]), @intCast(reduced_rect[3]), 4, .{});
                     const dst_pixels = @as([*][4]u8, @ptrCast(copy_image.data.ptr))[0 .. copy_image.data.len / 4];
@@ -1656,7 +1656,7 @@ pub const PixiFile = struct {
                     }
 
                     var texture: *Pixi.gfx.Texture = &self.layers.items(.texture)[self.selected_layer_index];
-                    texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                    texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
                     self.selection_layer.clear(true);
 
@@ -1668,19 +1668,19 @@ pub const PixiFile = struct {
                         }
                     }
 
-                    if (Pixi.state.clipboard_image) |*image| {
+                    if (Pixi.app.clipboard_image) |*image| {
                         image.deinit();
                     }
 
-                    Pixi.state.clipboard_image = copy_image;
-                    Pixi.state.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
+                    Pixi.app.clipboard_image = copy_image;
+                    Pixi.app.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
                 }
             } else {
-                if (Pixi.state.clipboard_image) |*image| {
+                if (Pixi.app.clipboard_image) |*image| {
                     image.deinit();
                 }
 
-                Pixi.state.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
+                Pixi.app.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
 
                 try self.eraseSprite(self.selected_sprite_index, append_history);
             }
@@ -1689,7 +1689,7 @@ pub const PixiFile = struct {
 
     pub fn copy(self: *PixiFile) !void {
         if (self.transform_texture == null) {
-            if (Pixi.state.tools.current == .selection) {
+            if (Pixi.app.tools.current == .selection) {
                 if (Pixi.Packer.reduce(&self.selection_layer.texture, .{ 0, 0, self.width, self.height })) |reduced_rect| {
                     const copy_image = try zstbi.Image.createEmpty(@intCast(reduced_rect[2]), @intCast(reduced_rect[3]), 4, .{});
                     const dst_pixels = @as([*][4]u8, @ptrCast(copy_image.data.ptr))[0 .. copy_image.data.len / 4];
@@ -1715,25 +1715,25 @@ pub const PixiFile = struct {
                         }
                     }
 
-                    if (Pixi.state.clipboard_image) |*image| {
+                    if (Pixi.app.clipboard_image) |*image| {
                         image.deinit();
                     }
 
-                    Pixi.state.clipboard_image = copy_image;
-                    Pixi.state.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
+                    Pixi.app.clipboard_image = copy_image;
+                    Pixi.app.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
                 }
             } else {
-                if (Pixi.state.clipboard_image) |*image| {
+                if (Pixi.app.clipboard_image) |*image| {
                     image.deinit();
                 }
 
-                Pixi.state.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
+                Pixi.app.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
             }
         }
     }
 
     pub fn paste(self: *PixiFile) !void {
-        if (Pixi.state.clipboard_image) |image| {
+        if (Pixi.app.clipboard_image) |image| {
             if (self.transform_texture) |*transform_texture|
                 transform_texture.texture.deinit();
 
@@ -1743,7 +1743,7 @@ pub const PixiFile = struct {
             if (self.transform_compute_bindgroup) |bindgroup|
                 bindgroup.release();
 
-            const device: *gpu.Device = Pixi.core.windows.get(Pixi.state.window, .device);
+            const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
 
             if (self.transform_compute_buffer == null) {
                 self.transform_compute_buffer = device.createBuffer(&.{
@@ -1772,7 +1772,7 @@ pub const PixiFile = struct {
             );
             @memcpy(image_copy.data, image.data);
 
-            const transform_position: [2]f32 = if (Pixi.state.tools.current == .selection) .{ @floatFromInt(Pixi.state.clipboard_position[0]), @floatFromInt(Pixi.state.clipboard_position[1]) } else self.pixelCoordinatesFromIndex(self.selected_sprite_index);
+            const transform_position: [2]f32 = if (Pixi.app.tools.current == .selection) .{ @floatFromInt(Pixi.app.clipboard_position[0]), @floatFromInt(Pixi.app.clipboard_position[1]) } else self.pixelCoordinatesFromIndex(self.selected_sprite_index);
             const transform_width: f32 = @floatFromInt(image.width);
             const transform_height: f32 = @floatFromInt(image.height);
 
@@ -1787,21 +1787,21 @@ pub const PixiFile = struct {
                 .rotation_grip_height = transform_height / 4.0,
             };
 
-            const pipeline_layout_default = Pixi.state.pipeline_default.getBindGroupLayout(0);
+            const pipeline_layout_default = Pixi.app.pipeline_default.getBindGroupLayout(0);
             defer pipeline_layout_default.release();
 
             self.transform_bindgroup = device.createBindGroup(
                 &gpu.BindGroup.Descriptor.init(.{
                     .layout = pipeline_layout_default,
                     .entries = &.{
-                        gpu.BindGroup.Entry.initBuffer(0, Pixi.state.uniform_buffer_default, 0, @sizeOf(Pixi.gfx.UniformBufferObject), 0),
+                        gpu.BindGroup.Entry.initBuffer(0, Pixi.app.uniform_buffer_default, 0, @sizeOf(Pixi.gfx.UniformBufferObject), 0),
                         gpu.BindGroup.Entry.initTextureView(1, self.transform_texture.?.texture.view_handle),
                         gpu.BindGroup.Entry.initSampler(2, self.transform_texture.?.texture.sampler_handle),
                     },
                 }),
             );
 
-            const compute_layout_default = Pixi.state.pipeline_compute.getBindGroupLayout(0);
+            const compute_layout_default = Pixi.app.pipeline_compute.getBindGroupLayout(0);
             defer compute_layout_default.release();
 
             self.transform_compute_bindgroup = device.createBindGroup(
@@ -1814,7 +1814,7 @@ pub const PixiFile = struct {
                 }),
             );
 
-            Pixi.state.tools.set(Pixi.Tools.Tool.pointer);
+            Pixi.app.tools.set(Pixi.Tools.Tool.pointer);
         }
     }
 
@@ -1857,8 +1857,8 @@ pub const PixiFile = struct {
     }
 
     pub fn createLayer(self: *PixiFile, name: [:0]const u8) !void {
-        try self.layers.insert(Pixi.state.allocator, 0, .{
-            .name = try Pixi.state.allocator.dupeZ(u8, name),
+        try self.layers.insert(Pixi.app.allocator, 0, .{
+            .name = try Pixi.app.allocator.dupeZ(u8, name),
             .texture = try Pixi.gfx.Texture.createEmpty(self.width, self.height, .{}),
             .visible = true,
             .id = self.newId(),
@@ -1875,8 +1875,8 @@ pub const PixiFile = struct {
             .index = index,
         } };
         @memcpy(change.layer_name.name[0..file.layers.items(.name)[index].len], file.layers.items(.name)[index]);
-        Pixi.state.allocator.free(file.layers.items(.name)[index]);
-        file.layers.items(.name)[Pixi.state.popups.layer_setup_index] = try Pixi.state.allocator.dupeZ(u8, name);
+        Pixi.app.allocator.free(file.layers.items(.name)[index]);
+        file.layers.items(.name)[Pixi.app.popups.layer_setup_index] = try Pixi.app.allocator.dupeZ(u8, name);
         try file.history.append(change);
     }
 
@@ -1884,9 +1884,9 @@ pub const PixiFile = struct {
         const src = self.layers.slice().get(src_index);
         var texture = try Pixi.gfx.Texture.createEmpty(self.width, self.height, .{});
         @memcpy(texture.image.data, src.texture.image.data);
-        texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
-        try self.layers.insert(Pixi.state.allocator, 0, .{
-            .name = try Pixi.state.allocator.dupeZ(u8, name),
+        texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
+        try self.layers.insert(Pixi.app.allocator, 0, .{
+            .name = try Pixi.app.allocator.dupeZ(u8, name),
             .texture = texture,
             .visible = true,
             .id = self.newId(),
@@ -1899,7 +1899,7 @@ pub const PixiFile = struct {
 
     pub fn deleteLayer(self: *PixiFile, index: usize) !void {
         if (index >= self.layers.slice().len) return;
-        try self.deleted_layers.append(Pixi.state.allocator, self.layers.slice().get(index));
+        try self.deleted_layers.append(Pixi.app.allocator, self.layers.slice().get(index));
         self.layers.orderedRemove(index);
         try self.history.append(.{ .layer_restore_delete = .{
             .action = .restore,
@@ -1909,19 +1909,19 @@ pub const PixiFile = struct {
 
     pub fn createAnimation(self: *PixiFile, name: []const u8, fps: usize, start: usize, length: usize) !void {
         const animation: Pixi.storage.Internal.Animation = .{
-            .name = try Pixi.state.allocator.dupeZ(u8, name),
+            .name = try Pixi.app.allocator.dupeZ(u8, name),
             .fps = fps,
             .start = start,
             .length = length,
         };
 
-        try self.animations.append(Pixi.state.allocator, animation);
+        try self.animations.append(Pixi.app.allocator, animation);
         self.selected_animation_index = self.animations.slice().len - 1;
 
         var i: usize = animation.start;
         while (i < animation.start + animation.length) : (i += 1) {
-            Pixi.state.allocator.free(self.sprites.items(.name)[i]);
-            self.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ name, i - animation.start });
+            Pixi.app.allocator.free(self.sprites.items(.name)[i]);
+            self.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{d}", .{ name, i - animation.start });
         }
 
         try self.history.append(.{ .animation_restore_delete = .{
@@ -1942,14 +1942,14 @@ pub const PixiFile = struct {
         @memcpy(change.animation.name[0..animation.name.len], animation.name);
 
         self.selected_animation_index = index;
-        Pixi.state.allocator.free(animation.name);
+        Pixi.app.allocator.free(animation.name);
 
-        self.animations.items(.name)[index] = try Pixi.state.allocator.dupeZ(u8, name);
+        self.animations.items(.name)[index] = try Pixi.app.allocator.dupeZ(u8, name);
 
         var i: usize = animation.start;
         while (i < animation.start + animation.length) : (i += 1) {
-            Pixi.state.allocator.free(self.sprites.items(.name)[i]);
-            self.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ name, i - animation.start });
+            Pixi.app.allocator.free(self.sprites.items(.name)[i]);
+            self.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{d}", .{ name, i - animation.start });
         }
 
         try self.history.append(change);
@@ -1958,7 +1958,7 @@ pub const PixiFile = struct {
     pub fn deleteAnimation(self: *PixiFile, index: usize) !void {
         if (index >= self.animations.slice().len) return;
         const animation = self.animations.slice().get(index);
-        try self.deleted_animations.append(Pixi.state.allocator, animation);
+        try self.deleted_animations.append(Pixi.app.allocator, animation);
         try self.history.append(.{ .animation_restore_delete = .{
             .action = .restore,
             .index = index,
@@ -1966,8 +1966,8 @@ pub const PixiFile = struct {
 
         var i: usize = animation.start;
         while (i < animation.start + animation.length) : (i += 1) {
-            Pixi.state.allocator.free(self.sprites.items(.name)[i]);
-            self.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.state.allocator, "Sprite_{d}", .{i});
+            Pixi.app.allocator.free(self.sprites.items(.name)[i]);
+            self.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.app.allocator, "Sprite_{d}", .{i});
         }
     }
 
@@ -1975,7 +1975,7 @@ pub const PixiFile = struct {
         if (index >= self.keyframe_animations.slice().len) return;
         const animation = self.keyframe_animations.slice().get(index);
         _ = animation; // autofix
-        //pixi.state.allocator.free(animation.name);
+        //Pixi.app.allocator.free(animation.name);
     }
 
     pub fn setSelectedSpritesOriginX(self: *PixiFile, origin_x: f32) void {
@@ -2106,8 +2106,8 @@ pub const PixiFile = struct {
         const selection = self.selected_sprites.items.len > 0;
         const selected_sprite_index = self.spriteSelectionIndex(selected_sprite);
         const contains = selected_sprite_index != null;
-        const primary_key = if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| hotkey.down() else false;
-        const secondary_key = if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hotkey| hotkey.down() else false;
+        const primary_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| hotkey.down() else false;
+        const secondary_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hotkey| hotkey.down() else false;
         if (primary_key) {
             if (!contains) {
                 try self.selected_sprites.append(selected_sprite);
@@ -2310,7 +2310,7 @@ pub const PixiFile = struct {
         }
 
         var texture: *Pixi.gfx.Texture = &file.layers.items(.texture)[layer_index];
-        texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+        texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
         // Submit the stroke change buffer
         if (file.buffers.stroke.indices.items.len > 0) {
@@ -2384,7 +2384,7 @@ pub const PixiFile = struct {
         }
 
         var texture: *Pixi.gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
-        texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+        texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
         // Submit the stroke change buffer
         if (file.buffers.stroke.indices.items.len > 0) {
@@ -2420,7 +2420,7 @@ pub const PixiFile = struct {
         }
 
         var texture: *Pixi.gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
-        texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+        texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
         // Submit the stroke change buffer
         if (file.buffers.stroke.indices.items.len > 0 and append_history) {
@@ -2457,14 +2457,14 @@ pub const Layer = struct {
         var p = self.pixels();
         p[index] = color;
         if (update)
-            self.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+            self.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
     }
 
     pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8, update: bool) void {
         var p = self.pixels();
         p[index] = color;
         if (update)
-            self.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+            self.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
     }
 
     pub const ShapeOffsetResult = struct {
@@ -2475,8 +2475,8 @@ pub const Layer = struct {
     /// Only used for handling getting the pixels surrounding the origin
     /// for stroke sizes larger than 1
     pub fn getIndexShapeOffset(self: Layer, origin: [2]usize, current_index: usize) ?ShapeOffsetResult {
-        const shape = Pixi.state.tools.stroke_shape;
-        const size: i32 = @intCast(Pixi.state.tools.stroke_size);
+        const shape = Pixi.app.tools.stroke_shape;
+        const size: i32 = @intCast(Pixi.app.tools.stroke_size);
 
         if (size == 1) {
             if (current_index != 0)
@@ -2525,7 +2525,7 @@ pub const Layer = struct {
             pixel.* = .{ 0, 0, 0, 0 };
         }
         if (update)
-            self.texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+            self.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
     }
 };
 
@@ -2537,7 +2537,7 @@ pub const Reference = struct {
 
     pub fn deinit(self: *Reference) void {
         self.texture.deinit();
-        Pixi.state.allocator.free(self.path);
+        Pixi.app.allocator.free(self.path);
     }
 
     pub fn canvasCenterOffset(self: *Reference) [2]f32 {
@@ -2558,15 +2558,15 @@ pub const Reference = struct {
     }
 
     pub fn processSampleTool(self: *Reference) void {
-        const sample_key = if (Pixi.state.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-        const sample_button = if (Pixi.state.mouse.button(.sample)) |sample| sample.down() else false;
+        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
         if (!sample_key and !sample_button) return;
 
         imgui.setMouseCursor(imgui.MouseCursor_None);
         self.camera.drawCursor(Pixi.assets.pixi_atlas.dropper_0_default, 0xFFFFFFFF);
 
-        const mouse_position = Pixi.state.mouse.position;
+        const mouse_position = Pixi.app.mouse.position;
         var camera = self.camera;
 
         const pixel_coord_opt = camera.pixelCoordinates(.{
@@ -2584,7 +2584,7 @@ pub const Reference = struct {
             try camera.drawColorTooltip(color);
 
             if (color[3] != 0)
-                Pixi.state.colors.primary = color;
+                Pixi.app.colors.primary = color;
         }
     }
 };
@@ -2662,7 +2662,7 @@ pub const KeyframeAnimation = struct {
             color_index = @mod(last_frame.id * 2, 35);
         }
 
-        return if (Pixi.state.colors.keyframe_palette) |palette| Pixi.math.Color.initBytes(
+        return if (Pixi.app.colors.keyframe_palette) |palette| Pixi.math.Color.initBytes(
             palette.colors[color_index][0],
             palette.colors[color_index][1],
             palette.colors[color_index][2],
@@ -2746,32 +2746,32 @@ pub const Palette = struct {
     colors: [][4]u8,
 
     pub fn loadFromFile(file: [:0]const u8) !Palette {
-        var colors = std.ArrayList([4]u8).init(Pixi.state.allocator);
+        var colors = std.ArrayList([4]u8).init(Pixi.app.allocator);
         const base_name = std.fs.path.basename(file);
         const ext = std.fs.path.extension(file);
         if (std.mem.eql(u8, ext, ".hex")) {
             var contents = try std.fs.cwd().openFile(file, .{});
             defer contents.close();
 
-            while (try contents.reader().readUntilDelimiterOrEofAlloc(Pixi.state.allocator, '\n', 200000)) |line| {
+            while (try contents.reader().readUntilDelimiterOrEofAlloc(Pixi.app.allocator, '\n', 200000)) |line| {
                 const color_u32 = try std.fmt.parseInt(u32, line[0 .. line.len - 1], 16);
                 const color_packed: PackedColor = @as(PackedColor, @bitCast(color_u32));
                 try colors.append(.{ color_packed.b, color_packed.g, color_packed.r, 255 });
-                Pixi.state.allocator.free(line);
+                Pixi.app.allocator.free(line);
             }
         } else {
             return error.WrongFileType;
         }
 
         return .{
-            .name = try Pixi.state.allocator.dupeZ(u8, base_name),
+            .name = try Pixi.app.allocator.dupeZ(u8, base_name),
             .colors = try colors.toOwnedSlice(),
         };
     }
 
     pub fn deinit(self: *Palette) void {
-        Pixi.state.allocator.free(self.name);
-        Pixi.state.allocator.free(self.colors);
+        Pixi.app.allocator.free(self.name);
+        Pixi.app.allocator.free(self.colors);
     }
 };
 
@@ -2784,8 +2784,8 @@ pub const Atlas = struct {
         if (self.external) |atlas| {
             const atlas_ext = ".atlas";
 
-            const output_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{s}", .{ path, atlas_ext });
-            defer Pixi.state.allocator.free(output_path);
+            const output_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{s}", .{ path, atlas_ext });
+            defer Pixi.app.allocator.free(output_path);
 
             var handle = try std.fs.cwd().createFile(output_path, .{});
             defer handle.close();
@@ -2799,8 +2799,8 @@ pub const Atlas = struct {
         if (self.diffusemap) |diffusemap| {
             const png_ext = ".png";
 
-            const output_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}{s}", .{ path, png_ext });
-            defer Pixi.state.allocator.free(output_path);
+            const output_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{s}", .{ path, png_ext });
+            defer Pixi.app.allocator.free(output_path);
 
             try diffusemap.image.writeToFile(output_path, .png);
         }
@@ -2808,8 +2808,8 @@ pub const Atlas = struct {
         if (self.heightmap) |heightmap| {
             const png_ext = ".png";
 
-            const output_path = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_h{s}", .{ path, png_ext });
-            defer Pixi.state.allocator.free(output_path);
+            const output_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_h{s}", .{ path, png_ext });
+            defer Pixi.app.allocator.free(output_path);
 
             try heightmap.image.writeToFile(output_path, .png);
         }

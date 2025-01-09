@@ -116,15 +116,15 @@ pub const Change = union(ChangeType) {
     pub fn deinit(self: Change) void {
         switch (self) {
             .pixels => |*pixels| {
-                Pixi.state.allocator.free(pixels.indices);
-                Pixi.state.allocator.free(pixels.values);
+                Pixi.app.allocator.free(pixels.indices);
+                Pixi.app.allocator.free(pixels.values);
             },
             .origins => |*origins| {
-                Pixi.state.allocator.free(origins.indices);
-                Pixi.state.allocator.free(origins.values);
+                Pixi.app.allocator.free(origins.indices);
+                Pixi.app.allocator.free(origins.values);
             },
             .layers_order => |*layers_order| {
-                Pixi.state.allocator.free(layers_order.order);
+                Pixi.app.allocator.free(layers_order.order);
             },
             else => {},
         }
@@ -266,16 +266,16 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             }
 
             if (pixels.layer < 0) {
-                Pixi.state.tools.set(.heightmap);
+                Pixi.app.tools.set(.heightmap);
             } else {
-                Pixi.state.tools.set(.pencil);
+                Pixi.app.tools.set(.pencil);
             }
 
             var texture: *Pixi.gfx.Texture = &file.layers.items(.texture)[@as(usize, @intCast(pixels.layer))];
-            texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+            texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
-            if (Pixi.state.sidebar == .sprites)
-                Pixi.state.sidebar = .tools;
+            if (Pixi.app.sidebar == .sprites)
+                Pixi.app.sidebar = .tools;
         },
         .origins => |*origins| {
             file.selected_sprites.clearAndFree();
@@ -287,10 +287,10 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
                 file.sprites.items(.origin_y)[sprite_index] = origin_y;
                 try file.selected_sprites.append(sprite_index);
             }
-            Pixi.state.sidebar = .sprites;
+            Pixi.app.sidebar = .sprites;
         },
         .layers_order => |*layers_order| {
-            var new_order = try Pixi.state.allocator.alloc(usize, layers_order.order.len);
+            var new_order = try Pixi.app.allocator.alloc(usize, layers_order.order.len);
             var layer_index: usize = 0;
             while (layer_index < file.layers.slice().len) : (layer_index += 1) {
                 const layer = file.layers.slice().get(layer_index);
@@ -320,31 +320,31 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             }
 
             @memcpy(layers_order.order, new_order);
-            Pixi.state.allocator.free(new_order);
+            Pixi.app.allocator.free(new_order);
         },
         .layer_restore_delete => |*layer_restore_delete| {
             const a = layer_restore_delete.action;
             switch (a) {
                 .restore => {
-                    try file.layers.insert(Pixi.state.allocator, layer_restore_delete.index, file.deleted_layers.pop());
+                    try file.layers.insert(Pixi.app.allocator, layer_restore_delete.index, file.deleted_layers.pop());
                     layer_restore_delete.action = .delete;
                 },
                 .delete => {
-                    try file.deleted_layers.append(Pixi.state.allocator, file.layers.slice().get(layer_restore_delete.index));
+                    try file.deleted_layers.append(Pixi.app.allocator, file.layers.slice().get(layer_restore_delete.index));
                     file.layers.orderedRemove(layer_restore_delete.index);
                     layer_restore_delete.action = .restore;
                 },
             }
-            Pixi.state.sidebar = .tools;
+            Pixi.app.sidebar = .tools;
         },
         .layer_name => |*layer_name| {
             var name = [_:0]u8{0} ** 128;
             @memcpy(name[0..layer_name.name.len], &layer_name.name);
             layer_name.name = [_:0]u8{0} ** 128;
             @memcpy(layer_name.name[0..file.layers.items(.name)[layer_name.index].len], file.layers.items(.name)[layer_name.index]);
-            Pixi.state.allocator.free(file.layers.items(.name)[layer_name.index]);
-            file.layers.items(.name)[layer_name.index] = try Pixi.state.allocator.dupeZ(u8, &name);
-            Pixi.state.sidebar = .tools;
+            Pixi.app.allocator.free(file.layers.items(.name)[layer_name.index]);
+            file.layers.items(.name)[layer_name.index] = try Pixi.app.allocator.dupeZ(u8, &name);
+            Pixi.app.sidebar = .tools;
         },
         .layer_settings => |*layer_settings| {
             const visible = file.layers.items(.visible)[layer_settings.index];
@@ -353,23 +353,23 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             file.layers.items(.collapse)[layer_settings.index] = layer_settings.collapse;
             layer_settings.visible = visible;
             layer_settings.collapse = collapse;
-            Pixi.state.sidebar = .tools;
+            Pixi.app.sidebar = .tools;
         },
         .animation => |*animation| {
             // Set sprite names to generic
             const current_animation = file.animations.slice().get(animation.index);
             var sprite_index = current_animation.start;
             while (sprite_index < current_animation.start + current_animation.length) : (sprite_index += 1) {
-                Pixi.state.allocator.free(file.sprites.items(.name)[sprite_index]);
-                file.sprites.items(.name)[sprite_index] = try std.fmt.allocPrintZ(Pixi.state.allocator, "Sprite_{d}", .{sprite_index});
+                Pixi.app.allocator.free(file.sprites.items(.name)[sprite_index]);
+                file.sprites.items(.name)[sprite_index] = try std.fmt.allocPrintZ(Pixi.app.allocator, "Sprite_{d}", .{sprite_index});
             }
 
             // Set sprite names to specific animation
             sprite_index = animation.start;
             var animation_index: usize = 0;
             while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                Pixi.state.allocator.free(file.sprites.items(.name)[sprite_index]);
-                file.sprites.items(.name)[sprite_index] = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &animation.name, "\u{0}"), animation_index });
+                Pixi.app.allocator.free(file.sprites.items(.name)[sprite_index]);
+                file.sprites.items(.name)[sprite_index] = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &animation.name, "\u{0}"), animation_index });
                 animation_index += 1;
             }
 
@@ -378,8 +378,8 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             @memcpy(name[0..animation.name.len], &animation.name);
             animation.name = [_:0]u8{0} ** 128;
             @memcpy(animation.name[0..file.animations.items(.name)[animation.index].len], file.animations.items(.name)[animation.index]);
-            Pixi.state.allocator.free(file.animations.items(.name)[animation.index]);
-            file.animations.items(.name)[animation.index] = try Pixi.state.allocator.dupeZ(u8, std.mem.trimRight(u8, &name, "\u{0}"));
+            Pixi.app.allocator.free(file.animations.items(.name)[animation.index]);
+            file.animations.items(.name)[animation.index] = try Pixi.app.allocator.dupeZ(u8, std.mem.trimRight(u8, &name, "\u{0}"));
             // FPS
             const fps = animation.fps;
             animation.fps = file.animations.items(.fps)[animation.index];
@@ -393,41 +393,41 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             animation.length = file.animations.items(.length)[animation.index];
             file.animations.items(.length)[animation.index] = length;
 
-            Pixi.state.sidebar = .animations;
+            Pixi.app.sidebar = .animations;
         },
         .animation_restore_delete => |*animation_restore_delete| {
             const a = animation_restore_delete.action;
             switch (a) {
                 .restore => {
                     const animation = file.deleted_animations.pop();
-                    try file.animations.insert(Pixi.state.allocator, animation_restore_delete.index, animation);
+                    try file.animations.insert(Pixi.app.allocator, animation_restore_delete.index, animation);
                     animation_restore_delete.action = .delete;
 
                     var i: usize = animation.start;
                     var animation_i: usize = 0;
                     while (i < animation.start + animation.length) : (i += 1) {
-                        Pixi.state.allocator.free(file.sprites.items(.name)[i]);
-                        file.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}_{d}", .{ animation.name[0..], animation_i });
+                        Pixi.app.allocator.free(file.sprites.items(.name)[i]);
+                        file.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{d}", .{ animation.name[0..], animation_i });
                         animation_i += 1;
                     }
                 },
                 .delete => {
                     const animation = file.animations.slice().get(animation_restore_delete.index);
                     file.animations.orderedRemove(animation_restore_delete.index);
-                    try file.deleted_animations.append(Pixi.state.allocator, animation);
+                    try file.deleted_animations.append(Pixi.app.allocator, animation);
                     animation_restore_delete.action = .restore;
 
                     var i: usize = animation.start;
                     while (i < animation.start + animation.length) : (i += 1) {
-                        Pixi.state.allocator.free(file.sprites.items(.name)[i]);
-                        file.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.state.allocator, "Sprite_{d}", .{i});
+                        Pixi.app.allocator.free(file.sprites.items(.name)[i]);
+                        file.sprites.items(.name)[i] = try std.fmt.allocPrintZ(Pixi.app.allocator, "Sprite_{d}", .{i});
                     }
 
                     if (file.selected_animation_index == animation_restore_delete.index)
                         file.selected_animation_index = 0;
                 },
             }
-            Pixi.state.sidebar = .animations;
+            Pixi.app.sidebar = .animations;
         },
         .heightmap_restore_delete => |*heightmap_restore_delete| {
             const a = heightmap_restore_delete.action;
@@ -437,11 +437,11 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
                     heightmap_restore_delete.action = .delete;
                 },
                 .delete => {
-                    try file.deleted_heightmap_layers.append(Pixi.state.allocator, file.heightmap.layer.?);
+                    try file.deleted_heightmap_layers.append(Pixi.app.allocator, file.heightmap.layer.?);
                     file.heightmap.layer = null;
                     heightmap_restore_delete.action = .restore;
-                    if (Pixi.state.tools.current == .heightmap) {
-                        Pixi.state.tools.set(.pointer);
+                    if (Pixi.app.tools.current == .heightmap) {
+                        Pixi.app.tools.set(.pointer);
                     }
                 },
             }

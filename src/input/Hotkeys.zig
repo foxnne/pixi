@@ -145,7 +145,7 @@ pub fn process(self: *Self) !void {
         return;
     }
 
-    if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
+    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
         if (file.transform_texture != null) return;
 
         if (self.hotkey(.{ .proc = .escape })) |hk| {
@@ -174,15 +174,15 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .export_png })) |hk| {
             if (hk.pressed())
-                Pixi.state.popups.export_to_png = true;
+                Pixi.app.popups.export_to_png = true;
         }
 
         if (self.hotkey(.{ .proc = .size_up })) |hk| {
             if (hk.pressed()) {
-                switch (Pixi.state.tools.current) {
+                switch (Pixi.app.tools.current) {
                     .pencil, .eraser, .selection => {
-                        if (Pixi.state.tools.stroke_size < Pixi.state.settings.stroke_max_size)
-                            Pixi.state.tools.stroke_size += 1;
+                        if (Pixi.app.tools.stroke_size < Pixi.app.settings.stroke_max_size)
+                            Pixi.app.tools.stroke_size += 1;
                     },
                     else => {},
                 }
@@ -191,10 +191,10 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .size_down })) |hk| {
             if (hk.pressed()) {
-                switch (Pixi.state.tools.current) {
+                switch (Pixi.app.tools.current) {
                     .pencil, .eraser, .selection => {
-                        if (Pixi.state.tools.stroke_size > 1)
-                            Pixi.state.tools.stroke_size -= 1;
+                        if (Pixi.app.tools.stroke_size > 1)
+                            Pixi.app.tools.stroke_size -= 1;
                     },
                     else => {},
                 }
@@ -204,8 +204,8 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .height_up })) |hk| {
             if (hk.pressed()) {
                 if (file.heightmap.visible) {
-                    if (Pixi.state.colors.height < 255)
-                        Pixi.state.colors.height += 1;
+                    if (Pixi.app.colors.height < 255)
+                        Pixi.app.colors.height += 1;
                 }
             }
         }
@@ -213,8 +213,8 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .height_down })) |hk| {
             if (hk.pressed()) {
                 if (file.heightmap.visible) {
-                    if (Pixi.state.colors.height > 0)
-                        Pixi.state.colors.height -= 1;
+                    if (Pixi.app.colors.height > 0)
+                        Pixi.app.colors.height -= 1;
                 }
             }
         }
@@ -340,7 +340,7 @@ pub fn process(self: *Self) !void {
 
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
-            Pixi.state.popups.file_dialog_request = .{
+            Pixi.app.popups.file_dialog_request = .{
                 .state = .folder,
                 .type = .project,
             };
@@ -349,16 +349,16 @@ pub fn process(self: *Self) !void {
 
     if (self.hotkey(.{ .proc = .toggle_references })) |hk| {
         if (hk.pressed()) {
-            Pixi.state.popups.references = !Pixi.state.popups.references;
+            Pixi.app.popups.references = !Pixi.app.popups.references;
         }
     }
 
     for (self.hotkeys) |hk| {
         if (hk.pressed()) {
             switch (hk.action) {
-                .tool => |tool| Pixi.state.tools.set(tool),
+                .tool => |tool| Pixi.app.tools.set(tool),
                 .sidebar => |sidebar| {
-                    Pixi.state.sidebar = sidebar;
+                    Pixi.app.sidebar = sidebar;
                 },
                 else => {},
             }
@@ -477,10 +477,10 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Zoom
         try hotkeys.append(.{
-            .key = if (windows_or_linux or Pixi.state.settings.zoom_ctrl) Key.left_control else Key.left_super,
+            .key = if (windows_or_linux or Pixi.app.settings.zoom_ctrl) Key.left_control else Key.left_super,
             .mods = .{
-                .control = windows_or_linux or Pixi.state.settings.zoom_ctrl,
-                .super = !windows_or_linux and !Pixi.state.settings.zoom_ctrl,
+                .control = windows_or_linux or Pixi.app.settings.zoom_ctrl,
+                .super = !windows_or_linux and !Pixi.app.settings.zoom_ctrl,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,

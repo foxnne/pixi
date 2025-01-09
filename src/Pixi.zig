@@ -88,7 +88,7 @@ test {
     _ = input;
 }
 
-pub var state: *App = undefined;
+pub var app: *App = undefined;
 pub var core: *Core = undefined;
 pub var editor: *Editor = undefined;
 
@@ -139,8 +139,8 @@ pub const PackTarget = enum {
     single_open,
 };
 
-pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !void {
-    state = app;
+pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !void {
+    app = _app;
     core = _core;
     editor = _editor;
 
@@ -157,7 +157,7 @@ pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !
         .vsync_mode = .double,
     });
 
-    app.* = .{
+    _app.* = .{
         .allocator = allocator,
         .timer = try mach.time.Timer.start(),
         .window = window,
@@ -167,7 +167,7 @@ pub fn init(app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !
 
 /// This is called from the event fired when the window is done being
 /// initialized by the platform
-pub fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
+pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     const window = core.windows.getValue(app.window);
 
     app.arena_allocator = std.heap.ArenaAllocator.init(app.allocator);
@@ -226,7 +226,7 @@ pub fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     cozette_config.rasterizer_density = 1.0;
     cozette_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
 
-    _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", state.settings.font_size * scale_factor, &cozette_config, null);
+    _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", app.settings.font_size * scale_factor, &cozette_config, null);
 
     var fa_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     fa_config.merge_mode = true;
@@ -239,8 +239,8 @@ pub fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", state.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", app.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", app.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
     app.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
     app.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
@@ -248,17 +248,17 @@ pub fn lateInit(app: *App, editor_mod: mach.Mod(Editor)) !void {
     editor_mod.call(.init);
 }
 
-pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
-    if (state.popups.file_dialog_request) |request| {
-        defer state.popups.file_dialog_request = null;
-        const initial = if (request.initial) |initial| initial else state.project_folder;
+pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
+    if (app.popups.file_dialog_request) |request| {
+        defer app.popups.file_dialog_request = null;
+        const initial = if (request.initial) |initial| initial else app.project_folder;
 
         if (switch (request.state) {
             .file => try nfd.openFileDialog(request.filter, initial),
             .folder => try nfd.openFolderDialog(initial),
             .save => try nfd.saveFileDialog(request.filter, initial),
         }) |path| {
-            state.popups.file_dialog_response = .{
+            app.popups.file_dialog_response = .{
                 .path = path,
                 .type = request.type,
             };
@@ -271,46 +271,46 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
                 app_mod.call(.lateInit);
             },
             .key_press => |key_press| {
-                state.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
+                app.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
             },
             .key_repeat => |key_repeat| {
-                state.hotkeys.setHotkeyState(key_repeat.key, key_repeat.mods, .repeat);
+                app.hotkeys.setHotkeyState(key_repeat.key, key_repeat.mods, .repeat);
             },
             .key_release => |key_release| {
-                state.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
+                app.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
             },
             .mouse_scroll => |mouse_scroll| {
-                if (!state.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
-                    state.mouse.scroll_x = mouse_scroll.xoffset;
-                    state.mouse.scroll_y = mouse_scroll.yoffset;
+                if (!app.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
+                    app.mouse.scroll_x = mouse_scroll.xoffset;
+                    app.mouse.scroll_y = mouse_scroll.yoffset;
                 }
             },
             .zoom_gesture => |gesture| {
-                state.mouse.magnify = gesture.zoom;
+                app.mouse.magnify = gesture.zoom;
             },
             .mouse_motion => |mouse_motion| {
-                state.mouse.position = .{ @floatCast(mouse_motion.pos.x * app.content_scale[0]), @floatCast(mouse_motion.pos.y * app.content_scale[1]) };
+                app.mouse.position = .{ @floatCast(mouse_motion.pos.x * app.content_scale[0]), @floatCast(mouse_motion.pos.y * app.content_scale[1]) };
             },
             .mouse_press => |mouse_press| {
-                state.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press);
+                app.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press);
             },
             .mouse_release => |mouse_release| {
-                state.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release);
+                app.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release);
             },
             .close => {
                 var should_close = true;
-                for (state.open_files.items) |file| {
+                for (app.open_files.items) |file| {
                     if (file.dirty()) {
                         should_close = false;
                     }
                 }
 
-                if (!should_close and !state.popups.file_confirm_close_exit) {
-                    state.popups.file_confirm_close = true;
-                    state.popups.file_confirm_close_state = .all;
-                    state.popups.file_confirm_close_exit = true;
+                if (!should_close and !app.popups.file_confirm_close_exit) {
+                    app.popups.file_confirm_close = true;
+                    app.popups.file_confirm_close_state = .all;
+                    app.popups.file_confirm_close_exit = true;
                 }
-                state.should_close = should_close;
+                app.should_close = should_close;
             },
             .window_resize => |resize| {
                 const window = core.windows.getValue(app.window);
@@ -326,15 +326,15 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
             else => {},
         }
 
-        if (!state.should_close)
+        if (!app.should_close)
             _ = imgui_mach.processEvent(event);
     }
     var window = core.windows.getValue(app.window);
 
     try imgui_mach.newFrame();
     imgui.newFrame();
-    state.delta_time = app.timer.lap();
-    state.total_time += state.delta_time;
+    app.delta_time = app.timer.lap();
+    app.total_time += app.delta_time;
 
     try input.process();
 
@@ -343,7 +343,7 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
     imgui.render();
 
     // TODO: Fix title when mach supports it
-    // if (editor.getFile(state.open_file_index)) |file| {
+    // if (editor.getFile(app.open_file_index)) |file| {
     //     @memset(core.title[0..], 0);
     //     @memcpy(core.title[0 .. name.len + 3], name ++ " - ");
     //     const base_name = std.fs.path.basename(file.path);
@@ -391,10 +391,10 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
         };
         defer imgui_commands.release();
 
-        if (state.batcher.empty) {
+        if (app.batcher.empty) {
             window.queue.submit(&.{imgui_commands});
         } else {
-            const batcher_commands = try state.batcher.finish();
+            const batcher_commands = try app.batcher.finish();
             defer batcher_commands.release();
             window.queue.submit(&.{ batcher_commands, imgui_commands });
         }
@@ -402,7 +402,7 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
 
     // Accept transformations
     {
-        for (state.open_files.items) |*file| {
+        for (app.open_files.items) |*file| {
             if (file.transform_texture) |*transform_texture| {
                 if (transform_texture.confirm) {
                     // Blit temp layer to selected layer
@@ -464,23 +464,23 @@ pub fn tick(app: *App, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !vo
         }
     }
 
-    for (state.hotkeys.hotkeys) |*hotkey| {
+    for (app.hotkeys.hotkeys) |*hotkey| {
         hotkey.previous_state = hotkey.state;
     }
 
-    for (state.mouse.buttons) |*button| {
+    for (app.mouse.buttons) |*button| {
         button.previous_state = button.state;
     }
 
-    state.mouse.previous_position = state.mouse.position;
+    app.mouse.previous_position = app.mouse.position;
 
-    if (state.should_close and !Editor.saving()) {
+    if (app.should_close and !Editor.saving()) {
         // Close!
         core.exit();
     }
 }
 
-pub fn deinit(app: *App, editor_mod: mach.Mod(Editor)) !void {
+pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
     //deinit and save settings
     app.settings.deinit(app.arena_allocator.allocator());
 

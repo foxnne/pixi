@@ -110,9 +110,9 @@ pub fn clearAndFree(self: *Packer) void {
 
 pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
     if (self.ldtk) {
-        if (Pixi.state.project_folder) |project_folder_path| {
-            const ldtk_path = try std.fs.path.joinZ(Pixi.state.allocator, &.{ project_folder_path, "pixi-ldtk" });
-            defer Pixi.state.allocator.free(ldtk_path);
+        if (Pixi.app.project_folder) |project_folder_path| {
+            const ldtk_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
+            defer Pixi.app.allocator.free(ldtk_path);
 
             const base_name_w_ext = std.fs.path.basename(file.path);
             const ext = std.fs.path.extension(base_name_w_ext);
@@ -122,13 +122,13 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
             if (std.fs.path.dirname(file.path)) |file_dir_path| {
                 const relative_path = file_dir_path[project_folder_path.len..];
 
-                var layer_names = std.ArrayList([:0]const u8).init(Pixi.state.allocator);
-                var sprites = std.ArrayList(LDTKTileset.LDTKSprite).init(Pixi.state.allocator);
+                var layer_names = std.ArrayList([:0]const u8).init(Pixi.app.allocator);
+                var sprites = std.ArrayList(LDTKTileset.LDTKSprite).init(Pixi.app.allocator);
 
                 var index: usize = 0;
                 while (index < file.layers.slice().len) : (index += 1) {
                     const layer = file.layers.slice().get(index);
-                    const layer_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "pixi-ldtk{s}{c}{s}__{s}.png", .{ relative_path, std.fs.path.sep, base_name, layer.name });
+                    const layer_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "pixi-ldtk{s}{c}{s}__{s}.png", .{ relative_path, std.fs.path.sep, base_name, layer.name });
                     try layer_names.append(layer_name);
                 }
 
@@ -144,7 +144,7 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
                     const src_y = row * file.tile_height;
 
                     try sprites.append(.{
-                        .name = try Pixi.state.allocator.dupeZ(u8, sprite.name),
+                        .name = try Pixi.app.allocator.dupeZ(u8, sprite.name),
                         .src = .{ src_x, src_y },
                     });
                 }
@@ -217,14 +217,14 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
                 var image: Image = .{
                     .width = reduced_src_width,
                     .height = reduced_src_height,
-                    .pixels = try Pixi.state.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
+                    .pixels = try Pixi.app.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
                 };
 
                 var contains_height: bool = false;
                 var heightmap_image: ?Image = if (file.heightmap.layer != null) .{
                     .width = reduced_src_width,
                     .height = reduced_src_height,
-                    .pixels = try Pixi.state.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
+                    .pixels = try Pixi.app.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
                 } else null;
 
                 @memset(image.pixels, .{ 0, 0, 0, 0 });
@@ -263,7 +263,7 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
 
                 if (!contains_height) {
                     if (heightmap_image) |img| {
-                        Pixi.state.allocator.free(img.pixels);
+                        Pixi.app.allocator.free(img.pixels);
                         heightmap_image = null;
                     }
                 }
@@ -320,7 +320,7 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
 }
 
 pub fn appendProject(self: Packer) !void {
-    if (Pixi.state.project_folder) |root_directory| {
+    if (Pixi.app.project_folder) |root_directory| {
         try recurseFiles(self.allocator, root_directory);
     }
 }
@@ -341,12 +341,12 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 
                         if (Pixi.Editor.getFileIndex(abs_path)) |index| {
                             if (Pixi.Editor.getFile(index)) |file| {
-                                try Pixi.state.packer.append(file);
+                                try Pixi.app.packer.append(file);
                             }
                         } else {
                             if (try Pixi.Editor.loadFile(abs_path)) |file| {
-                                try Pixi.state.packer.open_files.append(file);
-                                try Pixi.state.packer.append(&Pixi.state.packer.open_files.items[Pixi.state.packer.open_files.items.len - 1]);
+                                try Pixi.app.packer.open_files.append(file);
+                                try Pixi.app.packer.append(&Pixi.app.packer.open_files.items[Pixi.app.packer.open_files.items.len - 1]);
                             }
                         }
                     }
@@ -372,13 +372,13 @@ pub fn packAndClear(self: *Packer) !void {
             if (sprite.diffuse_image) |image|
                 atlas_texture.blit(image.pixels, frame.slice());
         }
-        atlas_texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+        atlas_texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
-        if (Pixi.state.atlas.diffusemap) |*diffusemap| {
+        if (Pixi.app.atlas.diffusemap) |*diffusemap| {
             diffusemap.deinit();
-            Pixi.state.atlas.diffusemap = atlas_texture;
+            Pixi.app.atlas.diffusemap = atlas_texture;
         } else {
-            Pixi.state.atlas.diffusemap = atlas_texture;
+            Pixi.app.atlas.diffusemap = atlas_texture;
         }
 
         if (self.contains_height) {
@@ -388,16 +388,16 @@ pub fn packAndClear(self: *Packer) !void {
                 if (sprite.heightmap_image) |image|
                     atlas_texture_h.blit(image.pixels, frame.slice());
             }
-            atlas_texture_h.update(Pixi.core.windows.get(Pixi.state.window, .device));
+            atlas_texture_h.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
-            if (Pixi.state.atlas.heightmap) |*heightmap| {
+            if (Pixi.app.atlas.heightmap) |*heightmap| {
                 heightmap.deinit();
-                Pixi.state.atlas.heightmap = atlas_texture_h;
+                Pixi.app.atlas.heightmap = atlas_texture_h;
             } else {
-                Pixi.state.atlas.heightmap = atlas_texture_h;
+                Pixi.app.atlas.heightmap = atlas_texture_h;
             }
         } else {
-            if (Pixi.state.atlas.heightmap) |*heightmap| {
+            if (Pixi.app.atlas.heightmap) |*heightmap| {
                 heightmap.deinit();
             }
         }
@@ -420,7 +420,7 @@ pub fn packAndClear(self: *Packer) !void {
             dst.start = src.start;
         }
 
-        if (Pixi.state.atlas.external) |*old_atlas| {
+        if (Pixi.app.atlas.external) |*old_atlas| {
             for (old_atlas.sprites) |sprite| {
                 self.allocator.free(sprite.name);
             }
@@ -430,9 +430,9 @@ pub fn packAndClear(self: *Packer) !void {
             self.allocator.free(old_atlas.sprites);
             self.allocator.free(old_atlas.animations);
 
-            Pixi.state.atlas.external = atlas;
+            Pixi.app.atlas.external = atlas;
         } else {
-            Pixi.state.atlas.external = atlas;
+            Pixi.app.atlas.external = atlas;
         }
 
         self.clearAndFree();
@@ -521,7 +521,7 @@ pub fn reduce(texture: *Pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     // // If we are packing a tileset, we want a uniform / non-tightly-packed grid. We remove all
     // // completely empty sprite cells (the return null cases above), but do not trim transparent
     // // regions during packing.
-    // if (pixi.state.pack_tileset) return src;
+    // if (Pixi.app.pack_tileset) return src;
 
     return .{
         left,

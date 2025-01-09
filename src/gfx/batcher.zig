@@ -71,7 +71,7 @@ pub const Batcher = struct {
             .size = vertices.len * @sizeOf(gfx.Vertex),
         };
 
-        const device: *gpu.Device = Pixi.core.windows.get(Pixi.state.window, .device);
+        const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
 
         const vertex_buffer_handle = device.createBuffer(&vertex_buffer_descriptor);
 
@@ -97,7 +97,7 @@ pub const Batcher = struct {
         self.state = .progress;
         self.start_count = self.quad_count;
         if (self.encoder == null) {
-            const device: *gpu.Device = Pixi.core.windows.get(Pixi.state.window, .device);
+            const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
             self.encoder = device.createCommandEncoder(null);
         }
     }
@@ -136,7 +136,7 @@ pub const Batcher = struct {
         self.vertex_buffer_handle.release();
         self.index_buffer_handle.release();
 
-        const device: *gpu.Device = Pixi.core.windows.get(Pixi.state.window, .device);
+        const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
 
         const vertex_buffer_handle = device.createBuffer(&.{
             .usage = .{ .copy_dst = true, .vertex = true },
@@ -476,7 +476,7 @@ pub const Batcher = struct {
         // Begin the render pass
         pass_blk: {
             const encoder = self.encoder orelse break :pass_blk;
-            const swap_chain: *gpu.SwapChain = Pixi.core.windows.get(Pixi.state.window, .swap_chain);
+            const swap_chain: *gpu.SwapChain = Pixi.core.windows.get(Pixi.app.window, .swap_chain);
             const back_buffer_view = swap_chain.getCurrentTextureView() orelse break :pass_blk;
             defer back_buffer_view.release();
 
@@ -565,7 +565,7 @@ pub const Batcher = struct {
         if (self.encoder) |encoder| {
             self.empty = true;
 
-            const queue: *gpu.Queue = Pixi.core.windows.get(Pixi.state.window, .queue);
+            const queue: *gpu.Queue = Pixi.core.windows.get(Pixi.app.window, .queue);
             // Write the current vertex and index buffers to the queue.
             queue.writeBuffer(self.vertex_buffer_handle, 0, self.vertices[0 .. self.quad_count * num_verts]);
             queue.writeBuffer(self.index_buffer_handle, 0, self.indices[0 .. self.quad_count * num_indices]);

@@ -5,7 +5,7 @@ const tools = @import("tools.zig");
 const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
-    if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
+    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
         // Make sure we can see the timeline for animation previews
         file.flipbook_view = .timeline;
 
@@ -56,24 +56,24 @@ pub fn draw() !void {
             defer imgui.unindent();
 
             if (imgui.beginChild("Animations", .{
-                .x = imgui.getWindowWidth() - Pixi.state.settings.explorer_grip * Pixi.state.content_scale[0],
+                .x = imgui.getWindowWidth() - Pixi.app.settings.explorer_grip * Pixi.app.content_scale[0],
                 .y = 0.0,
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
-                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.state.content_scale[0], .y = 2.0 * Pixi.state.content_scale[1] });
-                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.state.content_scale[0], .y = 6.0 * Pixi.state.content_scale[1] });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.app.content_scale[0], .y = 2.0 * Pixi.app.content_scale[1] });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.app.content_scale[0], .y = 6.0 * Pixi.app.content_scale[1] });
                 imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.0, .y = 0.5 });
-                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * Pixi.state.content_scale[0]);
-                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.state.content_scale[0], .y = 10.0 * Pixi.state.content_scale[1] });
+                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * Pixi.app.content_scale[0]);
+                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.app.content_scale[0], .y = 10.0 * Pixi.app.content_scale[1] });
                 defer imgui.popStyleVarEx(5);
                 var animation_index: usize = 0;
                 while (animation_index < file.keyframe_animations.slice().len) : (animation_index += 1) {
                     const animation = file.keyframe_animations.slice().get(animation_index);
                     const animation_color = if (file.selected_keyframe_animation_index == animation_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
 
-                    const animation_name = try std.fmt.allocPrintZ(Pixi.state.allocator, " {s}  {s}##{d}", .{ Pixi.fa.film, animation.name, animation.id });
-                    defer Pixi.state.allocator.free(animation_name);
+                    const animation_name = try std.fmt.allocPrintZ(Pixi.app.allocator, " {s}  {s}##{d}", .{ Pixi.fa.film, animation.name, animation.id });
+                    defer Pixi.app.allocator.free(animation_name);
 
                     imgui.pushStyleColorImVec4(imgui.Col_Text, animation_color);
                     defer imgui.popStyleColor();
@@ -85,8 +85,8 @@ pub fn draw() !void {
                         defer imgui.unindentEx(20.0);
 
                         for (animation.keyframes.items) |*keyframe| {
-                            const keyframe_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "Keyframe ID:{d}", .{keyframe.id});
-                            defer Pixi.state.allocator.free(keyframe_name);
+                            const keyframe_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "Keyframe ID:{d}", .{keyframe.id});
+                            defer Pixi.app.allocator.free(keyframe_name);
 
                             const keyframe_color = if (animation.active_keyframe_id == keyframe.id) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
 
@@ -106,8 +106,8 @@ pub fn draw() !void {
                                     const color = animation.getFrameNodeColor(frame.id);
                                     const sprite = file.sprites.slice().get(frame.sprite_index);
 
-                                    const sprite_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id });
-                                    defer Pixi.state.allocator.free(sprite_name);
+                                    const sprite_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id });
+                                    defer Pixi.app.allocator.free(sprite_name);
 
                                     imgui.pushStyleColor(imgui.Col_Text, color);
                                     imgui.bullet();
@@ -168,12 +168,12 @@ fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) !v
 
         // if (imgui.menuItem("Rename...")) {
         //     const animation = file.transform_animations.items[animation_index];
-        //     pixi.state.popups.animation_name = [_:0]u8{0} ** 128;
-        //     @memcpy(pixi.state.popups.animation_name[0..animation.name.len], animation.name);
-        //     pixi.state.popups.animation_index = animation_index;
-        //     pixi.state.popups.animation_fps = animation.fps;
-        //     pixi.state.popups.animation_state = .edit;
-        //     pixi.state.popups.animation = true;
+        //     Pixi.app.popups.animation_name = [_:0]u8{0} ** 128;
+        //     @memcpy(Pixi.app.popups.animation_name[0..animation.name.len], animation.name);
+        //     Pixi.app.popups.animation_index = animation_index;
+        //     Pixi.app.popups.animation_fps = animation.fps;
+        //     Pixi.app.popups.animation_state = .edit;
+        //     Pixi.app.popups.animation = true;
         // }
 
         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());

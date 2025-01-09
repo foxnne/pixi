@@ -4,20 +4,20 @@ const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
-    const dialog_name = switch (Pixi.state.popups.rename_state) {
+    const dialog_name = switch (Pixi.app.popups.rename_state) {
         .none => "None...",
         .rename => "Rename...",
         .duplicate => "Duplicate...",
     };
 
-    if (Pixi.state.popups.rename) {
+    if (Pixi.app.popups.rename) {
         imgui.openPopup(dialog_name, imgui.PopupFlags_None);
     } else return;
 
-    const popup_width = 350 * Pixi.state.content_scale[0];
-    const popup_height = 115 * Pixi.state.content_scale[1];
+    const popup_width = 350 * Pixi.app.content_scale[0];
+    const popup_height = 115 * Pixi.app.content_scale[1];
 
-    const window_size = Pixi.state.window_size;
+    const window_size = Pixi.app.window_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     imgui.setNextWindowPos(.{
@@ -33,18 +33,18 @@ pub fn draw() !void {
     modal_flags |= imgui.WindowFlags_NoResize;
     modal_flags |= imgui.WindowFlags_NoCollapse;
 
-    if (imgui.beginPopupModal(dialog_name, &Pixi.state.popups.rename, modal_flags)) {
+    if (imgui.beginPopupModal(dialog_name, &Pixi.app.popups.rename, modal_flags)) {
         defer imgui.endPopup();
         imgui.spacing();
 
         const style = imgui.getStyle();
         const spacing = style.item_spacing.x;
-        const full_width = popup_width - (style.frame_padding.x * 2.0 * Pixi.state.content_scale[0]) - imgui.calcTextSize("Name").x;
-        const half_width = (popup_width - (style.frame_padding.x * 2.0 * Pixi.state.content_scale[0]) - spacing) / 2.0;
+        const full_width = popup_width - (style.frame_padding.x * 2.0 * Pixi.app.content_scale[0]) - imgui.calcTextSize("Name").x;
+        const half_width = (popup_width - (style.frame_padding.x * 2.0 * Pixi.app.content_scale[0]) - spacing) / 2.0;
 
-        const base_name = std.fs.path.basename(Pixi.state.popups.rename_path[0..]);
+        const base_name = std.fs.path.basename(Pixi.app.popups.rename_path[0..]);
         var base_index: usize = 0;
-        if (std.mem.indexOf(u8, Pixi.state.popups.rename_path[0..], base_name)) |index| {
+        if (std.mem.indexOf(u8, Pixi.app.popups.rename_path[0..], base_name)) |index| {
             base_index = index;
         }
         imgui.pushItemWidth(full_width);
@@ -55,41 +55,41 @@ pub fn draw() !void {
 
         const enter = imgui.inputText(
             "Name",
-            Pixi.state.popups.rename_path[base_index.. :0],
-            Pixi.state.popups.rename_path[base_index.. :0].len,
+            Pixi.app.popups.rename_path[base_index.. :0],
+            Pixi.app.popups.rename_path[base_index.. :0].len,
             input_text_flags,
         );
 
         if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
-            Pixi.state.popups.rename = false;
+            Pixi.app.popups.rename = false;
         }
         imgui.sameLine();
         if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
-            switch (Pixi.state.popups.rename_state) {
+            switch (Pixi.app.popups.rename_state) {
                 .rename => {
-                    const old_path = std.mem.trimRight(u8, Pixi.state.popups.rename_old_path[0..], "\u{0}");
-                    const new_path = std.mem.trimRight(u8, Pixi.state.popups.rename_path[0..], "\u{0}");
+                    const old_path = std.mem.trimRight(u8, Pixi.app.popups.rename_old_path[0..], "\u{0}");
+                    const new_path = std.mem.trimRight(u8, Pixi.app.popups.rename_path[0..], "\u{0}");
 
                     try std.fs.renameAbsolute(old_path[0..], new_path[0..]);
 
-                    const old_path_z = Pixi.state.popups.rename_old_path[0..old_path.len :0];
-                    for (Pixi.state.open_files.items) |*open_file| {
+                    const old_path_z = Pixi.app.popups.rename_old_path[0..old_path.len :0];
+                    for (Pixi.app.open_files.items) |*open_file| {
                         if (std.mem.eql(u8, open_file.path, old_path_z)) {
-                            Pixi.state.allocator.free(open_file.path);
-                            open_file.path = try Pixi.state.allocator.dupeZ(u8, new_path);
+                            Pixi.app.allocator.free(open_file.path);
+                            open_file.path = try Pixi.app.allocator.dupeZ(u8, new_path);
                         }
                     }
                 },
                 .duplicate => {
-                    const original_path = std.mem.trimRight(u8, Pixi.state.popups.rename_old_path[0..], "\u{0}");
-                    const new_path = std.mem.trimRight(u8, Pixi.state.popups.rename_path[0..], "\u{0}");
+                    const original_path = std.mem.trimRight(u8, Pixi.app.popups.rename_old_path[0..], "\u{0}");
+                    const new_path = std.mem.trimRight(u8, Pixi.app.popups.rename_path[0..], "\u{0}");
 
                     try std.fs.copyFileAbsolute(original_path, new_path, .{});
                 },
                 else => unreachable,
             }
-            Pixi.state.popups.rename_state = .none;
-            Pixi.state.popups.rename = false;
+            Pixi.app.popups.rename_state = .none;
+            Pixi.app.popups.rename = false;
         }
 
         imgui.popItemWidth();

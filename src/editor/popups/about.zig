@@ -4,14 +4,14 @@ const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
-    if (Pixi.state.popups.about) {
+    if (Pixi.app.popups.about) {
         imgui.openPopup("About", imgui.PopupFlags_None);
     } else return;
 
-    const popup_width = 450 * Pixi.state.content_scale[0];
-    const popup_height = 450 * Pixi.state.content_scale[1];
+    const popup_width = 450 * Pixi.app.content_scale[0];
+    const popup_height = 450 * Pixi.app.content_scale[1];
 
-    const window_size = Pixi.state.window_size;
+    const window_size = Pixi.app.window_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
     imgui.setNextWindowPos(.{
@@ -29,13 +29,13 @@ pub fn draw() !void {
 
     if (imgui.beginPopupModal(
         "About",
-        &Pixi.state.popups.about,
+        &Pixi.app.popups.about,
         modal_flags,
     )) {
         defer imgui.endPopup();
         imgui.spacing();
 
-        const fox_sprite = Pixi.state.loaded_assets.atlas.sprites[Pixi.assets.pixi_atlas.fox_0_default];
+        const fox_sprite = Pixi.app.loaded_assets.atlas.sprites[Pixi.assets.pixi_atlas.fox_0_default];
 
         const src: [4]f32 = .{
             @floatFromInt(fox_sprite.source[0]),
@@ -44,8 +44,8 @@ pub fn draw() !void {
             @floatFromInt(fox_sprite.source[3]),
         };
 
-        const w = src[2] * 4.0 * Pixi.state.content_scale[0];
-        const h = src[3] * 4.0 * Pixi.state.content_scale[1];
+        const w = src[2] * 4.0 * Pixi.app.content_scale[0];
+        const h = src[3] * 4.0 * Pixi.app.content_scale[1];
         const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 4.0 };
 
         imgui.setCursorPosX(center[0] - w / 2.0);
@@ -65,13 +65,13 @@ pub fn draw() !void {
             );
         }
 
-        const inv_w = 1.0 / @as(f32, @floatFromInt(Pixi.state.loaded_assets.atlas_png.image.width));
-        const inv_h = 1.0 / @as(f32, @floatFromInt(Pixi.state.loaded_assets.atlas_png.image.height));
+        const inv_w = 1.0 / @as(f32, @floatFromInt(Pixi.app.loaded_assets.atlas_png.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(Pixi.app.loaded_assets.atlas_png.image.height));
 
         imgui.setCursorPosX(center[0] - w / 2.0);
         imgui.setCursorPosY(center[1] - h / 6.0);
         imgui.imageEx(
-            Pixi.state.loaded_assets.atlas_png.view_handle,
+            Pixi.app.loaded_assets.atlas_png.view_handle,
             .{ .x = w, .y = h },
             .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
             .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
@@ -84,8 +84,8 @@ pub fn draw() !void {
         centerText("Pixi Editor");
         centerText("https://github.com/foxnne/pixi");
 
-        const version = try std.fmt.allocPrintZ(Pixi.state.allocator, "Version {d}.{d}.{d}", .{ Pixi.version.major, Pixi.version.minor, Pixi.version.patch });
-        defer Pixi.state.allocator.free(version);
+        const version = try std.fmt.allocPrintZ(Pixi.app.allocator, "Version {d}.{d}.{d}", .{ Pixi.version.major, Pixi.version.minor, Pixi.version.patch });
+        defer Pixi.app.allocator.free(version);
 
         centerText(version);
 

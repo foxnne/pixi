@@ -5,7 +5,7 @@ const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * Pixi.state.content_scale[0], .y = 5.0 * Pixi.state.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * Pixi.app.content_scale[0], .y = 5.0 * Pixi.app.content_scale[1] });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.highlight_secondary.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.highlight_secondary.toImguiVec4());
@@ -14,20 +14,20 @@ pub fn draw() !void {
 
     const window_size = imgui.getContentRegionAvail();
 
-    switch (Pixi.state.pack_target) {
+    switch (Pixi.app.pack_target) {
         .all_open => {
-            if (Pixi.state.open_files.items.len <= 1) {
-                Pixi.state.pack_target = .project;
+            if (Pixi.app.open_files.items.len <= 1) {
+                Pixi.app.pack_target = .project;
             }
         },
         .single_open => {
-            if (Pixi.state.open_files.items.len == 0)
-                Pixi.state.pack_target = .project;
+            if (Pixi.app.open_files.items.len == 0)
+                Pixi.app.pack_target = .project;
         },
         else => {},
     }
 
-    const preview_text = switch (Pixi.state.pack_target) {
+    const preview_text = switch (Pixi.app.pack_target) {
         .project => "Full Project",
         .all_open => "All Open Files",
         .single_open => "Current Open File",
@@ -36,25 +36,25 @@ pub fn draw() !void {
     if (imgui.beginCombo("Files", preview_text.ptr, imgui.ComboFlags_None)) {
         defer imgui.endCombo();
         if (imgui.menuItem("Full Project")) {
-            Pixi.state.pack_target = .project;
+            Pixi.app.pack_target = .project;
         }
 
         {
-            const enabled = if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |_| true else false;
+            const enabled = if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |_| true else false;
             if (imgui.menuItemEx("Current Open File", null, false, enabled)) {
-                Pixi.state.pack_target = .single_open;
+                Pixi.app.pack_target = .single_open;
             }
         }
 
         {
-            const enabled = if (Pixi.state.open_files.items.len > 1) true else false;
+            const enabled = if (Pixi.app.open_files.items.len > 1) true else false;
             if (imgui.menuItemEx("All Open Files", null, false, enabled)) {
-                Pixi.state.pack_target = .all_open;
+                Pixi.app.pack_target = .all_open;
             }
         }
     }
 
-    // _ = imgui.checkbox("Pack tileset", &pixi.state.pack_tileset);
+    // _ = imgui.checkbox("Pack tileset", &Pixi.app.pack_tileset);
     // if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
     //     if (imgui.beginTooltip()) {
     //         defer imgui.endTooltip();
@@ -64,8 +64,8 @@ pub fn draw() !void {
 
     {
         var packable: bool = true;
-        if (Pixi.state.pack_target == .project and Pixi.state.project_folder == null) packable = false;
-        if (Pixi.state.pack_target == .all_open and Pixi.state.open_files.items.len <= 1) packable = false;
+        if (Pixi.app.pack_target == .project and Pixi.app.project_folder == null) packable = false;
+        if (Pixi.app.pack_target == .all_open and Pixi.app.open_files.items.len <= 1) packable = false;
         if (Pixi.Editor.saving()) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
@@ -76,23 +76,23 @@ pub fn draw() !void {
         if (!packable)
             imgui.beginDisabled(true);
         if (imgui.buttonEx("Pack", .{ .x = window_size.x, .y = 0.0 })) {
-            switch (Pixi.state.pack_target) {
+            switch (Pixi.app.pack_target) {
                 .project => {
-                    if (Pixi.state.project_folder) |folder| {
-                        try Pixi.Packer.recurseFiles(Pixi.state.allocator, folder);
-                        try Pixi.state.packer.packAndClear();
+                    if (Pixi.app.project_folder) |folder| {
+                        try Pixi.Packer.recurseFiles(Pixi.app.allocator, folder);
+                        try Pixi.app.packer.packAndClear();
                     }
                 },
                 .all_open => {
-                    for (Pixi.state.open_files.items) |*file| {
-                        try Pixi.state.packer.append(file);
+                    for (Pixi.app.open_files.items) |*file| {
+                        try Pixi.app.packer.append(file);
                     }
-                    try Pixi.state.packer.packAndClear();
+                    try Pixi.app.packer.packAndClear();
                 },
                 .single_open => {
-                    if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
-                        try Pixi.state.packer.append(file);
-                        try Pixi.state.packer.packAndClear();
+                    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
+                        try Pixi.app.packer.append(file);
+                        try Pixi.app.packer.packAndClear();
                     }
                 },
             }
@@ -100,65 +100,65 @@ pub fn draw() !void {
         if (!packable)
             imgui.endDisabled();
 
-        if (Pixi.state.pack_target == .project and Pixi.state.project_folder == null) {
+        if (Pixi.app.pack_target == .project and Pixi.app.project_folder == null) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
             imgui.textWrapped("Select a project folder to pack.");
         }
 
-        if (Pixi.state.atlas.external) |atlas| {
+        if (Pixi.app.atlas.external) |atlas| {
             imgui.text("Atlas Details");
             imgui.text("Sprites: %d", atlas.sprites.len);
             imgui.text("Animations: %d", atlas.animations.len);
-            if (Pixi.state.atlas.diffusemap) |diffusemap| {
+            if (Pixi.app.atlas.diffusemap) |diffusemap| {
                 imgui.text("Atlas size: %dx%d", diffusemap.image.width, diffusemap.image.height);
             }
 
             if (imgui.buttonEx("Export", .{ .x = window_size.x, .y = 0.0 })) {
-                Pixi.state.popups.file_dialog_request = .{
+                Pixi.app.popups.file_dialog_request = .{
                     .state = .save,
                     .type = .export_atlas,
                 };
             }
 
-            if (Pixi.state.popups.file_dialog_response) |response| {
+            if (Pixi.app.popups.file_dialog_response) |response| {
                 if (response.type == .export_atlas) {
-                    try Pixi.state.recents.appendExport(try Pixi.state.allocator.dupeZ(u8, response.path));
-                    try Pixi.state.recents.save();
-                    try Pixi.state.atlas.save(response.path);
+                    try Pixi.app.recents.appendExport(try Pixi.app.allocator.dupeZ(u8, response.path));
+                    try Pixi.app.recents.save();
+                    try Pixi.app.atlas.save(response.path);
                     nfd.freePath(response.path);
-                    Pixi.state.popups.file_dialog_response = null;
+                    Pixi.app.popups.file_dialog_response = null;
                 }
             }
 
-            if (Pixi.state.recents.exports.items.len > 0) {
+            if (Pixi.app.recents.exports.items.len > 0) {
                 if (imgui.buttonEx("Repeat Last Export", .{ .x = window_size.x, .y = 0.0 })) {
-                    try Pixi.state.atlas.save(Pixi.state.recents.exports.getLast());
+                    try Pixi.app.atlas.save(Pixi.app.recents.exports.getLast());
                 }
-                imgui.textWrapped(Pixi.state.recents.exports.getLast());
+                imgui.textWrapped(Pixi.app.recents.exports.getLast());
 
                 imgui.spacing();
                 imgui.separatorText("Recents");
                 imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
                 defer imgui.popStyleColor();
                 if (imgui.beginChild("Recents", .{
-                    .x = imgui.getWindowWidth() - Pixi.state.settings.explorer_grip * Pixi.state.content_scale[0],
+                    .x = imgui.getWindowWidth() - Pixi.app.settings.explorer_grip * Pixi.app.content_scale[0],
                     .y = 0.0,
                 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                     defer imgui.endChild();
 
-                    var i: usize = Pixi.state.recents.exports.items.len;
+                    var i: usize = Pixi.app.recents.exports.items.len;
                     while (i > 0) {
                         i -= 1;
-                        const exp = Pixi.state.recents.exports.items[i];
-                        const label = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s} {s}", .{ Pixi.fa.file_download, std.fs.path.basename(exp) });
-                        defer Pixi.state.allocator.free(label);
+                        const exp = Pixi.app.recents.exports.items[i];
+                        const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s} {s}", .{ Pixi.fa.file_download, std.fs.path.basename(exp) });
+                        defer Pixi.app.allocator.free(label);
 
                         if (imgui.selectable(label)) {
-                            const exp_out = Pixi.state.recents.exports.swapRemove(i);
-                            try Pixi.state.recents.appendExport(exp_out);
+                            const exp_out = Pixi.app.recents.exports.swapRemove(i);
+                            try Pixi.app.recents.appendExport(exp_out);
                         }
-                        imgui.sameLineEx(0.0, 5.0 * Pixi.state.content_scale[0]);
+                        imgui.sameLineEx(0.0, 5.0 * Pixi.app.content_scale[0]);
                         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
                         imgui.text(exp);
                         imgui.popStyleColor();

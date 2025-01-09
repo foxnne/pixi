@@ -54,7 +54,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
         latest_time = file.keyframe_animations.slice().get(file.selected_keyframe_animation_index).length();
 
         if (file.selected_keyframe_animation_state == .play) {
-            file.keyframe_animations.items(.elapsed_time)[file.selected_keyframe_animation_index] += Pixi.state.delta_time;
+            file.keyframe_animations.items(.elapsed_time)[file.selected_keyframe_animation_index] += Pixi.app.delta_time;
 
             if (file.keyframe_animations.items(.elapsed_time)[file.selected_keyframe_animation_index] > file.keyframe_animations.slice().get(file.selected_keyframe_animation_index).length()) {
                 file.keyframe_animations.items(.elapsed_time)[file.selected_keyframe_animation_index] = 0.0;
@@ -93,7 +93,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
             var rel_mouse_y: ?f32 = null;
 
             if (window_hovered) {
-                const mouse_position = Pixi.state.mouse.position;
+                const mouse_position = Pixi.app.mouse.position;
                 rel_mouse_x = mouse_position[0] - window_position.x + scroll_x;
                 rel_mouse_y = mouse_position[1] - window_position.y + scroll_y;
             }
@@ -103,8 +103,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
                 // Set the y scroll manually as allowing default scroll blocks x scroll on the parent window
                 if (window_hovered) {
-                    if (Pixi.state.mouse.scroll_y) |scroll_delta_y| {
-                        imgui.setScrollY(imgui.getScrollY() - scroll_delta_y * if (Pixi.state.settings.input_scheme == .trackpad) @as(f32, 10.0) else @as(f32, 1.0));
+                    if (Pixi.app.mouse.scroll_y) |scroll_delta_y| {
+                        imgui.setScrollY(imgui.getScrollY() - scroll_delta_y * if (Pixi.app.settings.input_scheme == .trackpad) @as(f32, 10.0) else @as(f32, 1.0));
                     }
                 }
 
@@ -139,8 +139,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                             const unit = if (@mod(ms, 1000) == 0) "s" else "ms";
                             const value = if (@mod(ms, 1000) == 0) @divExact(ms, 1000) else ms;
 
-                            const text = try std.fmt.allocPrintZ(Pixi.state.allocator, "{d} {s}", .{ value, unit });
-                            defer Pixi.state.allocator.free(text);
+                            const text = try std.fmt.allocPrintZ(Pixi.app.allocator, "{d} {s}", .{ value, unit });
+                            defer Pixi.app.allocator.free(text);
 
                             draw_list.addText(.{ .x = x, .y = y }, Pixi.editor.theme.text_background.toU32(), text);
                         }
@@ -159,8 +159,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                 .zoom = window_height / tile_height,
             };
             const zoom_index = sprite_camera.nearestZoomIndex();
-            const max_zoom_index = if (zoom_index < Pixi.state.settings.zoom_steps.len - 2) zoom_index + 2 else zoom_index;
-            const max_zoom = Pixi.state.settings.zoom_steps[max_zoom_index];
+            const max_zoom_index = if (zoom_index < Pixi.app.settings.zoom_steps.len - 2) zoom_index + 2 else zoom_index;
+            const max_zoom = Pixi.app.settings.zoom_steps[max_zoom_index];
             sprite_camera.setNearZoomFloor();
             const min_zoom = 1.0;
 
@@ -213,8 +213,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
                         if (file.layer(frame.layer_id)) |layer| {
                             if (layer.transform_bindgroup) |transform_bindgroup| {
-                                try Pixi.state.batcher.begin(.{
-                                    .pipeline_handle = Pixi.state.pipeline_default,
+                                try Pixi.app.batcher.begin(.{
+                                    .pipeline_handle = Pixi.app.pipeline_default,
                                     .bind_group_handle = transform_bindgroup,
                                     .output_texture = &file.keyframe_animation_texture,
                                     .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
@@ -227,11 +227,11 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                                     scaled_node_size,
                                 })) {
                                     if (frame.id != selected_keyframe.active_frame_id) {
-                                        if (Pixi.state.mouse.button(.primary)) |bt| {
+                                        if (Pixi.app.mouse.button(.primary)) |bt| {
                                             if (bt.pressed()) {
                                                 var change: bool = true;
 
-                                                if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
+                                                if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
                                                     if (hk.down()) {
                                                         frame.parent_id = null;
                                                         change = false;
@@ -239,7 +239,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                                                 }
 
                                                 if (frame.id != selected_keyframe.active_frame_id) {
-                                                    if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                                    if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
                                                         if (hk.down()) {
                                                             if (selected_keyframe.frame(selected_keyframe.active_frame_id)) |active_frame| {
                                                                 active_frame.parent_id = frame.id;
@@ -320,7 +320,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                                     }
                                 }
 
-                                try Pixi.state.batcher.transformSprite(
+                                try Pixi.app.batcher.transformSprite(
                                     &layer.texture,
                                     sprite,
                                     frame.vertices,
@@ -331,7 +331,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                                     },
                                 );
 
-                                try Pixi.state.batcher.end(uniforms, Pixi.state.uniform_buffer_default);
+                                try Pixi.app.batcher.end(uniforms, Pixi.app.uniform_buffer_default);
                             }
 
                             if (selected_keyframe.active_frame_id == frame.id and file.selected_keyframe_animation_state == .pause) {
@@ -364,7 +364,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                            file.keyframe_animation_texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
                         }
                     }
                 }
@@ -440,8 +440,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
                                             if (file.layer(from_frame.layer_id)) |layer| {
                                                 if (layer.transform_bindgroup) |transform_bindgroup| {
-                                                    try Pixi.state.batcher.begin(.{
-                                                        .pipeline_handle = Pixi.state.pipeline_default,
+                                                    try Pixi.app.batcher.begin(.{
+                                                        .pipeline_handle = Pixi.app.pipeline_default,
                                                         .bind_group_handle = transform_bindgroup,
                                                         .output_texture = &file.keyframe_animation_texture,
                                                         .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
@@ -466,7 +466,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                                                         },
                                                     };
 
-                                                    try Pixi.state.batcher.transformSprite(
+                                                    try Pixi.app.batcher.transformSprite(
                                                         &layer.texture,
                                                         sprite,
                                                         tween_vertices,
@@ -477,7 +477,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                                                         },
                                                     );
 
-                                                    try Pixi.state.batcher.end(uniforms, Pixi.state.uniform_buffer_default);
+                                                    try Pixi.app.batcher.end(uniforms, Pixi.app.uniform_buffer_default);
                                                 }
                                             }
                                         }
@@ -487,7 +487,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(Pixi.core.windows.get(Pixi.state.window, .device));
+                            file.keyframe_animation_texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
                         }
                     }
                 }
@@ -507,7 +507,7 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
     var rel_mouse_y: ?f32 = null;
 
     if (window_hovered) {
-        const mouse_position = Pixi.state.mouse.position;
+        const mouse_position = Pixi.app.mouse.position;
         rel_mouse_x = mouse_position[0] - window_position.x + scroll[0];
         rel_mouse_y = mouse_position[1] - window_position.y + scroll[1];
     }
@@ -529,20 +529,20 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
                     ms_hovered = ms;
 
                     const hovered_time = ms_float / 1000.0;
-                    if (Pixi.state.mouse.button(.primary)) |bt| {
+                    if (Pixi.app.mouse.button(.primary)) |bt| {
                         if (bt.released()) {
-                            const primary_hotkey_down: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+                            const primary_hotkey_down: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
 
                             if (primary_hotkey_down) {
                                 if (animation_index == null) {
                                     const new_animation: Pixi.storage.Internal.KeyframeAnimation = .{
                                         .name = "New Keyframe Animation",
-                                        .keyframes = std.ArrayList(Pixi.storage.Internal.Keyframe).init(Pixi.state.allocator),
+                                        .keyframes = std.ArrayList(Pixi.storage.Internal.Keyframe).init(Pixi.app.allocator),
                                         .active_keyframe_id = 0,
                                         .id = file.newId(),
                                     };
 
-                                    try file.keyframe_animations.append(Pixi.state.allocator, new_animation);
+                                    try file.keyframe_animations.append(Pixi.app.allocator, new_animation);
                                     animation_index = file.keyframe_animations.slice().len - 1;
                                 }
 
@@ -573,7 +573,7 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
                                             var new_keyframe: Pixi.storage.Internal.Keyframe = .{
                                                 .id = file.newKeyframeId(),
                                                 .time = hovered_time,
-                                                .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.state.allocator),
+                                                .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.app.allocator),
                                                 .active_frame_id = new_frame.id,
                                             };
 
@@ -600,18 +600,18 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
     var rel_mouse_y: ?f32 = null;
 
     if (window_hovered) {
-        const mouse_position = Pixi.state.mouse.position;
+        const mouse_position = Pixi.app.mouse.position;
         rel_mouse_x = mouse_position[0] - window_position.x + scroll[0];
         rel_mouse_y = mouse_position[1] - window_position.y + scroll[1];
     }
 
-    const secondary_down: bool = if (Pixi.state.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+    const secondary_down: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
     if (animation_index) |index| {
         var animation = file.keyframe_animations.slice().get(index);
         if (imgui.getWindowDrawList()) |draw_list| {
             defer {
-                if (Pixi.state.mouse.button(.primary)) |bt| {
+                if (Pixi.app.mouse.button(.primary)) |bt| {
                     if (bt.released()) {
                         keyframe_dragging = null;
                         frame_node_dragging = null;
@@ -687,7 +687,7 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
                             }
 
                             // Make changes to the current active frame id and elapsed time
-                            if (Pixi.state.mouse.button(.primary)) |bt| {
+                            if (Pixi.app.mouse.button(.primary)) |bt| {
                                 if (bt.pressed() and line_hovered and window_hovered) {
                                     file.keyframe_animations.items(.active_keyframe_id)[index] = hovered_kf.id;
                                     file.keyframe_animations.items(.elapsed_time)[index] = @as(f32, @floatFromInt(ms)) / 1000.0;
@@ -745,7 +745,7 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
 
                 if (@mod(ms, 10) == 0 and line_hovered and window_hovered) {
                     if (frame_node_dragging) |dragging_frame_id| {
-                        if (Pixi.state.mouse.button(.primary)) |bt| {
+                        if (Pixi.app.mouse.button(.primary)) |bt| {
                             if (bt.released()) {
                                 if (!secondary_down) {
                                     if (animation.getKeyframeFromFrame(dragging_frame_id)) |dragging_keyframe| {
@@ -769,7 +769,7 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
                                                 var new_keyframe: Pixi.storage.Internal.Keyframe = .{
                                                     .active_frame_id = dragging_frame_id,
                                                     .id = file.newKeyframeId(),
-                                                    .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.state.allocator),
+                                                    .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.app.allocator),
                                                     .time = ms_float / 1000.0,
                                                 };
 
@@ -819,14 +819,14 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
                     // Also handle creating
                     if (keyframe_dragging) |dragging_keyframe_id| {
                         if (animation.keyframe(dragging_keyframe_id)) |dragging_keyframe| {
-                            if (Pixi.state.mouse.button(.primary)) |bt| {
+                            if (Pixi.app.mouse.button(.primary)) |bt| {
                                 if (bt.released()) {
                                     if (line_hovered and window_hovered and animation.getKeyframeMilliseconds(ms) == null) {
                                         var dragged_keyframe = dragging_keyframe;
 
                                         if (secondary_down) {
                                             try animation.keyframes.append(.{
-                                                .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.state.allocator),
+                                                .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.app.allocator),
                                                 .id = file.newKeyframeId(),
                                                 .time = ms_float / 1000.0,
                                                 .active_frame_id = dragging_keyframe.active_frame_id,

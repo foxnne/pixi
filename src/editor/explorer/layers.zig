@@ -4,7 +4,7 @@ const imgui = @import("zig-imgui");
 const History = Pixi.storage.Internal.PixiFile.History;
 
 pub fn draw() !void {
-    if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
+    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
         defer imgui.popStyleVar();
 
@@ -13,8 +13,8 @@ pub fn draw() !void {
         imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
-        imgui.pushFont(Pixi.state.fonts.fa_small_regular);
-        imgui.pushFont(Pixi.state.fonts.fa_small_solid);
+        imgui.pushFont(Pixi.app.fonts.fa_small_regular);
+        imgui.pushFont(Pixi.app.fonts.fa_small_solid);
         defer {
             imgui.popFont();
             imgui.popFont();
@@ -30,25 +30,25 @@ pub fn draw() !void {
 
             if (imgui.checkbox("Edit Heightmap Layer", &file.heightmap.visible)) {}
             if (imgui.button("Delete Heightmap Layer")) {
-                try file.deleted_heightmap_layers.append(Pixi.state.allocator, file.heightmap.layer.?);
+                try file.deleted_heightmap_layers.append(Pixi.app.allocator, file.heightmap.layer.?);
                 file.heightmap.layer = null;
                 try file.history.append(.{ .heightmap_restore_delete = .{ .action = .restore } });
-                if (Pixi.state.tools.current == .heightmap)
-                    Pixi.state.tools.current = .pointer;
+                if (Pixi.app.tools.current == .heightmap)
+                    Pixi.app.tools.current = .pointer;
             }
         }
 
         imgui.spacing();
         if (imgui.smallButton(Pixi.fa.plus)) {
-            Pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
-            std.mem.copyForwards(u8, &Pixi.state.popups.layer_setup_name, "New Layer");
-            Pixi.state.popups.layer_setup_state = .none;
-            Pixi.state.popups.layer_setup = true;
+            Pixi.app.popups.layer_setup_name = [_:0]u8{0} ** 128;
+            std.mem.copyForwards(u8, &Pixi.app.popups.layer_setup_name, "New Layer");
+            Pixi.app.popups.layer_setup_state = .none;
+            Pixi.app.popups.layer_setup = true;
         }
         imgui.sameLine();
 
-        const file_name = try std.fmt.allocPrintZ(Pixi.state.allocator, "{s}", .{std.fs.path.basename(file.path)});
-        defer Pixi.state.allocator.free(file_name);
+        const file_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{std.fs.path.basename(file.path)});
+        defer Pixi.app.allocator.free(file_name);
 
         imgui.text(file_name);
 
@@ -138,21 +138,21 @@ pub fn draw() !void {
                     defer imgui.endPopup();
 
                     if (imgui.menuItem("Rename...")) {
-                        Pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
-                        @memcpy(Pixi.state.popups.layer_setup_name[0..layer.name.len], layer.name);
-                        Pixi.state.popups.layer_setup_index = i;
-                        Pixi.state.popups.layer_setup_state = .rename;
-                        Pixi.state.popups.layer_setup = true;
+                        Pixi.app.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(Pixi.app.popups.layer_setup_name[0..layer.name.len], layer.name);
+                        Pixi.app.popups.layer_setup_index = i;
+                        Pixi.app.popups.layer_setup_state = .rename;
+                        Pixi.app.popups.layer_setup = true;
                     }
 
                     if (imgui.menuItem("Duplicate...")) {
-                        const new_name = try std.fmt.allocPrint(Pixi.state.allocator, "{s}_copy", .{layer.name});
-                        defer Pixi.state.allocator.free(new_name);
-                        Pixi.state.popups.layer_setup_name = [_:0]u8{0} ** 128;
-                        @memcpy(Pixi.state.popups.layer_setup_name[0..new_name.len], new_name);
-                        Pixi.state.popups.layer_setup_index = i;
-                        Pixi.state.popups.layer_setup_state = .duplicate;
-                        Pixi.state.popups.layer_setup = true;
+                        const new_name = try std.fmt.allocPrint(Pixi.app.allocator, "{s}_copy", .{layer.name});
+                        defer Pixi.app.allocator.free(new_name);
+                        Pixi.app.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(Pixi.app.popups.layer_setup_name[0..new_name.len], new_name);
+                        Pixi.app.popups.layer_setup_index = i;
+                        Pixi.app.popups.layer_setup_state = .duplicate;
+                        Pixi.app.popups.layer_setup = true;
                     }
                     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
                     imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.foreground.toImguiVec4());
@@ -167,7 +167,7 @@ pub fn draw() !void {
                 if (imgui.isItemActive() and !imgui.isItemHovered(imgui.HoveredFlags_None) and imgui.isAnyItemHovered()) {
                     const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0).y < 0.0) @as(i32, 1) else @as(i32, -1)), 0, std.math.maxInt(i32))));
                     if (i_next >= 0.0 and i_next < file.layers.slice().len) {
-                        var change = try History.Change.create(Pixi.state.allocator, .layers_order, file.layers.slice().len);
+                        var change = try History.Change.create(Pixi.app.allocator, .layers_order, file.layers.slice().len);
                         var index: usize = 0;
                         while (index < file.layers.slice().len) : (index += 1) {
                             const l = file.layers.slice().get(index);

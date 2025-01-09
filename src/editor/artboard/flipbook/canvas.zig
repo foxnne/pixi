@@ -14,7 +14,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
     if (file.flipbook_scroll_request) |*request| {
         if (request.elapsed < 0.5) {
             file.selected_animation_state = .pause;
-            request.elapsed += Pixi.state.delta_time;
+            request.elapsed += Pixi.app.delta_time;
             file.flipbook_scroll = Pixi.math.ease(request.from, request.to, request.elapsed / 0.5, .ease_in_out);
         } else {
             file.flipbook_scroll = request.to;
@@ -29,7 +29,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
             .zoom = window_height / tile_height,
         };
 
-        if (Pixi.state.settings.flipbook_view == .sequential) sprite_camera.setNearestZoomFloor() else sprite_camera.setNearZoomFloor();
+        if (Pixi.app.settings.flipbook_view == .sequential) sprite_camera.setNearestZoomFloor() else sprite_camera.setNearZoomFloor();
         file.flipbook_camera.min_zoom = sprite_camera.zoom;
 
         file.flipbook_camera.processPanZoom(.flipbook);
@@ -38,7 +38,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
     // Handle playing animations and locking the current extents
     if (file.selected_animation_state == .play and file.animations.slice().len > 0) {
         const animation: Pixi.storage.Internal.Animation = file.animations.slice().get(file.selected_animation_index);
-        file.selected_animation_elapsed += Pixi.state.delta_time;
+        file.selected_animation_elapsed += Pixi.app.delta_time;
         if (file.selected_animation_elapsed > 1.0 / @as(f32, @floatFromInt(animation.fps))) {
             file.selected_animation_elapsed = 0.0;
 
@@ -52,7 +52,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
         file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(file.selected_sprite_index);
     }
 
-    switch (Pixi.state.settings.flipbook_view) {
+    switch (Pixi.app.settings.flipbook_view) {
         .sequential => {
             // Draw all sprites sequentially
             const tiles_wide = @divExact(file.width, file.tile_width);
@@ -131,7 +131,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
                     if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
                         if (sprite_index != file.selected_sprite_index) {
                             file.flipbook_camera.drawQuad(dst_p1, dst_p2, dst_p3, dst_p4, Pixi.editor.theme.text.toU32(), 2.0);
-                            if (if (Pixi.state.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != sprite_index) {
+                            if (if (Pixi.app.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != sprite_index) {
                                 file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite_index), .state = file.selected_animation_state };
                             }
                         } else {

@@ -28,7 +28,7 @@ pub const UniformBufferObject = struct {
 };
 
 pub fn init(state: *Pixi) !void {
-    const device: *gpu.Device = Pixi.core.windows.get(Pixi.state.window, .device);
+    const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
 
     const default_shader = @embedFile("../shaders/default.wgsl");
     const default_shader_module = device.createShaderModuleWGSL("default.wgsl", default_shader);

@@ -10,8 +10,8 @@ pub fn draw() !void {
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = Pixi.state.settings.sidebar_width * Pixi.state.content_scale[0],
-        .y = Pixi.state.window_size[1],
+        .x = Pixi.app.settings.sidebar_width * Pixi.app.content_scale[0],
+        .y = Pixi.app.window_size[1],
     }, imgui.Cond_None);
     imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
     imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.foreground.toImguiVec4());
@@ -47,15 +47,15 @@ pub fn draw() !void {
 
 fn drawOption(option: Pixi.Sidebar, icon: [:0]const u8) void {
     const position = imgui.getCursorPos();
-    const selectable_width = (Pixi.state.settings.sidebar_width - 8) * Pixi.state.content_scale[0];
-    const selectable_height = (Pixi.state.settings.sidebar_width - 8) * Pixi.state.content_scale[1];
+    const selectable_width = (Pixi.app.settings.sidebar_width - 8) * Pixi.app.content_scale[0];
+    const selectable_height = (Pixi.app.settings.sidebar_width - 8) * Pixi.app.content_scale[1];
     imgui.dummy(.{
         .x = selectable_width,
         .y = selectable_height,
     });
 
     imgui.setCursorPos(position);
-    if (Pixi.state.sidebar == option) {
+    if (Pixi.app.sidebar == option) {
         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.highlight_primary.toImguiVec4());
     } else if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
@@ -64,10 +64,10 @@ fn drawOption(option: Pixi.Sidebar, icon: [:0]const u8) void {
     }
 
     const selectable_flags: imgui.SelectableFlags = imgui.SelectableFlags_DontClosePopups;
-    if (imgui.selectableEx(icon, Pixi.state.sidebar == option, selectable_flags, .{ .x = selectable_width, .y = selectable_height })) {
-        Pixi.state.sidebar = option;
+    if (imgui.selectableEx(icon, Pixi.app.sidebar == option, selectable_flags, .{ .x = selectable_width, .y = selectable_height })) {
+        Pixi.app.sidebar = option;
         if (option == .sprites)
-            Pixi.state.tools.set(.pointer);
+            Pixi.app.tools.set(.pointer);
     }
     imgui.popStyleColor();
 }

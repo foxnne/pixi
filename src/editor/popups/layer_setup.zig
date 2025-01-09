@@ -4,21 +4,21 @@ const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
-    if (Pixi.Editor.getFile(Pixi.state.open_file_index)) |file| {
-        const dialog_name = switch (Pixi.state.popups.layer_setup_state) {
+    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
+        const dialog_name = switch (Pixi.app.popups.layer_setup_state) {
             .none => "New Layer...",
             .rename => "Rename Layer...",
             .duplicate => "Duplicate Layer...",
         };
 
-        if (Pixi.state.popups.layer_setup) {
+        if (Pixi.app.popups.layer_setup) {
             imgui.openPopup(dialog_name, imgui.PopupFlags_None);
         } else return;
 
-        const popup_width = 350 * Pixi.state.content_scale[0];
-        const popup_height = 115 * Pixi.state.content_scale[1];
+        const popup_width = 350 * Pixi.app.content_scale[0];
+        const popup_height = 115 * Pixi.app.content_scale[1];
 
-        const window_size = Pixi.state.window_size;
+        const window_size = Pixi.app.window_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         imgui.setNextWindowPos(.{
@@ -36,7 +36,7 @@ pub fn draw() !void {
 
         if (imgui.beginPopupModal(
             dialog_name,
-            &Pixi.state.popups.layer_setup,
+            &Pixi.app.popups.layer_setup,
             modal_flags,
         )) {
             defer imgui.endPopup();
@@ -44,8 +44,8 @@ pub fn draw() !void {
 
             const style = imgui.getStyle();
             const spacing = style.item_spacing.x;
-            const full_width = popup_width - (style.frame_padding.x * 2.0 * Pixi.state.content_scale[0]) - imgui.calcTextSize("Name").x;
-            const half_width = (popup_width - (style.frame_padding.x * 2.0 * Pixi.state.content_scale[0]) - spacing) / 2.0;
+            const full_width = popup_width - (style.frame_padding.x * 2.0 * Pixi.app.content_scale[0]) - imgui.calcTextSize("Name").x;
+            const half_width = (popup_width - (style.frame_padding.x * 2.0 * Pixi.app.content_scale[0]) - spacing) / 2.0;
 
             imgui.pushItemWidth(full_width);
 
@@ -55,46 +55,46 @@ pub fn draw() !void {
 
             const enter = imgui.inputText(
                 "Name",
-                Pixi.state.popups.layer_setup_name[0.. :0],
-                Pixi.state.popups.layer_setup_name[0.. :0].len,
+                Pixi.app.popups.layer_setup_name[0.. :0],
+                Pixi.app.popups.layer_setup_name[0.. :0].len,
                 input_text_flags,
             );
 
             imgui.setCursorPosY(popup_height - imgui.getTextLineHeightWithSpacing() * 2.0);
 
             if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
-                Pixi.state.popups.layer_setup = false;
+                Pixi.app.popups.layer_setup = false;
             }
             imgui.sameLine();
             if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
-                switch (Pixi.state.popups.layer_setup_state) {
+                switch (Pixi.app.popups.layer_setup_state) {
                     .none => {
-                        const new_name = std.mem.trimRight(u8, Pixi.state.popups.layer_setup_name[0..], "\u{0}");
+                        const new_name = std.mem.trimRight(u8, Pixi.app.popups.layer_setup_name[0..], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
-                            try file.createLayer(Pixi.state.popups.layer_setup_name[0..index :0]);
+                            try file.createLayer(Pixi.app.popups.layer_setup_name[0..index :0]);
                         } else {
-                            try file.createLayer(Pixi.state.popups.layer_setup_name[0..new_name.len :0]);
+                            try file.createLayer(Pixi.app.popups.layer_setup_name[0..new_name.len :0]);
                         }
                     },
                     .rename => {
-                        const new_name = std.mem.trimRight(u8, Pixi.state.popups.layer_setup_name[0..], "\u{0}");
+                        const new_name = std.mem.trimRight(u8, Pixi.app.popups.layer_setup_name[0..], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
-                            try file.renameLayer(Pixi.state.popups.layer_setup_name[0..index :0], Pixi.state.popups.layer_setup_index);
+                            try file.renameLayer(Pixi.app.popups.layer_setup_name[0..index :0], Pixi.app.popups.layer_setup_index);
                         } else {
-                            try file.renameLayer(Pixi.state.popups.layer_setup_name[0..new_name.len :0], Pixi.state.popups.layer_setup_index);
+                            try file.renameLayer(Pixi.app.popups.layer_setup_name[0..new_name.len :0], Pixi.app.popups.layer_setup_index);
                         }
                     },
                     .duplicate => {
-                        const new_name = std.mem.trimRight(u8, Pixi.state.popups.layer_setup_name[0.. :0], "\u{0}");
+                        const new_name = std.mem.trimRight(u8, Pixi.app.popups.layer_setup_name[0.. :0], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
-                            try file.duplicateLayer(Pixi.state.popups.layer_setup_name[0..index :0], Pixi.state.popups.layer_setup_index);
+                            try file.duplicateLayer(Pixi.app.popups.layer_setup_name[0..index :0], Pixi.app.popups.layer_setup_index);
                         } else {
-                            try file.duplicateLayer(Pixi.state.popups.layer_setup_name[0..new_name.len :0], Pixi.state.popups.layer_setup_index);
+                            try file.duplicateLayer(Pixi.app.popups.layer_setup_name[0..new_name.len :0], Pixi.app.popups.layer_setup_index);
                         }
                     },
                 }
-                Pixi.state.popups.layer_setup_state = .none;
-                Pixi.state.popups.layer_setup = false;
+                Pixi.app.popups.layer_setup_state = .none;
+                Pixi.app.popups.layer_setup = false;
             }
 
             imgui.popItemWidth();

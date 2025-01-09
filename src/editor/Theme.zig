@@ -54,7 +54,7 @@ pub fn init(theme: *Theme, core: *mach.Core, pixi: *Pixi) void {
     style.hover_delay_normal = 0.5;
     style.hover_delay_short = 0.25;
     style.popup_rounding = 8.0;
-    style.separator_text_align = .{ .x = Pixi.state.settings.explorer_title_align, .y = 0.5 };
+    style.separator_text_align = .{ .x = Pixi.app.settings.explorer_title_align, .y = 0.5 };
     style.separator_text_border_size = 1.0;
     style.separator_text_padding = .{ .x = 20.0, .y = 10.0 };
 
@@ -156,21 +156,21 @@ pub fn loadFromFile(file: [:0]const u8) !Theme {
     const ext = std.fs.path.extension(file);
 
     if (std.mem.eql(u8, ext, ".json")) {
-        const read_opt: ?[]const u8 = Pixi.fs.read(Pixi.state.allocator, file) catch null;
+        const read_opt: ?[]const u8 = Pixi.fs.read(Pixi.app.allocator, file) catch null;
         if (read_opt) |read| {
-            defer Pixi.state.allocator.free(read);
+            defer Pixi.app.allocator.free(read);
 
             const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-            const parsed = try std.json.parseFromSlice(Theme, Pixi.state.allocator, read, options);
+            const parsed = try std.json.parseFromSlice(Theme, Pixi.app.allocator, read, options);
             defer parsed.deinit();
 
             var out = parsed.value;
-            out.name = try Pixi.state.allocator.dupeZ(u8, base_name);
+            out.name = try Pixi.app.allocator.dupeZ(u8, base_name);
             return out;
         }
     }
     return Theme{
-        .name = try Pixi.state.allocator.dupeZ(u8, "pixi_dark.json"),
+        .name = try Pixi.app.allocator.dupeZ(u8, "pixi_dark.json"),
     };
 }
 
