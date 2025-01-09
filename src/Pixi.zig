@@ -128,8 +128,6 @@ pub const Sidebar = enum(u32) {
 pub const Fonts = struct {
     fa_standard_regular: *imgui.Font = undefined,
     fa_standard_solid: *imgui.Font = undefined,
-    fa_small_regular: *imgui.Font = undefined,
-    fa_small_solid: *imgui.Font = undefined,
 };
 
 pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !void {
@@ -234,8 +232,6 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
 
     app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", app.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
     app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", app.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    app.fonts.fa_small_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    app.fonts.fa_small_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", 10 * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
     // Initialize the editor which loads our theme
     editor_mod.call(.init);

@@ -13,13 +13,6 @@ pub fn draw() !void {
         imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
-        imgui.pushFont(Pixi.app.fonts.fa_small_regular);
-        imgui.pushFont(Pixi.app.fonts.fa_small_solid);
-        defer {
-            imgui.popFont();
-            imgui.popFont();
-        }
-
         if (file.heightmap.layer != null) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
             defer imgui.popStyleVar();
