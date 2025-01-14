@@ -1,6 +1,16 @@
-const Pixi = @import("../../Pixi.zig");
+const Pixi = @import("../Pixi.zig");
 const Core = @import("mach").Core;
+
 const imgui = @import("zig-imgui");
+
+pub const Sidebar = @This();
+
+pub const mach_module = .sidebar;
+pub const mach_systems = .{ .init, .draw };
+
+pub fn init(sidebar: *Sidebar) !void {
+    sidebar.* = .{};
+}
 
 pub fn draw(_: *Core, app: *Pixi) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);

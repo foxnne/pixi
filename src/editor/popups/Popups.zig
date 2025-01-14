@@ -1,8 +1,14 @@
 const std = @import("std");
-const Popups = @This();
+
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
+
 const zstbi = @import("zstbi");
+
+const Popups = @This();
+
+pub const mach_module = .popups;
+pub const mach_systems = .{ .init, .draw, .deinit };
 
 pub const popup_rename = @import("rename.zig");
 pub const popup_file_setup = @import("file_setup.zig");
@@ -103,6 +109,13 @@ pub fn draw(_: *Core, _: *Pixi) !void {
     try popup_animation.draw();
     try popup_heightmap.draw();
     try popup_references.draw();
+}
+
+pub fn deinit(popups: *Popups, app: *Pixi) void {
+    _ = popups;
+    _ = app;
+
+    // TODO: Free all popup path memory
 }
 
 pub fn anyPopupOpen(popups: *Popups) bool {

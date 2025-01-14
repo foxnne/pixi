@@ -6,6 +6,10 @@ const Modules = mach.Modules(.{
     mach.Core,
     @import("Pixi.zig"),
     @import("editor/Editor.zig"),
+    @import("editor/popups/Popups.zig"),
+    @import("editor/explorer/Explorer.zig"),
+    @import("editor/artboard/Artboard.zig"),
+    @import("editor/Sidebar.zig"),
 });
 
 // TODO: move this to a mach "entrypoint" zig module which handles nuances like WASM requires.

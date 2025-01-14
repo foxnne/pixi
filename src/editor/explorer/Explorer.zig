@@ -4,6 +4,11 @@ const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 const Core = @import("mach").Core;
 
+pub const Explorer = @This();
+
+pub const mach_module = .explorer;
+pub const mach_systems = .{ .init, .draw };
+
 pub const files = @import("files.zig");
 pub const tools = @import("tools.zig");
 pub const layers = @import("layers.zig");
@@ -12,6 +17,10 @@ pub const animations = @import("animations.zig");
 pub const keyframe_animations = @import("keyframe_animations.zig");
 pub const pack = @import("pack.zig");
 pub const settings = @import("settings.zig");
+
+pub fn init(explorer: *Explorer) !void {
+    explorer.* = .{};
+}
 
 pub fn draw(core: *Core, app: *Pixi) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);

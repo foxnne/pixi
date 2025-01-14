@@ -1,7 +1,9 @@
 const std = @import("std");
+
 const Pixi = @import("../Pixi.zig");
 const mach = @import("mach");
 const Core = mach.Core;
+
 const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");
@@ -10,9 +12,10 @@ const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
 pub const Editor = @This();
-pub const Sidebar = @import("sidebar/Sidebar1.zig");
-pub const Explorer = @import("explorer/Explorer1.zig");
-pub const Artboard = @import("artboard/Artboard1.zig");
+
+pub const Sidebar = @import("Sidebar.zig");
+pub const Explorer = @import("explorer/Explorer.zig");
+pub const Artboard = @import("artboard/Artboard.zig");
 pub const Popups = @import("popups/Popups.zig");
 
 pub const mach_module = .editor;
@@ -22,7 +25,15 @@ pub const Theme = @import("Theme.zig");
 
 theme: Theme,
 
-pub fn init(core: *Core, app: *Pixi, editor: *Editor) !void {
+pub fn init(
+    core: *Core,
+    app: *Pixi,
+    editor: *Editor,
+    sidebar_mod: mach.Mod(Sidebar),
+    explorer_mod: mach.Mod(Explorer),
+    artboard_mod: mach.Mod(Artboard),
+    popups_mod: mach.Mod(Popups),
+) !void {
     const theme_path = try std.fs.path.joinZ(app.allocator, &.{ Pixi.assets.themes, app.settings.theme });
     defer app.allocator.free(theme_path);
 
@@ -31,19 +42,32 @@ pub fn init(core: *Core, app: *Pixi, editor: *Editor) !void {
     };
 
     editor.theme.init(core, app);
+
+    sidebar_mod.call(.init);
+    explorer_mod.call(.init);
+    artboard_mod.call(.init);
+    popups_mod.call(.init);
 }
 
-pub fn tick(core: *Core, app: *Pixi, editor: *Editor) !void {
+pub fn tick(
+    core: *Core,
+    app: *Pixi,
+    editor: *Editor,
+    sidebar_mod: mach.Mod(Sidebar),
+    explorer_mod: mach.Mod(Explorer),
+    artboard_mod: mach.Mod(Artboard),
+    popups_mod: mach.Mod(Popups),
+) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = app.settings.explorer_title_align, .y = 0.5 });
     defer imgui.popStyleVar();
 
     editor.theme.push(core, app);
     defer editor.theme.pop();
 
-    try Sidebar.draw(core, app);
-    try Explorer.draw(core, app);
-    try Artboard.draw(core, app);
-    try Popups.draw(core, app);
+    sidebar_mod.call(.draw);
+    explorer_mod.call(.draw);
+    artboard_mod.call(.draw);
+    popups_mod.call(.draw);
 }
 
 pub fn setProjectFolder(path: [:0]const u8) !void {

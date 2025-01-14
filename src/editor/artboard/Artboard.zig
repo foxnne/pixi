@@ -1,8 +1,15 @@
 const std = @import("std");
+
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
+
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
+
+pub const Artboard = @This();
+
+pub const mach_module = .artboard;
+pub const mach_systems = .{ .init, .draw };
 
 pub const menu = @import("menu.zig");
 pub const rulers = @import("rulers.zig");
@@ -12,10 +19,17 @@ pub const canvas_pack = @import("canvas_pack.zig");
 pub const flipbook = @import("flipbook/flipbook.zig");
 pub const infobar = @import("infobar.zig");
 
-pub var artboard_0_open_file_index: usize = 0;
-pub var artboard_1_open_file_index: usize = 0;
+open_file_index_0: usize,
+open_file_index_1: usize,
 
-pub fn draw(core: *Core, app: *Pixi) !void {
+pub fn init(artboard: *Artboard) void {
+    artboard.* = .{
+        .open_file_index_0 = 0,
+        .open_file_index_1 = 0,
+    };
+}
+
+pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -68,7 +82,7 @@ pub fn draw(core: *Core, app: *Pixi) !void {
                 artboard_width = 0.0;
             }
 
-            const not_active: bool = (artboard_0 and artboard_0_open_file_index != app.open_file_index) or (!artboard_0 and !artboard_grip and artboard_1_open_file_index != app.open_file_index);
+            const not_active: bool = (artboard_0 and artboard.open_file_index_0 != app.open_file_index) or (!artboard_0 and !artboard_grip and artboard.open_file_index_1 != app.open_file_index);
 
             const artboard_color: Pixi.math.Color = if (artboard_grip or (not_active and app.settings.split_artboard)) Pixi.editor.theme.foreground else Pixi.editor.theme.background;
 
@@ -122,8 +136,8 @@ pub fn draw(core: *Core, app: *Pixi) !void {
                                     imgui.endTabItem();
                                 }
                                 if (!open and !file.saving) {
-                                    if (artboard_0_open_file_index == i) artboard_0_open_file_index = 0;
-                                    if (artboard_1_open_file_index == i) artboard_1_open_file_index = 0;
+                                    if (artboard.open_file_index_0 == i) artboard.open_file_index_0 = 0;
+                                    if (artboard.open_file_index_1 == i) artboard.open_file_index_1 = 0;
 
                                     try Pixi.Editor.closeFile(i);
                                     break; // This ensures we dont use after free
@@ -131,9 +145,9 @@ pub fn draw(core: *Core, app: *Pixi) !void {
 
                                 if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
                                     if (artboard_0) {
-                                        artboard_0_open_file_index = i;
+                                        artboard.open_file_index_0 = i;
                                     } else if (!artboard_grip) {
-                                        artboard_1_open_file_index = i;
+                                        artboard.open_file_index_1 = i;
                                     }
                                 }
 
@@ -172,7 +186,7 @@ pub fn draw(core: *Core, app: *Pixi) !void {
                             var canvas_flags: imgui.WindowFlags = 0;
                             canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
 
-                            var open_file_index = if (artboard_0) artboard_0_open_file_index else if (!artboard_grip) artboard_1_open_file_index else 0;
+                            var open_file_index = if (artboard_0) artboard.open_file_index_0 else if (!artboard_grip) artboard.open_file_index_1 else 0;
 
                             if (window_hovered and mouse_clicked) {
                                 Pixi.Editor.setActiveFile(open_file_index);
