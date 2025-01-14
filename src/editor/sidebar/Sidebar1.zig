@@ -1,8 +1,8 @@
 const Pixi = @import("../../Pixi.zig");
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 const imgui = @import("zig-imgui");
 
-pub fn draw() !void {
+pub fn draw(_: *Core, app: *Pixi) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -10,8 +10,8 @@ pub fn draw() !void {
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = Pixi.app.settings.sidebar_width * Pixi.app.content_scale[0],
-        .y = Pixi.app.window_size[1],
+        .x = app.settings.sidebar_width * app.content_scale[0],
+        .y = app.window_size[1],
     }, imgui.Cond_None);
     imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
     imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.foreground.toImguiVec4());
@@ -33,29 +33,29 @@ pub fn draw() !void {
         imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(2);
 
-        drawOption(.files, Pixi.fa.folder_open);
-        drawOption(.tools, Pixi.fa.pencil_alt);
-        drawOption(.sprites, Pixi.fa.th);
-        drawOption(.animations, Pixi.fa.play_circle);
-        drawOption(.keyframe_animations, Pixi.fa.key);
-        drawOption(.pack, Pixi.fa.box_open);
-        drawOption(.settings, Pixi.fa.cog);
+        drawOption(.files, Pixi.fa.folder_open, app);
+        drawOption(.tools, Pixi.fa.pencil_alt, app);
+        drawOption(.sprites, Pixi.fa.th, app);
+        drawOption(.animations, Pixi.fa.play_circle, app);
+        drawOption(.keyframe_animations, Pixi.fa.key, app);
+        drawOption(.pack, Pixi.fa.box_open, app);
+        drawOption(.settings, Pixi.fa.cog, app);
     }
 
     imgui.end();
 }
 
-fn drawOption(option: Pixi.Sidebar, icon: [:0]const u8) void {
+fn drawOption(option: Pixi.Sidebar, icon: [:0]const u8, app: *Pixi) void {
     const position = imgui.getCursorPos();
-    const selectable_width = (Pixi.app.settings.sidebar_width - 8) * Pixi.app.content_scale[0];
-    const selectable_height = (Pixi.app.settings.sidebar_width - 8) * Pixi.app.content_scale[1];
+    const selectable_width = (app.settings.sidebar_width - 8) * app.content_scale[0];
+    const selectable_height = (app.settings.sidebar_width - 8) * app.content_scale[1];
     imgui.dummy(.{
         .x = selectable_width,
         .y = selectable_height,
     });
 
     imgui.setCursorPos(position);
-    if (Pixi.app.sidebar == option) {
+    if (app.sidebar == option) {
         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.highlight_primary.toImguiVec4());
     } else if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
@@ -64,10 +64,10 @@ fn drawOption(option: Pixi.Sidebar, icon: [:0]const u8) void {
     }
 
     const selectable_flags: imgui.SelectableFlags = imgui.SelectableFlags_DontClosePopups;
-    if (imgui.selectableEx(icon, Pixi.app.sidebar == option, selectable_flags, .{ .x = selectable_width, .y = selectable_height })) {
-        Pixi.app.sidebar = option;
+    if (imgui.selectableEx(icon, app.sidebar == option, selectable_flags, .{ .x = selectable_width, .y = selectable_height })) {
+        app.sidebar = option;
         if (option == .sprites)
-            Pixi.app.tools.set(.pointer);
+            app.tools.set(.pointer);
     }
     imgui.popStyleColor();
 }

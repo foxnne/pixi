@@ -6,8 +6,8 @@ const imgui = @import("zig-imgui");
 
 const History = Pixi.storage.Internal.PixiFile.History;
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.app.content_scale[0], .y = 10.0 * Pixi.app.content_scale[1] });
+pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi) !void {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * app.content_scale[0], .y = 10.0 * app.content_scale[1] });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_PopupBg, Pixi.editor.theme.foreground.toImguiVec4());
@@ -32,7 +32,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
                 const animation = &file.animations.slice().get(file.selected_animation_index);
 
                 { // Animation Selection
-                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.app.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * app.content_scale[0]);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
                         var animation_index: usize = 0;
@@ -48,15 +48,15 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
 
                 { // Frame Selection
                     const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-                    const frame = try std.fmt.allocPrintZ(Pixi.app.allocator, "{d}/{d}", .{ current_frame + 1, animation.length });
-                    defer Pixi.app.allocator.free(frame);
+                    const frame = try std.fmt.allocPrintZ(app.allocator, "{d}/{d}", .{ current_frame + 1, animation.length });
+                    defer app.allocator.free(frame);
 
-                    imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40 * Pixi.app.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40 * app.content_scale[0]);
                     if (imgui.beginCombo("Frame  ", frame, imgui.ComboFlags_None)) {
                         defer imgui.endCombo();
                         for (0..animation.length) |i| {
-                            const other_frame = try std.fmt.allocPrintZ(Pixi.app.allocator, "{d}/{d}", .{ i + 1, animation.length });
-                            defer Pixi.app.allocator.free(other_frame);
+                            const other_frame = try std.fmt.allocPrintZ(app.allocator, "{d}/{d}", .{ i + 1, animation.length });
+                            defer app.allocator.free(other_frame);
 
                             if (imgui.selectableEx(other_frame, animation.start + i == file.selected_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
                                 file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(animation.start + i), .state = file.selected_animation_state };
@@ -66,7 +66,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
                 }
 
                 { // FPS Selection
-                    imgui.setNextItemWidth(100 * Pixi.app.content_scale[0]);
+                    imgui.setNextItemWidth(100 * app.content_scale[0]);
                     var fps = @as(i32, @intCast(animation.fps));
                     var changed: bool = false;
                     if (imgui.sliderInt(
@@ -112,7 +112,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
                 const animation = &file.keyframe_animations.slice().get(file.selected_keyframe_animation_index);
 
                 { // Animation Selection
-                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * Pixi.app.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * app.content_scale[0]);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
                         var keyframe_animation_index: usize = 0;
@@ -150,7 +150,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32) !void {
             if (imgui.isItemActive()) {
                 color = Pixi.editor.theme.text.toImguiVec4();
                 imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
-                Pixi.app.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
+                app.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
             }
 
             imgui.setCursorPosX(cursor_x + (avail.x / 2.0));

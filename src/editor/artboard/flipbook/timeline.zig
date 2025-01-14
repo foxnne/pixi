@@ -23,7 +23,7 @@ var ms_hovered: ?usize = null;
 var keyframe_dragging: ?u32 = null;
 var mouse_scroll_delta_y: f32 = 0.0;
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !void {
     const window_height = imgui.getWindowHeight();
     const window_width = imgui.getWindowWidth();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -364,7 +364,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
+                            file.keyframe_animation_texture.update(core.windows.get(app.window, .device));
                         }
                     }
                 }
@@ -487,7 +487,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile) !void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
+                            file.keyframe_animation_texture.update(core.windows.get(app.window, .device));
                         }
                     }
                 }

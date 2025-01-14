@@ -1,22 +1,22 @@
 const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 const imgui = @import("zig-imgui");
 
 const spacer: [:0]const u8 = "    ";
 
-pub fn draw() void {
+pub fn draw(app: *Pixi, _: *Core) void {
     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColor();
 
-    const h = imgui.getTextLineHeightWithSpacing() + 6.0 * Pixi.app.content_scale[1];
+    const h = imgui.getTextLineHeightWithSpacing() + 6.0 * app.content_scale[1];
     const y = (imgui.getContentRegionAvail().y - h) / 2;
-    const spacing: f32 = 3.0 * Pixi.app.content_scale[0];
+    const spacing: f32 = 3.0 * app.content_scale[0];
     imgui.setCursorPosY(y);
-    imgui.setCursorPosX(5.0 * Pixi.app.content_scale[0]);
+    imgui.setCursorPosX(5.0 * app.content_scale[0]);
 
-    if (Pixi.app.project_folder) |path| {
-        imgui.setCursorPosY(y + 2.0 * Pixi.app.content_scale[1]);
+    if (app.project_folder) |path| {
+        imgui.setCursorPosY(y + 2.0 * app.content_scale[1]);
         imgui.textColored(Pixi.editor.theme.foreground.toImguiVec4(), Pixi.fa.folder_open);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
@@ -27,7 +27,7 @@ pub fn draw() void {
         imgui.sameLine();
     }
 
-    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
+    if (Pixi.Editor.getFile(app.open_file_index)) |file| {
         imgui.setCursorPosY(y + spacing);
         imgui.textColored(Pixi.editor.theme.foreground.toImguiVec4(), Pixi.fa.chess_board);
         imgui.setCursorPosY(y);

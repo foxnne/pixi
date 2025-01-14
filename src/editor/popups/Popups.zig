@@ -1,7 +1,18 @@
 const std = @import("std");
 const Popups = @This();
 const Pixi = @import("../../Pixi.zig");
+const Core = @import("mach").Core;
 const zstbi = @import("zstbi");
+
+pub const popup_rename = @import("rename.zig");
+pub const popup_file_setup = @import("file_setup.zig");
+pub const popup_about = @import("about.zig");
+pub const popup_file_confirm_close = @import("file_confirm_close.zig");
+pub const popup_layer_setup = @import("layer_setup.zig");
+pub const popup_export_to_png = @import("export_png.zig");
+pub const popup_animation = @import("animation.zig");
+pub const popup_heightmap = @import("heightmap.zig");
+pub const popup_references = @import("references.zig");
 
 // Renaming
 rename: bool = false,
@@ -77,6 +88,22 @@ pub const FileDialogResponse = struct {
     path: [:0]const u8,
     type: UserPathType,
 };
+
+pub fn init(popups: *Popups) !void {
+    popups.* = .{};
+}
+
+pub fn draw(_: *Core, _: *Pixi) !void {
+    try popup_rename.draw();
+    try popup_file_setup.draw();
+    try popup_about.draw();
+    try popup_file_confirm_close.draw();
+    try popup_layer_setup.draw();
+    try popup_export_to_png.draw();
+    try popup_animation.draw();
+    try popup_heightmap.draw();
+    try popup_references.draw();
+}
 
 pub fn anyPopupOpen(popups: *Popups) bool {
     return popups.rename or

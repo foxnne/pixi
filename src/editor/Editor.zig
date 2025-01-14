@@ -10,6 +10,10 @@ const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
 pub const Editor = @This();
+pub const Sidebar = @import("sidebar/Sidebar1.zig");
+pub const Explorer = @import("explorer/Explorer1.zig");
+pub const Artboard = @import("artboard/Artboard1.zig");
+pub const Popups = @import("popups/Popups.zig");
 
 pub const mach_module = .editor;
 pub const mach_systems = .{ .init, .tick, .deinit };
@@ -18,21 +22,7 @@ pub const Theme = @import("Theme.zig");
 
 theme: Theme,
 
-pub const sidebar = @import("sidebar/sidebar.zig");
-pub const explorer = @import("explorer/explorer.zig");
-pub const artboard = @import("artboard/artboard.zig");
-
-pub const popup_rename = @import("popups/rename.zig");
-pub const popup_file_setup = @import("popups/file_setup.zig");
-pub const popup_about = @import("popups/about.zig");
-pub const popup_file_confirm_close = @import("popups/file_confirm_close.zig");
-pub const popup_layer_setup = @import("popups/layer_setup.zig");
-pub const popup_export_to_png = @import("popups/export_png.zig");
-pub const popup_animation = @import("popups/animation.zig");
-pub const popup_heightmap = @import("popups/heightmap.zig");
-pub const popup_references = @import("popups/references.zig");
-
-pub fn init(app: *Pixi, editor: *Editor) !void {
+pub fn init(core: *Core, app: *Pixi, editor: *Editor) !void {
     const theme_path = try std.fs.path.joinZ(app.allocator, &.{ Pixi.assets.themes, app.settings.theme });
     defer app.allocator.free(theme_path);
 
@@ -40,29 +30,20 @@ pub fn init(app: *Pixi, editor: *Editor) !void {
         .theme = try Editor.Theme.loadFromFile(theme_path),
     };
 
-    editor.theme.init(Pixi.core, app);
+    editor.theme.init(core, app);
 }
 
-pub fn tick(app: *Pixi, core: *Core, editor: *Editor) !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = Pixi.app.settings.explorer_title_align, .y = 0.5 });
+pub fn tick(core: *Core, app: *Pixi, editor: *Editor) !void {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = app.settings.explorer_title_align, .y = 0.5 });
     defer imgui.popStyleVar();
 
     editor.theme.push(core, app);
     defer editor.theme.pop();
 
-    try sidebar.draw();
-    try explorer.draw(core);
-    try artboard.draw(core);
-
-    try popup_rename.draw();
-    try popup_file_setup.draw();
-    try popup_about.draw();
-    try popup_file_confirm_close.draw();
-    try popup_layer_setup.draw();
-    try popup_export_to_png.draw();
-    try popup_animation.draw();
-    try popup_heightmap.draw();
-    try popup_references.draw();
+    try Sidebar.draw(core, app);
+    try Explorer.draw(core, app);
+    try Artboard.draw(core, app);
+    try Popups.draw(core, app);
 }
 
 pub fn setProjectFolder(path: [:0]const u8) !void {

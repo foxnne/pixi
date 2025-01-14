@@ -145,8 +145,6 @@ pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) 
     const path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
     std.posix.chdir(path) catch {};
 
-    std.log.debug("Root path: {s}", .{path});
-
     const window = try core.windows.new(.{
         .title = "Pixi",
         .vsync_mode = .double,

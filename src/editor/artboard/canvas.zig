@@ -4,11 +4,11 @@ const Core = @import("mach").Core;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !void {
     const transforming = file.transform_texture != null;
 
     {
-        const shadow_color = Pixi.math.Color.initFloats(0.0, 0.0, 0.0, Pixi.app.settings.shadow_opacity).toU32();
+        const shadow_color = Pixi.math.Color.initFloats(0.0, 0.0, 0.0, app.settings.shadow_opacity).toU32();
         // Draw a shadow fading from bottom to top
         const pos = imgui.getWindowPos();
         const height = imgui.getWindowHeight();
@@ -16,7 +16,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
 
         if (imgui.getWindowDrawList()) |draw_list| {
             draw_list.addRectFilledMultiColor(
-                .{ .x = pos.x, .y = (pos.y + height) - Pixi.app.settings.shadow_length * Pixi.app.content_scale[1] },
+                .{ .x = pos.x, .y = (pos.y + height) - app.settings.shadow_length * app.content_scale[1] },
                 .{ .x = pos.x + width, .y = pos.y + height },
                 0x0,
                 0x0,
@@ -67,11 +67,11 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
 
                 imgui.text("Transformation");
                 imgui.separator();
-                if (imgui.button("Confirm") or (core.keyPressed(Core.Key.enter) and Pixi.app.open_file_index == Pixi.Editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Confirm") or (core.keyPressed(Core.Key.enter) and app.open_file_index == Pixi.Editor.getFileIndex(file.path).?)) {
                     transform_texture.confirm = true;
                 }
                 imgui.sameLine();
-                if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and Pixi.app.open_file_index == Pixi.Editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and app.open_file_index == Pixi.Editor.getFileIndex(file.path).?)) {
                     var change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
                     change.pixels.temporary = true;
                     try file.history.append(change);
@@ -104,8 +104,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
     //if (file.transform_texture == null)
     file.temporary_layer.clear(true);
 
-    Pixi.app.selection_time += Pixi.app.delta_time;
-    if (Pixi.app.selection_time >= 0.3) {
+    app.selection_time += app.delta_time;
+    if (app.selection_time >= 0.3) {
         for (file.selection_layer.pixels()) |*pixel| {
             if (pixel[3] != 0) {
                 if (pixel[0] != 0) pixel[0] = 0 else pixel[0] = 255;
@@ -113,13 +113,13 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                 if (pixel[2] != 0) pixel[2] = 0 else pixel[2] = 255;
             }
         }
-        file.selection_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
-        Pixi.app.selection_time = 0.0;
-        Pixi.app.selection_invert = !Pixi.app.selection_invert;
+        file.selection_layer.texture.update(core.windows.get(app.window, .device));
+        app.selection_time = 0.0;
+        app.selection_invert = !app.selection_invert;
     }
 
     if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
-        const mouse_position = Pixi.app.mouse.position;
+        const mouse_position = app.mouse.position;
 
         if (file.camera.pixelCoordinates(.{
             .texture_position = canvas_center_offset,
@@ -135,7 +135,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
             const x = @as(f32, @floatFromInt(tile_column)) * tile_width + canvas_center_offset[0];
             const y = @as(f32, @floatFromInt(tile_row)) * tile_height + canvas_center_offset[1];
 
-            if (Pixi.app.sidebar != .pack)
+            if (app.sidebar != .pack)
                 file.camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
 
             try file.processStrokeTool(.primary, .{});
@@ -144,14 +144,14 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
             try file.processSampleTool(.primary, .{});
             try file.processSelectionTool(.primary, .{});
 
-            if (Pixi.app.mouse.button(.primary)) |primary| {
+            if (app.mouse.button(.primary)) |primary| {
                 if (primary.pressed()) {
                     const tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
                     const tile_index = tile_column + tile_row * tiles_wide;
 
-                    if (Pixi.app.sidebar == .sprites or file.flipbook_view == .timeline) {
+                    if (app.sidebar == .sprites or file.flipbook_view == .timeline) {
                         try file.makeSpriteSelection(tile_index);
-                    } else if (Pixi.app.tools.current != .animation) {
+                    } else if (app.tools.current != .animation) {
                         // Ensure we only set the request state on the first set.
                         if (file.flipbook_scroll_request) |*request| {
                             request.elapsed = 0.0;
@@ -164,9 +164,9 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                 }
             }
         } else {
-            if (Pixi.app.mouse.button(.primary)) |primary| {
+            if (app.mouse.button(.primary)) |primary| {
                 if (primary.released()) {
-                    if (Pixi.app.sidebar == .sprites or file.flipbook_view == .timeline) {
+                    if (app.sidebar == .sprites or file.flipbook_view == .timeline) {
                         file.selected_sprites.clearAndFree();
                     }
                 }
@@ -190,9 +190,9 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                                 zmath.orthographicLh(width, height, -100, 100),
                             ) };
 
-                            try Pixi.app.batcher.begin(.{
-                                .pipeline_handle = Pixi.app.pipeline_default,
-                                .compute_pipeline_handle = Pixi.app.pipeline_compute,
+                            try app.batcher.begin(.{
+                                .pipeline_handle = app.pipeline_default,
+                                .compute_pipeline_handle = app.pipeline_compute,
                                 .bind_group_handle = transform_bindgroup,
                                 .compute_bind_group_handle = compute_bindgroup,
                                 .output_texture = &file.temporary_layer.texture,
@@ -211,7 +211,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                             }
                             //pivot += zmath.loadArr2(.{ canvas_center_offset[0], canvas_center_offset[1] });
 
-                            try Pixi.app.batcher.transformTexture(
+                            try app.batcher.transformTexture(
                                 transform_texture.vertices,
                                 .{ canvas_center_offset[0], -canvas_center_offset[1] },
                                 .{ pivot[0], -pivot[1] },
@@ -220,7 +220,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                                 },
                             );
 
-                            try Pixi.app.batcher.end(uniforms, Pixi.app.uniform_buffer_default);
+                            try app.batcher.end(uniforms, app.uniform_buffer_default);
                         }
                     }
                 }
@@ -255,7 +255,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
         }
     }
 
-    if (Pixi.app.tools.current == .selection) {
+    if (app.tools.current == .selection) {
         file.camera.drawLayer(file.selection_layer, canvas_center_offset);
     }
 
@@ -265,14 +265,14 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
             if (file.camera.zoom >= 30.0) {
                 if (file.camera.pixelCoordinates(.{
                     .texture_position = canvas_center_offset,
-                    .position = Pixi.app.mouse.position,
+                    .position = app.mouse.position,
                     .width = file.width,
                     .height = file.height,
                 })) |pixel_coord| {
                     const temp_x = @as(usize, @intFromFloat(pixel_coord[0]));
                     const temp_y = @as(usize, @intFromFloat(pixel_coord[1]));
                     const position = .{ pixel_coord[0] + canvas_center_offset[0] + 0.2, pixel_coord[1] + canvas_center_offset[1] + 0.25 };
-                    try file.camera.drawText("{d}", .{Pixi.app.colors.height}, position, 0xFFFFFFFF);
+                    try file.camera.drawText("{d}", .{app.colors.height}, position, 0xFFFFFFFF);
 
                     const min: [2]u32 = .{
                         @intCast(@max(@as(i32, @intCast(temp_x)) - 5, 0)),
@@ -305,7 +305,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
     {
         const tiles_wide = @divExact(file.width, file.tile_width);
 
-        if (Pixi.app.sidebar == .sprites and !transforming or file.flipbook_view == .timeline) {
+        if (app.sidebar == .sprites and !transforming or file.flipbook_view == .timeline) {
             if (file.selected_sprites.items.len > 0) {
                 for (file.selected_sprites.items) |sprite_index| {
                     const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
@@ -332,7 +332,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                     );
                 }
             }
-        } else if (Pixi.app.sidebar != .pack and !transforming) {
+        } else if (app.sidebar != .pack and !transforming) {
             const column = @mod(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const row = @divTrunc(@as(u32, @intCast(file.selected_sprite_index)), tiles_wide);
             const x = @as(f32, @floatFromInt(column)) * tile_width + canvas_center_offset[0];
@@ -342,17 +342,17 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
             file.camera.drawRect(rect, 3.0, Pixi.editor.theme.text.toU32());
         }
 
-        if (Pixi.app.popups.animation_length > 0 and Pixi.app.tools.current == .animation and !transforming) {
-            if (Pixi.app.mouse.button(.primary)) |primary| {
-                if (primary.down() or Pixi.app.popups.animation) {
-                    const start_column = @mod(@as(u32, @intCast(Pixi.app.popups.animation_start)), tiles_wide);
-                    const start_row = @divTrunc(@as(u32, @intCast(Pixi.app.popups.animation_start)), tiles_wide);
+        if (app.popups.animation_length > 0 and app.tools.current == .animation and !transforming) {
+            if (app.mouse.button(.primary)) |primary| {
+                if (primary.down() or app.popups.animation) {
+                    const start_column = @mod(@as(u32, @intCast(app.popups.animation_start)), tiles_wide);
+                    const start_row = @divTrunc(@as(u32, @intCast(app.popups.animation_start)), tiles_wide);
                     const start_x = @as(f32, @floatFromInt(start_column)) * tile_width + canvas_center_offset[0];
                     const start_y = @as(f32, @floatFromInt(start_row)) * tile_height + canvas_center_offset[1];
                     const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
 
-                    const end_column = @mod(@as(u32, @intCast(Pixi.app.popups.animation_start + Pixi.app.popups.animation_length - 1)), tiles_wide);
-                    const end_row = @divTrunc(@as(u32, @intCast(Pixi.app.popups.animation_start + Pixi.app.popups.animation_length - 1)), tiles_wide);
+                    const end_column = @mod(@as(u32, @intCast(app.popups.animation_start + app.popups.animation_length - 1)), tiles_wide);
+                    const end_row = @divTrunc(@as(u32, @intCast(app.popups.animation_start + app.popups.animation_length - 1)), tiles_wide);
                     const end_x = @as(f32, @floatFromInt(end_column)) * tile_width + canvas_center_offset[0];
                     const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
@@ -363,7 +363,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
         }
 
         if (file.animations.slice().len > 0) {
-            if (Pixi.app.tools.current == .animation and !transforming) {
+            if (app.tools.current == .animation and !transforming) {
                 var i: usize = 0;
                 while (i < file.animations.slice().len) : (i += 1) {
                     const animation = &file.animations.slice().get(i);
@@ -379,10 +379,10 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core) !void {
                     const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-                    const thickness: f32 = if (i == file.selected_animation_index and (if (Pixi.app.mouse.button(.primary)) |primary| primary.up() else false and !Pixi.app.popups.animation)) 4.0 else 2.0;
+                    const thickness: f32 = if (i == file.selected_animation_index and (if (app.mouse.button(.primary)) |primary| primary.up() else false and !app.popups.animation)) 4.0 else 2.0;
                     file.camera.drawAnimationRect(start_rect, end_rect, thickness, Pixi.editor.theme.highlight_primary.toU32(), Pixi.editor.theme.text_red.toU32());
                 }
-            } else if (Pixi.app.sidebar != .pack and !transforming and Pixi.app.sidebar != .keyframe_animations) {
+            } else if (app.sidebar != .pack and !transforming and app.sidebar != .keyframe_animations) {
                 const animation = file.animations.slice().get(file.selected_animation_index);
 
                 const start_column = @mod(@as(u32, @intCast(animation.start)), tiles_wide);

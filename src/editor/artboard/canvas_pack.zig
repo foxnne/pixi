@@ -1,6 +1,6 @@
 const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
-const core = @import("mach").core;
+const Core = @import("mach").Core;
 const imgui = @import("zig-imgui");
 
 pub const PackTexture = enum {
@@ -8,10 +8,10 @@ pub const PackTexture = enum {
     heightmap,
 };
 
-pub fn draw(mode: PackTexture) void {
+pub fn draw(mode: PackTexture, app: *Pixi, _: *Core) void {
     if (switch (mode) {
-        .diffusemap => Pixi.app.atlas.diffusemap,
-        .heightmap => Pixi.app.atlas.heightmap,
+        .diffusemap => app.atlas.diffusemap,
+        .heightmap => app.atlas.heightmap,
     }) |texture| {
         var canvas_flags: imgui.WindowFlags = 0;
         canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
@@ -26,7 +26,7 @@ pub fn draw(mode: PackTexture) void {
             const file_width = @as(f32, @floatFromInt(texture.image.width));
             const file_height = @as(f32, @floatFromInt(texture.image.height));
 
-            var camera = &Pixi.app.packer.camera;
+            var camera = &app.packer.camera;
 
             // Handle zooming, panning and extents
             {
