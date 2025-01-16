@@ -9,7 +9,7 @@ const imgui = @import("zig-imgui");
 pub const Artboard = @This();
 
 pub const mach_module = .artboard;
-pub const mach_systems = .{ .init, .draw };
+pub const mach_systems = .{ .init, .deinit, .draw };
 
 pub const menu = @import("menu.zig");
 pub const rulers = @import("rulers.zig");
@@ -28,6 +28,8 @@ pub fn init(artboard: *Artboard) void {
         .open_file_index_1 = 0,
     };
 }
+
+pub fn deinit() void {}
 
 pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);

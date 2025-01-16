@@ -7,7 +7,7 @@ const Core = @import("mach").Core;
 pub const Explorer = @This();
 
 pub const mach_module = .explorer;
-pub const mach_systems = .{ .init, .draw };
+pub const mach_systems = .{ .init, .deinit, .draw };
 
 pub const files = @import("files.zig");
 pub const tools = @import("tools.zig");
@@ -20,6 +20,10 @@ pub const settings = @import("settings.zig");
 
 pub fn init(explorer: *Explorer) !void {
     explorer.* = .{};
+}
+
+pub fn deinit(_: *Explorer) void {
+    // TODO: Free memory
 }
 
 pub fn draw(core: *Core, app: *Pixi) !void {

@@ -6,10 +6,14 @@ const imgui = @import("zig-imgui");
 pub const Sidebar = @This();
 
 pub const mach_module = .sidebar;
-pub const mach_systems = .{ .init, .draw };
+pub const mach_systems = .{ .init, .deinit, .draw };
 
 pub fn init(sidebar: *Sidebar) !void {
     sidebar.* = .{};
+}
+
+pub fn deinit(_: *Sidebar) void {
+    // TODO: Free memory
 }
 
 pub fn draw(_: *Core, app: *Pixi) !void {
