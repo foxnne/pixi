@@ -22,7 +22,7 @@ pub fn init(explorer: *Explorer) !void {
     explorer.* = .{};
 }
 
-pub fn deinit(_: *Explorer) void {
+pub fn deinit() void {
     // TODO: Free memory
 }
 

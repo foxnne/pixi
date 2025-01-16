@@ -12,11 +12,11 @@ pub fn init(sidebar: *Sidebar) !void {
     sidebar.* = .{};
 }
 
-pub fn deinit(_: *Sidebar) void {
+pub fn deinit() void {
     // TODO: Free memory
 }
 
-pub fn draw(_: *Core, app: *Pixi) !void {
+pub fn draw(app: *Pixi) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
