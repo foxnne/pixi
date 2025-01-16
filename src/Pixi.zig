@@ -12,6 +12,7 @@ const imgui_mach = imgui.backends.mach;
 const Core = mach.Core;
 pub const App = @This();
 pub const Editor = @import("editor/Editor.zig");
+pub const Popups = @import("editor/popups/Popups.zig");
 
 // Global pointers
 pub var core: *Core = undefined;
@@ -44,13 +45,11 @@ recents: Recents = undefined,
 previous_atlas_export: ?[:0]const u8 = null,
 open_files: std.ArrayList(storage.Internal.PixiFile) = undefined,
 open_references: std.ArrayList(storage.Internal.Reference) = undefined,
-packer: Packer = undefined,
-atlas: storage.Internal.Atlas = .{},
 open_file_index: usize = 0,
 open_reference_index: usize = 0,
+packer: Packer = undefined,
+atlas: storage.Internal.Atlas = .{},
 tools: Tools = .{},
-popups: Popups = .{},
-should_close: bool = false,
 fonts: Fonts = .{},
 colors: Colors = .{},
 delta_time: f32 = 0.0,
@@ -67,10 +66,10 @@ uniform_buffer_default: *gpu.Buffer = undefined,
 content_scale: [2]f32 = undefined,
 window_size: [2]f32 = undefined,
 framebuffer_size: [2]f32 = undefined,
+should_close: bool = false,
 
 pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 };
 
-pub const Popups = @import("editor/popups/Popups.zig");
 pub const Packer = @import("tools/Packer.zig");
 
 pub const assets = @import("assets.zig");
@@ -130,7 +129,7 @@ pub const Fonts = struct {
     fa_standard_solid: *imgui.Font = undefined,
 };
 
-pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) !void {
+pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor, editor_mod: mach.Mod(Editor)) !void {
     app = _app;
     core = _core;
     editor = _editor;
@@ -156,6 +155,8 @@ pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor) 
         .window = window,
         .root_path = try allocator.dupeZ(u8, path),
     };
+
+    editor_mod.call(.init);
 }
 
 /// This is called from the event fired when the window is done being
@@ -236,12 +237,12 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", app.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
     // Initialize the editor which loads our theme
-    editor_mod.call(.init);
+    editor_mod.call(.lateInit);
 }
 
 pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
-    if (app.popups.file_dialog_request) |request| {
-        defer app.popups.file_dialog_request = null;
+    if (editor.popups.file_dialog_request) |request| {
+        defer editor.popups.file_dialog_request = null;
         const initial = if (request.initial) |initial| initial else app.project_folder;
 
         if (switch (request.state) {
@@ -249,7 +250,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
             .folder => try nfd.openFolderDialog(initial),
             .save => try nfd.saveFileDialog(request.filter, initial),
         }) |path| {
-            app.popups.file_dialog_response = .{
+            editor.popups.file_dialog_response = .{
                 .path = path,
                 .type = request.type,
             };
@@ -272,7 +273,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                 app.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
             },
             .mouse_scroll => |mouse_scroll| {
-                if (!app.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
+                if (!editor.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
                     app.mouse.scroll_x = mouse_scroll.xoffset;
                     app.mouse.scroll_y = mouse_scroll.yoffset;
                 }
@@ -297,10 +298,10 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                     }
                 }
 
-                if (!should_close and !app.popups.file_confirm_close_exit) {
-                    app.popups.file_confirm_close = true;
-                    app.popups.file_confirm_close_state = .all;
-                    app.popups.file_confirm_close_exit = true;
+                if (!should_close and !editor.popups.file_confirm_close_exit) {
+                    editor.popups.file_confirm_close = true;
+                    editor.popups.file_confirm_close_state = .all;
+                    editor.popups.file_confirm_close_exit = true;
                 }
                 app.should_close = should_close;
             },

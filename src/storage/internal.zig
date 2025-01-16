@@ -112,7 +112,7 @@ pub const PixiFile = struct {
             if (self.layer != null) {
                 self.visible = true;
             } else {
-                Pixi.app.popups.heightmap = true;
+                Pixi.editor.popups.heightmap = true;
             }
         }
 
@@ -719,22 +719,22 @@ pub const PixiFile = struct {
             const tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
             const tile_index = tile_column + tile_row * tiles_wide;
 
-            if (tile_index >= Pixi.app.popups.animation_start) {
-                Pixi.app.popups.animation_length = (tile_index - Pixi.app.popups.animation_start) + 1;
+            if (tile_index >= Pixi.editor.popups.animation_start) {
+                Pixi.editor.popups.animation_length = (tile_index - Pixi.editor.popups.animation_start) + 1;
             } else {
-                Pixi.app.popups.animation_start = tile_index;
-                Pixi.app.popups.animation_length = 1;
+                Pixi.editor.popups.animation_start = tile_index;
+                Pixi.editor.popups.animation_length = 1;
             }
 
             if (if (Pixi.app.mouse.button(.primary)) |primary| primary.pressed() else false)
-                Pixi.app.popups.animation_start = tile_index;
+                Pixi.editor.popups.animation_start = tile_index;
 
             if (if (Pixi.app.mouse.button(.primary)) |primary| primary.released() else false) {
                 if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |primary| {
                     if (primary.down()) {
                         var valid: bool = true;
-                        var i: usize = Pixi.app.popups.animation_start;
-                        while (i < Pixi.app.popups.animation_start + Pixi.app.popups.animation_length) : (i += 1) {
+                        var i: usize = Pixi.editor.popups.animation_start;
+                        while (i < Pixi.editor.popups.animation_start + Pixi.editor.popups.animation_length) : (i += 1) {
                             if (file.getAnimationIndexFromSpriteIndex(i)) |_| {
                                 valid = false;
                                 break;
@@ -742,19 +742,19 @@ pub const PixiFile = struct {
                         }
                         if (valid) {
                             // Create new animation
-                            Pixi.app.popups.animation_name = [_:0]u8{0} ** 128;
+                            Pixi.editor.popups.animation_name = [_:0]u8{0} ** 128;
                             const new_name = "New_Animation";
-                            @memcpy(Pixi.app.popups.animation_name[0..new_name.len], new_name);
-                            Pixi.app.popups.animation_state = .create;
-                            Pixi.app.popups.animation_fps = Pixi.app.popups.animation_length;
-                            Pixi.app.popups.animation = true;
+                            @memcpy(Pixi.editor.popups.animation_name[0..new_name.len], new_name);
+                            Pixi.editor.popups.animation_state = .create;
+                            Pixi.editor.popups.animation_fps = Pixi.editor.popups.animation_length;
+                            Pixi.editor.popups.animation = true;
                         }
                     } else {
                         if (file.animations.slice().len > 0) {
                             const animation = file.animations.slice().get(file.selected_animation_index);
                             var valid: bool = true;
-                            var i: usize = Pixi.app.popups.animation_start;
-                            while (i < Pixi.app.popups.animation_start + Pixi.app.popups.animation_length) : (i += 1) {
+                            var i: usize = Pixi.editor.popups.animation_start;
+                            while (i < Pixi.editor.popups.animation_start + Pixi.editor.popups.animation_length) : (i += 1) {
                                 if (file.getAnimationIndexFromSpriteIndex(i)) |match_index| {
                                     if (match_index != file.selected_animation_index) {
                                         valid = false;
@@ -782,8 +782,8 @@ pub const PixiFile = struct {
                                     file.sprites.set(sprite_index, sprite);
                                 }
 
-                                file.animations.items(.start)[file.selected_animation_index] = Pixi.app.popups.animation_start;
-                                file.animations.items(.length)[file.selected_animation_index] = Pixi.app.popups.animation_length;
+                                file.animations.items(.start)[file.selected_animation_index] = Pixi.editor.popups.animation_start;
+                                file.animations.items(.length)[file.selected_animation_index] = Pixi.editor.popups.animation_length;
 
                                 sprite_index = animation.start;
                                 var animation_index: usize = 0;
@@ -1876,7 +1876,7 @@ pub const PixiFile = struct {
         } };
         @memcpy(change.layer_name.name[0..file.layers.items(.name)[index].len], file.layers.items(.name)[index]);
         Pixi.app.allocator.free(file.layers.items(.name)[index]);
-        file.layers.items(.name)[Pixi.app.popups.layer_setup_index] = try Pixi.app.allocator.dupeZ(u8, name);
+        file.layers.items(.name)[Pixi.editor.popups.layer_setup_index] = try Pixi.app.allocator.dupeZ(u8, name);
         try file.history.append(change);
     }
 

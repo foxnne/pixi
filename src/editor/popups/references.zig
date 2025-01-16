@@ -6,7 +6,7 @@ const imgui = @import("zig-imgui");
 var open: bool = false;
 
 pub fn draw() !void {
-    if (!Pixi.app.popups.references) return;
+    if (!Pixi.editor.popups.references) return;
 
     const popup_size = 200 * Pixi.app.content_scale[0];
 
@@ -32,7 +32,7 @@ pub fn draw() !void {
 
     if (imgui.begin(
         "References",
-        &Pixi.app.popups.references,
+        &Pixi.editor.popups.references,
         popup_flags,
     )) {
         var ref_flags: imgui.TabBarFlags = 0;

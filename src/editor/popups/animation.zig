@@ -6,13 +6,13 @@ const History = Pixi.storage.Internal.PixiFile.History;
 
 pub fn draw() !void {
     if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
-        const dialog_name = switch (Pixi.app.popups.animation_state) {
+        const dialog_name = switch (Pixi.editor.popups.animation_state) {
             .none => "None...",
             .create => "Create animation...",
             .edit => "Edit animation...",
         };
 
-        if (Pixi.app.popups.animation) {
+        if (Pixi.editor.popups.animation) {
             imgui.openPopup(dialog_name, imgui.PopupFlags_None);
         } else return;
 
@@ -37,7 +37,7 @@ pub fn draw() !void {
 
         if (imgui.beginPopupModal(
             dialog_name,
-            &Pixi.app.popups.animation,
+            &Pixi.editor.popups.animation,
             modal_flags,
         )) {
             defer imgui.endPopup();
@@ -55,48 +55,48 @@ pub fn draw() !void {
             imgui.pushItemWidth(full_width);
             const enter = imgui.inputText(
                 "Name",
-                Pixi.app.popups.animation_name[0.. :0],
-                Pixi.app.popups.animation_name[0.. :0].len,
+                Pixi.editor.popups.animation_name[0.. :0],
+                Pixi.editor.popups.animation_name[0.. :0].len,
                 input_text_flags,
             );
 
             imgui.spacing();
-            if (Pixi.app.popups.animation_state == .create) {
-                var fps = @as(i32, @intCast(Pixi.app.popups.animation_fps));
+            if (Pixi.editor.popups.animation_state == .create) {
+                var fps = @as(i32, @intCast(Pixi.editor.popups.animation_fps));
                 if (imgui.sliderInt("FPS", &fps, 1, 60)) {
-                    Pixi.app.popups.animation_fps = @as(usize, @intCast(fps));
+                    Pixi.editor.popups.animation_fps = @as(usize, @intCast(fps));
                 }
                 imgui.spacing();
             }
 
             imgui.separator();
             if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
-                Pixi.app.popups.animation = false;
+                Pixi.editor.popups.animation = false;
             }
             imgui.sameLine();
             if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
-                switch (Pixi.app.popups.animation_state) {
+                switch (Pixi.editor.popups.animation_state) {
                     .create => {
-                        const name = std.mem.trimRight(u8, &Pixi.app.popups.animation_name, "\u{0}");
+                        const name = std.mem.trimRight(u8, &Pixi.editor.popups.animation_name, "\u{0}");
 
                         if (std.mem.indexOf(u8, name, "\u{0}")) |index| {
-                            try file.createAnimation(name[0..index], Pixi.app.popups.animation_fps, Pixi.app.popups.animation_start, Pixi.app.popups.animation_length);
+                            try file.createAnimation(name[0..index], Pixi.editor.popups.animation_fps, Pixi.editor.popups.animation_start, Pixi.editor.popups.animation_length);
                         } else {
-                            try file.createAnimation(name, Pixi.app.popups.animation_fps, Pixi.app.popups.animation_start, Pixi.app.popups.animation_length);
+                            try file.createAnimation(name, Pixi.editor.popups.animation_fps, Pixi.editor.popups.animation_start, Pixi.editor.popups.animation_length);
                         }
                     },
                     .edit => {
-                        const name = std.mem.trimRight(u8, &Pixi.app.popups.animation_name, "\u{0}");
+                        const name = std.mem.trimRight(u8, &Pixi.editor.popups.animation_name, "\u{0}");
                         if (std.mem.indexOf(u8, name, "\u{0}")) |index| {
-                            try file.renameAnimation(name[0..index], Pixi.app.popups.animation_index);
+                            try file.renameAnimation(name[0..index], Pixi.editor.popups.animation_index);
                         } else {
-                            try file.renameAnimation(name, Pixi.app.popups.animation_index);
+                            try file.renameAnimation(name, Pixi.editor.popups.animation_index);
                         }
                     },
                     else => unreachable,
                 }
-                Pixi.app.popups.animation_state = .none;
-                Pixi.app.popups.animation = false;
+                Pixi.editor.popups.animation_state = .none;
+                Pixi.editor.popups.animation = false;
             }
 
             imgui.popItemWidth();

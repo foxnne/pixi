@@ -174,7 +174,7 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .export_png })) |hk| {
             if (hk.pressed())
-                Pixi.app.popups.export_to_png = true;
+                Pixi.editor.popups.export_to_png = true;
         }
 
         if (self.hotkey(.{ .proc = .size_up })) |hk| {
@@ -340,7 +340,7 @@ pub fn process(self: *Self) !void {
 
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
-            Pixi.app.popups.file_dialog_request = .{
+            Pixi.editor.popups.file_dialog_request = .{
                 .state = .folder,
                 .type = .project,
             };
@@ -349,7 +349,7 @@ pub fn process(self: *Self) !void {
 
     if (self.hotkey(.{ .proc = .toggle_references })) |hk| {
         if (hk.pressed()) {
-            Pixi.app.popups.references = !Pixi.app.popups.references;
+            Pixi.editor.popups.references = !Pixi.editor.popups.references;
         }
     }
 

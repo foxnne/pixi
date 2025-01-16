@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
-
+const Editor = Pixi.Editor;
 const zstbi = @import("zstbi");
 
 const Popups = @This();
@@ -99,8 +99,8 @@ pub fn init(popups: *Popups) !void {
     popups.* = .{};
 }
 
-pub fn draw() !void {
-    try popup_rename.draw();
+pub fn draw(popups: *Popups, app: *Pixi) !void {
+    try popup_rename.draw(popups, app);
     try popup_file_setup.draw();
     try popup_about.draw();
     try popup_file_confirm_close.draw();

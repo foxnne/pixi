@@ -147,7 +147,7 @@ pub fn draw(core: *Core) !void {
             imgui.spacing();
 
             if (imgui.buttonEx("Save As...", .{ .x = imgui.getWindowWidth() - Pixi.app.settings.explorer_grip * Pixi.app.content_scale[0], .y = 0.0 })) {
-                Pixi.app.popups.file_dialog_request = .{
+                Pixi.editor.popups.file_dialog_request = .{
                     .state = .save,
                     .type = .export_theme,
                     .filter = "json",
@@ -155,7 +155,7 @@ pub fn draw(core: *Core) !void {
                 };
             }
 
-            if (Pixi.app.popups.file_dialog_response) |response| {
+            if (Pixi.editor.popups.file_dialog_response) |response| {
                 if (response.type == .export_theme) {
                     try Pixi.editor.theme.save(response.path);
                     Pixi.app.allocator.free(Pixi.editor.theme.name);
@@ -163,7 +163,7 @@ pub fn draw(core: *Core) !void {
                     Pixi.app.settings.theme = Pixi.editor.theme.name;
                 }
                 nfd.freePath(response.path);
-                Pixi.app.popups.file_dialog_response = null;
+                Pixi.editor.popups.file_dialog_response = null;
             }
 
             imgui.popItemWidth();

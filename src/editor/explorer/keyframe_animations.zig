@@ -168,12 +168,12 @@ fn contextMenu(animation_index: usize, file: *Pixi.storage.Internal.PixiFile) !v
 
         // if (imgui.menuItem("Rename...")) {
         //     const animation = file.transform_animations.items[animation_index];
-        //     Pixi.app.popups.animation_name = [_:0]u8{0} ** 128;
-        //     @memcpy(Pixi.app.popups.animation_name[0..animation.name.len], animation.name);
-        //     Pixi.app.popups.animation_index = animation_index;
-        //     Pixi.app.popups.animation_fps = animation.fps;
-        //     Pixi.app.popups.animation_state = .edit;
-        //     Pixi.app.popups.animation = true;
+        //     Pixi.editor.popups.animation_name = [_:0]u8{0} ** 128;
+        //     @memcpy(Pixi.editor.popups.animation_name[0..animation.name.len], animation.name);
+        //     Pixi.editor.popups.animation_index = animation_index;
+        //     Pixi.editor.popups.animation_fps = animation.fps;
+        //     Pixi.editor.popups.animation_state = .edit;
+        //     Pixi.editor.popups.animation = true;
         // }
 
         imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
-
+const Editor = Pixi.Editor;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
@@ -31,7 +31,7 @@ pub fn init(artboard: *Artboard) void {
 
 pub fn deinit() void {}
 
-pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
+pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -57,7 +57,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
     art_flags |= imgui.WindowFlags_NoBringToFrontOnFocus;
 
     if (imgui.begin("Art", null, art_flags)) {
-        try menu.draw(app, core);
+        try menu.draw(app, core, editor);
 
         const art_width = imgui.getWindowWidth();
 
@@ -141,7 +141,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
                                     if (artboard.open_file_index_0 == i) artboard.open_file_index_0 = 0;
                                     if (artboard.open_file_index_1 == i) artboard.open_file_index_1 = 0;
 
-                                    try Pixi.Editor.closeFile(i);
+                                    try Editor.closeFile(i);
                                     break; // This ensures we dont use after free
                                 }
 
@@ -158,7 +158,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
                                     defer imgui.popStyleVar();
                                     if (imgui.beginTooltip()) {
                                         defer imgui.endTooltip();
-                                        imgui.textColored(Pixi.editor.theme.text_secondary.toImguiVec4(), file.path);
+                                        imgui.textColored(editor.theme.text_secondary.toImguiVec4(), file.path);
                                     }
                                 }
                             }
@@ -191,19 +191,19 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
                             var open_file_index = if (artboard_0) artboard.open_file_index_0 else if (!artboard_grip) artboard.open_file_index_1 else 0;
 
                             if (window_hovered and mouse_clicked) {
-                                Pixi.Editor.setActiveFile(open_file_index);
+                                Editor.setActiveFile(open_file_index);
                             }
 
                             if (!app.settings.split_artboard) open_file_index = app.open_file_index;
 
-                            if (Pixi.Editor.getFile(open_file_index)) |file| {
+                            if (Editor.getFile(open_file_index)) |file| {
                                 if (imgui.beginChild(
                                     file.path,
                                     .{ .x = 0.0, .y = 0.0 },
                                     imgui.ChildFlags_None,
                                     canvas_flags,
                                 )) {
-                                    try canvas.draw(file, core, app);
+                                    try canvas.draw(file, core, app, editor);
                                 }
                                 imgui.endChild();
 
@@ -214,10 +214,10 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
                             }
                         }
                     } else {
-                        try drawLogoScreen(app);
+                        try drawLogoScreen(app, editor);
                     }
                 } else {
-                    drawGrip(art_width, app);
+                    drawGrip(art_width, app, editor);
                 }
             }
 
@@ -235,7 +235,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
                     .x = 0.0,
                     .y = flipbook_height,
                 }, imgui.ChildFlags_None, flipbook_flags)) {
-                    if (Pixi.Editor.getFile(app.open_file_index)) |file| {
+                    if (Editor.getFile(app.open_file_index)) |file| {
                         try flipbook.menu.draw(file, artboard_flipbook_ratio, app);
                         if (app.sidebar == .keyframe_animations or file.flipbook_view == .timeline) {
                             try flipbook.timeline.draw(file, core, app);
@@ -263,12 +263,12 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi) !void {
     imgui.end();
 }
 
-pub fn drawLogoScreen(app: *Pixi) !void {
-    imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Border, Pixi.editor.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+pub fn drawLogoScreen(app: *Pixi, editor: *Editor) !void {
+    imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Border, editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
     defer imgui.popStyleColorEx(5);
     { // Draw semi-transparent logo
         const logo_sprite = app.loaded_assets.atlas.sprites[Pixi.assets.pixi_atlas.logo_0_default];
@@ -304,29 +304,29 @@ pub fn drawLogoScreen(app: *Pixi) !void {
         const size = imgui.calcTextSize(text);
         imgui.setCursorPosX((imgui.getWindowWidth() / 2.0) - size.x / 2.0);
         if (imgui.buttonEx(text, .{ .x = size.x, .y = 0.0 })) {
-            app.popups.file_dialog_request = .{
+            editor.popups.file_dialog_request = .{
                 .state = .folder,
                 .type = .project,
             };
         }
-        if (app.popups.file_dialog_response) |response| {
+        if (editor.popups.file_dialog_response) |response| {
             if (response.type == .project) {
-                try Pixi.Editor.setProjectFolder(response.path);
+                try Editor.setProjectFolder(response.path);
                 nfd.freePath(response.path);
-                app.popups.file_dialog_response = null;
+                editor.popups.file_dialog_response = null;
             }
         }
     }
 }
 
-pub fn drawGrip(window_width: f32, app: *Pixi) void {
+pub fn drawGrip(window_width: f32, app: *Pixi, editor: *Editor) void {
     imgui.setCursorPosY(0.0);
     imgui.setCursorPosX(0.0);
 
     const avail = imgui.getContentRegionAvail().y;
     const curs_y = imgui.getCursorPosY();
 
-    var color = Pixi.editor.theme.text_background.toImguiVec4();
+    var color = editor.theme.text_background.toImguiVec4();
 
     _ = imgui.invisibleButton("ArtboardGripButton", .{
         .x = app.settings.explorer_grip,
@@ -339,7 +339,7 @@ pub fn drawGrip(window_width: f32, app: *Pixi) void {
 
     if (imgui.isItemHovered(hovered_flags)) {
         imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
-        color = Pixi.editor.theme.text.toImguiVec4();
+        color = editor.theme.text.toImguiVec4();
 
         if (imgui.isMouseDoubleClicked(imgui.MouseButton_Left)) {
             app.settings.split_artboard = !app.settings.split_artboard;
@@ -347,7 +347,7 @@ pub fn drawGrip(window_width: f32, app: *Pixi) void {
     }
 
     if (imgui.isItemActive()) {
-        color = Pixi.editor.theme.text.toImguiVec4();
+        color = editor.theme.text.toImguiVec4();
         const prev = app.mouse.previous_position;
         const cur = app.mouse.position;
 

@@ -5,13 +5,13 @@ const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
     if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
-        const dialog_name = switch (Pixi.app.popups.layer_setup_state) {
+        const dialog_name = switch (Pixi.editor.popups.layer_setup_state) {
             .none => "New Layer...",
             .rename => "Rename Layer...",
             .duplicate => "Duplicate Layer...",
         };
 
-        if (Pixi.app.popups.layer_setup) {
+        if (Pixi.editor.popups.layer_setup) {
             imgui.openPopup(dialog_name, imgui.PopupFlags_None);
         } else return;
 
@@ -36,7 +36,7 @@ pub fn draw() !void {
 
         if (imgui.beginPopupModal(
             dialog_name,
-            &Pixi.app.popups.layer_setup,
+            &Pixi.editor.popups.layer_setup,
             modal_flags,
         )) {
             defer imgui.endPopup();
@@ -55,46 +55,46 @@ pub fn draw() !void {
 
             const enter = imgui.inputText(
                 "Name",
-                Pixi.app.popups.layer_setup_name[0.. :0],
-                Pixi.app.popups.layer_setup_name[0.. :0].len,
+                Pixi.editor.popups.layer_setup_name[0.. :0],
+                Pixi.editor.popups.layer_setup_name[0.. :0].len,
                 input_text_flags,
             );
 
             imgui.setCursorPosY(popup_height - imgui.getTextLineHeightWithSpacing() * 2.0);
 
             if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
-                Pixi.app.popups.layer_setup = false;
+                Pixi.editor.popups.layer_setup = false;
             }
             imgui.sameLine();
             if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
-                switch (Pixi.app.popups.layer_setup_state) {
+                switch (Pixi.editor.popups.layer_setup_state) {
                     .none => {
-                        const new_name = std.mem.trimRight(u8, Pixi.app.popups.layer_setup_name[0..], "\u{0}");
+                        const new_name = std.mem.trimRight(u8, Pixi.editor.popups.layer_setup_name[0..], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
-                            try file.createLayer(Pixi.app.popups.layer_setup_name[0..index :0]);
+                            try file.createLayer(Pixi.editor.popups.layer_setup_name[0..index :0]);
                         } else {
-                            try file.createLayer(Pixi.app.popups.layer_setup_name[0..new_name.len :0]);
+                            try file.createLayer(Pixi.editor.popups.layer_setup_name[0..new_name.len :0]);
                         }
                     },
                     .rename => {
-                        const new_name = std.mem.trimRight(u8, Pixi.app.popups.layer_setup_name[0..], "\u{0}");
+                        const new_name = std.mem.trimRight(u8, Pixi.editor.popups.layer_setup_name[0..], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
-                            try file.renameLayer(Pixi.app.popups.layer_setup_name[0..index :0], Pixi.app.popups.layer_setup_index);
+                            try file.renameLayer(Pixi.editor.popups.layer_setup_name[0..index :0], Pixi.editor.popups.layer_setup_index);
                         } else {
-                            try file.renameLayer(Pixi.app.popups.layer_setup_name[0..new_name.len :0], Pixi.app.popups.layer_setup_index);
+                            try file.renameLayer(Pixi.editor.popups.layer_setup_name[0..new_name.len :0], Pixi.editor.popups.layer_setup_index);
                         }
                     },
                     .duplicate => {
-                        const new_name = std.mem.trimRight(u8, Pixi.app.popups.layer_setup_name[0.. :0], "\u{0}");
+                        const new_name = std.mem.trimRight(u8, Pixi.editor.popups.layer_setup_name[0.. :0], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
-                            try file.duplicateLayer(Pixi.app.popups.layer_setup_name[0..index :0], Pixi.app.popups.layer_setup_index);
+                            try file.duplicateLayer(Pixi.editor.popups.layer_setup_name[0..index :0], Pixi.editor.popups.layer_setup_index);
                         } else {
-                            try file.duplicateLayer(Pixi.app.popups.layer_setup_name[0..new_name.len :0], Pixi.app.popups.layer_setup_index);
+                            try file.duplicateLayer(Pixi.editor.popups.layer_setup_name[0..new_name.len :0], Pixi.editor.popups.layer_setup_index);
                         }
                     },
                 }
-                Pixi.app.popups.layer_setup_state = .none;
-                Pixi.app.popups.layer_setup = false;
+                Pixi.editor.popups.layer_setup_state = .none;
+                Pixi.editor.popups.layer_setup = false;
             }
 
             imgui.popItemWidth();

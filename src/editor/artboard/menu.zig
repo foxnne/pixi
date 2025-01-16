@@ -1,36 +1,37 @@
 const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
+const Editor = Pixi.Editor;
 const settings = Pixi.settings;
 const zstbi = @import("zstbi");
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-pub fn draw(app: *Pixi, _: *Core) !void {
+pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * app.content_scale[0], .y = 10.0 * app.content_scale[1] });
     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 6.0 * app.content_scale[0], .y = 6.0 * app.content_scale[1] });
     defer imgui.popStyleVarEx(2);
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, Pixi.editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.background.toImguiVec4());
     defer imgui.popStyleColorEx(5);
     if (imgui.beginMenuBar()) {
         defer imgui.endMenuBar();
         if (imgui.beginMenu("File")) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
             if (imgui.menuItemEx("Open Folder...", if (app.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "", false, true)) {
-                app.popups.file_dialog_request = .{
+                editor.popups.file_dialog_request = .{
                     .state = .folder,
                     .type = .project,
                 };
             }
-            if (app.popups.file_dialog_response) |response| {
+            if (editor.popups.file_dialog_response) |response| {
                 if (response.type == .project) {
-                    try Pixi.Editor.setProjectFolder(response.path);
+                    try Editor.setProjectFolder(response.path);
                     nfd.freePath(response.path);
-                    app.popups.file_dialog_response = null;
+                    editor.popups.file_dialog_response = null;
                 }
             }
 
@@ -39,14 +40,14 @@ pub fn draw(app: *Pixi, _: *Core) !void {
 
                 for (app.recents.folders.items) |folder| {
                     if (imgui.menuItem(folder)) {
-                        try Pixi.Editor.setProjectFolder(folder);
+                        try Editor.setProjectFolder(folder);
                     }
                 }
             }
 
             imgui.separator();
 
-            const file = Pixi.Editor.getFile(app.open_file_index);
+            const file = Editor.getFile(app.open_file_index);
 
             if (imgui.menuItemEx(
                 "Export as .png...",
@@ -54,7 +55,7 @@ pub fn draw(app: *Pixi, _: *Core) !void {
                 false,
                 file != null,
             )) {
-                app.popups.export_to_png = true;
+                editor.popups.export_to_png = true;
             }
 
             if (imgui.menuItemEx(
@@ -74,7 +75,7 @@ pub fn draw(app: *Pixi, _: *Core) !void {
         if (imgui.beginMenu("View")) {
             defer imgui.endMenu();
 
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
             defer imgui.popStyleColor();
 
             if (imgui.menuItemEx("Split Artboard", null, app.settings.split_artboard, true)) {
@@ -84,7 +85,7 @@ pub fn draw(app: *Pixi, _: *Core) !void {
             if (imgui.beginMenu("Flipbook")) {
                 defer imgui.endMenu();
 
-                if (Pixi.Editor.getFile(app.open_file_index)) |file| {
+                if (Editor.getFile(app.open_file_index)) |file| {
                     if (imgui.beginCombo("Flipbook View", switch (file.flipbook_view) {
                         .canvas => "Canvas",
                         .timeline => "Timeline",
@@ -115,17 +116,17 @@ pub fn draw(app: *Pixi, _: *Core) !void {
                 }
             }
 
-            if (imgui.menuItemEx("References", "r", app.popups.references, true)) {
-                app.popups.references = !app.popups.references;
+            if (imgui.menuItemEx("References", "r", editor.popups.references, true)) {
+                editor.popups.references = !editor.popups.references;
             }
         }
         if (imgui.beginMenu("Edit")) {
             defer imgui.endMenu();
 
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
             defer imgui.popStyleColor();
 
-            if (Pixi.Editor.getFile(app.open_file_index)) |file| {
+            if (Editor.getFile(app.open_file_index)) |file| {
                 if (imgui.menuItemEx(
                     "Undo",
                     if (app.hotkeys.hotkey(.{ .proc = .undo })) |hotkey| hotkey.shortcut else "",
@@ -144,12 +145,12 @@ pub fn draw(app: *Pixi, _: *Core) !void {
             }
         }
         if (imgui.beginMenu("Tools")) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
             imgui.popStyleColor();
             imgui.endMenu();
         }
         if (imgui.menuItem("About")) {
-            app.popups.about = true;
+            editor.popups.about = true;
         }
     }
 }

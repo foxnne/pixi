@@ -1,10 +1,11 @@
 const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
+const Editor = Pixi.Editor;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi, editor: *Editor) !void {
     const transforming = file.transform_texture != null;
 
     {
@@ -67,11 +68,11 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !voi
 
                 imgui.text("Transformation");
                 imgui.separator();
-                if (imgui.button("Confirm") or (core.keyPressed(Core.Key.enter) and app.open_file_index == Pixi.Editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Confirm") or (core.keyPressed(Core.Key.enter) and app.open_file_index == Editor.getFileIndex(file.path).?)) {
                     transform_texture.confirm = true;
                 }
                 imgui.sameLine();
-                if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and app.open_file_index == Pixi.Editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and app.open_file_index == Editor.getFileIndex(file.path).?)) {
                     var change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
                     change.pixels.temporary = true;
                     try file.history.append(change);
@@ -342,17 +343,17 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !voi
             file.camera.drawRect(rect, 3.0, Pixi.editor.theme.text.toU32());
         }
 
-        if (app.popups.animation_length > 0 and app.tools.current == .animation and !transforming) {
+        if (editor.popups.animation_length > 0 and app.tools.current == .animation and !transforming) {
             if (app.mouse.button(.primary)) |primary| {
-                if (primary.down() or app.popups.animation) {
-                    const start_column = @mod(@as(u32, @intCast(app.popups.animation_start)), tiles_wide);
-                    const start_row = @divTrunc(@as(u32, @intCast(app.popups.animation_start)), tiles_wide);
+                if (primary.down() or editor.popups.animation) {
+                    const start_column = @mod(@as(u32, @intCast(editor.popups.animation_start)), tiles_wide);
+                    const start_row = @divTrunc(@as(u32, @intCast(editor.popups.animation_start)), tiles_wide);
                     const start_x = @as(f32, @floatFromInt(start_column)) * tile_width + canvas_center_offset[0];
                     const start_y = @as(f32, @floatFromInt(start_row)) * tile_height + canvas_center_offset[1];
                     const start_rect: [4]f32 = .{ start_x, start_y, tile_width, tile_height };
 
-                    const end_column = @mod(@as(u32, @intCast(app.popups.animation_start + app.popups.animation_length - 1)), tiles_wide);
-                    const end_row = @divTrunc(@as(u32, @intCast(app.popups.animation_start + app.popups.animation_length - 1)), tiles_wide);
+                    const end_column = @mod(@as(u32, @intCast(editor.popups.animation_start + editor.popups.animation_length - 1)), tiles_wide);
+                    const end_row = @divTrunc(@as(u32, @intCast(editor.popups.animation_start + editor.popups.animation_length - 1)), tiles_wide);
                     const end_x = @as(f32, @floatFromInt(end_column)) * tile_width + canvas_center_offset[0];
                     const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };

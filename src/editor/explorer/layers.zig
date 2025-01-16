@@ -33,10 +33,10 @@ pub fn draw() !void {
 
         imgui.spacing();
         if (imgui.smallButton(Pixi.fa.plus)) {
-            Pixi.app.popups.layer_setup_name = [_:0]u8{0} ** 128;
-            std.mem.copyForwards(u8, &Pixi.app.popups.layer_setup_name, "New Layer");
-            Pixi.app.popups.layer_setup_state = .none;
-            Pixi.app.popups.layer_setup = true;
+            Pixi.editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
+            std.mem.copyForwards(u8, &Pixi.editor.popups.layer_setup_name, "New Layer");
+            Pixi.editor.popups.layer_setup_state = .none;
+            Pixi.editor.popups.layer_setup = true;
         }
         imgui.sameLine();
 
@@ -131,21 +131,21 @@ pub fn draw() !void {
                     defer imgui.endPopup();
 
                     if (imgui.menuItem("Rename...")) {
-                        Pixi.app.popups.layer_setup_name = [_:0]u8{0} ** 128;
-                        @memcpy(Pixi.app.popups.layer_setup_name[0..layer.name.len], layer.name);
-                        Pixi.app.popups.layer_setup_index = i;
-                        Pixi.app.popups.layer_setup_state = .rename;
-                        Pixi.app.popups.layer_setup = true;
+                        Pixi.editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(Pixi.editor.popups.layer_setup_name[0..layer.name.len], layer.name);
+                        Pixi.editor.popups.layer_setup_index = i;
+                        Pixi.editor.popups.layer_setup_state = .rename;
+                        Pixi.editor.popups.layer_setup = true;
                     }
 
                     if (imgui.menuItem("Duplicate...")) {
                         const new_name = try std.fmt.allocPrint(Pixi.app.allocator, "{s}_copy", .{layer.name});
                         defer Pixi.app.allocator.free(new_name);
-                        Pixi.app.popups.layer_setup_name = [_:0]u8{0} ** 128;
-                        @memcpy(Pixi.app.popups.layer_setup_name[0..new_name.len], new_name);
-                        Pixi.app.popups.layer_setup_index = i;
-                        Pixi.app.popups.layer_setup_state = .duplicate;
-                        Pixi.app.popups.layer_setup = true;
+                        Pixi.editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(Pixi.editor.popups.layer_setup_name[0..new_name.len], new_name);
+                        Pixi.editor.popups.layer_setup_index = i;
+                        Pixi.editor.popups.layer_setup_state = .duplicate;
+                        Pixi.editor.popups.layer_setup = true;
                     }
                     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
                     imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.foreground.toImguiVec4());

@@ -309,24 +309,24 @@ fn contextMenuFolder(folder: [:0]const u8) !void {
     if (imgui.menuItem("New File...")) {
         const new_file_path = try std.fs.path.joinZ(Pixi.app.allocator, &[_][]const u8{ folder, "New_file.pixi" });
         defer Pixi.app.allocator.free(new_file_path);
-        Pixi.app.popups.fileSetupNew(new_file_path);
+        Pixi.editor.popups.fileSetupNew(new_file_path);
     }
     if (imgui.menuItem("New File from PNG...")) {
-        Pixi.app.popups.file_dialog_request = .{
+        Pixi.editor.popups.file_dialog_request = .{
             .state = .file,
             .type = .new_png,
             .filter = "png",
         };
     }
 
-    if (Pixi.app.popups.file_dialog_response) |response| {
+    if (Pixi.editor.popups.file_dialog_response) |response| {
         if (response.type == .new_png) {
             const new_file_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}.pixi", .{response.path[0 .. response.path.len - 4]});
             defer Pixi.app.allocator.free(new_file_path);
-            Pixi.app.popups.fileSetupImportPng(new_file_path, response.path);
+            Pixi.editor.popups.fileSetupImportPng(new_file_path, response.path);
 
             nfd.freePath(response.path);
-            Pixi.app.popups.file_dialog_response = null;
+            Pixi.editor.popups.file_dialog_response = null;
         }
     }
     if (imgui.menuItem("New Folder...")) {
@@ -347,12 +347,12 @@ fn contextMenuFile(file: [:0]const u8) !void {
             if (imgui.menuItem("Import...")) {
                 const new_file_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}.pixi", .{file[0 .. file.len - 4]});
                 defer Pixi.app.allocator.free(new_file_path);
-                Pixi.app.popups.fileSetupImportPng(new_file_path, file);
+                Pixi.editor.popups.fileSetupImportPng(new_file_path, file);
             }
         },
         .pixi => {
             if (imgui.menuItem("Re-slice...")) {
-                Pixi.app.popups.fileSetupSlice(file);
+                Pixi.editor.popups.fileSetupSlice(file);
             }
         },
         else => {},
@@ -361,28 +361,28 @@ fn contextMenuFile(file: [:0]const u8) !void {
     imgui.separator();
 
     if (imgui.menuItem("Rename...")) {
-        Pixi.app.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
-        Pixi.app.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
-        @memcpy(Pixi.app.popups.rename_path[0..file.len], file);
-        @memcpy(Pixi.app.popups.rename_old_path[0..file.len], file);
-        Pixi.app.popups.rename = true;
-        Pixi.app.popups.rename_state = .rename;
+        Pixi.editor.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        Pixi.editor.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        @memcpy(Pixi.editor.popups.rename_path[0..file.len], file);
+        @memcpy(Pixi.editor.popups.rename_old_path[0..file.len], file);
+        Pixi.editor.popups.rename = true;
+        Pixi.editor.popups.rename_state = .rename;
     }
 
     if (imgui.menuItem("Duplicate...")) {
-        Pixi.app.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
-        Pixi.app.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
-        @memcpy(Pixi.app.popups.rename_old_path[0..file.len], file);
+        Pixi.editor.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        Pixi.editor.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        @memcpy(Pixi.editor.popups.rename_old_path[0..file.len], file);
 
         const ex = std.fs.path.extension(file);
 
         if (std.mem.indexOf(u8, file, ex)) |ext_i| {
             const new_base_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{s}{s}", .{ file[0..ext_i], "_copy", ex });
             defer Pixi.app.allocator.free(new_base_name);
-            @memcpy(Pixi.app.popups.rename_path[0..new_base_name.len], new_base_name);
+            @memcpy(Pixi.editor.popups.rename_path[0..new_base_name.len], new_base_name);
 
-            Pixi.app.popups.rename = true;
-            Pixi.app.popups.rename_state = .duplicate;
+            Pixi.editor.popups.rename = true;
+            Pixi.editor.popups.rename_state = .duplicate;
         }
     }
     imgui.separator();

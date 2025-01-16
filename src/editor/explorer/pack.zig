@@ -1,15 +1,16 @@
 const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
+const Editor = Pixi.Editor;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-pub fn draw(_: *Core, app: *Pixi) !void {
+pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * app.content_scale[0], .y = 5.0 * app.content_scale[1] });
     defer imgui.popStyleVar();
-    imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.highlight_secondary.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.highlight_secondary.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.hover_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.highlight_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.highlight_secondary.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.hover_secondary.toImguiVec4());
     defer imgui.popStyleColorEx(3);
 
     const window_size = imgui.getContentRegionAvail();
@@ -40,7 +41,7 @@ pub fn draw(_: *Core, app: *Pixi) !void {
         }
 
         {
-            const enabled = if (Pixi.Editor.getFile(app.open_file_index)) |_| true else false;
+            const enabled = if (Editor.getFile(app.open_file_index)) |_| true else false;
             if (imgui.menuItemEx("Current Open File", null, false, enabled)) {
                 app.packer.target = .single_open;
             }
@@ -66,8 +67,8 @@ pub fn draw(_: *Core, app: *Pixi) !void {
         var packable: bool = true;
         if (app.packer.target == .project and app.project_folder == null) packable = false;
         if (app.packer.target == .all_open and app.open_files.items.len <= 1) packable = false;
-        if (Pixi.Editor.saving()) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+        if (Editor.saving()) {
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
             imgui.textWrapped("Please wait until all files are done saving.");
             packable = false;
@@ -90,7 +91,7 @@ pub fn draw(_: *Core, app: *Pixi) !void {
                     try app.packer.packAndClear();
                 },
                 .single_open => {
-                    if (Pixi.Editor.getFile(app.open_file_index)) |file| {
+                    if (Editor.getFile(app.open_file_index)) |file| {
                         try app.packer.append(file);
                         try app.packer.packAndClear();
                     }
@@ -101,7 +102,7 @@ pub fn draw(_: *Core, app: *Pixi) !void {
             imgui.endDisabled();
 
         if (app.packer.target == .project and app.project_folder == null) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
             imgui.textWrapped("Select a project folder to pack.");
         }
@@ -115,19 +116,19 @@ pub fn draw(_: *Core, app: *Pixi) !void {
             }
 
             if (imgui.buttonEx("Export", .{ .x = window_size.x, .y = 0.0 })) {
-                app.popups.file_dialog_request = .{
+                editor.popups.file_dialog_request = .{
                     .state = .save,
                     .type = .export_atlas,
                 };
             }
 
-            if (app.popups.file_dialog_response) |response| {
+            if (editor.popups.file_dialog_response) |response| {
                 if (response.type == .export_atlas) {
                     try app.recents.appendExport(try app.allocator.dupeZ(u8, response.path));
                     try app.recents.save();
                     try app.atlas.save(response.path);
                     nfd.freePath(response.path);
-                    app.popups.file_dialog_response = null;
+                    editor.popups.file_dialog_response = null;
                 }
             }
 
@@ -139,7 +140,7 @@ pub fn draw(_: *Core, app: *Pixi) !void {
 
                 imgui.spacing();
                 imgui.separatorText("Recents");
-                imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
                 defer imgui.popStyleColor();
                 if (imgui.beginChild("Recents", .{
                     .x = imgui.getWindowWidth() - app.settings.explorer_grip * app.content_scale[0],
@@ -159,7 +160,7 @@ pub fn draw(_: *Core, app: *Pixi) !void {
                             try app.recents.appendExport(exp_out);
                         }
                         imgui.sameLineEx(0.0, 5.0 * Pixi.app.content_scale[0]);
-                        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+                        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
                         imgui.text(exp);
                         imgui.popStyleColor();
                     }

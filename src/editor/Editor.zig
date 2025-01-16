@@ -19,34 +19,38 @@ pub const Artboard = @import("artboard/Artboard.zig");
 pub const Popups = @import("popups/Popups.zig");
 
 pub const mach_module = .editor;
-pub const mach_systems = .{ .init, .tick, .deinit };
+pub const mach_systems = .{ .init, .lateInit, .tick, .deinit };
 
 pub const Theme = @import("Theme.zig");
 
 theme: Theme,
+popups: *Popups,
 
 pub fn init(
-    core: *Core,
-    app: *Pixi,
     editor: *Editor,
+    _popups: *Popups,
     sidebar_mod: mach.Mod(Sidebar),
     explorer_mod: mach.Mod(Explorer),
     artboard_mod: mach.Mod(Artboard),
     popups_mod: mach.Mod(Popups),
 ) !void {
-    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ Pixi.assets.themes, app.settings.theme });
-    defer app.allocator.free(theme_path);
-
     editor.* = .{
-        .theme = try Editor.Theme.loadFromFile(theme_path),
+        .theme = undefined,
+        .popups = _popups,
     };
-
-    editor.theme.init(core, app);
 
     sidebar_mod.call(.init);
     explorer_mod.call(.init);
     artboard_mod.call(.init);
     popups_mod.call(.init);
+}
+
+pub fn lateInit(core: *Core, app: *Pixi, editor: *Editor) !void {
+    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ Pixi.assets.themes, app.settings.theme });
+    defer app.allocator.free(theme_path);
+
+    editor.theme = try Theme.loadFromFile(theme_path);
+    editor.theme.init(core, app);
 }
 
 pub fn tick(
@@ -100,10 +104,10 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
 
     var internal: Pixi.storage.Internal.PixiFile = .{
         .path = try Pixi.app.allocator.dupeZ(u8, path),
-        .width = @as(u32, @intCast(Pixi.app.popups.file_setup_tiles[0] * Pixi.app.popups.file_setup_tile_size[0])),
-        .height = @as(u32, @intCast(Pixi.app.popups.file_setup_tiles[1] * Pixi.app.popups.file_setup_tile_size[1])),
-        .tile_width = @as(u32, @intCast(Pixi.app.popups.file_setup_tile_size[0])),
-        .tile_height = @as(u32, @intCast(Pixi.app.popups.file_setup_tile_size[1])),
+        .width = @as(u32, @intCast(Pixi.editor.popups.file_setup_tiles[0] * Pixi.editor.popups.file_setup_tile_size[0])),
+        .height = @as(u32, @intCast(Pixi.editor.popups.file_setup_tiles[1] * Pixi.editor.popups.file_setup_tile_size[1])),
+        .tile_width = @as(u32, @intCast(Pixi.editor.popups.file_setup_tile_size[0])),
+        .tile_height = @as(u32, @intCast(Pixi.editor.popups.file_setup_tile_size[1])),
         .layers = .{},
         .deleted_layers = .{},
         .deleted_heightmap_layers = .{},
@@ -159,7 +163,7 @@ pub fn newFile(path: [:0]const u8, import_path: ?[:0]const u8) !bool {
         const ext = std.fs.path.extension(base_name);
         const ext_ind = if (std.mem.indexOf(u8, base_name, ext)) |index| index else base_name.len - 1;
 
-        const tiles = @as(usize, @intCast(Pixi.app.popups.file_setup_tiles[0] * Pixi.app.popups.file_setup_tiles[1]));
+        const tiles = @as(usize, @intCast(Pixi.editor.popups.file_setup_tiles[0] * Pixi.editor.popups.file_setup_tiles[1]));
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
             const sprite: Pixi.storage.Internal.Sprite = .{
@@ -384,8 +388,8 @@ pub fn openReference(path: [:0]const u8) !bool {
     try Pixi.app.open_references.insert(0, reference);
     setActiveReference(0);
 
-    if (!Pixi.app.popups.references)
-        Pixi.app.popups.references = true;
+    if (!Pixi.editor.popups.references)
+        Pixi.editor.popups.references = true;
 
     return true;
 }
@@ -466,9 +470,9 @@ pub fn closeFile(index: usize) !void {
     {
         const file = Pixi.app.open_files.items[index];
         if (file.dirty()) {
-            Pixi.app.popups.file_confirm_close = true;
-            Pixi.app.popups.file_confirm_close_state = .one;
-            Pixi.app.popups.file_confirm_close_index = index;
+            Pixi.editor.popups.file_confirm_close = true;
+            Pixi.editor.popups.file_confirm_close_state = .one;
+            Pixi.editor.popups.file_confirm_close_index = index;
             return;
         }
     }

@@ -4,7 +4,7 @@ const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
-    if (Pixi.app.popups.about) {
+    if (Pixi.editor.popups.about) {
         imgui.openPopup("About", imgui.PopupFlags_None);
     } else return;
 
@@ -29,7 +29,7 @@ pub fn draw() !void {
 
     if (imgui.beginPopupModal(
         "About",
-        &Pixi.app.popups.about,
+        &Pixi.editor.popups.about,
         modal_flags,
     )) {
         defer imgui.endPopup();

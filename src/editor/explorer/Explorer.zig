@@ -1,8 +1,11 @@
 const std = @import("std");
+
 const Pixi = @import("../../Pixi.zig");
+const Core = @import("mach").Core;
+const Editor = Pixi.Editor;
+
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
-const Core = @import("mach").Core;
 
 pub const Explorer = @This();
 
@@ -26,7 +29,7 @@ pub fn deinit() void {
     // TODO: Free memory
 }
 
-pub fn draw(core: *Core, app: *Pixi) !void {
+pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     imgui.pushStyleVar(imgui.StyleVar_WindowBorderSize, 0.0);
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
@@ -61,8 +64,8 @@ pub fn draw(core: *Core, app: *Pixi) !void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * app.content_scale[1] });
         defer imgui.popStyleVarEx(2);
 
-        imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.text_background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Separator, editor.theme.text_background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(2);
 
         switch (app.sidebar) {
@@ -161,7 +164,7 @@ pub fn draw(core: *Core, app: *Pixi) !void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                try pack.draw(core, app);
+                try pack.draw(core, app, editor);
             },
             .settings => {
                 if (imgui.beginMenuBar()) {
@@ -216,7 +219,7 @@ pub fn draw(core: *Core, app: *Pixi) !void {
         const avail = imgui.getContentRegionAvail().y;
         const curs_y = imgui.getCursorPosY();
 
-        var color = Pixi.editor.theme.text_background.toImguiVec4();
+        var color = editor.theme.text_background.toImguiVec4();
 
         _ = imgui.invisibleButton("GripButton", .{
             .x = app.settings.explorer_grip,
@@ -229,7 +232,7 @@ pub fn draw(core: *Core, app: *Pixi) !void {
 
         if (imgui.isItemHovered(hovered_flags)) {
             imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
-            color = Pixi.editor.theme.text.toImguiVec4();
+            color = editor.theme.text.toImguiVec4();
 
             if (imgui.isMouseDoubleClicked(imgui.MouseButton_Left)) {
                 app.settings.split_artboard = !app.settings.split_artboard;
@@ -237,7 +240,7 @@ pub fn draw(core: *Core, app: *Pixi) !void {
         }
 
         if (imgui.isItemActive()) {
-            color = Pixi.editor.theme.text.toImguiVec4();
+            color = editor.theme.text.toImguiVec4();
             const prev = app.mouse.previous_position;
             const cur = app.mouse.position;
 
