@@ -120,7 +120,7 @@ zoom_ctrl: bool = false,
 compatibility: Compatibility = .none,
 
 ///Reads in default settings or reads from the settings file
-pub fn init(allocator: std.mem.Allocator) !Settings {
+pub fn load(allocator: std.mem.Allocator) !Settings {
     const path = "settings.json";
 
     // Attempt to read the file

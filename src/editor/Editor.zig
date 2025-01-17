@@ -78,12 +78,12 @@ pub fn init(
     popups_mod: mach.Mod(Popups),
 ) !void {
     editor.* = .{
-        .theme = undefined,
+        .theme = undefined, // Leave theme undefined for now since settings need to load first
         .popups = _popups,
         .explorer = _explorer,
         .artboard = _artboard,
         .sidebar = _sidebar,
-        .settings = try Settings.init(app.arena_allocator.allocator()),
+        .settings = try Settings.load(app.arena_allocator.allocator()),
         .hotkeys = try Pixi.input.Hotkeys.initDefault(app.allocator),
         .recents = try Recents.init(app.allocator),
     };
