@@ -8,6 +8,7 @@ pub const Settings = @import("Settings.zig");
 pub const Colors = @import("Colors.zig");
 pub const Recents = @import("Recents.zig");
 pub const Tools = @import("Tools.zig");
+pub const Theme = @import("Theme.zig");
 
 const zip = @import("zip");
 const zstbi = @import("zstbi");
@@ -18,10 +19,11 @@ const zmath = @import("zmath");
 
 pub const Editor = @This();
 
-pub const Sidebar = @import("Sidebar.zig");
+// Modules
 pub const Explorer = @import("explorer/Explorer.zig");
-pub const Artboard = @import("artboard/Artboard.zig");
 pub const Popups = @import("popups/Popups.zig");
+pub const Artboard = @import("artboard/Artboard.zig");
+pub const Sidebar = @import("Sidebar.zig");
 
 pub const mach_module = .editor;
 pub const mach_systems = .{
@@ -33,18 +35,18 @@ pub const mach_systems = .{
     .deinit,
 };
 
-pub const Theme = @import("Theme.zig");
-
 theme: Theme,
+settings: Settings,
+hotkeys: Pixi.input.Hotkeys,
+recents: Recents,
 
 // Module pointers
-popups: *Popups,
 explorer: *Explorer,
+popups: *Popups,
+artboard: *Artboard,
+sidebar: *Sidebar,
 
-settings: Settings = undefined,
-hotkeys: Pixi.input.Hotkeys = undefined,
 project_folder: ?[:0]const u8 = null,
-recents: Recents = undefined,
 
 previous_atlas_export: ?[:0]const u8 = null,
 open_files: std.ArrayList(Pixi.storage.Internal.PixiFile) = undefined,
@@ -68,6 +70,8 @@ pub fn init(
     editor: *Editor,
     _popups: *Popups,
     _explorer: *Explorer,
+    _artboard: *Artboard,
+    _sidebar: *Sidebar,
     sidebar_mod: mach.Mod(Sidebar),
     explorer_mod: mach.Mod(Explorer),
     artboard_mod: mach.Mod(Artboard),
@@ -77,6 +81,11 @@ pub fn init(
         .theme = undefined,
         .popups = _popups,
         .explorer = _explorer,
+        .artboard = _artboard,
+        .sidebar = _sidebar,
+        .settings = try Settings.init(app.arena_allocator.allocator()),
+        .hotkeys = try Pixi.input.Hotkeys.initDefault(app.allocator),
+        .recents = try Recents.init(app.allocator),
     };
 
     editor.open_files = std.ArrayList(Pixi.storage.Internal.PixiFile).init(app.allocator);
@@ -88,10 +97,6 @@ pub fn init(
     explorer_mod.call(.init);
     artboard_mod.call(.init);
     popups_mod.call(.init);
-
-    editor.settings = try Settings.init(app.arena_allocator.allocator());
-    editor.hotkeys = try Pixi.input.Hotkeys.initDefault(app.allocator);
-    editor.recents = try Recents.init(app.allocator);
 }
 
 pub fn lateInit(core: *Core, app: *Pixi, editor: *Editor) !void {
