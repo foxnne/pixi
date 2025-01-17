@@ -411,7 +411,7 @@ pub const PixiFile = struct {
         if (!sample_key and !sample_button) return;
 
         imgui.setMouseCursor(imgui.MouseCursor_None);
-        file.camera.drawCursor(Pixi.assets.pixi_atlas.dropper_0_default, 0xFFFFFFFF);
+        file.camera.drawCursor(Pixi.asset_data.pixi_atlas.dropper_0_default, 0xFFFFFFFF);
 
         const mouse_position = Pixi.app.mouse.position;
         var camera = switch (canvas) {
@@ -509,11 +509,11 @@ pub const PixiFile = struct {
         switch (Pixi.editor.tools.current) {
             .pencil, .heightmap => {
                 imgui.setMouseCursor(imgui.MouseCursor_None);
-                file.camera.drawCursor(Pixi.assets.pixi_atlas.pencil_0_default, 0xFFFFFFFF);
+                file.camera.drawCursor(Pixi.asset_data.pixi_atlas.pencil_0_default, 0xFFFFFFFF);
             },
             .eraser => {
                 imgui.setMouseCursor(imgui.MouseCursor_None);
-                file.camera.drawCursor(Pixi.assets.pixi_atlas.eraser_0_default, 0xFFFFFFFF);
+                file.camera.drawCursor(Pixi.asset_data.pixi_atlas.eraser_0_default, 0xFFFFFFFF);
             },
             else => {},
         }
@@ -864,7 +864,7 @@ pub const PixiFile = struct {
 
         if (sample_key or sample_button) return;
 
-        const cursor_sprite_index: usize = if (add) Pixi.assets.pixi_atlas.selection_add_0_default else if (rem) Pixi.assets.pixi_atlas.selection_rem_0_default else Pixi.assets.pixi_atlas.selection_0_default;
+        const cursor_sprite_index: usize = if (add) Pixi.asset_data.pixi_atlas.selection_add_0_default else if (rem) Pixi.asset_data.pixi_atlas.selection_rem_0_default else Pixi.asset_data.pixi_atlas.selection_0_default;
         imgui.setMouseCursor(imgui.MouseCursor_None);
         file.camera.drawCursor(cursor_sprite_index, 0xFFFFFFFF);
 
@@ -1077,7 +1077,7 @@ pub const PixiFile = struct {
         if (sample_key or sample_button) return;
 
         imgui.setMouseCursor(imgui.MouseCursor_None);
-        file.camera.drawCursor(Pixi.assets.pixi_atlas.bucket_0_default, 0xFFFFFFFF);
+        file.camera.drawCursor(Pixi.asset_data.pixi_atlas.bucket_0_default, 0xFFFFFFFF);
 
         var canvas_center_offset = canvasCenterOffset(file, canvas);
         canvas_center_offset[0] += options.texture_position_offset[0];
@@ -2799,7 +2799,7 @@ pub const Reference = struct {
         if (!sample_key and !sample_button) return;
 
         imgui.setMouseCursor(imgui.MouseCursor_None);
-        reference.camera.drawCursor(Pixi.assets.pixi_atlas.dropper_0_default, 0xFFFFFFFF);
+        reference.camera.drawCursor(Pixi.asset_data.pixi_atlas.dropper_0_default, 0xFFFFFFFF);
 
         const mouse_position = Pixi.app.mouse.position;
         var camera = reference.camera;

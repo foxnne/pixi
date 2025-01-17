@@ -154,7 +154,7 @@ pub fn draw(core: *Core, editor: *Editor) !void {
                     .state = .save,
                     .type = .export_theme,
                     .filter = "json",
-                    .initial = Pixi.assets.themes,
+                    .initial = Pixi.asset_data.themes,
                 };
             }
 
@@ -181,7 +181,7 @@ pub fn draw(core: *Core, editor: *Editor) !void {
 }
 
 fn searchThemes(editor: *Editor) !void {
-    var dir_opt = std.fs.cwd().openDir(Pixi.assets.themes, .{ .access_sub_paths = false, .iterate = true }) catch null;
+    var dir_opt = std.fs.cwd().openDir(Pixi.asset_data.themes, .{ .access_sub_paths = false, .iterate = true }) catch null;
     if (dir_opt) |*dir| {
         defer dir.close();
         var iter = dir.iterate();
@@ -192,7 +192,7 @@ fn searchThemes(editor: *Editor) !void {
                     const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{entry.name});
                     defer Pixi.app.allocator.free(label);
                     if (imgui.selectable(label)) {
-                        const abs_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ Pixi.assets.themes, entry.name });
+                        const abs_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ Pixi.asset_data.themes, entry.name });
                         defer Pixi.app.allocator.free(abs_path);
                         Pixi.app.allocator.free(editor.theme.name);
                         editor.theme = try Editor.Theme.loadFromFile(abs_path);

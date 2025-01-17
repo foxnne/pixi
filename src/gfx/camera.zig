@@ -277,10 +277,10 @@ pub const Camera = struct {
 
     pub fn drawCursor(self: Camera, sprite_index: usize, color: u32) void {
         _ = self;
-        if (sprite_index >= Pixi.app.loaded_assets.atlas.sprites.len) return;
+        if (sprite_index >= Pixi.app.assets.atlas.sprites.len) return;
 
-        const sprite = Pixi.app.loaded_assets.atlas.sprites[sprite_index];
-        const texture = Pixi.app.loaded_assets.atlas_png;
+        const sprite = Pixi.app.assets.atlas.sprites[sprite_index];
+        const texture = Pixi.app.assets.atlas_png;
         const position = Pixi.app.mouse.position;
 
         const sprite_source: [4]f32 = .{

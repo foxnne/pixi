@@ -40,7 +40,7 @@ mouse: input.Mouse = undefined,
 root_path: [:0]const u8 = undefined,
 delta_time: f32 = 0.0,
 total_time: f32 = 0.0,
-loaded_assets: LoadedAssets = undefined,
+assets: Assets = undefined,
 fonts: Fonts = .{},
 batcher: gfx.Batcher = undefined,
 packer: Packer = undefined,
@@ -56,7 +56,7 @@ pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 }
 
 pub const Packer = @import("tools/Packer.zig");
 
-pub const assets = @import("assets.zig");
+pub const asset_data = @import("assets.zig");
 pub const shaders = @import("shaders.zig");
 
 pub const fs = @import("tools/fs.zig");
@@ -67,27 +67,20 @@ pub const input = @import("input/input.zig");
 pub const storage = @import("storage/storage.zig");
 pub const algorithms = @import("algorithms/algorithms.zig");
 
-test {
-    _ = zstbi;
-    _ = math;
-    _ = gfx;
-    _ = input;
-}
-
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
-pub const LoadedAssets = struct {
+pub const Assets = struct {
     atlas_png: gfx.Texture,
     atlas: gfx.Atlas,
 
-    pub fn init(allocator: std.mem.Allocator) !LoadedAssets {
+    pub fn load(allocator: std.mem.Allocator) !Assets {
         return .{
-            .atlas_png = try gfx.Texture.loadFromFile(assets.pixi_png.path, .{}),
-            .atlas = try gfx.Atlas.loadFromFile(allocator, assets.pixi_atlas.path),
+            .atlas_png = try gfx.Texture.loadFromFile(asset_data.pixi_png.path, .{}),
+            .atlas = try gfx.Atlas.loadFromFile(allocator, asset_data.pixi_atlas.path),
         };
     }
 
-    pub fn deinit(self: *LoadedAssets, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Assets, allocator: std.mem.Allocator) void {
         self.atlas_png.deinit();
         self.atlas.deinit(allocator);
     }
@@ -147,7 +140,7 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     zstbi.init(app.allocator);
 
     // Load assets
-    app.loaded_assets = try LoadedAssets.init(app.allocator);
+    app.assets = try Assets.load(app.allocator);
 
     // Setup
     app.mouse = try input.Mouse.initDefault(app.allocator);
@@ -187,7 +180,7 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     cozette_config.rasterizer_density = 1.0;
     cozette_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
 
-    _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", editor.settings.font_size, &cozette_config, null);
+    _ = io.fonts.?.addFontFromFileTTF(asset_data.root ++ "fonts/CozetteVector.ttf", editor.settings.font_size, &cozette_config, null);
 
     var fa_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     fa_config.merge_mode = true;
@@ -200,8 +193,8 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
-    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(asset_data.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(asset_data.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
 
     // This will load our theme
     editor_mod.call(.lateInit);
@@ -358,7 +351,7 @@ pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
     app.pipeline_compute.release();
     app.uniform_buffer_default.release();
 
-    app.loaded_assets.deinit(app.allocator);
+    app.assets.deinit(app.allocator);
 
     imgui_mach.shutdown();
     imgui.getIO().fonts.?.clear();

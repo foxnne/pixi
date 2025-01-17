@@ -35,7 +35,7 @@ pub fn draw() !void {
         defer imgui.endPopup();
         imgui.spacing();
 
-        const fox_sprite = Pixi.app.loaded_assets.atlas.sprites[Pixi.assets.pixi_atlas.fox_0_default];
+        const fox_sprite = Pixi.app.assets.atlas.sprites[Pixi.asset_data.pixi_atlas.fox_0_default];
 
         const src: [4]f32 = .{
             @floatFromInt(fox_sprite.source[0]),
@@ -65,13 +65,13 @@ pub fn draw() !void {
             );
         }
 
-        const inv_w = 1.0 / @as(f32, @floatFromInt(Pixi.app.loaded_assets.atlas_png.image.width));
-        const inv_h = 1.0 / @as(f32, @floatFromInt(Pixi.app.loaded_assets.atlas_png.image.height));
+        const inv_w = 1.0 / @as(f32, @floatFromInt(Pixi.app.assets.atlas_png.image.width));
+        const inv_h = 1.0 / @as(f32, @floatFromInt(Pixi.app.assets.atlas_png.image.height));
 
         imgui.setCursorPosX(center[0] - w / 2.0);
         imgui.setCursorPosY(center[1] - h / 6.0);
         imgui.imageEx(
-            Pixi.app.loaded_assets.atlas_png.view_handle,
+            Pixi.app.assets.atlas_png.view_handle,
             .{ .x = w, .y = h },
             .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
             .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
