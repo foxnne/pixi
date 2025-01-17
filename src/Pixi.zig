@@ -198,21 +198,8 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
 }
 
 pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
-    if (editor.popups.file_dialog_request) |request| {
-        defer editor.popups.file_dialog_request = null;
-        const initial = if (request.initial) |initial| initial else editor.project_folder;
-
-        if (switch (request.state) {
-            .file => try nfd.openFileDialog(request.filter, initial),
-            .folder => try nfd.openFolderDialog(initial),
-            .save => try nfd.saveFileDialog(request.filter, initial),
-        }) |path| {
-            editor.popups.file_dialog_response = .{
-                .path = path,
-                .type = request.type,
-            };
-        }
-    }
+    // Process dialog requests
+    editor_mod.call(.processDialogRequest);
 
     // Process events
     while (core.nextEvent()) |event| {
@@ -347,73 +334,6 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
         }
     }
 
-    // Accept transformations
-    {
-        for (editor.open_files.items) |*file| {
-            if (file.transform_texture) |*transform_texture| {
-                if (transform_texture.confirm) {
-                    // Blit temp layer to selected layer
-                    if (file.transform_staging_buffer) |staging_buffer| {
-                        const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
-
-                        var response: gpu.Buffer.MapAsyncStatus = undefined;
-                        const callback = (struct {
-                            pub inline fn callback(ctx: *gpu.Buffer.MapAsyncStatus, status: gpu.Buffer.MapAsyncStatus) void {
-                                ctx.* = status;
-                            }
-                        }).callback;
-
-                        staging_buffer.mapAsync(.{ .read = true }, 0, buffer_size * @sizeOf([4]f32), &response, callback);
-                        while (true) {
-                            if (response == gpu.Buffer.MapAsyncStatus.success) {
-                                break;
-                            } else {
-                                window.device.tick();
-                            }
-                        }
-
-                        const layer_index = file.selected_layer_index;
-                        const write_layer = file.layers.get(file.selected_layer_index);
-
-                        if (staging_buffer.getConstMappedRange([4]f32, 0, buffer_size)) |buffer_mapped| {
-                            for (write_layer.pixels(), buffer_mapped, 0..) |*p, b, i| {
-                                if (b[3] != 0.0) {
-                                    try file.buffers.stroke.append(i, p.*);
-
-                                    const out: [4]u8 = .{
-                                        @as(u8, @intFromFloat(b[0] * 255.0)),
-                                        @as(u8, @intFromFloat(b[1] * 255.0)),
-                                        @as(u8, @intFromFloat(b[2] * 255.0)),
-                                        @as(u8, @intFromFloat(b[3] * 255.0)),
-                                    };
-                                    p.* = out;
-                                }
-                            }
-                        }
-
-                        // Submit the stroke change buffer
-                        if (file.buffers.stroke.indices.items.len > 0) {
-                            const change = try file.buffers.stroke.toChange(@intCast(layer_index));
-                            try file.history.append(change);
-                        }
-
-                        staging_buffer.unmap();
-
-                        var texture: *gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
-                        texture.update(window.device);
-                    }
-
-                    transform_texture.texture.deinit();
-                    file.transform_texture = null;
-                }
-            }
-        }
-    }
-
-    for (editor.hotkeys.hotkeys) |*hotkey| {
-        hotkey.previous_state = hotkey.state;
-    }
-
     for (app.mouse.buttons) |*button| {
         button.previous_state = button.state;
     }
@@ -444,7 +364,6 @@ pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
 
     zstbi.deinit();
     app.allocator.free(app.root_path);
-
     app.arena_allocator.deinit();
 
     _ = gpa.detectLeaks();
