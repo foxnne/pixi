@@ -118,12 +118,12 @@ pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor, 
 
     _app.* = .{
         .allocator = allocator,
+        .arena_allocator = std.heap.ArenaAllocator.init(allocator),
         .timer = try mach.time.Timer.start(),
         .window = window,
         .root_path = try allocator.dupeZ(u8, path),
     };
 
-    app.arena_allocator = std.heap.ArenaAllocator.init(app.allocator);
     editor_mod.call(.init);
 }
 
@@ -348,6 +348,8 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
 
 pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
     editor_mod.call(.deinit);
+
+    app.allocator.free(app.mouse.buttons);
 
     app.packer.deinit();
 
