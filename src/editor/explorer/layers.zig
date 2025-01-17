@@ -1,24 +1,27 @@
 const std = @import("std");
+
 const Pixi = @import("../../Pixi.zig");
-const imgui = @import("zig-imgui");
+const Editor = Pixi.Editor;
 const History = Pixi.storage.Internal.PixiFile.History;
 
-pub fn draw() !void {
-    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
+const imgui = @import("zig-imgui");
+
+pub fn draw(editor: *Editor) !void {
+    if (editor.getFile(editor.open_file_index)) |file| {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
         defer imgui.popStyleVar();
 
-        imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.foreground.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
         if (file.heightmap.layer != null) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
             defer imgui.popStyleVar();
-            imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.highlight_secondary.toImguiVec4());
-            imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.highlight_secondary.toImguiVec4());
-            imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.hover_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.highlight_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.highlight_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.hover_secondary.toImguiVec4());
             defer imgui.popStyleColorEx(3);
 
             if (imgui.checkbox("Edit Heightmap Layer", &file.heightmap.visible)) {}
@@ -26,17 +29,17 @@ pub fn draw() !void {
                 try file.deleted_heightmap_layers.append(Pixi.app.allocator, file.heightmap.layer.?);
                 file.heightmap.layer = null;
                 try file.history.append(.{ .heightmap_restore_delete = .{ .action = .restore } });
-                if (Pixi.app.tools.current == .heightmap)
-                    Pixi.app.tools.current = .pointer;
+                if (editor.tools.current == .heightmap)
+                    editor.tools.current = .pointer;
             }
         }
 
         imgui.spacing();
         if (imgui.smallButton(Pixi.fa.plus)) {
-            Pixi.editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
-            std.mem.copyForwards(u8, &Pixi.editor.popups.layer_setup_name, "New Layer");
-            Pixi.editor.popups.layer_setup_state = .none;
-            Pixi.editor.popups.layer_setup = true;
+            editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
+            std.mem.copyForwards(u8, &editor.popups.layer_setup_name, "New Layer");
+            editor.popups.layer_setup_state = .none;
+            editor.popups.layer_setup = true;
         }
         imgui.sameLine();
 
@@ -66,9 +69,9 @@ pub fn draw() !void {
                 i -= 1;
                 var layer = file.layers.slice().get(i);
 
-                imgui.pushStyleColorImVec4(imgui.Col_Text, if (i == file.selected_layer_index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_Header, if (i == file.selected_layer_index) Pixi.editor.theme.highlight_secondary.toImguiVec4() else Pixi.editor.theme.foreground.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_Text, if (i == file.selected_layer_index) editor.theme.text.toImguiVec4() else editor.theme.text_secondary.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_Header, if (i == file.selected_layer_index) editor.theme.highlight_secondary.toImguiVec4() else editor.theme.foreground.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.background.toImguiVec4());
                 defer imgui.popStyleColorEx(3);
 
                 imgui.pushID(layer.name);
@@ -103,7 +106,7 @@ pub fn draw() !void {
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();
                     imgui.text("Collapse");
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
                     defer imgui.popStyleColor();
                     imgui.text("If " ++ collapse_true ++ ", layer will be drawn onto the layer above it (lower in the layer stack) prior to packing.");
                     imgui.text("If " ++ collapse_false ++ ", layer will remain independent and will be packed separately.");
@@ -131,24 +134,24 @@ pub fn draw() !void {
                     defer imgui.endPopup();
 
                     if (imgui.menuItem("Rename...")) {
-                        Pixi.editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
-                        @memcpy(Pixi.editor.popups.layer_setup_name[0..layer.name.len], layer.name);
-                        Pixi.editor.popups.layer_setup_index = i;
-                        Pixi.editor.popups.layer_setup_state = .rename;
-                        Pixi.editor.popups.layer_setup = true;
+                        editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(editor.popups.layer_setup_name[0..layer.name.len], layer.name);
+                        editor.popups.layer_setup_index = i;
+                        editor.popups.layer_setup_state = .rename;
+                        editor.popups.layer_setup = true;
                     }
 
                     if (imgui.menuItem("Duplicate...")) {
                         const new_name = try std.fmt.allocPrint(Pixi.app.allocator, "{s}_copy", .{layer.name});
                         defer Pixi.app.allocator.free(new_name);
-                        Pixi.editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
-                        @memcpy(Pixi.editor.popups.layer_setup_name[0..new_name.len], new_name);
-                        Pixi.editor.popups.layer_setup_index = i;
-                        Pixi.editor.popups.layer_setup_state = .duplicate;
-                        Pixi.editor.popups.layer_setup = true;
+                        editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
+                        @memcpy(editor.popups.layer_setup_name[0..new_name.len], new_name);
+                        editor.popups.layer_setup_index = i;
+                        editor.popups.layer_setup_state = .duplicate;
+                        editor.popups.layer_setup = true;
                     }
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
-                    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.foreground.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_red.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Separator, editor.theme.foreground.toImguiVec4());
                     defer imgui.popStyleColorEx(2);
 
                     imgui.separator();

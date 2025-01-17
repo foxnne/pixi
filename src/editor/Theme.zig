@@ -54,7 +54,7 @@ pub fn init(theme: *Theme, core: *mach.Core, pixi: *Pixi) void {
     style.hover_delay_normal = 0.5;
     style.hover_delay_short = 0.25;
     style.popup_rounding = 8.0;
-    style.separator_text_align = .{ .x = Pixi.app.settings.explorer_title_align, .y = 0.5 };
+    style.separator_text_align = .{ .x = Pixi.editor.settings.explorer_title_align, .y = 0.5 };
     style.separator_text_border_size = 1.0;
     style.separator_text_padding = .{ .x = 20.0, .y = 10.0 };
 

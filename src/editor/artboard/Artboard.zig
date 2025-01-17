@@ -35,11 +35,11 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
-        .x = (app.settings.sidebar_width + app.settings.explorer_width + app.settings.explorer_grip) * app.content_scale[0],
+        .x = (editor.settings.sidebar_width + editor.settings.explorer_width + editor.settings.explorer_grip) * app.content_scale[0],
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = (app.window_size[0] - ((app.settings.explorer_width + app.settings.sidebar_width + app.settings.explorer_grip)) * app.content_scale[0]),
+        .x = (app.window_size[0] - ((editor.settings.explorer_width + editor.settings.sidebar_width + editor.settings.explorer_grip)) * app.content_scale[0]),
         .y = (app.window_size[1] + 5.0) * app.content_scale[1],
     }, imgui.Cond_None);
 
@@ -63,11 +63,11 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
 
         const window_height = imgui.getContentRegionAvail().y;
         const window_width = imgui.getContentRegionAvail().x;
-        const artboard_height = if (app.open_files.items.len > 0 and app.sidebar != .pack) window_height - window_height * app.settings.flipbook_height else 0.0;
+        const artboard_height = if (editor.open_files.items.len > 0 and editor.explorer.pane != .pack) window_height - window_height * editor.settings.flipbook_height else 0.0;
 
         const artboard_flipbook_ratio = (app.mouse.position[1] - imgui.getCursorScreenPos().y) / window_height;
 
-        const split_index: usize = if (app.settings.split_artboard) 3 else 1;
+        const split_index: usize = if (editor.settings.split_artboard) 3 else 1;
 
         for (0..split_index) |artboard_index| {
             const artboard_0 = artboard_index == 0;
@@ -76,17 +76,17 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
 
             var artboard_width: f32 = 0.0;
 
-            if (artboard_0 and app.settings.split_artboard) {
-                artboard_width = window_width * app.settings.split_artboard_ratio;
+            if (artboard_0 and editor.settings.split_artboard) {
+                artboard_width = window_width * editor.settings.split_artboard_ratio;
             } else if (artboard_grip) {
-                artboard_width = app.settings.explorer_grip;
+                artboard_width = editor.settings.explorer_grip;
             } else {
                 artboard_width = 0.0;
             }
 
-            const not_active: bool = (artboard_0 and artboard.open_file_index_0 != app.open_file_index) or (!artboard_0 and !artboard_grip and artboard.open_file_index_1 != app.open_file_index);
+            const not_active: bool = (artboard_0 and artboard.open_file_index_0 != editor.open_file_index) or (!artboard_0 and !artboard_grip and artboard.open_file_index_1 != editor.open_file_index);
 
-            const artboard_color: Pixi.math.Color = if (artboard_grip or (not_active and app.settings.split_artboard)) Pixi.editor.theme.foreground else Pixi.editor.theme.background;
+            const artboard_color: Pixi.math.Color = if (artboard_grip or (not_active and editor.settings.split_artboard)) Pixi.editor.theme.foreground else Pixi.editor.theme.background;
 
             imgui.pushStyleColor(imgui.Col_ChildBg, artboard_color.toU32());
             defer imgui.popStyleColor();
@@ -104,9 +104,9 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
                     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
                     const mouse_clicked: bool = app.mouse.anyButtonDown();
 
-                    if (app.sidebar == .pack) {
-                        drawCanvasPack(core, app);
-                    } else if (app.open_files.items.len > 0) {
+                    if (editor.explorer.pane == .pack) {
+                        drawCanvasPack(core, app, editor);
+                    } else if (editor.open_files.items.len > 0) {
                         var files_flags: imgui.TabBarFlags = 0;
                         files_flags |= imgui.TabBarFlags_Reorderable;
                         files_flags |= imgui.TabBarFlags_AutoSelectNewTabs;
@@ -114,7 +114,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
                         if (imgui.beginTabBar("FilesTabBar", files_flags)) {
                             defer imgui.endTabBar();
 
-                            for (app.open_files.items, 0..) |file, i| {
+                            for (editor.open_files.items, 0..) |file, i| {
                                 var open: bool = true;
 
                                 const file_name = std.fs.path.basename(file.path);
@@ -141,7 +141,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
                                     if (artboard.open_file_index_0 == i) artboard.open_file_index_0 = 0;
                                     if (artboard.open_file_index_1 == i) artboard.open_file_index_1 = 0;
 
-                                    try Editor.closeFile(i);
+                                    try editor.closeFile(i);
                                     break; // This ensures we dont use after free
                                 }
 
@@ -163,7 +163,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
                                 }
                             }
 
-                            const show_rulers: bool = app.settings.show_rulers;
+                            const show_rulers: bool = editor.settings.show_rulers;
 
                             // Add ruler child windows to build layout, but wait to draw to them until camera has been updated.
                             if (show_rulers) {
@@ -191,12 +191,12 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
                             var open_file_index = if (artboard_0) artboard.open_file_index_0 else if (!artboard_grip) artboard.open_file_index_1 else 0;
 
                             if (window_hovered and mouse_clicked) {
-                                Editor.setActiveFile(open_file_index);
+                                editor.setActiveFile(open_file_index);
                             }
 
-                            if (!app.settings.split_artboard) open_file_index = app.open_file_index;
+                            if (!editor.settings.split_artboard) open_file_index = editor.open_file_index;
 
-                            if (Editor.getFile(open_file_index)) |file| {
+                            if (editor.getFile(open_file_index)) |file| {
                                 if (imgui.beginChild(
                                     file.path,
                                     .{ .x = 0.0, .y = 0.0 },
@@ -224,9 +224,9 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
             imgui.endChild();
         }
 
-        if (app.sidebar != .pack) {
-            if (app.open_files.items.len > 0) {
-                const flipbook_height = window_height - artboard_height - app.settings.info_bar_height * app.content_scale[1];
+        if (editor.explorer.pane != .pack) {
+            if (editor.open_files.items.len > 0) {
+                const flipbook_height = window_height - artboard_height - editor.settings.info_bar_height * app.content_scale[1];
 
                 var flipbook_flags: imgui.WindowFlags = 0;
                 flipbook_flags |= imgui.WindowFlags_MenuBar;
@@ -235,25 +235,25 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
                     .x = 0.0,
                     .y = flipbook_height,
                 }, imgui.ChildFlags_None, flipbook_flags)) {
-                    if (Editor.getFile(app.open_file_index)) |file| {
-                        try flipbook.menu.draw(file, artboard_flipbook_ratio, app);
-                        if (app.sidebar == .keyframe_animations or file.flipbook_view == .timeline) {
+                    if (editor.getFile(editor.open_file_index)) |file| {
+                        try flipbook.menu.draw(file, artboard_flipbook_ratio, app, editor);
+                        if (editor.explorer.pane == .keyframe_animations or file.flipbook_view == .timeline) {
                             try flipbook.timeline.draw(file, core, app);
                         } else {
                             if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                                 defer imgui.endChild();
-                                try flipbook.canvas.draw(file, app);
+                                try flipbook.canvas.draw(file, app, editor);
                             }
                         }
                     }
                 }
                 imgui.endChild();
 
-                if (app.project_folder != null or app.open_files.items.len > 0) {
+                if (editor.project_folder != null or editor.open_files.items.len > 0) {
                     imgui.pushStyleColorImVec4(imgui.Col_ChildBg, Pixi.editor.theme.highlight_primary.toImguiVec4());
                     defer imgui.popStyleColor();
                     if (imgui.beginChild("InfoBar", .{ .x = -1.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-                        infobar.draw(app, core);
+                        infobar.draw(app, core, editor);
                     }
                     imgui.endChild();
                 }
@@ -311,7 +311,7 @@ pub fn drawLogoScreen(app: *Pixi, editor: *Editor) !void {
         }
         if (editor.popups.file_dialog_response) |response| {
             if (response.type == .project) {
-                try Editor.setProjectFolder(response.path);
+                try editor.setProjectFolder(response.path);
                 nfd.freePath(response.path);
                 editor.popups.file_dialog_response = null;
             }
@@ -329,7 +329,7 @@ pub fn drawGrip(window_width: f32, app: *Pixi, editor: *Editor) void {
     var color = editor.theme.text_background.toImguiVec4();
 
     _ = imgui.invisibleButton("ArtboardGripButton", .{
-        .x = app.settings.explorer_grip,
+        .x = editor.settings.explorer_grip,
         .y = -1.0,
     }, imgui.ButtonFlags_None);
 
@@ -342,7 +342,7 @@ pub fn drawGrip(window_width: f32, app: *Pixi, editor: *Editor) void {
         color = editor.theme.text.toImguiVec4();
 
         if (imgui.isMouseDoubleClicked(imgui.MouseButton_Left)) {
-            app.settings.split_artboard = !app.settings.split_artboard;
+            editor.settings.split_artboard = !editor.settings.split_artboard;
         }
     }
 
@@ -354,19 +354,19 @@ pub fn drawGrip(window_width: f32, app: *Pixi, editor: *Editor) void {
         const diff = (cur[0] - prev[0]) / window_width;
 
         imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
-        app.settings.split_artboard_ratio = std.math.clamp(
-            app.settings.split_artboard_ratio + diff,
+        editor.settings.split_artboard_ratio = std.math.clamp(
+            editor.settings.split_artboard_ratio + diff,
             0.1,
             0.9,
         );
     }
 
     imgui.setCursorPosY(curs_y + avail / 2.0);
-    imgui.setCursorPosX(app.settings.explorer_grip / 2.0 - imgui.calcTextSize(Pixi.fa.grip_lines_vertical).x / 2.0);
+    imgui.setCursorPosX(editor.settings.explorer_grip / 2.0 - imgui.calcTextSize(Pixi.fa.grip_lines_vertical).x / 2.0);
     imgui.textColored(color, Pixi.fa.grip_lines_vertical);
 }
 
-pub fn drawCanvasPack(core: *Core, app: *Pixi) void {
+pub fn drawCanvasPack(core: *Core, app: *Pixi, editor: *Editor) void {
     var packed_textures_flags: imgui.TabBarFlags = 0;
     packed_textures_flags |= imgui.TabBarFlags_Reorderable;
 
@@ -379,7 +379,7 @@ pub fn drawCanvasPack(core: *Core, app: *Pixi) void {
             imgui.TabItemFlags_None,
         )) {
             defer imgui.endTabItem();
-            canvas_pack.draw(.diffusemap, app, core);
+            canvas_pack.draw(.diffusemap, app, core, editor);
         }
 
         if (imgui.beginTabItem(
@@ -388,7 +388,7 @@ pub fn drawCanvasPack(core: *Core, app: *Pixi) void {
             imgui.TabItemFlags_None,
         )) {
             defer imgui.endTabItem();
-            canvas_pack.draw(.heightmap, app, core);
+            canvas_pack.draw(.heightmap, app, core, editor);
         }
     }
 }

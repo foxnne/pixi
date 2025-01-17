@@ -34,32 +34,14 @@ window: mach.ObjectID,
 
 allocator: std.mem.Allocator = undefined,
 arena_allocator: std.heap.ArenaAllocator = undefined,
-
-settings: Settings = undefined,
-hotkeys: input.Hotkeys = undefined,
 mouse: input.Mouse = undefined,
-sidebar: Sidebar = .files,
-project_folder: ?[:0]const u8 = null,
 root_path: [:0]const u8 = undefined,
-recents: Recents = undefined,
-previous_atlas_export: ?[:0]const u8 = null,
-open_files: std.ArrayList(storage.Internal.PixiFile) = undefined,
-open_references: std.ArrayList(storage.Internal.Reference) = undefined,
-open_file_index: usize = 0,
-open_reference_index: usize = 0,
-packer: Packer = undefined,
-atlas: storage.Internal.Atlas = .{},
-tools: Tools = .{},
-fonts: Fonts = .{},
-colors: Colors = .{},
 delta_time: f32 = 0.0,
 total_time: f32 = 0.0,
-selection_time: f32 = 0.0,
-selection_invert: bool = false,
 loaded_assets: LoadedAssets = undefined,
-clipboard_image: ?zstbi.Image = null,
-clipboard_position: [2]u32 = .{ 0, 0 },
+fonts: Fonts = .{},
 batcher: gfx.Batcher = undefined,
+packer: Packer = undefined,
 pipeline_default: *gpu.RenderPipeline = undefined,
 pipeline_compute: *gpu.ComputePipeline = undefined,
 uniform_buffer_default: *gpu.Buffer = undefined,
@@ -92,11 +74,6 @@ test {
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
-pub const Colors = @import("Colors.zig");
-pub const Recents = @import("Recents.zig");
-pub const Tools = @import("Tools.zig");
-pub const Settings = @import("Settings.zig");
-
 pub const LoadedAssets = struct {
     atlas_png: gfx.Texture,
     atlas: gfx.Atlas,
@@ -112,16 +89,6 @@ pub const LoadedAssets = struct {
         self.atlas_png.deinit();
         self.atlas.deinit(allocator);
     }
-};
-
-pub const Sidebar = enum(u32) {
-    files,
-    tools,
-    sprites,
-    animations,
-    keyframe_animations,
-    pack,
-    settings,
 };
 
 pub const Fonts = struct {
@@ -156,6 +123,7 @@ pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor, 
         .root_path = try allocator.dupeZ(u8, path),
     };
 
+    app.arena_allocator = std.heap.ArenaAllocator.init(app.allocator);
     editor_mod.call(.init);
 }
 
@@ -164,23 +132,12 @@ pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor, 
 pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     const window = core.windows.getValue(app.window);
 
-    app.arena_allocator = std.heap.ArenaAllocator.init(app.allocator);
-    app.settings = try Settings.init(app.arena_allocator.allocator());
-
     zstbi.init(app.allocator);
-
-    app.open_files = std.ArrayList(storage.Internal.PixiFile).init(app.allocator);
-    app.open_references = std.ArrayList(storage.Internal.Reference).init(app.allocator);
-
-    app.colors.keyframe_palette = try storage.Internal.Palette.loadFromFile(assets.pear36_hex.path);
-
-    app.hotkeys = try input.Hotkeys.initDefault(app.allocator);
 
     app.loaded_assets = try LoadedAssets.init(app.allocator);
     app.mouse = try input.Mouse.initDefault(app.allocator);
 
     app.packer = try Packer.init(app.allocator);
-    app.recents = try Recents.init(app.allocator);
 
     app.batcher = try gfx.Batcher.init(app.allocator, 1000);
 
@@ -220,7 +177,7 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     cozette_config.rasterizer_density = 1.0;
     cozette_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
 
-    _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", app.settings.font_size * scale_factor, &cozette_config, null);
+    _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", editor.settings.font_size * scale_factor, &cozette_config, null);
 
     var fa_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     fa_config.merge_mode = true;
@@ -233,8 +190,8 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", app.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", app.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
 
     // Initialize the editor which loads our theme
     editor_mod.call(.lateInit);
@@ -243,7 +200,7 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
 pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     if (editor.popups.file_dialog_request) |request| {
         defer editor.popups.file_dialog_request = null;
-        const initial = if (request.initial) |initial| initial else app.project_folder;
+        const initial = if (request.initial) |initial| initial else editor.project_folder;
 
         if (switch (request.state) {
             .file => try nfd.openFileDialog(request.filter, initial),
@@ -264,13 +221,13 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                 app_mod.call(.lateInit);
             },
             .key_press => |key_press| {
-                app.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
+                editor.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
             },
             .key_repeat => |key_repeat| {
-                app.hotkeys.setHotkeyState(key_repeat.key, key_repeat.mods, .repeat);
+                editor.hotkeys.setHotkeyState(key_repeat.key, key_repeat.mods, .repeat);
             },
             .key_release => |key_release| {
-                app.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
+                editor.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
             },
             .mouse_scroll => |mouse_scroll| {
                 if (!editor.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
@@ -292,7 +249,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
             },
             .close => {
                 var should_close = true;
-                for (app.open_files.items) |file| {
+                for (editor.open_files.items) |file| {
                     if (file.dirty()) {
                         should_close = false;
                     }
@@ -392,7 +349,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
 
     // Accept transformations
     {
-        for (app.open_files.items) |*file| {
+        for (editor.open_files.items) |*file| {
             if (file.transform_texture) |*transform_texture| {
                 if (transform_texture.confirm) {
                     // Blit temp layer to selected layer
@@ -453,7 +410,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
         }
     }
 
-    for (app.hotkeys.hotkeys) |*hotkey| {
+    for (editor.hotkeys.hotkeys) |*hotkey| {
         hotkey.previous_state = hotkey.state;
     }
 
@@ -463,53 +420,22 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
 
     app.mouse.previous_position = app.mouse.position;
 
-    if (app.should_close and !Editor.saving()) {
+    if (app.should_close and !editor.saving()) {
         // Close!
         core.exit();
     }
 }
 
 pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
-    //deinit and save settings
-    app.settings.save(app.arena_allocator.allocator());
-    app.settings.deinit(app.arena_allocator.allocator());
+    editor_mod.call(.deinit);
 
-    app.allocator.free(editor.theme.name);
-
-    app.allocator.free(app.hotkeys.hotkeys);
-    app.allocator.free(app.mouse.buttons);
     app.packer.deinit();
-    app.recents.deinit();
 
     app.batcher.deinit();
     app.pipeline_default.release();
+    app.pipeline_compute.release();
     app.uniform_buffer_default.release();
 
-    app.pipeline_compute.release();
-
-    if (app.atlas.external) |*atlas| {
-        for (atlas.sprites) |sprite| {
-            app.allocator.free(sprite.name);
-        }
-
-        for (atlas.animations) |animation| {
-            app.allocator.free(animation.name);
-        }
-
-        app.allocator.free(atlas.sprites);
-        app.allocator.free(atlas.animations);
-    }
-    if (app.previous_atlas_export) |path| {
-        app.allocator.free(path);
-    }
-    if (app.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
-    if (app.atlas.heightmap) |*heightmap| heightmap.deinit();
-    if (app.colors.palette) |*palette| palette.deinit();
-    if (app.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();
-
-    if (app.clipboard_image) |*image| image.deinit();
-
-    editor_mod.call(.deinit);
     app.loaded_assets.deinit(app.allocator);
 
     imgui_mach.shutdown();

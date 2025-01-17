@@ -1,17 +1,20 @@
 const std = @import("std");
+
 const Pixi = @import("../../../Pixi.zig");
-const core = @import("mach").core;
+const Core = @import("mach").Core;
+const Editor = Pixi.Editor;
+
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
 const History = Pixi.storage.Internal.PixiFile.History;
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi) !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * app.content_scale[0], .y = 10.0 * app.content_scale[1] });
+pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi, editor: *Editor) !void {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
     defer imgui.popStyleVar();
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, Pixi.editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_PopupBg, editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColorEx(3);
     if (imgui.beginMenuBar()) {
         defer imgui.endMenuBar();
@@ -105,8 +108,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi)
                     };
                 }
 
-                imgui.pushStyleColorImVec4(imgui.Col_FrameBgHovered, Pixi.editor.theme.background.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_FrameBg, Pixi.editor.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_FrameBgHovered, editor.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_FrameBg, editor.theme.background.toImguiVec4());
                 defer imgui.popStyleColorEx(2);
 
                 const animation = &file.keyframe_animations.slice().get(file.selected_keyframe_animation_index);
@@ -135,7 +138,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi)
             // Draw horizontal grip with remaining menu space
             const cursor_x = imgui.getCursorPosX();
             const avail = imgui.getContentRegionAvail();
-            var color = Pixi.editor.theme.text_background.toImguiVec4();
+            var color = editor.theme.text_background.toImguiVec4();
 
             _ = imgui.invisibleButton("FlipbookGrip", .{
                 .x = -1.0,
@@ -144,13 +147,13 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi)
 
             if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
                 imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
-                color = Pixi.editor.theme.text.toImguiVec4();
+                color = editor.theme.text.toImguiVec4();
             }
 
             if (imgui.isItemActive()) {
-                color = Pixi.editor.theme.text.toImguiVec4();
+                color = editor.theme.text.toImguiVec4();
                 imgui.setMouseCursor(imgui.MouseCursor_ResizeNS);
-                app.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
+                editor.settings.flipbook_height = std.math.clamp(1.0 - mouse_ratio, 0.25, 0.85);
             }
 
             imgui.setCursorPosX(cursor_x + (avail.x / 2.0));

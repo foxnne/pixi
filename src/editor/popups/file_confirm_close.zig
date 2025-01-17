@@ -42,7 +42,7 @@ pub fn draw() !void {
 
         switch (Pixi.editor.popups.file_confirm_close_state) {
             .one => {
-                if (Pixi.Editor.getFile(Pixi.editor.popups.file_confirm_close_index)) |file| {
+                if (Pixi.editor.getFile(Pixi.editor.popups.file_confirm_close_index)) |file| {
                     const base_name = std.fs.path.basename(file.path);
                     const file_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "The file {s} has unsaved changes, are you sure you want to close?", .{base_name});
                     defer Pixi.app.allocator.free(file_name);
@@ -59,7 +59,7 @@ pub fn draw() !void {
                     imgui.WindowFlags_None,
                 )) {
                     defer imgui.endChild();
-                    for (Pixi.app.open_files.items) |file| {
+                    for (Pixi.editor.open_files.items) |file| {
                         const base_name = std.fs.path.basename(file.path);
 
                         const base_name_z = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{base_name});
@@ -86,13 +86,13 @@ pub fn draw() !void {
         if (imgui.buttonEx(if (Pixi.editor.popups.file_confirm_close_state == .one) "Close" else "Close All", .{ .x = third_width, .y = 0.0 })) {
             switch (Pixi.editor.popups.file_confirm_close_state) {
                 .one => {
-                    try Pixi.Editor.forceCloseFile(Pixi.editor.popups.file_confirm_close_index);
+                    try Pixi.editor.forceCloseFile(Pixi.editor.popups.file_confirm_close_index);
                 },
                 .all => {
-                    const len = Pixi.app.open_files.items.len;
+                    const len = Pixi.editor.open_files.items.len;
                     var i: usize = 0;
                     while (i < len) : (i += 1) {
-                        try Pixi.Editor.forceCloseFile(0);
+                        try Pixi.editor.forceCloseFile(0);
                     }
                 },
                 else => unreachable,
@@ -103,14 +103,14 @@ pub fn draw() !void {
         if (imgui.buttonEx(if (Pixi.editor.popups.file_confirm_close_state == .one) "Save & Close" else "Save & Close All", .{ .x = third_width, .y = 0.0 })) {
             switch (Pixi.editor.popups.file_confirm_close_state) {
                 .one => {
-                    if (Pixi.Editor.getFile(Pixi.editor.popups.file_confirm_close_index)) |file| {
+                    if (Pixi.editor.getFile(Pixi.editor.popups.file_confirm_close_index)) |file| {
                         _ = try file.save();
                     }
-                    try Pixi.Editor.closeFile(Pixi.editor.popups.file_confirm_close_index);
+                    try Pixi.editor.closeFile(Pixi.editor.popups.file_confirm_close_index);
                 },
                 .all => {
-                    try Pixi.Editor.saveAllFiles();
-                    try Pixi.Editor.forceCloseAllFiles();
+                    try Pixi.editor.saveAllFiles();
+                    try Pixi.editor.forceCloseAllFiles();
                 },
                 else => unreachable,
             }

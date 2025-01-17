@@ -1,5 +1,5 @@
 const std = @import("std");
-const Pixi = @import("Pixi.zig");
+const Pixi = @import("../Pixi.zig");
 
 const Recents = @This();
 
@@ -62,7 +62,7 @@ pub fn appendFolder(recents: *Recents, path: [:0]const u8) !void {
         const folder = recents.folders.swapRemove(index);
         try recents.folders.append(folder);
     } else {
-        if (recents.folders.items.len >= Pixi.app.settings.max_recents) {
+        if (recents.folders.items.len >= Pixi.editor.settings.max_recents) {
             const folder = recents.folders.swapRemove(0);
             Pixi.app.allocator.free(folder);
         }
@@ -76,7 +76,7 @@ pub fn appendExport(recents: *Recents, path: [:0]const u8) !void {
         const exp = recents.exports.swapRemove(index);
         try recents.exports.append(exp);
     } else {
-        if (recents.exports.items.len >= Pixi.app.settings.max_recents) {
+        if (recents.exports.items.len >= Pixi.editor.settings.max_recents) {
             const exp = recents.folders.swapRemove(0);
             Pixi.app.allocator.free(exp);
         }

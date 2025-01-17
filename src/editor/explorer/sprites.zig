@@ -1,13 +1,15 @@
 const std = @import("std");
+
 const Pixi = @import("../../Pixi.zig");
-const core = @import("mach").core;
+const Editor = Pixi.Editor;
+
 const imgui = @import("zig-imgui");
 
-pub fn draw() !void {
-    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
-        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
+pub fn draw(editor: *Editor) !void {
+    if (editor.getFile(editor.open_file_index)) |file| {
+        imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.background.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
@@ -23,18 +25,18 @@ pub fn draw() !void {
 
             if (imgui.beginChild("Sprite", .{
                 .x = -1.0,
-                .y = Pixi.app.settings.sprite_edit_height,
+                .y = editor.settings.sprite_edit_height,
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
                 if (!selection) {
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
                     defer imgui.popStyleColor();
                     imgui.textWrapped("Make a selection to begin editing sprite origins.");
                 } else {
-                    imgui.pushStyleColorImVec4(imgui.Col_Button, Pixi.editor.theme.background.toImguiVec4());
-                    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
-                    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.foreground.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.background.toImguiVec4());
                     defer imgui.popStyleColorEx(3);
                     var x_same: bool = true;
                     var y_same: bool = true;
@@ -104,7 +106,7 @@ pub fn draw() !void {
                     const sprite = file.sprites.slice().get(sprite_index);
                     const selected_sprite_index = file.spriteSelectionIndex(sprite.index);
                     const contains = selected_sprite_index != null;
-                    const color = if (contains) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
+                    const color = if (contains) editor.theme.text.toImguiVec4() else editor.theme.text_secondary.toImguiVec4();
                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                     defer imgui.popStyleColor();
 
@@ -118,7 +120,7 @@ pub fn draw() !void {
             }
         }
     } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
         imgui.textWrapped("Open a file to begin editing.");
         imgui.popStyleColor();
     }

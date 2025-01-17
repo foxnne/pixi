@@ -1,9 +1,13 @@
 const std = @import("std");
-const zm = @import("zmath");
+
 const Pixi = @import("../Pixi.zig");
+const Editor = Pixi.Editor;
+
 const mach = @import("mach");
-const gpu = @import("mach").gpu;
+const gpu = mach.gpu;
+
 const imgui = @import("zig-imgui");
+const zm = @import("zmath");
 
 pub const Camera = struct {
     position: [2]f32 = .{ 0.0, 0.0 },
@@ -394,8 +398,8 @@ pub const Camera = struct {
 
     pub fn nearestZoomIndex(camera: Camera) usize {
         var nearest_zoom_index: usize = 0;
-        var nearest_zoom_step: f32 = Pixi.app.settings.zoom_steps[nearest_zoom_index];
-        for (Pixi.app.settings.zoom_steps, 0..) |step, i| {
+        var nearest_zoom_step: f32 = Pixi.editor.settings.zoom_steps[nearest_zoom_index];
+        for (Pixi.editor.settings.zoom_steps, 0..) |step, i| {
             const step_difference = @abs(camera.zoom - step);
             const current_difference = @abs(camera.zoom - nearest_zoom_step);
             if (step_difference < current_difference) {
@@ -407,21 +411,21 @@ pub const Camera = struct {
     }
 
     pub fn setNearestZoom(camera: *Camera) void {
-        camera.zoom = Pixi.app.settings.zoom_steps[camera.nearestZoomIndex()];
+        camera.zoom = Pixi.editor.settings.zoom_steps[camera.nearestZoomIndex()];
     }
 
     pub fn setNearestZoomFloor(camera: *Camera) void {
         var nearest_zoom_index = camera.nearestZoomIndex();
         if (nearest_zoom_index > 0)
             nearest_zoom_index -= 1;
-        camera.zoom = Pixi.app.settings.zoom_steps[nearest_zoom_index];
+        camera.zoom = Pixi.editor.settings.zoom_steps[nearest_zoom_index];
     }
 
     pub fn setNearZoomFloor(camera: *Camera) void {
         var nearest_zoom_index = camera.nearestZoomIndex();
         if (nearest_zoom_index > 3)
             nearest_zoom_index -= 4;
-        camera.zoom = Pixi.app.settings.zoom_steps[nearest_zoom_index];
+        camera.zoom = Pixi.editor.settings.zoom_steps[nearest_zoom_index];
     }
 
     pub fn isHovered(camera: Camera, rect: [4]f32) bool {
@@ -658,29 +662,29 @@ pub const Camera = struct {
     };
 
     pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
-        var zoom_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
-        if (Pixi.app.settings.input_scheme != .trackpad) zoom_key = true;
+        var zoom_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
+        if (Pixi.editor.settings.input_scheme != .trackpad) zoom_key = true;
         if (Pixi.app.mouse.magnify != null) zoom_key = true;
 
-        if (target == .packer and Pixi.app.atlas.diffusemap == null) return;
+        if (target == .packer and Pixi.editor.atlas.diffusemap == null) return;
 
         const canvas_center_offset = switch (target) {
-            .primary => Pixi.app.open_files.items[Pixi.app.open_file_index].canvasCenterOffset(.primary),
-            .flipbook => Pixi.app.open_files.items[Pixi.app.open_file_index].canvasCenterOffset(.flipbook),
-            .reference => Pixi.app.open_references.items[Pixi.app.open_reference_index].canvasCenterOffset(),
-            .packer => .{ -@as(f32, @floatFromInt(Pixi.app.atlas.diffusemap.?.image.width)) / 2.0, -@as(f32, @floatFromInt(Pixi.app.atlas.diffusemap.?.image.height)) / 2.0 },
+            .primary => Pixi.editor.open_files.items[Pixi.editor.open_file_index].canvasCenterOffset(.primary),
+            .flipbook => Pixi.editor.open_files.items[Pixi.editor.open_file_index].canvasCenterOffset(.flipbook),
+            .reference => Pixi.editor.open_references.items[Pixi.editor.open_reference_index].canvasCenterOffset(),
+            .packer => .{ -@as(f32, @floatFromInt(Pixi.editor.atlas.diffusemap.?.image.width)) / 2.0, -@as(f32, @floatFromInt(Pixi.editor.atlas.diffusemap.?.image.height)) / 2.0 },
         };
 
         const canvas_width = switch (target) {
-            .primary, .flipbook => Pixi.app.open_files.items[Pixi.app.open_file_index].width,
-            .reference => Pixi.app.open_references.items[Pixi.app.open_reference_index].texture.image.width,
-            .packer => Pixi.app.atlas.diffusemap.?.image.width,
+            .primary, .flipbook => Pixi.editor.open_files.items[Pixi.editor.open_file_index].width,
+            .reference => Pixi.editor.open_references.items[Pixi.editor.open_reference_index].texture.image.width,
+            .packer => Pixi.editor.atlas.diffusemap.?.image.width,
         };
 
         const canvas_height = switch (target) {
-            .primary, .flipbook => Pixi.app.open_files.items[Pixi.app.open_file_index].height,
-            .reference => Pixi.app.open_references.items[Pixi.app.open_reference_index].texture.image.height,
-            .packer => Pixi.app.atlas.diffusemap.?.image.height,
+            .primary, .flipbook => Pixi.editor.open_files.items[Pixi.editor.open_file_index].height,
+            .reference => Pixi.editor.open_references.items[Pixi.editor.open_reference_index].texture.image.height,
+            .packer => Pixi.editor.atlas.diffusemap.?.image.height,
         };
 
         const previous_zoom = camera.zoom;
@@ -696,8 +700,8 @@ pub const Camera = struct {
         if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
             camera.processZoomTooltip();
             if (Pixi.app.mouse.scroll_x) |x| {
-                if (!zoom_key and camera.zoom_timer >= Pixi.app.settings.zoom_time) {
-                    camera.position[0] -= x * Pixi.app.settings.pan_sensitivity * (1.0 / camera.zoom);
+                if (!zoom_key and camera.zoom_timer >= Pixi.editor.settings.zoom_time) {
+                    camera.position[0] -= x * Pixi.editor.settings.pan_sensitivity * (1.0 / camera.zoom);
                 }
                 Pixi.app.mouse.scroll_x = null;
             }
@@ -707,11 +711,11 @@ pub const Camera = struct {
                     camera.zoom_timer = 0.0;
                     camera.zoom_wait_timer = 0.0;
 
-                    switch (Pixi.app.settings.input_scheme) {
+                    switch (Pixi.editor.settings.input_scheme) {
                         .trackpad => {
                             const nearest_zoom_index = camera.nearestZoomIndex();
-                            const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(Pixi.app.settings.zoom_steps.len - 1));
-                            const sensitivity = Pixi.math.lerp(Pixi.app.settings.zoom_min_sensitivity, Pixi.app.settings.zoom_max_sensitivity, t) * (Pixi.app.settings.zoom_sensitivity / 100.0);
+                            const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(Pixi.editor.settings.zoom_steps.len - 1));
+                            const sensitivity = Pixi.math.lerp(Pixi.editor.settings.zoom_min_sensitivity, Pixi.editor.settings.zoom_max_sensitivity, t) * (Pixi.editor.settings.zoom_sensitivity / 100.0);
                             const zoom_delta = y * sensitivity;
 
                             camera.zoom += zoom_delta;
@@ -719,15 +723,15 @@ pub const Camera = struct {
                         .mouse => {
                             const nearest_zoom_index = camera.nearestZoomIndex();
                             const sign = std.math.sign(y);
-                            if (sign > 0.0 and nearest_zoom_index + 1 < Pixi.app.settings.zoom_steps.len - 1) {
-                                camera.zoom = Pixi.app.settings.zoom_steps[nearest_zoom_index + 1];
+                            if (sign > 0.0 and nearest_zoom_index + 1 < Pixi.editor.settings.zoom_steps.len - 1) {
+                                camera.zoom = Pixi.editor.settings.zoom_steps[nearest_zoom_index + 1];
                             } else if (sign < 0.0 and nearest_zoom_index >= 1) {
-                                camera.zoom = Pixi.app.settings.zoom_steps[nearest_zoom_index - 1];
+                                camera.zoom = Pixi.editor.settings.zoom_steps[nearest_zoom_index - 1];
                             }
                         },
                     }
-                } else if (camera.zoom_timer >= Pixi.app.settings.zoom_time) {
-                    camera.position[1] -= y * Pixi.app.settings.pan_sensitivity * (1.0 / camera.zoom);
+                } else if (camera.zoom_timer >= Pixi.editor.settings.zoom_time) {
+                    camera.position[1] -= y * Pixi.editor.settings.pan_sensitivity * (1.0 / camera.zoom);
                 }
                 Pixi.app.mouse.scroll_y = null;
             }
@@ -737,8 +741,8 @@ pub const Camera = struct {
                 camera.zoom_wait_timer = 0.0;
 
                 const nearest_zoom_index = camera.nearestZoomIndex();
-                const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(Pixi.app.settings.zoom_steps.len - 1));
-                const sensitivity = Pixi.math.lerp(Pixi.app.settings.zoom_min_sensitivity, Pixi.app.settings.zoom_max_sensitivity, t) * (Pixi.app.settings.zoom_sensitivity / 100.0);
+                const t = @as(f32, @floatFromInt(nearest_zoom_index)) / @as(f32, @floatFromInt(Pixi.editor.settings.zoom_steps.len - 1));
+                const sensitivity = Pixi.math.lerp(Pixi.editor.settings.zoom_min_sensitivity, Pixi.editor.settings.zoom_max_sensitivity, t) * (Pixi.editor.settings.zoom_sensitivity / 100.0);
                 const zoom_delta = magnification * 60 * sensitivity;
 
                 camera.zoom += zoom_delta;
@@ -755,33 +759,33 @@ pub const Camera = struct {
             }
         }
 
-        camera.zoom_wait_timer = @min(camera.zoom_wait_timer + Pixi.app.delta_time, Pixi.app.settings.zoom_wait_time);
+        camera.zoom_wait_timer = @min(camera.zoom_wait_timer + Pixi.app.delta_time, Pixi.editor.settings.zoom_wait_time);
 
         // Round to nearest pixel perfect zoom step when zoom key is released
-        switch (Pixi.app.settings.input_scheme) {
+        switch (Pixi.editor.settings.input_scheme) {
             .trackpad => {
-                if (!zoom_key and camera.zoom_wait_timer >= Pixi.app.settings.zoom_wait_time) {
-                    camera.zoom_timer = @min(camera.zoom_timer + Pixi.app.delta_time, Pixi.app.settings.zoom_time);
+                if (!zoom_key and camera.zoom_wait_timer >= Pixi.editor.settings.zoom_wait_time) {
+                    camera.zoom_timer = @min(camera.zoom_timer + Pixi.app.delta_time, Pixi.editor.settings.zoom_time);
                 }
             },
             .mouse => {
-                if (Pixi.app.mouse.scroll_x == null and Pixi.app.mouse.scroll_y == null and camera.zoom_wait_timer >= Pixi.app.settings.zoom_wait_time) {
-                    camera.zoom_timer = @min(camera.zoom_timer + Pixi.app.delta_time, Pixi.app.settings.zoom_time);
+                if (Pixi.app.mouse.scroll_x == null and Pixi.app.mouse.scroll_y == null and camera.zoom_wait_timer >= Pixi.editor.settings.zoom_wait_time) {
+                    camera.zoom_timer = @min(camera.zoom_timer + Pixi.app.delta_time, Pixi.editor.settings.zoom_time);
                 }
             },
         }
 
         const nearest_zoom_index = camera.nearestZoomIndex();
-        if (camera.zoom_timer < Pixi.app.settings.zoom_time) {
-            camera.zoom = Pixi.math.lerp(camera.zoom, Pixi.app.settings.zoom_steps[nearest_zoom_index], camera.zoom_timer / Pixi.app.settings.zoom_time);
+        if (camera.zoom_timer < Pixi.editor.settings.zoom_time) {
+            camera.zoom = Pixi.math.lerp(camera.zoom, Pixi.editor.settings.zoom_steps[nearest_zoom_index], camera.zoom_timer / Pixi.editor.settings.zoom_time);
         } else {
-            camera.zoom = Pixi.app.settings.zoom_steps[nearest_zoom_index];
+            camera.zoom = Pixi.editor.settings.zoom_steps[nearest_zoom_index];
         }
 
         switch (target) {
             .primary, .reference, .packer => {
                 // Lock camera from zooming in or out too far for the flipbook
-                camera.zoom = std.math.clamp(camera.zoom, camera.min_zoom, Pixi.app.settings.zoom_steps[Pixi.app.settings.zoom_steps.len - 1]);
+                camera.zoom = std.math.clamp(camera.zoom, camera.min_zoom, Pixi.editor.settings.zoom_steps[Pixi.editor.settings.zoom_steps.len - 1]);
 
                 // Lock camera from moving too far away from canvas
                 camera.position[0] = std.math.clamp(
@@ -796,16 +800,16 @@ pub const Camera = struct {
                 );
             },
             .flipbook => {
-                var file = &Pixi.app.open_files.items[Pixi.app.open_file_index];
+                var file = &Pixi.editor.open_files.items[Pixi.editor.open_file_index];
 
                 const tile_width = @as(f32, @floatFromInt(file.tile_width));
                 const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
                 // Lock camera from zooming in or out too far for the flipbook
-                camera.zoom = std.math.clamp(camera.zoom, camera.min_zoom, Pixi.app.settings.zoom_steps[Pixi.app.settings.zoom_steps.len - 1]);
+                camera.zoom = std.math.clamp(camera.zoom, camera.min_zoom, Pixi.editor.settings.zoom_steps[Pixi.editor.settings.zoom_steps.len - 1]);
 
-                const view_width: f32 = if (Pixi.app.settings.flipbook_view == .grid) tile_width * 3.0 else tile_width;
-                const view_height: f32 = if (Pixi.app.settings.flipbook_view == .grid) tile_height * 3.0 else tile_height;
+                const view_width: f32 = if (Pixi.editor.settings.flipbook_view == .grid) tile_width * 3.0 else tile_width;
+                const view_height: f32 = if (Pixi.editor.settings.flipbook_view == .grid) tile_height * 3.0 else tile_height;
 
                 // Lock camera from moving too far away from canvas
                 const min_position: [2]f32 = .{ -(canvas_center_offset[0] + view_width) - view_width / 2.0, -(canvas_center_offset[1] + view_height) };
@@ -853,7 +857,7 @@ pub const Camera = struct {
         _ = camera;
         if (imgui.beginTooltip()) {
             defer imgui.endTooltip();
-            const layer_name = Pixi.app.open_files.items[Pixi.app.open_file_index].layers.items(.name)[layer_index];
+            const layer_name = Pixi.editor.open_files.items[Pixi.editor.open_file_index].layers.items(.name)[layer_index];
             const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s} {s}", .{ Pixi.fa.layer_group, layer_name });
             defer Pixi.app.allocator.free(label);
             imgui.text(label);
@@ -889,8 +893,8 @@ pub const Camera = struct {
                 .w = @as(f32, @floatFromInt(color[3])) / 255.0,
             };
             _ = imgui.colorButtonEx("Eyedropper", col, imgui.ColorEditFlags_None, .{
-                .x = Pixi.app.settings.eyedropper_preview_size * Pixi.app.content_scale[0],
-                .y = Pixi.app.settings.eyedropper_preview_size * Pixi.app.content_scale[1],
+                .x = Pixi.editor.settings.eyedropper_preview_size * Pixi.app.content_scale[0],
+                .y = Pixi.editor.settings.eyedropper_preview_size * Pixi.app.content_scale[1],
             });
             imgui.text("R: %d", color[0]);
             imgui.text("G: %d", color[1]);
@@ -900,18 +904,18 @@ pub const Camera = struct {
     }
 
     pub fn processZoomTooltip(camera: *Camera) void {
-        const zoom_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
+        const zoom_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
         const zooming = (Pixi.app.mouse.scroll_y != null and zoom_key) or Pixi.app.mouse.magnify != null;
 
         // Draw current zoom tooltip
-        if (camera.zoom_tooltip_timer < Pixi.app.settings.zoom_tooltip_time) {
-            camera.zoom_tooltip_timer = @min(camera.zoom_tooltip_timer + Pixi.app.delta_time, Pixi.app.settings.zoom_tooltip_time);
+        if (camera.zoom_tooltip_timer < Pixi.editor.settings.zoom_tooltip_time) {
+            camera.zoom_tooltip_timer = @min(camera.zoom_tooltip_timer + Pixi.app.delta_time, Pixi.editor.settings.zoom_tooltip_time);
             camera.drawZoomTooltip(camera.zoom);
-        } else if (zooming and Pixi.app.settings.input_scheme == .trackpad) {
+        } else if (zooming and Pixi.editor.settings.input_scheme == .trackpad) {
             camera.zoom_tooltip_timer = 0.0;
             camera.drawZoomTooltip(camera.zoom);
-        } else if (!zoom_key and Pixi.app.settings.input_scheme == .mouse) {
-            if (camera.zoom_wait_timer < Pixi.app.settings.zoom_wait_time) {
+        } else if (!zoom_key and Pixi.editor.settings.input_scheme == .mouse) {
+            if (camera.zoom_wait_timer < Pixi.editor.settings.zoom_wait_time) {
                 camera.zoom_tooltip_timer = 0.0;
                 camera.drawZoomTooltip(camera.zoom);
             }

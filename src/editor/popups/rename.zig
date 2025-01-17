@@ -6,7 +6,7 @@ const imgui = @import("zig-imgui");
 const Popups = @import("Popups.zig");
 const Editor = Pixi.Editor;
 
-pub fn draw(popups: *Popups, app: *Pixi) !void {
+pub fn draw(popups: *Popups, app: *Pixi, editor: *Editor) !void {
     const dialog_name = switch (popups.rename_state) {
         .none => "None...",
         .rename => "Rename...",
@@ -76,7 +76,7 @@ pub fn draw(popups: *Popups, app: *Pixi) !void {
                     try std.fs.renameAbsolute(old_path[0..], new_path[0..]);
 
                     const old_path_z = popups.rename_old_path[0..old_path.len :0];
-                    for (app.open_files.items) |*open_file| {
+                    for (editor.open_files.items) |*open_file| {
                         if (std.mem.eql(u8, open_file.path, old_path_z)) {
                             app.allocator.free(open_file.path);
                             open_file.path = try app.allocator.dupeZ(u8, new_path);

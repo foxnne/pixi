@@ -1,5 +1,5 @@
 const builtin = @import("builtin");
-const Pixi = @import("Pixi.zig");
+const Pixi = @import("../Pixi.zig");
 const std = @import("std");
 
 const Settings = @This();

@@ -1,11 +1,14 @@
 const std = @import("std");
+
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
+const Editor = Pixi.Editor;
+
 const imgui = @import("zig-imgui");
 
 const spacer: [:0]const u8 = "    ";
 
-pub fn draw(app: *Pixi, _: *Core) void {
+pub fn draw(app: *Pixi, _: *Core, editor: *Editor) void {
     imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColor();
 
@@ -15,9 +18,9 @@ pub fn draw(app: *Pixi, _: *Core) void {
     imgui.setCursorPosY(y);
     imgui.setCursorPosX(5.0 * app.content_scale[0]);
 
-    if (app.project_folder) |path| {
+    if (editor.project_folder) |path| {
         imgui.setCursorPosY(y + 2.0 * app.content_scale[1]);
-        imgui.textColored(Pixi.editor.theme.foreground.toImguiVec4(), Pixi.fa.folder_open);
+        imgui.textColored(editor.theme.foreground.toImguiVec4(), Pixi.fa.folder_open);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text(path);
@@ -27,9 +30,9 @@ pub fn draw(app: *Pixi, _: *Core) void {
         imgui.sameLine();
     }
 
-    if (Pixi.Editor.getFile(app.open_file_index)) |file| {
+    if (editor.getFile(editor.open_file_index)) |file| {
         imgui.setCursorPosY(y + spacing);
-        imgui.textColored(Pixi.editor.theme.foreground.toImguiVec4(), Pixi.fa.chess_board);
+        imgui.textColored(editor.theme.foreground.toImguiVec4(), Pixi.fa.chess_board);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text("%dpx by %dpx", file.width, file.height);
@@ -39,7 +42,7 @@ pub fn draw(app: *Pixi, _: *Core) void {
         imgui.sameLine();
 
         imgui.setCursorPosY(y + spacing);
-        imgui.textColored(Pixi.editor.theme.foreground.toImguiVec4(), Pixi.fa.border_all);
+        imgui.textColored(editor.theme.foreground.toImguiVec4(), Pixi.fa.border_all);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text("%dpx by %dpx", file.tile_width, file.tile_height);
@@ -49,9 +52,9 @@ pub fn draw(app: *Pixi, _: *Core) void {
         imgui.sameLine();
     }
 
-    if (Pixi.Editor.saving()) {
+    if (editor.saving()) {
         imgui.setCursorPosY(y + spacing);
-        imgui.textColored(Pixi.editor.theme.foreground.toImguiVec4(), Pixi.fa.save);
+        imgui.textColored(editor.theme.foreground.toImguiVec4(), Pixi.fa.save);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text("Saving!...");

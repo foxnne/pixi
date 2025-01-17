@@ -27,7 +27,7 @@ pub const UniformBufferObject = struct {
     mvp: zm.Mat,
 };
 
-pub fn init(state: *Pixi) !void {
+pub fn init(app: *Pixi) !void {
     const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
 
     const default_shader = @embedFile("../shaders/default.wgsl");
@@ -88,9 +88,9 @@ pub fn init(state: *Pixi) !void {
         .vertex = default_vertex,
     };
 
-    state.pipeline_default = device.createRenderPipeline(&default_pipeline_descriptor);
+    app.pipeline_default = device.createRenderPipeline(&default_pipeline_descriptor);
 
-    state.uniform_buffer_default = device.createBuffer(&.{
+    app.uniform_buffer_default = device.createBuffer(&.{
         .usage = .{ .copy_dst = true, .uniform = true },
         .size = @sizeOf(UniformBufferObject),
         .mapped_at_creation = .false,
@@ -103,5 +103,5 @@ pub fn init(state: *Pixi) !void {
         },
     };
 
-    state.pipeline_compute = device.createComputePipeline(&compute_pipeline_descriptor);
+    app.pipeline_compute = device.createComputePipeline(&compute_pipeline_descriptor);
 }

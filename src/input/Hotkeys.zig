@@ -1,10 +1,13 @@
 const std = @import("std");
+
+const Pixi = @import("../Pixi.zig");
+const Core = @import("mach").Core;
+const Editor = Pixi.Editor;
+
 const zm = @import("zmath");
 const math = @import("../math/math.zig");
-const Pixi = @import("../Pixi.zig");
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
-const Core = @import("mach").Core;
 
 const Key = Core.Key;
 const Mods = Core.KeyMods;
@@ -13,8 +16,8 @@ const builtin = @import("builtin");
 
 const Self = @This();
 
-pub const Tool = Pixi.Tools.Tool;
-pub const Sidebar = Pixi.Sidebar;
+pub const Tool = Pixi.Editor.Tools.Tool;
+pub const Pane = Pixi.Editor.Explorer.Pane;
 
 pub const KeyState = enum {
     press,
@@ -62,7 +65,7 @@ pub const Proc = enum(u32) {
 
 pub const Action = union(enum) {
     tool: Tool,
-    sidebar: Sidebar,
+    sidebar: Pane,
     proc: Proc,
 };
 
@@ -140,12 +143,12 @@ pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
     }
 }
 
-pub fn process(self: *Self) !void {
+pub fn process(self: *Self, editor: *Editor) !void {
     if (self.disable) {
         return;
     }
 
-    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
+    if (editor.getFile(editor.open_file_index)) |file| {
         if (file.transform_texture != null) return;
 
         if (self.hotkey(.{ .proc = .escape })) |hk| {
@@ -179,10 +182,10 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .size_up })) |hk| {
             if (hk.pressed()) {
-                switch (Pixi.app.tools.current) {
+                switch (editor.tools.current) {
                     .pencil, .eraser, .selection => {
-                        if (Pixi.app.tools.stroke_size < Pixi.app.settings.stroke_max_size)
-                            Pixi.app.tools.stroke_size += 1;
+                        if (editor.tools.stroke_size < editor.settings.stroke_max_size)
+                            editor.tools.stroke_size += 1;
                     },
                     else => {},
                 }
@@ -191,10 +194,10 @@ pub fn process(self: *Self) !void {
 
         if (self.hotkey(.{ .proc = .size_down })) |hk| {
             if (hk.pressed()) {
-                switch (Pixi.app.tools.current) {
+                switch (editor.tools.current) {
                     .pencil, .eraser, .selection => {
-                        if (Pixi.app.tools.stroke_size > 1)
-                            Pixi.app.tools.stroke_size -= 1;
+                        if (editor.tools.stroke_size > 1)
+                            editor.tools.stroke_size -= 1;
                     },
                     else => {},
                 }
@@ -204,8 +207,8 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .height_up })) |hk| {
             if (hk.pressed()) {
                 if (file.heightmap.visible) {
-                    if (Pixi.app.colors.height < 255)
-                        Pixi.app.colors.height += 1;
+                    if (editor.colors.height < 255)
+                        editor.colors.height += 1;
                 }
             }
         }
@@ -213,8 +216,8 @@ pub fn process(self: *Self) !void {
         if (self.hotkey(.{ .proc = .height_down })) |hk| {
             if (hk.pressed()) {
                 if (file.heightmap.visible) {
-                    if (Pixi.app.colors.height > 0)
-                        Pixi.app.colors.height -= 1;
+                    if (editor.colors.height > 0)
+                        editor.colors.height -= 1;
                 }
             }
         }
@@ -340,7 +343,7 @@ pub fn process(self: *Self) !void {
 
     if (self.hotkey(.{ .proc = .folder })) |hk| {
         if (hk.pressed()) {
-            Pixi.editor.popups.file_dialog_request = .{
+            editor.popups.file_dialog_request = .{
                 .state = .folder,
                 .type = .project,
             };
@@ -349,16 +352,16 @@ pub fn process(self: *Self) !void {
 
     if (self.hotkey(.{ .proc = .toggle_references })) |hk| {
         if (hk.pressed()) {
-            Pixi.editor.popups.references = !Pixi.editor.popups.references;
+            editor.popups.references = !editor.popups.references;
         }
     }
 
     for (self.hotkeys) |hk| {
         if (hk.pressed()) {
             switch (hk.action) {
-                .tool => |tool| Pixi.app.tools.set(tool),
+                .tool => |tool| editor.tools.set(tool),
                 .sidebar => |sidebar| {
-                    Pixi.app.sidebar = sidebar;
+                    editor.explorer.pane = sidebar;
                 },
                 else => {},
             }
@@ -477,10 +480,10 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Zoom
         try hotkeys.append(.{
-            .key = if (windows_or_linux or Pixi.app.settings.zoom_ctrl) Key.left_control else Key.left_super,
+            .key = if (windows_or_linux or Pixi.editor.settings.zoom_ctrl) Key.left_control else Key.left_super,
             .mods = .{
-                .control = windows_or_linux or Pixi.app.settings.zoom_ctrl,
-                .super = !windows_or_linux and !Pixi.app.settings.zoom_ctrl,
+                .control = windows_or_linux or Pixi.editor.settings.zoom_ctrl,
+                .super = !windows_or_linux and !Pixi.editor.settings.zoom_ctrl,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,
@@ -838,14 +841,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "f",
             .key = Key.f,
-            .action = .{ .sidebar = Sidebar.files },
+            .action = .{ .sidebar = Pane.files },
         });
 
         // Tools
         try hotkeys.append(.{
             .shortcut = "t",
             .key = Key.t,
-            .action = .{ .sidebar = Sidebar.tools },
+            .action = .{ .sidebar = Pane.tools },
         });
 
         // Sprites
@@ -859,14 +862,14 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .shortcut = "a",
             .key = Key.a,
-            .action = .{ .sidebar = Sidebar.animations },
+            .action = .{ .sidebar = Pane.animations },
         });
 
         // Pack
         try hotkeys.append(.{
             .shortcut = "p",
             .key = Key.p,
-            .action = .{ .sidebar = Sidebar.pack },
+            .action = .{ .sidebar = Pane.pack },
         });
     }
 

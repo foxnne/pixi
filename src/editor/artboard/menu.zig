@@ -21,7 +21,7 @@ pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
         defer imgui.endMenuBar();
         if (imgui.beginMenu("File")) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
-            if (imgui.menuItemEx("Open Folder...", if (app.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "", false, true)) {
+            if (imgui.menuItemEx("Open Folder...", if (editor.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "", false, true)) {
                 editor.popups.file_dialog_request = .{
                     .state = .folder,
                     .type = .project,
@@ -29,7 +29,7 @@ pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
             }
             if (editor.popups.file_dialog_response) |response| {
                 if (response.type == .project) {
-                    try Editor.setProjectFolder(response.path);
+                    try editor.setProjectFolder(response.path);
                     nfd.freePath(response.path);
                     editor.popups.file_dialog_response = null;
                 }
@@ -38,20 +38,20 @@ pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
             if (imgui.beginMenu("Recents")) {
                 defer imgui.endMenu();
 
-                for (app.recents.folders.items) |folder| {
+                for (editor.recents.folders.items) |folder| {
                     if (imgui.menuItem(folder)) {
-                        try Editor.setProjectFolder(folder);
+                        try editor.setProjectFolder(folder);
                     }
                 }
             }
 
             imgui.separator();
 
-            const file = Editor.getFile(app.open_file_index);
+            const file = editor.getFile(editor.open_file_index);
 
             if (imgui.menuItemEx(
                 "Export as .png...",
-                if (app.hotkeys.hotkey(.{ .proc = .export_png })) |hotkey| hotkey.shortcut else "",
+                if (editor.hotkeys.hotkey(.{ .proc = .export_png })) |hotkey| hotkey.shortcut else "",
                 false,
                 file != null,
             )) {
@@ -60,7 +60,7 @@ pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
 
             if (imgui.menuItemEx(
                 "Save",
-                if (app.hotkeys.hotkey(.{ .proc = .save })) |hotkey| hotkey.shortcut else "",
+                if (editor.hotkeys.hotkey(.{ .proc = .save })) |hotkey| hotkey.shortcut else "",
                 false,
                 file != null and file.?.dirty(),
             )) {
@@ -78,14 +78,14 @@ pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
             defer imgui.popStyleColor();
 
-            if (imgui.menuItemEx("Split Artboard", null, app.settings.split_artboard, true)) {
-                app.settings.split_artboard = !app.settings.split_artboard;
+            if (imgui.menuItemEx("Split Artboard", null, editor.settings.split_artboard, true)) {
+                editor.settings.split_artboard = !editor.settings.split_artboard;
             }
 
             if (imgui.beginMenu("Flipbook")) {
                 defer imgui.endMenu();
 
-                if (Editor.getFile(app.open_file_index)) |file| {
+                if (editor.getFile(editor.open_file_index)) |file| {
                     if (imgui.beginCombo("Flipbook View", switch (file.flipbook_view) {
                         .canvas => "Canvas",
                         .timeline => "Timeline",
@@ -104,12 +104,12 @@ pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
                     if (file.flipbook_view == .canvas) {
                         if (imgui.beginMenu("Flipbook Canvas View")) {
                             defer imgui.endMenu();
-                            if (imgui.menuItemEx("Sequential", null, app.settings.flipbook_view == .sequential, true)) {
-                                app.settings.flipbook_view = .sequential;
+                            if (imgui.menuItemEx("Sequential", null, editor.settings.flipbook_view == .sequential, true)) {
+                                editor.settings.flipbook_view = .sequential;
                             }
 
-                            if (imgui.menuItemEx("Grid", null, app.settings.flipbook_view == .grid, true)) {
-                                app.settings.flipbook_view = .grid;
+                            if (imgui.menuItemEx("Grid", null, editor.settings.flipbook_view == .grid, true)) {
+                                editor.settings.flipbook_view = .grid;
                             }
                         }
                     }
@@ -126,10 +126,10 @@ pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
             defer imgui.popStyleColor();
 
-            if (Editor.getFile(app.open_file_index)) |file| {
+            if (editor.getFile(editor.open_file_index)) |file| {
                 if (imgui.menuItemEx(
                     "Undo",
-                    if (app.hotkeys.hotkey(.{ .proc = .undo })) |hotkey| hotkey.shortcut else "",
+                    if (editor.hotkeys.hotkey(.{ .proc = .undo })) |hotkey| hotkey.shortcut else "",
                     false,
                     file.history.undo_stack.items.len > 0,
                 ))
@@ -137,7 +137,7 @@ pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
 
                 if (imgui.menuItemEx(
                     "Redo",
-                    if (app.hotkeys.hotkey(.{ .proc = .redo })) |hotkey| hotkey.shortcut else "",
+                    if (editor.hotkeys.hotkey(.{ .proc = .redo })) |hotkey| hotkey.shortcut else "",
                     false,
                     file.history.redo_stack.items.len > 0,
                 ))

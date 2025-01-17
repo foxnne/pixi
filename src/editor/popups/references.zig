@@ -1,12 +1,14 @@
 const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
+const Editor = Pixi.Editor;
+
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
 
 var open: bool = false;
 
-pub fn draw() !void {
-    if (!Pixi.editor.popups.references) return;
+pub fn draw(editor: *Editor) !void {
+    if (!editor.popups.references) return;
 
     const popup_size = 200 * Pixi.app.content_scale[0];
 
@@ -24,15 +26,15 @@ pub fn draw() !void {
     var popup_flags: imgui.WindowFlags = 0;
     popup_flags |= imgui.WindowFlags_None;
 
-    var background_color = Pixi.editor.theme.foreground;
-    background_color.value[3] = Pixi.app.settings.reference_window_opacity / 100.0;
+    var background_color = editor.theme.foreground;
+    background_color.value[3] = editor.settings.reference_window_opacity / 100.0;
 
     imgui.pushStyleColorImVec4(imgui.Col_WindowBg, background_color.toImguiVec4());
     defer imgui.popStyleColor();
 
     if (imgui.begin(
         "References",
-        &Pixi.editor.popups.references,
+        &editor.popups.references,
         popup_flags,
     )) {
         var ref_flags: imgui.TabBarFlags = 0;
@@ -42,7 +44,7 @@ pub fn draw() !void {
         if (imgui.beginTabBar("ReferencesTabBar", ref_flags)) {
             defer imgui.endTabBar();
 
-            for (Pixi.app.open_references.items, 0..) |*reference, i| {
+            for (editor.open_references.items, 0..) |*reference, i| {
                 var tab_open: bool = true;
 
                 const file_name = std.fs.path.basename(reference.path);
@@ -65,18 +67,18 @@ pub fn draw() !void {
                 }
 
                 if (!tab_open) {
-                    try Pixi.Editor.closeReference(i);
+                    try editor.closeReference(i);
                     break;
                 }
 
                 if (imgui.isItemClickedEx(imgui.MouseButton_Left)) {
-                    Pixi.Editor.setActiveReference(i);
+                    editor.setActiveReference(i);
                 }
 
                 if (imgui.beginPopupContextItem()) {
                     defer imgui.endPopup();
                     imgui.text("Opacity");
-                    _ = imgui.sliderFloatEx("Background", &Pixi.app.settings.reference_window_opacity, 0.0, 100.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
+                    _ = imgui.sliderFloatEx("Background", &editor.settings.reference_window_opacity, 0.0, 100.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
                     _ = imgui.sliderFloatEx("Reference", &reference.opacity, 0.0, 100.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
                 }
             }
@@ -84,7 +86,7 @@ pub fn draw() !void {
             var canvas_flags: imgui.WindowFlags = 0;
             canvas_flags |= imgui.WindowFlags_ChildWindow;
 
-            if (Pixi.Editor.getReference(Pixi.app.open_reference_index)) |reference| {
+            if (editor.getReference(editor.open_reference_index)) |reference| {
                 if (imgui.beginChild(
                     reference.path,
                     .{ .x = 0.0, .y = 0.0 },
@@ -109,7 +111,7 @@ pub fn draw() !void {
                             reference.camera.zoom = camera.zoom;
                         }
                         camera.setNearestZoomFloor();
-                        reference.camera.min_zoom = @min(camera.zoom, Pixi.app.settings.zoom_steps[0]);
+                        reference.camera.min_zoom = @min(camera.zoom, Pixi.editor.settings.zoom_steps[0]);
 
                         reference.camera.processPanZoom(.reference);
                     }

@@ -1,9 +1,12 @@
 const std = @import("std");
+
 const Pixi = @import("../../../Pixi.zig");
 const Core = @import("mach").Core;
+const Editor = Pixi.Editor;
+
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, app: *Pixi) !void {
+pub fn draw(file: *Pixi.storage.Internal.PixiFile, app: *Pixi, editor: *Editor) !void {
     const window_height = imgui.getWindowHeight();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
@@ -29,7 +32,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, app: *Pixi) !void {
             .zoom = window_height / tile_height,
         };
 
-        if (app.settings.flipbook_view == .sequential) sprite_camera.setNearestZoomFloor() else sprite_camera.setNearZoomFloor();
+        if (editor.settings.flipbook_view == .sequential) sprite_camera.setNearestZoomFloor() else sprite_camera.setNearZoomFloor();
         file.flipbook_camera.min_zoom = sprite_camera.zoom;
 
         file.flipbook_camera.processPanZoom(.flipbook);
@@ -52,7 +55,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, app: *Pixi) !void {
         file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(file.selected_sprite_index);
     }
 
-    switch (app.settings.flipbook_view) {
+    switch (editor.settings.flipbook_view) {
         .sequential => {
             // Draw all sprites sequentially
             const tiles_wide = @divExact(file.width, file.tile_width);

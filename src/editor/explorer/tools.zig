@@ -1,14 +1,16 @@
 const std = @import("std");
+
 const Pixi = @import("../../Pixi.zig");
-const core = @import("mach").core;
+const Editor = Pixi.Editor;
+
 const imgui = @import("zig-imgui");
 const layers = @import("layers.zig");
 const zmath = @import("zmath");
 
-pub fn draw() !void {
-    imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.foreground.toImguiVec4());
+pub fn draw(editor: *Editor) !void {
+    imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColorEx(3);
 
     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
@@ -33,11 +35,11 @@ pub fn draw() !void {
             // Row 1
             {
                 imgui.setCursorPosX(style.item_spacing.x * 3.0);
-                try drawTool(Pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+                try drawTool(editor, Pixi.fa.mouse_pointer, button_width, button_height, .pointer);
                 imgui.sameLine();
-                try drawTool(Pixi.fa.pencil_alt, button_width, button_height, .pencil);
+                try drawTool(editor, Pixi.fa.pencil_alt, button_width, button_height, .pencil);
                 imgui.sameLine();
-                try drawTool(Pixi.fa.eraser, button_width, button_height, .eraser);
+                try drawTool(editor, Pixi.fa.eraser, button_width, button_height, .eraser);
             }
 
             imgui.spacing();
@@ -45,17 +47,17 @@ pub fn draw() !void {
             // Row 2
             {
                 imgui.setCursorPosX(style.item_spacing.x * 3.0);
-                try drawTool(Pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
+                try drawTool(editor, Pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
                 imgui.sameLine();
-                try drawTool(Pixi.fa.fill_drip, button_width, button_height, .bucket);
+                try drawTool(editor, Pixi.fa.fill_drip, button_width, button_height, .bucket);
                 imgui.sameLine();
-                try drawTool(Pixi.fa.clipboard_check, button_width, button_height, .selection);
+                try drawTool(editor, Pixi.fa.clipboard_check, button_width, button_height, .selection);
             }
         }
 
-        imgui.pushStyleColorImVec4(imgui.Col_Header, Pixi.editor.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.background.toImguiVec4());
         defer imgui.popStyleColorEx(3);
 
         imgui.spacing();
@@ -65,49 +67,49 @@ pub fn draw() !void {
             defer imgui.unindent();
 
             var heightmap_visible: bool = false;
-            if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
+            if (editor.getFile(editor.open_file_index)) |file| {
                 heightmap_visible = file.heightmap.visible;
             }
 
             if (heightmap_visible) {
-                var height: i32 = @as(i32, @intCast(Pixi.app.colors.height));
+                var height: i32 = @as(i32, @intCast(editor.colors.height));
                 if (imgui.sliderInt("Height", &height, 0, 255)) {
-                    Pixi.app.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
+                    editor.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
                 }
             } else {
                 var disable_hotkeys: bool = false;
 
-                const primary: imgui.Vec4 = if (Pixi.app.tools.current == .heightmap) .{ .x = 255, .y = 255, .z = 255, .w = 255 } else .{
-                    .x = @as(f32, @floatFromInt(Pixi.app.colors.primary[0])) / 255.0,
-                    .y = @as(f32, @floatFromInt(Pixi.app.colors.primary[1])) / 255.0,
-                    .z = @as(f32, @floatFromInt(Pixi.app.colors.primary[2])) / 255.0,
-                    .w = @as(f32, @floatFromInt(Pixi.app.colors.primary[3])) / 255.0,
+                const primary: imgui.Vec4 = if (editor.tools.current == .heightmap) .{ .x = 255, .y = 255, .z = 255, .w = 255 } else .{
+                    .x = @as(f32, @floatFromInt(editor.colors.primary[0])) / 255.0,
+                    .y = @as(f32, @floatFromInt(editor.colors.primary[1])) / 255.0,
+                    .z = @as(f32, @floatFromInt(editor.colors.primary[2])) / 255.0,
+                    .w = @as(f32, @floatFromInt(editor.colors.primary[3])) / 255.0,
                 };
 
                 const secondary: imgui.Vec4 = .{
-                    .x = @as(f32, @floatFromInt(Pixi.app.colors.secondary[0])) / 255.0,
-                    .y = @as(f32, @floatFromInt(Pixi.app.colors.secondary[1])) / 255.0,
-                    .z = @as(f32, @floatFromInt(Pixi.app.colors.secondary[2])) / 255.0,
-                    .w = @as(f32, @floatFromInt(Pixi.app.colors.secondary[3])) / 255.0,
+                    .x = @as(f32, @floatFromInt(editor.colors.secondary[0])) / 255.0,
+                    .y = @as(f32, @floatFromInt(editor.colors.secondary[1])) / 255.0,
+                    .z = @as(f32, @floatFromInt(editor.colors.secondary[2])) / 255.0,
+                    .w = @as(f32, @floatFromInt(editor.colors.secondary[3])) / 255.0,
                 };
 
                 if (imgui.colorButtonEx("Primary", primary, imgui.ColorEditFlags_AlphaPreview, .{
                     .x = color_width,
                     .y = 64,
                 })) {
-                    const color = Pixi.app.colors.primary;
-                    Pixi.app.colors.primary = Pixi.app.colors.secondary;
-                    Pixi.app.colors.secondary = color;
+                    const color = editor.colors.primary;
+                    editor.colors.primary = editor.colors.secondary;
+                    editor.colors.secondary = color;
                 }
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();
-                    imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click to edit color.");
+                    imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click to edit color.");
                 }
                 if (imgui.beginPopupContextItem()) {
                     defer imgui.endPopup();
                     var c = Pixi.math.Color.initFloats(primary.x, primary.y, primary.z, primary.w).toSlice();
                     if (imgui.colorPicker4("Primary", &c, imgui.ColorEditFlags_None, null)) {
-                        Pixi.app.colors.primary = .{
+                        editor.colors.primary = .{
                             @as(u8, @intFromFloat(c[0] * 255.0)),
                             @as(u8, @intFromFloat(c[1] * 255.0)),
                             @as(u8, @intFromFloat(c[2] * 255.0)),
@@ -122,9 +124,9 @@ pub fn draw() !void {
                     .x = color_width,
                     .y = 64,
                 })) {
-                    const color = Pixi.app.colors.primary;
-                    Pixi.app.colors.primary = Pixi.app.colors.secondary;
-                    Pixi.app.colors.secondary = color;
+                    const color = editor.colors.primary;
+                    editor.colors.primary = editor.colors.secondary;
+                    editor.colors.secondary = color;
                 }
 
                 if (imgui.beginItemTooltip()) {
@@ -136,7 +138,7 @@ pub fn draw() !void {
                     defer imgui.endPopup();
                     var c = Pixi.math.Color.initFloats(secondary.x, secondary.y, secondary.z, secondary.w).toSlice();
                     if (imgui.colorPicker4("Secondary", &c, imgui.ColorEditFlags_None, null)) {
-                        Pixi.app.colors.secondary = .{
+                        editor.colors.secondary = .{
                             @as(u8, @intFromFloat(c[0] * 255.0)),
                             @as(u8, @intFromFloat(c[1] * 255.0)),
                             @as(u8, @intFromFloat(c[2] * 255.0)),
@@ -147,7 +149,7 @@ pub fn draw() !void {
                     disable_hotkeys = true;
                 }
 
-                Pixi.app.hotkeys.disable = disable_hotkeys;
+                editor.hotkeys.disable = disable_hotkeys;
             }
         }
 
@@ -161,13 +163,13 @@ pub fn draw() !void {
             if (imgui.beginChild("ColorVariations", .{ .x = -1.0, .y = 28.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow | imgui.WindowFlags_NoScrollWithMouse)) {
                 const count: usize = @intFromFloat((imgui.getContentRegionAvail().x) / (chip_width + style.item_spacing.x));
 
-                const hue_shift: f32 = Pixi.app.settings.suggested_hue_shift;
+                const hue_shift: f32 = editor.settings.suggested_hue_shift;
                 const hue_step: f32 = hue_shift / @as(f32, @floatFromInt(count));
 
-                const sat_shift: f32 = Pixi.app.settings.suggested_sat_shift;
+                const sat_shift: f32 = editor.settings.suggested_sat_shift;
                 const sat_step: f32 = sat_shift / @as(f32, @floatFromInt(count));
 
-                const lit_shift: f32 = Pixi.app.settings.suggested_lit_shift;
+                const lit_shift: f32 = editor.settings.suggested_lit_shift;
                 const lit_step: f32 = lit_shift / @as(f32, @floatFromInt(count));
 
                 imgui.spacing();
@@ -180,10 +182,10 @@ pub fn draw() !void {
                     imgui.indentEx(width_difference / 2.0);
                 }
 
-                const red = @as(f32, @floatFromInt(Pixi.app.colors.primary[0])) / 255.0;
-                const green = @as(f32, @floatFromInt(Pixi.app.colors.primary[1])) / 255.0;
-                const blue = @as(f32, @floatFromInt(Pixi.app.colors.primary[2])) / 255.0;
-                const alpha = @as(f32, @floatFromInt(Pixi.app.colors.primary[3])) / 255.0;
+                const red = @as(f32, @floatFromInt(editor.colors.primary[0])) / 255.0;
+                const green = @as(f32, @floatFromInt(editor.colors.primary[1])) / 255.0;
+                const blue = @as(f32, @floatFromInt(editor.colors.primary[2])) / 255.0;
+                const alpha = @as(f32, @floatFromInt(editor.colors.primary[3])) / 255.0;
 
                 const primary_hsl = zmath.rgbToHsl(.{ red, green, blue, alpha });
 
@@ -207,7 +209,7 @@ pub fn draw() !void {
                     imgui.pushIDInt(@intCast(i));
                     defer imgui.popID();
                     if (imgui.colorButtonEx("##color", variation_color, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width })) {
-                        Pixi.app.colors.primary = .{
+                        editor.colors.primary = .{
                             @intFromFloat(variation_color.x * 255.0),
                             @intFromFloat(variation_color.y * 255.0),
                             @intFromFloat(variation_color.z * 255.0),
@@ -218,7 +220,7 @@ pub fn draw() !void {
 
                     if (imgui.beginItemTooltip()) {
                         defer imgui.endTooltip();
-                        imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click for suggested color options.");
+                        imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for suggested color options.");
                     }
 
                     if (imgui.beginPopupContextItem()) {
@@ -226,9 +228,9 @@ pub fn draw() !void {
 
                         imgui.separatorText("Suggested Colors");
 
-                        _ = imgui.sliderFloat("Hue Shift", &Pixi.app.settings.suggested_hue_shift, 0.0, 1.0);
-                        _ = imgui.sliderFloat("Saturation Shift", &Pixi.app.settings.suggested_sat_shift, 0.0, 1.0);
-                        _ = imgui.sliderFloat("Lightness Shift", &Pixi.app.settings.suggested_lit_shift, 0.0, 1.0);
+                        _ = imgui.sliderFloat("Hue Shift", &editor.settings.suggested_hue_shift, 0.0, 1.0);
+                        _ = imgui.sliderFloat("Saturation Shift", &editor.settings.suggested_sat_shift, 0.0, 1.0);
+                        _ = imgui.sliderFloat("Lightness Shift", &editor.settings.suggested_lit_shift, 0.0, 1.0);
                     }
                 }
             }
@@ -237,7 +239,7 @@ pub fn draw() !void {
         if (imgui.collapsingHeader(Pixi.fa.layer_group ++ "  Layers", imgui.TreeNodeFlags_SpanAvailWidth | imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
             defer imgui.unindent();
-            try layers.draw();
+            try layers.draw(editor);
         }
 
         if (imgui.collapsingHeader(Pixi.fa.palette ++ "  Palettes", imgui.TreeNodeFlags_SpanFullWidth | imgui.TreeNodeFlags_DefaultOpen)) {
@@ -245,9 +247,9 @@ pub fn draw() !void {
             defer imgui.unindent();
 
             imgui.setNextItemWidth(-1.0);
-            if (imgui.beginCombo("##PaletteCombo", if (Pixi.app.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {
+            if (imgui.beginCombo("##PaletteCombo", if (editor.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {
                 defer imgui.endCombo();
-                try searchPalettes();
+                try searchPalettes(editor);
             }
 
             const columns: usize = @intFromFloat(@floor(imgui.getContentRegionAvail().x / (chip_width + style.item_spacing.x)));
@@ -263,13 +265,13 @@ pub fn draw() !void {
             const content_region_avail = imgui.getContentRegionAvail().y;
 
             const shadow_min: imgui.Vec2 = .{ .x = imgui.getCursorPosX() + imgui.getWindowPos().x, .y = imgui.getCursorPosY() + imgui.getWindowPos().y };
-            const shadow_max: imgui.Vec2 = .{ .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x) - style.item_spacing.x, .y = shadow_min.y + Pixi.app.settings.shadow_length };
-            const shadow_color = Pixi.math.Color.initFloats(0.0, 0.0, 0.0, Pixi.app.settings.shadow_opacity * 4.0).toU32();
+            const shadow_max: imgui.Vec2 = .{ .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x) - style.item_spacing.x, .y = shadow_min.y + Pixi.editor.settings.shadow_length };
+            const shadow_color = Pixi.math.Color.initFloats(0.0, 0.0, 0.0, Pixi.editor.settings.shadow_opacity * 4.0).toU32();
             var scroll_y: f32 = 0.0;
 
             defer imgui.endChild(); // This can get cut off and causes a crash if begin child is not called because its off screen.
             if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = @max(content_region_avail, chip_width) }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-                if (Pixi.app.colors.palette) |palette| {
+                if (editor.colors.palette) |palette| {
                     scroll_y = imgui.getScrollY();
                     for (palette.colors, 0..) |color, i| {
                         const c: imgui.Vec4 = .{
@@ -280,7 +282,7 @@ pub fn draw() !void {
                         };
                         imgui.pushIDInt(@as(c_int, @intCast(i)));
                         if (imgui.colorButtonEx(palette.name, .{ .x = c.x, .y = c.y, .z = c.z, .w = c.w }, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width })) {
-                            Pixi.app.colors.primary = color;
+                            editor.colors.primary = color;
                         }
                         imgui.popID();
 
@@ -288,7 +290,7 @@ pub fn draw() !void {
                             imgui.sameLine();
                     }
                 } else {
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
                     defer imgui.popStyleColor();
                     imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette");
 
@@ -303,7 +305,7 @@ pub fn draw() !void {
                 }
             }
 
-            if (Pixi.app.colors.palette != null and scroll_y != 0.0) {
+            if (editor.colors.palette != null and scroll_y != 0.0) {
                 if (imgui.getWindowDrawList()) |draw_list| {
                     draw_list.addRectFilledMultiColor(shadow_min, shadow_max, shadow_color, shadow_color, 0x00000000, 0x00000000);
                 }
@@ -312,49 +314,49 @@ pub fn draw() !void {
     }
 }
 
-pub fn drawTool(label: [:0]const u8, w: f32, h: f32, tool: Pixi.Tools.Tool) !void {
+pub fn drawTool(editor: *Editor, label: [:0]const u8, w: f32, h: f32, tool: Pixi.Editor.Tools.Tool) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
     defer imgui.popStyleVar();
 
-    const selected = Pixi.app.tools.current == tool;
+    const selected = editor.tools.current == tool;
     if (selected) {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
     } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
     }
     defer imgui.popStyleColor();
     if (imgui.selectableEx(label, selected, imgui.SelectableFlags_None, .{ .x = w, .y = h })) {
-        Pixi.app.tools.set(tool);
+        editor.tools.set(tool);
     }
 
     if (tool == .pencil or tool == .eraser or tool == .selection) {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
         defer imgui.popStyleColor();
         if (imgui.beginPopupContextItem()) {
             defer imgui.endPopup();
 
             imgui.separatorText("Stroke Options");
 
-            var stroke_size: c_int = @intCast(Pixi.app.tools.stroke_size);
-            if (imgui.sliderInt("Size", &stroke_size, 1, Pixi.app.settings.stroke_max_size)) {
-                Pixi.app.tools.stroke_size = @intCast(stroke_size);
+            var stroke_size: c_int = @intCast(editor.tools.stroke_size);
+            if (imgui.sliderInt("Size", &stroke_size, 1, editor.settings.stroke_max_size)) {
+                editor.tools.stroke_size = @intCast(stroke_size);
             }
 
-            const shape_label: [:0]const u8 = switch (Pixi.app.tools.stroke_shape) {
+            const shape_label: [:0]const u8 = switch (editor.tools.stroke_shape) {
                 .circle => "Circle",
                 .square => "Square",
             };
             if (imgui.beginCombo("Shape", shape_label, imgui.ComboFlags_None)) {
                 defer imgui.endCombo();
-                if (imgui.selectable("Circle")) Pixi.app.tools.stroke_shape = .circle;
-                if (imgui.selectable("Square")) Pixi.app.tools.stroke_shape = .square;
+                if (imgui.selectable("Circle")) editor.tools.stroke_shape = .circle;
+                if (imgui.selectable("Square")) editor.tools.stroke_shape = .square;
             }
         }
     }
-    try drawTooltip(tool);
+    try drawTooltip(editor, tool);
 }
 
-pub fn drawTooltip(tool: Pixi.Tools.Tool) !void {
+pub fn drawTooltip(editor: *Editor, tool: Pixi.Editor.Tools.Tool) !void {
     if (imgui.isItemHovered(imgui.HoveredFlags_DelayShort)) {
         if (imgui.beginTooltip()) {
             defer imgui.endTooltip();
@@ -369,7 +371,7 @@ pub fn drawTooltip(tool: Pixi.Tools.Tool) !void {
                 .selection => "Selection",
             };
 
-            if (Pixi.app.hotkeys.hotkey(.{ .tool = tool })) |hotkey| {
+            if (editor.hotkeys.hotkey(.{ .tool = tool })) |hotkey| {
                 const hotkey_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s} ({s})", .{ text, hotkey.shortcut });
                 defer Pixi.app.allocator.free(hotkey_text);
                 imgui.text(hotkey_text);
@@ -379,31 +381,31 @@ pub fn drawTooltip(tool: Pixi.Tools.Tool) !void {
 
             switch (tool) {
                 .animation => {
-                    if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| {
+                    if (editor.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| {
                         const first_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut});
                         defer Pixi.app.allocator.free(first_text);
 
                         const second_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut});
                         defer Pixi.app.allocator.free(second_text);
 
-                        imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), first_text);
-                        imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), second_text);
+                        imgui.textColored(editor.theme.text_background.toImguiVec4(), first_text);
+                        imgui.textColored(editor.theme.text_background.toImguiVec4(), second_text);
                     }
                 },
                 .pencil, .eraser => {
-                    imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
+                    imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
                 },
                 .selection => {
-                    if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |primary_hk| {
-                        if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |secondary_hk| {
-                            imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
+                    if (editor.hotkeys.hotkey(.{ .proc = .primary })) |primary_hk| {
+                        if (editor.hotkeys.hotkey(.{ .proc = .secondary })) |secondary_hk| {
+                            imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
                             const first_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "Click and drag while holding ({s}) to add to selection.", .{primary_hk.shortcut});
                             defer Pixi.app.allocator.free(first_text);
 
                             const second_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "Click and drag while holding ({s}) to remove from selection", .{secondary_hk.shortcut});
                             defer Pixi.app.allocator.free(second_text);
-                            imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), first_text);
-                            imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), second_text);
+                            imgui.textColored(editor.theme.text_background.toImguiVec4(), first_text);
+                            imgui.textColored(editor.theme.text_background.toImguiVec4(), second_text);
                         }
                     }
                 },
@@ -413,7 +415,7 @@ pub fn drawTooltip(tool: Pixi.Tools.Tool) !void {
     }
 }
 
-fn searchPalettes() !void {
+fn searchPalettes(editor: *Editor) !void {
     var dir_opt = std.fs.cwd().openDir(Pixi.assets.palettes, .{ .access_sub_paths = false, .iterate = true }) catch null;
     if (dir_opt) |*dir| {
         defer dir.close();
@@ -427,10 +429,10 @@ fn searchPalettes() !void {
                     if (imgui.selectable(label)) {
                         const abs_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ Pixi.assets.palettes, entry.name });
                         defer Pixi.app.allocator.free(abs_path);
-                        if (Pixi.app.colors.palette) |*palette|
+                        if (editor.colors.palette) |*palette|
                             palette.deinit();
 
-                        Pixi.app.colors.palette = Pixi.storage.Internal.Palette.loadFromFile(abs_path) catch null;
+                        editor.colors.palette = Pixi.storage.Internal.Palette.loadFromFile(abs_path) catch null;
                     }
                 }
             }

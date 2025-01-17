@@ -118,8 +118,8 @@ pub const PixiFile = struct {
 
         pub fn disable(self: *Heightmap) void {
             self.visible = false;
-            if (Pixi.app.tools.current == .heightmap) {
-                Pixi.app.tools.swap();
+            if (Pixi.editor.tools.current == .heightmap) {
+                Pixi.editor.tools.swap();
             }
         }
 
@@ -127,6 +127,241 @@ pub const PixiFile = struct {
             if (self.visible) self.disable() else self.enable();
         }
     };
+
+    pub fn load(path: [:0]const u8) !?Pixi.storage.Internal.PixiFile {
+        if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
+            return null;
+
+        if (zip.zip_open(path.ptr, 0, 'r')) |pixi_file| {
+            defer zip.zip_close(pixi_file);
+
+            var buf: ?*anyopaque = null;
+            var size: u64 = 0;
+            _ = zip.zip_entry_open(pixi_file, "pixidata.json");
+            _ = zip.zip_entry_read(pixi_file, &buf, &size);
+            _ = zip.zip_entry_close(pixi_file);
+
+            const content: []const u8 = @as([*]const u8, @ptrCast(buf))[0..size];
+
+            const options = std.json.ParseOptions{
+                .duplicate_field_behavior = .use_first,
+                .ignore_unknown_fields = true,
+            };
+
+            var parsed = try std.json.parseFromSlice(Pixi.storage.External.Pixi, Pixi.app.allocator, content, options);
+            defer parsed.deinit();
+
+            const ext = parsed.value;
+
+            var internal: Pixi.storage.Internal.PixiFile = .{
+                .path = try Pixi.app.allocator.dupeZ(u8, path),
+                .width = ext.width,
+                .height = ext.height,
+                .tile_width = ext.tile_width,
+                .tile_height = ext.tile_height,
+                .layers = .{},
+                .deleted_layers = .{},
+                .deleted_heightmap_layers = .{},
+                .sprites = .{},
+                .selected_sprites = std.ArrayList(usize).init(Pixi.app.allocator),
+                .animations = .{},
+                .keyframe_animations = .{},
+                .keyframe_animation_texture = undefined,
+                .keyframe_transform_texture = undefined,
+                .deleted_animations = .{},
+                .background = undefined,
+                .history = Pixi.storage.Internal.PixiFile.History.init(Pixi.app.allocator),
+                .buffers = Pixi.storage.Internal.PixiFile.Buffers.init(Pixi.app.allocator),
+                .temporary_layer = undefined,
+                .selection_layer = undefined,
+            };
+
+            try internal.createBackground();
+
+            internal.temporary_layer = .{
+                .name = "Temporary",
+                .texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
+                .visible = true,
+            };
+
+            internal.selection_layer = .{
+                .name = "Selection",
+                .texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
+                .visible = true,
+            };
+
+            for (ext.layers) |l| {
+                const layer_image_name = try std.fmt.allocPrintZ(Pixi.app.arena_allocator.allocator(), "{s}.png", .{l.name});
+
+                var img_buf: ?*anyopaque = null;
+                var img_len: usize = 0;
+
+                if (zip.zip_entry_open(pixi_file, layer_image_name.ptr) == 0) {
+                    _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
+
+                    if (img_buf) |data| {
+                        const pipeline_layout_default = Pixi.app.pipeline_default.getBindGroupLayout(0);
+                        defer pipeline_layout_default.release();
+
+                        var new_layer: Pixi.storage.Internal.Layer = .{
+                            .name = try Pixi.app.allocator.dupeZ(u8, l.name),
+                            .texture = try Pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
+                            .id = internal.newId(),
+                            .visible = l.visible,
+                            .collapse = l.collapse,
+                            .transform_bindgroup = undefined,
+                        };
+
+                        const device: *mach.gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
+
+                        new_layer.transform_bindgroup = device.createBindGroup(
+                            &mach.gpu.BindGroup.Descriptor.init(.{
+                                .layout = pipeline_layout_default,
+                                .entries = &.{
+                                    mach.gpu.BindGroup.Entry.initBuffer(0, Pixi.app.uniform_buffer_default, 0, @sizeOf(Pixi.gfx.UniformBufferObject), 0),
+                                    mach.gpu.BindGroup.Entry.initTextureView(1, new_layer.texture.view_handle),
+                                    mach.gpu.BindGroup.Entry.initSampler(2, new_layer.texture.sampler_handle),
+                                },
+                            }),
+                        );
+                        try internal.layers.append(Pixi.app.allocator, new_layer);
+                    }
+                }
+                _ = zip.zip_entry_close(pixi_file);
+            }
+
+            internal.keyframe_animation_texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
+
+            internal.keyframe_transform_texture = .{
+                .vertices = .{Pixi.storage.Internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
+                .texture = internal.layers.items(.texture)[0],
+            };
+
+            if (zip.zip_entry_open(pixi_file, "heightmap.png") == 0) {
+                var img_buf: ?*anyopaque = null;
+                var img_len: usize = 0;
+
+                _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
+
+                if (img_buf) |data| {
+                    var new_layer: Pixi.storage.Internal.Layer = .{
+                        .name = try Pixi.app.allocator.dupeZ(u8, "heightmap"),
+                        .texture = undefined,
+                    };
+
+                    new_layer.texture = try Pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{});
+                    new_layer.id = internal.newId();
+
+                    internal.heightmap.layer = new_layer;
+                }
+            }
+            _ = zip.zip_entry_close(pixi_file);
+
+            for (ext.sprites, 0..) |sprite, i| {
+                try internal.sprites.append(Pixi.app.allocator, .{
+                    .name = try Pixi.app.allocator.dupeZ(u8, sprite.name),
+                    .index = i,
+                    .origin_x = @as(f32, @floatFromInt(sprite.origin[0])),
+                    .origin_y = @as(f32, @floatFromInt(sprite.origin[1])),
+                });
+            }
+
+            for (ext.animations) |animation| {
+                try internal.animations.append(Pixi.app.allocator, .{
+                    .name = try Pixi.app.allocator.dupeZ(u8, animation.name),
+                    .start = animation.start,
+                    .length = animation.length,
+                    .fps = animation.fps,
+                });
+            }
+            return internal;
+        }
+        return error.FailedToOpenFile;
+    }
+
+    pub fn deinit(file: *PixiFile) void {
+        file.history.deinit();
+        file.buffers.deinit();
+        file.background.deinit();
+        file.temporary_layer.texture.deinit();
+        file.selection_layer.texture.deinit();
+        if (file.heightmap.layer) |*l| {
+            l.texture.deinit();
+            Pixi.app.allocator.free(l.name);
+        }
+        if (file.transform_texture) |*texture| {
+            texture.texture.deinit();
+        }
+
+        for (file.keyframe_animations.items(.keyframes)) |*keyframes| {
+            // TODO: uncomment this when names are allocated
+            //Pixi.app.allocator.free(animation.name);
+
+            for (keyframes.items) |*keyframe| {
+                keyframe.frames.deinit();
+            }
+        }
+        file.keyframe_animations.deinit(Pixi.app.allocator);
+
+        if (file.transform_bindgroup) |bindgroup| {
+            bindgroup.release();
+        }
+        if (file.transform_compute_bindgroup) |bindgroup| {
+            bindgroup.release();
+        }
+        if (file.transform_compute_buffer) |buffer| {
+            buffer.release();
+        }
+        if (file.transform_staging_buffer) |buffer| {
+            buffer.release();
+        }
+
+        for (file.deleted_heightmap_layers.items(.texture)) |*texture| {
+            texture.deinit();
+        }
+        for (file.deleted_layers.items(.texture)) |*texture| {
+            texture.deinit();
+        }
+        for (file.layers.items(.texture)) |*texture| {
+            texture.deinit();
+        }
+        for (file.layers.items(.name), 0..) |_, index| {
+            Pixi.app.allocator.free(file.layers.items(.name)[index]);
+        }
+        for (file.layers.items(.transform_bindgroup)) |bindgroup| {
+            if (bindgroup) |b|
+                b.release();
+        }
+        for (file.deleted_layers.items(.name), 0..) |_, index| {
+            Pixi.app.allocator.free(file.deleted_layers.items(.name)[index]);
+        }
+        for (file.deleted_layers.items(.texture)) |*texture| {
+            texture.deinit();
+        }
+        for (file.deleted_layers.items(.transform_bindgroup)) |bindgroup| {
+            if (bindgroup) |b|
+                b.release();
+        }
+        for (file.sprites.items(.name), 0..) |_, index| {
+            Pixi.app.allocator.free(file.sprites.items(.name)[index]);
+        }
+        for (file.animations.items(.name), 0..) |_, index| {
+            Pixi.app.allocator.free(file.animations.items(.name)[index]);
+        }
+        for (file.deleted_animations.items(.name), 0..) |_, index| {
+            Pixi.app.allocator.free(file.deleted_animations.items(.name)[index]);
+        }
+
+        file.keyframe_animation_texture.deinit();
+        file.layers.deinit(Pixi.app.allocator);
+        file.deleted_layers.deinit(Pixi.app.allocator);
+        file.deleted_heightmap_layers.deinit(Pixi.app.allocator);
+        file.sprites.deinit(Pixi.app.allocator);
+        file.selected_sprites.deinit();
+        file.animations.deinit(Pixi.app.allocator);
+        file.deleted_animations.deinit(Pixi.app.allocator);
+        Pixi.app.allocator.free(file.path);
+    }
 
     pub fn dirty(self: PixiFile) bool {
         return self.history.bookmark != 0;
@@ -170,7 +405,7 @@ pub const PixiFile = struct {
     };
 
     pub fn processSampleTool(file: *PixiFile, canvas: Canvas, options: SampleToolOptions) !void {
-        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
         const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
         if (!sample_key and !sample_button) return;
@@ -220,21 +455,21 @@ pub const PixiFile = struct {
                     if (p[3] > 0) {
                         color = p;
                         layer_index = i;
-                        if (Pixi.app.settings.eyedropper_auto_switch_layer)
+                        if (Pixi.editor.settings.eyedropper_auto_switch_layer)
                             file.selected_layer_index = i;
                         break;
                     } else continue;
                 }
 
                 if (color[3] == 0) {
-                    if (Pixi.app.settings.eyedropper_auto_switch_layer)
-                        Pixi.app.tools.set(.eraser);
+                    if (Pixi.editor.settings.eyedropper_auto_switch_layer)
+                        Pixi.editor.tools.set(.eraser);
                 } else {
-                    if (Pixi.app.tools.current == .eraser) {
-                        if (Pixi.app.settings.eyedropper_auto_switch_layer)
-                            Pixi.app.tools.set(Pixi.app.tools.previous);
+                    if (Pixi.editor.tools.current == .eraser) {
+                        if (Pixi.editor.settings.eyedropper_auto_switch_layer)
+                            Pixi.editor.tools.set(Pixi.editor.tools.previous);
                     }
-                    Pixi.app.colors.primary = color;
+                    Pixi.editor.colors.primary = color;
                 }
 
                 if (layer_index) |index| {
@@ -247,9 +482,9 @@ pub const PixiFile = struct {
                 if (file.heightmap.layer) |hml| {
                     const p = hml.getPixel(pixel);
                     if (p[3] > 0) {
-                        Pixi.app.colors.height = p[0];
+                        Pixi.editor.colors.height = p[0];
                     } else {
-                        Pixi.app.tools.set(.eraser);
+                        Pixi.editor.tools.set(.eraser);
                     }
                 }
             }
@@ -261,17 +496,17 @@ pub const PixiFile = struct {
     };
 
     pub fn processStrokeTool(file: *PixiFile, canvas: Canvas, options: StrokeToolOptions) !void {
-        if (switch (Pixi.app.tools.current) {
+        if (switch (Pixi.editor.tools.current) {
             .pencil, .eraser, .heightmap => false,
             else => true,
         }) return;
 
-        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
         const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
         if (sample_key or sample_button) return;
 
-        switch (Pixi.app.tools.current) {
+        switch (Pixi.editor.tools.current) {
             .pencil, .heightmap => {
                 imgui.setMouseCursor(imgui.MouseCursor_None);
                 file.camera.drawCursor(Pixi.assets.pixi_atlas.pencil_0_default, 0xFFFFFFFF);
@@ -313,10 +548,10 @@ pub const PixiFile = struct {
         };
 
         if (if (Pixi.app.mouse.button(.primary)) |primary| primary.down() else false) {
-            const color = switch (Pixi.app.tools.current) {
-                .pencil => if (file.heightmap.visible) [_]u8{ Pixi.app.colors.height, 0, 0, 255 } else Pixi.app.colors.primary,
+            const color = switch (Pixi.editor.tools.current) {
+                .pencil => if (file.heightmap.visible) [_]u8{ Pixi.editor.colors.height, 0, 0, 255 } else Pixi.editor.colors.primary,
                 .eraser => [_]u8{ 0, 0, 0, 0 },
-                .heightmap => [_]u8{ Pixi.app.colors.height, 0, 0, 255 },
+                .heightmap => [_]u8{ Pixi.editor.colors.height, 0, 0, 255 },
                 else => unreachable,
             };
 
@@ -345,7 +580,7 @@ pub const PixiFile = struct {
                             const pixel = .{ @as(usize, @intFromFloat(p_coord[0])), @as(usize, @intFromFloat(p_coord[1])) };
 
                             if (file.heightmap.visible) {
-                                if (Pixi.app.tools.current == .heightmap) {
+                                if (Pixi.editor.tools.current == .heightmap) {
                                     const tile_width: usize = @intCast(file.tile_width);
                                     const tile_column = @divTrunc(pixel[0], tile_width);
                                     const min_column = tile_column * tile_width;
@@ -354,13 +589,13 @@ pub const PixiFile = struct {
                                     defer previous_pixel_opt = pixel;
                                     if (previous_pixel_opt) |previous_pixel| {
                                         if (pixel[1] != previous_pixel[1]) {
-                                            if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                            if (Pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
                                                 if (hk.down()) {
                                                     const pixel_signed: i32 = @intCast(pixel[1]);
                                                     const previous_pixel_signed: i32 = @intCast(previous_pixel[1]);
                                                     const difference: i32 = pixel_signed - previous_pixel_signed;
                                                     const sign: i32 = @intFromFloat(std.math.sign((Pixi.app.mouse.position[1] - Pixi.app.mouse.previous_position[1]) * -1.0));
-                                                    Pixi.app.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(Pixi.app.colors.height)) + difference * sign, 0, 255));
+                                                    Pixi.editor.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(Pixi.editor.colors.height)) + difference * sign, 0, 255));
                                                 }
                                             }
                                         } else {
@@ -412,7 +647,7 @@ pub const PixiFile = struct {
                                         } else break;
                                     }
                                 } else {
-                                    const size: u32 = Pixi.app.tools.stroke_size;
+                                    const size: u32 = Pixi.editor.tools.stroke_size;
 
                                     for (0..(size * size)) |stroke_index| {
                                         var valid: bool = false;
@@ -439,7 +674,7 @@ pub const PixiFile = struct {
                                     }
                                 }
                             } else {
-                                const size: u32 = Pixi.app.tools.stroke_size;
+                                const size: u32 = Pixi.editor.tools.stroke_size;
 
                                 for (0..(size * size)) |stroke_index| {
                                     if (selected_layer.getIndexShapeOffset(pixel, stroke_index)) |result| {
@@ -474,7 +709,7 @@ pub const PixiFile = struct {
                     const pixel: [2]usize = .{ @intFromFloat(pixel_coord[0]), @intFromFloat(pixel_coord[1]) };
 
                     if (file.heightmap.visible) {
-                        if (Pixi.app.tools.current == .heightmap) {
+                        if (Pixi.editor.tools.current == .heightmap) {
                             const tile_width: usize = @intCast(file.tile_width);
 
                             const tile_column = @divTrunc(pixel[0], tile_width);
@@ -525,7 +760,7 @@ pub const PixiFile = struct {
                                 } else break;
                             }
                         } else {
-                            const size: u32 = Pixi.app.tools.stroke_size;
+                            const size: u32 = Pixi.editor.tools.stroke_size;
 
                             for (0..(size * size)) |stroke_index| {
                                 var valid: bool = false;
@@ -554,7 +789,7 @@ pub const PixiFile = struct {
                             selected_layer.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
                         }
                     } else {
-                        const size: u32 = Pixi.app.tools.stroke_size;
+                        const size: u32 = Pixi.editor.tools.stroke_size;
 
                         for (0..(size * size)) |stroke_index| {
                             if (selected_layer.getIndexShapeOffset(pixel, stroke_index)) |result| {
@@ -582,16 +817,16 @@ pub const PixiFile = struct {
         } else { // Not actively drawing, but hovering over canvas
             if (pixel_coords_opt) |pixel_coord| {
                 const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
-                const color: [4]u8 = switch (Pixi.app.tools.current) {
-                    .pencil => if (file.heightmap.visible) .{ Pixi.app.colors.height, 0, 0, 255 } else Pixi.app.colors.primary,
+                const color: [4]u8 = switch (Pixi.editor.tools.current) {
+                    .pencil => if (file.heightmap.visible) .{ Pixi.editor.colors.height, 0, 0, 255 } else Pixi.editor.colors.primary,
                     .eraser => .{ 255, 255, 255, 255 },
-                    .heightmap => .{ Pixi.app.colors.height, 0, 0, 255 },
+                    .heightmap => .{ Pixi.editor.colors.height, 0, 0, 255 },
                     else => unreachable,
                 };
 
-                switch (Pixi.app.tools.current) {
+                switch (Pixi.editor.tools.current) {
                     .pencil, .eraser => {
-                        const size: u32 = @intCast(Pixi.app.tools.stroke_size);
+                        const size: u32 = @intCast(Pixi.editor.tools.stroke_size);
                         for (0..(size * size)) |index| {
                             if (file.temporary_layer.getIndexShapeOffset(pixel, index)) |result| {
                                 file.temporary_layer.setPixelIndex(result.index, color, false);
@@ -615,16 +850,16 @@ pub const PixiFile = struct {
     }
 
     pub fn processSelectionTool(file: *PixiFile, canvas: Canvas, options: StrokeToolOptions) !void {
-        if (switch (Pixi.app.tools.current) {
+        if (switch (Pixi.editor.tools.current) {
             .selection => false,
             else => true,
         }) return;
 
-        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
         const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
-        const add: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
-        const rem: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+        const add: bool = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+        const rem: bool = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
         const pressed: bool = if (Pixi.app.mouse.button(.primary)) |bt| bt.pressed() else false;
 
         if (sample_key or sample_button) return;
@@ -661,7 +896,7 @@ pub const PixiFile = struct {
 
         if (pixel_coords_opt) |pixel_coord| {
             const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
-            const stroke_size: u32 = @intCast(Pixi.app.tools.stroke_size);
+            const stroke_size: u32 = @intCast(Pixi.editor.tools.stroke_size);
 
             if (!add and !rem and pressed) {
                 file.selection_layer.clear(false);
@@ -673,8 +908,8 @@ pub const PixiFile = struct {
                 for (0..(stroke_size * stroke_size)) |index| {
                     if (file.selection_layer.getIndexShapeOffset(pixel, index)) |result| {
                         var color: [4]u8 = if (@mod(@divTrunc(result.index, file.width) + result.index, 2) == 0)
-                            if (Pixi.app.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
-                        else if (Pixi.app.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
+                            if (Pixi.editor.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
+                        else if (Pixi.editor.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
 
                         if (rem) @memset(&color, 0);
 
@@ -687,8 +922,8 @@ pub const PixiFile = struct {
                 for (0..(stroke_size * stroke_size)) |index| {
                     if (file.temporary_layer.getIndexShapeOffset(pixel, index)) |result| {
                         const color: [4]u8 = if (@mod(@divTrunc(result.index, file.width) + result.index, 2) == 0)
-                            if (Pixi.app.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
-                        else if (Pixi.app.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
+                            if (Pixi.editor.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
+                        else if (Pixi.editor.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
 
                         if (file.layers.slice().get(file.selected_layer_index).pixels()[result.index][3] != 0)
                             file.temporary_layer.setPixelIndex(result.index, color, false);
@@ -700,7 +935,7 @@ pub const PixiFile = struct {
     }
 
     pub fn processAnimationTool(file: *PixiFile) !void {
-        if (Pixi.app.sidebar != .animations or Pixi.app.tools.current != .animation) return;
+        if (Pixi.editor.explorer.pane != .animations or Pixi.editor.tools.current != .animation) return;
 
         const canvas_center_offset = canvasCenterOffset(file, .primary);
         const mouse_position = Pixi.app.mouse.position;
@@ -730,7 +965,7 @@ pub const PixiFile = struct {
                 Pixi.editor.popups.animation_start = tile_index;
 
             if (if (Pixi.app.mouse.button(.primary)) |primary| primary.released() else false) {
-                if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |primary| {
+                if (Pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |primary| {
                     if (primary.down()) {
                         var valid: bool = true;
                         var i: usize = Pixi.editor.popups.animation_start;
@@ -831,12 +1066,12 @@ pub const PixiFile = struct {
     }
 
     pub fn processFillTool(file: *PixiFile, canvas: Canvas, options: FillToolOptions) !void {
-        if (switch (Pixi.app.tools.current) {
+        if (switch (Pixi.editor.tools.current) {
             .bucket => false,
             else => true,
         }) return;
 
-        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+        const sample_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
         const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
         if (sample_key or sample_button) return;
@@ -894,12 +1129,12 @@ pub const PixiFile = struct {
                 var old_color = [_]u8{ 0, 0, 0, 0 };
                 std.mem.copyForwards(u8, &old_color, pixels[index][0..4]);
 
-                const new_color = Pixi.app.colors.primary;
+                const new_color = Pixi.editor.colors.primary;
                 if (std.mem.eql(u8, &new_color, &old_color)) {
                     return;
                 }
 
-                if (if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false) {
+                if (if (Pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false) {
                     for (bounds_x..bounds_x + bounds_width) |x| {
                         for (bounds_y..bounds_y + bounds_height) |y| {
                             if (std.mem.eql(u8, &selected_layer.getPixel(.{ x, y }), &old_color)) {
@@ -937,8 +1172,8 @@ pub const PixiFile = struct {
 
         const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
 
-        const modifier_primary: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
-        const modifier_secondary: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+        const modifier_primary: bool = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+        const modifier_secondary: bool = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
         if (transform_texture.control) |*control| {
             control.mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect;
@@ -1537,7 +1772,7 @@ pub const PixiFile = struct {
     }
 
     pub fn saveLDtk(self: *PixiFile) !void {
-        if (Pixi.app.project_folder) |project_folder_path| {
+        if (Pixi.editor.project_folder) |project_folder_path| {
             const ldtk_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
             defer Pixi.app.allocator.free(ldtk_path);
 
@@ -1593,7 +1828,7 @@ pub const PixiFile = struct {
         const thread = try std.Thread.spawn(.{}, save, .{self});
         thread.detach();
 
-        switch (Pixi.app.settings.compatibility) {
+        switch (Pixi.editor.settings.compatibility) {
             .none => {},
             .ldtk => {
                 try self.saveLDtk();
@@ -1626,7 +1861,7 @@ pub const PixiFile = struct {
 
     pub fn cut(self: *PixiFile, append_history: bool) !void {
         if (self.transform_texture == null) {
-            if (Pixi.app.tools.current == .selection) {
+            if (Pixi.editor.tools.current == .selection) {
                 if (Pixi.Packer.reduce(&self.selection_layer.texture, .{ 0, 0, self.width, self.height })) |reduced_rect| {
                     const copy_image = try zstbi.Image.createEmpty(@intCast(reduced_rect[2]), @intCast(reduced_rect[3]), 4, .{});
                     const dst_pixels = @as([*][4]u8, @ptrCast(copy_image.data.ptr))[0 .. copy_image.data.len / 4];
@@ -1668,19 +1903,19 @@ pub const PixiFile = struct {
                         }
                     }
 
-                    if (Pixi.app.clipboard_image) |*image| {
+                    if (Pixi.editor.clipboard_image) |*image| {
                         image.deinit();
                     }
 
-                    Pixi.app.clipboard_image = copy_image;
-                    Pixi.app.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
+                    Pixi.editor.clipboard_image = copy_image;
+                    Pixi.editor.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
                 }
             } else {
-                if (Pixi.app.clipboard_image) |*image| {
+                if (Pixi.editor.clipboard_image) |*image| {
                     image.deinit();
                 }
 
-                Pixi.app.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
+                Pixi.editor.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
 
                 try self.eraseSprite(self.selected_sprite_index, append_history);
             }
@@ -1689,7 +1924,7 @@ pub const PixiFile = struct {
 
     pub fn copy(self: *PixiFile) !void {
         if (self.transform_texture == null) {
-            if (Pixi.app.tools.current == .selection) {
+            if (Pixi.editor.tools.current == .selection) {
                 if (Pixi.Packer.reduce(&self.selection_layer.texture, .{ 0, 0, self.width, self.height })) |reduced_rect| {
                     const copy_image = try zstbi.Image.createEmpty(@intCast(reduced_rect[2]), @intCast(reduced_rect[3]), 4, .{});
                     const dst_pixels = @as([*][4]u8, @ptrCast(copy_image.data.ptr))[0 .. copy_image.data.len / 4];
@@ -1715,25 +1950,25 @@ pub const PixiFile = struct {
                         }
                     }
 
-                    if (Pixi.app.clipboard_image) |*image| {
+                    if (Pixi.editor.clipboard_image) |*image| {
                         image.deinit();
                     }
 
-                    Pixi.app.clipboard_image = copy_image;
-                    Pixi.app.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
+                    Pixi.editor.clipboard_image = copy_image;
+                    Pixi.editor.clipboard_position = .{ @intCast(reduced_rect[0]), @intCast(reduced_rect[1]) };
                 }
             } else {
-                if (Pixi.app.clipboard_image) |*image| {
+                if (Pixi.editor.clipboard_image) |*image| {
                     image.deinit();
                 }
 
-                Pixi.app.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
+                Pixi.editor.clipboard_image = try self.spriteToImage(self.selected_sprite_index, false);
             }
         }
     }
 
     pub fn paste(self: *PixiFile) !void {
-        if (Pixi.app.clipboard_image) |image| {
+        if (Pixi.editor.clipboard_image) |image| {
             if (self.transform_texture) |*transform_texture|
                 transform_texture.texture.deinit();
 
@@ -1772,7 +2007,7 @@ pub const PixiFile = struct {
             );
             @memcpy(image_copy.data, image.data);
 
-            const transform_position: [2]f32 = if (Pixi.app.tools.current == .selection) .{ @floatFromInt(Pixi.app.clipboard_position[0]), @floatFromInt(Pixi.app.clipboard_position[1]) } else self.pixelCoordinatesFromIndex(self.selected_sprite_index);
+            const transform_position: [2]f32 = if (Pixi.editor.tools.current == .selection) .{ @floatFromInt(Pixi.editor.clipboard_position[0]), @floatFromInt(Pixi.editor.clipboard_position[1]) } else self.pixelCoordinatesFromIndex(self.selected_sprite_index);
             const transform_width: f32 = @floatFromInt(image.width);
             const transform_height: f32 = @floatFromInt(image.height);
 
@@ -1814,7 +2049,7 @@ pub const PixiFile = struct {
                 }),
             );
 
-            Pixi.app.tools.set(Pixi.Tools.Tool.pointer);
+            Pixi.editor.tools.set(Pixi.Editor.Tools.Tool.pointer);
         }
     }
 
@@ -2106,8 +2341,8 @@ pub const PixiFile = struct {
         const selection = self.selected_sprites.items.len > 0;
         const selected_sprite_index = self.spriteSelectionIndex(selected_sprite);
         const contains = selected_sprite_index != null;
-        const primary_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| hotkey.down() else false;
-        const secondary_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hotkey| hotkey.down() else false;
+        const primary_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| hotkey.down() else false;
+        const secondary_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hotkey| hotkey.down() else false;
         if (primary_key) {
             if (!contains) {
                 try self.selected_sprites.append(selected_sprite);
@@ -2475,8 +2710,8 @@ pub const Layer = struct {
     /// Only used for handling getting the pixels surrounding the origin
     /// for stroke sizes larger than 1
     pub fn getIndexShapeOffset(self: Layer, origin: [2]usize, current_index: usize) ?ShapeOffsetResult {
-        const shape = Pixi.app.tools.stroke_shape;
-        const size: i32 = @intCast(Pixi.app.tools.stroke_size);
+        const shape = Pixi.editor.tools.stroke_shape;
+        const size: i32 = @intCast(Pixi.editor.tools.stroke_size);
 
         if (size == 1) {
             if (current_index != 0)
@@ -2535,20 +2770,20 @@ pub const Reference = struct {
     camera: Pixi.gfx.Camera = .{},
     opacity: f32 = 100.0,
 
-    pub fn deinit(self: *Reference) void {
-        self.texture.deinit();
-        Pixi.app.allocator.free(self.path);
+    pub fn deinit(reference: *Reference) void {
+        reference.texture.deinit();
+        Pixi.app.allocator.free(reference.path);
     }
 
-    pub fn canvasCenterOffset(self: *Reference) [2]f32 {
-        const width: f32 = @floatFromInt(self.texture.image.width);
-        const height: f32 = @floatFromInt(self.texture.image.height);
+    pub fn canvasCenterOffset(reference: *Reference) [2]f32 {
+        const width: f32 = @floatFromInt(reference.texture.image.width);
+        const height: f32 = @floatFromInt(reference.texture.image.height);
 
         return .{ -width / 2.0, -height / 2.0 };
     }
 
-    pub fn getPixelIndex(self: Reference, pixel: [2]usize) usize {
-        return pixel[0] + pixel[1] * @as(usize, @intCast(self.texture.image.width));
+    pub fn getPixelIndex(reference: Reference, pixel: [2]usize) usize {
+        return pixel[0] + pixel[1] * @as(usize, @intCast(reference.texture.image.width));
     }
 
     pub fn getPixel(self: Reference, pixel: [2]usize) [4]u8 {
@@ -2557,34 +2792,34 @@ pub const Reference = struct {
         return pixels[index];
     }
 
-    pub fn processSampleTool(self: *Reference) void {
-        const sample_key = if (Pixi.app.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+    pub fn processSampleTool(reference: *Reference) void {
+        const sample_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
         const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
         if (!sample_key and !sample_button) return;
 
         imgui.setMouseCursor(imgui.MouseCursor_None);
-        self.camera.drawCursor(Pixi.assets.pixi_atlas.dropper_0_default, 0xFFFFFFFF);
+        reference.camera.drawCursor(Pixi.assets.pixi_atlas.dropper_0_default, 0xFFFFFFFF);
 
         const mouse_position = Pixi.app.mouse.position;
-        var camera = self.camera;
+        var camera = reference.camera;
 
         const pixel_coord_opt = camera.pixelCoordinates(.{
-            .texture_position = canvasCenterOffset(self),
+            .texture_position = canvasCenterOffset(reference),
             .position = mouse_position,
-            .width = self.texture.image.width,
-            .height = self.texture.image.height,
+            .width = reference.texture.image.width,
+            .height = reference.texture.image.height,
         });
 
         if (pixel_coord_opt) |pixel_coord| {
             const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
-            const color = self.getPixel(pixel);
+            const color = reference.getPixel(pixel);
 
             try camera.drawColorTooltip(color);
 
             if (color[3] != 0)
-                Pixi.app.colors.primary = color;
+                Pixi.editor.colors.primary = color;
         }
     }
 };
@@ -2662,7 +2897,7 @@ pub const KeyframeAnimation = struct {
             color_index = @mod(last_frame.id * 2, 35);
         }
 
-        return if (Pixi.app.colors.keyframe_palette) |palette| Pixi.math.Color.initBytes(
+        return if (Pixi.editor.colors.keyframe_palette) |palette| Pixi.math.Color.initBytes(
             palette.colors[color_index][0],
             palette.colors[color_index][1],
             palette.colors[color_index][2],

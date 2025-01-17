@@ -104,7 +104,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !voi
                 // Set the y scroll manually as allowing default scroll blocks x scroll on the parent window
                 if (window_hovered) {
                     if (Pixi.app.mouse.scroll_y) |scroll_delta_y| {
-                        imgui.setScrollY(imgui.getScrollY() - scroll_delta_y * if (Pixi.app.settings.input_scheme == .trackpad) @as(f32, 10.0) else @as(f32, 1.0));
+                        imgui.setScrollY(imgui.getScrollY() - scroll_delta_y * if (Pixi.editor.settings.input_scheme == .trackpad) @as(f32, 10.0) else @as(f32, 1.0));
                     }
                 }
 
@@ -159,8 +159,8 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !voi
                 .zoom = window_height / tile_height,
             };
             const zoom_index = sprite_camera.nearestZoomIndex();
-            const max_zoom_index = if (zoom_index < Pixi.app.settings.zoom_steps.len - 2) zoom_index + 2 else zoom_index;
-            const max_zoom = Pixi.app.settings.zoom_steps[max_zoom_index];
+            const max_zoom_index = if (zoom_index < Pixi.editor.settings.zoom_steps.len - 2) zoom_index + 2 else zoom_index;
+            const max_zoom = Pixi.editor.settings.zoom_steps[max_zoom_index];
             sprite_camera.setNearZoomFloor();
             const min_zoom = 1.0;
 
@@ -231,7 +231,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !voi
                                             if (bt.pressed()) {
                                                 var change: bool = true;
 
-                                                if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
+                                                if (Pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
                                                     if (hk.down()) {
                                                         frame.parent_id = null;
                                                         change = false;
@@ -239,7 +239,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !voi
                                                 }
 
                                                 if (frame.id != selected_keyframe.active_frame_id) {
-                                                    if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                                    if (Pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
                                                         if (hk.down()) {
                                                             if (selected_keyframe.frame(selected_keyframe.active_frame_id)) |active_frame| {
                                                                 active_frame.parent_id = frame.id;
@@ -531,7 +531,7 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
                     const hovered_time = ms_float / 1000.0;
                     if (Pixi.app.mouse.button(.primary)) |bt| {
                         if (bt.released()) {
-                            const primary_hotkey_down: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+                            const primary_hotkey_down: bool = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
 
                             if (primary_hotkey_down) {
                                 if (animation_index == null) {
@@ -605,7 +605,7 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
         rel_mouse_y = mouse_position[1] - window_position.y + scroll[1];
     }
 
-    const secondary_down: bool = if (Pixi.app.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+    const secondary_down: bool = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
     if (animation_index) |index| {
         var animation = file.keyframe_animations.slice().get(index);

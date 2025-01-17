@@ -99,16 +99,16 @@ pub fn init(popups: *Popups) !void {
     popups.* = .{};
 }
 
-pub fn draw(popups: *Popups, app: *Pixi) !void {
-    try popup_rename.draw(popups, app);
+pub fn draw(popups: *Popups, app: *Pixi, editor: *Editor) !void {
+    try popup_rename.draw(popups, app, editor);
     try popup_file_setup.draw();
     try popup_about.draw();
     try popup_file_confirm_close.draw();
-    try popup_layer_setup.draw();
-    try popup_export_to_png.draw();
-    try popup_animation.draw();
-    try popup_heightmap.draw();
-    try popup_references.draw();
+    try popup_layer_setup.draw(editor);
+    try popup_export_to_png.draw(editor);
+    try popup_animation.draw(editor);
+    try popup_heightmap.draw(editor);
+    try popup_references.draw(editor);
 }
 
 pub fn deinit() void {
@@ -139,8 +139,8 @@ pub fn fileSetupSlice(popups: *Popups, path: [:0]const u8) void {
     popups.file_setup_path = [_:0]u8{0} ** std.fs.max_path_bytes;
     @memcpy(popups.file_setup_path[0..path.len :0], path);
 
-    if (Pixi.Editor.getFileIndex(path)) |index| {
-        if (Pixi.Editor.getFile(index)) |file| {
+    if (Pixi.editor.getFileIndex(path)) |index| {
+        if (Pixi.editor.getFile(index)) |file| {
             popups.file_setup_tile_size = .{ @as(i32, @intCast(file.tile_width)), @as(i32, @intCast(file.tile_height)) };
             popups.file_setup_tiles = .{ @as(i32, @intCast(@divExact(file.width, file.tile_width))), @as(i32, @intCast(@divExact(file.height, file.tile_height))) };
             popups.file_setup_width = @as(i32, @intCast(file.width));

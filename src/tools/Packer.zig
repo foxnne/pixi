@@ -111,14 +111,14 @@ pub fn clearAndFree(self: *Packer) void {
     self.ldtk_tilesets.clearAndFree();
 
     for (self.open_files.items) |*file| {
-        Pixi.Editor.deinitFile(file);
+        file.deinit();
     }
     self.open_files.clearAndFree();
 }
 
 pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
     if (self.ldtk) {
-        if (Pixi.app.project_folder) |project_folder_path| {
+        if (Pixi.editor.project_folder) |project_folder_path| {
             const ldtk_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
             defer Pixi.app.allocator.free(ldtk_path);
 
@@ -328,7 +328,7 @@ pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
 }
 
 pub fn appendProject(self: Packer) !void {
-    if (Pixi.app.project_folder) |root_directory| {
+    if (Pixi.editor.project_folder) |root_directory| {
         try recurseFiles(self.allocator, root_directory);
     }
 }
@@ -347,12 +347,12 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                         const abs_path = try std.fs.path.joinZ(alloc, &.{ directory, entry.name });
                         defer alloc.free(abs_path);
 
-                        if (Pixi.Editor.getFileIndex(abs_path)) |index| {
-                            if (Pixi.Editor.getFile(index)) |file| {
+                        if (Pixi.editor.getFileIndex(abs_path)) |index| {
+                            if (Pixi.editor.getFile(index)) |file| {
                                 try Pixi.app.packer.append(file);
                             }
                         } else {
-                            if (try Pixi.Editor.loadFile(abs_path)) |file| {
+                            if (try Pixi.storage.Internal.PixiFile.load(abs_path)) |file| {
                                 try Pixi.app.packer.open_files.append(file);
                                 try Pixi.app.packer.append(&Pixi.app.packer.open_files.items[Pixi.app.packer.open_files.items.len - 1]);
                             }
@@ -382,11 +382,11 @@ pub fn packAndClear(self: *Packer) !void {
         }
         atlas_texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
-        if (Pixi.app.atlas.diffusemap) |*diffusemap| {
+        if (Pixi.editor.atlas.diffusemap) |*diffusemap| {
             diffusemap.deinit();
-            Pixi.app.atlas.diffusemap = atlas_texture;
+            Pixi.editor.atlas.diffusemap = atlas_texture;
         } else {
-            Pixi.app.atlas.diffusemap = atlas_texture;
+            Pixi.editor.atlas.diffusemap = atlas_texture;
         }
 
         if (self.contains_height) {
@@ -398,14 +398,14 @@ pub fn packAndClear(self: *Packer) !void {
             }
             atlas_texture_h.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
-            if (Pixi.app.atlas.heightmap) |*heightmap| {
+            if (Pixi.editor.atlas.heightmap) |*heightmap| {
                 heightmap.deinit();
-                Pixi.app.atlas.heightmap = atlas_texture_h;
+                Pixi.editor.atlas.heightmap = atlas_texture_h;
             } else {
-                Pixi.app.atlas.heightmap = atlas_texture_h;
+                Pixi.editor.atlas.heightmap = atlas_texture_h;
             }
         } else {
-            if (Pixi.app.atlas.heightmap) |*heightmap| {
+            if (Pixi.editor.atlas.heightmap) |*heightmap| {
                 heightmap.deinit();
             }
         }
@@ -428,7 +428,7 @@ pub fn packAndClear(self: *Packer) !void {
             dst.start = src.start;
         }
 
-        if (Pixi.app.atlas.external) |*old_atlas| {
+        if (Pixi.editor.atlas.external) |*old_atlas| {
             for (old_atlas.sprites) |sprite| {
                 self.allocator.free(sprite.name);
             }
@@ -438,9 +438,9 @@ pub fn packAndClear(self: *Packer) !void {
             self.allocator.free(old_atlas.sprites);
             self.allocator.free(old_atlas.animations);
 
-            Pixi.app.atlas.external = atlas;
+            Pixi.editor.atlas.external = atlas;
         } else {
-            Pixi.app.atlas.external = atlas;
+            Pixi.editor.atlas.external = atlas;
         }
 
         self.clearAndFree();

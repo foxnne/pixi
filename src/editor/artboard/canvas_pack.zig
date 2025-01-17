@@ -1,6 +1,7 @@
 const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
+const Editor = Pixi.Editor;
 const imgui = @import("zig-imgui");
 
 pub const PackTexture = enum {
@@ -8,10 +9,10 @@ pub const PackTexture = enum {
     heightmap,
 };
 
-pub fn draw(mode: PackTexture, app: *Pixi, _: *Core) void {
+pub fn draw(mode: PackTexture, app: *Pixi, _: *Core, editor: *Editor) void {
     if (switch (mode) {
-        .diffusemap => app.atlas.diffusemap,
-        .heightmap => app.atlas.heightmap,
+        .diffusemap => editor.atlas.diffusemap,
+        .heightmap => editor.atlas.heightmap,
     }) |texture| {
         var canvas_flags: imgui.WindowFlags = 0;
         canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;

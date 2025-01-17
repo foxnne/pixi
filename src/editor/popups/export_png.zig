@@ -1,12 +1,13 @@
 const std = @import("std");
+
 const Pixi = @import("../../Pixi.zig");
-const core = @import("mach").core;
+const Editor = Pixi.Editor;
 const imgui = @import("zig-imgui");
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
-pub fn draw() !void {
-    if (Pixi.editor.popups.export_to_png) {
+pub fn draw(editor: *Editor) !void {
+    if (editor.popups.export_to_png) {
         imgui.openPopup("Export to .png...", imgui.PopupFlags_None);
     } else return;
 
@@ -31,7 +32,7 @@ pub fn draw() !void {
 
     if (imgui.beginPopupModal(
         "Export to .png...",
-        &Pixi.editor.popups.export_to_png,
+        &editor.popups.export_to_png,
         modal_flags,
     )) {
         defer imgui.endPopup();
@@ -41,7 +42,7 @@ pub fn draw() !void {
         const content = imgui.getContentRegionAvail();
         const half_width = (popup_width - (style.frame_padding.x * 2.0 * Pixi.app.content_scale[0]) - spacing) / 2.0;
 
-        const plot_name = switch (Pixi.editor.popups.export_to_png_state) {
+        const plot_name = switch (editor.popups.export_to_png_state) {
             .selected_sprite => "Selected Sprite",
             .selected_animation => "Selected Animation",
             .selected_layer => "Selected Layer",
@@ -57,7 +58,7 @@ pub fn draw() !void {
             defer imgui.endCombo();
             var i: usize = 0;
             while (i < 5) : (i += 1) {
-                const current = @as(Pixi.Popups.ExportToPngState, @enumFromInt(i));
+                const current = @as(Editor.Popups.ExportToPngState, @enumFromInt(i));
                 const current_plot_name = switch (current) {
                     .selected_sprite => "Selected Sprite",
                     .selected_animation => "Selected Animation",
@@ -65,8 +66,8 @@ pub fn draw() !void {
                     .all_layers => "All Layers Individually",
                     .full_image => "Full Flattened Image",
                 };
-                if (imgui.selectableEx(current_plot_name, current == Pixi.editor.popups.export_to_png_state, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
-                    Pixi.editor.popups.export_to_png_state = current;
+                if (imgui.selectableEx(current_plot_name, current == editor.popups.export_to_png_state, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
+                    editor.popups.export_to_png_state = current;
                 }
             }
         }
@@ -76,9 +77,9 @@ pub fn draw() !void {
 
         var image_scale: i32 = 1;
 
-        switch (Pixi.editor.popups.export_to_png_state) {
+        switch (editor.popups.export_to_png_state) {
             .selected_sprite, .selected_animation => {
-                image_scale = @as(i32, @intCast(Pixi.editor.popups.export_to_png_scale));
+                image_scale = @as(i32, @intCast(editor.popups.export_to_png_scale));
 
                 imgui.text("Select an export scale:");
                 if (imgui.sliderInt(
@@ -87,7 +88,7 @@ pub fn draw() !void {
                     1,
                     16,
                 )) {
-                    Pixi.editor.popups.export_to_png_scale = @as(u32, @intCast(image_scale));
+                    editor.popups.export_to_png_scale = @as(u32, @intCast(image_scale));
                 }
             },
             else => {
@@ -96,13 +97,13 @@ pub fn draw() !void {
         }
         imgui.spacing();
 
-        switch (Pixi.editor.popups.export_to_png_state) {
+        switch (editor.popups.export_to_png_state) {
             .selected_sprite,
             .selected_animation,
             .selected_layer,
             .all_layers,
             => {
-                _ = imgui.checkbox("Preserve names", &Pixi.editor.popups.export_to_png_preserve_names);
+                _ = imgui.checkbox("Preserve names", &editor.popups.export_to_png_preserve_names);
                 imgui.spacing();
             },
             else => {
@@ -113,19 +114,19 @@ pub fn draw() !void {
         imgui.popItemWidth();
 
         if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
-            Pixi.editor.popups.export_to_png = false;
+            editor.popups.export_to_png = false;
         }
         imgui.sameLine();
         if (imgui.buttonEx("Export", .{ .x = half_width, .y = 0.0 })) {
-            switch (Pixi.editor.popups.export_to_png_state) {
+            switch (editor.popups.export_to_png_state) {
                 .selected_sprite => {
-                    if (Pixi.editor.popups.export_to_png_preserve_names) {
-                        Pixi.editor.popups.file_dialog_request = .{
+                    if (editor.popups.export_to_png_preserve_names) {
+                        editor.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .export_sprite,
                         };
                     } else {
-                        Pixi.editor.popups.file_dialog_request = .{
+                        editor.popups.file_dialog_request = .{
                             .state = .save,
                             .type = .export_sprite,
                             .filter = "png",
@@ -133,13 +134,13 @@ pub fn draw() !void {
                     }
                 },
                 .selected_animation => {
-                    if (Pixi.editor.popups.export_to_png_preserve_names) {
-                        Pixi.editor.popups.file_dialog_request = .{
+                    if (editor.popups.export_to_png_preserve_names) {
+                        editor.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .export_animation,
                         };
                     } else {
-                        Pixi.editor.popups.file_dialog_request = .{
+                        editor.popups.file_dialog_request = .{
                             .state = .save,
                             .type = .export_animation,
                             .filter = "png",
@@ -147,13 +148,13 @@ pub fn draw() !void {
                     }
                 },
                 .selected_layer => {
-                    if (Pixi.editor.popups.export_to_png_preserve_names) {
-                        Pixi.editor.popups.file_dialog_request = .{
+                    if (editor.popups.export_to_png_preserve_names) {
+                        editor.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .export_layer,
                         };
                     } else {
-                        Pixi.editor.popups.file_dialog_request = .{
+                        editor.popups.file_dialog_request = .{
                             .state = .save,
                             .type = .export_layer,
                             .filter = "png",
@@ -161,13 +162,13 @@ pub fn draw() !void {
                     }
                 },
                 .all_layers => {
-                    if (Pixi.editor.popups.export_to_png_preserve_names) {
-                        Pixi.editor.popups.file_dialog_request = .{
+                    if (editor.popups.export_to_png_preserve_names) {
+                        editor.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .export_all_layers,
                         };
                     } else {
-                        Pixi.editor.popups.file_dialog_request = .{
+                        editor.popups.file_dialog_request = .{
                             .state = .save,
                             .type = .export_all_layers,
                             .filter = "png",
@@ -175,7 +176,7 @@ pub fn draw() !void {
                     }
                 },
                 .full_image => {
-                    Pixi.editor.popups.file_dialog_request = .{
+                    editor.popups.file_dialog_request = .{
                         .state = .save,
                         .type = .export_full_image,
                         .filter = "png",
@@ -184,8 +185,8 @@ pub fn draw() !void {
             }
         }
 
-        if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
-            if (Pixi.editor.popups.file_dialog_response) |response| {
+        if (editor.getFile(editor.open_file_index)) |file| {
+            if (editor.popups.file_dialog_response) |response| {
                 switch (response.type) {
                     .export_sprite => {
                         const ext = std.fs.path.extension(response.path);
@@ -200,14 +201,14 @@ pub fn draw() !void {
                         var sprite_image = try file.spriteToImage(file.selected_sprite_index, true);
                         defer sprite_image.deinit();
 
-                        if (Pixi.editor.popups.export_to_png_scale > 1) {
-                            var scaled_image = sprite_image.resize(file.tile_width * Pixi.editor.popups.export_to_png_scale, file.tile_height * Pixi.editor.popups.export_to_png_scale);
+                        if (editor.popups.export_to_png_scale > 1) {
+                            var scaled_image = sprite_image.resize(file.tile_width * editor.popups.export_to_png_scale, file.tile_height * editor.popups.export_to_png_scale);
                             defer scaled_image.deinit();
                             try scaled_image.writeToFile(full_path, .png);
                         } else {
                             try sprite_image.writeToFile(full_path, .png);
                         }
-                        Pixi.editor.popups.export_to_png = false;
+                        editor.popups.export_to_png = false;
                     },
 
                     .export_animation => {
@@ -215,7 +216,7 @@ pub fn draw() !void {
 
                         var i: usize = animation.start;
                         while (i < animation.start + animation.length) : (i += 1) {
-                            if (Pixi.editor.popups.export_to_png_preserve_names) {
+                            if (editor.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
                                 const name = file.sprites.items(.name)[i];
                                 const full_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
@@ -223,14 +224,14 @@ pub fn draw() !void {
                                 var sprite_image = try file.spriteToImage(i, true);
                                 defer sprite_image.deinit();
 
-                                if (Pixi.editor.popups.export_to_png_scale > 1) {
-                                    var scaled_image = sprite_image.resize(file.tile_width * Pixi.editor.popups.export_to_png_scale, file.tile_height * Pixi.editor.popups.export_to_png_scale);
+                                if (editor.popups.export_to_png_scale > 1) {
+                                    var scaled_image = sprite_image.resize(file.tile_width * editor.popups.export_to_png_scale, file.tile_height * editor.popups.export_to_png_scale);
                                     defer scaled_image.deinit();
                                     try scaled_image.writeToFile(full_path, .png);
                                 } else {
                                     try sprite_image.writeToFile(full_path, .png);
                                 }
-                                Pixi.editor.popups.export_to_png = false;
+                                editor.popups.export_to_png = false;
                             } else {
                                 const base_name = std.fs.path.basename(response.path);
                                 if (std.mem.indexOf(u8, response.path, base_name)) |folder_index| {
@@ -245,14 +246,14 @@ pub fn draw() !void {
                                             var sprite_image = try file.spriteToImage(i, true);
                                             defer sprite_image.deinit();
 
-                                            if (Pixi.editor.popups.export_to_png_scale > 1) {
-                                                var scaled_image = sprite_image.resize(file.tile_width * Pixi.editor.popups.export_to_png_scale, file.tile_height * Pixi.editor.popups.export_to_png_scale);
+                                            if (editor.popups.export_to_png_scale > 1) {
+                                                var scaled_image = sprite_image.resize(file.tile_width * editor.popups.export_to_png_scale, file.tile_height * editor.popups.export_to_png_scale);
                                                 defer scaled_image.deinit();
                                                 try scaled_image.writeToFile(full_path, .png);
                                             } else {
                                                 try sprite_image.writeToFile(full_path, .png);
                                             }
-                                            Pixi.editor.popups.export_to_png = false;
+                                            editor.popups.export_to_png = false;
                                         }
                                     }
                                 }
@@ -271,18 +272,18 @@ pub fn draw() !void {
                         }
 
                         try file.layers.items(.texture)[file.selected_layer_index].image.writeToFile(full_path, .png);
-                        Pixi.editor.popups.export_to_png = false;
+                        editor.popups.export_to_png = false;
                     },
 
                     .export_all_layers => {
                         var i: usize = 0;
                         while (i < file.layers.slice().len) : (i += 1) {
-                            if (Pixi.editor.popups.export_to_png_preserve_names) {
+                            if (editor.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
                                 const name = file.layers.items(.name)[i];
                                 const full_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
                                 try file.layers.items(.texture)[i].image.writeToFile(full_path, .png);
-                                Pixi.editor.popups.export_to_png = false;
+                                editor.popups.export_to_png = false;
                             } else {
                                 const base_name = std.fs.path.basename(response.path);
                                 if (std.mem.indexOf(u8, response.path, base_name)) |folder_index| {
@@ -295,7 +296,7 @@ pub fn draw() !void {
                                             const full_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{s}_{d}.png", .{ folder, name, i });
 
                                             try file.layers.items(.texture)[i].image.writeToFile(full_path, .png);
-                                            Pixi.editor.popups.export_to_png = false;
+                                            editor.popups.export_to_png = false;
                                         }
                                     }
                                 }
@@ -318,7 +319,7 @@ pub fn draw() !void {
                             }
                         }
                         try dest_image.writeToFile(response.path, .png);
-                        Pixi.editor.popups.export_to_png = false;
+                        editor.popups.export_to_png = false;
                     },
                     else => {},
                 }
@@ -326,7 +327,7 @@ pub fn draw() !void {
                 switch (response.type) {
                     .export_sprite, .export_animation, .export_layer, .export_all_layers, .export_full_image => {
                         nfd.freePath(response.path);
-                        Pixi.editor.popups.file_dialog_response = null;
+                        editor.popups.file_dialog_response = null;
                     },
                     else => {},
                 }

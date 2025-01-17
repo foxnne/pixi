@@ -1,5 +1,7 @@
 const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
+const Editor = Pixi.Editor;
+
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 const imgui = @import("zig-imgui");
@@ -23,19 +25,19 @@ pub const Extension = enum {
     tar,
 };
 
-pub fn draw() !void {
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, Pixi.editor.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, Pixi.editor.theme.background.toImguiVec4());
+pub fn draw(editor: *Editor) !void {
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.background.toImguiVec4());
     defer imgui.popStyleColorEx(2);
 
-    if (Pixi.app.project_folder) |path| {
+    if (editor.project_folder) |path| {
         const folder = std.fs.path.basename(path);
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.app.content_scale[0], .y = 5.0 * Pixi.app.content_scale[1] });
 
         // Open files
-        const file_count = Pixi.app.open_files.items.len;
+        const file_count = editor.open_files.items.len;
         if (file_count > 0) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
             imgui.separatorText("Open Files  " ++ Pixi.fa.file_powerpoint);
             imgui.popStyleColor();
 
@@ -46,14 +48,14 @@ pub fn draw() !void {
                 defer imgui.endChild();
                 imgui.spacing();
 
-                for (Pixi.app.open_files.items, 0..) |file, i| {
-                    imgui.textColored(Pixi.editor.theme.text_orange.toImguiVec4(), " " ++ Pixi.fa.file_powerpoint ++ " ");
+                for (editor.open_files.items, 0..) |file, i| {
+                    imgui.textColored(editor.theme.text_orange.toImguiVec4(), " " ++ Pixi.fa.file_powerpoint ++ " ");
                     imgui.sameLine();
                     const name = std.fs.path.basename(file.path);
                     const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{name});
                     defer Pixi.app.allocator.free(label);
                     if (imgui.selectable(label)) {
-                        Pixi.Editor.setActiveFile(i);
+                        editor.setActiveFile(i);
                     }
 
                     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.app.content_scale[0], .y = 2.0 * Pixi.app.content_scale[1] });
@@ -62,7 +64,7 @@ pub fn draw() !void {
                     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.app.content_scale[0], .y = 10.0 * Pixi.app.content_scale[1] });
                     imgui.pushID(file.path);
                     if (imgui.beginPopupContextItem()) {
-                        try contextMenuFile(file.path);
+                        try contextMenuFile(editor, file.path);
                         imgui.endPopup();
                     }
                     imgui.popID();
@@ -72,7 +74,7 @@ pub fn draw() !void {
                         if (imgui.beginTooltip()) {
                             defer imgui.endTooltip();
 
-                            imgui.textColored(Pixi.editor.theme.text_secondary.toImguiVec4(), file.path);
+                            imgui.textColored(editor.theme.text_secondary.toImguiVec4(), file.path);
                         }
                     }
                 }
@@ -102,7 +104,7 @@ pub fn draw() !void {
             imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.app.content_scale[0], .y = 4.0 * Pixi.app.content_scale[1] });
             imgui.pushID(path);
             if (imgui.beginPopupContextItem()) {
-                try contextMenuFolder(path);
+                try contextMenuFolder(editor, path);
                 imgui.endPopup();
             }
             imgui.popID();
@@ -121,39 +123,39 @@ pub fn draw() !void {
         imgui.popStyleVar();
 
         if (!open) {
-            if (Pixi.app.project_folder) |f| {
+            if (editor.project_folder) |f| {
                 Pixi.app.allocator.free(f);
             }
 
-            Pixi.app.project_folder = null;
+            editor.project_folder = null;
         }
     } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
         imgui.textWrapped("Open a folder to begin editing.");
         imgui.popStyleColor();
 
-        if (Pixi.app.recents.folders.items.len > 0) {
+        if (editor.recents.folders.items.len > 0) {
             imgui.spacing();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
             imgui.separatorText("Recents  " ++ Pixi.fa.clock);
             imgui.popStyleColor();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
             defer imgui.popStyleColor();
             if (imgui.beginChild("Recents", .{
-                .x = imgui.getWindowWidth() - Pixi.app.settings.explorer_grip * Pixi.app.content_scale[0],
+                .x = imgui.getWindowWidth() - editor.settings.explorer_grip * Pixi.app.content_scale[0],
                 .y = 0.0,
             }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) {
                 defer imgui.endChild();
 
-                var i: usize = Pixi.app.recents.folders.items.len;
+                var i: usize = editor.recents.folders.items.len;
                 while (i > 0) {
                     i -= 1;
-                    const folder = Pixi.app.recents.folders.items[i];
+                    const folder = editor.recents.folders.items[i];
                     const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s} {s}##{s}", .{ Pixi.fa.folder, std.fs.path.basename(folder), folder });
                     defer Pixi.app.allocator.free(label);
 
                     if (imgui.selectable(label)) {
-                        try Pixi.Editor.setProjectFolder(folder);
+                        try editor.setProjectFolder(folder);
                     }
                     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.app.content_scale[0], .y = 2.0 * Pixi.app.content_scale[1] });
                     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.app.content_scale[0], .y = 6.0 * Pixi.app.content_scale[1] });
@@ -163,14 +165,14 @@ pub fn draw() !void {
                     if (imgui.beginPopupContextItem()) {
                         defer imgui.endPopup();
                         if (imgui.menuItem("Remove")) {
-                            const item = Pixi.app.recents.folders.orderedRemove(i);
+                            const item = editor.recents.folders.orderedRemove(i);
                             Pixi.app.allocator.free(item);
-                            try Pixi.app.recents.save();
+                            try editor.recents.save();
                         }
                     }
 
                     imgui.sameLineEx(0.0, 5.0 * Pixi.app.content_scale[0]);
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
                     imgui.text(folder);
                     imgui.popStyleColor();
                 }
@@ -178,6 +180,9 @@ pub fn draw() !void {
         }
     }
 }
+
+// TODO: Rework this, we need to build and sort before presenting, currently files are displayed however they are loaded
+// When reworking, also try to reduce/remove global pointer usage, better to pass in editor or app pointers
 
 pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.app.content_scale[0], .y = 2.0 * Pixi.app.content_scale[1] });
@@ -239,18 +244,18 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 
                     if (imgui.selectableEx(
                         selectable_name,
-                        if (Pixi.Editor.getFileIndex(abs_path)) |_| true else false,
+                        if (Pixi.editor.getFileIndex(abs_path)) |_| true else false,
                         imgui.SelectableFlags_None,
                         .{ .x = 0.0, .y = 0.0 },
                     )) {
                         switch (ext) {
                             .pixi => {
-                                _ = Pixi.Editor.openFile(abs_path) catch {
+                                _ = Pixi.editor.openFile(abs_path) catch {
                                     std.log.debug("Failed to open file: {s}", .{abs_path});
                                 };
                             },
                             .png, .jpg => {
-                                _ = Pixi.Editor.openReference(abs_path) catch {
+                                _ = Pixi.editor.openReference(abs_path) catch {
                                     std.log.debug("Failed to open file: {s}", .{abs_path});
                                 };
                             },
@@ -261,7 +266,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 
                     imgui.pushID(abs_path);
                     if (imgui.beginPopupContextItem()) {
-                        try contextMenuFile(abs_path);
+                        try contextMenuFile(Pixi.editor, abs_path);
                         imgui.endPopup();
                     }
                     imgui.popID();
@@ -276,7 +281,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     if (imgui.treeNode(folder)) {
                         imgui.pushID(abs_path);
                         if (imgui.beginPopupContextItem()) {
-                            try contextMenuFolder(abs_path);
+                            try contextMenuFolder(Pixi.editor, abs_path);
                             imgui.endPopup();
                         }
                         imgui.popID();
@@ -287,7 +292,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     } else {
                         imgui.pushID(abs_path);
                         if (imgui.beginPopupContextItem()) {
-                            try contextMenuFolder(abs_path);
+                            try contextMenuFolder(Pixi.editor, abs_path);
                             imgui.endPopup();
                         }
                         imgui.popID();
@@ -302,31 +307,31 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
     return;
 }
 
-fn contextMenuFolder(folder: [:0]const u8) !void {
-    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
+fn contextMenuFolder(editor: *Editor, folder: [:0]const u8) !void {
+    imgui.pushStyleColorImVec4(imgui.Col_Separator, editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
     defer imgui.popStyleColorEx(2);
     if (imgui.menuItem("New File...")) {
         const new_file_path = try std.fs.path.joinZ(Pixi.app.allocator, &[_][]const u8{ folder, "New_file.pixi" });
         defer Pixi.app.allocator.free(new_file_path);
-        Pixi.editor.popups.fileSetupNew(new_file_path);
+        editor.popups.fileSetupNew(new_file_path);
     }
     if (imgui.menuItem("New File from PNG...")) {
-        Pixi.editor.popups.file_dialog_request = .{
+        editor.popups.file_dialog_request = .{
             .state = .file,
             .type = .new_png,
             .filter = "png",
         };
     }
 
-    if (Pixi.editor.popups.file_dialog_response) |response| {
+    if (editor.popups.file_dialog_response) |response| {
         if (response.type == .new_png) {
             const new_file_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}.pixi", .{response.path[0 .. response.path.len - 4]});
             defer Pixi.app.allocator.free(new_file_path);
-            Pixi.editor.popups.fileSetupImportPng(new_file_path, response.path);
+            editor.popups.fileSetupImportPng(new_file_path, response.path);
 
             nfd.freePath(response.path);
-            Pixi.editor.popups.file_dialog_response = null;
+            editor.popups.file_dialog_response = null;
         }
     }
     if (imgui.menuItem("New Folder...")) {
@@ -336,9 +341,9 @@ fn contextMenuFolder(folder: [:0]const u8) !void {
     imgui.separator();
 }
 
-fn contextMenuFile(file: [:0]const u8) !void {
-    imgui.pushStyleColorImVec4(imgui.Col_Separator, Pixi.editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text.toImguiVec4());
+fn contextMenuFile(editor: *Editor, file: [:0]const u8) !void {
+    imgui.pushStyleColorImVec4(imgui.Col_Separator, editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
 
     const ext = extension(file);
 
@@ -347,12 +352,12 @@ fn contextMenuFile(file: [:0]const u8) !void {
             if (imgui.menuItem("Import...")) {
                 const new_file_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}.pixi", .{file[0 .. file.len - 4]});
                 defer Pixi.app.allocator.free(new_file_path);
-                Pixi.editor.popups.fileSetupImportPng(new_file_path, file);
+                editor.popups.fileSetupImportPng(new_file_path, file);
             }
         },
         .pixi => {
             if (imgui.menuItem("Re-slice...")) {
-                Pixi.editor.popups.fileSetupSlice(file);
+                editor.popups.fileSetupSlice(file);
             }
         },
         else => {},
@@ -361,36 +366,36 @@ fn contextMenuFile(file: [:0]const u8) !void {
     imgui.separator();
 
     if (imgui.menuItem("Rename...")) {
-        Pixi.editor.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
-        Pixi.editor.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
-        @memcpy(Pixi.editor.popups.rename_path[0..file.len], file);
-        @memcpy(Pixi.editor.popups.rename_old_path[0..file.len], file);
-        Pixi.editor.popups.rename = true;
-        Pixi.editor.popups.rename_state = .rename;
+        editor.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        editor.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        @memcpy(editor.popups.rename_path[0..file.len], file);
+        @memcpy(editor.popups.rename_old_path[0..file.len], file);
+        editor.popups.rename = true;
+        editor.popups.rename_state = .rename;
     }
 
     if (imgui.menuItem("Duplicate...")) {
-        Pixi.editor.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
-        Pixi.editor.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
-        @memcpy(Pixi.editor.popups.rename_old_path[0..file.len], file);
+        editor.popups.rename_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        editor.popups.rename_old_path = [_:0]u8{0} ** std.fs.max_path_bytes;
+        @memcpy(editor.popups.rename_old_path[0..file.len], file);
 
         const ex = std.fs.path.extension(file);
 
         if (std.mem.indexOf(u8, file, ex)) |ext_i| {
             const new_base_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{s}{s}", .{ file[0..ext_i], "_copy", ex });
             defer Pixi.app.allocator.free(new_base_name);
-            @memcpy(Pixi.editor.popups.rename_path[0..new_base_name.len], new_base_name);
+            @memcpy(editor.popups.rename_path[0..new_base_name.len], new_base_name);
 
-            Pixi.editor.popups.rename = true;
-            Pixi.editor.popups.rename_state = .duplicate;
+            editor.popups.rename = true;
+            editor.popups.rename_state = .duplicate;
         }
     }
     imgui.separator();
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_red.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_red.toImguiVec4());
     if (imgui.menuItem("Delete")) {
         try std.fs.deleteFileAbsolute(file);
-        if (Pixi.Editor.getFileIndex(file)) |index| {
-            try Pixi.Editor.closeFile(index);
+        if (editor.getFileIndex(file)) |index| {
+            try editor.closeFile(index);
         }
     }
     imgui.popStyleColorEx(3);

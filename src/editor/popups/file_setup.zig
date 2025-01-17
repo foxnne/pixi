@@ -50,7 +50,7 @@ pub fn draw() !void {
             input_text_flags,
         );
 
-        const max_file_size = Pixi.app.settings.max_file_size;
+        const max_file_size = Pixi.editor.settings.max_file_size;
         const max_file_width = switch (Pixi.editor.popups.file_setup_state) {
             .slice, .import_png => Pixi.editor.popups.file_setup_width,
             else => max_file_size[0],
@@ -140,23 +140,23 @@ pub fn draw() !void {
             if (ext.len > 0 and std.mem.eql(u8, ".pixi", ext[0..5])) {
                 switch (Pixi.editor.popups.file_setup_state) {
                     .new => {
-                        if (try Pixi.Editor.newFile(try Pixi.app.allocator.dupeZ(u8, file_setup_path), null)) {
-                            if (Pixi.Editor.getFile(0)) |file| {
+                        if (try Pixi.editor.newFile(try Pixi.app.allocator.dupeZ(u8, file_setup_path), null)) {
+                            if (Pixi.editor.getFile(0)) |file| {
                                 try file.save();
                             }
                         }
                     },
                     .import_png => {
                         const file_setup_png_path = std.mem.trimRight(u8, &Pixi.editor.popups.file_setup_png_path, "\u{0}");
-                        if (try Pixi.Editor.importPng(try Pixi.app.allocator.dupeZ(u8, file_setup_png_path), try Pixi.app.allocator.dupeZ(u8, file_setup_path))) {
-                            if (Pixi.Editor.getFile(0)) |file| {
+                        if (try Pixi.editor.importPng(try Pixi.app.allocator.dupeZ(u8, file_setup_png_path), try Pixi.app.allocator.dupeZ(u8, file_setup_path))) {
+                            if (Pixi.editor.getFile(0)) |file| {
                                 try file.save();
                             }
                         }
                     },
                     .slice => {
-                        if (Pixi.Editor.getFileIndex(Pixi.editor.popups.file_setup_path[0..file_setup_path.len :0])) |index| {
-                            if (Pixi.Editor.getFile(index)) |file| {
+                        if (Pixi.editor.getFileIndex(Pixi.editor.popups.file_setup_path[0..file_setup_path.len :0])) |index| {
+                            if (Pixi.editor.getFile(index)) |file| {
                                 file.tile_width = @as(u32, @intCast(Pixi.editor.popups.file_setup_tile_size[0]));
                                 file.tile_height = @as(u32, @intCast(Pixi.editor.popups.file_setup_tile_size[1]));
                             }

@@ -1,11 +1,13 @@
 const std = @import("std");
+
 const Pixi = @import("../../Pixi.zig");
-const core = @import("mach").core;
+const Editor = Pixi.Editor;
+
 const imgui = @import("zig-imgui");
 
-pub fn draw() !void {
-    if (Pixi.Editor.getFile(Pixi.app.open_file_index)) |file| {
-        if (Pixi.editor.popups.heightmap) {
+pub fn draw(editor: *Editor) !void {
+    if (editor.getFile(editor.open_file_index)) |file| {
+        if (editor.popups.heightmap) {
             imgui.openPopup("Heightmap", imgui.PopupFlags_None);
         } else return;
 
@@ -30,7 +32,7 @@ pub fn draw() !void {
 
         if (imgui.beginPopupModal(
             "Heightmap",
-            &Pixi.editor.popups.heightmap,
+            &editor.popups.heightmap,
             modal_flags,
         )) {
             defer imgui.endPopup();
@@ -45,7 +47,7 @@ pub fn draw() !void {
             imgui.spacing();
 
             if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
-                Pixi.editor.popups.heightmap = false;
+                editor.popups.heightmap = false;
             }
             imgui.sameLine();
             if (imgui.buttonEx("Create", .{ .x = half_width, .y = 0.0 })) {
@@ -55,8 +57,8 @@ pub fn draw() !void {
                     .id = file.newId(),
                 };
                 try file.history.append(.{ .heightmap_restore_delete = .{ .action = .delete } });
-                Pixi.editor.popups.heightmap = false;
-                Pixi.app.tools.set(.heightmap);
+                editor.popups.heightmap = false;
+                editor.tools.set(.heightmap);
             }
         }
     }

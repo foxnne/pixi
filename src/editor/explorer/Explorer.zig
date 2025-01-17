@@ -21,6 +21,18 @@ pub const keyframe_animations = @import("keyframe_animations.zig");
 pub const pack = @import("pack.zig");
 pub const settings = @import("settings.zig");
 
+pane: Pane = .files,
+
+pub const Pane = enum(u32) {
+    files,
+    tools,
+    sprites,
+    animations,
+    keyframe_animations,
+    pack,
+    settings,
+};
+
 pub fn init(explorer: *Explorer) !void {
     explorer.* = .{};
 }
@@ -29,17 +41,17 @@ pub fn deinit() void {
     // TODO: Free memory
 }
 
-pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
+pub fn draw(core: *Core, app: *Pixi, editor: *Editor, explorer: *Explorer) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     imgui.pushStyleVar(imgui.StyleVar_WindowBorderSize, 0.0);
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
     imgui.pushStyleColorImVec4(imgui.Col_WindowBg, Pixi.editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColor();
 
-    const explorer_width = app.settings.explorer_width;
+    const explorer_width = editor.settings.explorer_width;
 
     imgui.setNextWindowPos(.{
-        .x = app.settings.sidebar_width * app.content_scale[0],
+        .x = editor.settings.sidebar_width * app.content_scale[0],
         .y = 0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
@@ -68,10 +80,10 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
         imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(2);
 
-        switch (app.sidebar) {
+        switch (explorer.pane) {
             .files => {
                 if (imgui.beginMenuBar()) {
-                    if (app.hotkeys.hotkey(.{ .sidebar = .files })) |hotkey| {
+                    if (editor.hotkeys.hotkey(.{ .sidebar = .files })) |hotkey| {
                         const title = try std.fmt.allocPrintZ(app.allocator, "Explorer ({s})", .{hotkey.shortcut});
                         defer app.allocator.free(title);
 
@@ -83,11 +95,11 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                try files.draw();
+                try files.draw(editor);
             },
             .tools => {
                 if (imgui.beginMenuBar()) {
-                    if (app.hotkeys.hotkey(.{ .sidebar = .tools })) |hotkey| {
+                    if (editor.hotkeys.hotkey(.{ .sidebar = .tools })) |hotkey| {
                         const title = try std.fmt.allocPrintZ(app.allocator, "Tools ({s})", .{hotkey.shortcut});
                         defer app.allocator.free(title);
 
@@ -100,11 +112,11 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
                 imgui.spacing();
                 imgui.spacing();
 
-                try tools.draw();
+                try tools.draw(editor);
             },
             .sprites => {
                 if (imgui.beginMenuBar()) {
-                    if (app.hotkeys.hotkey(.{ .sidebar = .sprites })) |hotkey| {
+                    if (editor.hotkeys.hotkey(.{ .sidebar = .sprites })) |hotkey| {
                         const title = try std.fmt.allocPrintZ(app.allocator, "Sprites ({s})", .{hotkey.shortcut});
                         defer app.allocator.free(title);
 
@@ -116,11 +128,11 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                try sprites.draw();
+                try sprites.draw(editor);
             },
             .animations => {
                 if (imgui.beginMenuBar()) {
-                    if (app.hotkeys.hotkey(.{ .sidebar = .animations })) |hotkey| {
+                    if (editor.hotkeys.hotkey(.{ .sidebar = .animations })) |hotkey| {
                         const title = try std.fmt.allocPrintZ(app.allocator, "Animations ({s})", .{hotkey.shortcut});
                         defer app.allocator.free(title);
 
@@ -132,11 +144,11 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                try animations.draw();
+                try animations.draw(editor);
             },
             .keyframe_animations => {
                 if (imgui.beginMenuBar()) {
-                    if (app.hotkeys.hotkey(.{ .sidebar = .keyframe_animations })) |hotkey| {
+                    if (editor.hotkeys.hotkey(.{ .sidebar = .keyframe_animations })) |hotkey| {
                         const title = try std.fmt.allocPrintZ(app.allocator, "Keyframe Animations ({s})", .{hotkey.shortcut});
                         defer app.allocator.free(title);
 
@@ -148,11 +160,11 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                try keyframe_animations.draw();
+                try keyframe_animations.draw(editor);
             },
             .pack => {
                 if (imgui.beginMenuBar()) {
-                    if (app.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
+                    if (editor.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
                         const title = try std.fmt.allocPrintZ(app.allocator, "Packing ({s})", .{hotkey.shortcut});
                         defer app.allocator.free(title);
 
@@ -168,7 +180,7 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
             },
             .settings => {
                 if (imgui.beginMenuBar()) {
-                    if (app.hotkeys.hotkey(.{ .sidebar = .settings })) |hotkey| {
+                    if (editor.hotkeys.hotkey(.{ .sidebar = .settings })) |hotkey| {
                         const title = try std.fmt.allocPrintZ(app.allocator, "Settings ({s})", .{hotkey.shortcut});
                         defer app.allocator.free(title);
 
@@ -180,7 +192,7 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
                 }
                 imgui.spacing();
                 imgui.spacing();
-                try settings.draw(core);
+                try settings.draw(core, editor);
             },
         }
     }
@@ -188,17 +200,17 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowMinSize, .{ .x = 0.0, .y = 0.0 });
     defer imgui.popStyleVar();
 
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, Pixi.editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, Pixi.editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_background.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
     defer imgui.popStyleColorEx(3);
 
     imgui.setNextWindowPos(.{
-        .x = app.settings.sidebar_width + explorer_width,
+        .x = editor.settings.sidebar_width + explorer_width,
         .y = 0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = app.settings.explorer_grip,
+        .x = editor.settings.explorer_grip,
         .y = app.window_size[1],
     }, imgui.Cond_Always);
 
@@ -222,7 +234,7 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
         var color = editor.theme.text_background.toImguiVec4();
 
         _ = imgui.invisibleButton("GripButton", .{
-            .x = app.settings.explorer_grip,
+            .x = editor.settings.explorer_grip,
             .y = -1.0,
         }, imgui.ButtonFlags_None);
 
@@ -235,7 +247,7 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
             color = editor.theme.text.toImguiVec4();
 
             if (imgui.isMouseDoubleClicked(imgui.MouseButton_Left)) {
-                app.settings.split_artboard = !app.settings.split_artboard;
+                editor.settings.split_artboard = !editor.settings.split_artboard;
             }
         }
 
@@ -247,10 +259,10 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor) !void {
             const diff = cur[0] - prev[0];
 
             imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
-            app.settings.explorer_width = std.math.clamp(
-                app.settings.explorer_width + diff,
+            editor.settings.explorer_width = std.math.clamp(
+                editor.settings.explorer_width + diff,
                 200,
-                app.window_size[0] / 2.0 - app.settings.sidebar_width,
+                app.window_size[0] / 2.0 - editor.settings.sidebar_width,
             );
         }
 

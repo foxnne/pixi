@@ -5,6 +5,6 @@ pub const Hotkeys = @import("Hotkeys.zig");
 
 pub fn process() !void {
     if (!Pixi.editor.popups.anyPopupOpen()) {
-        try Pixi.app.hotkeys.process();
+        try Pixi.editor.hotkeys.process(Pixi.editor);
     }
 }

@@ -266,16 +266,16 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             }
 
             if (pixels.layer < 0) {
-                Pixi.app.tools.set(.heightmap);
+                Pixi.editor.tools.set(.heightmap);
             } else {
-                Pixi.app.tools.set(.pencil);
+                Pixi.editor.tools.set(.pencil);
             }
 
             var texture: *Pixi.gfx.Texture = &file.layers.items(.texture)[@as(usize, @intCast(pixels.layer))];
             texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
 
-            if (Pixi.app.sidebar == .sprites)
-                Pixi.app.sidebar = .tools;
+            if (Pixi.editor.explorer.pane == .sprites)
+                Pixi.editor.explorer.pane = .tools;
         },
         .origins => |*origins| {
             file.selected_sprites.clearAndFree();
@@ -287,7 +287,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
                 file.sprites.items(.origin_y)[sprite_index] = origin_y;
                 try file.selected_sprites.append(sprite_index);
             }
-            Pixi.app.sidebar = .sprites;
+            Pixi.editor.explorer.pane = .sprites;
         },
         .layers_order => |*layers_order| {
             var new_order = try Pixi.app.allocator.alloc(usize, layers_order.order.len);
@@ -335,7 +335,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
                     layer_restore_delete.action = .restore;
                 },
             }
-            Pixi.app.sidebar = .tools;
+            Pixi.editor.explorer.pane = .tools;
         },
         .layer_name => |*layer_name| {
             var name = [_:0]u8{0} ** 128;
@@ -344,7 +344,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             @memcpy(layer_name.name[0..file.layers.items(.name)[layer_name.index].len], file.layers.items(.name)[layer_name.index]);
             Pixi.app.allocator.free(file.layers.items(.name)[layer_name.index]);
             file.layers.items(.name)[layer_name.index] = try Pixi.app.allocator.dupeZ(u8, &name);
-            Pixi.app.sidebar = .tools;
+            Pixi.editor.explorer.pane = .tools;
         },
         .layer_settings => |*layer_settings| {
             const visible = file.layers.items(.visible)[layer_settings.index];
@@ -353,7 +353,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             file.layers.items(.collapse)[layer_settings.index] = layer_settings.collapse;
             layer_settings.visible = visible;
             layer_settings.collapse = collapse;
-            Pixi.app.sidebar = .tools;
+            Pixi.editor.explorer.pane = .tools;
         },
         .animation => |*animation| {
             // Set sprite names to generic
@@ -393,7 +393,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
             animation.length = file.animations.items(.length)[animation.index];
             file.animations.items(.length)[animation.index] = length;
 
-            Pixi.app.sidebar = .animations;
+            Pixi.editor.explorer.pane = .animations;
         },
         .animation_restore_delete => |*animation_restore_delete| {
             const a = animation_restore_delete.action;
@@ -427,7 +427,7 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
                         file.selected_animation_index = 0;
                 },
             }
-            Pixi.app.sidebar = .animations;
+            Pixi.editor.explorer.pane = .animations;
         },
         .heightmap_restore_delete => |*heightmap_restore_delete| {
             const a = heightmap_restore_delete.action;
@@ -440,8 +440,8 @@ pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: A
                     try file.deleted_heightmap_layers.append(Pixi.app.allocator, file.heightmap.layer.?);
                     file.heightmap.layer = null;
                     heightmap_restore_delete.action = .restore;
-                    if (Pixi.app.tools.current == .heightmap) {
-                        Pixi.app.tools.set(.pointer);
+                    if (Pixi.editor.tools.current == .heightmap) {
+                        Pixi.editor.tools.set(.pointer);
                     }
                 },
             }
