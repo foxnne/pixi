@@ -297,7 +297,7 @@ pub fn draw(editor: *Editor) !void {
                     const new_palette_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{
                         Pixi.app.root_path,
                         std.fs.path.sep,
-                        Pixi.asset_data.palettes,
+                        Pixi.paths.palettes,
                     });
                     defer Pixi.app.allocator.free(new_palette_text);
 
@@ -416,7 +416,7 @@ pub fn drawTooltip(editor: *Editor, tool: Pixi.Editor.Tools.Tool) !void {
 }
 
 fn searchPalettes(editor: *Editor) !void {
-    var dir_opt = std.fs.cwd().openDir(Pixi.asset_data.palettes, .{ .access_sub_paths = false, .iterate = true }) catch null;
+    var dir_opt = std.fs.cwd().openDir(Pixi.paths.palettes, .{ .access_sub_paths = false, .iterate = true }) catch null;
     if (dir_opt) |*dir| {
         defer dir.close();
         var iter = dir.iterate();
@@ -427,7 +427,7 @@ fn searchPalettes(editor: *Editor) !void {
                     const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{entry.name});
                     defer Pixi.app.allocator.free(label);
                     if (imgui.selectable(label)) {
-                        const abs_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ Pixi.asset_data.palettes, entry.name });
+                        const abs_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ Pixi.paths.palettes, entry.name });
                         defer Pixi.app.allocator.free(abs_path);
                         if (editor.colors.palette) |*palette|
                             palette.deinit();

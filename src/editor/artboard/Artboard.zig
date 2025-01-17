@@ -290,8 +290,8 @@ pub fn drawLogoScreen(app: *Pixi, editor: *Editor) !void {
     imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
     defer imgui.popStyleColorEx(5);
     { // Draw semi-transparent logo
-        const atlas = Pixi.asset_data.pixi_atlas;
-        const logo_sprite = app.assets.atlas.sprites[atlas.logo_0_default];
+
+        const logo_sprite = app.assets.atlas.sprites[Pixi.atlas.logo_0_default];
 
         const src: [4]f32 = .{
             @floatFromInt(logo_sprite.source[0]),

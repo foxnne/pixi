@@ -35,7 +35,7 @@ pub fn draw() !void {
         defer imgui.endPopup();
         imgui.spacing();
 
-        const fox_sprite = Pixi.app.assets.atlas.sprites[Pixi.asset_data.pixi_atlas.fox_0_default];
+        const fox_sprite = Pixi.app.assets.atlas.sprites[Pixi.atlas.fox_0_default];
 
         const src: [4]f32 = .{
             @floatFromInt(fox_sprite.source[0]),

@@ -91,7 +91,7 @@ pub fn init(
     editor.open_files = std.ArrayList(Pixi.storage.Internal.PixiFile).init(app.allocator);
     editor.open_references = std.ArrayList(Pixi.storage.Internal.Reference).init(app.allocator);
 
-    editor.colors.keyframe_palette = try Pixi.storage.Internal.Palette.loadFromFile(Pixi.asset_data.pear36_hex.path);
+    editor.colors.keyframe_palette = try Pixi.storage.Internal.Palette.loadFromFile(Pixi.paths.pear36_hex.path);
 
     sidebar_mod.call(.init);
     explorer_mod.call(.init);
@@ -100,7 +100,7 @@ pub fn init(
 }
 
 pub fn lateInit(core: *Core, app: *Pixi, editor: *Editor) !void {
-    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ Pixi.asset_data.themes, editor.settings.theme });
+    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ Pixi.paths.themes, editor.settings.theme });
     defer app.allocator.free(theme_path);
 
     editor.theme = try Theme.loadFromFile(theme_path);

@@ -56,7 +56,8 @@ pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 }
 
 pub const Packer = @import("tools/Packer.zig");
 
-pub const asset_data = @import("assets.zig");
+pub const paths = @import("assets.zig");
+pub const atlas = paths.pixi_atlas;
 pub const shaders = @import("shaders.zig");
 
 pub const fs = @import("tools/fs.zig");
@@ -75,8 +76,8 @@ pub const Assets = struct {
 
     pub fn load(allocator: std.mem.Allocator) !Assets {
         return .{
-            .atlas_png = try gfx.Texture.loadFromFile(asset_data.pixi_png.path, .{}),
-            .atlas = try gfx.Atlas.loadFromFile(allocator, asset_data.pixi_atlas.path),
+            .atlas_png = try gfx.Texture.loadFromFile(paths.pixi_png.path, .{}),
+            .atlas = try gfx.Atlas.loadFromFile(allocator, atlas.path),
         };
     }
 
@@ -180,7 +181,7 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     cozette_config.rasterizer_density = 1.0;
     cozette_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
 
-    _ = io.fonts.?.addFontFromFileTTF(asset_data.root ++ "fonts/CozetteVector.ttf", editor.settings.font_size, &cozette_config, null);
+    _ = io.fonts.?.addFontFromFileTTF(paths.root ++ "fonts/CozetteVector.ttf", editor.settings.font_size, &cozette_config, null);
 
     var fa_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     fa_config.merge_mode = true;
@@ -193,8 +194,8 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(asset_data.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
-    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(asset_data.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(paths.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(paths.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
 
     // This will load our theme
     editor_mod.call(.lateInit);
