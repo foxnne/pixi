@@ -1,10 +1,12 @@
-// Imports
 const std = @import("std");
+
 const mach = @import("mach");
 const gpu = mach.gpu;
+
 const zstbi = @import("zstbi");
 const zm = @import("zmath");
 const nfd = @import("nfd");
+
 const imgui = @import("zig-imgui");
 const imgui_mach = imgui.backends.mach;
 
@@ -24,6 +26,7 @@ pub const mach_systems = .{ .main, .init, .lateInit, .tick, .deinit };
 pub const main = mach.schedule(.{
     .{ Core, .init },
     .{ App, .init },
+    .{ Editor, .init },
     .{ Core, .main },
 });
 
@@ -95,7 +98,14 @@ pub const Fonts = struct {
     fa_standard_solid: *imgui.Font = undefined,
 };
 
-pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor, editor_mod: mach.Mod(Editor)) !void {
+/// This is a mach-called function, and the parameters are automatically injected.
+pub fn init(
+    _app: *App,
+    _core: *Core,
+    _editor: *Editor,
+    app_mod: mach.Mod(App),
+) !void {
+    // Store our global pointers so we can access them from non-mach functions for now
     app = _app;
     core = _core;
     editor = _editor;
@@ -110,20 +120,19 @@ pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor, 
     const path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
     std.posix.chdir(path) catch {};
 
+    // Here we have access to all the initial fields of the window
     const window = try core.windows.new(.{
         .title = "Pixi",
         .vsync_mode = .double,
     });
 
-    _app.* = .{
+    app.* = .{
         .allocator = allocator,
         .arena_allocator = std.heap.ArenaAllocator.init(allocator),
         .timer = try mach.time.Timer.start(),
         .window = window,
         .root_path = try allocator.dupeZ(u8, path),
     };
-
-    editor_mod.call(.init);
 }
 
 /// This is called from the event fired when the window is done being
@@ -140,10 +149,12 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     // Load assets
     app.loaded_assets = try LoadedAssets.init(app.allocator);
 
+    // Setup
     app.mouse = try input.Mouse.initDefault(app.allocator);
     app.packer = try Packer.init(app.allocator);
     app.batcher = try gfx.Batcher.init(app.allocator, 1000);
 
+    // Store information about the window in float format
     app.window_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
     app.framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
     app.content_scale = .{
@@ -151,8 +162,8 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
         app.framebuffer_size[1] / app.window_size[1],
     };
 
+    // Setup imgui
     imgui.setZigAllocator(&app.allocator);
-
     _ = imgui.createContext(null);
     try imgui_mach.init(core, app.allocator, window.device, .{
         .mag_filter = .nearest,
@@ -161,6 +172,7 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
         .color_format = window.framebuffer_format,
     });
 
+    // Setup fonts
     var io = imgui.getIO();
     io.config_flags |= imgui.ConfigFlags_NavEnableKeyboard;
     io.display_framebuffer_scale = .{ .x = app.content_scale[0], .y = app.content_scale[1] };
@@ -191,10 +203,11 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
     app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
 
-    // Initialize the editor which loads our theme
+    // This will load our theme
     editor_mod.call(.lateInit);
 }
 
+/// This is a mach-called function, and the parameters are automatically injected.
 pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     // Process dialog requests
     editor_mod.call(.processDialogRequest);
@@ -246,12 +259,6 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                     app.framebuffer_size[0] / app.window_size[0],
                     app.framebuffer_size[1] / app.window_size[1],
                 };
-
-                // TODO:
-                // Currently content scale is set to 1.0x1.0 because the scaling is handled by
-                // zig-imgui. Tested both on Windows (1.0 content scale) and macOS (2.0 content scale)
-                // If we can confirm that this is not needed, we can purge the use of content_scale from editor files
-                //app.content_scale = .{ 1.0, 1.0 };
             },
 
             else => {},
@@ -338,6 +345,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     }
 }
 
+/// This is a mach-called function, and the parameters are automatically injected.
 pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
     editor_mod.call(.deinit);
 

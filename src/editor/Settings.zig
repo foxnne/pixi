@@ -4,53 +4,9 @@ const std = @import("std");
 
 const Settings = @This();
 
-///Reads in default settings or reads from the settings file
-pub fn init(allocator: std.mem.Allocator) !Settings {
-    const path = "settings.json";
-
-    // Attempt to read the file
-    const max_bytes = 10000; //maximum bytes in settings file
-    const settings_string = std.fs.cwd().readFileAlloc(allocator, path, max_bytes) catch null;
-
-    // Check if the file was read, and if so, parse it
-    if (settings_string) |str| {
-        defer allocator.free(settings_string.?);
-
-        const parsed_settings = std.json.parseFromSlice(@This(), allocator, str, .{}) catch null;
-        if (parsed_settings) |settings| {
-            // TODO: Fix this, we shouldnt have to allocate the theme name just because we need to free all later
-            var s: Settings = settings.value;
-            s.theme = try allocator.dupeZ(u8, s.theme);
-            return s;
-        }
-    }
-    // Return default if parsing failed or file does not exist
-    return @This(){
-        .theme = try allocator.dupeZ(u8, "pixi_dark.json"),
-    };
-}
-
-pub fn save(self: *@This(), allocator: std.mem.Allocator) void {
-    const path = "settings.json";
-    const stringified = std.json.stringifyAlloc(allocator, self, .{}) catch {
-        std.debug.print("ERROR: Failed to stringify settings\n", .{});
-        return;
-    };
-    defer allocator.free(stringified);
-    var file = std.fs.cwd().createFile(path, .{}) catch {
-        std.debug.print("ERROR: Failed to open settings file \"{s}\"\n", .{path});
-        return;
-    };
-    file.writeAll(stringified) catch {
-        std.debug.print("ERROR: Failed to write settings to file \"{s}\"\n", .{path});
-        return;
-    };
-}
-
-/// Saves the current settings to a file and deinitializes the memory
-pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-    allocator.free(self.theme);
-}
+pub const InputScheme = enum { mouse, trackpad };
+pub const FlipbookView = enum { sequential, grid };
+pub const Compatibility = enum { none, ldtk };
 
 /// Width of the explorer bar.
 explorer_width: f32 = 200.0,
@@ -163,6 +119,49 @@ zoom_ctrl: bool = false,
 /// Setting to generate a compatiblity layer between pixi and level editors
 compatibility: Compatibility = .none,
 
-pub const InputScheme = enum { mouse, trackpad };
-pub const FlipbookView = enum { sequential, grid };
-pub const Compatibility = enum { none, ldtk };
+///Reads in default settings or reads from the settings file
+pub fn init(allocator: std.mem.Allocator) !Settings {
+    const path = "settings.json";
+
+    // Attempt to read the file
+    const max_bytes = 10000; //maximum bytes in settings file
+    const settings_string = std.fs.cwd().readFileAlloc(allocator, path, max_bytes) catch null;
+
+    // Check if the file was read, and if so, parse it
+    if (settings_string) |str| {
+        defer allocator.free(settings_string.?);
+
+        const parsed_settings = std.json.parseFromSlice(@This(), allocator, str, .{}) catch null;
+        if (parsed_settings) |settings| {
+            // TODO: Fix this, we shouldnt have to allocate the theme name just because we need to free all later
+            var s: Settings = settings.value;
+            s.theme = try allocator.dupeZ(u8, s.theme);
+            return s;
+        }
+    }
+    // Return default if parsing failed or file does not exist
+    return @This(){
+        .theme = try allocator.dupeZ(u8, "pixi_dark.json"),
+    };
+}
+
+pub fn save(self: *@This(), allocator: std.mem.Allocator) void {
+    const path = "settings.json";
+    const stringified = std.json.stringifyAlloc(allocator, self, .{}) catch {
+        std.debug.print("ERROR: Failed to stringify settings\n", .{});
+        return;
+    };
+    defer allocator.free(stringified);
+    var file = std.fs.cwd().createFile(path, .{}) catch {
+        std.debug.print("ERROR: Failed to open settings file \"{s}\"\n", .{path});
+        return;
+    };
+    file.writeAll(stringified) catch {
+        std.debug.print("ERROR: Failed to write settings to file \"{s}\"\n", .{path});
+        return;
+    };
+}
+
+pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+    allocator.free(self.theme);
+}
