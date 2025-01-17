@@ -8,25 +8,6 @@ const zmath = @import("zmath");
 pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi, editor: *Editor) !void {
     const transforming = file.transform_texture != null;
 
-    {
-        const shadow_color = Pixi.math.Color.initFloats(0.0, 0.0, 0.0, editor.settings.shadow_opacity).toU32();
-        // Draw a shadow fading from bottom to top
-        const pos = imgui.getWindowPos();
-        const height = imgui.getWindowHeight();
-        const width = imgui.getWindowWidth();
-
-        if (imgui.getWindowDrawList()) |draw_list| {
-            draw_list.addRectFilledMultiColor(
-                .{ .x = pos.x, .y = (pos.y + height) - editor.settings.shadow_length * app.content_scale[1] },
-                .{ .x = pos.x + width, .y = pos.y + height },
-                0x0,
-                0x0,
-                shadow_color,
-                shadow_color,
-            );
-        }
-    }
-
     const window_width = imgui.getWindowWidth();
     const window_height = imgui.getWindowHeight();
     const file_width = @as(f32, @floatFromInt(file.width));

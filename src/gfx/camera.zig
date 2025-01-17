@@ -850,9 +850,9 @@ pub const Camera = struct {
     }
 
     pub fn drawLayerTooltip(camera: Camera, layer_index: usize) !void {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0 * Pixi.app.content_scale[0], .y = 8.0 * Pixi.app.content_scale[1] });
-        imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0 * Pixi.app.content_scale[0]);
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.app.content_scale[0], .y = 4.0 * Pixi.app.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0, .y = 8.0 });
+        imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0);
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
         defer imgui.popStyleVarEx(3);
         _ = camera;
         if (imgui.beginTooltip()) {
@@ -865,9 +865,9 @@ pub const Camera = struct {
     }
 
     pub fn drawZoomTooltip(camera: Camera, zoom: f32) void {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0 * Pixi.app.content_scale[0], .y = 8.0 * Pixi.app.content_scale[1] });
-        imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0 * Pixi.app.content_scale[0]);
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.app.content_scale[0], .y = 4.0 * Pixi.app.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0, .y = 8.0 });
+        imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0);
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
         defer imgui.popStyleVarEx(3);
         _ = camera;
         if (imgui.beginTooltip()) {
@@ -879,9 +879,9 @@ pub const Camera = struct {
     }
 
     pub fn drawColorTooltip(camera: Camera, color: [4]u8) !void {
-        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0 * Pixi.app.content_scale[0], .y = 8.0 * Pixi.app.content_scale[1] });
-        imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0 * Pixi.app.content_scale[0]);
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.app.content_scale[0], .y = 4.0 * Pixi.app.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 8.0, .y = 8.0 });
+        imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 8.0);
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
         defer imgui.popStyleVarEx(3);
         _ = camera;
         if (imgui.beginTooltip()) {
@@ -893,8 +893,8 @@ pub const Camera = struct {
                 .w = @as(f32, @floatFromInt(color[3])) / 255.0,
             };
             _ = imgui.colorButtonEx("Eyedropper", col, imgui.ColorEditFlags_None, .{
-                .x = Pixi.editor.settings.eyedropper_preview_size * Pixi.app.content_scale[0],
-                .y = Pixi.editor.settings.eyedropper_preview_size * Pixi.app.content_scale[1],
+                .x = Pixi.editor.settings.eyedropper_preview_size,
+                .y = Pixi.editor.settings.eyedropper_preview_size,
             });
             imgui.text("R: %d", color[0]);
             imgui.text("G: %d", color[1]);

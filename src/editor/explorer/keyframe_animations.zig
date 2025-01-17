@@ -59,16 +59,16 @@ pub fn draw(editor: *Editor) !void {
             defer imgui.unindent();
 
             if (imgui.beginChild("Animations", .{
-                .x = imgui.getWindowWidth() - editor.settings.explorer_grip * Pixi.app.content_scale[0],
+                .x = imgui.getWindowWidth() - editor.settings.explorer_grip,
                 .y = 0.0,
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
-                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.app.content_scale[0], .y = 2.0 * Pixi.app.content_scale[1] });
-                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.app.content_scale[0], .y = 6.0 * Pixi.app.content_scale[1] });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
                 imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.0, .y = 0.5 });
-                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * Pixi.app.content_scale[0]);
-                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.app.content_scale[0], .y = 10.0 * Pixi.app.content_scale[1] });
+                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0);
+                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
                 defer imgui.popStyleVarEx(5);
                 var animation_index: usize = 0;
                 while (animation_index < file.keyframe_animations.slice().len) : (animation_index += 1) {

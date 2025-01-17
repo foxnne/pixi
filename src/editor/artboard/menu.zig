@@ -7,9 +7,9 @@ const zstbi = @import("zstbi");
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-pub fn draw(app: *Pixi, _: *Core, editor: *Editor) !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * app.content_scale[0], .y = 10.0 * app.content_scale[1] });
-    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 6.0 * app.content_scale[0], .y = 6.0 * app.content_scale[1] });
+pub fn draw(editor: *Editor) !void {
+    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 6.0, .y = 6.0 });
     defer imgui.popStyleVarEx(2);
     imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_PopupBg, editor.theme.foreground.toImguiVec4());

@@ -17,8 +17,8 @@ pub fn draw(editor: *Editor) !void {
             imgui.openPopup(dialog_name, imgui.PopupFlags_None);
         } else return;
 
-        const popup_width = 350 * Pixi.app.content_scale[0];
-        const popup_height = 115 * Pixi.app.content_scale[1];
+        const popup_width: f32 = 350;
+        const popup_height: f32 = 115;
 
         const window_size = Pixi.app.window_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
@@ -46,8 +46,8 @@ pub fn draw(editor: *Editor) !void {
 
             const style = imgui.getStyle();
             const spacing = style.item_spacing.x;
-            const full_width = popup_width - (style.frame_padding.x * 2.0 * Pixi.app.content_scale[0]) - imgui.calcTextSize("Name").x;
-            const half_width = (popup_width - (style.frame_padding.x * 2.0 * Pixi.app.content_scale[0]) - spacing) / 2.0;
+            const full_width = popup_width - (style.frame_padding.x * 2.0) - imgui.calcTextSize("Name").x;
+            const half_width = (popup_width - (style.frame_padding.x * 2.0) - spacing) / 2.0;
 
             imgui.pushItemWidth(full_width);
 

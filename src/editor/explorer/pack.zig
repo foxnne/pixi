@@ -6,7 +6,7 @@ const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
 pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * app.content_scale[0], .y = 5.0 * app.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.highlight_secondary.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.highlight_secondary.toImguiVec4());
@@ -143,7 +143,7 @@ pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
                 defer imgui.popStyleColor();
                 if (imgui.beginChild("Recents", .{
-                    .x = imgui.getWindowWidth() - editor.settings.explorer_grip * app.content_scale[0],
+                    .x = imgui.getWindowWidth() - editor.settings.explorer_grip,
                     .y = 0.0,
                 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                     defer imgui.endChild();
@@ -159,7 +159,7 @@ pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
                             const exp_out = editor.recents.exports.swapRemove(i);
                             try editor.recents.appendExport(exp_out);
                         }
-                        imgui.sameLineEx(0.0, 5.0 * Pixi.app.content_scale[0]);
+                        imgui.sameLineEx(0.0, 5.0);
                         imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
                         imgui.text(exp);
                         imgui.popStyleColor();

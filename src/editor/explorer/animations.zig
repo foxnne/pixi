@@ -21,10 +21,10 @@ pub fn draw(editor: *Editor) !void {
         file.flipbook_view = .canvas;
 
         if (imgui.collapsingHeader(Pixi.fa.screwdriver ++ "  Tools", imgui.TreeNodeFlags_DefaultOpen)) {
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.app.content_scale[0], .y = 5.0 * Pixi.app.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
             defer imgui.popStyleVar();
 
-            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 8.0 * Pixi.app.content_scale[0], .y = 4.0 * Pixi.app.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 8.0, .y = 4.0 });
             imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.8 });
             defer imgui.popStyleVarEx(2);
 
@@ -34,7 +34,7 @@ pub fn draw(editor: *Editor) !void {
             defer imgui.popStyleColorEx(3);
             if (imgui.beginChild("AnimationTools", .{
                 .x = imgui.getWindowWidth(),
-                .y = editor.settings.animation_edit_height * Pixi.app.content_scale[1],
+                .y = editor.settings.animation_edit_height,
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
@@ -59,15 +59,15 @@ pub fn draw(editor: *Editor) !void {
             defer imgui.unindent();
 
             if (imgui.beginChild("Animations", .{
-                .x = imgui.getWindowWidth() - editor.settings.explorer_grip * Pixi.app.content_scale[0],
+                .x = imgui.getWindowWidth() - editor.settings.explorer_grip,
                 .y = 0.0,
             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 defer imgui.endChild();
 
-                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0 * Pixi.app.content_scale[0], .y = 2.0 * Pixi.app.content_scale[1] });
-                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * Pixi.app.content_scale[0], .y = 6.0 * Pixi.app.content_scale[1] });
-                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0 * Pixi.app.content_scale[0]);
-                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0 * Pixi.app.content_scale[0], .y = 10.0 * Pixi.app.content_scale[1] });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
+                imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
+                imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 2.0);
+                imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
                 defer imgui.popStyleVarEx(4);
                 var animation_index: usize = 0;
                 while (animation_index < file.animations.slice().len) : (animation_index += 1) {

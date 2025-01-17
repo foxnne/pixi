@@ -29,6 +29,7 @@ pub const mach_systems = .{
     .lateInit,
     .processDialogRequest,
     .tick,
+    .close,
     .deinit,
 };
 
@@ -206,6 +207,22 @@ pub fn tick(
     for (editor.hotkeys.hotkeys) |*hotkey| {
         hotkey.previous_state = hotkey.state;
     }
+}
+
+pub fn close(app: *Pixi, editor: *Editor) void {
+    var should_close = true;
+    for (editor.open_files.items) |file| {
+        if (file.dirty()) {
+            should_close = false;
+        }
+    }
+
+    if (!should_close and !editor.popups.file_confirm_close_exit) {
+        editor.popups.file_confirm_close = true;
+        editor.popups.file_confirm_close_state = .all;
+        editor.popups.file_confirm_close_exit = true;
+    }
+    app.should_close = should_close;
 }
 
 pub fn setProjectFolder(editor: *Editor, path: [:0]const u8) !void {

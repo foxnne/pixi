@@ -9,7 +9,7 @@ const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
 pub fn draw(core: *Core, editor: *Editor) !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0 * Pixi.app.content_scale[1], .y = 6.0 * Pixi.app.content_scale[1] });
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 6.0 });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.highlight_secondary.toImguiVec4());
     defer imgui.popStyleColor();
@@ -19,14 +19,14 @@ pub fn draw(core: *Core, editor: *Editor) !void {
         .y = -1.0,
     }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
         defer imgui.endChild();
-        imgui.pushItemWidth(imgui.getWindowWidth() - editor.settings.explorer_grip * Pixi.app.content_scale[0]);
+        imgui.pushItemWidth(imgui.getWindowWidth() - editor.settings.explorer_grip);
 
         if (imgui.collapsingHeader(Pixi.fa.mouse ++ "  Input", imgui.TreeNodeFlags_Framed)) {
-            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * Pixi.app.content_scale[0], .y = 3.0 * Pixi.app.content_scale[1] });
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * Pixi.app.content_scale[1], .y = 4.0 * Pixi.app.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0, .y = 3.0 });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0, .y = 4.0 });
             defer imgui.popStyleVarEx(2);
 
-            imgui.pushItemWidth(editor.settings.explorer_width * Pixi.app.content_scale[0] * 0.5);
+            imgui.pushItemWidth(editor.settings.explorer_width * 0.5);
             if (imgui.beginCombo("Scheme", @tagName(editor.settings.input_scheme), imgui.ComboFlags_None)) {
                 defer imgui.endCombo();
                 if (imgui.selectable("mouse")) {
@@ -53,11 +53,11 @@ pub fn draw(core: *Core, editor: *Editor) !void {
         }
 
         if (imgui.collapsingHeader(Pixi.fa.th_list ++ "  Layout", imgui.TreeNodeFlags_None)) {
-            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * Pixi.app.content_scale[0], .y = 3.0 * Pixi.app.content_scale[1] });
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * Pixi.app.content_scale[1], .y = 4.0 * Pixi.app.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0, .y = 3.0 });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0, .y = 4.0 });
             defer imgui.popStyleVarEx(2);
 
-            imgui.pushItemWidth(editor.settings.explorer_width * Pixi.app.content_scale[0] * 0.5);
+            imgui.pushItemWidth(editor.settings.explorer_width * 0.5);
 
             _ = imgui.sliderFloatEx(
                 "Info Height",
@@ -95,10 +95,10 @@ pub fn draw(core: *Core, editor: *Editor) !void {
         }
 
         if (imgui.collapsingHeader(Pixi.fa.sliders_h ++ "  Configuration", imgui.TreeNodeFlags_None)) {
-            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * Pixi.app.content_scale[0], .y = 3.0 * Pixi.app.content_scale[1] });
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * Pixi.app.content_scale[1], .y = 4.0 * Pixi.app.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0, .y = 3.0 });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0, .y = 4.0 });
             defer imgui.popStyleVarEx(2);
-            imgui.pushItemWidth(editor.settings.explorer_width * Pixi.app.content_scale[0] * 0.5);
+            imgui.pushItemWidth(editor.settings.explorer_width * 0.5);
 
             _ = imgui.checkbox(
                 "Dropper Auto-switch",
@@ -123,8 +123,8 @@ pub fn draw(core: *Core, editor: *Editor) !void {
         }
 
         if (imgui.collapsingHeader(Pixi.fa.paint_roller ++ "  Style", imgui.TreeNodeFlags_None)) {
-            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0 * Pixi.app.content_scale[0], .y = 3.0 * Pixi.app.content_scale[1] });
-            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0 * Pixi.app.content_scale[1], .y = 4.0 * Pixi.app.content_scale[1] });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0, .y = 3.0 });
+            imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0, .y = 4.0 });
             defer imgui.popStyleVarEx(2);
 
             imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.highlight_secondary.toImguiVec4());
@@ -149,7 +149,7 @@ pub fn draw(core: *Core, editor: *Editor) !void {
 
             imgui.spacing();
 
-            if (imgui.buttonEx("Save As...", .{ .x = imgui.getWindowWidth() - editor.settings.explorer_grip * Pixi.app.content_scale[0], .y = 0.0 })) {
+            if (imgui.buttonEx("Save As...", .{ .x = imgui.getWindowWidth() - editor.settings.explorer_grip, .y = 0.0 })) {
                 editor.popups.file_dialog_request = .{
                     .state = .save,
                     .type = .export_theme,

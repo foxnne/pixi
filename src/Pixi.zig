@@ -12,7 +12,6 @@ const imgui_mach = imgui.backends.mach;
 const Core = mach.Core;
 pub const App = @This();
 pub const Editor = @import("editor/Editor.zig");
-pub const Popups = @import("editor/popups/Popups.zig");
 
 // Global pointers
 pub var core: *Core = undefined;
@@ -132,13 +131,17 @@ pub fn init(_app: *App, _core: *Core, app_mod: mach.Mod(App), _editor: *Editor, 
 pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     const window = core.windows.getValue(app.window);
 
+    // Now that we have a valid device, we can initialize our pipelines
+    try gfx.init(app);
+
+    // Initialize zstbi to load assets
     zstbi.init(app.allocator);
 
+    // Load assets
     app.loaded_assets = try LoadedAssets.init(app.allocator);
+
     app.mouse = try input.Mouse.initDefault(app.allocator);
-
     app.packer = try Packer.init(app.allocator);
-
     app.batcher = try gfx.Batcher.init(app.allocator, 1000);
 
     app.window_size = .{ @floatFromInt(window.width), @floatFromInt(window.height) };
@@ -147,12 +150,6 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
         app.framebuffer_size[0] / app.window_size[0],
         app.framebuffer_size[1] / app.window_size[1],
     };
-    // TODO: Remove usage of content_scale if it isn't needed
-    app.content_scale = .{ 1.0, 1.0 };
-
-    const scale_factor = app.content_scale[1];
-
-    try gfx.init(app);
 
     imgui.setZigAllocator(&app.allocator);
 
@@ -168,6 +165,7 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     io.config_flags |= imgui.ConfigFlags_NavEnableKeyboard;
     io.display_framebuffer_scale = .{ .x = app.content_scale[0], .y = app.content_scale[1] };
     io.font_global_scale = 1.0;
+
     var cozette_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     cozette_config.font_data_owned_by_atlas = true;
     cozette_config.oversample_h = 2;
@@ -177,7 +175,7 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     cozette_config.rasterizer_density = 1.0;
     cozette_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
 
-    _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", editor.settings.font_size * scale_factor, &cozette_config, null);
+    _ = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/CozetteVector.ttf", editor.settings.font_size, &cozette_config, null);
 
     var fa_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     fa_config.merge_mode = true;
@@ -190,8 +188,8 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
-    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size * scale_factor, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
+    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(assets.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
 
     // Initialize the editor which loads our theme
     editor_mod.call(.lateInit);
@@ -217,6 +215,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                 editor.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
             },
             .mouse_scroll => |mouse_scroll| {
+                // TODO: Fix this in the editor code, we dont want to block mouse input based on popups
                 if (!editor.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
                     app.mouse.scroll_x = mouse_scroll.xoffset;
                     app.mouse.scroll_y = mouse_scroll.yoffset;
@@ -226,7 +225,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                 app.mouse.magnify = gesture.zoom;
             },
             .mouse_motion => |mouse_motion| {
-                app.mouse.position = .{ @floatCast(mouse_motion.pos.x * app.content_scale[0]), @floatCast(mouse_motion.pos.y * app.content_scale[1]) };
+                app.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) };
             },
             .mouse_press => |mouse_press| {
                 app.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press);
@@ -235,19 +234,9 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                 app.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release);
             },
             .close => {
-                var should_close = true;
-                for (editor.open_files.items) |file| {
-                    if (file.dirty()) {
-                        should_close = false;
-                    }
-                }
-
-                if (!should_close and !editor.popups.file_confirm_close_exit) {
-                    editor.popups.file_confirm_close = true;
-                    editor.popups.file_confirm_close_state = .all;
-                    editor.popups.file_confirm_close_exit = true;
-                }
-                app.should_close = should_close;
+                // Currently, just pass along this message to the editor
+                // and allow the editor to set the app.should_close or not
+                editor_mod.call(.close);
             },
             .window_resize => |resize| {
                 const window = core.windows.getValue(app.window);
@@ -262,7 +251,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
                 // Currently content scale is set to 1.0x1.0 because the scaling is handled by
                 // zig-imgui. Tested both on Windows (1.0 content scale) and macOS (2.0 content scale)
                 // If we can confirm that this is not needed, we can purge the use of content_scale from editor files
-                app.content_scale = .{ 1.0, 1.0 };
+                //app.content_scale = .{ 1.0, 1.0 };
             },
 
             else => {},
@@ -276,6 +265,8 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     // New imgui frame
     try imgui_mach.newFrame();
     imgui.newFrame();
+
+    // Update times
     app.delta_time = app.timer.lap();
     app.total_time += app.delta_time;
 
@@ -288,6 +279,7 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     // Render imgui
     imgui.render();
 
+    // Pass commands to the window queue for presenting
     if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
@@ -340,8 +332,8 @@ pub fn tick(app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
 
     app.mouse.previous_position = app.mouse.position;
 
+    // Finally, close if we should and aren't in the middle of saving
     if (app.should_close and !editor.saving()) {
-        // Close!
         core.exit();
     }
 }

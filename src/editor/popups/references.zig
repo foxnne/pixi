@@ -10,7 +10,7 @@ var open: bool = false;
 pub fn draw(editor: *Editor) !void {
     if (!editor.popups.references) return;
 
-    const popup_size = 200 * Pixi.app.content_scale[0];
+    const popup_size = 200;
 
     const window_size = Pixi.app.window_size;
 

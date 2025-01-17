@@ -35,7 +35,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi,
                 const animation = &file.animations.slice().get(file.selected_animation_index);
 
                 { // Animation Selection
-                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * app.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
                         var animation_index: usize = 0;
@@ -54,7 +54,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi,
                     const frame = try std.fmt.allocPrintZ(app.allocator, "{d}/{d}", .{ current_frame + 1, animation.length });
                     defer app.allocator.free(frame);
 
-                    imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40 * app.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40);
                     if (imgui.beginCombo("Frame  ", frame, imgui.ComboFlags_None)) {
                         defer imgui.endCombo();
                         for (0..animation.length) |i| {
@@ -69,7 +69,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi,
                 }
 
                 { // FPS Selection
-                    imgui.setNextItemWidth(100 * app.content_scale[0]);
+                    imgui.setNextItemWidth(100);
                     var fps = @as(i32, @intCast(animation.fps));
                     var changed: bool = false;
                     if (imgui.sliderInt(
@@ -115,7 +115,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, mouse_ratio: f32, app: *Pixi,
                 const animation = &file.keyframe_animations.slice().get(file.selected_keyframe_animation_index);
 
                 { // Animation Selection
-                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40 * app.content_scale[0]);
+                    imgui.setNextItemWidth(imgui.calcTextSize(animation.name).x + 40);
                     if (imgui.beginCombo("Animation  ", animation.name, imgui.ComboFlags_HeightLargest)) {
                         defer imgui.endCombo();
                         var keyframe_animation_index: usize = 0;

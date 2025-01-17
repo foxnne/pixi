@@ -35,12 +35,12 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
-        .x = (editor.settings.sidebar_width + editor.settings.explorer_width + editor.settings.explorer_grip) * app.content_scale[0],
+        .x = editor.settings.sidebar_width + editor.settings.explorer_width + editor.settings.explorer_grip,
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = (app.window_size[0] - ((editor.settings.explorer_width + editor.settings.sidebar_width + editor.settings.explorer_grip)) * app.content_scale[0]),
-        .y = (app.window_size[1] + 5.0) * app.content_scale[1],
+        .x = app.window_size[0] - editor.settings.explorer_width - editor.settings.sidebar_width - editor.settings.explorer_grip,
+        .y = app.window_size[1] + 5.0,
     }, imgui.Cond_None);
 
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.5 });
@@ -57,7 +57,26 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
     art_flags |= imgui.WindowFlags_NoBringToFrontOnFocus;
 
     if (imgui.begin("Art", null, art_flags)) {
-        try menu.draw(app, core, editor);
+        try menu.draw(editor);
+
+        defer {
+            const shadow_color = Pixi.math.Color.initFloats(0.0, 0.0, 0.0, editor.settings.shadow_opacity).toU32();
+            // Draw a shadow fading from bottom to top
+            const pos = imgui.getWindowPos();
+            const height = imgui.getWindowHeight();
+            const width = imgui.getWindowWidth();
+
+            if (imgui.getWindowDrawList()) |draw_list| {
+                draw_list.addRectFilledMultiColor(
+                    .{ .x = pos.x, .y = (pos.y + height) - editor.settings.shadow_length },
+                    .{ .x = pos.x + width, .y = pos.y + height },
+                    0x0,
+                    0x0,
+                    shadow_color,
+                    shadow_color,
+                );
+            }
+        }
 
         const art_width = imgui.getWindowWidth();
 
@@ -154,7 +173,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
                                 }
 
                                 if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
-                                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 4.0 * app.content_scale[0], .y = 4.0 * app.content_scale[1] });
+                                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 4.0, .y = 4.0 });
                                     defer imgui.popStyleVar();
                                     if (imgui.beginTooltip()) {
                                         defer imgui.endTooltip();
@@ -226,7 +245,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
 
         if (editor.explorer.pane != .pack) {
             if (editor.open_files.items.len > 0) {
-                const flipbook_height = window_height - artboard_height - editor.settings.info_bar_height * app.content_scale[1];
+                const flipbook_height = window_height - artboard_height - editor.settings.info_bar_height;
 
                 var flipbook_flags: imgui.WindowFlags = 0;
                 flipbook_flags |= imgui.WindowFlags_MenuBar;
@@ -253,7 +272,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
                     imgui.pushStyleColorImVec4(imgui.Col_ChildBg, Pixi.editor.theme.highlight_primary.toImguiVec4());
                     defer imgui.popStyleColor();
                     if (imgui.beginChild("InfoBar", .{ .x = -1.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-                        infobar.draw(app, core, editor);
+                        infobar.draw(editor);
                     }
                     imgui.endChild();
                 }
@@ -280,8 +299,8 @@ pub fn drawLogoScreen(app: *Pixi, editor: *Editor) !void {
             @floatFromInt(logo_sprite.source[3]),
         };
 
-        const w = src[2] * 32.0 * app.content_scale[0];
-        const h = src[3] * 32.0 * app.content_scale[0];
+        const w = src[2] * 32.0;
+        const h = src[3] * 32.0;
         const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
 
         const inv_w = 1.0 / @as(f32, @floatFromInt(app.loaded_assets.atlas_png.image.width));

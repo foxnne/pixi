@@ -28,7 +28,7 @@ pub fn draw(app: *Pixi, editor: *Editor) !void {
         .y = 0.0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = editor.settings.sidebar_width * app.content_scale[0],
+        .x = editor.settings.sidebar_width,
         .y = app.window_size[1],
     }, imgui.Cond_None);
     imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });

@@ -51,11 +51,11 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor, explorer: *Explorer) !void
     const explorer_width = editor.settings.explorer_width;
 
     imgui.setNextWindowPos(.{
-        .x = editor.settings.sidebar_width * app.content_scale[0],
+        .x = editor.settings.sidebar_width,
         .y = 0,
     }, imgui.Cond_Always);
     imgui.setNextWindowSize(.{
-        .x = explorer_width * app.content_scale[0],
+        .x = explorer_width,
         .y = app.window_size[1],
     }, imgui.Cond_None);
 
@@ -72,8 +72,8 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor, explorer: *Explorer) !void
         defer imgui.end();
         imgui.popStyleVarEx(3);
 
-        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0 * app.content_scale[0], .y = 6.0 * app.content_scale[1] });
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 * app.content_scale[1] });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
+        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 0.0, .y = 8.0 });
         defer imgui.popStyleVarEx(2);
 
         imgui.pushStyleColorImVec4(imgui.Col_Separator, editor.theme.text_background.toImguiVec4());
