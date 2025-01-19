@@ -1,11 +1,14 @@
 const std = @import("std");
+
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
 const Editor = Pixi.Editor;
+const Packer = Pixi.Packer;
+
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
+pub fn draw(app: *Pixi, editor: *Editor, packer: *Packer) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.highlight_secondary.toImguiVec4());
@@ -15,20 +18,20 @@ pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
 
     const window_size = imgui.getContentRegionAvail();
 
-    switch (app.packer.target) {
+    switch (packer.target) {
         .all_open => {
             if (editor.open_files.items.len <= 1) {
-                app.packer.target = .project;
+                packer.target = .project;
             }
         },
         .single_open => {
             if (editor.open_files.items.len == 0)
-                app.packer.target = .project;
+                packer.target = .project;
         },
         else => {},
     }
 
-    const preview_text = switch (app.packer.target) {
+    const preview_text = switch (packer.target) {
         .project => "Full Project",
         .all_open => "All Open Files",
         .single_open => "Current Open File",
@@ -37,20 +40,20 @@ pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
     if (imgui.beginCombo("Files", preview_text.ptr, imgui.ComboFlags_None)) {
         defer imgui.endCombo();
         if (imgui.menuItem("Full Project")) {
-            app.packer.target = .project;
+            packer.target = .project;
         }
 
         {
             const enabled = if (editor.getFile(editor.open_file_index)) |_| true else false;
             if (imgui.menuItemEx("Current Open File", null, false, enabled)) {
-                app.packer.target = .single_open;
+                packer.target = .single_open;
             }
         }
 
         {
             const enabled = if (editor.open_files.items.len > 1) true else false;
             if (imgui.menuItemEx("All Open Files", null, false, enabled)) {
-                app.packer.target = .all_open;
+                packer.target = .all_open;
             }
         }
     }
@@ -65,8 +68,8 @@ pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
 
     {
         var packable: bool = true;
-        if (app.packer.target == .project and editor.project_folder == null) packable = false;
-        if (app.packer.target == .all_open and editor.open_files.items.len <= 1) packable = false;
+        if (packer.target == .project and editor.project_folder == null) packable = false;
+        if (packer.target == .all_open and editor.open_files.items.len <= 1) packable = false;
         if (editor.saving()) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
@@ -77,23 +80,23 @@ pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
         if (!packable)
             imgui.beginDisabled(true);
         if (imgui.buttonEx("Pack", .{ .x = window_size.x, .y = 0.0 })) {
-            switch (app.packer.target) {
+            switch (packer.target) {
                 .project => {
                     if (editor.project_folder) |folder| {
-                        try Pixi.Packer.recurseFiles(app.allocator, folder);
-                        try app.packer.packAndClear();
+                        try Pixi.Packer.recurseFiles(folder);
+                        try packer.packAndClear();
                     }
                 },
                 .all_open => {
                     for (editor.open_files.items) |*file| {
-                        try app.packer.append(file);
+                        try packer.append(file);
                     }
-                    try app.packer.packAndClear();
+                    try packer.packAndClear();
                 },
                 .single_open => {
                     if (editor.getFile(editor.open_file_index)) |file| {
-                        try app.packer.append(file);
-                        try app.packer.packAndClear();
+                        try packer.append(file);
+                        try packer.packAndClear();
                     }
                 },
             }
@@ -101,7 +104,7 @@ pub fn draw(_: *Core, app: *Pixi, editor: *Editor) !void {
         if (!packable)
             imgui.endDisabled();
 
-        if (app.packer.target == .project and editor.project_folder == null) {
+        if (packer.target == .project and editor.project_folder == null) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
             defer imgui.popStyleColor();
             imgui.textWrapped("Select a project folder to pack.");

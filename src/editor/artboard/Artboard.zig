@@ -3,6 +3,8 @@ const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
 const Editor = Pixi.Editor;
+const Packer = Pixi.Packer;
+
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
@@ -31,7 +33,7 @@ pub fn init(artboard: *Artboard) void {
 
 pub fn deinit() void {}
 
-pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void {
+pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor, packer: *Packer) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -124,7 +126,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor) !void
                     const mouse_clicked: bool = app.mouse.anyButtonDown();
 
                     if (editor.explorer.pane == .pack) {
-                        drawCanvasPack(core, app, editor);
+                        drawCanvasPack(editor, packer);
                     } else if (editor.open_files.items.len > 0) {
                         var files_flags: imgui.TabBarFlags = 0;
                         files_flags |= imgui.TabBarFlags_Reorderable;
@@ -386,7 +388,7 @@ pub fn drawGrip(window_width: f32, app: *Pixi, editor: *Editor) void {
     imgui.textColored(color, Pixi.fa.grip_lines_vertical);
 }
 
-pub fn drawCanvasPack(core: *Core, app: *Pixi, editor: *Editor) void {
+pub fn drawCanvasPack(editor: *Editor, packer: *Packer) void {
     var packed_textures_flags: imgui.TabBarFlags = 0;
     packed_textures_flags |= imgui.TabBarFlags_Reorderable;
 
@@ -399,7 +401,7 @@ pub fn drawCanvasPack(core: *Core, app: *Pixi, editor: *Editor) void {
             imgui.TabItemFlags_None,
         )) {
             defer imgui.endTabItem();
-            canvas_pack.draw(.diffusemap, app, core, editor);
+            canvas_pack.draw(.diffusemap, editor, packer);
         }
 
         if (imgui.beginTabItem(
@@ -408,7 +410,7 @@ pub fn drawCanvasPack(core: *Core, app: *Pixi, editor: *Editor) void {
             imgui.TabItemFlags_None,
         )) {
             defer imgui.endTabItem();
-            canvas_pack.draw(.heightmap, app, core, editor);
+            canvas_pack.draw(.heightmap, editor, packer);
         }
     }
 }

@@ -1803,9 +1803,9 @@ pub const PixiFile = struct {
                 }
             }
 
-            Pixi.app.packer.ldtk = true;
-            defer Pixi.app.packer.ldtk = false;
-            try Pixi.app.packer.appendProject();
+            Pixi.packer.ldtk = true;
+            defer Pixi.packer.ldtk = false;
+            try Pixi.packer.appendProject();
 
             const ldtk_atlas_save_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{c}pixi-ldtk.json", .{ project_folder_path, std.fs.path.sep });
             defer Pixi.app.allocator.free(ldtk_atlas_save_path);
@@ -1816,10 +1816,10 @@ pub const PixiFile = struct {
             const out_stream = handle.writer();
             const options: std.json.StringifyOptions = .{};
 
-            const output: Pixi.Packer.LDTKTileset.LDTKCompatibility = .{ .tilesets = Pixi.app.packer.ldtk_tilesets.items };
+            const output: Pixi.Packer.LDTKTileset.LDTKCompatibility = .{ .tilesets = Pixi.packer.ldtk_tilesets.items };
 
             try std.json.stringify(output, options, out_stream);
-            Pixi.app.packer.clearAndFree();
+            Pixi.packer.clearAndFree();
         }
     }
 

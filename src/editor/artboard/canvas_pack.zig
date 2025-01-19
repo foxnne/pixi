@@ -2,6 +2,7 @@ const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
 const Editor = Pixi.Editor;
+const Packer = Pixi.Packer;
 const imgui = @import("zig-imgui");
 
 pub const PackTexture = enum {
@@ -9,7 +10,7 @@ pub const PackTexture = enum {
     heightmap,
 };
 
-pub fn draw(mode: PackTexture, app: *Pixi, _: *Core, editor: *Editor) void {
+pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
     if (switch (mode) {
         .diffusemap => editor.atlas.diffusemap,
         .heightmap => editor.atlas.heightmap,
@@ -27,7 +28,7 @@ pub fn draw(mode: PackTexture, app: *Pixi, _: *Core, editor: *Editor) void {
             const file_width = @as(f32, @floatFromInt(texture.image.width));
             const file_height = @as(f32, @floatFromInt(texture.image.height));
 
-            var camera = &app.packer.camera;
+            var camera = &packer.camera;
 
             // Handle zooming, panning and extents
             {

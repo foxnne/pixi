@@ -15,10 +15,13 @@ const Core = mach.Core;
 pub const App = @This();
 pub const Editor = @import("editor/Editor.zig");
 
+pub const Packer = @import("tools/Packer.zig");
+
 // Global pointers
 pub var core: *Core = undefined;
 pub var app: *App = undefined;
 pub var editor: *Editor = undefined;
+pub var packer: *Packer = undefined;
 
 // Mach module, systems, and main
 pub const mach_module = .app;
@@ -27,6 +30,7 @@ pub const main = mach.schedule(.{
     .{ Core, .init },
     .{ App, .init },
     .{ Editor, .init },
+    .{ Packer, .init },
     .{ Core, .main },
 });
 
@@ -43,7 +47,6 @@ total_time: f32 = 0.0,
 assets: Assets = undefined,
 fonts: Fonts = .{},
 batcher: gfx.Batcher = undefined,
-packer: Packer = undefined,
 pipeline_default: *gpu.RenderPipeline = undefined,
 pipeline_compute: *gpu.ComputePipeline = undefined,
 uniform_buffer_default: *gpu.Buffer = undefined,
@@ -54,12 +57,14 @@ should_close: bool = false,
 
 pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 };
 
-pub const Packer = @import("tools/Packer.zig");
-
+// Generated files, these contain helpers for autocomplete
+// So you can get a named index into assets.atlas.sprites
 pub const paths = @import("assets.zig");
 pub const atlas = paths.pixi_atlas;
+pub const animations = @import("animations.zig");
 pub const shaders = @import("shaders.zig");
 
+// Other helpers and namespaces
 pub const fs = @import("tools/fs.zig");
 pub const fa = @import("tools/font_awesome.zig");
 pub const math = @import("math/math.zig");
@@ -97,12 +102,14 @@ pub fn init(
     _app: *App,
     _core: *Core,
     _editor: *Editor,
+    _packer: *Packer,
     app_mod: mach.Mod(App),
 ) !void {
     // Store our global pointers so we can access them from non-mach functions for now
     app = _app;
     core = _core;
     editor = _editor;
+    packer = _packer;
 
     core.on_tick = app_mod.id.tick;
     core.on_exit = app_mod.id.deinit;
@@ -145,7 +152,6 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
 
     // Setup
     app.mouse = try input.Mouse.initDefault(app.allocator);
-    app.packer = try Packer.init(app.allocator);
     app.batcher = try gfx.Batcher.init(app.allocator, 1000);
 
     // Store information about the window in float format
@@ -345,7 +351,7 @@ pub fn deinit(editor_mod: mach.Mod(Editor)) !void {
 
     app.allocator.free(app.mouse.buttons);
 
-    app.packer.deinit();
+    packer.deinit();
 
     app.batcher.deinit();
     app.pipeline_default.release();

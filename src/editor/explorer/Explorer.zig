@@ -3,6 +3,7 @@ const std = @import("std");
 const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
 const Editor = Pixi.Editor;
+const Packer = Pixi.Packer;
 
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
@@ -41,7 +42,7 @@ pub fn deinit() void {
     // TODO: Free memory
 }
 
-pub fn draw(core: *Core, app: *Pixi, editor: *Editor, explorer: *Explorer) !void {
+pub fn draw(core: *Core, app: *Pixi, editor: *Editor, explorer: *Explorer, packer: *Packer) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     imgui.pushStyleVar(imgui.StyleVar_WindowBorderSize, 0.0);
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
@@ -176,7 +177,7 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor, explorer: *Explorer) !void
                 }
                 imgui.spacing();
                 imgui.spacing();
-                try pack.draw(core, app, editor);
+                try pack.draw(app, editor, packer);
             },
             .settings => {
                 if (imgui.beginMenuBar()) {

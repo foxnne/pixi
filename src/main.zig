@@ -10,6 +10,7 @@ const Modules = mach.Modules(.{
     @import("editor/explorer/Explorer.zig"),
     @import("editor/artboard/Artboard.zig"),
     @import("editor/Sidebar.zig"),
+    @import("tools/Packer.zig"),
 });
 
 // TODO: move this to a mach "entrypoint" zig module which handles nuances like WASM requires.
