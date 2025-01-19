@@ -315,7 +315,7 @@ pub const Camera = struct {
             );
     }
 
-    pub fn drawLayer(camera: Camera, layer: Pixi.storage.Internal.Layer, position: [2]f32) void {
+    pub fn drawLayer(camera: Camera, layer: Pixi.storage.internal.Layer, position: [2]f32) void {
         const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(layer.texture.image.width)), @as(f32, @floatFromInt(layer.texture.image.height)) });
 
         const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
@@ -332,7 +332,7 @@ pub const Camera = struct {
             );
     }
 
-    pub fn drawSprite(camera: Camera, layer: Pixi.storage.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
+    pub fn drawSprite(camera: Camera, layer: Pixi.storage.internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
         const rect_min_max = camera.getRectMinMax(dst_rect);
 
         const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
@@ -355,7 +355,7 @@ pub const Camera = struct {
             );
     }
 
-    pub fn drawSpriteQuad(camera: Camera, layer: Pixi.storage.Internal.Layer, src_rect: [4]f32, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32) void {
+    pub fn drawSpriteQuad(camera: Camera, layer: Pixi.storage.internal.Layer, src_rect: [4]f32, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32) void {
         const dst = camera.getQuad(dst_p1, dst_p2, dst_p3, dst_p4);
 
         const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
@@ -630,7 +630,7 @@ pub const Camera = struct {
         height: u32,
     };
 
-    pub fn flipbookPixelCoordinates(camera: Camera, file: *Pixi.storage.Internal.PixiFile, options: FlipbookPixelCoordinatesOptions) ?[2]f32 {
+    pub fn flipbookPixelCoordinates(camera: Camera, file: *Pixi.storage.internal.PixiFile, options: FlipbookPixelCoordinatesOptions) ?[2]f32 {
         const i = file.selected_sprite_index;
         const tile_width = @as(f32, @floatFromInt(file.tile_width));
         const tile_height = @as(f32, @floatFromInt(file.tile_height));

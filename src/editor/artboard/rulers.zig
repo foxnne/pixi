@@ -3,7 +3,7 @@ const Pixi = @import("../../Pixi.zig");
 const Core = @import("mach").Core;
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, app: *Pixi, _: *Core) !void {
+pub fn draw(file: *Pixi.storage.internal.PixiFile, app: *Pixi, _: *Core) !void {
     const file_width = @as(f32, @floatFromInt(file.width));
     const file_height = @as(f32, @floatFromInt(file.height));
     const tile_width = @as(f32, @floatFromInt(file.tile_width));

@@ -13,7 +13,7 @@ const frame_node_spacing: f32 = 4.0;
 
 const work_area_offset: f32 = 12.0;
 
-//var animation_opt: ?* Pixi.storage.Internal.KeyframeAnimation = null;
+//var animation_opt: ?* Pixi.storage.internal.KeyframeAnimation = null;
 
 var animation_index: ?usize = null;
 
@@ -23,7 +23,7 @@ var ms_hovered: ?usize = null;
 var keyframe_dragging: ?u32 = null;
 var mouse_scroll_delta_y: f32 = 0.0;
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !void {
+pub fn draw(file: *Pixi.storage.internal.PixiFile, core: *Core, app: *Pixi) !void {
     const window_height = imgui.getWindowHeight();
     const window_width = imgui.getWindowWidth();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -401,14 +401,14 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !voi
 
                                             const t: f32 = progress / total;
 
-                                            const tween_vertices: [4]Pixi.storage.Internal.PixiFile.TransformVertex = .{
+                                            const tween_vertices: [4]Pixi.storage.internal.PixiFile.TransformVertex = .{
                                                 .{ .position = zmath.lerp(from_frame.vertices[0].position, to_frame.vertices[0].position, t) },
                                                 .{ .position = zmath.lerp(from_frame.vertices[1].position, to_frame.vertices[1].position, t) },
                                                 .{ .position = zmath.lerp(from_frame.vertices[2].position, to_frame.vertices[2].position, t) },
                                                 .{ .position = zmath.lerp(from_frame.vertices[3].position, to_frame.vertices[3].position, t) },
                                             };
 
-                                            const tween_pivot: Pixi.storage.Internal.PixiFile.TransformVertex = .{ .position = zmath.lerp(from_frame.pivot.position, to_frame.pivot.position, t) };
+                                            const tween_pivot: Pixi.storage.internal.PixiFile.TransformVertex = .{ .position = zmath.lerp(from_frame.pivot.position, to_frame.pivot.position, t) };
 
                                             var from_rotation: f32 = from_frame.rotation;
 
@@ -496,7 +496,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi) !voi
     }
 }
 
-pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length: usize, scroll: [2]f32) !void {
+pub fn drawVerticalLines(file: *Pixi.storage.internal.PixiFile, animation_length: usize, scroll: [2]f32) !void {
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
@@ -535,9 +535,9 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
 
                             if (primary_hotkey_down) {
                                 if (animation_index == null) {
-                                    const new_animation: Pixi.storage.Internal.KeyframeAnimation = .{
+                                    const new_animation: Pixi.storage.internal.KeyframeAnimation = .{
                                         .name = "New Keyframe Animation",
-                                        .keyframes = std.ArrayList(Pixi.storage.Internal.Keyframe).init(Pixi.app.allocator),
+                                        .keyframes = std.ArrayList(Pixi.storage.internal.Keyframe).init(Pixi.app.allocator),
                                         .active_keyframe_id = 0,
                                         .id = file.newId(),
                                     };
@@ -552,7 +552,7 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
                                         const sprite = file.sprites.slice().get(sprite_index);
                                         const origin = zmath.loadArr2(.{ sprite.origin_x, sprite.origin_y });
 
-                                        const new_frame: Pixi.storage.Internal.Frame = .{
+                                        const new_frame: Pixi.storage.internal.Frame = .{
                                             .id = file.newFrameId(),
                                             .layer_id = file.layers.items(.id)[file.selected_layer_index],
                                             .sprite_index = sprite_index,
@@ -570,10 +570,10 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
 
                                             file.keyframe_animations.items(.active_keyframe_id)[index] = kf.id;
                                         } else {
-                                            var new_keyframe: Pixi.storage.Internal.Keyframe = .{
+                                            var new_keyframe: Pixi.storage.internal.Keyframe = .{
                                                 .id = file.newKeyframeId(),
                                                 .time = hovered_time,
-                                                .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.app.allocator),
+                                                .frames = std.ArrayList(Pixi.storage.internal.Frame).init(Pixi.app.allocator),
                                                 .active_frame_id = new_frame.id,
                                             };
 
@@ -592,7 +592,7 @@ pub fn drawVerticalLines(file: *Pixi.storage.Internal.PixiFile, animation_length
     }
 }
 
-pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usize, scroll: [2]f32) !void {
+pub fn drawNodeArea(file: *Pixi.storage.internal.PixiFile, animation_length: usize, scroll: [2]f32) !void {
     const window_position = imgui.getWindowPos();
     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
 
@@ -766,10 +766,10 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
                                             }
                                         } else {
                                             if (dragging_keyframe.frames.items.len > 1) {
-                                                var new_keyframe: Pixi.storage.Internal.Keyframe = .{
+                                                var new_keyframe: Pixi.storage.internal.Keyframe = .{
                                                     .active_frame_id = dragging_frame_id,
                                                     .id = file.newKeyframeId(),
-                                                    .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.app.allocator),
+                                                    .frames = std.ArrayList(Pixi.storage.internal.Frame).init(Pixi.app.allocator),
                                                     .time = ms_float / 1000.0,
                                                 };
 
@@ -826,7 +826,7 @@ pub fn drawNodeArea(file: *Pixi.storage.Internal.PixiFile, animation_length: usi
 
                                         if (secondary_down) {
                                             try animation.keyframes.append(.{
-                                                .frames = std.ArrayList(Pixi.storage.Internal.Frame).init(Pixi.app.allocator),
+                                                .frames = std.ArrayList(Pixi.storage.internal.Frame).init(Pixi.app.allocator),
                                                 .id = file.newKeyframeId(),
                                                 .time = ms_float / 1000.0,
                                                 .active_frame_id = dragging_keyframe.active_frame_id,

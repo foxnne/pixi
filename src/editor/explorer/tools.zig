@@ -432,7 +432,7 @@ fn searchPalettes(editor: *Editor) !void {
                         if (editor.colors.palette) |*palette|
                             palette.deinit();
 
-                        editor.colors.palette = Pixi.storage.Internal.Palette.loadFromFile(abs_path) catch null;
+                        editor.colors.palette = Pixi.storage.internal.Palette.loadFromFile(abs_path) catch null;
                     }
                 }
             }

@@ -17,7 +17,7 @@ pub const OldPixi = struct {
     animations: []Animation,
 };
 
-pub const Pixi = struct {
+pub const PixiFile = struct {
     version: std.SemanticVersion = .{ .major = 0, .minor = 0, .patch = 0 },
     width: u32,
     height: u32,
@@ -27,7 +27,7 @@ pub const Pixi = struct {
     sprites: []Sprite,
     animations: []Animation,
 
-    pub fn deinit(self: *Pixi, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *PixiFile, allocator: std.mem.Allocator) void {
         for (self.layers) |*layer| {
             allocator.free(layer.name);
         }
@@ -61,7 +61,7 @@ pub const Sprite = struct {
     origin: [2]i32,
 };
 
-pub const Animation = storage.Internal.Animation;
+pub const Animation = storage.internal.Animation;
 
 pub const Atlas = struct {
     sprites: []Sprite,

@@ -227,7 +227,7 @@ pub fn append(self: *History, change: Change) !void {
 
 // Handling cases in this function details how an undo/redo action works, and must be symmetrical.
 // This means that `change` needs to be modified to contain the active state prior to changing the active state
-pub fn undoRedo(self: *History, file: *Pixi.storage.Internal.PixiFile, action: Action) !void {
+pub fn undoRedo(self: *History, file: *Pixi.storage.internal.PixiFile, action: Action) !void {
     var active_stack = switch (action) {
         .undo => &self.undo_stack,
         .redo => &self.redo_stack,

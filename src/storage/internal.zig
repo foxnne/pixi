@@ -128,7 +128,7 @@ pub const PixiFile = struct {
         }
     };
 
-    pub fn load(path: [:0]const u8) !?Pixi.storage.Internal.PixiFile {
+    pub fn load(path: [:0]const u8) !?Pixi.storage.internal.PixiFile {
         if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
             return null;
 
@@ -148,12 +148,12 @@ pub const PixiFile = struct {
                 .ignore_unknown_fields = true,
             };
 
-            var parsed = try std.json.parseFromSlice(Pixi.storage.External.Pixi, Pixi.app.allocator, content, options);
+            var parsed = try std.json.parseFromSlice(Pixi.storage.external.PixiFile, Pixi.app.allocator, content, options);
             defer parsed.deinit();
 
             const ext = parsed.value;
 
-            var internal: Pixi.storage.Internal.PixiFile = .{
+            var internal: Pixi.storage.internal.PixiFile = .{
                 .path = try Pixi.app.allocator.dupeZ(u8, path),
                 .width = ext.width,
                 .height = ext.height,
@@ -170,8 +170,8 @@ pub const PixiFile = struct {
                 .keyframe_transform_texture = undefined,
                 .deleted_animations = .{},
                 .background = undefined,
-                .history = Pixi.storage.Internal.PixiFile.History.init(Pixi.app.allocator),
-                .buffers = Pixi.storage.Internal.PixiFile.Buffers.init(Pixi.app.allocator),
+                .history = Pixi.storage.internal.PixiFile.History.init(Pixi.app.allocator),
+                .buffers = Pixi.storage.internal.PixiFile.Buffers.init(Pixi.app.allocator),
                 .temporary_layer = undefined,
                 .selection_layer = undefined,
             };
@@ -203,7 +203,7 @@ pub const PixiFile = struct {
                         const pipeline_layout_default = Pixi.app.pipeline_default.getBindGroupLayout(0);
                         defer pipeline_layout_default.release();
 
-                        var new_layer: Pixi.storage.Internal.Layer = .{
+                        var new_layer: Pixi.storage.internal.Layer = .{
                             .name = try Pixi.app.allocator.dupeZ(u8, l.name),
                             .texture = try Pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
                             .id = internal.newId(),
@@ -233,7 +233,7 @@ pub const PixiFile = struct {
             internal.keyframe_animation_texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
 
             internal.keyframe_transform_texture = .{
-                .vertices = .{Pixi.storage.Internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
+                .vertices = .{Pixi.storage.internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
                 .texture = internal.layers.items(.texture)[0],
             };
 
@@ -244,7 +244,7 @@ pub const PixiFile = struct {
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
 
                 if (img_buf) |data| {
-                    var new_layer: Pixi.storage.Internal.Layer = .{
+                    var new_layer: Pixi.storage.internal.Layer = .{
                         .name = try Pixi.app.allocator.dupeZ(u8, "heightmap"),
                         .texture = undefined,
                     };
@@ -524,7 +524,7 @@ pub const PixiFile = struct {
         const mouse_position = Pixi.app.mouse.position;
         const previous_mouse_position = Pixi.app.mouse.previous_position;
 
-        var selected_layer: Pixi.storage.Internal.Layer = if (file.heightmap.visible) if (file.heightmap.layer) |hml| hml else file.layers.slice().get(file.selected_layer_index) else file.layers.slice().get(file.selected_layer_index);
+        var selected_layer: Pixi.storage.internal.Layer = if (file.heightmap.visible) if (file.heightmap.layer) |hml| hml else file.layers.slice().get(file.selected_layer_index) else file.layers.slice().get(file.selected_layer_index);
 
         const camera = switch (canvas) {
             .primary => file.camera,
@@ -1084,7 +1084,7 @@ pub const PixiFile = struct {
         canvas_center_offset[1] += options.texture_position_offset[1];
         const mouse_position = Pixi.app.mouse.position;
 
-        var selected_layer: Pixi.storage.Internal.Layer = file.layers.slice().get(file.selected_layer_index);
+        var selected_layer: Pixi.storage.internal.Layer = file.layers.slice().get(file.selected_layer_index);
 
         const camera = switch (canvas) {
             .primary => file.camera,
@@ -1167,7 +1167,7 @@ pub const PixiFile = struct {
         color: ?u32 = null,
     };
 
-    pub fn processTransformTextureControls(file: *PixiFile, transform_texture: *Pixi.storage.Internal.PixiFile.TransformTexture, options: TransformTextureControlsOptions) !void {
+    pub fn processTransformTextureControls(file: *PixiFile, transform_texture: *Pixi.storage.internal.PixiFile.TransformTexture, options: TransformTextureControlsOptions) !void {
         const canvas = options.canvas;
 
         const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
@@ -1243,7 +1243,7 @@ pub const PixiFile = struct {
         const radians = std.math.degreesToRadians(-offset_rotation);
         const rotation_matrix = zmath.rotationZ(radians);
 
-        var rotated_vertices: [4]Pixi.storage.Internal.PixiFile.TransformVertex = .{
+        var rotated_vertices: [4]Pixi.storage.internal.PixiFile.TransformVertex = .{
             .{ .position = zmath.mul(transform_texture.vertices[0].position - pivot, rotation_matrix) + pivot },
             .{ .position = zmath.mul(transform_texture.vertices[1].position - pivot, rotation_matrix) + pivot },
             .{ .position = zmath.mul(transform_texture.vertices[2].position - pivot, rotation_matrix) + pivot },
@@ -1260,7 +1260,7 @@ pub const PixiFile = struct {
                     .width = file.width,
                     .height = file.height,
                 });
-                const p: Pixi.storage.Internal.PixiFile.TransformVertex = .{ .position = zmath.loadArr2(current_pixel_coords) };
+                const p: Pixi.storage.internal.PixiFile.TransformVertex = .{ .position = zmath.loadArr2(current_pixel_coords) };
                 transform_texture.pivot = p;
             }
         }
@@ -1682,10 +1682,10 @@ pub const PixiFile = struct {
         }
     }
 
-    pub fn external(self: PixiFile, allocator: std.mem.Allocator) !storage.External.Pixi {
-        const layers = try allocator.alloc(storage.External.Layer, self.layers.slice().len);
-        const sprites = try allocator.alloc(storage.External.Sprite, self.sprites.slice().len);
-        const animations = try allocator.alloc(storage.External.Animation, self.animations.slice().len);
+    pub fn external(self: PixiFile, allocator: std.mem.Allocator) !storage.external.PixiFile {
+        const layers = try allocator.alloc(storage.external.Layer, self.layers.slice().len);
+        const sprites = try allocator.alloc(storage.external.Sprite, self.sprites.slice().len);
+        const animations = try allocator.alloc(storage.external.Animation, self.animations.slice().len);
 
         for (layers, 0..) |*working_layer, i| {
             working_layer.name = try allocator.dupeZ(u8, self.layers.items(.name)[i]);
@@ -1839,7 +1839,7 @@ pub const PixiFile = struct {
     pub fn newHistorySelectedSprites(file: *PixiFile, change_type: History.ChangeType) !void {
         switch (change_type) {
             .origins => {
-                var change = try Pixi.storage.Internal.PixiFile.History.Change.create(Pixi.app.allocator, change_type, file.selected_sprites.items.len);
+                var change = try Pixi.storage.internal.PixiFile.History.Change.create(Pixi.app.allocator, change_type, file.selected_sprites.items.len);
                 for (file.selected_sprites.items, 0..) |sprite_index, i| {
                     const sprite = file.sprites.slice().get(sprite_index);
                     change.origins.indices[i] = sprite_index;
@@ -2143,7 +2143,7 @@ pub const PixiFile = struct {
     }
 
     pub fn createAnimation(self: *PixiFile, name: []const u8, fps: usize, start: usize, length: usize) !void {
-        const animation: Pixi.storage.Internal.Animation = .{
+        const animation: Pixi.storage.internal.Animation = .{
             .name = try Pixi.app.allocator.dupeZ(u8, name),
             .fps = fps,
             .start = start,

@@ -49,12 +49,12 @@ sidebar: *Sidebar,
 project_folder: ?[:0]const u8 = null,
 
 previous_atlas_export: ?[:0]const u8 = null,
-open_files: std.ArrayList(Pixi.storage.Internal.PixiFile) = undefined,
-open_references: std.ArrayList(Pixi.storage.Internal.Reference) = undefined,
+open_files: std.ArrayList(Pixi.storage.internal.PixiFile) = undefined,
+open_references: std.ArrayList(Pixi.storage.internal.Reference) = undefined,
 open_file_index: usize = 0,
 open_reference_index: usize = 0,
 
-atlas: Pixi.storage.Internal.Atlas = .{},
+atlas: Pixi.storage.internal.Atlas = .{},
 tools: Tools = .{},
 
 colors: Colors = .{},
@@ -88,10 +88,10 @@ pub fn init(
         .recents = try Recents.init(app.allocator),
     };
 
-    editor.open_files = std.ArrayList(Pixi.storage.Internal.PixiFile).init(app.allocator);
-    editor.open_references = std.ArrayList(Pixi.storage.Internal.Reference).init(app.allocator);
+    editor.open_files = std.ArrayList(Pixi.storage.internal.PixiFile).init(app.allocator);
+    editor.open_references = std.ArrayList(Pixi.storage.internal.Reference).init(app.allocator);
 
-    editor.colors.keyframe_palette = try Pixi.storage.Internal.Palette.loadFromFile(Pixi.paths.pear36_hex.path);
+    editor.colors.keyframe_palette = try Pixi.storage.internal.Palette.loadFromFile(Pixi.paths.pear36_hex.path);
 
     sidebar_mod.call(.init);
     explorer_mod.call(.init);
@@ -258,7 +258,7 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
         }
     }
 
-    var internal: Pixi.storage.Internal.PixiFile = .{
+    var internal: Pixi.storage.internal.PixiFile = .{
         .path = try Pixi.app.allocator.dupeZ(u8, path),
         .width = @as(u32, @intCast(Pixi.editor.popups.file_setup_tiles[0] * Pixi.editor.popups.file_setup_tile_size[0])),
         .height = @as(u32, @intCast(Pixi.editor.popups.file_setup_tiles[1] * Pixi.editor.popups.file_setup_tile_size[1])),
@@ -275,8 +275,8 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
         .keyframe_transform_texture = undefined,
         .deleted_animations = .{},
         .background = undefined,
-        .history = Pixi.storage.Internal.PixiFile.History.init(Pixi.app.allocator),
-        .buffers = Pixi.storage.Internal.PixiFile.Buffers.init(Pixi.app.allocator),
+        .history = Pixi.storage.internal.PixiFile.History.init(Pixi.app.allocator),
+        .buffers = Pixi.storage.internal.PixiFile.Buffers.init(Pixi.app.allocator),
         .temporary_layer = undefined,
         .selection_layer = undefined,
     };
@@ -293,7 +293,7 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
         .texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
     };
 
-    var new_layer: Pixi.storage.Internal.Layer = .{
+    var new_layer: Pixi.storage.internal.Layer = .{
         .name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{"Layer 0"}),
         .texture = undefined,
         .id = internal.newId(),
@@ -309,7 +309,7 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
 
     internal.keyframe_animation_texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
     internal.keyframe_transform_texture = .{
-        .vertices = .{Pixi.storage.Internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
+        .vertices = .{Pixi.storage.internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
         .texture = internal.layers.items(.texture)[0],
     };
 
@@ -322,7 +322,7 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
         const tiles = @as(usize, @intCast(editor.popups.file_setup_tiles[0] * editor.popups.file_setup_tiles[1]));
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
-            const sprite: Pixi.storage.Internal.Sprite = .{
+            const sprite: Pixi.storage.internal.Sprite = .{
                 .name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{d}", .{ base_name[0..ext_ind], i }),
                 .index = i,
             };
@@ -362,7 +362,7 @@ pub fn openFile(editor: *Editor, path: [:0]const u8) !bool {
         }
     }
 
-    if (try Pixi.storage.Internal.PixiFile.load(path)) |file| {
+    if (try Pixi.storage.internal.PixiFile.load(path)) |file| {
         try editor.open_files.insert(0, file);
         editor.setActiveFile(0);
         return true;
@@ -380,7 +380,7 @@ pub fn openReference(editor: *Editor, path: [:0]const u8) !bool {
 
     const texture = try Pixi.gfx.Texture.loadFromFile(path, .{});
 
-    const reference: Pixi.storage.Internal.Reference = .{
+    const reference: Pixi.storage.internal.Reference = .{
         .path = try Pixi.app.allocator.dupeZ(u8, path),
         .texture = texture,
     };
@@ -430,14 +430,14 @@ pub fn getFileIndex(editor: *Editor, path: [:0]const u8) ?usize {
     return null;
 }
 
-pub fn getFile(editor: *Editor, index: usize) ?*Pixi.storage.Internal.PixiFile {
+pub fn getFile(editor: *Editor, index: usize) ?*Pixi.storage.internal.PixiFile {
     if (editor.open_files.items.len == 0) return null;
     if (index >= editor.open_files.items.len) return null;
 
     return &editor.open_files.items[index];
 }
 
-pub fn getReference(editor: *Editor, index: usize) ?*Pixi.storage.Internal.Reference {
+pub fn getReference(editor: *Editor, index: usize) ?*Pixi.storage.internal.Reference {
     if (editor.open_references.items.len == 0) return null;
     if (index >= editor.open_references.items.len) return null;
 
@@ -482,13 +482,13 @@ pub fn closeFile(editor: *Editor, index: usize) !void {
 
 pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     editor.open_file_index = 0;
-    var file: Pixi.storage.Internal.PixiFile = editor.open_files.orderedRemove(index);
+    var file: Pixi.storage.internal.PixiFile = editor.open_files.orderedRemove(index);
     file.deinit();
 }
 
 pub fn closeReference(editor: *Editor, index: usize) !void {
     editor.open_reference_index = 0;
-    var reference: Pixi.storage.Internal.Reference = editor.open_references.orderedRemove(index);
+    var reference: Pixi.storage.internal.Reference = editor.open_references.orderedRemove(index);
     reference.deinit();
 }
 

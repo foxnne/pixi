@@ -5,7 +5,7 @@ const Editor = Pixi.Editor;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi, editor: *Editor) !void {
+pub fn draw(file: *Pixi.storage.internal.PixiFile, core: *Core, app: *Pixi, editor: *Editor) !void {
     const transforming = file.transform_texture != null;
 
     const window_width = imgui.getWindowWidth();
@@ -299,7 +299,7 @@ pub fn draw(file: *Pixi.storage.Internal.PixiFile, core: *Core, app: *Pixi, edit
                     file.camera.drawRect(rect, 3.0, editor.theme.text.toU32());
 
                     // Draw the origin
-                    const sprite: Pixi.storage.Internal.Sprite = file.sprites.slice().get(sprite_index);
+                    const sprite: Pixi.storage.internal.Sprite = file.sprites.slice().get(sprite_index);
                     file.camera.drawLine(
                         .{ x + sprite.origin_x, y },
                         .{ x + sprite.origin_x, y + tile_height },

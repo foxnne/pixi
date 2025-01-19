@@ -165,7 +165,7 @@ pub fn draw(editor: *Editor) !void {
     }
 }
 
-fn contextMenu(editor: *Editor, animation_index: usize, file: *Pixi.storage.Internal.PixiFile) !void {
+fn contextMenu(editor: *Editor, animation_index: usize, file: *Pixi.storage.internal.PixiFile) !void {
     if (imgui.beginPopupContextItem()) {
         defer imgui.endPopup();
 

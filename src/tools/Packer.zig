@@ -41,11 +41,11 @@ pub const Sprite = struct {
 
 frames: std.ArrayList(zstbi.Rect),
 sprites: std.ArrayList(Sprite),
-animations: std.ArrayList(Pixi.storage.External.Animation),
+animations: std.ArrayList(Pixi.storage.external.Animation),
 id_counter: u32 = 0,
 placeholder: Image,
 contains_height: bool = false,
-open_files: std.ArrayList(Pixi.storage.Internal.PixiFile),
+open_files: std.ArrayList(Pixi.storage.internal.PixiFile),
 target: PackTarget = .project,
 camera: Pixi.gfx.Camera = .{},
 
@@ -67,8 +67,8 @@ pub fn init(packer: *Packer) !void {
     packer.* = .{
         .sprites = std.ArrayList(Sprite).init(Pixi.app.allocator),
         .frames = std.ArrayList(zstbi.Rect).init(Pixi.app.allocator),
-        .animations = std.ArrayList(Pixi.storage.External.Animation).init(Pixi.app.allocator),
-        .open_files = std.ArrayList(Pixi.storage.Internal.PixiFile).init(Pixi.app.allocator),
+        .animations = std.ArrayList(Pixi.storage.external.Animation).init(Pixi.app.allocator),
+        .open_files = std.ArrayList(Pixi.storage.internal.PixiFile).init(Pixi.app.allocator),
         .placeholder = .{ .width = 2, .height = 2, .pixels = pixels },
         .ldtk_tilesets = std.ArrayList(LDTKTileset).init(Pixi.app.allocator),
     };
@@ -119,7 +119,7 @@ pub fn clearAndFree(self: *Packer) void {
     self.open_files.clearAndFree();
 }
 
-pub fn append(self: *Packer, file: *Pixi.storage.Internal.PixiFile) !void {
+pub fn append(self: *Packer, file: *Pixi.storage.internal.PixiFile) !void {
     if (self.ldtk) {
         if (Pixi.editor.project_folder) |project_folder_path| {
             const ldtk_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
@@ -355,7 +355,7 @@ pub fn recurseFiles(root_directory: [:0]const u8) !void {
                                 try Pixi.packer.append(file);
                             }
                         } else {
-                            if (try Pixi.storage.Internal.PixiFile.load(abs_path)) |file| {
+                            if (try Pixi.storage.internal.PixiFile.load(abs_path)) |file| {
                                 try Pixi.packer.open_files.append(file);
                                 try Pixi.packer.append(&Pixi.packer.open_files.items[Pixi.packer.open_files.items.len - 1]);
                             }
@@ -413,9 +413,9 @@ pub fn packAndClear(self: *Packer) !void {
             }
         }
 
-        const atlas: Pixi.storage.External.Atlas = .{
-            .sprites = try Pixi.app.allocator.alloc(Pixi.storage.External.Sprite, self.sprites.items.len),
-            .animations = try Pixi.app.allocator.alloc(Pixi.storage.External.Animation, self.animations.items.len),
+        const atlas: Pixi.storage.external.Atlas = .{
+            .sprites = try Pixi.app.allocator.alloc(Pixi.storage.external.Sprite, self.sprites.items.len),
+            .animations = try Pixi.app.allocator.alloc(Pixi.storage.external.Animation, self.animations.items.len),
         };
 
         for (atlas.sprites, self.sprites.items, self.frames.items) |*dst, src, src_rect| {
