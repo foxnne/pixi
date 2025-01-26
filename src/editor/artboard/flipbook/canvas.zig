@@ -6,7 +6,7 @@ const Editor = Pixi.Editor;
 
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *Pixi.storage.internal.PixiFile, app: *Pixi, editor: *Editor) !void {
+pub fn draw(file: *Pixi.Internal.PixiFile, app: *Pixi, editor: *Editor) !void {
     const window_height = imgui.getWindowHeight();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));
@@ -40,7 +40,7 @@ pub fn draw(file: *Pixi.storage.internal.PixiFile, app: *Pixi, editor: *Editor) 
 
     // Handle playing animations and locking the current extents
     if (file.selected_animation_state == .play and file.animations.slice().len > 0) {
-        const animation: Pixi.storage.internal.Animation = file.animations.slice().get(file.selected_animation_index);
+        const animation: Pixi.Internal.Animation = file.animations.slice().get(file.selected_animation_index);
         file.selected_animation_elapsed += app.delta_time;
         if (file.selected_animation_elapsed > 1.0 / @as(f32, @floatFromInt(animation.fps))) {
             file.selected_animation_elapsed = 0.0;
@@ -241,7 +241,7 @@ pub fn draw(file: *Pixi.storage.internal.PixiFile, app: *Pixi, editor: *Editor) 
     }
 
     if (file.selected_animation_state == .play) {
-        const animation: Pixi.storage.internal.Animation = file.animations.slice().get(file.selected_animation_index);
+        const animation: Pixi.Internal.Animation = file.animations.slice().get(file.selected_animation_index);
         // Draw progress bar
         {
             const window_position = imgui.getWindowPos();

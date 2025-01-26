@@ -70,8 +70,30 @@ pub const fa = @import("tools/font_awesome.zig");
 pub const math = @import("math/math.zig");
 pub const gfx = @import("gfx/gfx.zig");
 pub const input = @import("input/input.zig");
-pub const storage = @import("storage/storage.zig");
 pub const algorithms = @import("algorithms/algorithms.zig");
+
+pub const Internal = struct {
+    pub const Animation = @import("internal/Animation.zig");
+    pub const Atlas = @import("internal/Atlas.zig");
+    pub const Buffers = @import("internal/Buffers.zig");
+    pub const Frame = @import("internal/Frame.zig");
+    pub const History = @import("internal/History.zig");
+    pub const Keyframe = @import("internal/Keyframe.zig");
+    pub const KeyframeAnimation = @import("internal/KeyframeAnimation.zig");
+    pub const Layer = @import("internal/Layer.zig");
+    pub const Palette = @import("internal/Palette.zig");
+    pub const PixiFile = @import("internal/PixiFile.zig");
+    pub const Reference = @import("internal/Reference.zig");
+    pub const Sprite = @import("internal/Sprite.zig");
+};
+
+pub const External = struct {
+    pub const Animation = Internal.Animation;
+    pub const Atlas = @import("external/Atlas.zig");
+    pub const Layer = @import("external/Layer.zig");
+    pub const PixiFile = @import("external/PixiFile.zig");
+    pub const Sprite = @import("external/Sprite.zig");
+};
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 

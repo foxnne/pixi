@@ -58,25 +58,24 @@ pub fn getModule(b: *std.Build) *std.Build.Module {
     return b.createModule(.{ .root_source_file = .{ .cwd_relative = sdkPath("/src/lib.zig") } });
 }
 
-pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
-    const lib = makeLib(b, target, optimize);
-    lib.install();
+pub fn build(_: *std.Build) void {
+    // const target = b.standardTargetOptions(.{});
+    // const optimize = b.standardOptimizeOption(.{});
+    // const lib = makeLib(b, target, optimize);
 
-    var demo = b.addExecutable(.{
-        .name = "demo",
-        .root_source_file = .{ .path = "src/demo.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    demo.addModule("nfd", getModule(b));
-    demo.linkLibrary(lib);
-    demo.install();
+    // var demo = b.addExecutable(.{
+    //     .name = "demo",
+    //     .root_source_file = .{ .cwd_relative = "/src/demo.zig" },
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    // demo.addModule("nfd", getModule(b));
+    // demo.linkLibrary(lib);
+    // demo.install();
 
-    const run_demo_cmd = demo.run();
-    run_demo_cmd.step.dependOn(b.getInstallStep());
+    // const run_demo_cmd = demo.run();
+    // run_demo_cmd.step.dependOn(b.getInstallStep());
 
-    const run_demo_step = b.step("run", "Run the demo");
-    run_demo_step.dependOn(&run_demo_cmd.step);
+    // const run_demo_step = b.step("run", "Run the demo");
+    // run_demo_step.dependOn(&run_demo_cmd.step);
 }

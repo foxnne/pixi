@@ -2,7 +2,7 @@ const std = @import("std");
 const path = std.fs.path;
 const Step = std.Build.Step;
 
-const Atlas = @import("../storage/external.zig").Atlas;
+const Atlas = @import("../external/Atlas.zig");
 
 pub const ProcessAssetsStep = struct {
     step: Step,

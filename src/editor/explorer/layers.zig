@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Pixi = @import("../../Pixi.zig");
 const Editor = Pixi.Editor;
-const History = Pixi.storage.internal.PixiFile.History;
+const History = Pixi.Internal.PixiFile.History;
 
 const imgui = @import("zig-imgui");
 

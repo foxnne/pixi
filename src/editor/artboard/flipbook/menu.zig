@@ -7,9 +7,9 @@ const Editor = Pixi.Editor;
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-const History = Pixi.storage.internal.PixiFile.History;
+const History = Pixi.Internal.PixiFile.History;
 
-pub fn draw(file: *Pixi.storage.internal.PixiFile, mouse_ratio: f32, app: *Pixi, editor: *Editor) !void {
+pub fn draw(file: *Pixi.Internal.PixiFile, mouse_ratio: f32, app: *Pixi, editor: *Editor) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
