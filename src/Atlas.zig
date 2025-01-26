@@ -24,13 +24,13 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: [:0]const u8) !Atlas {
     };
 }
 
-pub fn deinit(self: *Atlas, allocator: std.mem.Allocator) void {
-    for (self.sprites) |sprite| {
+pub fn deinit(atlas: *Atlas, allocator: std.mem.Allocator) void {
+    for (atlas.sprites) |sprite| {
         allocator.free(sprite.name);
     }
-    for (self.animations) |animation| {
+    for (atlas.animations) |animation| {
         allocator.free(animation.name);
     }
-    allocator.free(self.sprites);
-    allocator.free(self.animations);
+    allocator.free(atlas.sprites);
+    allocator.free(atlas.animations);
 }

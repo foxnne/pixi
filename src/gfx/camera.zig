@@ -280,7 +280,7 @@ pub const Camera = struct {
         if (sprite_index >= Pixi.app.assets.atlas.sprites.len) return;
 
         const sprite = Pixi.app.assets.atlas.sprites[sprite_index];
-        const texture = Pixi.app.assets.atlas_png;
+        const texture = Pixi.app.assets.atlas_texture;
         const position = Pixi.app.mouse.position;
 
         const sprite_source: [4]f32 = .{

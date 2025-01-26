@@ -14,7 +14,6 @@ const imgui_mach = imgui.backends.mach;
 const Core = mach.Core;
 pub const App = @This();
 pub const Editor = @import("editor/Editor.zig");
-
 pub const Packer = @import("tools/Packer.zig");
 
 // Global pointers
@@ -99,29 +98,29 @@ pub const Atlas = @import("Atlas.zig");
 /// Pixi layer, which contains information such as the name, visibility, and collapse settings
 pub const Layer = @import("Layer.zig");
 
-/// Pixi file, this is the data that gets written to disk in a .pixi fileand read back into this type
+/// Pixi file, this is the data that gets written to disk in a .pixi file and read back into this type
 pub const File = @import("File.zig");
 
-/// Pixi sprite, which is just a name, source, and origin
+/// Pixi sprite, which is just a name, source location within the atlas texture, and origin
 /// TODO: can we discover a new way to handle this and remove the name field?
 /// Names could instead be derived from what animations they take part in
 pub const Sprite = @import("Sprite.zig");
 
 /// Assets for the Pixi app itself. Since we use our own atlas format for all art assets,
-/// we just have a single png and atlas to load.
+/// we just have a single texture and atlas to load.
 pub const Assets = struct {
-    atlas_png: gfx.Texture,
+    atlas_texture: gfx.Texture,
     atlas: Atlas,
 
     pub fn load(allocator: std.mem.Allocator) !Assets {
         return .{
-            .atlas_png = try gfx.Texture.loadFromFile(paths.pixi_png.path, .{}),
+            .atlas_texture = try gfx.Texture.loadFromFile(paths.pixi_png.path, .{}),
             .atlas = try Atlas.loadFromFile(allocator, atlas.path),
         };
     }
 
     pub fn deinit(self: *Assets, allocator: std.mem.Allocator) void {
-        self.atlas_png.deinit();
+        self.atlas_texture.deinit();
         self.atlas.deinit(allocator);
     }
 };

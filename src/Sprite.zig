@@ -1,9 +1,12 @@
-pub const OldSprite = struct {
-    name: [:0]const u8,
-    origin_x: f32 = 0.0,
-    origin_y: f32 = 0.0,
-};
+const std = @import("std");
+const Pixi = @import("Pixi.zig");
+
+const Sprite = @This();
 
 name: [:0]const u8,
 source: [4]u32,
 origin: [2]i32,
+
+pub fn deinit(sprite: *Sprite, allocator: std.mem.Allocator) void {
+    allocator.free(sprite.name);
+}
