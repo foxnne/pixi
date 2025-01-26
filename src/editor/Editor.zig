@@ -493,31 +493,15 @@ pub fn closeReference(editor: *Editor, index: usize) !void {
 }
 
 pub fn deinit(editor: *Editor, app: *Pixi) !void {
-    for (editor.open_files.items) |_| {
-        try editor.closeFile(0);
-    }
+    for (editor.open_files.items) |_| try editor.closeFile(0);
     editor.open_files.deinit();
 
-    for (editor.open_references.items) |*reference| {
-        reference.deinit();
-    }
+    for (editor.open_references.items) |*reference| reference.deinit();
     editor.open_references.deinit();
 
-    if (editor.atlas.data) |*data| {
-        for (data.sprites) |sprite| {
-            app.allocator.free(sprite.name);
-        }
+    if (editor.atlas.data) |*data| data.deinit(app.allocator);
+    if (editor.previous_atlas_export) |path| app.allocator.free(path);
 
-        for (data.animations) |animation| {
-            app.allocator.free(animation.name);
-        }
-
-        app.allocator.free(data.sprites);
-        app.allocator.free(data.animations);
-    }
-    if (editor.previous_atlas_export) |path| {
-        app.allocator.free(path);
-    }
     if (editor.atlas.texture) |*texture| texture.deinit();
     if (editor.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (editor.colors.palette) |*palette| palette.deinit();
@@ -535,7 +519,5 @@ pub fn deinit(editor: *Editor, app: *Pixi) !void {
     editor.settings.save(app.arena_allocator.allocator());
     editor.settings.deinit(app.arena_allocator.allocator());
 
-    if (editor.project_folder) |folder| {
-        app.allocator.free(folder);
-    }
+    if (editor.project_folder) |folder| app.allocator.free(folder);
 }

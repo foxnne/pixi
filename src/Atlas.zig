@@ -23,3 +23,14 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: [:0]const u8) !Atlas {
         .animations = try allocator.dupe(Animation, parsed.value.animations),
     };
 }
+
+pub fn deinit(self: *Atlas, allocator: std.mem.Allocator) void {
+    for (self.sprites) |sprite| {
+        allocator.free(sprite.name);
+    }
+    for (self.animations) |animation| {
+        allocator.free(animation.name);
+    }
+    allocator.free(self.sprites);
+    allocator.free(self.animations);
+}

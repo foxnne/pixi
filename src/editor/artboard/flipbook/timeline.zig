@@ -288,7 +288,7 @@ pub fn draw(file: *Pixi.Internal.File, core: *Core, app: *Pixi) !void {
                                 const src_x = src_col * file.tile_width;
                                 const src_y = src_row * file.tile_height;
 
-                                const sprite: Pixi.gfx.Sprite = .{
+                                const sprite: Pixi.Sprite = .{
                                     .name = "",
                                     .origin = .{ 0, 0 },
                                     .source = .{
@@ -455,7 +455,7 @@ pub fn draw(file: *Pixi.Internal.File, core: *Core, app: *Pixi) !void {
                                                     const src_x = src_col * file.tile_width;
                                                     const src_y = src_row * file.tile_height;
 
-                                                    const sprite: Pixi.gfx.Sprite = .{
+                                                    const sprite: Pixi.Sprite = .{
                                                         .name = "",
                                                         .origin = .{ 0, 0 },
                                                         .source = .{

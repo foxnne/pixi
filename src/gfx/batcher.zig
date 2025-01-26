@@ -301,7 +301,7 @@ pub const Batcher = struct {
     }
 
     /// Appends a quad at the passed position set to the size needed to render the target sprite.
-    pub fn transformSprite(self: *Batcher, t: *const gfx.Texture, s: gfx.Sprite, vertices: [4]Pixi.Internal.File.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
+    pub fn transformSprite(self: *Batcher, t: *const gfx.Texture, s: Pixi.Sprite, vertices: [4]Pixi.Internal.File.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
         var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
         zmath.store(&color, options.color, 4);
 

@@ -107,16 +107,16 @@ pub const File = @import("File.zig");
 /// Names could instead be derived from what animations they take part in
 pub const Sprite = @import("Sprite.zig");
 
-/// Assets for the Pixi editor itself. Since we use our own atlas format for all art assets,
+/// Assets for the Pixi app itself. Since we use our own atlas format for all art assets,
 /// we just have a single png and atlas to load.
 pub const Assets = struct {
     atlas_png: gfx.Texture,
-    atlas: gfx.Atlas,
+    atlas: Atlas,
 
     pub fn load(allocator: std.mem.Allocator) !Assets {
         return .{
             .atlas_png = try gfx.Texture.loadFromFile(paths.pixi_png.path, .{}),
-            .atlas = try gfx.Atlas.loadFromFile(allocator, atlas.path),
+            .atlas = try Atlas.loadFromFile(allocator, atlas.path),
         };
     }
 
@@ -127,6 +127,7 @@ pub const Assets = struct {
 };
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn init(
     _app: *App,
