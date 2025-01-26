@@ -1,11 +1,11 @@
 const std = @import("std");
-const fs = @import("../tools/fs.zig");
-const Pixi = @import("../Pixi.zig");
+const fs = @import("tools/fs.zig");
+const Pixi = @import("Pixi.zig");
 
 const Atlas = @This();
 
 const Sprite = @import("Sprite.zig");
-const Animation = @import("../internal/Animation.zig");
+const Animation = @import("internal/Animation.zig");
 
 sprites: []Sprite,
 animations: []Animation,

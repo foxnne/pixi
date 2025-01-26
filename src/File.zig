@@ -1,7 +1,7 @@
 const std = @import("std");
-const Pixi = @import("../Pixi.zig");
+const Pixi = @import("Pixi.zig");
 
-const PixiFile = @This();
+const File = @This();
 
 // TODO: Kept old names for compatibility with old files, but need to change.
 // TODO: `tileWidth` => `tile_width`, `tileHeight` => `tile_height`
@@ -12,9 +12,9 @@ pub const OldPixi = struct {
     height: u32,
     tileWidth: u32,
     tileHeight: u32,
-    layers: []Pixi.External.Layer,
-    sprites: []Pixi.External.OldSprite,
-    animations: []Pixi.External.Animation,
+    layers: []Pixi.Layer,
+    sprites: []Pixi.OldSprite,
+    animations: []Pixi.Animation,
 };
 
 version: std.SemanticVersion,
@@ -22,11 +22,11 @@ width: u32,
 height: u32,
 tile_width: u32,
 tile_height: u32,
-layers: []Pixi.External.Layer,
-sprites: []Pixi.External.Sprite,
-animations: []Pixi.External.Animation,
+layers: []Pixi.Layer,
+sprites: []Pixi.Sprite,
+animations: []Pixi.Animation,
 
-pub fn deinit(self: *PixiFile, allocator: std.mem.Allocator) void {
+pub fn deinit(self: *File, allocator: std.mem.Allocator) void {
     for (self.layers) |*layer| {
         allocator.free(layer.name);
     }

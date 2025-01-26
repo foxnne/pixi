@@ -6,7 +6,7 @@ const Editor = Pixi.Editor;
 
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *Pixi.Internal.PixiFile, app: *Pixi, editor: *Editor) !void {
+pub fn draw(file: *Pixi.Internal.File, app: *Pixi, editor: *Editor) !void {
     const window_height = imgui.getWindowHeight();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
     const tile_height = @as(f32, @floatFromInt(file.tile_height));

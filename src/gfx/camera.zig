@@ -630,7 +630,7 @@ pub const Camera = struct {
         height: u32,
     };
 
-    pub fn flipbookPixelCoordinates(camera: Camera, file: *Pixi.Internal.PixiFile, options: FlipbookPixelCoordinatesOptions) ?[2]f32 {
+    pub fn flipbookPixelCoordinates(camera: Camera, file: *Pixi.Internal.File, options: FlipbookPixelCoordinatesOptions) ?[2]f32 {
         const i = file.selected_sprite_index;
         const tile_width = @as(f32, @floatFromInt(file.tile_width));
         const tile_height = @as(f32, @floatFromInt(file.tile_height));
@@ -666,25 +666,25 @@ pub const Camera = struct {
         if (Pixi.editor.settings.input_scheme != .trackpad) zoom_key = true;
         if (Pixi.app.mouse.magnify != null) zoom_key = true;
 
-        if (target == .packer and Pixi.editor.atlas.diffusemap == null) return;
+        if (target == .packer and Pixi.editor.atlas.texture == null) return;
 
         const canvas_center_offset = switch (target) {
             .primary => Pixi.editor.open_files.items[Pixi.editor.open_file_index].canvasCenterOffset(.primary),
             .flipbook => Pixi.editor.open_files.items[Pixi.editor.open_file_index].canvasCenterOffset(.flipbook),
             .reference => Pixi.editor.open_references.items[Pixi.editor.open_reference_index].canvasCenterOffset(),
-            .packer => .{ -@as(f32, @floatFromInt(Pixi.editor.atlas.diffusemap.?.image.width)) / 2.0, -@as(f32, @floatFromInt(Pixi.editor.atlas.diffusemap.?.image.height)) / 2.0 },
+            .packer => .{ -@as(f32, @floatFromInt(Pixi.editor.atlas.texture.?.image.width)) / 2.0, -@as(f32, @floatFromInt(Pixi.editor.atlas.texture.?.image.height)) / 2.0 },
         };
 
         const canvas_width = switch (target) {
             .primary, .flipbook => Pixi.editor.open_files.items[Pixi.editor.open_file_index].width,
             .reference => Pixi.editor.open_references.items[Pixi.editor.open_reference_index].texture.image.width,
-            .packer => Pixi.editor.atlas.diffusemap.?.image.width,
+            .packer => Pixi.editor.atlas.texture.?.image.width,
         };
 
         const canvas_height = switch (target) {
             .primary, .flipbook => Pixi.editor.open_files.items[Pixi.editor.open_file_index].height,
             .reference => Pixi.editor.open_references.items[Pixi.editor.open_reference_index].texture.image.height,
-            .packer => Pixi.editor.atlas.diffusemap.?.image.height,
+            .packer => Pixi.editor.atlas.texture.?.image.height,
         };
 
         const previous_zoom = camera.zoom;

@@ -49,7 +49,7 @@ sidebar: *Sidebar,
 project_folder: ?[:0]const u8 = null,
 
 previous_atlas_export: ?[:0]const u8 = null,
-open_files: std.ArrayList(Pixi.Internal.PixiFile) = undefined,
+open_files: std.ArrayList(Pixi.Internal.File) = undefined,
 open_references: std.ArrayList(Pixi.Internal.Reference) = undefined,
 open_file_index: usize = 0,
 open_reference_index: usize = 0,
@@ -88,7 +88,7 @@ pub fn init(
         .recents = try Recents.init(app.allocator),
     };
 
-    editor.open_files = std.ArrayList(Pixi.Internal.PixiFile).init(app.allocator);
+    editor.open_files = std.ArrayList(Pixi.Internal.File).init(app.allocator);
     editor.open_references = std.ArrayList(Pixi.Internal.Reference).init(app.allocator);
 
     editor.colors.keyframe_palette = try Pixi.Internal.Palette.loadFromFile(Pixi.paths.pear36_hex.path);
@@ -258,7 +258,7 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
         }
     }
 
-    var internal: Pixi.Internal.PixiFile = .{
+    var internal: Pixi.Internal.File = .{
         .path = try Pixi.app.allocator.dupeZ(u8, path),
         .width = @as(u32, @intCast(Pixi.editor.popups.file_setup_tiles[0] * Pixi.editor.popups.file_setup_tile_size[0])),
         .height = @as(u32, @intCast(Pixi.editor.popups.file_setup_tiles[1] * Pixi.editor.popups.file_setup_tile_size[1])),
@@ -275,8 +275,8 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
         .keyframe_transform_texture = undefined,
         .deleted_animations = .{},
         .background = undefined,
-        .history = Pixi.Internal.PixiFile.History.init(Pixi.app.allocator),
-        .buffers = Pixi.Internal.PixiFile.Buffers.init(Pixi.app.allocator),
+        .history = Pixi.Internal.File.History.init(Pixi.app.allocator),
+        .buffers = Pixi.Internal.File.Buffers.init(Pixi.app.allocator),
         .temporary_layer = undefined,
         .selection_layer = undefined,
     };
@@ -309,7 +309,7 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
 
     internal.keyframe_animation_texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
     internal.keyframe_transform_texture = .{
-        .vertices = .{Pixi.Internal.PixiFile.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
+        .vertices = .{Pixi.Internal.File.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
         .texture = internal.layers.items(.texture)[0],
     };
 
@@ -362,7 +362,7 @@ pub fn openFile(editor: *Editor, path: [:0]const u8) !bool {
         }
     }
 
-    if (try Pixi.Internal.PixiFile.load(path)) |file| {
+    if (try Pixi.Internal.File.load(path)) |file| {
         try editor.open_files.insert(0, file);
         editor.setActiveFile(0);
         return true;
@@ -430,7 +430,7 @@ pub fn getFileIndex(editor: *Editor, path: [:0]const u8) ?usize {
     return null;
 }
 
-pub fn getFile(editor: *Editor, index: usize) ?*Pixi.Internal.PixiFile {
+pub fn getFile(editor: *Editor, index: usize) ?*Pixi.Internal.File {
     if (editor.open_files.items.len == 0) return null;
     if (index >= editor.open_files.items.len) return null;
 
@@ -482,7 +482,7 @@ pub fn closeFile(editor: *Editor, index: usize) !void {
 
 pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     editor.open_file_index = 0;
-    var file: Pixi.Internal.PixiFile = editor.open_files.orderedRemove(index);
+    var file: Pixi.Internal.File = editor.open_files.orderedRemove(index);
     file.deinit();
 }
 
@@ -503,22 +503,22 @@ pub fn deinit(editor: *Editor, app: *Pixi) !void {
     }
     editor.open_references.deinit();
 
-    if (editor.atlas.external) |*atlas| {
-        for (atlas.sprites) |sprite| {
+    if (editor.atlas.data) |*data| {
+        for (data.sprites) |sprite| {
             app.allocator.free(sprite.name);
         }
 
-        for (atlas.animations) |animation| {
+        for (data.animations) |animation| {
             app.allocator.free(animation.name);
         }
 
-        app.allocator.free(atlas.sprites);
-        app.allocator.free(atlas.animations);
+        app.allocator.free(data.sprites);
+        app.allocator.free(data.animations);
     }
     if (editor.previous_atlas_export) |path| {
         app.allocator.free(path);
     }
-    if (editor.atlas.diffusemap) |*diffusemap| diffusemap.deinit();
+    if (editor.atlas.texture) |*texture| texture.deinit();
     if (editor.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();

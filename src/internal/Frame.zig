@@ -1,10 +1,10 @@
 const std = @import("std");
 const Pixi = @import("../Pixi.zig");
 
-const PixiFile = @import("PixiFile.zig");
+const File = @import("File.zig");
 
-vertices: [4]PixiFile.TransformVertex,
-pivot: PixiFile.TransformVertex,
+vertices: [4]File.TransformVertex,
+pivot: File.TransformVertex,
 rotation: f32 = 0.0,
 id: u32,
 sprite_index: usize,

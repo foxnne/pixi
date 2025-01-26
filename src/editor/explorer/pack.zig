@@ -110,12 +110,12 @@ pub fn draw(app: *Pixi, editor: *Editor, packer: *Packer) !void {
             imgui.textWrapped("Select a project folder to pack.");
         }
 
-        if (editor.atlas.external) |atlas| {
+        if (editor.atlas.data) |data| {
             imgui.text("Atlas Details");
-            imgui.text("Sprites: %d", atlas.sprites.len);
-            imgui.text("Animations: %d", atlas.animations.len);
-            if (editor.atlas.diffusemap) |diffusemap| {
-                imgui.text("Atlas size: %dx%d", diffusemap.image.width, diffusemap.image.height);
+            imgui.text("Sprites: %d", data.sprites.len);
+            imgui.text("Animations: %d", data.animations.len);
+            if (editor.atlas.texture) |texture| {
+                imgui.text("Atlas size: %dx%d", texture.image.width, texture.image.height);
             }
 
             if (imgui.buttonEx("Export", .{ .x = window_size.x, .y = 0.0 })) {

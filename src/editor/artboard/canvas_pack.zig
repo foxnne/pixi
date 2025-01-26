@@ -6,13 +6,13 @@ const Packer = Pixi.Packer;
 const imgui = @import("zig-imgui");
 
 pub const PackTexture = enum {
-    diffusemap,
+    texture,
     heightmap,
 };
 
 pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
     if (switch (mode) {
-        .diffusemap => editor.atlas.diffusemap,
+        .texture => editor.atlas.texture,
         .heightmap => editor.atlas.heightmap,
     }) |texture| {
         var canvas_flags: imgui.WindowFlags = 0;

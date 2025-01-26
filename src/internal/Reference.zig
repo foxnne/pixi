@@ -2,7 +2,7 @@ const std = @import("std");
 const Pixi = @import("../Pixi.zig");
 const imgui = @import("zig-imgui");
 
-const PixiFile = @import("PixiFile.zig");
+const File = @import("File.zig");
 
 const Reference = @This();
 

@@ -5,7 +5,7 @@ const Editor = Pixi.Editor;
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
-pub fn draw(file: *Pixi.Internal.PixiFile, core: *Core, app: *Pixi, editor: *Editor) !void {
+pub fn draw(file: *Pixi.Internal.File, core: *Core, app: *Pixi, editor: *Editor) !void {
     const transforming = file.transform_texture != null;
 
     const window_width = imgui.getWindowWidth();

@@ -401,7 +401,7 @@ pub fn drawCanvasPack(editor: *Editor, packer: *Packer) void {
             imgui.TabItemFlags_None,
         )) {
             defer imgui.endTabItem();
-            canvas_pack.draw(.diffusemap, editor, packer);
+            canvas_pack.draw(.texture, editor, packer);
         }
 
         if (imgui.beginTabItem(

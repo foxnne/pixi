@@ -5,7 +5,7 @@ const Editor = Pixi.Editor;
 
 const imgui = @import("zig-imgui");
 
-const History = Pixi.Internal.PixiFile.History;
+const History = Pixi.Internal.File.History;
 
 pub fn draw(editor: *Editor) !void {
     if (editor.getFile(editor.open_file_index)) |file| {

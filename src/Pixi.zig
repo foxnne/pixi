@@ -45,7 +45,6 @@ root_path: [:0]const u8 = undefined,
 delta_time: f32 = 0.0,
 total_time: f32 = 0.0,
 assets: Assets = undefined,
-fonts: Fonts = .{},
 batcher: gfx.Batcher = undefined,
 pipeline_default: *gpu.RenderPipeline = undefined,
 pipeline_compute: *gpu.ComputePipeline = undefined,
@@ -58,7 +57,7 @@ should_close: bool = false,
 pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 };
 
 // Generated files, these contain helpers for autocomplete
-// So you can get a named index into assets.atlas.sprites
+// So you can get a named index into atlas.sprites
 pub const paths = @import("assets.zig");
 pub const atlas = paths.pixi_atlas;
 pub const animations = @import("animations.zig");
@@ -72,6 +71,10 @@ pub const gfx = @import("gfx/gfx.zig");
 pub const input = @import("input/input.zig");
 pub const algorithms = @import("algorithms/algorithms.zig");
 
+/// Internal types
+/// These types contain additional data to support the editor
+/// An example of this is File. Pixi.File matches the file type to read from JSON,
+/// while the Pixi.Internal.File contains cameras, timers, file-specific editor fields.
 pub const Internal = struct {
     pub const Animation = @import("internal/Animation.zig");
     pub const Atlas = @import("internal/Atlas.zig");
@@ -82,21 +85,30 @@ pub const Internal = struct {
     pub const KeyframeAnimation = @import("internal/KeyframeAnimation.zig");
     pub const Layer = @import("internal/Layer.zig");
     pub const Palette = @import("internal/Palette.zig");
-    pub const PixiFile = @import("internal/PixiFile.zig");
+    pub const File = @import("internal/File.zig");
     pub const Reference = @import("internal/Reference.zig");
     pub const Sprite = @import("internal/Sprite.zig");
 };
 
-pub const External = struct {
-    pub const Animation = Internal.Animation;
-    pub const Atlas = @import("external/Atlas.zig");
-    pub const Layer = @import("external/Layer.zig");
-    pub const PixiFile = @import("external/PixiFile.zig");
-    pub const Sprite = @import("external/Sprite.zig");
-};
+/// Pixi animation, which refers to a frame-by-frame sprite animation
+pub const Animation = Internal.Animation;
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+/// Pixi atlas, which contains a list of sprites and animations
+pub const Atlas = @import("Atlas.zig");
 
+/// Pixi layer, which contains information such as the name, visibility, and collapse settings
+pub const Layer = @import("Layer.zig");
+
+/// Pixi file, this is the data that gets written to disk in a .pixi fileand read back into this type
+pub const File = @import("File.zig");
+
+/// Pixi sprite, which is just a name, source, and origin
+/// TODO: can we discover a new way to handle this and remove the name field?
+/// Names could instead be derived from what animations they take part in
+pub const Sprite = @import("Sprite.zig");
+
+/// Assets for the Pixi editor itself. Since we use our own atlas format for all art assets,
+/// we just have a single png and atlas to load.
 pub const Assets = struct {
     atlas_png: gfx.Texture,
     atlas: gfx.Atlas,
@@ -114,11 +126,7 @@ pub const Assets = struct {
     }
 };
 
-pub const Fonts = struct {
-    fa_standard_regular: *imgui.Font = undefined,
-    fa_standard_solid: *imgui.Font = undefined,
-};
-
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn init(
     _app: *App,
@@ -222,8 +230,8 @@ pub fn lateInit(editor_mod: mach.Mod(Editor)) !void {
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    app.fonts.fa_standard_solid = io.fonts.?.addFontFromFileTTF(paths.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
-    app.fonts.fa_standard_regular = io.fonts.?.addFontFromFileTTF(paths.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
+    _ = io.fonts.?.addFontFromFileTTF(paths.root ++ "fonts/fa-solid-900.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
+    _ = io.fonts.?.addFontFromFileTTF(paths.root ++ "fonts/fa-regular-400.ttf", editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
 
     // This will load our theme
     editor_mod.call(.lateInit);
