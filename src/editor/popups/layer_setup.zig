@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
-const Editor = Pixi.Editor;
+const pixi = @import("../../pixi.zig");
+const Editor = pixi.Editor;
 
 const imgui = @import("zig-imgui");
 
@@ -20,7 +20,7 @@ pub fn draw(editor: *Editor) !void {
         const popup_width: f32 = 350;
         const popup_height: f32 = 115;
 
-        const window_size = Pixi.app.window_size;
+        const window_size = pixi.app.window_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         imgui.setNextWindowPos(.{
@@ -69,7 +69,7 @@ pub fn draw(editor: *Editor) !void {
             }
             imgui.sameLine();
             if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
-                switch (Pixi.editor.popups.layer_setup_state) {
+                switch (pixi.editor.popups.layer_setup_state) {
                     .none => {
                         const new_name = std.mem.trimRight(u8, editor.popups.layer_setup_name[0..], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
@@ -79,7 +79,7 @@ pub fn draw(editor: *Editor) !void {
                         }
                     },
                     .rename => {
-                        const new_name = std.mem.trimRight(u8, Pixi.editor.popups.layer_setup_name[0..], "\u{0}");
+                        const new_name = std.mem.trimRight(u8, pixi.editor.popups.layer_setup_name[0..], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
                             try file.renameLayer(editor.popups.layer_setup_name[0..index :0], editor.popups.layer_setup_index);
                         } else {
@@ -87,7 +87,7 @@ pub fn draw(editor: *Editor) !void {
                         }
                     },
                     .duplicate => {
-                        const new_name = std.mem.trimRight(u8, Pixi.editor.popups.layer_setup_name[0.. :0], "\u{0}");
+                        const new_name = std.mem.trimRight(u8, pixi.editor.popups.layer_setup_name[0.. :0], "\u{0}");
                         if (std.mem.indexOf(u8, new_name, "\u{0}")) |index| {
                             try file.duplicateLayer(editor.popups.layer_setup_name[0..index :0], editor.popups.layer_setup_index);
                         } else {

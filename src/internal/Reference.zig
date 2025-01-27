@@ -1,5 +1,5 @@
 const std = @import("std");
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 const imgui = @import("zig-imgui");
 
 const File = @import("File.zig");
@@ -7,13 +7,13 @@ const File = @import("File.zig");
 const Reference = @This();
 
 path: [:0]const u8,
-texture: Pixi.gfx.Texture,
-camera: Pixi.gfx.Camera = .{},
+texture: pixi.gfx.Texture,
+camera: pixi.gfx.Camera = .{},
 opacity: f32 = 100.0,
 
 pub fn deinit(reference: *Reference) void {
     reference.texture.deinit();
-    Pixi.app.allocator.free(reference.path);
+    pixi.app.allocator.free(reference.path);
 }
 
 pub fn canvasCenterOffset(reference: *Reference) [2]f32 {
@@ -34,15 +34,15 @@ pub fn getPixel(self: Reference, pixel: [2]usize) [4]u8 {
 }
 
 pub fn processSampleTool(reference: *Reference) void {
-    const sample_key = if (Pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-    const sample_button = if (Pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+    const sample_button = if (pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
 
     if (!sample_key and !sample_button) return;
 
     imgui.setMouseCursor(imgui.MouseCursor_None);
-    reference.camera.drawCursor(Pixi.atlas.dropper_0_default, 0xFFFFFFFF);
+    reference.camera.drawCursor(pixi.atlas.dropper_0_default, 0xFFFFFFFF);
 
-    const mouse_position = Pixi.app.mouse.position;
+    const mouse_position = pixi.app.mouse.position;
     var camera = reference.camera;
 
     const pixel_coord_opt = camera.pixelCoordinates(.{
@@ -60,6 +60,6 @@ pub fn processSampleTool(reference: *Reference) void {
         try camera.drawColorTooltip(color);
 
         if (color[3] != 0)
-            Pixi.editor.colors.primary = color;
+            pixi.editor.colors.primary = color;
     }
 }

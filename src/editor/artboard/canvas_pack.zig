@@ -1,8 +1,8 @@
 const std = @import("std");
-const Pixi = @import("../../Pixi.zig");
+const pixi = @import("../../pixi.zig");
 const Core = @import("mach").Core;
-const Editor = Pixi.Editor;
-const Packer = Pixi.Packer;
+const Editor = pixi.Editor;
+const Packer = pixi.Packer;
 const imgui = @import("zig-imgui");
 
 pub const PackTexture = enum {
@@ -32,7 +32,7 @@ pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
 
             // Handle zooming, panning and extents
             {
-                var sprite_camera: Pixi.gfx.Camera = .{
+                var sprite_camera: pixi.gfx.Camera = .{
                     .zoom = @min(window_width / file_width, window_height / file_height),
                 };
                 sprite_camera.setNearestZoomFloor();
@@ -55,7 +55,7 @@ pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
 
             const center_offset: [2]f32 = .{ -width / 2.0, -height / 2.0 };
             camera.drawTexture(texture.view_handle, texture.image.width, texture.image.height, center_offset, 0xFFFFFFFF);
-            camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, Pixi.editor.theme.text_secondary.toU32());
+            camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, pixi.editor.theme.text_secondary.toU32());
         }
         imgui.endChild();
 

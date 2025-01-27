@@ -1,6 +1,6 @@
 const std = @import("std");
-const Pixi = @import("../../Pixi.zig");
-const Editor = Pixi.Editor;
+const pixi = @import("../../pixi.zig");
+const Editor = pixi.Editor;
 
 const core = @import("mach").core;
 const imgui = @import("zig-imgui");
@@ -12,7 +12,7 @@ pub fn draw(editor: *Editor) !void {
 
     const popup_size = 200;
 
-    const window_size = Pixi.app.window_size;
+    const window_size = pixi.app.window_size;
 
     imgui.setNextWindowPos(.{
         .x = window_size[0] - popup_size - 30.0,
@@ -52,8 +52,8 @@ pub fn draw(editor: *Editor) !void {
                 imgui.pushIDInt(@as(c_int, @intCast(i)));
                 defer imgui.popID();
 
-                const label = try std.fmt.allocPrintZ(Pixi.app.allocator, " {s}  {s} ", .{ Pixi.fa.file_image, file_name });
-                defer Pixi.app.allocator.free(label);
+                const label = try std.fmt.allocPrintZ(pixi.app.allocator, " {s}  {s} ", .{ pixi.fa.file_image, file_name });
+                defer pixi.app.allocator.free(label);
 
                 var file_tab_flags: imgui.TabItemFlags = 0;
                 file_tab_flags |= imgui.TabItemFlags_None;
@@ -102,7 +102,7 @@ pub fn draw(editor: *Editor) !void {
                     const canvas_center_offset = reference.canvasCenterOffset();
 
                     { // Handle reference camera
-                        var camera: Pixi.gfx.Camera = .{
+                        var camera: pixi.gfx.Camera = .{
                             .zoom = @min(window_width / file_width, window_height / file_height),
                         };
                         camera.setNearestZoomFloor();
@@ -111,13 +111,13 @@ pub fn draw(editor: *Editor) !void {
                             reference.camera.zoom = camera.zoom;
                         }
                         camera.setNearestZoomFloor();
-                        reference.camera.min_zoom = @min(camera.zoom, Pixi.editor.settings.zoom_steps[0]);
+                        reference.camera.min_zoom = @min(camera.zoom, pixi.editor.settings.zoom_steps[0]);
 
                         reference.camera.processPanZoom(.reference);
                     }
 
                     { // Draw reference texture
-                        const color = Pixi.math.Color.initFloats(1.0, 1.0, 1.0, reference.opacity / 100.0);
+                        const color = pixi.math.Color.initFloats(1.0, 1.0, 1.0, reference.opacity / 100.0);
                         reference.camera.drawTexture(reference.texture.view_handle, reference.texture.image.width, reference.texture.image.height, canvas_center_offset, color.toU32());
                     }
 

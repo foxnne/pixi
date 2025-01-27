@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
-const Editor = Pixi.Editor;
+const pixi = @import("../../pixi.zig");
+const Editor = pixi.Editor;
 
 const imgui = @import("zig-imgui");
 
@@ -14,7 +14,7 @@ pub fn draw(editor: *Editor) !void {
         const popup_width: f32 = 350;
         const popup_height: f32 = 115;
 
-        const window_size = Pixi.app.window_size;
+        const window_size = pixi.app.window_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         imgui.setNextWindowPos(.{
@@ -52,8 +52,8 @@ pub fn draw(editor: *Editor) !void {
             imgui.sameLine();
             if (imgui.buttonEx("Create", .{ .x = half_width, .y = 0.0 })) {
                 file.heightmap.layer = .{
-                    .name = try Pixi.app.allocator.dupeZ(u8, "heightmap"),
-                    .texture = try Pixi.gfx.Texture.createEmpty(file.width, file.height, .{}),
+                    .name = try pixi.app.allocator.dupeZ(u8, "heightmap"),
+                    .texture = try pixi.gfx.Texture.createEmpty(file.width, file.height, .{}),
                     .id = file.newId(),
                 };
                 try file.history.append(.{ .heightmap_restore_delete = .{ .action = .delete } });

@@ -1,7 +1,8 @@
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 const Core = @import("mach").Core;
 
-const Editor = @import("Editor.zig");
+const App = pixi.App;
+const Editor = pixi.Editor;
 
 const Pane = @import("explorer/Explorer.zig").Pane;
 
@@ -20,7 +21,7 @@ pub fn deinit() void {
     // TODO: Free memory
 }
 
-pub fn draw(app: *Pixi, editor: *Editor) !void {
+pub fn draw(app: *App, editor: *Editor) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -51,13 +52,13 @@ pub fn draw(app: *Pixi, editor: *Editor) !void {
         imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.foreground.toImguiVec4());
         defer imgui.popStyleColorEx(2);
 
-        drawOption(.files, Pixi.fa.folder_open, editor);
-        drawOption(.tools, Pixi.fa.pencil_alt, editor);
-        drawOption(.sprites, Pixi.fa.th, editor);
-        drawOption(.animations, Pixi.fa.play_circle, editor);
-        drawOption(.keyframe_animations, Pixi.fa.key, editor);
-        drawOption(.pack, Pixi.fa.box_open, editor);
-        drawOption(.settings, Pixi.fa.cog, editor);
+        drawOption(.files, pixi.fa.folder_open, editor);
+        drawOption(.tools, pixi.fa.pencil_alt, editor);
+        drawOption(.sprites, pixi.fa.th, editor);
+        drawOption(.animations, pixi.fa.play_circle, editor);
+        drawOption(.keyframe_animations, pixi.fa.key, editor);
+        drawOption(.pack, pixi.fa.box_open, editor);
+        drawOption(.settings, pixi.fa.cog, editor);
     }
 
     imgui.end();

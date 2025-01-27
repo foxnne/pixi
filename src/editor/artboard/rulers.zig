@@ -1,9 +1,12 @@
 const std = @import("std");
-const Pixi = @import("../../Pixi.zig");
+const pixi = @import("../../pixi.zig");
+
 const Core = @import("mach").Core;
+const App = pixi.App;
+
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *Pixi.Internal.File, app: *Pixi, _: *Core) !void {
+pub fn draw(file: *pixi.Internal.File, app: *App, _: *Core) !void {
     const file_width = @as(f32, @floatFromInt(file.width));
     const file_height = @as(f32, @floatFromInt(file.height));
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -31,21 +34,21 @@ pub fn draw(file: *Pixi.Internal.File, app: *Pixi, _: *Core) !void {
 
                     draw_list.addText(
                         .{ .x = tl[0] + offset[0] + (tile_width / 2.0 * file.camera.zoom) - (text_size.x / 2.0), .y = tl[1] + 4.0 },
-                        Pixi.editor.theme.text_secondary.toU32(),
+                        pixi.editor.theme.text_secondary.toU32(),
                         text.ptr,
                     );
                 }
                 draw_list.addLineEx(
                     .{ .x = tl[0] + offset[0], .y = tl[1] + line_length / 2.0 },
                     .{ .x = tl[0] + offset[0], .y = tl[1] + line_length / 2.0 + line_length },
-                    Pixi.editor.theme.text_secondary.toU32(),
+                    pixi.editor.theme.text_secondary.toU32(),
                     1.0,
                 );
             }
             draw_list.addLineEx(
                 .{ .x = tl[0] + file_width * file.camera.zoom, .y = tl[1] + line_length / 2.0 },
                 .{ .x = tl[0] + file_width * file.camera.zoom, .y = tl[1] + line_length / 2.0 + line_length },
-                Pixi.editor.theme.text_secondary.toU32(),
+                pixi.editor.theme.text_secondary.toU32(),
                 1.0,
             );
         }
@@ -66,19 +69,19 @@ pub fn draw(file: *Pixi.Internal.File, app: *Pixi, _: *Core) !void {
                     const text = try std.fmt.allocPrintZ(app.allocator, "{d}", .{i});
                     defer app.allocator.free(text);
 
-                    draw_list.addText(.{ .x = tl[0], .y = tl[1] + offset[1] + (tile_height / 2.0 * file.camera.zoom) - (text_size.y / 2.0) }, Pixi.editor.theme.text_secondary.toU32(), text.ptr);
+                    draw_list.addText(.{ .x = tl[0], .y = tl[1] + offset[1] + (tile_height / 2.0 * file.camera.zoom) - (text_size.y / 2.0) }, pixi.editor.theme.text_secondary.toU32(), text.ptr);
                 }
                 draw_list.addLineEx(
                     .{ .x = tl[0], .y = tl[1] + offset[1] },
                     .{ .x = tl[0] + imgui.getWindowWidth() / 2.0, .y = tl[1] + offset[1] },
-                    Pixi.editor.theme.text_secondary.toU32(),
+                    pixi.editor.theme.text_secondary.toU32(),
                     1.0,
                 );
             }
             draw_list.addLineEx(
                 .{ .x = tl[0], .y = tl[1] + file_height * file.camera.zoom },
                 .{ .x = tl[0] + imgui.getWindowWidth() / 2.0, .y = tl[1] + file_height * file.camera.zoom },
-                Pixi.editor.theme.text_secondary.toU32(),
+                pixi.editor.theme.text_secondary.toU32(),
                 1.0,
             );
         }

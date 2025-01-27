@@ -1,5 +1,5 @@
 const std = @import("std");
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 
 const Keyframe = @import("Keyframe.zig");
 const Frame = @import("Frame.zig");
@@ -64,12 +64,12 @@ pub fn getFrameNodeColor(self: KeyframeAnimation, frame_id: u32) u32 {
         color_index = @mod(last_frame.id * 2, 35);
     }
 
-    return if (Pixi.editor.colors.keyframe_palette) |palette| Pixi.math.Color.initBytes(
+    return if (pixi.editor.colors.keyframe_palette) |palette| pixi.math.Color.initBytes(
         palette.colors[color_index][0],
         palette.colors[color_index][1],
         palette.colors[color_index][2],
         palette.colors[color_index][3],
-    ).toU32() else Pixi.editor.theme.text.toU32();
+    ).toU32() else pixi.editor.theme.text.toU32();
 }
 
 pub fn getTweenStartFrame(self: KeyframeAnimation, frame_id: u32) ?*Frame {

@@ -1,12 +1,14 @@
 const std = @import("std");
-const Pixi = @import("../../Pixi.zig");
-const core = @import("mach").core;
+const pixi = @import("../../pixi.zig");
+
+const App = pixi.App;
+
 const imgui = @import("zig-imgui");
 
 const Popups = @import("Popups.zig");
-const Editor = Pixi.Editor;
+const Editor = pixi.Editor;
 
-pub fn draw(popups: *Popups, app: *Pixi, editor: *Editor) !void {
+pub fn draw(popups: *Popups, app: *App, editor: *Editor) !void {
     const dialog_name = switch (popups.rename_state) {
         .none => "None...",
         .rename => "Rename...",

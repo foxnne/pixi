@@ -1,14 +1,16 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
+const pixi = @import("../../pixi.zig");
+
 const Core = @import("mach").Core;
-const Editor = Pixi.Editor;
-const Packer = Pixi.Packer;
+const App = pixi.App;
+const Editor = pixi.Editor;
+const Packer = pixi.Packer;
 
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-pub fn draw(app: *Pixi, editor: *Editor, packer: *Packer) !void {
+pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.highlight_secondary.toImguiVec4());
@@ -58,11 +60,11 @@ pub fn draw(app: *Pixi, editor: *Editor, packer: *Packer) !void {
         }
     }
 
-    // _ = imgui.checkbox("Pack tileset", &Pixi.app.pack_tileset);
+    // _ = imgui.checkbox("Pack tileset", &pixi.app.pack_tileset);
     // if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
     //     if (imgui.beginTooltip()) {
     //         defer imgui.endTooltip();
-    //         imgui.textColored(Pixi.editor.theme.text_secondary.toImguiVec4(), "Do not tightly pack sprites, pack a uniform grid");
+    //         imgui.textColored(pixi.editor.theme.text_secondary.toImguiVec4(), "Do not tightly pack sprites, pack a uniform grid");
     //     }
     // }
 
@@ -83,7 +85,7 @@ pub fn draw(app: *Pixi, editor: *Editor, packer: *Packer) !void {
             switch (packer.target) {
                 .project => {
                     if (editor.project_folder) |folder| {
-                        try Pixi.Packer.recurseFiles(folder);
+                        try pixi.Packer.recurseFiles(folder);
                         try packer.packAndClear();
                     }
                 },
@@ -155,7 +157,7 @@ pub fn draw(app: *Pixi, editor: *Editor, packer: *Packer) !void {
                     while (i > 0) {
                         i -= 1;
                         const exp = editor.recents.exports.items[i];
-                        const label = try std.fmt.allocPrintZ(app.allocator, "{s} {s}", .{ Pixi.fa.file_download, std.fs.path.basename(exp) });
+                        const label = try std.fmt.allocPrintZ(app.allocator, "{s} {s}", .{ pixi.fa.file_download, std.fs.path.basename(exp) });
                         defer app.allocator.free(label);
 
                         if (imgui.selectable(label)) {

@@ -1,15 +1,17 @@
 const std = @import("std");
 
-const Pixi = @import("../../../Pixi.zig");
+const pixi = @import("../../../pixi.zig");
+
+const App = pixi.App;
 const Core = @import("mach").Core;
-const Editor = Pixi.Editor;
+const Editor = pixi.Editor;
 
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 
-const History = Pixi.Internal.File.History;
+const History = pixi.Internal.File.History;
 
-pub fn draw(file: *Pixi.Internal.File, mouse_ratio: f32, app: *Pixi, editor: *Editor) !void {
+pub fn draw(file: *pixi.Internal.File, mouse_ratio: f32, app: *App, editor: *Editor) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
@@ -21,15 +23,15 @@ pub fn draw(file: *Pixi.Internal.File, mouse_ratio: f32, app: *Pixi, editor: *Ed
 
         if (file.flipbook_view == .canvas) {
             if (file.animations.slice().len > 0) {
-                if (imgui.button(if (file.selected_animation_state == .play) " " ++ Pixi.fa.pause ++ " " else " " ++ Pixi.fa.play ++ " ")) {
+                if (imgui.button(if (file.selected_animation_state == .play) " " ++ pixi.fa.pause ++ " " else " " ++ pixi.fa.play ++ " ")) {
                     file.selected_animation_state = switch (file.selected_animation_state) {
                         .play => .pause,
                         .pause => .play,
                     };
                 }
 
-                imgui.pushStyleColorImVec4(imgui.Col_FrameBgHovered, Pixi.editor.theme.background.toImguiVec4());
-                imgui.pushStyleColorImVec4(imgui.Col_FrameBg, Pixi.editor.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_FrameBgHovered, pixi.editor.theme.background.toImguiVec4());
+                imgui.pushStyleColorImVec4(imgui.Col_FrameBg, pixi.editor.theme.background.toImguiVec4());
                 defer imgui.popStyleColorEx(2);
 
                 const animation = &file.animations.slice().get(file.selected_animation_index);
@@ -101,7 +103,7 @@ pub fn draw(file: *Pixi.Internal.File, mouse_ratio: f32, app: *Pixi, editor: *Ed
             }
         } else {
             if (file.keyframe_animations.slice().len > 0) {
-                if (imgui.button(if (file.selected_keyframe_animation_state == .play) " " ++ Pixi.fa.pause ++ " " else " " ++ Pixi.fa.play ++ " ")) {
+                if (imgui.button(if (file.selected_keyframe_animation_state == .play) " " ++ pixi.fa.pause ++ " " else " " ++ pixi.fa.play ++ " ")) {
                     file.selected_keyframe_animation_state = switch (file.selected_keyframe_animation_state) {
                         .play => .pause,
                         .pause => .play,
@@ -157,7 +159,7 @@ pub fn draw(file: *Pixi.Internal.File, mouse_ratio: f32, app: *Pixi, editor: *Ed
             }
 
             imgui.setCursorPosX(cursor_x + (avail.x / 2.0));
-            imgui.textColored(color, Pixi.fa.grip_lines);
+            imgui.textColored(color, pixi.fa.grip_lines);
         }
     }
 }

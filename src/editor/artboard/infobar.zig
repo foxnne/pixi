@@ -1,15 +1,15 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
+const pixi = @import("../../pixi.zig");
 const Core = @import("mach").Core;
-const Editor = Pixi.Editor;
+const Editor = pixi.Editor;
 
 const imgui = @import("zig-imgui");
 
 const spacer: [:0]const u8 = "    ";
 
 pub fn draw(editor: *Editor) void {
-    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColor();
 
     const h = imgui.getTextLineHeightWithSpacing() + 6.0;
@@ -20,7 +20,7 @@ pub fn draw(editor: *Editor) void {
 
     if (editor.project_folder) |path| {
         imgui.setCursorPosY(y + 2.0);
-        imgui.textColored(editor.theme.foreground.toImguiVec4(), Pixi.fa.folder_open);
+        imgui.textColored(editor.theme.foreground.toImguiVec4(), pixi.fa.folder_open);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text(path);
@@ -32,7 +32,7 @@ pub fn draw(editor: *Editor) void {
 
     if (editor.getFile(editor.open_file_index)) |file| {
         imgui.setCursorPosY(y + spacing);
-        imgui.textColored(editor.theme.foreground.toImguiVec4(), Pixi.fa.chess_board);
+        imgui.textColored(editor.theme.foreground.toImguiVec4(), pixi.fa.chess_board);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text("%dpx by %dpx", file.width, file.height);
@@ -42,7 +42,7 @@ pub fn draw(editor: *Editor) void {
         imgui.sameLine();
 
         imgui.setCursorPosY(y + spacing);
-        imgui.textColored(editor.theme.foreground.toImguiVec4(), Pixi.fa.border_all);
+        imgui.textColored(editor.theme.foreground.toImguiVec4(), pixi.fa.border_all);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text("%dpx by %dpx", file.tile_width, file.tile_height);
@@ -54,7 +54,7 @@ pub fn draw(editor: *Editor) void {
 
     if (editor.saving()) {
         imgui.setCursorPosY(y + spacing);
-        imgui.textColored(editor.theme.foreground.toImguiVec4(), Pixi.fa.save);
+        imgui.textColored(editor.theme.foreground.toImguiVec4(), pixi.fa.save);
         imgui.setCursorPosY(y);
         imgui.sameLineEx(0.0, spacing);
         imgui.text("Saving!...");

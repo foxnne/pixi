@@ -1,6 +1,7 @@
 const std = @import("std");
 const zm = @import("zmath");
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
+const App = @import("../App.zig");
 const zstbi = @import("zstbi");
 
 const build_options = @import("build-options");
@@ -25,8 +26,8 @@ pub const UniformBufferObject = struct {
     mvp: zm.Mat,
 };
 
-pub fn init(app: *Pixi) !void {
-    const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
+pub fn init(app: *App) !void {
+    const device: *gpu.Device = pixi.core.windows.get(app.window, .device);
 
     const default_shader = @embedFile("../shaders/default.wgsl");
     const default_shader_module = device.createShaderModuleWGSL("default.wgsl", default_shader);

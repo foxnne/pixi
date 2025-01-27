@@ -1,5 +1,5 @@
 const std = @import("std");
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 
 const File = @import("File.zig");
 
@@ -12,4 +12,4 @@ layer_id: u32,
 parent_id: ?u32 = null,
 visible: bool = true,
 tween_id: ?u32 = null,
-tween: Pixi.math.Tween = .none,
+tween: pixi.math.Tween = .none,

@@ -1,9 +1,11 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
+const pixi = @import("../../pixi.zig");
+
 const Core = @import("mach").Core;
-const Editor = Pixi.Editor;
-const Packer = Pixi.Packer;
+const App = pixi.App;
+const Editor = pixi.Editor;
+const Packer = pixi.Packer;
 
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
@@ -42,11 +44,11 @@ pub fn deinit() void {
     // TODO: Free memory
 }
 
-pub fn draw(core: *Core, app: *Pixi, editor: *Editor, explorer: *Explorer, packer: *Packer) !void {
+pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer: *Packer) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     imgui.pushStyleVar(imgui.StyleVar_WindowBorderSize, 0.0);
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 0.0, .y = 0.0 });
-    imgui.pushStyleColorImVec4(imgui.Col_WindowBg, Pixi.editor.theme.foreground.toImguiVec4());
+    imgui.pushStyleColorImVec4(imgui.Col_WindowBg, pixi.editor.theme.foreground.toImguiVec4());
     defer imgui.popStyleColor();
 
     const explorer_width = editor.settings.explorer_width;
@@ -268,6 +270,6 @@ pub fn draw(core: *Core, app: *Pixi, editor: *Editor, explorer: *Explorer, packe
         }
 
         imgui.setCursorPosY(curs_y + avail / 2.0);
-        imgui.textColored(color, Pixi.fa.grip_lines_vertical);
+        imgui.textColored(color, pixi.fa.grip_lines_vertical);
     }
 }

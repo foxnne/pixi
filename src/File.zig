@@ -1,5 +1,5 @@
 const std = @import("std");
-const Pixi = @import("Pixi.zig");
+const pixi = @import("pixi.zig");
 
 const File = @This();
 
@@ -8,9 +8,9 @@ width: u32,
 height: u32,
 tile_width: u32,
 tile_height: u32,
-layers: []Pixi.Layer,
-sprites: []Pixi.Sprite,
-animations: []Pixi.Animation,
+layers: []pixi.Layer,
+sprites: []pixi.Sprite,
+animations: []pixi.Animation,
 
 pub fn deinit(self: *File, allocator: std.mem.Allocator) void {
     for (self.layers) |*layer| {

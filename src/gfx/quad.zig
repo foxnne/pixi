@@ -1,7 +1,7 @@
 const std = @import("std");
 const zm = @import("zmath");
-const Pixi = @import("../Pixi.zig");
-const gfx = Pixi.gfx;
+const pixi = @import("../pixi.zig");
+const gfx = pixi.gfx;
 
 pub const Quad = struct {
     vertices: [5]gfx.Vertex,

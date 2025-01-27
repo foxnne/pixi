@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
-const Editor = Pixi.Editor;
-const History = Pixi.Internal.File.History;
+const pixi = @import("../../pixi.zig");
+const Editor = pixi.Editor;
+const History = pixi.Internal.File.History;
 
 const imgui = @import("zig-imgui");
 
@@ -26,7 +26,7 @@ pub fn draw(editor: *Editor) !void {
 
             if (imgui.checkbox("Edit Heightmap Layer", &file.heightmap.visible)) {}
             if (imgui.button("Delete Heightmap Layer")) {
-                try file.deleted_heightmap_layers.append(Pixi.app.allocator, file.heightmap.layer.?);
+                try file.deleted_heightmap_layers.append(pixi.app.allocator, file.heightmap.layer.?);
                 file.heightmap.layer = null;
                 try file.history.append(.{ .heightmap_restore_delete = .{ .action = .restore } });
                 if (editor.tools.current == .heightmap)
@@ -35,7 +35,7 @@ pub fn draw(editor: *Editor) !void {
         }
 
         imgui.spacing();
-        if (imgui.smallButton(Pixi.fa.plus)) {
+        if (imgui.smallButton(pixi.fa.plus)) {
             editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
             std.mem.copyForwards(u8, &editor.popups.layer_setup_name, "New Layer");
             editor.popups.layer_setup_state = .none;
@@ -43,8 +43,8 @@ pub fn draw(editor: *Editor) !void {
         }
         imgui.sameLine();
 
-        const file_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{std.fs.path.basename(file.path)});
-        defer Pixi.app.allocator.free(file_name);
+        const file_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{std.fs.path.basename(file.path)});
+        defer pixi.app.allocator.free(file_name);
 
         imgui.text(file_name);
 
@@ -75,7 +75,7 @@ pub fn draw(editor: *Editor) !void {
                 defer imgui.popStyleColorEx(3);
 
                 imgui.pushID(layer.name);
-                if (imgui.smallButton(if (layer.visible) Pixi.fa.eye else Pixi.fa.eye_slash)) {
+                if (imgui.smallButton(if (layer.visible) pixi.fa.eye else pixi.fa.eye_slash)) {
                     const change: History.Change = .{ .layer_settings = .{
                         .collapse = layer.collapse,
                         .visible = layer.visible,
@@ -90,8 +90,8 @@ pub fn draw(editor: *Editor) !void {
                 }
                 imgui.sameLineEx(0.0, 0.0);
 
-                const collapse_true = Pixi.fa.arrow_up;
-                const collapse_false = Pixi.fa.box_open;
+                const collapse_true = pixi.fa.arrow_up;
+                const collapse_false = pixi.fa.box_open;
                 if (imgui.smallButton(if (layer.collapse) collapse_true else collapse_false)) {
                     const change: History.Change = .{ .layer_settings = .{
                         .collapse = layer.collapse,
@@ -142,8 +142,8 @@ pub fn draw(editor: *Editor) !void {
                     }
 
                     if (imgui.menuItem("Duplicate...")) {
-                        const new_name = try std.fmt.allocPrint(Pixi.app.allocator, "{s}_copy", .{layer.name});
-                        defer Pixi.app.allocator.free(new_name);
+                        const new_name = try std.fmt.allocPrint(pixi.app.allocator, "{s}_copy", .{layer.name});
+                        defer pixi.app.allocator.free(new_name);
                         editor.popups.layer_setup_name = [_:0]u8{0} ** 128;
                         @memcpy(editor.popups.layer_setup_name[0..new_name.len], new_name);
                         editor.popups.layer_setup_index = i;
@@ -163,7 +163,7 @@ pub fn draw(editor: *Editor) !void {
                 if (imgui.isItemActive() and !imgui.isItemHovered(imgui.HoveredFlags_None) and imgui.isAnyItemHovered()) {
                     const i_next = @as(usize, @intCast(std.math.clamp(@as(i32, @intCast(i)) + (if (imgui.getMouseDragDelta(imgui.MouseButton_Left, 0.0).y < 0.0) @as(i32, 1) else @as(i32, -1)), 0, std.math.maxInt(i32))));
                     if (i_next >= 0.0 and i_next < file.layers.slice().len) {
-                        var change = try History.Change.create(Pixi.app.allocator, .layers_order, file.layers.slice().len);
+                        var change = try History.Change.create(pixi.app.allocator, .layers_order, file.layers.slice().len);
                         var index: usize = 0;
                         while (index < file.layers.slice().len) : (index += 1) {
                             const l = file.layers.slice().get(index);

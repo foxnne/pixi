@@ -1,9 +1,11 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
+const pixi = @import("../../pixi.zig");
+
 const Core = @import("mach").Core;
-const Editor = Pixi.Editor;
-const Packer = Pixi.Packer;
+const App = pixi.App;
+const Editor = pixi.Editor;
+const Packer = pixi.Packer;
 
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
@@ -33,7 +35,7 @@ pub fn init(artboard: *Artboard) void {
 
 pub fn deinit() void {}
 
-pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor, packer: *Packer) !void {
+pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer: *Packer) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -62,7 +64,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor, packe
         try menu.draw(editor);
 
         defer {
-            const shadow_color = Pixi.math.Color.initFloats(0.0, 0.0, 0.0, editor.settings.shadow_opacity).toU32();
+            const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, editor.settings.shadow_opacity).toU32();
             // Draw a shadow fading from bottom to top
             const pos = imgui.getWindowPos();
             const height = imgui.getWindowHeight();
@@ -107,7 +109,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor, packe
 
             const not_active: bool = (artboard_0 and artboard.open_file_index_0 != editor.open_file_index) or (!artboard_0 and !artboard_grip and artboard.open_file_index_1 != editor.open_file_index);
 
-            const artboard_color: Pixi.math.Color = if (artboard_grip or (not_active and editor.settings.split_artboard)) Pixi.editor.theme.foreground else Pixi.editor.theme.background;
+            const artboard_color: pixi.math.Color = if (artboard_grip or (not_active and editor.settings.split_artboard)) pixi.editor.theme.foreground else pixi.editor.theme.background;
 
             imgui.pushStyleColor(imgui.Col_ChildBg, artboard_color.toU32());
             defer imgui.popStyleColor();
@@ -143,7 +145,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor, packe
                                 imgui.pushIDInt(@as(c_int, @intCast(i)));
                                 defer imgui.popID();
 
-                                const label = try std.fmt.allocPrintZ(app.allocator, " {s}  {s} ", .{ Pixi.fa.file_powerpoint, file_name });
+                                const label = try std.fmt.allocPrintZ(app.allocator, " {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name });
                                 defer app.allocator.free(label);
 
                                 var file_tab_flags: imgui.TabItemFlags = 0;
@@ -271,7 +273,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor, packe
                 imgui.endChild();
 
                 if (editor.project_folder != null or editor.open_files.items.len > 0) {
-                    imgui.pushStyleColorImVec4(imgui.Col_ChildBg, Pixi.editor.theme.highlight_primary.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.editor.theme.highlight_primary.toImguiVec4());
                     defer imgui.popStyleColor();
                     if (imgui.beginChild("InfoBar", .{ .x = -1.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                         infobar.draw(editor);
@@ -284,7 +286,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *Pixi, editor: *Editor, packe
     imgui.end();
 }
 
-pub fn drawLogoScreen(app: *Pixi, editor: *Editor) !void {
+pub fn drawLogoScreen(app: *App, editor: *Editor) !void {
     imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_Border, editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.background.toImguiVec4());
@@ -293,7 +295,7 @@ pub fn drawLogoScreen(app: *Pixi, editor: *Editor) !void {
     defer imgui.popStyleColorEx(5);
     { // Draw semi-transparent logo
 
-        const logo_sprite = app.assets.atlas.sprites[Pixi.atlas.logo_0_default];
+        const logo_sprite = app.assets.atlas.sprites[pixi.atlas.logo_0_default];
 
         const src: [4]f32 = .{
             @floatFromInt(logo_sprite.source[0]),
@@ -322,7 +324,7 @@ pub fn drawLogoScreen(app: *Pixi, editor: *Editor) !void {
         imgui.dummy(.{ .x = 1.0, .y = 15.0 });
     }
     { // Draw `Open Folder` button
-        const text: [:0]const u8 = "  Open Folder  " ++ Pixi.fa.folder_open ++ " ";
+        const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
         const size = imgui.calcTextSize(text);
         imgui.setCursorPosX((imgui.getWindowWidth() / 2.0) - size.x / 2.0);
         if (imgui.buttonEx(text, .{ .x = size.x, .y = 0.0 })) {
@@ -341,7 +343,7 @@ pub fn drawLogoScreen(app: *Pixi, editor: *Editor) !void {
     }
 }
 
-pub fn drawGrip(window_width: f32, app: *Pixi, editor: *Editor) void {
+pub fn drawGrip(window_width: f32, app: *App, editor: *Editor) void {
     imgui.setCursorPosY(0.0);
     imgui.setCursorPosX(0.0);
 
@@ -384,8 +386,8 @@ pub fn drawGrip(window_width: f32, app: *Pixi, editor: *Editor) void {
     }
 
     imgui.setCursorPosY(curs_y + avail / 2.0);
-    imgui.setCursorPosX(editor.settings.explorer_grip / 2.0 - imgui.calcTextSize(Pixi.fa.grip_lines_vertical).x / 2.0);
-    imgui.textColored(color, Pixi.fa.grip_lines_vertical);
+    imgui.setCursorPosX(editor.settings.explorer_grip / 2.0 - imgui.calcTextSize(pixi.fa.grip_lines_vertical).x / 2.0);
+    imgui.textColored(color, pixi.fa.grip_lines_vertical);
 }
 
 pub fn drawCanvasPack(editor: *Editor, packer: *Packer) void {

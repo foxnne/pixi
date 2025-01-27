@@ -7,13 +7,16 @@ const nfd = @import("src/deps/nfd-zig/build.zig");
 const zip = @import("src/deps/zip/build.zig");
 
 const content_dir = "assets/";
-const src_path = "src/main.zig";
 
-const ProcessAssetsStep = @import("src/tools/process_assets.zig").ProcessAssetsStep;
+const ProcessAssetsStep = @import("src/tools/process_assets.zig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    _ = b.addModule("pixi", .{
+        .root_source_file = b.path("src/pixi.zig"),
+    });
 
     const zstbi = b.dependency("zstbi", .{ .target = target, .optimize = optimize });
     const zmath = b.dependency("zmath", .{ .target = target, .optimize = optimize });
@@ -36,8 +39,8 @@ pub fn build(b: *std.Build) !void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "Pixi",
-        .root_source_file = b.path(src_path),
+        .name = "pixi.zig",
+        .root_source_file = b.path("src/pixi.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -58,6 +61,7 @@ pub fn build(b: *std.Build) !void {
     exe.root_module.addImport("nfd", nfd.getModule(b));
     exe.root_module.addImport("zip", zip_pkg.module);
     exe.root_module.addImport("zig-imgui", imgui_module);
+    //exe.root_module.addImport("pixi", module);
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
     exe.root_module.addImport("nfd", nfd_lib);

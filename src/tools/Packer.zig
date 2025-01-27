@@ -1,7 +1,7 @@
 const std = @import("std");
 const zstbi = @import("zstbi");
 
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 const Core = @import("mach").Core;
 
 pub const LDTKTileset = @import("LDTKTileset.zig");
@@ -41,13 +41,13 @@ pub const Sprite = struct {
 
 frames: std.ArrayList(zstbi.Rect),
 sprites: std.ArrayList(Sprite),
-animations: std.ArrayList(Pixi.Animation),
+animations: std.ArrayList(pixi.Animation),
 id_counter: u32 = 0,
 placeholder: Image,
 contains_height: bool = false,
-open_files: std.ArrayList(Pixi.Internal.File),
+open_files: std.ArrayList(pixi.Internal.File),
 target: PackTarget = .project,
-camera: Pixi.gfx.Camera = .{},
+camera: pixi.gfx.Camera = .{},
 
 ldtk: bool = false,
 ldtk_tilesets: std.ArrayList(LDTKTileset),
@@ -59,18 +59,18 @@ pub const PackTarget = enum {
 };
 
 pub fn init(packer: *Packer) !void {
-    const pixels: [][4]u8 = try Pixi.app.allocator.alloc([4]u8, 4);
+    const pixels: [][4]u8 = try pixi.app.allocator.alloc([4]u8, 4);
     for (pixels) |*pixel| {
         pixel[3] = 0;
     }
 
     packer.* = .{
-        .sprites = std.ArrayList(Sprite).init(Pixi.app.allocator),
-        .frames = std.ArrayList(zstbi.Rect).init(Pixi.app.allocator),
-        .animations = std.ArrayList(Pixi.Animation).init(Pixi.app.allocator),
-        .open_files = std.ArrayList(Pixi.Internal.File).init(Pixi.app.allocator),
+        .sprites = std.ArrayList(Sprite).init(pixi.app.allocator),
+        .frames = std.ArrayList(zstbi.Rect).init(pixi.app.allocator),
+        .animations = std.ArrayList(pixi.Animation).init(pixi.app.allocator),
+        .open_files = std.ArrayList(pixi.Internal.File).init(pixi.app.allocator),
         .placeholder = .{ .width = 2, .height = 2, .pixels = pixels },
-        .ldtk_tilesets = std.ArrayList(LDTKTileset).init(Pixi.app.allocator),
+        .ldtk_tilesets = std.ArrayList(LDTKTileset).init(pixi.app.allocator),
     };
 }
 
@@ -81,7 +81,7 @@ pub fn newId(self: *Packer) u32 {
 }
 
 pub fn deinit(self: *Packer) void {
-    Pixi.app.allocator.free(self.placeholder.pixels);
+    pixi.app.allocator.free(self.placeholder.pixels);
     self.clearAndFree();
     self.sprites.deinit();
     self.frames.deinit();
@@ -91,21 +91,21 @@ pub fn deinit(self: *Packer) void {
 
 pub fn clearAndFree(self: *Packer) void {
     for (self.sprites.items) |*sprite| {
-        sprite.deinit(Pixi.app.allocator);
+        sprite.deinit(pixi.app.allocator);
     }
     for (self.animations.items) |*animation| {
-        Pixi.app.allocator.free(animation.name);
+        pixi.app.allocator.free(animation.name);
     }
     for (self.ldtk_tilesets.items) |*tileset| {
         for (tileset.layer_paths) |path| {
-            Pixi.app.allocator.free(path);
+            pixi.app.allocator.free(path);
         }
 
         for (tileset.sprites) |*sprite| {
-            Pixi.app.allocator.free(sprite.name);
+            pixi.app.allocator.free(sprite.name);
         }
-        Pixi.app.allocator.free(tileset.sprites);
-        Pixi.app.allocator.free(tileset.layer_paths);
+        pixi.app.allocator.free(tileset.sprites);
+        pixi.app.allocator.free(tileset.layer_paths);
     }
     self.frames.clearAndFree();
     self.sprites.clearAndFree();
@@ -119,11 +119,11 @@ pub fn clearAndFree(self: *Packer) void {
     self.open_files.clearAndFree();
 }
 
-pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
+pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
     if (self.ldtk) {
-        if (Pixi.editor.project_folder) |project_folder_path| {
-            const ldtk_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
-            defer Pixi.app.allocator.free(ldtk_path);
+        if (pixi.editor.project_folder) |project_folder_path| {
+            const ldtk_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
+            defer pixi.app.allocator.free(ldtk_path);
 
             const base_name_w_ext = std.fs.path.basename(file.path);
             const ext = std.fs.path.extension(base_name_w_ext);
@@ -133,13 +133,13 @@ pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
             if (std.fs.path.dirname(file.path)) |file_dir_path| {
                 const relative_path = file_dir_path[project_folder_path.len..];
 
-                var layer_names = std.ArrayList([:0]const u8).init(Pixi.app.allocator);
-                var sprites = std.ArrayList(LDTKTileset.LDTKSprite).init(Pixi.app.allocator);
+                var layer_names = std.ArrayList([:0]const u8).init(pixi.app.allocator);
+                var sprites = std.ArrayList(LDTKTileset.LDTKSprite).init(pixi.app.allocator);
 
                 var index: usize = 0;
                 while (index < file.layers.slice().len) : (index += 1) {
                     const layer = file.layers.slice().get(index);
-                    const layer_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "pixi-ldtk{s}{c}{s}__{s}.png", .{ relative_path, std.fs.path.sep, base_name, layer.name });
+                    const layer_name = try std.fmt.allocPrintZ(pixi.app.allocator, "pixi-ldtk{s}{c}{s}__{s}.png", .{ relative_path, std.fs.path.sep, base_name, layer.name });
                     try layer_names.append(layer_name);
                 }
 
@@ -155,7 +155,7 @@ pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
                     const src_y = row * file.tile_height;
 
                     try sprites.append(.{
-                        .name = try Pixi.app.allocator.dupeZ(u8, sprite.name),
+                        .name = try pixi.app.allocator.dupeZ(u8, sprite.name),
                         .src = .{ src_x, src_y },
                     });
                 }
@@ -170,7 +170,7 @@ pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
         return;
     }
 
-    var texture_opt: ?Pixi.gfx.Texture = null;
+    var texture_opt: ?pixi.gfx.Texture = null;
     var index: usize = 0;
     while (index < file.layers.slice().len) : (index += 1) {
         const layer = file.layers.slice().get(index);
@@ -182,7 +182,7 @@ pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
         if ((layer.collapse and !last_item) or ((index != 0 and file.layers.slice().get(index - 1).collapse))) {
             const layer_read = layer;
 
-            const texture = if (texture_opt) |carry_over_texture| carry_over_texture else try Pixi.gfx.Texture.createEmpty(file.width, file.height, .{});
+            const texture = if (texture_opt) |carry_over_texture| carry_over_texture else try pixi.gfx.Texture.createEmpty(file.width, file.height, .{});
 
             const src_pixels = @as([*][4]u8, @ptrCast(layer_read.texture.image.data.ptr))[0 .. layer_read.texture.image.data.len / 4];
             const dst_pixels = @as([*][4]u8, @ptrCast(texture.image.data.ptr))[0 .. texture.image.data.len / 4];
@@ -228,14 +228,14 @@ pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
                 var image: Image = .{
                     .width = reduced_src_width,
                     .height = reduced_src_height,
-                    .pixels = try Pixi.app.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
+                    .pixels = try pixi.app.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
                 };
 
                 var contains_height: bool = false;
                 var heightmap_image: ?Image = if (file.heightmap.layer != null) .{
                     .width = reduced_src_width,
                     .height = reduced_src_height,
-                    .pixels = try Pixi.app.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
+                    .pixels = try pixi.app.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
                 } else null;
 
                 @memset(image.pixels, .{ 0, 0, 0, 0 });
@@ -274,13 +274,13 @@ pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
 
                 if (!contains_height) {
                     if (heightmap_image) |img| {
-                        Pixi.app.allocator.free(img.pixels);
+                        pixi.app.allocator.free(img.pixels);
                         heightmap_image = null;
                     }
                 }
 
                 try self.sprites.append(.{
-                    .name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{s}", .{ sprite.name, layer.name }),
+                    .name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{s}", .{ sprite.name, layer.name }),
                     .image = image,
                     .heightmap_image = heightmap_image,
                     .origin = .{ @as(i32, @intFromFloat(sprite.origin_x)) - @as(i32, @intCast(offset[0])), @as(i32, @intFromFloat(sprite.origin_y)) - @as(i32, @intCast(offset[1])) },
@@ -295,7 +295,7 @@ pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
                         // Sprite contains no pixels but is part of an animation
                         // To preserve the animation, add a blank pixel to the sprites list
                         try self.sprites.append(.{
-                            .name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{s}", .{ sprite.name, layer.name }),
+                            .name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{s}", .{ sprite.name, layer.name }),
                             .image = null,
                             .origin = .{ 0, 0 },
                         });
@@ -314,7 +314,7 @@ pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
                 const animation = file.animations.slice().get(animation_index);
                 if (sprite_index == animation.start) {
                     try self.animations.append(.{
-                        .name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{s}", .{ animation.name, layer.name }),
+                        .name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{s}", .{ animation.name, layer.name }),
                         .start = self.sprites.items.len - 1,
                         .length = animation.length,
                         .fps = animation.fps,
@@ -331,7 +331,7 @@ pub fn append(self: *Packer, file: *Pixi.Internal.File) !void {
 }
 
 pub fn appendProject(_: Packer) !void {
-    if (Pixi.editor.project_folder) |root_directory| {
+    if (pixi.editor.project_folder) |root_directory| {
         try recurseFiles(root_directory);
     }
 }
@@ -347,23 +347,23 @@ pub fn recurseFiles(root_directory: [:0]const u8) !void {
                 if (entry.kind == .file) {
                     const ext = std.fs.path.extension(entry.name);
                     if (std.mem.eql(u8, ext, ".pixi")) {
-                        const abs_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ directory, entry.name });
-                        defer Pixi.app.allocator.free(abs_path);
+                        const abs_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ directory, entry.name });
+                        defer pixi.app.allocator.free(abs_path);
 
-                        if (Pixi.editor.getFileIndex(abs_path)) |index| {
-                            if (Pixi.editor.getFile(index)) |file| {
-                                try Pixi.packer.append(file);
+                        if (pixi.editor.getFileIndex(abs_path)) |index| {
+                            if (pixi.editor.getFile(index)) |file| {
+                                try pixi.packer.append(file);
                             }
                         } else {
-                            if (try Pixi.Internal.File.load(abs_path)) |file| {
-                                try Pixi.packer.open_files.append(file);
-                                try Pixi.packer.append(&Pixi.packer.open_files.items[Pixi.packer.open_files.items.len - 1]);
+                            if (try pixi.Internal.File.load(abs_path)) |file| {
+                                try pixi.packer.open_files.append(file);
+                                try pixi.packer.append(&pixi.packer.open_files.items[pixi.packer.open_files.items.len - 1]);
                             }
                         }
                     }
                 } else if (entry.kind == .directory) {
-                    const abs_path = try std.fs.path.joinZ(Pixi.app.allocator, &[_][]const u8{ directory, entry.name });
-                    defer Pixi.app.allocator.free(abs_path);
+                    const abs_path = try std.fs.path.joinZ(pixi.app.allocator, &[_][]const u8{ directory, entry.name });
+                    defer pixi.app.allocator.free(abs_path);
                     try search(abs_path);
                 }
             }
@@ -377,73 +377,73 @@ pub fn recurseFiles(root_directory: [:0]const u8) !void {
 
 pub fn packAndClear(self: *Packer) !void {
     if (try self.packRects()) |size| {
-        var atlas_texture = try Pixi.gfx.Texture.createEmpty(size[0], size[1], .{});
+        var atlas_texture = try pixi.gfx.Texture.createEmpty(size[0], size[1], .{});
 
         for (self.frames.items, self.sprites.items) |frame, sprite| {
             if (sprite.image) |image|
                 atlas_texture.blit(image.pixels, frame.slice());
         }
-        atlas_texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
+        atlas_texture.update(pixi.core.windows.get(pixi.app.window, .device));
 
-        if (Pixi.editor.atlas.texture) |*texture| {
+        if (pixi.editor.atlas.texture) |*texture| {
             texture.deinit();
-            Pixi.editor.atlas.texture = atlas_texture;
+            pixi.editor.atlas.texture = atlas_texture;
         } else {
-            Pixi.editor.atlas.texture = atlas_texture;
+            pixi.editor.atlas.texture = atlas_texture;
         }
 
         if (self.contains_height) {
-            var atlas_texture_h = try Pixi.gfx.Texture.createEmpty(size[0], size[1], .{});
+            var atlas_texture_h = try pixi.gfx.Texture.createEmpty(size[0], size[1], .{});
 
             for (self.frames.items, self.sprites.items) |frame, sprite| {
                 if (sprite.heightmap_image) |image|
                     atlas_texture_h.blit(image.pixels, frame.slice());
             }
-            atlas_texture_h.update(Pixi.core.windows.get(Pixi.app.window, .device));
+            atlas_texture_h.update(pixi.core.windows.get(pixi.app.window, .device));
 
-            if (Pixi.editor.atlas.heightmap) |*heightmap| {
+            if (pixi.editor.atlas.heightmap) |*heightmap| {
                 heightmap.deinit();
-                Pixi.editor.atlas.heightmap = atlas_texture_h;
+                pixi.editor.atlas.heightmap = atlas_texture_h;
             } else {
-                Pixi.editor.atlas.heightmap = atlas_texture_h;
+                pixi.editor.atlas.heightmap = atlas_texture_h;
             }
         } else {
-            if (Pixi.editor.atlas.heightmap) |*heightmap| {
+            if (pixi.editor.atlas.heightmap) |*heightmap| {
                 heightmap.deinit();
             }
         }
 
-        const atlas: Pixi.Atlas = .{
-            .sprites = try Pixi.app.allocator.alloc(Pixi.Sprite, self.sprites.items.len),
-            .animations = try Pixi.app.allocator.alloc(Pixi.Animation, self.animations.items.len),
+        const atlas: pixi.Atlas = .{
+            .sprites = try pixi.app.allocator.alloc(pixi.Sprite, self.sprites.items.len),
+            .animations = try pixi.app.allocator.alloc(pixi.Animation, self.animations.items.len),
         };
 
         for (atlas.sprites, self.sprites.items, self.frames.items) |*dst, src, src_rect| {
-            dst.name = try Pixi.app.allocator.dupeZ(u8, src.name);
+            dst.name = try pixi.app.allocator.dupeZ(u8, src.name);
             dst.source = .{ src_rect.x, src_rect.y, src_rect.w, src_rect.h };
             dst.origin = src.origin;
         }
 
         for (atlas.animations, self.animations.items) |*dst, src| {
-            dst.name = try Pixi.app.allocator.dupeZ(u8, src.name);
+            dst.name = try pixi.app.allocator.dupeZ(u8, src.name);
             dst.fps = src.fps;
             dst.length = src.length;
             dst.start = src.start;
         }
 
-        if (Pixi.editor.atlas.data) |*data| {
+        if (pixi.editor.atlas.data) |*data| {
             for (data.sprites) |sprite| {
-                Pixi.app.allocator.free(sprite.name);
+                pixi.app.allocator.free(sprite.name);
             }
             for (data.animations) |animation| {
-                Pixi.app.allocator.free(animation.name);
+                pixi.app.allocator.free(animation.name);
             }
-            Pixi.app.allocator.free(data.sprites);
-            Pixi.app.allocator.free(data.animations);
+            pixi.app.allocator.free(data.sprites);
+            pixi.app.allocator.free(data.animations);
 
-            Pixi.editor.atlas.data = atlas;
+            pixi.editor.atlas.data = atlas;
         } else {
-            Pixi.editor.atlas.data = atlas;
+            pixi.editor.atlas.data = atlas;
         }
 
         self.clearAndFree();
@@ -452,7 +452,7 @@ pub fn packAndClear(self: *Packer) !void {
 
 /// Takes a texture and a src rect and reduces the rect removing all fully transparent pixels
 /// If the src rect doesn't contain any opaque pixels, returns null
-pub fn reduce(texture: *Pixi.gfx.Texture, src: [4]usize) ?[4]usize {
+pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     const pixels = @as([*][4]u8, @ptrCast(texture.image.data.ptr))[0 .. texture.image.data.len / 4];
     const layer_width = @as(usize, @intCast(texture.image.width));
 
@@ -532,7 +532,7 @@ pub fn reduce(texture: *Pixi.gfx.Texture, src: [4]usize) ?[4]usize {
     // // If we are packing a tileset, we want a uniform / non-tightly-packed grid. We remove all
     // // completely empty sprite cells (the return null cases above), but do not trim transparent
     // // regions during packing.
-    // if (Pixi.app.pack_tileset) return src;
+    // if (pixi.app.pack_tileset) return src;
 
     return .{
         left,

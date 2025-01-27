@@ -1,7 +1,9 @@
 const std = @import("std");
 
-const Pixi = @import("../Pixi.zig");
 const mach = @import("mach");
+const pixi = @import("../pixi.zig");
+
+const App = pixi.App;
 const Core = mach.Core;
 
 pub const Settings = @import("Settings.zig");
@@ -37,7 +39,7 @@ pub const mach_systems = .{
 
 theme: Theme,
 settings: Settings,
-hotkeys: Pixi.input.Hotkeys,
+hotkeys: pixi.input.Hotkeys,
 recents: Recents,
 
 // Module pointers
@@ -49,12 +51,12 @@ sidebar: *Sidebar,
 project_folder: ?[:0]const u8 = null,
 
 previous_atlas_export: ?[:0]const u8 = null,
-open_files: std.ArrayList(Pixi.Internal.File) = undefined,
-open_references: std.ArrayList(Pixi.Internal.Reference) = undefined,
+open_files: std.ArrayList(pixi.Internal.File) = undefined,
+open_references: std.ArrayList(pixi.Internal.Reference) = undefined,
 open_file_index: usize = 0,
 open_reference_index: usize = 0,
 
-atlas: Pixi.Internal.Atlas = .{},
+atlas: pixi.Internal.Atlas = .{},
 tools: Tools = .{},
 
 colors: Colors = .{},
@@ -66,7 +68,7 @@ clipboard_image: ?zstbi.Image = null,
 clipboard_position: [2]u32 = .{ 0, 0 },
 
 pub fn init(
-    app: *Pixi,
+    app: *App,
     editor: *Editor,
     _popups: *Popups,
     _explorer: *Explorer,
@@ -84,14 +86,14 @@ pub fn init(
         .artboard = _artboard,
         .sidebar = _sidebar,
         .settings = try Settings.load(app.arena_allocator.allocator()),
-        .hotkeys = try Pixi.input.Hotkeys.initDefault(app.allocator),
+        .hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
         .recents = try Recents.init(app.allocator),
     };
 
-    editor.open_files = std.ArrayList(Pixi.Internal.File).init(app.allocator);
-    editor.open_references = std.ArrayList(Pixi.Internal.Reference).init(app.allocator);
+    editor.open_files = std.ArrayList(pixi.Internal.File).init(app.allocator);
+    editor.open_references = std.ArrayList(pixi.Internal.Reference).init(app.allocator);
 
-    editor.colors.keyframe_palette = try Pixi.Internal.Palette.loadFromFile(Pixi.paths.pear36_hex.path);
+    editor.colors.keyframe_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.pear36_hex.path);
 
     sidebar_mod.call(.init);
     explorer_mod.call(.init);
@@ -99,8 +101,8 @@ pub fn init(
     popups_mod.call(.init);
 }
 
-pub fn lateInit(core: *Core, app: *Pixi, editor: *Editor) !void {
-    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ Pixi.paths.themes, editor.settings.theme });
+pub fn lateInit(core: *Core, app: *App, editor: *Editor) !void {
+    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ pixi.paths.themes, editor.settings.theme });
     defer app.allocator.free(theme_path);
 
     editor.theme = try Theme.loadFromFile(theme_path);
@@ -127,7 +129,7 @@ pub fn processDialogRequest(editor: *Editor) !void {
 
 pub fn tick(
     core: *Core,
-    app: *Pixi,
+    app: *App,
     editor: *Editor,
     sidebar_mod: mach.Mod(Sidebar),
     explorer_mod: mach.Mod(Explorer),
@@ -198,7 +200,7 @@ pub fn tick(
 
                         staging_buffer.unmap();
 
-                        var texture: *Pixi.gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
+                        var texture: *pixi.gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
                         texture.update(window.device);
                     }
 
@@ -214,7 +216,7 @@ pub fn tick(
     }
 }
 
-pub fn close(app: *Pixi, editor: *Editor) void {
+pub fn close(app: *App, editor: *Editor) void {
     var should_close = true;
     for (editor.open_files.items) |file| {
         if (file.dirty()) {
@@ -232,10 +234,10 @@ pub fn close(app: *Pixi, editor: *Editor) void {
 
 pub fn setProjectFolder(editor: *Editor, path: [:0]const u8) !void {
     if (editor.project_folder) |folder| {
-        Pixi.app.allocator.free(folder);
+        pixi.app.allocator.free(folder);
     }
-    editor.project_folder = try Pixi.app.allocator.dupeZ(u8, path);
-    try editor.recents.appendFolder(try Pixi.app.allocator.dupeZ(u8, path));
+    editor.project_folder = try pixi.app.allocator.dupeZ(u8, path);
+    try editor.recents.appendFolder(try pixi.app.allocator.dupeZ(u8, path));
     try editor.recents.save();
     editor.explorer.pane = .files;
 }
@@ -252,31 +254,31 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
     for (editor.open_files.items, 0..) |file, i| {
         if (std.mem.eql(u8, file.path, path)) {
             // Free path since we aren't adding it to open files again.
-            Pixi.app.allocator.free(path);
+            pixi.app.allocator.free(path);
             editor.setActiveFile(i);
             return false;
         }
     }
 
-    var internal: Pixi.Internal.File = .{
-        .path = try Pixi.app.allocator.dupeZ(u8, path),
-        .width = @as(u32, @intCast(Pixi.editor.popups.file_setup_tiles[0] * Pixi.editor.popups.file_setup_tile_size[0])),
-        .height = @as(u32, @intCast(Pixi.editor.popups.file_setup_tiles[1] * Pixi.editor.popups.file_setup_tile_size[1])),
-        .tile_width = @as(u32, @intCast(Pixi.editor.popups.file_setup_tile_size[0])),
-        .tile_height = @as(u32, @intCast(Pixi.editor.popups.file_setup_tile_size[1])),
+    var internal: pixi.Internal.File = .{
+        .path = try pixi.app.allocator.dupeZ(u8, path),
+        .width = @as(u32, @intCast(pixi.editor.popups.file_setup_tiles[0] * pixi.editor.popups.file_setup_tile_size[0])),
+        .height = @as(u32, @intCast(pixi.editor.popups.file_setup_tiles[1] * pixi.editor.popups.file_setup_tile_size[1])),
+        .tile_width = @as(u32, @intCast(pixi.editor.popups.file_setup_tile_size[0])),
+        .tile_height = @as(u32, @intCast(pixi.editor.popups.file_setup_tile_size[1])),
         .layers = .{},
         .deleted_layers = .{},
         .deleted_heightmap_layers = .{},
         .sprites = .{},
-        .selected_sprites = std.ArrayList(usize).init(Pixi.app.allocator),
+        .selected_sprites = std.ArrayList(usize).init(pixi.app.allocator),
         .animations = .{},
         .keyframe_animations = .{},
         .keyframe_animation_texture = undefined,
         .keyframe_transform_texture = undefined,
         .deleted_animations = .{},
         .background = undefined,
-        .history = Pixi.Internal.File.History.init(Pixi.app.allocator),
-        .buffers = Pixi.Internal.File.Buffers.init(Pixi.app.allocator),
+        .history = pixi.Internal.File.History.init(pixi.app.allocator),
+        .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
         .temporary_layer = undefined,
         .selection_layer = undefined,
     };
@@ -285,31 +287,31 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
 
     internal.temporary_layer = .{
         .name = "Temporary",
-        .texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
+        .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
     };
 
     internal.selection_layer = .{
         .name = "Selection",
-        .texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
+        .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
     };
 
-    var new_layer: Pixi.Internal.Layer = .{
-        .name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{"Layer 0"}),
+    var new_layer: pixi.Internal.Layer = .{
+        .name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{"Layer 0"}),
         .texture = undefined,
         .id = internal.newId(),
     };
 
     if (import_path) |import| {
-        new_layer.texture = try Pixi.gfx.Texture.loadFromFile(import, .{});
+        new_layer.texture = try pixi.gfx.Texture.loadFromFile(import, .{});
     } else {
-        new_layer.texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
+        new_layer.texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
     }
 
-    try internal.layers.append(Pixi.app.allocator, new_layer);
+    try internal.layers.append(pixi.app.allocator, new_layer);
 
-    internal.keyframe_animation_texture = try Pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
+    internal.keyframe_animation_texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
     internal.keyframe_transform_texture = .{
-        .vertices = .{Pixi.Internal.File.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
+        .vertices = .{pixi.Internal.File.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
         .texture = internal.layers.items(.texture)[0],
     };
 
@@ -322,25 +324,25 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
         const tiles = @as(usize, @intCast(editor.popups.file_setup_tiles[0] * editor.popups.file_setup_tiles[1]));
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
-            const sprite: Pixi.Internal.Sprite = .{
-                .name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}_{d}", .{ base_name[0..ext_ind], i }),
+            const sprite: pixi.Internal.Sprite = .{
+                .name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{d}", .{ base_name[0..ext_ind], i }),
                 .index = i,
             };
-            try internal.sprites.append(Pixi.app.allocator, sprite);
+            try internal.sprites.append(pixi.app.allocator, sprite);
         }
     }
 
     try editor.open_files.insert(0, internal);
     editor.setActiveFile(0);
 
-    Pixi.app.allocator.free(path);
+    pixi.app.allocator.free(path);
 
     return true;
 }
 
 /// Returns true if png was imported and new file created.
 pub fn importPng(editor: *Editor, path: [:0]const u8, new_file_path: [:0]const u8) !bool {
-    defer Pixi.app.allocator.free(path);
+    defer pixi.app.allocator.free(path);
     if (!std.mem.eql(u8, std.fs.path.extension(path)[0..4], ".png"))
         return false;
 
@@ -362,7 +364,7 @@ pub fn openFile(editor: *Editor, path: [:0]const u8) !bool {
         }
     }
 
-    if (try Pixi.Internal.File.load(path)) |file| {
+    if (try pixi.Internal.File.load(path)) |file| {
         try editor.open_files.insert(0, file);
         editor.setActiveFile(0);
         return true;
@@ -378,10 +380,10 @@ pub fn openReference(editor: *Editor, path: [:0]const u8) !bool {
         }
     }
 
-    const texture = try Pixi.gfx.Texture.loadFromFile(path, .{});
+    const texture = try pixi.gfx.Texture.loadFromFile(path, .{});
 
-    const reference: Pixi.Internal.Reference = .{
-        .path = try Pixi.app.allocator.dupeZ(u8, path),
+    const reference: pixi.Internal.Reference = .{
+        .path = try pixi.app.allocator.dupeZ(u8, path),
         .texture = texture,
     };
 
@@ -430,14 +432,14 @@ pub fn getFileIndex(editor: *Editor, path: [:0]const u8) ?usize {
     return null;
 }
 
-pub fn getFile(editor: *Editor, index: usize) ?*Pixi.Internal.File {
+pub fn getFile(editor: *Editor, index: usize) ?*pixi.Internal.File {
     if (editor.open_files.items.len == 0) return null;
     if (index >= editor.open_files.items.len) return null;
 
     return &editor.open_files.items[index];
 }
 
-pub fn getReference(editor: *Editor, index: usize) ?*Pixi.Internal.Reference {
+pub fn getReference(editor: *Editor, index: usize) ?*pixi.Internal.Reference {
     if (editor.open_references.items.len == 0) return null;
     if (index >= editor.open_references.items.len) return null;
 
@@ -482,17 +484,17 @@ pub fn closeFile(editor: *Editor, index: usize) !void {
 
 pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     editor.open_file_index = 0;
-    var file: Pixi.Internal.File = editor.open_files.orderedRemove(index);
+    var file: pixi.Internal.File = editor.open_files.orderedRemove(index);
     file.deinit();
 }
 
 pub fn closeReference(editor: *Editor, index: usize) !void {
     editor.open_reference_index = 0;
-    var reference: Pixi.Internal.Reference = editor.open_references.orderedRemove(index);
+    var reference: pixi.Internal.Reference = editor.open_references.orderedRemove(index);
     reference.deinit();
 }
 
-pub fn deinit(editor: *Editor, app: *Pixi) !void {
+pub fn deinit(editor: *Editor, app: *App) !void {
     for (editor.open_files.items) |_| try editor.closeFile(0);
     editor.open_files.deinit();
 

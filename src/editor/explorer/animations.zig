@@ -1,6 +1,6 @@
 const std = @import("std");
-const Pixi = @import("../../Pixi.zig");
-const Editor = Pixi.Editor;
+const pixi = @import("../../pixi.zig");
+const Editor = pixi.Editor;
 
 const tools = @import("tools.zig");
 const imgui = @import("zig-imgui");
@@ -20,7 +20,7 @@ pub fn draw(editor: *Editor) !void {
         // Make sure we can see the canvas for animation previews
         file.flipbook_view = .canvas;
 
-        if (imgui.collapsingHeader(Pixi.fa.screwdriver ++ "  Tools", imgui.TreeNodeFlags_DefaultOpen)) {
+        if (imgui.collapsingHeader(pixi.fa.screwdriver ++ "  Tools", imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
             defer imgui.popStyleVar();
 
@@ -46,7 +46,7 @@ pub fn draw(editor: *Editor) !void {
 
                 { // Draw tools for animation editing
                     imgui.setCursorPosX(style.item_spacing.x * 2.0);
-                    try tools.drawTool(editor, Pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+                    try tools.drawTool(editor, pixi.fa.mouse_pointer, button_width, button_height, .pointer);
 
                     imgui.sameLine();
                     try tools.drawTool(editor, "[]", button_width, button_height, .animation);
@@ -54,7 +54,7 @@ pub fn draw(editor: *Editor) !void {
             }
         }
 
-        if (imgui.collapsingHeader(Pixi.fa.film ++ "  Animations", imgui.TreeNodeFlags_DefaultOpen)) {
+        if (imgui.collapsingHeader(pixi.fa.film ++ "  Animations", imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
             defer imgui.unindent();
 
@@ -75,8 +75,8 @@ pub fn draw(editor: *Editor) !void {
                     const header_color = if (file.selected_animation_index == animation_index) editor.theme.text.toImguiVec4() else editor.theme.text_secondary.toImguiVec4();
                     imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
                     defer imgui.popStyleColor();
-                    const animation_name = try std.fmt.allocPrintZ(Pixi.app.allocator, " {s}  {s}", .{ Pixi.fa.film, animation.name });
-                    defer Pixi.app.allocator.free(animation_name);
+                    const animation_name = try std.fmt.allocPrintZ(pixi.app.allocator, " {s}  {s}", .{ pixi.fa.film, animation.name });
+                    defer pixi.app.allocator.free(animation_name);
 
                     if (imgui.treeNode(animation_name)) {
                         imgui.pushID(animation.name);
@@ -91,12 +91,12 @@ pub fn draw(editor: *Editor) !void {
                             while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
                                 const sprite = file.sprites.slice().get(sprite_index);
                                 if (i == sprite.index) {
-                                    const color = if (file.selected_sprite_index == sprite.index) Pixi.editor.theme.text.toImguiVec4() else Pixi.editor.theme.text_secondary.toImguiVec4();
+                                    const color = if (file.selected_sprite_index == sprite.index) pixi.editor.theme.text.toImguiVec4() else pixi.editor.theme.text_secondary.toImguiVec4();
                                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                                     defer imgui.popStyleColor();
 
-                                    const sprite_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index });
-                                    defer Pixi.app.allocator.free(sprite_name);
+                                    const sprite_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index });
+                                    defer pixi.app.allocator.free(sprite_name);
 
                                     if (imgui.selectable(sprite_name)) {
                                         file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
@@ -120,7 +120,7 @@ pub fn draw(editor: *Editor) !void {
     }
 }
 
-fn contextMenu(animation_index: usize, file: *Pixi.Internal.File, editor: *Editor) !void {
+fn contextMenu(animation_index: usize, file: *pixi.Internal.File, editor: *Editor) !void {
     if (imgui.beginPopupContextItem()) {
         defer imgui.endPopup();
 

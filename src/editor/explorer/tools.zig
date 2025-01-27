@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
-const Editor = Pixi.Editor;
+const pixi = @import("../../pixi.zig");
+const Editor = pixi.Editor;
 
 const imgui = @import("zig-imgui");
 const layers = @import("layers.zig");
@@ -35,11 +35,11 @@ pub fn draw(editor: *Editor) !void {
             // Row 1
             {
                 imgui.setCursorPosX(style.item_spacing.x * 3.0);
-                try drawTool(editor, Pixi.fa.mouse_pointer, button_width, button_height, .pointer);
+                try drawTool(editor, pixi.fa.mouse_pointer, button_width, button_height, .pointer);
                 imgui.sameLine();
-                try drawTool(editor, Pixi.fa.pencil_alt, button_width, button_height, .pencil);
+                try drawTool(editor, pixi.fa.pencil_alt, button_width, button_height, .pencil);
                 imgui.sameLine();
-                try drawTool(editor, Pixi.fa.eraser, button_width, button_height, .eraser);
+                try drawTool(editor, pixi.fa.eraser, button_width, button_height, .eraser);
             }
 
             imgui.spacing();
@@ -47,11 +47,11 @@ pub fn draw(editor: *Editor) !void {
             // Row 2
             {
                 imgui.setCursorPosX(style.item_spacing.x * 3.0);
-                try drawTool(editor, Pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
+                try drawTool(editor, pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
                 imgui.sameLine();
-                try drawTool(editor, Pixi.fa.fill_drip, button_width, button_height, .bucket);
+                try drawTool(editor, pixi.fa.fill_drip, button_width, button_height, .bucket);
                 imgui.sameLine();
-                try drawTool(editor, Pixi.fa.clipboard_check, button_width, button_height, .selection);
+                try drawTool(editor, pixi.fa.clipboard_check, button_width, button_height, .selection);
             }
         }
 
@@ -62,7 +62,7 @@ pub fn draw(editor: *Editor) !void {
 
         imgui.spacing();
 
-        if (imgui.collapsingHeader(Pixi.fa.paint_brush ++ "  Colors", imgui.TreeNodeFlags_DefaultOpen)) {
+        if (imgui.collapsingHeader(pixi.fa.paint_brush ++ "  Colors", imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
             defer imgui.unindent();
 
@@ -107,7 +107,7 @@ pub fn draw(editor: *Editor) !void {
                 }
                 if (imgui.beginPopupContextItem()) {
                     defer imgui.endPopup();
-                    var c = Pixi.math.Color.initFloats(primary.x, primary.y, primary.z, primary.w).toSlice();
+                    var c = pixi.math.Color.initFloats(primary.x, primary.y, primary.z, primary.w).toSlice();
                     if (imgui.colorPicker4("Primary", &c, imgui.ColorEditFlags_None, null)) {
                         editor.colors.primary = .{
                             @as(u8, @intFromFloat(c[0] * 255.0)),
@@ -131,12 +131,12 @@ pub fn draw(editor: *Editor) !void {
 
                 if (imgui.beginItemTooltip()) {
                     defer imgui.endTooltip();
-                    imgui.textColored(Pixi.editor.theme.text_background.toImguiVec4(), "Right click to edit color.");
+                    imgui.textColored(pixi.editor.theme.text_background.toImguiVec4(), "Right click to edit color.");
                 }
 
                 if (imgui.beginPopupContextItem()) {
                     defer imgui.endPopup();
-                    var c = Pixi.math.Color.initFloats(secondary.x, secondary.y, secondary.z, secondary.w).toSlice();
+                    var c = pixi.math.Color.initFloats(secondary.x, secondary.y, secondary.z, secondary.w).toSlice();
                     if (imgui.colorPicker4("Secondary", &c, imgui.ColorEditFlags_None, null)) {
                         editor.colors.secondary = .{
                             @as(u8, @intFromFloat(c[0] * 255.0)),
@@ -236,13 +236,13 @@ pub fn draw(editor: *Editor) !void {
             }
         }
 
-        if (imgui.collapsingHeader(Pixi.fa.layer_group ++ "  Layers", imgui.TreeNodeFlags_SpanAvailWidth | imgui.TreeNodeFlags_DefaultOpen)) {
+        if (imgui.collapsingHeader(pixi.fa.layer_group ++ "  Layers", imgui.TreeNodeFlags_SpanAvailWidth | imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
             defer imgui.unindent();
             try layers.draw(editor);
         }
 
-        if (imgui.collapsingHeader(Pixi.fa.palette ++ "  Palettes", imgui.TreeNodeFlags_SpanFullWidth | imgui.TreeNodeFlags_DefaultOpen)) {
+        if (imgui.collapsingHeader(pixi.fa.palette ++ "  Palettes", imgui.TreeNodeFlags_SpanFullWidth | imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
             defer imgui.unindent();
 
@@ -265,8 +265,8 @@ pub fn draw(editor: *Editor) !void {
             const content_region_avail = imgui.getContentRegionAvail().y;
 
             const shadow_min: imgui.Vec2 = .{ .x = imgui.getCursorPosX() + imgui.getWindowPos().x, .y = imgui.getCursorPosY() + imgui.getWindowPos().y };
-            const shadow_max: imgui.Vec2 = .{ .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x) - style.item_spacing.x, .y = shadow_min.y + Pixi.editor.settings.shadow_length };
-            const shadow_color = Pixi.math.Color.initFloats(0.0, 0.0, 0.0, Pixi.editor.settings.shadow_opacity * 4.0).toU32();
+            const shadow_max: imgui.Vec2 = .{ .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x) - style.item_spacing.x, .y = shadow_min.y + pixi.editor.settings.shadow_length };
+            const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.editor.settings.shadow_opacity * 4.0).toU32();
             var scroll_y: f32 = 0.0;
 
             defer imgui.endChild(); // This can get cut off and causes a crash if begin child is not called because its off screen.
@@ -294,12 +294,12 @@ pub fn draw(editor: *Editor) !void {
                     defer imgui.popStyleColor();
                     imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette");
 
-                    const new_palette_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{
-                        Pixi.app.root_path,
+                    const new_palette_text = try std.fmt.allocPrintZ(pixi.app.allocator, "To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{
+                        pixi.app.root_path,
                         std.fs.path.sep,
-                        Pixi.paths.palettes,
+                        pixi.paths.palettes,
                     });
-                    defer Pixi.app.allocator.free(new_palette_text);
+                    defer pixi.app.allocator.free(new_palette_text);
 
                     imgui.textWrapped(new_palette_text);
                 }
@@ -314,7 +314,7 @@ pub fn draw(editor: *Editor) !void {
     }
 }
 
-pub fn drawTool(editor: *Editor, label: [:0]const u8, w: f32, h: f32, tool: Pixi.Editor.Tools.Tool) !void {
+pub fn drawTool(editor: *Editor, label: [:0]const u8, w: f32, h: f32, tool: pixi.Editor.Tools.Tool) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
     defer imgui.popStyleVar();
 
@@ -356,7 +356,7 @@ pub fn drawTool(editor: *Editor, label: [:0]const u8, w: f32, h: f32, tool: Pixi
     try drawTooltip(editor, tool);
 }
 
-pub fn drawTooltip(editor: *Editor, tool: Pixi.Editor.Tools.Tool) !void {
+pub fn drawTooltip(editor: *Editor, tool: pixi.Editor.Tools.Tool) !void {
     if (imgui.isItemHovered(imgui.HoveredFlags_DelayShort)) {
         if (imgui.beginTooltip()) {
             defer imgui.endTooltip();
@@ -372,8 +372,8 @@ pub fn drawTooltip(editor: *Editor, tool: Pixi.Editor.Tools.Tool) !void {
             };
 
             if (editor.hotkeys.hotkey(.{ .tool = tool })) |hotkey| {
-                const hotkey_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s} ({s})", .{ text, hotkey.shortcut });
-                defer Pixi.app.allocator.free(hotkey_text);
+                const hotkey_text = try std.fmt.allocPrintZ(pixi.app.allocator, "{s} ({s})", .{ text, hotkey.shortcut });
+                defer pixi.app.allocator.free(hotkey_text);
                 imgui.text(hotkey_text);
             } else {
                 imgui.text(text);
@@ -382,11 +382,11 @@ pub fn drawTooltip(editor: *Editor, tool: Pixi.Editor.Tools.Tool) !void {
             switch (tool) {
                 .animation => {
                     if (editor.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| {
-                        const first_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut});
-                        defer Pixi.app.allocator.free(first_text);
+                        const first_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut});
+                        defer pixi.app.allocator.free(first_text);
 
-                        const second_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut});
-                        defer Pixi.app.allocator.free(second_text);
+                        const second_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut});
+                        defer pixi.app.allocator.free(second_text);
 
                         imgui.textColored(editor.theme.text_background.toImguiVec4(), first_text);
                         imgui.textColored(editor.theme.text_background.toImguiVec4(), second_text);
@@ -399,11 +399,11 @@ pub fn drawTooltip(editor: *Editor, tool: Pixi.Editor.Tools.Tool) !void {
                     if (editor.hotkeys.hotkey(.{ .proc = .primary })) |primary_hk| {
                         if (editor.hotkeys.hotkey(.{ .proc = .secondary })) |secondary_hk| {
                             imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
-                            const first_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "Click and drag while holding ({s}) to add to selection.", .{primary_hk.shortcut});
-                            defer Pixi.app.allocator.free(first_text);
+                            const first_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag while holding ({s}) to add to selection.", .{primary_hk.shortcut});
+                            defer pixi.app.allocator.free(first_text);
 
-                            const second_text = try std.fmt.allocPrintZ(Pixi.app.allocator, "Click and drag while holding ({s}) to remove from selection", .{secondary_hk.shortcut});
-                            defer Pixi.app.allocator.free(second_text);
+                            const second_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag while holding ({s}) to remove from selection", .{secondary_hk.shortcut});
+                            defer pixi.app.allocator.free(second_text);
                             imgui.textColored(editor.theme.text_background.toImguiVec4(), first_text);
                             imgui.textColored(editor.theme.text_background.toImguiVec4(), second_text);
                         }
@@ -416,7 +416,7 @@ pub fn drawTooltip(editor: *Editor, tool: Pixi.Editor.Tools.Tool) !void {
 }
 
 fn searchPalettes(editor: *Editor) !void {
-    var dir_opt = std.fs.cwd().openDir(Pixi.paths.palettes, .{ .access_sub_paths = false, .iterate = true }) catch null;
+    var dir_opt = std.fs.cwd().openDir(pixi.paths.palettes, .{ .access_sub_paths = false, .iterate = true }) catch null;
     if (dir_opt) |*dir| {
         defer dir.close();
         var iter = dir.iterate();
@@ -424,15 +424,15 @@ fn searchPalettes(editor: *Editor) !void {
             if (entry.kind == .file) {
                 const ext = std.fs.path.extension(entry.name);
                 if (std.mem.eql(u8, ext, ".hex")) {
-                    const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{entry.name});
-                    defer Pixi.app.allocator.free(label);
+                    const label = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{entry.name});
+                    defer pixi.app.allocator.free(label);
                     if (imgui.selectable(label)) {
-                        const abs_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ Pixi.paths.palettes, entry.name });
-                        defer Pixi.app.allocator.free(abs_path);
+                        const abs_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ pixi.paths.palettes, entry.name });
+                        defer pixi.app.allocator.free(abs_path);
                         if (editor.colors.palette) |*palette|
                             palette.deinit();
 
-                        editor.colors.palette = Pixi.Internal.Palette.loadFromFile(abs_path) catch null;
+                        editor.colors.palette = pixi.Internal.Palette.loadFromFile(abs_path) catch null;
                     }
                 }
             }

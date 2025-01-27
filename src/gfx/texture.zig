@@ -4,7 +4,7 @@ const zgpu = @import("zgpu");
 const zstbi = @import("zstbi");
 const wgpu = zgpu.wgpu;
 const zm = @import("zmath");
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 
 const Core = @import("mach").Core;
 const gpu = @import("mach").gpu;
@@ -40,7 +40,7 @@ pub const Texture = struct {
     }
 
     pub fn create(image: zstbi.Image, options: SamplerOptions) Texture {
-        const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
+        const device: *gpu.Device = pixi.core.windows.get(pixi.app.window, .device);
 
         const image_size: gpu.Extent3D = .{ .width = image.width, .height = image.height };
 

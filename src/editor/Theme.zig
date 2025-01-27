@@ -1,8 +1,11 @@
 const std = @import("std");
 const builtin = @import("builtin");
+
 const mach = @import("mach");
-const Pixi = @import("../Pixi.zig");
-const Color = Pixi.math.Color;
+const pixi = @import("../pixi.zig");
+
+const App = pixi.App;
+const Color = pixi.math.Color;
 
 const imgui = @import("zig-imgui");
 
@@ -32,7 +35,7 @@ checkerboard_secondary: Color = Color.initBytes(100, 100, 100, 255),
 
 modal_dim: Color = Color.initBytes(0, 0, 0, 48),
 
-pub fn init(theme: *Theme, core: *mach.Core, pixi: *Pixi) void {
+pub fn init(theme: *Theme, core: *mach.Core, app: *App) void {
     var style = imgui.getStyle();
     style.window_border_size = 1.0;
     style.window_rounding = 8.0;
@@ -54,11 +57,11 @@ pub fn init(theme: *Theme, core: *mach.Core, pixi: *Pixi) void {
     style.hover_delay_normal = 0.5;
     style.hover_delay_short = 0.25;
     style.popup_rounding = 8.0;
-    style.separator_text_align = .{ .x = Pixi.editor.settings.explorer_title_align, .y = 0.5 };
+    style.separator_text_align = .{ .x = pixi.editor.settings.explorer_title_align, .y = 0.5 };
     style.separator_text_border_size = 1.0;
     style.separator_text_padding = .{ .x = 20.0, .y = 10.0 };
 
-    //style.scaleAllSizes(Pixi.content_scale[0]);
+    //style.scaleAllSizes(pixi.content_scale[0]);
 
     const bg = theme.background.toImguiVec4();
     const fg = theme.foreground.toImguiVec4();
@@ -100,10 +103,10 @@ pub fn init(theme: *Theme, core: *mach.Core, pixi: *Pixi) void {
     style.colors[imgui.Col_ModalWindowDimBg] = modal_dim;
 
     // Set the window decoration color to match
-    core.windows.set(pixi.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
+    core.windows.set(app.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
-pub fn push(theme: *Theme, core: *mach.Core, pixi: *Pixi) void {
+pub fn push(theme: *Theme, core: *mach.Core, app: *App) void {
     const bg = theme.background.toImguiVec4();
     const fg = theme.foreground.toImguiVec4();
     const text = theme.text.toImguiVec4();
@@ -144,11 +147,11 @@ pub fn push(theme: *Theme, core: *mach.Core, pixi: *Pixi) void {
     imgui.pushStyleColorImVec4(imgui.Col_ModalWindowDimBg, modal_dim);
 
     // Set the window decoration color to match
-    if (core.windows.get(pixi.window, .decoration_color)) |color| {
+    if (core.windows.get(app.window, .decoration_color)) |color| {
         if (color.r == fg.x and color.g == fg.y and color.b == fg.z and color.a == fg.w)
             return;
     }
-    core.windows.set(pixi.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
+    core.windows.set(app.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
 pub fn loadFromFile(file: [:0]const u8) !Theme {
@@ -156,21 +159,21 @@ pub fn loadFromFile(file: [:0]const u8) !Theme {
     const ext = std.fs.path.extension(file);
 
     if (std.mem.eql(u8, ext, ".json")) {
-        const read_opt: ?[]const u8 = Pixi.fs.read(Pixi.app.allocator, file) catch null;
+        const read_opt: ?[]const u8 = pixi.fs.read(pixi.app.allocator, file) catch null;
         if (read_opt) |read| {
-            defer Pixi.app.allocator.free(read);
+            defer pixi.app.allocator.free(read);
 
             const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-            const parsed = try std.json.parseFromSlice(Theme, Pixi.app.allocator, read, options);
+            const parsed = try std.json.parseFromSlice(Theme, pixi.app.allocator, read, options);
             defer parsed.deinit();
 
             var out = parsed.value;
-            out.name = try Pixi.app.allocator.dupeZ(u8, base_name);
+            out.name = try pixi.app.allocator.dupeZ(u8, base_name);
             return out;
         }
     }
     return Theme{
-        .name = try Pixi.app.allocator.dupeZ(u8, "pixi_dark.json"),
+        .name = try pixi.app.allocator.dupeZ(u8, "pixi_dark.json"),
     };
 }
 

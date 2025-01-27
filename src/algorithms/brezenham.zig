@@ -1,8 +1,8 @@
 const std = @import("std");
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 
 pub fn process(start: [2]f32, end: [2]f32) ![][2]f32 {
-    var output = std.ArrayList([2]f32).init(Pixi.app.allocator);
+    var output = std.ArrayList([2]f32).init(pixi.app.allocator);
 
     var x1 = start[0];
     var y1 = start[1];

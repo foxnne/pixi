@@ -1,5 +1,5 @@
 const std = @import("std");
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 
 const Recents = @This();
 
@@ -10,7 +10,7 @@ pub fn init(allocator: std.mem.Allocator) !Recents {
     var folders = std.ArrayList([:0]const u8).init(allocator);
     var exports = std.ArrayList([:0]const u8).init(allocator);
 
-    const read_opt: ?[]const u8 = Pixi.fs.read(allocator, "recents.json") catch null;
+    const read_opt: ?[]const u8 = pixi.fs.read(allocator, "recents.json") catch null;
     if (read_opt) |read| {
         defer allocator.free(read);
 
@@ -58,13 +58,13 @@ pub fn indexOfExport(recents: *Recents, path: [:0]const u8) ?usize {
 
 pub fn appendFolder(recents: *Recents, path: [:0]const u8) !void {
     if (recents.indexOfFolder(path)) |index| {
-        Pixi.app.allocator.free(path);
+        pixi.app.allocator.free(path);
         const folder = recents.folders.swapRemove(index);
         try recents.folders.append(folder);
     } else {
-        if (recents.folders.items.len >= Pixi.editor.settings.max_recents) {
+        if (recents.folders.items.len >= pixi.editor.settings.max_recents) {
             const folder = recents.folders.swapRemove(0);
-            Pixi.app.allocator.free(folder);
+            pixi.app.allocator.free(folder);
         }
 
         try recents.folders.append(path);
@@ -76,9 +76,9 @@ pub fn appendExport(recents: *Recents, path: [:0]const u8) !void {
         const exp = recents.exports.swapRemove(index);
         try recents.exports.append(exp);
     } else {
-        if (recents.exports.items.len >= Pixi.editor.settings.max_recents) {
+        if (recents.exports.items.len >= pixi.editor.settings.max_recents) {
             const exp = recents.folders.swapRemove(0);
-            Pixi.app.allocator.free(exp);
+            pixi.app.allocator.free(exp);
         }
         try recents.exports.append(path);
     }
@@ -96,11 +96,11 @@ pub fn save(recents: *Recents) !void {
 
 pub fn deinit(recents: *Recents) void {
     for (recents.folders.items) |folder| {
-        Pixi.app.allocator.free(folder);
+        pixi.app.allocator.free(folder);
     }
 
     for (recents.exports.items) |exp| {
-        Pixi.app.allocator.free(exp);
+        pixi.app.allocator.free(exp);
     }
 
     recents.folders.clearAndFree();

@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 const Core = @import("mach").Core;
-const Editor = Pixi.Editor;
+const Editor = pixi.Editor;
 
 const zm = @import("zmath");
 const math = @import("../math/math.zig");
@@ -16,8 +16,8 @@ const builtin = @import("builtin");
 
 const Self = @This();
 
-pub const Tool = Pixi.Editor.Tools.Tool;
-pub const Pane = Pixi.Editor.Explorer.Pane;
+pub const Tool = pixi.Editor.Tools.Tool;
+pub const Pane = pixi.Editor.Explorer.Pane;
 
 pub const KeyState = enum {
     press,
@@ -177,7 +177,7 @@ pub fn process(self: *Self, editor: *Editor) !void {
 
         if (self.hotkey(.{ .proc = .export_png })) |hk| {
             if (hk.pressed())
-                Pixi.editor.popups.export_to_png = true;
+                pixi.editor.popups.export_to_png = true;
         }
 
         if (self.hotkey(.{ .proc = .size_up })) |hk| {
@@ -480,10 +480,10 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
 
         // Zoom
         try hotkeys.append(.{
-            .key = if (windows_or_linux or Pixi.editor.settings.zoom_ctrl) Key.left_control else Key.left_super,
+            .key = if (windows_or_linux or pixi.editor.settings.zoom_ctrl) Key.left_control else Key.left_super,
             .mods = .{
-                .control = windows_or_linux or Pixi.editor.settings.zoom_ctrl,
-                .super = !windows_or_linux and !Pixi.editor.settings.zoom_ctrl,
+                .control = windows_or_linux or pixi.editor.settings.zoom_ctrl,
+                .super = !windows_or_linux and !pixi.editor.settings.zoom_ctrl,
                 .shift = false,
                 .alt = false,
                 .caps_lock = false,

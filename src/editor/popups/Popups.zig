@@ -1,9 +1,11 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
-const Core = @import("mach").Core;
-const Editor = Pixi.Editor;
+const pixi = @import("../../pixi.zig");
 const zstbi = @import("zstbi");
+
+const Core = @import("mach").Core;
+const App = pixi.App;
+const Editor = pixi.Editor;
 
 const Popups = @This();
 
@@ -99,7 +101,7 @@ pub fn init(popups: *Popups) !void {
     popups.* = .{};
 }
 
-pub fn draw(popups: *Popups, app: *Pixi, editor: *Editor) !void {
+pub fn draw(popups: *Popups, app: *App, editor: *Editor) !void {
     try popup_rename.draw(popups, app, editor);
     try popup_file_setup.draw();
     try popup_about.draw();
@@ -139,8 +141,8 @@ pub fn fileSetupSlice(popups: *Popups, path: [:0]const u8) void {
     popups.file_setup_path = [_:0]u8{0} ** std.fs.max_path_bytes;
     @memcpy(popups.file_setup_path[0..path.len :0], path);
 
-    if (Pixi.editor.getFileIndex(path)) |index| {
-        if (Pixi.editor.getFile(index)) |file| {
+    if (pixi.editor.getFileIndex(path)) |index| {
+        if (pixi.editor.getFile(index)) |file| {
             popups.file_setup_tile_size = .{ @as(i32, @intCast(file.tile_width)), @as(i32, @intCast(file.tile_height)) };
             popups.file_setup_tiles = .{ @as(i32, @intCast(@divExact(file.width, file.tile_width))), @as(i32, @intCast(@divExact(file.height, file.tile_height))) };
             popups.file_setup_width = @as(i32, @intCast(file.width));

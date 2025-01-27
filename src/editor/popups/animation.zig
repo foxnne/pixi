@@ -1,11 +1,11 @@
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
-const Editor = Pixi.Editor;
+const pixi = @import("../../pixi.zig");
+const Editor = pixi.Editor;
 
 const imgui = @import("zig-imgui");
 
-const History = Pixi.Internal.File.History;
+const History = pixi.Internal.File.History;
 
 pub fn draw(editor: *Editor) !void {
     if (editor.getFile(editor.open_file_index)) |file| {
@@ -22,7 +22,7 @@ pub fn draw(editor: *Editor) !void {
         const popup_width: f32 = 350;
         const popup_height: f32 = 115;
 
-        const window_size = Pixi.app.window_size;
+        const window_size = pixi.app.window_size;
         const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
 
         imgui.setNextWindowPos(.{

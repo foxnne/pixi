@@ -1,6 +1,6 @@
 const std = @import("std");
-const Pixi = @import("../../Pixi.zig");
-const Editor = Pixi.Editor;
+const pixi = @import("../../pixi.zig");
+const Editor = pixi.Editor;
 
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
@@ -38,7 +38,7 @@ pub fn draw(editor: *Editor) !void {
         const file_count = editor.open_files.items.len;
         if (file_count > 0) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
-            imgui.separatorText("Open Files  " ++ Pixi.fa.file_powerpoint);
+            imgui.separatorText("Open Files  " ++ pixi.fa.file_powerpoint);
             imgui.popStyleColor();
 
             if (imgui.beginChild("OpenFiles", .{
@@ -49,11 +49,11 @@ pub fn draw(editor: *Editor) !void {
                 imgui.spacing();
 
                 for (editor.open_files.items, 0..) |file, i| {
-                    imgui.textColored(editor.theme.text_orange.toImguiVec4(), " " ++ Pixi.fa.file_powerpoint ++ " ");
+                    imgui.textColored(editor.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ " ");
                     imgui.sameLine();
                     const name = std.fs.path.basename(file.path);
-                    const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{name});
-                    defer Pixi.app.allocator.free(label);
+                    const label = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{name});
+                    defer pixi.app.allocator.free(label);
                     if (imgui.selectable(label)) {
                         editor.setActiveFile(i);
                     }
@@ -84,8 +84,8 @@ pub fn draw(editor: *Editor) !void {
         const index = if (std.mem.indexOf(u8, path, folder)) |i| i else 0;
 
         imgui.spacing();
-        imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
-        imgui.separatorText("Project Folder  " ++ Pixi.fa.folder_open);
+        imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.editor.theme.text_secondary.toImguiVec4());
+        imgui.separatorText("Project Folder  " ++ pixi.fa.folder_open);
         imgui.popStyleColor();
 
         // File tree
@@ -115,7 +115,7 @@ pub fn draw(editor: *Editor) !void {
                 .y = 0.0,
             }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) { // TODO: Should this also be ChildWindow?
                 // File Tree
-                try recurseFiles(Pixi.app.allocator, path);
+                try recurseFiles(pixi.app.allocator, path);
             }
             defer imgui.endChild();
         }
@@ -124,7 +124,7 @@ pub fn draw(editor: *Editor) !void {
 
         if (!open) {
             if (editor.project_folder) |f| {
-                Pixi.app.allocator.free(f);
+                pixi.app.allocator.free(f);
             }
 
             editor.project_folder = null;
@@ -137,7 +137,7 @@ pub fn draw(editor: *Editor) !void {
         if (editor.recents.folders.items.len > 0) {
             imgui.spacing();
             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
-            imgui.separatorText("Recents  " ++ Pixi.fa.clock);
+            imgui.separatorText("Recents  " ++ pixi.fa.clock);
             imgui.popStyleColor();
             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
             defer imgui.popStyleColor();
@@ -151,8 +151,8 @@ pub fn draw(editor: *Editor) !void {
                 while (i > 0) {
                     i -= 1;
                     const folder = editor.recents.folders.items[i];
-                    const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s} {s}##{s}", .{ Pixi.fa.folder, std.fs.path.basename(folder), folder });
-                    defer Pixi.app.allocator.free(label);
+                    const label = try std.fmt.allocPrintZ(pixi.app.allocator, "{s} {s}##{s}", .{ pixi.fa.folder, std.fs.path.basename(folder), folder });
+                    defer pixi.app.allocator.free(label);
 
                     if (imgui.selectable(label)) {
                         try editor.setProjectFolder(folder);
@@ -166,7 +166,7 @@ pub fn draw(editor: *Editor) !void {
                         defer imgui.endPopup();
                         if (imgui.menuItem("Remove")) {
                             const item = editor.recents.folders.orderedRemove(i);
-                            Pixi.app.allocator.free(item);
+                            pixi.app.allocator.free(item);
                             try editor.recents.save();
                         }
                     }
@@ -204,32 +204,32 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     const ext = extension(entry.name);
                     if (ext == .hidden) continue;
                     const icon = switch (ext) {
-                        .pixi, .psd => Pixi.fa.file_powerpoint,
-                        .jpg, .png, .aseprite, .pyxel => Pixi.fa.file_image,
-                        .pdf => Pixi.fa.file_pdf,
-                        .json, .zig, .txt, .atlas => Pixi.fa.file_code,
-                        .tar, ._7z, .zip => Pixi.fa.file_archive,
-                        else => Pixi.fa.file,
+                        .pixi, .psd => pixi.fa.file_powerpoint,
+                        .jpg, .png, .aseprite, .pyxel => pixi.fa.file_image,
+                        .pdf => pixi.fa.file_pdf,
+                        .json, .zig, .txt, .atlas => pixi.fa.file_code,
+                        .tar, ._7z, .zip => pixi.fa.file_archive,
+                        else => pixi.fa.file,
                     };
 
                     const icon_color = switch (ext) {
-                        .pixi, .zig => Pixi.editor.theme.text_orange.toImguiVec4(),
-                        .png, .psd => Pixi.editor.theme.text_blue.toImguiVec4(),
-                        .jpg => Pixi.editor.theme.highlight_primary.toImguiVec4(),
-                        .pdf => Pixi.editor.theme.text_red.toImguiVec4(),
-                        .json, .atlas => Pixi.editor.theme.text_yellow.toImguiVec4(),
-                        .txt, .zip, ._7z, .tar => Pixi.editor.theme.text_background.toImguiVec4(),
-                        else => Pixi.editor.theme.text_background.toImguiVec4(),
+                        .pixi, .zig => pixi.editor.theme.text_orange.toImguiVec4(),
+                        .png, .psd => pixi.editor.theme.text_blue.toImguiVec4(),
+                        .jpg => pixi.editor.theme.highlight_primary.toImguiVec4(),
+                        .pdf => pixi.editor.theme.text_red.toImguiVec4(),
+                        .json, .atlas => pixi.editor.theme.text_yellow.toImguiVec4(),
+                        .txt, .zip, ._7z, .tar => pixi.editor.theme.text_background.toImguiVec4(),
+                        else => pixi.editor.theme.text_background.toImguiVec4(),
                     };
 
                     const text_color = switch (ext) {
-                        .pixi => Pixi.editor.theme.text.toImguiVec4(),
-                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => Pixi.editor.theme.text_secondary.toImguiVec4(),
-                        else => Pixi.editor.theme.text_background.toImguiVec4(),
+                        .pixi => pixi.editor.theme.text.toImguiVec4(),
+                        .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => pixi.editor.theme.text_secondary.toImguiVec4(),
+                        else => pixi.editor.theme.text_background.toImguiVec4(),
                     };
 
-                    const icon_spaced = try std.fmt.allocPrintZ(Pixi.app.allocator, " {s} ", .{icon});
-                    defer Pixi.app.allocator.free(icon_spaced);
+                    const icon_spaced = try std.fmt.allocPrintZ(pixi.app.allocator, " {s} ", .{icon});
+                    defer pixi.app.allocator.free(icon_spaced);
 
                     imgui.textColored(icon_color, icon_spaced);
                     imgui.sameLine();
@@ -239,23 +239,23 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 
                     imgui.pushStyleColorImVec4(imgui.Col_Text, text_color);
 
-                    const selectable_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{entry.name});
-                    defer Pixi.app.allocator.free(selectable_name);
+                    const selectable_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{entry.name});
+                    defer pixi.app.allocator.free(selectable_name);
 
                     if (imgui.selectableEx(
                         selectable_name,
-                        if (Pixi.editor.getFileIndex(abs_path)) |_| true else false,
+                        if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
                         imgui.SelectableFlags_None,
                         .{ .x = 0.0, .y = 0.0 },
                     )) {
                         switch (ext) {
                             .pixi => {
-                                _ = Pixi.editor.openFile(abs_path) catch {
+                                _ = pixi.editor.openFile(abs_path) catch {
                                     std.log.debug("Failed to open file: {s}", .{abs_path});
                                 };
                             },
                             .png, .jpg => {
-                                _ = Pixi.editor.openReference(abs_path) catch {
+                                _ = pixi.editor.openReference(abs_path) catch {
                                     std.log.debug("Failed to open file: {s}", .{abs_path});
                                 };
                             },
@@ -266,22 +266,22 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
 
                     imgui.pushID(abs_path);
                     if (imgui.beginPopupContextItem()) {
-                        try contextMenuFile(Pixi.editor, abs_path);
+                        try contextMenuFile(pixi.editor, abs_path);
                         imgui.endPopup();
                     }
                     imgui.popID();
                 } else if (entry.kind == .directory) {
                     const abs_path = try std.fs.path.joinZ(alloc, &[_][]const u8{ directory, entry.name });
                     defer alloc.free(abs_path);
-                    const folder = try std.fmt.allocPrintZ(alloc, "{s}  {s}", .{ Pixi.fa.folder, entry.name });
+                    const folder = try std.fmt.allocPrintZ(alloc, "{s}  {s}", .{ pixi.fa.folder, entry.name });
                     defer alloc.free(folder);
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, Pixi.editor.theme.text_secondary.toImguiVec4());
+                    imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.editor.theme.text_secondary.toImguiVec4());
                     defer imgui.popStyleColor();
 
                     if (imgui.treeNode(folder)) {
                         imgui.pushID(abs_path);
                         if (imgui.beginPopupContextItem()) {
-                            try contextMenuFolder(Pixi.editor, abs_path);
+                            try contextMenuFolder(pixi.editor, abs_path);
                             imgui.endPopup();
                         }
                         imgui.popID();
@@ -292,7 +292,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     } else {
                         imgui.pushID(abs_path);
                         if (imgui.beginPopupContextItem()) {
-                            try contextMenuFolder(Pixi.editor, abs_path);
+                            try contextMenuFolder(pixi.editor, abs_path);
                             imgui.endPopup();
                         }
                         imgui.popID();
@@ -312,8 +312,8 @@ fn contextMenuFolder(editor: *Editor, folder: [:0]const u8) !void {
     imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
     defer imgui.popStyleColorEx(2);
     if (imgui.menuItem("New File...")) {
-        const new_file_path = try std.fs.path.joinZ(Pixi.app.allocator, &[_][]const u8{ folder, "New_file.pixi" });
-        defer Pixi.app.allocator.free(new_file_path);
+        const new_file_path = try std.fs.path.joinZ(pixi.app.allocator, &[_][]const u8{ folder, "New_file.pixi" });
+        defer pixi.app.allocator.free(new_file_path);
         editor.popups.fileSetupNew(new_file_path);
     }
     if (imgui.menuItem("New File from PNG...")) {
@@ -326,8 +326,8 @@ fn contextMenuFolder(editor: *Editor, folder: [:0]const u8) !void {
 
     if (editor.popups.file_dialog_response) |response| {
         if (response.type == .new_png) {
-            const new_file_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}.pixi", .{response.path[0 .. response.path.len - 4]});
-            defer Pixi.app.allocator.free(new_file_path);
+            const new_file_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}.pixi", .{response.path[0 .. response.path.len - 4]});
+            defer pixi.app.allocator.free(new_file_path);
             editor.popups.fileSetupImportPng(new_file_path, response.path);
 
             nfd.freePath(response.path);
@@ -350,8 +350,8 @@ fn contextMenuFile(editor: *Editor, file: [:0]const u8) !void {
     switch (ext) {
         .png => {
             if (imgui.menuItem("Import...")) {
-                const new_file_path = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}.pixi", .{file[0 .. file.len - 4]});
-                defer Pixi.app.allocator.free(new_file_path);
+                const new_file_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}.pixi", .{file[0 .. file.len - 4]});
+                defer pixi.app.allocator.free(new_file_path);
                 editor.popups.fileSetupImportPng(new_file_path, file);
             }
         },
@@ -382,8 +382,8 @@ fn contextMenuFile(editor: *Editor, file: [:0]const u8) !void {
         const ex = std.fs.path.extension(file);
 
         if (std.mem.indexOf(u8, file, ex)) |ext_i| {
-            const new_base_name = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}{s}{s}", .{ file[0..ext_i], "_copy", ex });
-            defer Pixi.app.allocator.free(new_base_name);
+            const new_base_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{s}{s}", .{ file[0..ext_i], "_copy", ex });
+            defer pixi.app.allocator.free(new_base_name);
             @memcpy(editor.popups.rename_path[0..new_base_name.len], new_base_name);
 
             editor.popups.rename = true;

@@ -1,6 +1,6 @@
 const std = @import("std");
-const Pixi = @import("../Pixi.zig");
-const gfx = Pixi.gfx;
+const pixi = @import("../pixi.zig");
+const gfx = pixi.gfx;
 const zmath = @import("zmath");
 const Core = @import("mach").Core;
 const gpu = @import("mach").gpu;
@@ -71,7 +71,7 @@ pub const Batcher = struct {
             .size = vertices.len * @sizeOf(gfx.Vertex),
         };
 
-        const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
+        const device: *gpu.Device = pixi.core.windows.get(pixi.app.window, .device);
 
         const vertex_buffer_handle = device.createBuffer(&vertex_buffer_descriptor);
 
@@ -97,7 +97,7 @@ pub const Batcher = struct {
         self.state = .progress;
         self.start_count = self.quad_count;
         if (self.encoder == null) {
-            const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
+            const device: *gpu.Device = pixi.core.windows.get(pixi.app.window, .device);
             self.encoder = device.createCommandEncoder(null);
         }
     }
@@ -131,12 +131,12 @@ pub const Batcher = struct {
             self.indices[i * num_indices + 11] = @as(u32, @intCast(i * num_verts + 0));
         }
 
-        std.log.warn("[{s}] Batcher buffers resized, previous size: {d} - new size: {d}", .{ "Pixi", self.quad_count, max_quads });
+        std.log.warn("[{s}] Batcher buffers resized, previous size: {d} - new size: {d}", .{ "pixi", self.quad_count, max_quads });
 
         self.vertex_buffer_handle.release();
         self.index_buffer_handle.release();
 
-        const device: *gpu.Device = Pixi.core.windows.get(Pixi.app.window, .device);
+        const device: *gpu.Device = pixi.core.windows.get(pixi.app.window, .device);
 
         const vertex_buffer_handle = device.createBuffer(&.{
             .usage = .{ .copy_dst = true, .vertex = true },
@@ -169,7 +169,7 @@ pub const Batcher = struct {
     }
 
     pub const TextureOptions = struct {
-        color: zmath.F32x4 = Pixi.math.Colors.white.value,
+        color: zmath.F32x4 = pixi.math.Colors.white.value,
         origin: [2]f32 = .{ 0.0, 0.0 }, //tl
         width: f32 = 0.0, // if not 0.0, will scale to use this width
         height: f32 = 0.0, // if not 0.0, will scale to use this height
@@ -233,7 +233,7 @@ pub const Batcher = struct {
     }
 
     pub const TransformTextureOptions = struct {
-        color: zmath.F32x4 = Pixi.math.Colors.white.value,
+        color: zmath.F32x4 = pixi.math.Colors.white.value,
         flip_y: bool = false,
         flip_x: bool = false,
         rotation: f32 = 0.0,
@@ -242,7 +242,7 @@ pub const Batcher = struct {
         data_2: f32 = 0.0,
     };
     /// Appends a quad at the passed position set to the size needed to render the target texture.
-    pub fn transformTexture(self: *Batcher, vertices: [4]Pixi.Internal.File.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
+    pub fn transformTexture(self: *Batcher, vertices: [4]pixi.Internal.File.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
         var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
         zmath.store(&color, options.color, 4);
 
@@ -301,7 +301,7 @@ pub const Batcher = struct {
     }
 
     /// Appends a quad at the passed position set to the size needed to render the target sprite.
-    pub fn transformSprite(self: *Batcher, t: *const gfx.Texture, s: Pixi.Sprite, vertices: [4]Pixi.Internal.File.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
+    pub fn transformSprite(self: *Batcher, t: *const gfx.Texture, s: pixi.Sprite, vertices: [4]pixi.Internal.File.TransformVertex, offset: [2]f32, pivot: [2]f32, options: TransformTextureOptions) !void {
         var color: [4]f32 = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
         zmath.store(&color, options.color, 4);
 
@@ -476,7 +476,7 @@ pub const Batcher = struct {
         // Begin the render pass
         pass_blk: {
             const encoder = self.encoder orelse break :pass_blk;
-            const swap_chain: *gpu.SwapChain = Pixi.core.windows.get(Pixi.app.window, .swap_chain);
+            const swap_chain: *gpu.SwapChain = pixi.core.windows.get(pixi.app.window, .swap_chain);
             const back_buffer_view = swap_chain.getCurrentTextureView() orelse break :pass_blk;
             defer back_buffer_view.release();
 
@@ -565,7 +565,7 @@ pub const Batcher = struct {
         if (self.encoder) |encoder| {
             self.empty = true;
 
-            const queue: *gpu.Queue = Pixi.core.windows.get(Pixi.app.window, .queue);
+            const queue: *gpu.Queue = pixi.core.windows.get(pixi.app.window, .queue);
             // Write the current vertex and index buffers to the queue.
             queue.writeBuffer(self.vertex_buffer_handle, 0, self.vertices[0 .. self.quad_count * num_verts]);
             queue.writeBuffer(self.index_buffer_handle, 0, self.indices[0 .. self.quad_count * num_indices]);

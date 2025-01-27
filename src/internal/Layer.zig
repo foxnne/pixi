@@ -1,11 +1,11 @@
 const std = @import("std");
 const gpu = @import("mach").gpu;
-const Pixi = @import("../Pixi.zig");
+const pixi = @import("../pixi.zig");
 
 const Layer = @This();
 
 name: [:0]const u8,
-texture: Pixi.gfx.Texture,
+texture: pixi.gfx.Texture,
 visible: bool = true,
 collapse: bool = false,
 id: u32 = 0,
@@ -30,14 +30,14 @@ pub fn setPixel(self: *Layer, pixel: [2]usize, color: [4]u8, update: bool) void 
     var p = self.pixels();
     p[index] = color;
     if (update)
-        self.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
+        self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }
 
 pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8, update: bool) void {
     var p = self.pixels();
     p[index] = color;
     if (update)
-        self.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
+        self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }
 
 pub const ShapeOffsetResult = struct {
@@ -48,8 +48,8 @@ pub const ShapeOffsetResult = struct {
 /// Only used for handling getting the pixels surrounding the origin
 /// for stroke sizes larger than 1
 pub fn getIndexShapeOffset(self: Layer, origin: [2]usize, current_index: usize) ?ShapeOffsetResult {
-    const shape = Pixi.editor.tools.stroke_shape;
-    const size: i32 = @intCast(Pixi.editor.tools.stroke_size);
+    const shape = pixi.editor.tools.stroke_shape;
+    const size: i32 = @intCast(pixi.editor.tools.stroke_size);
 
     if (size == 1) {
         if (current_index != 0)
@@ -98,5 +98,5 @@ pub fn clear(self: *Layer, update: bool) void {
         pixel.* = .{ 0, 0, 0, 0 };
     }
     if (update)
-        self.texture.update(Pixi.core.windows.get(Pixi.app.window, .device));
+        self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }

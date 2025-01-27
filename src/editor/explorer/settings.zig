@@ -1,9 +1,9 @@
 const builtin = @import("builtin");
 const std = @import("std");
 
-const Pixi = @import("../../Pixi.zig");
+const pixi = @import("../../pixi.zig");
 const Core = @import("mach").Core;
-const Editor = Pixi.Editor;
+const Editor = pixi.Editor;
 
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
@@ -21,7 +21,7 @@ pub fn draw(core: *Core, editor: *Editor) !void {
         defer imgui.endChild();
         imgui.pushItemWidth(imgui.getWindowWidth() - editor.settings.explorer_grip);
 
-        if (imgui.collapsingHeader(Pixi.fa.mouse ++ "  Input", imgui.TreeNodeFlags_Framed)) {
+        if (imgui.collapsingHeader(pixi.fa.mouse ++ "  Input", imgui.TreeNodeFlags_Framed)) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0, .y = 3.0 });
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0, .y = 4.0 });
             defer imgui.popStyleVarEx(2);
@@ -37,22 +37,22 @@ pub fn draw(core: *Core, editor: *Editor) !void {
                 }
             }
 
-            if (Pixi.editor.settings.input_scheme == .trackpad) {
+            if (pixi.editor.settings.input_scheme == .trackpad) {
                 _ = imgui.sliderFloatEx("Pan Sensitivity", &editor.settings.pan_sensitivity, 1.0, 25.0, "%.0f", imgui.SliderFlags_AlwaysClamp);
                 _ = imgui.sliderFloatEx("Zoom Sensitivity", &editor.settings.zoom_sensitivity, 1, 200, "%.0f%", imgui.SliderFlags_AlwaysClamp);
             }
 
             if (builtin.os.tag == .macos) {
                 if (imgui.checkbox("Ctrl zoom", &editor.settings.zoom_ctrl)) {
-                    Pixi.app.allocator.free(editor.hotkeys.hotkeys);
-                    editor.hotkeys = try Pixi.input.Hotkeys.initDefault(Pixi.app.allocator);
+                    pixi.app.allocator.free(editor.hotkeys.hotkeys);
+                    editor.hotkeys = try pixi.input.Hotkeys.initDefault(pixi.app.allocator);
                 }
             }
 
             imgui.popItemWidth();
         }
 
-        if (imgui.collapsingHeader(Pixi.fa.th_list ++ "  Layout", imgui.TreeNodeFlags_None)) {
+        if (imgui.collapsingHeader(pixi.fa.th_list ++ "  Layout", imgui.TreeNodeFlags_None)) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0, .y = 3.0 });
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0, .y = 4.0 });
             defer imgui.popStyleVarEx(2);
@@ -94,7 +94,7 @@ pub fn draw(core: *Core, editor: *Editor) !void {
             imgui.popItemWidth();
         }
 
-        if (imgui.collapsingHeader(Pixi.fa.sliders_h ++ "  Configuration", imgui.TreeNodeFlags_None)) {
+        if (imgui.collapsingHeader(pixi.fa.sliders_h ++ "  Configuration", imgui.TreeNodeFlags_None)) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0, .y = 3.0 });
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0, .y = 4.0 });
             defer imgui.popStyleVarEx(2);
@@ -122,7 +122,7 @@ pub fn draw(core: *Core, editor: *Editor) !void {
             imgui.popItemWidth();
         }
 
-        if (imgui.collapsingHeader(Pixi.fa.paint_roller ++ "  Style", imgui.TreeNodeFlags_None)) {
+        if (imgui.collapsingHeader(pixi.fa.paint_roller ++ "  Style", imgui.TreeNodeFlags_None)) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 3.0, .y = 3.0 });
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 4.0, .y = 4.0 });
             defer imgui.popStyleVarEx(2);
@@ -154,14 +154,14 @@ pub fn draw(core: *Core, editor: *Editor) !void {
                     .state = .save,
                     .type = .export_theme,
                     .filter = "json",
-                    .initial = Pixi.paths.themes,
+                    .initial = pixi.paths.themes,
                 };
             }
 
             if (editor.popups.file_dialog_response) |response| {
                 if (response.type == .export_theme) {
                     try editor.theme.save(response.path);
-                    Pixi.app.allocator.free(editor.theme.name);
+                    pixi.app.allocator.free(editor.theme.name);
                     editor.theme = try Editor.Theme.loadFromFile(response.path);
                     editor.settings.theme = editor.theme.name;
                 }
@@ -181,7 +181,7 @@ pub fn draw(core: *Core, editor: *Editor) !void {
 }
 
 fn searchThemes(editor: *Editor) !void {
-    var dir_opt = std.fs.cwd().openDir(Pixi.paths.themes, .{ .access_sub_paths = false, .iterate = true }) catch null;
+    var dir_opt = std.fs.cwd().openDir(pixi.paths.themes, .{ .access_sub_paths = false, .iterate = true }) catch null;
     if (dir_opt) |*dir| {
         defer dir.close();
         var iter = dir.iterate();
@@ -189,12 +189,12 @@ fn searchThemes(editor: *Editor) !void {
             if (entry.kind == .file) {
                 const ext = std.fs.path.extension(entry.name);
                 if (std.mem.eql(u8, ext, ".json")) {
-                    const label = try std.fmt.allocPrintZ(Pixi.app.allocator, "{s}", .{entry.name});
-                    defer Pixi.app.allocator.free(label);
+                    const label = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{entry.name});
+                    defer pixi.app.allocator.free(label);
                     if (imgui.selectable(label)) {
-                        const abs_path = try std.fs.path.joinZ(Pixi.app.allocator, &.{ Pixi.paths.themes, entry.name });
-                        defer Pixi.app.allocator.free(abs_path);
-                        Pixi.app.allocator.free(editor.theme.name);
+                        const abs_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ pixi.paths.themes, entry.name });
+                        defer pixi.app.allocator.free(abs_path);
+                        pixi.app.allocator.free(editor.theme.name);
                         editor.theme = try Editor.Theme.loadFromFile(abs_path);
                         editor.settings.theme = editor.theme.name;
                     }
