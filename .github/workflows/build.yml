@@ -28,8 +28,8 @@ jobs:
         with:
           version: 2024.11.0-mach
           mirror: 'https://pkg.machengine.org/zig'
-      - name: Get GTK3
-        run: sudo apt install libgtk-3-dev
+      # - name: Get GTK3
+      #   run: sudo apt install libgtk-3-dev
       - name: Launch xvfb
         run: Xvfb :99 -screen 0 1680x720x24 > /dev/null 2>&1 &
       - name: Build
