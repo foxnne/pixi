@@ -521,8 +521,6 @@ pub fn deinit(editor: *Editor, app: *App) !void {
     try editor.settings.save(app.allocator);
     editor.settings.deinit(app.allocator);
 
-    editor.theme.deinit(app.allocator);
-
     if (editor.project_folder) |folder| app.allocator.free(folder);
 
     editor.arena.deinit();

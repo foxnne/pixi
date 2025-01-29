@@ -159,6 +159,7 @@ pub fn draw(core: *Core, editor: *Editor) !void {
             }
 
             if (editor.popups.file_dialog_response) |response| {
+                defer nfd.freePath(response.path);
                 if (response.type == .export_theme) {
                     try editor.theme.save(response.path);
 
@@ -167,7 +168,6 @@ pub fn draw(core: *Core, editor: *Editor) !void {
                     editor.settings.deinit(pixi.app.allocator);
                     editor.settings.theme = try pixi.app.allocator.dupeZ(u8, std.fs.path.basename(response.path));
                 }
-                nfd.freePath(response.path);
                 editor.popups.file_dialog_response = null;
             }
 
@@ -191,15 +191,10 @@ fn searchThemes(editor: *Editor) !void {
             if (entry.kind == .file) {
                 const ext = std.fs.path.extension(entry.name);
                 if (std.mem.eql(u8, ext, ".json")) {
-                    const label = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{entry.name});
-                    defer pixi.app.allocator.free(label);
+                    const label = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}", .{entry.name});
                     if (imgui.selectable(label)) {
                         // Get the path to the selected theme
-                        const abs_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ pixi.paths.themes, entry.name });
-                        defer pixi.app.allocator.free(abs_path);
-
-                        // Free the old theme name
-                        editor.theme.deinit(pixi.app.allocator);
+                        const abs_path = try std.fs.path.joinZ(editor.arena.allocator(), &.{ pixi.paths.themes, entry.name });
 
                         // Load the new theme
                         editor.theme = try Editor.Theme.loadOrDefault(abs_path);

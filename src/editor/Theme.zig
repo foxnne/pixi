@@ -182,11 +182,6 @@ pub fn pop(theme: *Theme) void {
     imgui.popStyleColorEx(28);
 }
 
-pub fn deinit(theme: *Theme, allocator: std.mem.Allocator) void {
-    _ = theme;
-    _ = allocator;
-}
-
 pub const StyleColorButton = struct {
     col: *Color,
     flags: imgui.ColorEditFlags = 0,

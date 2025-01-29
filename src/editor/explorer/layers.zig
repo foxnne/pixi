@@ -43,8 +43,7 @@ pub fn draw(editor: *Editor) !void {
         }
         imgui.sameLine();
 
-        const file_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{std.fs.path.basename(file.path)});
-        defer pixi.app.allocator.free(file_name);
+        const file_name = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}", .{std.fs.path.basename(file.path)});
 
         imgui.text(file_name);
 
