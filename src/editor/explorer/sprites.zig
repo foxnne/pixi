@@ -41,17 +41,17 @@ pub fn draw(editor: *Editor) !void {
                     var x_same: bool = true;
                     var y_same: bool = true;
                     const first_sprite = file.sprites.slice().get(file.selected_sprites.items[0]);
-                    var origin_x: f32 = first_sprite.origin_x;
-                    var origin_y: f32 = first_sprite.origin_y;
+                    var origin_x: f32 = first_sprite.origin[0];
+                    var origin_y: f32 = first_sprite.origin[1];
                     const tile_width = @as(f32, @floatFromInt(file.tile_width));
                     const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
                     for (file.selected_sprites.items) |selected_index| {
                         const sprite = file.sprites.slice().get(selected_index);
-                        if (origin_x != sprite.origin_x) {
+                        if (origin_x != sprite.origin[0]) {
                             x_same = false;
                         }
-                        if (origin_y != sprite.origin_y) {
+                        if (origin_y != sprite.origin[1]) {
                             y_same = false;
                         }
 
@@ -110,8 +110,7 @@ pub fn draw(editor: *Editor) !void {
                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                     defer imgui.popStyleColor();
 
-                    const name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index });
-                    defer pixi.app.allocator.free(name);
+                    const name = try file.calculateSpriteName(editor.arena.allocator(), sprite.index);
 
                     if (imgui.selectableEx(name, contains, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
                         try file.makeSpriteSelection(sprite.index);

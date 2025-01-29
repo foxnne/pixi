@@ -194,8 +194,8 @@ pub fn draw(editor: *Editor) !void {
                         if (std.mem.eql(u8, ext, ".png")) {
                             full_path = response.path;
                         } else {
-                            const name = file.sprites.items(.name)[file.selected_sprite_index];
-                            full_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
+                            const name = try file.calculateSpriteName(editor.arena.allocator(), file.selected_sprite_index);
+                            full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
                         }
 
                         var sprite_image = try file.spriteToImage(file.selected_sprite_index, true);
@@ -218,8 +218,7 @@ pub fn draw(editor: *Editor) !void {
                         while (i < animation.start + animation.length) : (i += 1) {
                             if (editor.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
-                                const name = file.sprites.items(.name)[i];
-                                const full_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
+                                const full_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{c}{s}_{d}.png", .{ folder, std.fs.path.sep, animation.name, i - animation.start });
 
                                 var sprite_image = try file.spriteToImage(i, true);
                                 defer sprite_image.deinit();

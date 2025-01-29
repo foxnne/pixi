@@ -292,7 +292,6 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App) !void {
                                 const src_y = src_row * file.tile_height;
 
                                 const sprite: pixi.Sprite = .{
-                                    .name = "",
                                     .origin = .{ 0, 0 },
                                     .source = .{
                                         src_x,
@@ -459,7 +458,6 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App) !void {
                                                     const src_y = src_row * file.tile_height;
 
                                                     const sprite: pixi.Sprite = .{
-                                                        .name = "",
                                                         .origin = .{ 0, 0 },
                                                         .source = .{
                                                             src_x,
@@ -553,7 +551,7 @@ pub fn drawVerticalLines(file: *pixi.Internal.File, animation_length: usize, scr
                                     // add node to map, either create a new keyframe or add to existing keyframe
                                     for (file.selected_sprites.items) |sprite_index| {
                                         const sprite = file.sprites.slice().get(sprite_index);
-                                        const origin = zmath.loadArr2(.{ sprite.origin_x, sprite.origin_y });
+                                        const origin = zmath.loadArr2(sprite.origin);
 
                                         const new_frame: pixi.Internal.Frame = .{
                                             .id = file.newFrameId(),

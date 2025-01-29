@@ -303,14 +303,14 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
                     // Draw the origin
                     const sprite: pixi.Internal.Sprite = file.sprites.slice().get(sprite_index);
                     file.camera.drawLine(
-                        .{ x + sprite.origin_x, y },
-                        .{ x + sprite.origin_x, y + tile_height },
+                        .{ x + sprite.origin[0], y },
+                        .{ x + sprite.origin[0], y + tile_height },
                         editor.theme.text_red.toU32(),
                         2.0,
                     );
                     file.camera.drawLine(
-                        .{ x, y + sprite.origin_y },
-                        .{ x + tile_width, y + sprite.origin_y },
+                        .{ x, y + sprite.origin[1] },
+                        .{ x + tile_width, y + sprite.origin[1] },
                         editor.theme.text_red.toU32(),
                         2.0,
                     );

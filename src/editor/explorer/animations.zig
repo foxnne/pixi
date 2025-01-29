@@ -75,8 +75,7 @@ pub fn draw(editor: *Editor) !void {
                     const header_color = if (file.selected_animation_index == animation_index) editor.theme.text.toImguiVec4() else editor.theme.text_secondary.toImguiVec4();
                     imgui.pushStyleColorImVec4(imgui.Col_Text, header_color);
                     defer imgui.popStyleColor();
-                    const animation_name = try std.fmt.allocPrintZ(pixi.app.allocator, " {s}  {s}", .{ pixi.fa.film, animation.name });
-                    defer pixi.app.allocator.free(animation_name);
+                    const animation_name = try std.fmt.allocPrintZ(editor.arena.allocator(), " {s}  {s}", .{ pixi.fa.film, animation.name });
 
                     if (imgui.treeNode(animation_name)) {
                         imgui.pushID(animation.name);
@@ -91,15 +90,18 @@ pub fn draw(editor: *Editor) !void {
                             while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
                                 const sprite = file.sprites.slice().get(sprite_index);
                                 if (i == sprite.index) {
-                                    const color = if (file.selected_sprite_index == sprite.index) pixi.editor.theme.text.toImguiVec4() else pixi.editor.theme.text_secondary.toImguiVec4();
+                                    const color = if (file.selected_sprite_index == sprite.index) editor.theme.text.toImguiVec4() else editor.theme.text_secondary.toImguiVec4();
                                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                                     defer imgui.popStyleColor();
 
-                                    const sprite_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s} - Index: {d}", .{ sprite.name, sprite.index });
-                                    defer pixi.app.allocator.free(sprite_name);
+                                    const sprite_name = try file.calculateSpriteName(editor.arena.allocator(), sprite.index);
 
                                     if (imgui.selectable(sprite_name)) {
-                                        file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite.index), .state = file.selected_animation_state };
+                                        file.flipbook_scroll_request = .{
+                                            .from = file.flipbook_scroll,
+                                            .to = file.flipbookScrollFromSpriteIndex(sprite.index),
+                                            .state = file.selected_animation_state,
+                                        };
                                     }
                                 }
                             }

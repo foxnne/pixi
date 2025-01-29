@@ -109,8 +109,12 @@ pub fn draw(editor: *Editor) !void {
                                     const color = animation.getFrameNodeColor(frame.id);
                                     const sprite = file.sprites.slice().get(frame.sprite_index);
 
-                                    const sprite_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}##{d}{d}{d}", .{ sprite.name, frame.id, keyframe.id, animation.id });
-                                    defer pixi.app.allocator.free(sprite_name);
+                                    const sprite_name = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}##{d}{d}{d}", .{
+                                        try file.calculateSpriteName(editor.arena.allocator(), frame.sprite_index),
+                                        frame.id,
+                                        keyframe.id,
+                                        animation.id,
+                                    });
 
                                     imgui.pushStyleColor(imgui.Col_Text, color);
                                     imgui.bullet();

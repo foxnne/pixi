@@ -194,7 +194,7 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
         };
 
         for (ext.layers) |l| {
-            const layer_image_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}.png", .{l.name});
+            const layer_image_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{l.name});
 
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;
@@ -262,10 +262,8 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
 
         for (ext.sprites, 0..) |sprite, i| {
             try internal.sprites.append(pixi.app.allocator, .{
-                .name = try pixi.app.allocator.dupeZ(u8, sprite.name),
                 .index = i,
-                .origin_x = @as(f32, @floatFromInt(sprite.origin[0])),
-                .origin_y = @as(f32, @floatFromInt(sprite.origin[1])),
+                .origin = .{ @floatFromInt(sprite.origin[0]), @floatFromInt(sprite.origin[1]) },
             });
         }
 
@@ -344,9 +342,6 @@ pub fn deinit(file: *File) void {
     for (file.deleted_layers.items(.transform_bindgroup)) |bindgroup| {
         if (bindgroup) |b|
             b.release();
-    }
-    for (file.sprites.items(.name), 0..) |_, index| {
-        pixi.app.allocator.free(file.sprites.items(.name)[index]);
     }
     for (file.animations.items(.name), 0..) |_, index| {
         pixi.app.allocator.free(file.animations.items(.name)[index]);
@@ -1011,28 +1006,8 @@ pub fn processAnimationTool(file: *File) !void {
                             } };
                             @memcpy(change.animation.name[0..animation.name.len], animation.name);
 
-                            var sprite_index = animation.start;
-                            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                                pixi.app.allocator.free(file.sprites.slice().get(sprite_index).name);
-                                var sprite = file.sprites.slice().get(sprite_index);
-                                sprite.name = try std.fmt.allocPrintZ(pixi.app.allocator, "Sprite_{d}", .{sprite_index});
-
-                                file.sprites.set(sprite_index, sprite);
-                            }
-
                             file.animations.items(.start)[file.selected_animation_index] = pixi.editor.popups.animation_start;
                             file.animations.items(.length)[file.selected_animation_index] = pixi.editor.popups.animation_length;
-
-                            sprite_index = animation.start;
-                            var animation_index: usize = 0;
-                            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                                pixi.app.allocator.free(file.sprites.slice().get(sprite_index).name);
-                                var sprite = file.sprites.slice().get(sprite_index);
-                                sprite.name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{d}", .{ animation.name[0..], animation_index });
-
-                                file.sprites.set(sprite_index, sprite);
-                                animation_index += 1;
-                            }
 
                             try file.history.append(change);
                         }
@@ -1697,8 +1672,7 @@ pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
     }
 
     for (sprites, 0..) |*sprite, i| {
-        sprite.name = try allocator.dupeZ(u8, self.sprites.items(.name)[i]);
-        sprite.origin = .{ @intFromFloat(@round(self.sprites.items(.origin_x)[i])), @intFromFloat(@round(self.sprites.items(.origin_y)[i])) };
+        sprite.origin = .{ @intFromFloat(@round(self.sprites.items(.origin)[i][0])), @intFromFloat(@round(self.sprites.items(.origin)[i][1])) };
     }
 
     for (animations, 0..) |*animation, i| {
@@ -1846,7 +1820,7 @@ pub fn newHistorySelectedSprites(file: *File, change_type: History.ChangeType) !
             for (file.selected_sprites.items, 0..) |sprite_index, i| {
                 const sprite = file.sprites.slice().get(sprite_index);
                 change.origins.indices[i] = sprite_index;
-                change.origins.values[i] = .{ sprite.origin_x, sprite.origin_y };
+                change.origins.values[i] = sprite.origin;
             }
             try file.history.append(change);
         },
@@ -2156,12 +2130,6 @@ pub fn createAnimation(self: *File, name: []const u8, fps: usize, start: usize, 
     try self.animations.append(pixi.app.allocator, animation);
     self.selected_animation_index = self.animations.slice().len - 1;
 
-    var i: usize = animation.start;
-    while (i < animation.start + animation.length) : (i += 1) {
-        pixi.app.allocator.free(self.sprites.items(.name)[i]);
-        self.sprites.items(.name)[i] = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{d}", .{ name, i - animation.start });
-    }
-
     try self.history.append(.{ .animation_restore_delete = .{
         .index = self.selected_animation_index,
         .action = .delete,
@@ -2184,12 +2152,6 @@ pub fn renameAnimation(self: *File, name: []const u8, index: usize) !void {
 
     self.animations.items(.name)[index] = try pixi.app.allocator.dupeZ(u8, name);
 
-    var i: usize = animation.start;
-    while (i < animation.start + animation.length) : (i += 1) {
-        pixi.app.allocator.free(self.sprites.items(.name)[i]);
-        self.sprites.items(.name)[i] = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{d}", .{ name, i - animation.start });
-    }
-
     try self.history.append(change);
 }
 
@@ -2201,12 +2163,6 @@ pub fn deleteAnimation(self: *File, index: usize) !void {
         .action = .restore,
         .index = index,
     } });
-
-    var i: usize = animation.start;
-    while (i < animation.start + animation.length) : (i += 1) {
-        pixi.app.allocator.free(self.sprites.items(.name)[i]);
-        self.sprites.items(.name)[i] = try std.fmt.allocPrintZ(pixi.app.allocator, "Sprite_{d}", .{i});
-    }
 }
 
 pub fn deleteTransformAnimation(self: *File, index: usize) !void {
@@ -2218,41 +2174,41 @@ pub fn deleteTransformAnimation(self: *File, index: usize) !void {
 
 pub fn setSelectedSpritesOriginX(self: *File, origin_x: f32) void {
     for (self.selected_sprites.items) |sprite_index| {
-        if (self.sprites.items(.origin_x)[sprite_index] != origin_x) {
+        if (self.sprites.items(.origin)[sprite_index][0] != origin_x) {
             var keyframe_animation_index: usize = 0;
             while (keyframe_animation_index < self.keyframe_animations.slice().len) : (keyframe_animation_index += 1) {
                 const animation = self.keyframe_animations.slice().get(keyframe_animation_index);
                 for (animation.keyframes.items) |*keyframe| {
                     for (keyframe.frames.items) |*frame| {
                         if (sprite_index == frame.sprite_index) {
-                            const diff = origin_x - self.sprites.items(.origin_x)[sprite_index];
+                            const diff = origin_x - self.sprites.items(.origin)[sprite_index][0];
                             frame.pivot.position += zmath.loadArr2(.{ diff, 0.0 });
                         }
                     }
                 }
             }
 
-            self.sprites.items(.origin_x)[sprite_index] = origin_x;
+            self.sprites.items(.origin)[sprite_index][0] = origin_x;
         }
     }
 }
 
 pub fn setSelectedSpritesOriginY(self: *File, origin_y: f32) void {
     for (self.selected_sprites.items) |sprite_index| {
-        if (self.sprites.items(.origin_y)[sprite_index] != origin_y) {
+        if (self.sprites.items(.origin)[sprite_index][1] != origin_y) {
             var animation_index: usize = 0;
             while (animation_index < self.keyframe_animations.slice().len) : (animation_index += 1) {
                 const animation = self.keyframe_animations.slice().get(animation_index);
                 for (animation.keyframes.items) |*keyframe| {
                     for (keyframe.frames.items) |*frame| {
                         if (sprite_index == frame.sprite_index) {
-                            const diff = origin_y - self.sprites.items(.origin_y)[sprite_index];
+                            const diff = origin_y - self.sprites.items(.origin)[sprite_index][1];
                             frame.pivot.position += zmath.loadArr2(.{ 0.0, diff });
                         }
                     }
                 }
             }
-            self.sprites.items(.origin_y)[sprite_index] = origin_y;
+            self.sprites.items(.origin)[sprite_index][1] = origin_y;
         }
     }
 }
@@ -2273,7 +2229,7 @@ pub fn getSelectedSpritesOrigin(self: *File) ?[2]f32 {
 
 pub fn setSelectedSpritesOrigin(self: *File, origin: [2]f32) void {
     for (self.selected_sprites.items) |sprite_index| {
-        const current_origin = .{ self.sprites.items(.origin_x)[sprite_index], self.sprites.items(.origin_y)[sprite_index] };
+        const current_origin = .{ self.sprites.items(.origin)[sprite_index][0], self.sprites.items(.origin)[sprite_index][1] };
         if (current_origin[0] != origin[0] or current_origin[1] != origin[1]) {
             const diff: [2]f32 = .{ origin[0] - current_origin[0], origin[1] - current_origin[1] };
 
@@ -2289,8 +2245,7 @@ pub fn setSelectedSpritesOrigin(self: *File, origin: [2]f32) void {
                 }
             }
 
-            self.sprites.items(.origin_x)[sprite_index] = origin[0];
-            self.sprites.items(.origin_y)[sprite_index] = origin[1];
+            self.sprites.items(.origin)[sprite_index] = origin;
         }
     }
 }
@@ -2318,6 +2273,16 @@ pub fn setAnimationFromSpriteIndex(self: *File) bool {
         }
     }
     return false;
+}
+
+/// Calculates the name of a sprite based on its index or if it takes part of an animation, it will return the animation name and the sprite index
+/// Caller owns the memory
+pub fn calculateSpriteName(self: File, allocator: std.mem.Allocator, sprite_index: usize) ![:0]const u8 {
+    if (self.getAnimationIndexFromSpriteIndex(sprite_index)) |animation_index| {
+        const animation = self.animations.slice().get(animation_index);
+        return try std.fmt.allocPrintZ(allocator, "{s}_{d}", .{ animation.name, sprite_index - animation.start });
+    }
+    return try std.fmt.allocPrintZ(allocator, "Sprite_{d}", .{sprite_index});
 }
 
 pub fn flipbookScrollFromSpriteIndex(self: File, index: usize) f32 {

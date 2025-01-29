@@ -16,9 +16,6 @@ pub fn deinit(self: *File, allocator: std.mem.Allocator) void {
     for (self.layers) |*layer| {
         allocator.free(layer.name);
     }
-    for (self.sprites) |*sprite| {
-        allocator.free(sprite.name);
-    }
     for (self.animations) |*animation| {
         allocator.free(animation.name);
     }

@@ -280,11 +280,10 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
         .origins => |*origins| {
             file.selected_sprites.clearAndFree();
             for (origins.indices, 0..) |sprite_index, i| {
-                const origin_x = origins.values[i][0];
-                const origin_y = origins.values[i][1];
-                origins.values[i] = .{ file.sprites.items(.origin_x)[sprite_index], file.sprites.items(.origin_y)[sprite_index] };
-                file.sprites.items(.origin_x)[sprite_index] = origin_x;
-                file.sprites.items(.origin_y)[sprite_index] = origin_y;
+                const origin = origins.values[i];
+                origins.values[i] = file.sprites.items(.origin)[sprite_index];
+                file.sprites.items(.origin)[sprite_index] = origin;
+
                 try file.selected_sprites.append(sprite_index);
             }
             pixi.editor.explorer.pane = .sprites;
@@ -356,23 +355,6 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             pixi.editor.explorer.pane = .tools;
         },
         .animation => |*animation| {
-            // Set sprite names to generic
-            const current_animation = file.animations.slice().get(animation.index);
-            var sprite_index = current_animation.start;
-            while (sprite_index < current_animation.start + current_animation.length) : (sprite_index += 1) {
-                pixi.app.allocator.free(file.sprites.items(.name)[sprite_index]);
-                file.sprites.items(.name)[sprite_index] = try std.fmt.allocPrintZ(pixi.app.allocator, "Sprite_{d}", .{sprite_index});
-            }
-
-            // Set sprite names to specific animation
-            sprite_index = animation.start;
-            var animation_index: usize = 0;
-            while (sprite_index < animation.start + animation.length) : (sprite_index += 1) {
-                pixi.app.allocator.free(file.sprites.items(.name)[sprite_index]);
-                file.sprites.items(.name)[sprite_index] = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{d}", .{ std.mem.trimRight(u8, &animation.name, "\u{0}"), animation_index });
-                animation_index += 1;
-            }
-
             // Name
             var name = [_:0]u8{0} ** 128;
             @memcpy(name[0..animation.name.len], &animation.name);
@@ -402,26 +384,12 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     const animation = file.deleted_animations.pop();
                     try file.animations.insert(pixi.app.allocator, animation_restore_delete.index, animation);
                     animation_restore_delete.action = .delete;
-
-                    var i: usize = animation.start;
-                    var animation_i: usize = 0;
-                    while (i < animation.start + animation.length) : (i += 1) {
-                        pixi.app.allocator.free(file.sprites.items(.name)[i]);
-                        file.sprites.items(.name)[i] = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{d}", .{ animation.name[0..], animation_i });
-                        animation_i += 1;
-                    }
                 },
                 .delete => {
                     const animation = file.animations.slice().get(animation_restore_delete.index);
                     file.animations.orderedRemove(animation_restore_delete.index);
                     try file.deleted_animations.append(pixi.app.allocator, animation);
                     animation_restore_delete.action = .restore;
-
-                    var i: usize = animation.start;
-                    while (i < animation.start + animation.length) : (i += 1) {
-                        pixi.app.allocator.free(file.sprites.items(.name)[i]);
-                        file.sprites.items(.name)[i] = try std.fmt.allocPrintZ(pixi.app.allocator, "Sprite_{d}", .{i});
-                    }
 
                     if (file.selected_animation_index == animation_restore_delete.index)
                         file.selected_animation_index = 0;

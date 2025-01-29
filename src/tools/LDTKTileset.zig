@@ -9,7 +9,6 @@ pub const LDTKCompatibility = struct {
 const LDTKTileset = @This();
 
 pub const LDTKSprite = struct {
-    name: [:0]const u8,
     src: [2]u32,
 };
 

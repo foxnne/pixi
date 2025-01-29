@@ -23,13 +23,11 @@ pub const Image = struct {
 };
 
 pub const Sprite = struct {
-    name: [:0]const u8,
     image: ?Image = null,
     heightmap_image: ?Image = null,
     origin: [2]i32 = .{ 0, 0 },
 
     pub fn deinit(self: *Sprite, allocator: std.mem.Allocator) void {
-        allocator.free(self.name);
         if (self.image) |*image| {
             image.deinit(allocator);
         }
@@ -100,10 +98,6 @@ pub fn clearAndFree(self: *Packer) void {
         for (tileset.layer_paths) |path| {
             pixi.app.allocator.free(path);
         }
-
-        for (tileset.sprites) |*sprite| {
-            pixi.app.allocator.free(sprite.name);
-        }
         pixi.app.allocator.free(tileset.sprites);
         pixi.app.allocator.free(tileset.layer_paths);
     }
@@ -145,7 +139,6 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
 
                 var sprite_index: usize = 0;
                 while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
-                    const sprite = file.sprites.slice().get(sprite_index);
                     const tiles_wide = @divExact(file.width, file.tile_width);
 
                     const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
@@ -155,7 +148,6 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                     const src_y = row * file.tile_height;
 
                     try sprites.append(.{
-                        .name = try pixi.app.allocator.dupeZ(u8, sprite.name),
                         .src = .{ src_x, src_y },
                     });
                 }
@@ -280,10 +272,9 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                 }
 
                 try self.sprites.append(.{
-                    .name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{s}", .{ sprite.name, layer.name }),
                     .image = image,
                     .heightmap_image = heightmap_image,
-                    .origin = .{ @as(i32, @intFromFloat(sprite.origin_x)) - @as(i32, @intCast(offset[0])), @as(i32, @intFromFloat(sprite.origin_y)) - @as(i32, @intCast(offset[1])) },
+                    .origin = .{ @as(i32, @intFromFloat(sprite.origin[0])) - @as(i32, @intCast(offset[0])), @as(i32, @intFromFloat(sprite.origin[1])) - @as(i32, @intCast(offset[1])) },
                 });
 
                 try self.frames.append(.{ .id = self.newId(), .w = @as(c_ushort, @intCast(image.width)), .h = @as(c_ushort, @intCast(image.height)) });
@@ -295,7 +286,6 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                         // Sprite contains no pixels but is part of an animation
                         // To preserve the animation, add a blank pixel to the sprites list
                         try self.sprites.append(.{
-                            .name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_{s}", .{ sprite.name, layer.name }),
                             .image = null,
                             .origin = .{ 0, 0 },
                         });
@@ -419,7 +409,6 @@ pub fn packAndClear(self: *Packer) !void {
         };
 
         for (atlas.sprites, self.sprites.items, self.frames.items) |*dst, src, src_rect| {
-            dst.name = try pixi.app.allocator.dupeZ(u8, src.name);
             dst.source = .{ src_rect.x, src_rect.y, src_rect.w, src_rect.h };
             dst.origin = src.origin;
         }
@@ -432,9 +421,6 @@ pub fn packAndClear(self: *Packer) !void {
         }
 
         if (pixi.editor.atlas.data) |*data| {
-            for (data.sprites) |sprite| {
-                pixi.app.allocator.free(sprite.name);
-            }
             for (data.animations) |animation| {
                 pixi.app.allocator.free(animation.name);
             }
