@@ -130,7 +130,6 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
             if (editor.popups.file_dialog_response) |response| {
                 if (response.type == .export_atlas) {
                     try editor.recents.appendExport(try app.allocator.dupeZ(u8, response.path));
-                    try editor.recents.save();
                     try editor.atlas.save(response.path);
                     nfd.freePath(response.path);
                     editor.popups.file_dialog_response = null;

@@ -36,7 +36,6 @@ timer: mach.time.Timer,
 window: mach.ObjectID,
 
 allocator: std.mem.Allocator = undefined,
-arena_allocator: std.heap.ArenaAllocator = undefined,
 mouse: pixi.input.Mouse = undefined,
 root_path: [:0]const u8 = undefined,
 delta_time: f32 = 0.0,
@@ -70,7 +69,7 @@ pub const Assets = struct {
     }
 };
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
 
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn init(
@@ -104,7 +103,6 @@ pub fn init(
 
     app.* = .{
         .allocator = allocator,
-        .arena_allocator = std.heap.ArenaAllocator.init(allocator),
         .timer = try mach.time.Timer.start(),
         .window = window,
         .root_path = try allocator.dupeZ(u8, path),
@@ -341,7 +339,6 @@ pub fn deinit(app: *App, packer: *Packer, editor_mod: mach.Mod(Editor)) !void {
 
     zstbi.deinit();
     app.allocator.free(app.root_path);
-    app.arena_allocator.deinit();
 
     _ = gpa.detectLeaks();
     _ = gpa.deinit();

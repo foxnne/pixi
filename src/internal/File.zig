@@ -194,7 +194,7 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
         };
 
         for (ext.layers) |l| {
-            const layer_image_name = try std.fmt.allocPrintZ(pixi.app.arena_allocator.allocator(), "{s}.png", .{l.name});
+            const layer_image_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}.png", .{l.name});
 
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;

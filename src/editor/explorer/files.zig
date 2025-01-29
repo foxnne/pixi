@@ -167,7 +167,6 @@ pub fn draw(editor: *Editor) !void {
                         if (imgui.menuItem("Remove")) {
                             const item = editor.recents.folders.orderedRemove(i);
                             pixi.app.allocator.free(item);
-                            try editor.recents.save();
                         }
                     }
 

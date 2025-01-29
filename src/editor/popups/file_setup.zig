@@ -140,7 +140,7 @@ pub fn draw() !void {
             if (ext.len > 0 and std.mem.eql(u8, ".pixi", ext[0..5])) {
                 switch (pixi.editor.popups.file_setup_state) {
                     .new => {
-                        if (try pixi.editor.newFile(try pixi.app.allocator.dupeZ(u8, file_setup_path), null)) {
+                        if (try pixi.editor.newFile(try pixi.editor.arena.allocator().dupeZ(u8, file_setup_path), null)) {
                             if (pixi.editor.getFile(0)) |file| {
                                 try file.save();
                             }
@@ -148,7 +148,7 @@ pub fn draw() !void {
                     },
                     .import_png => {
                         const file_setup_png_path = std.mem.trimRight(u8, &pixi.editor.popups.file_setup_png_path, "\u{0}");
-                        if (try pixi.editor.importPng(try pixi.app.allocator.dupeZ(u8, file_setup_png_path), try pixi.app.allocator.dupeZ(u8, file_setup_path))) {
+                        if (try pixi.editor.importPng(try pixi.editor.arena.allocator().dupeZ(u8, file_setup_png_path), try pixi.editor.arena.allocator().dupeZ(u8, file_setup_path))) {
                             if (pixi.editor.getFile(0)) |file| {
                                 try file.save();
                             }

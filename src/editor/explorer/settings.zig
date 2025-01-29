@@ -161,9 +161,12 @@ pub fn draw(core: *Core, editor: *Editor) !void {
             if (editor.popups.file_dialog_response) |response| {
                 if (response.type == .export_theme) {
                     try editor.theme.save(response.path);
-                    pixi.app.allocator.free(editor.theme.name);
-                    editor.theme = try Editor.Theme.loadFromFile(response.path);
-                    editor.settings.theme = editor.theme.name;
+
+                    editor.theme.deinit(pixi.app.allocator);
+                    editor.theme = try Editor.Theme.loadOrDefault(response.path);
+
+                    editor.settings.deinit(pixi.app.allocator);
+                    editor.settings.theme = try pixi.app.allocator.dupeZ(u8, editor.theme.name);
                 }
                 nfd.freePath(response.path);
                 editor.popups.file_dialog_response = null;
@@ -192,11 +195,19 @@ fn searchThemes(editor: *Editor) !void {
                     const label = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{entry.name});
                     defer pixi.app.allocator.free(label);
                     if (imgui.selectable(label)) {
+                        // Get the path to the selected theme
                         const abs_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ pixi.paths.themes, entry.name });
                         defer pixi.app.allocator.free(abs_path);
-                        pixi.app.allocator.free(editor.theme.name);
-                        editor.theme = try Editor.Theme.loadFromFile(abs_path);
-                        editor.settings.theme = editor.theme.name;
+
+                        // Free the old theme name
+                        editor.theme.deinit(pixi.app.allocator);
+
+                        // Load the new theme
+                        editor.theme = try Editor.Theme.loadOrDefault(abs_path);
+
+                        // Update the theme name in settings
+                        editor.settings.deinit(pixi.app.allocator);
+                        editor.settings.theme = try pixi.app.allocator.dupeZ(u8, editor.theme.name);
                     }
                 }
             }

@@ -4,6 +4,8 @@ const std = @import("std");
 
 const Settings = @This();
 
+pub var parsed: ?std.json.Parsed(Settings) = null;
+
 pub const InputScheme = enum { mouse, trackpad };
 pub const FlipbookView = enum { sequential, grid };
 pub const Compatibility = enum { none, ldtk };
@@ -93,18 +95,22 @@ eyedropper_auto_switch_layer: bool = true,
 /// Width and height of the eyedropper preview
 eyedropper_preview_size: f32 = 64.0,
 
-/// Drop shadow opacity
+/// Drop shadow opacity (shows between artboard and flipbook)
 shadow_opacity: f32 = 0.1,
 
-/// Shadow length
+/// Drop shadow length (shows between artboard and flipbook)
 shadow_length: f32 = 14.0,
 
-/// Stroke
+/// Stroke max size
 stroke_max_size: i32 = 64,
 
-/// Suggested colors settings
+/// Hue shift for suggested
 suggested_hue_shift: f32 = 0.25,
+
+/// Saturation shift for suggested colors
 suggested_sat_shift: f32 = 0.65,
+
+/// Lightness shift for suggested colors
 suggested_lit_shift: f32 = 0.75,
 
 /// Opacity of the reference window background
@@ -119,49 +125,35 @@ zoom_ctrl: bool = false,
 /// Setting to generate a compatiblity layer between pixi and level editors
 compatibility: Compatibility = .none,
 
-///Reads in default settings or reads from the settings file
-pub fn load(allocator: std.mem.Allocator) !Settings {
-    const path = "settings.json";
+/// Loads settings or if fails, returns default settings
+pub fn loadOrDefault(allocator: std.mem.Allocator) !Settings {
+    const data = try pixi.fs.read(allocator, "settings.json");
+    defer allocator.free(data);
 
-    // Attempt to read the file
-    const max_bytes = 10000; //maximum bytes in settings file
-    const settings_string = std.fs.cwd().readFileAlloc(allocator, path, max_bytes) catch null;
-
-    // Check if the file was read, and if so, parse it
-    if (settings_string) |str| {
-        defer allocator.free(settings_string.?);
-
-        const parsed_settings = std.json.parseFromSlice(@This(), allocator, str, .{}) catch null;
-        if (parsed_settings) |settings| {
-            // TODO: Fix this, we shouldnt have to allocate the theme name just because we need to free all later
-            var s: Settings = settings.value;
-            s.theme = try allocator.dupeZ(u8, s.theme);
-            return s;
-        }
+    const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
+    if (std.json.parseFromSlice(Settings, allocator, data, options) catch null) |p| {
+        parsed = p;
+        return p.value;
     }
-    // Return default if parsing failed or file does not exist
-    return @This(){
+
+    return .{
         .theme = try allocator.dupeZ(u8, "pixi_dark.json"),
     };
 }
 
-pub fn save(self: *@This(), allocator: std.mem.Allocator) void {
-    const path = "settings.json";
-    const stringified = std.json.stringifyAlloc(allocator, self, .{}) catch {
-        std.debug.print("ERROR: Failed to stringify settings\n", .{});
-        return;
-    };
-    defer allocator.free(stringified);
-    var file = std.fs.cwd().createFile(path, .{}) catch {
-        std.debug.print("ERROR: Failed to open settings file \"{s}\"\n", .{path});
-        return;
-    };
-    file.writeAll(stringified) catch {
-        std.debug.print("ERROR: Failed to write settings to file \"{s}\"\n", .{path});
-        return;
-    };
+pub fn save(settings: *Settings, allocator: std.mem.Allocator) !void {
+    const str = try std.json.stringifyAlloc(allocator, settings, .{});
+    defer allocator.free(str);
+
+    var file = try std.fs.cwd().createFile("settings.json", .{});
+    defer file.close();
+
+    try file.writeAll(str);
 }
 
-pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
-    allocator.free(self.theme);
+pub fn deinit(settings: *Settings, allocator: std.mem.Allocator) void {
+    if (parsed) |p| {
+        p.deinit();
+        parsed = null;
+    } else allocator.free(settings.theme);
 }

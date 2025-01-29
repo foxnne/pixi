@@ -6,7 +6,7 @@ const Recents = @This();
 folders: std.ArrayList([:0]const u8),
 exports: std.ArrayList([:0]const u8),
 
-pub fn init(allocator: std.mem.Allocator) !Recents {
+pub fn load(allocator: std.mem.Allocator) !Recents {
     var folders = std.ArrayList([:0]const u8).init(allocator);
     var exports = std.ArrayList([:0]const u8).init(allocator);
 
@@ -15,20 +15,21 @@ pub fn init(allocator: std.mem.Allocator) !Recents {
         defer allocator.free(read);
 
         const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-        const parsed = try std.json.parseFromSlice(RecentsJson, allocator, read, options);
-        defer parsed.deinit();
+        if (std.json.parseFromSlice(RecentsJson, allocator, read, options) catch null) |parsed| {
+            defer parsed.deinit();
 
-        for (parsed.value.folders) |folder| {
-            const dir_opt = std.fs.openDirAbsoluteZ(folder, .{}) catch null;
-            if (dir_opt != null)
-                try folders.append(try allocator.dupeZ(u8, folder));
-        }
-
-        for (parsed.value.exports) |exp| {
-            if (std.fs.path.dirname(exp)) |path| {
-                const dir_opt = std.fs.openDirAbsolute(path, .{}) catch null;
+            for (parsed.value.folders) |folder| {
+                const dir_opt = std.fs.openDirAbsoluteZ(folder, .{}) catch null;
                 if (dir_opt != null)
-                    try exports.append(try allocator.dupeZ(u8, exp));
+                    try folders.append(try allocator.dupeZ(u8, folder));
+            }
+
+            for (parsed.value.exports) |exp| {
+                if (std.fs.path.dirname(exp)) |path| {
+                    const dir_opt = std.fs.openDirAbsolute(path, .{}) catch null;
+                    if (dir_opt != null)
+                        try exports.append(try allocator.dupeZ(u8, exp));
+                }
             }
         }
     }

@@ -37,6 +37,10 @@ pub const mach_systems = .{
     .deinit,
 };
 
+/// This arena is for small per-frame editor allocations, such as path joins, null terminations and labels.
+/// Do not free these allocations, instead, this allocator will be .reset(.retain_capacity) each frame
+arena: std.heap.ArenaAllocator,
+
 theme: Theme,
 settings: Settings,
 hotkeys: pixi.input.Hotkeys,
@@ -85,9 +89,10 @@ pub fn init(
         .explorer = _explorer,
         .artboard = _artboard,
         .sidebar = _sidebar,
-        .settings = try Settings.load(app.arena_allocator.allocator()),
+        .settings = try Settings.loadOrDefault(app.allocator),
         .hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
-        .recents = try Recents.init(app.allocator),
+        .recents = try Recents.load(app.allocator),
+        .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
     };
 
     editor.open_files = std.ArrayList(pixi.Internal.File).init(app.allocator);
@@ -105,7 +110,7 @@ pub fn lateInit(core: *Core, app: *App, editor: *Editor) !void {
     const theme_path = try std.fs.path.joinZ(app.allocator, &.{ pixi.paths.themes, editor.settings.theme });
     defer app.allocator.free(theme_path);
 
-    editor.theme = try Theme.loadFromFile(theme_path);
+    editor.theme = try Theme.loadOrDefault(theme_path);
     editor.theme.init(core, app);
 }
 
@@ -214,6 +219,9 @@ pub fn tick(
     for (editor.hotkeys.hotkeys) |*hotkey| {
         hotkey.previous_state = hotkey.state;
     }
+
+    // Reset the arena but keep the memory from the last frame available
+    _ = editor.arena.reset(.retain_capacity);
 }
 
 pub fn close(app: *App, editor: *Editor) void {
@@ -238,7 +246,6 @@ pub fn setProjectFolder(editor: *Editor, path: [:0]const u8) !void {
     }
     editor.project_folder = try pixi.app.allocator.dupeZ(u8, path);
     try editor.recents.appendFolder(try pixi.app.allocator.dupeZ(u8, path));
-    try editor.recents.save();
     editor.explorer.pane = .files;
 }
 
@@ -253,8 +260,6 @@ pub fn saving(editor: *Editor) bool {
 pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) !bool {
     for (editor.open_files.items, 0..) |file, i| {
         if (std.mem.eql(u8, file.path, path)) {
-            // Free path since we aren't adding it to open files again.
-            pixi.app.allocator.free(path);
             editor.setActiveFile(i);
             return false;
         }
@@ -262,10 +267,10 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
 
     var internal: pixi.Internal.File = .{
         .path = try pixi.app.allocator.dupeZ(u8, path),
-        .width = @as(u32, @intCast(pixi.editor.popups.file_setup_tiles[0] * pixi.editor.popups.file_setup_tile_size[0])),
-        .height = @as(u32, @intCast(pixi.editor.popups.file_setup_tiles[1] * pixi.editor.popups.file_setup_tile_size[1])),
-        .tile_width = @as(u32, @intCast(pixi.editor.popups.file_setup_tile_size[0])),
-        .tile_height = @as(u32, @intCast(pixi.editor.popups.file_setup_tile_size[1])),
+        .width = @as(u32, @intCast(editor.popups.file_setup_tiles[0] * editor.popups.file_setup_tile_size[0])),
+        .height = @as(u32, @intCast(editor.popups.file_setup_tiles[1] * editor.popups.file_setup_tile_size[1])),
+        .tile_width = @as(u32, @intCast(editor.popups.file_setup_tile_size[0])),
+        .tile_height = @as(u32, @intCast(editor.popups.file_setup_tile_size[1])),
         .layers = .{},
         .deleted_layers = .{},
         .deleted_heightmap_layers = .{},
@@ -335,21 +340,18 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
     try editor.open_files.insert(0, internal);
     editor.setActiveFile(0);
 
-    pixi.app.allocator.free(path);
-
     return true;
 }
 
 /// Returns true if png was imported and new file created.
-pub fn importPng(editor: *Editor, path: [:0]const u8, new_file_path: [:0]const u8) !bool {
-    defer pixi.app.allocator.free(path);
-    if (!std.mem.eql(u8, std.fs.path.extension(path)[0..4], ".png"))
+pub fn importPng(editor: *Editor, png_path: [:0]const u8, new_file_path: [:0]const u8) !bool {
+    if (!std.mem.eql(u8, std.fs.path.extension(png_path)[0..4], ".png"))
         return false;
 
     if (!std.mem.eql(u8, std.fs.path.extension(new_file_path)[0..5], ".pixi"))
         return false;
 
-    return try editor.newFile(new_file_path, path);
+    return try editor.newFile(new_file_path, png_path);
 }
 
 /// Returns true if a new file was opened.
@@ -509,17 +511,19 @@ pub fn deinit(editor: *Editor, app: *App) !void {
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();
 
-    app.allocator.free(editor.theme.name);
-
     app.allocator.free(editor.hotkeys.hotkeys);
-
-    editor.recents.deinit();
 
     if (editor.clipboard_image) |*image| image.deinit();
 
-    //deinit and save settings
-    editor.settings.save(app.arena_allocator.allocator());
-    editor.settings.deinit(app.arena_allocator.allocator());
+    try editor.recents.save();
+    editor.recents.deinit();
+
+    try editor.settings.save(app.allocator);
+    editor.settings.deinit(app.allocator);
+
+    editor.theme.deinit(app.allocator);
 
     if (editor.project_folder) |folder| app.allocator.free(folder);
+
+    editor.arena.deinit();
 }

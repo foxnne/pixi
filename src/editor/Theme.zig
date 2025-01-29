@@ -11,6 +11,9 @@ const imgui = @import("zig-imgui");
 
 const Theme = @This();
 
+// Hold parsed so we can deinit it later
+pub var parsed: ?std.json.Parsed(Theme) = null;
+
 name: [:0]const u8,
 
 background: Color = Color.initBytes(34, 35, 42, 255),
@@ -154,24 +157,17 @@ pub fn push(theme: *Theme, core: *mach.Core, app: *App) void {
     core.windows.set(app.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
-pub fn loadFromFile(file: [:0]const u8) !Theme {
-    const base_name = std.fs.path.basename(file);
-    const ext = std.fs.path.extension(file);
+pub fn loadOrDefault(file: [:0]const u8) !Theme {
+    if (pixi.fs.read(pixi.app.allocator, file) catch null) |read| {
+        defer pixi.app.allocator.free(read);
 
-    if (std.mem.eql(u8, ext, ".json")) {
-        const read_opt: ?[]const u8 = pixi.fs.read(pixi.app.allocator, file) catch null;
-        if (read_opt) |read| {
-            defer pixi.app.allocator.free(read);
-
-            const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-            const parsed = try std.json.parseFromSlice(Theme, pixi.app.allocator, read, options);
-            defer parsed.deinit();
-
-            var out = parsed.value;
-            out.name = try pixi.app.allocator.dupeZ(u8, base_name);
-            return out;
+        const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
+        if (std.json.parseFromSlice(Theme, pixi.app.allocator, read, options) catch null) |p| {
+            parsed = p;
+            return p.value;
         }
     }
+
     return Theme{
         .name = try pixi.app.allocator.dupeZ(u8, "pixi_dark.json"),
     };
@@ -190,6 +186,13 @@ pub fn save(theme: Theme, path: [:0]const u8) !void {
 pub fn pop(theme: *Theme) void {
     _ = theme;
     imgui.popStyleColorEx(28);
+}
+
+pub fn deinit(theme: *Theme, allocator: std.mem.Allocator) void {
+    if (parsed) |p| {
+        p.deinit();
+        parsed = null;
+    } else allocator.free(theme.name);
 }
 
 pub const StyleColorButton = struct {
