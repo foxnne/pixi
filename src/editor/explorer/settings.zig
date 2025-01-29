@@ -160,6 +160,9 @@ pub fn draw(core: *Core, editor: *Editor) !void {
 
             if (editor.popups.file_dialog_response) |response| {
                 if (response.type == .export_theme) {
+                    editor.theme.deinit(pixi.app.allocator);
+                    editor.theme.name = try pixi.app.allocator.dupeZ(u8, std.fs.path.basename(response.path));
+
                     try editor.theme.save(response.path);
 
                     editor.theme.deinit(pixi.app.allocator);

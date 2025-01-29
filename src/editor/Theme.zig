@@ -189,10 +189,8 @@ pub fn pop(theme: *Theme) void {
 }
 
 pub fn deinit(theme: *Theme, allocator: std.mem.Allocator) void {
-    if (parsed) |p| {
-        p.deinit();
-        parsed = null;
-    } else allocator.free(theme.name);
+    defer parsed = null;
+    if (parsed) |p| p.deinit() else allocator.free(theme.name);
 }
 
 pub const StyleColorButton = struct {

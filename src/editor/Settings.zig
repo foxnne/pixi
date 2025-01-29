@@ -152,8 +152,6 @@ pub fn save(settings: *Settings, allocator: std.mem.Allocator) !void {
 }
 
 pub fn deinit(settings: *Settings, allocator: std.mem.Allocator) void {
-    if (parsed) |p| {
-        p.deinit();
-        parsed = null;
-    } else allocator.free(settings.theme);
+    defer parsed = null;
+    if (parsed) |p| p.deinit() else allocator.free(settings.theme);
 }
