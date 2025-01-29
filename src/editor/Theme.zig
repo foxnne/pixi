@@ -11,11 +11,6 @@ const imgui = @import("zig-imgui");
 
 const Theme = @This();
 
-// Hold parsed so we can deinit it later
-pub var parsed: ?std.json.Parsed(Theme) = null;
-
-name: [:0]const u8,
-
 background: Color = Color.initBytes(34, 35, 42, 255),
 foreground: Color = Color.initBytes(42, 44, 54, 255),
 text: Color = Color.initBytes(230, 175, 137, 255),
@@ -163,14 +158,13 @@ pub fn loadOrDefault(file: [:0]const u8) !Theme {
 
         const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
         if (std.json.parseFromSlice(Theme, pixi.app.allocator, read, options) catch null) |p| {
-            parsed = p;
-            return p.value;
+            const theme = p.value;
+            p.deinit();
+            return theme;
         }
     }
 
-    return Theme{
-        .name = try pixi.app.allocator.dupeZ(u8, "pixi_dark.json"),
-    };
+    return .{};
 }
 
 pub fn save(theme: Theme, path: [:0]const u8) !void {
@@ -189,8 +183,8 @@ pub fn pop(theme: *Theme) void {
 }
 
 pub fn deinit(theme: *Theme, allocator: std.mem.Allocator) void {
-    defer parsed = null;
-    if (parsed) |p| p.deinit() else allocator.free(theme.name);
+    _ = theme;
+    _ = allocator;
 }
 
 pub const StyleColorButton = struct {

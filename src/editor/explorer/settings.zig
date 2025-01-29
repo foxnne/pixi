@@ -160,16 +160,12 @@ pub fn draw(core: *Core, editor: *Editor) !void {
 
             if (editor.popups.file_dialog_response) |response| {
                 if (response.type == .export_theme) {
-                    editor.theme.deinit(pixi.app.allocator);
-                    editor.theme.name = try pixi.app.allocator.dupeZ(u8, std.fs.path.basename(response.path));
-
                     try editor.theme.save(response.path);
 
-                    editor.theme.deinit(pixi.app.allocator);
                     editor.theme = try Editor.Theme.loadOrDefault(response.path);
 
                     editor.settings.deinit(pixi.app.allocator);
-                    editor.settings.theme = try pixi.app.allocator.dupeZ(u8, editor.theme.name);
+                    editor.settings.theme = try pixi.app.allocator.dupeZ(u8, std.fs.path.basename(response.path));
                 }
                 nfd.freePath(response.path);
                 editor.popups.file_dialog_response = null;
@@ -210,7 +206,7 @@ fn searchThemes(editor: *Editor) !void {
 
                         // Update the theme name in settings
                         editor.settings.deinit(pixi.app.allocator);
-                        editor.settings.theme = try pixi.app.allocator.dupeZ(u8, editor.theme.name);
+                        editor.settings.theme = try pixi.app.allocator.dupeZ(u8, std.fs.path.basename(abs_path));
                     }
                 }
             }
