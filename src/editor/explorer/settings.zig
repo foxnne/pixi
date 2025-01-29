@@ -165,6 +165,9 @@ pub fn draw(core: *Core, editor: *Editor) !void {
 
                     editor.theme = try Editor.Theme.loadOrDefault(response.path);
 
+                    // Update the theme name in settings
+                    // Use settings.deinit to free the old theme name
+                    // Since it uses parsed, it will either free parsed or the theme name
                     editor.settings.deinit(pixi.app.allocator);
                     editor.settings.theme = try pixi.app.allocator.dupeZ(u8, std.fs.path.basename(response.path));
                 }
@@ -200,6 +203,8 @@ fn searchThemes(editor: *Editor) !void {
                         editor.theme = try Editor.Theme.loadOrDefault(abs_path);
 
                         // Update the theme name in settings
+                        // Use settings.deinit to free the old theme name
+                        // Since it uses parsed, it will either free parsed or the theme name
                         editor.settings.deinit(pixi.app.allocator);
                         editor.settings.theme = try pixi.app.allocator.dupeZ(u8, std.fs.path.basename(abs_path));
                     }
