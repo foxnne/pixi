@@ -4,6 +4,7 @@ const mach = @import("mach");
 
 const Core = mach.Core;
 const App = pixi.App;
+const Editor = pixi.Editor;
 
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
@@ -26,7 +27,7 @@ var ms_hovered: ?usize = null;
 var keyframe_dragging: ?u32 = null;
 var mouse_scroll_delta_y: f32 = 0.0;
 
-pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App) !void {
+pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
     const window_height = imgui.getWindowHeight();
     const window_width = imgui.getWindowWidth();
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -142,10 +143,9 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App) !void {
                             const unit = if (@mod(ms, 1000) == 0) "s" else "ms";
                             const value = if (@mod(ms, 1000) == 0) @divExact(ms, 1000) else ms;
 
-                            const text = try std.fmt.allocPrintZ(pixi.app.allocator, "{d} {s}", .{ value, unit });
-                            defer pixi.app.allocator.free(text);
+                            const text = try std.fmt.allocPrintZ(editor.arena.allocator(), "{d} {s}", .{ value, unit });
 
-                            draw_list.addText(.{ .x = x, .y = y }, pixi.editor.theme.text_background.toU32(), text);
+                            draw_list.addText(.{ .x = x, .y = y }, editor.theme.text_background.toU32(), text);
                         }
                     }
                 }
@@ -366,7 +366,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App) !void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(core.windows.get(app.window, .device));
+                            file.keyframe_animation_texture.update(pixi.core.windows.get(pixi.app.window, .device));
                         }
                     }
                 }
@@ -488,7 +488,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App) !void {
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
                             @memset(file.keyframe_animation_texture.image.data, 0.0);
-                            file.keyframe_animation_texture.update(core.windows.get(app.window, .device));
+                            file.keyframe_animation_texture.update(pixi.core.windows.get(pixi.app.window, .device));
                         }
                     }
                 }

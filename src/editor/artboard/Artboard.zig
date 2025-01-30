@@ -145,8 +145,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer
                                 imgui.pushIDInt(@as(c_int, @intCast(i)));
                                 defer imgui.popID();
 
-                                const label = try std.fmt.allocPrintZ(app.allocator, " {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name });
-                                defer app.allocator.free(label);
+                                const label = try std.fmt.allocPrintZ(editor.arena.allocator(), " {s}  {s} ", .{ pixi.fa.file_powerpoint, file_name });
 
                                 var file_tab_flags: imgui.TabItemFlags = 0;
                                 file_tab_flags |= imgui.TabItemFlags_None;
@@ -232,7 +231,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer
 
                                 // Now add to ruler children windows, since we have updated the camera.
                                 if (show_rulers) {
-                                    try rulers.draw(file, app, core);
+                                    try rulers.draw(file, editor);
                                 }
                             }
                         }
@@ -259,11 +258,16 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer
                     .y = flipbook_height,
                 }, imgui.ChildFlags_None, flipbook_flags)) {
                     if (editor.getFile(editor.open_file_index)) |file| {
-                        try flipbook.menu.draw(file, artboard_flipbook_ratio, app, editor);
+                        try flipbook.menu.draw(file, artboard_flipbook_ratio, editor);
                         if (editor.explorer.pane == .keyframe_animations or file.flipbook_view == .timeline) {
-                            try flipbook.timeline.draw(file, core, app);
+                            try flipbook.timeline.draw(file, editor);
                         } else {
-                            if (imgui.beginChild("FlipbookCanvas", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+                            if (imgui.beginChild(
+                                "FlipbookCanvas",
+                                .{ .x = 0.0, .y = 0.0 },
+                                imgui.ChildFlags_None,
+                                imgui.WindowFlags_ChildWindow,
+                            )) {
                                 defer imgui.endChild();
                                 try flipbook.canvas.draw(file, app, editor);
                             }

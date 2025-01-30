@@ -87,9 +87,7 @@ pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer
             .files => {
                 if (imgui.beginMenuBar()) {
                     if (editor.hotkeys.hotkey(.{ .sidebar = .files })) |hotkey| {
-                        const title = try std.fmt.allocPrintZ(app.allocator, "Explorer ({s})", .{hotkey.shortcut});
-                        defer app.allocator.free(title);
-
+                        const title = try std.fmt.allocPrintZ(editor.arena.allocator(), "Explorer ({s})", .{hotkey.shortcut});
                         imgui.separatorText(title);
                     } else {
                         imgui.separatorText("Explorer");
@@ -103,9 +101,7 @@ pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer
             .tools => {
                 if (imgui.beginMenuBar()) {
                     if (editor.hotkeys.hotkey(.{ .sidebar = .tools })) |hotkey| {
-                        const title = try std.fmt.allocPrintZ(app.allocator, "Tools ({s})", .{hotkey.shortcut});
-                        defer app.allocator.free(title);
-
+                        const title = try std.fmt.allocPrintZ(editor.arena.allocator(), "Tools ({s})", .{hotkey.shortcut});
                         imgui.separatorText(title);
                     } else {
                         imgui.separatorText("Tools");
@@ -120,9 +116,7 @@ pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer
             .sprites => {
                 if (imgui.beginMenuBar()) {
                     if (editor.hotkeys.hotkey(.{ .sidebar = .sprites })) |hotkey| {
-                        const title = try std.fmt.allocPrintZ(app.allocator, "Sprites ({s})", .{hotkey.shortcut});
-                        defer app.allocator.free(title);
-
+                        const title = try std.fmt.allocPrintZ(editor.arena.allocator(), "Sprites ({s})", .{hotkey.shortcut});
                         imgui.separatorText(title);
                     } else {
                         imgui.separatorText("Sprites");
@@ -136,9 +130,7 @@ pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer
             .animations => {
                 if (imgui.beginMenuBar()) {
                     if (editor.hotkeys.hotkey(.{ .sidebar = .animations })) |hotkey| {
-                        const title = try std.fmt.allocPrintZ(app.allocator, "Animations ({s})", .{hotkey.shortcut});
-                        defer app.allocator.free(title);
-
+                        const title = try std.fmt.allocPrintZ(editor.arena.allocator(), "Animations ({s})", .{hotkey.shortcut});
                         imgui.separatorText(title);
                     } else {
                         imgui.separatorText("Animations");
@@ -152,9 +144,7 @@ pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer
             .keyframe_animations => {
                 if (imgui.beginMenuBar()) {
                     if (editor.hotkeys.hotkey(.{ .sidebar = .keyframe_animations })) |hotkey| {
-                        const title = try std.fmt.allocPrintZ(app.allocator, "Keyframe Animations ({s})", .{hotkey.shortcut});
-                        defer app.allocator.free(title);
-
+                        const title = try std.fmt.allocPrintZ(editor.arena.allocator(), "Keyframe Animations ({s})", .{hotkey.shortcut});
                         imgui.separatorText(title);
                     } else {
                         imgui.separatorText("Keyframe Animations");
@@ -168,9 +158,7 @@ pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer
             .pack => {
                 if (imgui.beginMenuBar()) {
                     if (editor.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
-                        const title = try std.fmt.allocPrintZ(app.allocator, "Packing ({s})", .{hotkey.shortcut});
-                        defer app.allocator.free(title);
-
+                        const title = try std.fmt.allocPrintZ(editor.arena.allocator(), "Packing ({s})", .{hotkey.shortcut});
                         imgui.separatorText(title);
                     } else {
                         imgui.separatorText("Packing");
@@ -184,9 +172,7 @@ pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer
             .settings => {
                 if (imgui.beginMenuBar()) {
                     if (editor.hotkeys.hotkey(.{ .sidebar = .settings })) |hotkey| {
-                        const title = try std.fmt.allocPrintZ(app.allocator, "Settings ({s})", .{hotkey.shortcut});
-                        defer app.allocator.free(title);
-
+                        const title = try std.fmt.allocPrintZ(editor.arena.allocator(), "Settings ({s})", .{hotkey.shortcut});
                         imgui.separatorText(title);
                     } else {
                         imgui.separatorText("Settings");

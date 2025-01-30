@@ -11,7 +11,7 @@ const imgui = @import("zig-imgui");
 
 const History = pixi.Internal.File.History;
 
-pub fn draw(file: *pixi.Internal.File, mouse_ratio: f32, app: *App, editor: *Editor) !void {
+pub fn draw(file: *pixi.Internal.File, mouse_ratio: f32, editor: *Editor) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
     defer imgui.popStyleVar();
     imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
@@ -53,18 +53,29 @@ pub fn draw(file: *pixi.Internal.File, mouse_ratio: f32, app: *App, editor: *Edi
 
                 { // Frame Selection
                     const current_frame = if (file.selected_sprite_index > animation.start) file.selected_sprite_index - animation.start else 0;
-                    const frame = try std.fmt.allocPrintZ(app.allocator, "{d}/{d}", .{ current_frame + 1, animation.length });
-                    defer app.allocator.free(frame);
+                    const frame = try std.fmt.allocPrintZ(editor.arena.allocator(), "{d}/{d}", .{ current_frame + 1, animation.length });
 
                     imgui.setNextItemWidth(imgui.calcTextSize(frame).x + 40);
                     if (imgui.beginCombo("Frame  ", frame, imgui.ComboFlags_None)) {
                         defer imgui.endCombo();
                         for (0..animation.length) |i| {
-                            const other_frame = try std.fmt.allocPrintZ(app.allocator, "{d}/{d}", .{ i + 1, animation.length });
-                            defer app.allocator.free(other_frame);
+                            const other_frame = try std.fmt.allocPrintZ(
+                                editor.arena.allocator(),
+                                "{d}/{d}",
+                                .{ i + 1, animation.length },
+                            );
 
-                            if (imgui.selectableEx(other_frame, animation.start + i == file.selected_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
-                                file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(animation.start + i), .state = file.selected_animation_state };
+                            if (imgui.selectableEx(
+                                other_frame,
+                                animation.start + i == file.selected_animation_index,
+                                imgui.SelectableFlags_None,
+                                .{ .x = 0.0, .y = 0.0 },
+                            )) {
+                                file.flipbook_scroll_request = .{
+                                    .from = file.flipbook_scroll,
+                                    .to = file.flipbookScrollFromSpriteIndex(animation.start + i),
+                                    .state = file.selected_animation_state,
+                                };
                             }
                         }
                     }
@@ -87,7 +98,7 @@ pub fn draw(file: *pixi.Internal.File, mouse_ratio: f32, app: *App, editor: *Edi
                         // Apply history of animation state
                         var change: History.Change = .{ .animation = .{
                             .index = file.selected_animation_index,
-                            .name = [_:0]u8{0} ** 128,
+                            .name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length,
                             .fps = animation.fps,
                             .start = animation.start,
                             .length = animation.length,
@@ -123,9 +134,13 @@ pub fn draw(file: *pixi.Internal.File, mouse_ratio: f32, app: *App, editor: *Edi
                         var keyframe_animation_index: usize = 0;
                         while (keyframe_animation_index < file.keyframe_animations.slice().len) : (keyframe_animation_index += 1) {
                             const a = &file.keyframe_animations.slice().get(keyframe_animation_index);
-                            if (imgui.selectableEx(a.name, keyframe_animation_index == file.selected_keyframe_animation_index, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
+                            if (imgui.selectableEx(
+                                a.name,
+                                keyframe_animation_index == file.selected_keyframe_animation_index,
+                                imgui.SelectableFlags_None,
+                                .{ .x = 0.0, .y = 0.0 },
+                            ))
                                 file.selected_keyframe_animation_index = keyframe_animation_index;
-                            }
                         }
                     }
                 }

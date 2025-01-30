@@ -83,9 +83,19 @@ pub fn draw(editor: *Editor) !void {
                         const name = std.mem.trimRight(u8, &editor.popups.animation_name, "\u{0}");
 
                         if (std.mem.indexOf(u8, name, "\u{0}")) |index| {
-                            try file.createAnimation(name[0..index], editor.popups.animation_fps, editor.popups.animation_start, editor.popups.animation_length);
+                            try file.createAnimation(
+                                name[0..index],
+                                editor.popups.animation_fps,
+                                editor.popups.animation_start,
+                                editor.popups.animation_length,
+                            );
                         } else {
-                            try file.createAnimation(name, editor.popups.animation_fps, editor.popups.animation_start, editor.popups.animation_length);
+                            try file.createAnimation(
+                                name,
+                                editor.popups.animation_fps,
+                                editor.popups.animation_start,
+                                editor.popups.animation_length,
+                            );
                         }
                     },
                     .edit => {

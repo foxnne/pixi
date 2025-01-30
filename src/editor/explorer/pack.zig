@@ -156,8 +156,11 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
                     while (i > 0) {
                         i -= 1;
                         const exp = editor.recents.exports.items[i];
-                        const label = try std.fmt.allocPrintZ(app.allocator, "{s} {s}", .{ pixi.fa.file_download, std.fs.path.basename(exp) });
-                        defer app.allocator.free(label);
+                        const label = try std.fmt.allocPrintZ(
+                            editor.arena.allocator(),
+                            "{s} {s}",
+                            .{ pixi.fa.file_download, std.fs.path.basename(exp) },
+                        );
 
                         if (imgui.selectable(label)) {
                             const exp_out = editor.recents.exports.swapRemove(i);

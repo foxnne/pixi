@@ -17,8 +17,7 @@ pub fn save(self: Atlas, path: [:0]const u8) !void {
     if (self.data) |atlas| {
         const atlas_ext = ".atlas";
 
-        const output_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{s}", .{ path, atlas_ext });
-        defer pixi.app.allocator.free(output_path);
+        const output_path = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}{s}", .{ path, atlas_ext });
 
         var handle = try std.fs.cwd().createFile(output_path, .{});
         defer handle.close();
@@ -32,8 +31,7 @@ pub fn save(self: Atlas, path: [:0]const u8) !void {
     if (self.texture) |texture| {
         const png_ext = ".png";
 
-        const output_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{s}", .{ path, png_ext });
-        defer pixi.app.allocator.free(output_path);
+        const output_path = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}{s}", .{ path, png_ext });
 
         try texture.image.writeToFile(output_path, .png);
     }
@@ -41,8 +39,7 @@ pub fn save(self: Atlas, path: [:0]const u8) !void {
     if (self.heightmap) |heightmap| {
         const png_ext = ".png";
 
-        const output_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}_h{s}", .{ path, png_ext });
-        defer pixi.app.allocator.free(output_path);
+        const output_path = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}_h{s}", .{ path, png_ext });
 
         try heightmap.image.writeToFile(output_path, .png);
     }

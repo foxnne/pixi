@@ -1,15 +1,15 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
-const core = @import("mach").core;
+const Editor = pixi.Editor;
 const imgui = @import("zig-imgui");
 
-pub fn draw() !void {
-    if (pixi.editor.popups.file_confirm_close) {
+pub fn draw(editor: *Editor) !void {
+    if (editor.popups.file_confirm_close) {
         imgui.openPopup("Confirm close...", imgui.PopupFlags_None);
     } else return;
 
     const popup_width: f32 = 350;
-    const popup_height: f32 = if (pixi.editor.popups.file_confirm_close_state == .one) 120 else 250;
+    const popup_height: f32 = if (editor.popups.file_confirm_close_state == .one) 120 else 250;
 
     const window_size = pixi.app.window_size;
     const window_center: [2]f32 = .{ window_size[0] / 2.0, window_size[1] / 2.0 };
@@ -29,7 +29,7 @@ pub fn draw() !void {
 
     if (imgui.beginPopupModal(
         "Confirm close...",
-        &pixi.editor.popups.file_confirm_close,
+        &editor.popups.file_confirm_close,
         modal_flags,
     )) {
         defer imgui.endPopup();
@@ -42,7 +42,7 @@ pub fn draw() !void {
 
         switch (pixi.editor.popups.file_confirm_close_state) {
             .one => {
-                if (pixi.editor.getFile(pixi.editor.popups.file_confirm_close_index)) |file| {
+                if (editor.getFile(editor.popups.file_confirm_close_index)) |file| {
                     const base_name = std.fs.path.basename(file.path);
                     const file_name = try std.fmt.allocPrintZ(pixi.app.allocator, "The file {s} has unsaved changes, are you sure you want to close?", .{base_name});
                     defer pixi.app.allocator.free(file_name);
@@ -59,7 +59,7 @@ pub fn draw() !void {
                     imgui.WindowFlags_None,
                 )) {
                     defer imgui.endChild();
-                    for (pixi.editor.open_files.items) |file| {
+                    for (editor.open_files.items) |file| {
                         const base_name = std.fs.path.basename(file.path);
 
                         const base_name_z = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{base_name});
@@ -79,38 +79,38 @@ pub fn draw() !void {
         imgui.pushItemWidth(full_width);
         if (imgui.buttonEx("Cancel", .{ .x = third_width, .y = 0.0 })) {
             pixi.editor.popups.file_confirm_close = false;
-            if (pixi.editor.popups.file_confirm_close_exit)
-                pixi.editor.popups.file_confirm_close_exit = false;
+            if (editor.popups.file_confirm_close_exit)
+                editor.popups.file_confirm_close_exit = false;
         }
         imgui.sameLine();
         if (imgui.buttonEx(if (pixi.editor.popups.file_confirm_close_state == .one) "Close" else "Close All", .{ .x = third_width, .y = 0.0 })) {
             switch (pixi.editor.popups.file_confirm_close_state) {
                 .one => {
-                    try pixi.editor.forceCloseFile(pixi.editor.popups.file_confirm_close_index);
+                    try editor.forceCloseFile(editor.popups.file_confirm_close_index);
                 },
                 .all => {
-                    const len = pixi.editor.open_files.items.len;
+                    const len = editor.open_files.items.len;
                     var i: usize = 0;
                     while (i < len) : (i += 1) {
-                        try pixi.editor.forceCloseFile(0);
+                        try editor.forceCloseFile(0);
                     }
                 },
                 else => unreachable,
             }
-            pixi.editor.popups.file_confirm_close = false;
+            editor.popups.file_confirm_close = false;
         }
         imgui.sameLine();
         if (imgui.buttonEx(if (pixi.editor.popups.file_confirm_close_state == .one) "Save & Close" else "Save & Close All", .{ .x = third_width, .y = 0.0 })) {
             switch (pixi.editor.popups.file_confirm_close_state) {
                 .one => {
-                    if (pixi.editor.getFile(pixi.editor.popups.file_confirm_close_index)) |file| {
+                    if (editor.getFile(editor.popups.file_confirm_close_index)) |file| {
                         _ = try file.save();
                     }
-                    try pixi.editor.closeFile(pixi.editor.popups.file_confirm_close_index);
+                    try editor.closeFile(editor.popups.file_confirm_close_index);
                 },
                 .all => {
-                    try pixi.editor.saveAllFiles();
-                    try pixi.editor.forceCloseAllFiles();
+                    try editor.saveAllFiles();
+                    try editor.forceCloseAllFiles();
                 },
                 else => unreachable,
             }
@@ -118,13 +118,13 @@ pub fn draw() !void {
             pixi.editor.popups.file_confirm_close = false;
         }
 
-        if (pixi.editor.popups.file_confirm_close_exit and !pixi.editor.popups.file_confirm_close) {
-            pixi.editor.popups.file_confirm_close_exit = false;
+        if (editor.popups.file_confirm_close_exit and !editor.popups.file_confirm_close) {
+            editor.popups.file_confirm_close_exit = false;
             pixi.app.should_close = true;
         }
 
         imgui.popItemWidth();
     }
-    if (!pixi.editor.popups.file_confirm_close)
-        pixi.editor.popups.file_confirm_close_exit = false;
+    if (!editor.popups.file_confirm_close)
+        editor.popups.file_confirm_close_exit = false;
 }

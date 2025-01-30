@@ -3,10 +3,10 @@ const pixi = @import("../../pixi.zig");
 
 const Core = @import("mach").Core;
 const App = pixi.App;
-
+const Editor = pixi.Editor;
 const imgui = @import("zig-imgui");
 
-pub fn draw(file: *pixi.Internal.File, app: *App, _: *Core) !void {
+pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
     const file_width = @as(f32, @floatFromInt(file.width));
     const file_height = @as(f32, @floatFromInt(file.height));
     const tile_width = @as(f32, @floatFromInt(file.tile_width));
@@ -29,8 +29,7 @@ pub fn draw(file: *pixi.Internal.File, app: *App, _: *Core) !void {
             while (i < @as(usize, @intCast(tiles_wide))) : (i += 1) {
                 const offset = .{ (@as(f32, @floatFromInt(i)) * tile_width) * file.camera.zoom, 0.0 };
                 if (tile_width * file.camera.zoom > text_size.x * 4.0) {
-                    const text = try std.fmt.allocPrintZ(app.allocator, "{d}", .{i});
-                    defer app.allocator.free(text);
+                    const text = try std.fmt.allocPrintZ(editor.arena.allocator(), "{d}", .{i});
 
                     draw_list.addText(
                         .{ .x = tl[0] + offset[0] + (tile_width / 2.0 * file.camera.zoom) - (text_size.x / 2.0), .y = tl[1] + 4.0 },
@@ -66,10 +65,13 @@ pub fn draw(file: *pixi.Internal.File, app: *App, _: *Core) !void {
                 const offset = .{ 0.0, @as(f32, @floatFromInt(i)) * tile_height * file.camera.zoom };
 
                 if (tile_height * file.camera.zoom > text_size.x * 4.0) {
-                    const text = try std.fmt.allocPrintZ(app.allocator, "{d}", .{i});
-                    defer app.allocator.free(text);
+                    const text = try std.fmt.allocPrintZ(editor.arena.allocator(), "{d}", .{i});
 
-                    draw_list.addText(.{ .x = tl[0], .y = tl[1] + offset[1] + (tile_height / 2.0 * file.camera.zoom) - (text_size.y / 2.0) }, pixi.editor.theme.text_secondary.toU32(), text.ptr);
+                    draw_list.addText(
+                        .{ .x = tl[0], .y = tl[1] + offset[1] + (tile_height / 2.0 * file.camera.zoom) - (text_size.y / 2.0) },
+                        pixi.editor.theme.text_secondary.toU32(),
+                        text.ptr,
+                    );
                 }
                 draw_list.addLineEx(
                     .{ .x = tl[0], .y = tl[1] + offset[1] },

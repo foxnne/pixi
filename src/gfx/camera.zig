@@ -120,8 +120,7 @@ pub const Camera = struct {
 
         const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
 
-        const text = try std.fmt.allocPrintZ(pixi.app.allocator, fmt, args);
-        defer pixi.app.allocator.free(text);
+        const text = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), fmt, args);
 
         if (imgui.getWindowDrawList()) |draw_list|
             draw_list.addText(pos_vec, color, text.ptr);
@@ -137,8 +136,7 @@ pub const Camera = struct {
 
         const pos_vec: imgui.Vec2 = .{ .x = pos[0], .y = pos[1] };
 
-        const text = try std.fmt.allocPrintZ(pixi.app.allocator, fmt, args);
-        defer pixi.app.allocator.free(text);
+        const text = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), fmt, args);
 
         if (imgui.getWindowDrawList()) |draw_list| {
             draw_list.addText(.{ .x = pos_vec.x + 1.0, .y = pos_vec.y }, shadow_color, text.ptr);
@@ -858,8 +856,7 @@ pub const Camera = struct {
         if (imgui.beginTooltip()) {
             defer imgui.endTooltip();
             const layer_name = pixi.editor.open_files.items[pixi.editor.open_file_index].layers.items(.name)[layer_index];
-            const label = try std.fmt.allocPrintZ(pixi.app.allocator, "{s} {s}", .{ pixi.fa.layer_group, layer_name });
-            defer pixi.app.allocator.free(label);
+            const label = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s} {s}", .{ pixi.fa.layer_group, layer_name });
             imgui.text(label);
         }
     }

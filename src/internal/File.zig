@@ -6,6 +6,7 @@ const mach = @import("mach");
 const imgui = @import("zig-imgui");
 const Core = mach.Core;
 const gpu = mach.gpu;
+const Editor = pixi.Editor;
 const zmath = @import("zmath");
 
 const File = @This();
@@ -975,7 +976,7 @@ pub fn processAnimationTool(file: *File) !void {
                     }
                     if (valid) {
                         // Create new animation
-                        pixi.editor.popups.animation_name = [_:0]u8{0} ** 128;
+                        pixi.editor.popups.animation_name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length;
                         const new_name = "New_Animation";
                         @memcpy(pixi.editor.popups.animation_name[0..new_name.len], new_name);
                         pixi.editor.popups.animation_state = .create;
@@ -999,7 +1000,7 @@ pub fn processAnimationTool(file: *File) !void {
                             // Edit existing animation
                             var change: History.Change = .{ .animation = .{
                                 .index = file.selected_animation_index,
-                                .name = [_:0]u8{0} ** 128,
+                                .name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length,
                                 .fps = animation.fps,
                                 .start = animation.start,
                                 .length = animation.length,
@@ -1727,16 +1728,14 @@ pub fn save(self: *File) !void {
         var index: usize = 0;
         while (index < self.layers.slice().len) : (index += 1) {
             const name = self.layers.items(.name)[index];
-            const layer_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}.png", .{name});
-            defer pixi.app.allocator.free(layer_name);
+            const layer_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{name});
             _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
             try self.layers.items(.texture)[index].image.writeToFn(write, z, .png);
             _ = zip.zip_entry_close(z);
         }
 
         if (self.heightmap.layer) |working_layer| {
-            const layer_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}.png", .{working_layer.name});
-            defer pixi.app.allocator.free(layer_name);
+            const layer_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{working_layer.name});
             _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
             try working_layer.texture.image.writeToFn(write, z, .png);
             _ = zip.zip_entry_close(z);
@@ -1759,14 +1758,19 @@ pub fn saveLDtk(self: *File) !void {
         const base_name = base_name_w_ext[0 .. base_name_w_ext.len - ext.len];
 
         if (std.fs.path.dirname(self.path)) |self_dir_path| {
-            const file_folder_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ ldtk_path, self_dir_path[project_folder_path.len..] });
-            defer pixi.app.allocator.free(file_folder_path);
+            const file_folder_path = try std.fs.path.joinZ(
+                pixi.editor.arena.allocator(),
+                &.{ ldtk_path, self_dir_path[project_folder_path.len..] },
+            );
 
             var index: usize = 0;
             while (index < self.layers.slice().len) : (index += 1) {
                 const working_layer = self.layers.slice().get(index);
-                var layer_save_name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{c}{s}__{s}.png", .{ file_folder_path, std.fs.path.sep, base_name, working_layer.name });
-                defer pixi.app.allocator.free(layer_save_name);
+                var layer_save_name = try std.fmt.allocPrintZ(
+                    pixi.editor.arena.allocator(),
+                    "{s}{c}{s}__{s}.png",
+                    .{ file_folder_path, std.fs.path.sep, base_name, working_layer.name },
+                );
 
                 for (layer_save_name, 0..) |c, i| {
                     if (c == ' ') {
@@ -2083,7 +2087,7 @@ pub fn createLayer(self: *File, name: [:0]const u8) !void {
 
 pub fn renameLayer(file: *File, name: [:0]const u8, index: usize) !void {
     var change: History.Change = .{ .layer_name = .{
-        .name = [_:0]u8{0} ** 128,
+        .name = [_:0]u8{0} ** Editor.Constants.layer_name_max_length,
         .index = index,
     } };
     @memcpy(change.layer_name.name[0..file.layers.items(.name)[index].len], file.layers.items(.name)[index]);
@@ -2140,7 +2144,7 @@ pub fn renameAnimation(self: *File, name: []const u8, index: usize) !void {
     const animation = self.animations.slice().get(index);
     var change: History.Change = .{ .animation = .{
         .index = index,
-        .name = [_:0]u8{0} ** 128,
+        .name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length,
         .fps = animation.fps,
         .start = animation.start,
         .length = animation.length,

@@ -3,6 +3,7 @@ const pixi = @import("../pixi.zig");
 const zgui = @import("zgui");
 const History = @This();
 const Core = @import("mach").Core;
+const Editor = pixi.Editor;
 
 pub const Action = enum { undo, redo };
 pub const RestoreDelete = enum { restore, delete };
@@ -33,7 +34,7 @@ pub const Change = union(ChangeType) {
 
     pub const Animation = struct {
         index: usize,
-        name: [128:0]u8,
+        name: [Editor.Constants.animation_name_max_length:0]u8,
         fps: usize,
         start: usize,
         length: usize,
@@ -55,7 +56,7 @@ pub const Change = union(ChangeType) {
     };
     pub const LayerName = struct {
         index: usize,
-        name: [128:0]u8,
+        name: [Editor.Constants.layer_name_max_length:0]u8,
     };
     pub const LayerSettings = struct {
         index: usize,
@@ -106,7 +107,7 @@ pub const Change = union(ChangeType) {
                 .selected = 0,
             } },
             .layer_name => .{ .layer_name = .{
-                .name = [_:0]u8{0} ** 128,
+                .name = [_:0]u8{0} ** Editor.Constants.layer_name_max_length,
                 .index = 0,
             } },
             else => error.NotSupported,
@@ -337,9 +338,9 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             pixi.editor.explorer.pane = .tools;
         },
         .layer_name => |*layer_name| {
-            var name = [_:0]u8{0} ** 128;
+            var name = [_:0]u8{0} ** Editor.Constants.layer_name_max_length;
             @memcpy(name[0..layer_name.name.len], &layer_name.name);
-            layer_name.name = [_:0]u8{0} ** 128;
+            layer_name.name = [_:0]u8{0} ** Editor.Constants.layer_name_max_length;
             @memcpy(layer_name.name[0..file.layers.items(.name)[layer_name.index].len], file.layers.items(.name)[layer_name.index]);
             pixi.app.allocator.free(file.layers.items(.name)[layer_name.index]);
             file.layers.items(.name)[layer_name.index] = try pixi.app.allocator.dupeZ(u8, &name);
@@ -356,9 +357,9 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
         },
         .animation => |*animation| {
             // Name
-            var name = [_:0]u8{0} ** 128;
+            var name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length;
             @memcpy(name[0..animation.name.len], &animation.name);
-            animation.name = [_:0]u8{0} ** 128;
+            animation.name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length;
             @memcpy(animation.name[0..file.animations.items(.name)[animation.index].len], file.animations.items(.name)[animation.index]);
             pixi.app.allocator.free(file.animations.items(.name)[animation.index]);
             file.animations.items(.name)[animation.index] = try pixi.app.allocator.dupeZ(u8, std.mem.trimRight(u8, &name, "\u{0}"));

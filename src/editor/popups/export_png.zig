@@ -66,7 +66,12 @@ pub fn draw(editor: *Editor) !void {
                     .all_layers => "All Layers Individually",
                     .full_image => "Full Flattened Image",
                 };
-                if (imgui.selectableEx(current_plot_name, current == editor.popups.export_to_png_state, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
+                if (imgui.selectableEx(
+                    current_plot_name,
+                    current == editor.popups.export_to_png_state,
+                    imgui.SelectableFlags_None,
+                    .{ .x = 0.0, .y = 0.0 },
+                )) {
                     editor.popups.export_to_png_state = current;
                 }
             }
@@ -218,7 +223,7 @@ pub fn draw(editor: *Editor) !void {
                         while (i < animation.start + animation.length) : (i += 1) {
                             if (editor.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
-                                const full_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{c}{s}_{d}.png", .{ folder, std.fs.path.sep, animation.name, i - animation.start });
+                                const full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{c}{s}_{d}.png", .{ folder, std.fs.path.sep, animation.name, i - animation.start });
 
                                 var sprite_image = try file.spriteToImage(i, true);
                                 defer sprite_image.deinit();
@@ -267,7 +272,7 @@ pub fn draw(editor: *Editor) !void {
                             full_path = response.path;
                         } else {
                             const name = file.layers.items(.name)[file.selected_layer_index];
-                            full_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
+                            full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
                         }
 
                         try file.layers.items(.texture)[file.selected_layer_index].image.writeToFile(full_path, .png);
@@ -280,7 +285,7 @@ pub fn draw(editor: *Editor) !void {
                             if (editor.popups.export_to_png_preserve_names) {
                                 const folder = response.path;
                                 const name = file.layers.items(.name)[i];
-                                const full_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
+                                const full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
                                 try file.layers.items(.texture)[i].image.writeToFile(full_path, .png);
                                 editor.popups.export_to_png = false;
                             } else {
@@ -292,7 +297,7 @@ pub fn draw(editor: *Editor) !void {
                                     if (std.mem.eql(u8, ext, ".png")) {
                                         if (std.mem.indexOf(u8, base_name, ext)) |ext_index| {
                                             const name = base_name[0..ext_index];
-                                            const full_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{s}_{d}.png", .{ folder, name, i });
+                                            const full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{s}_{d}.png", .{ folder, name, i });
 
                                             try file.layers.items(.texture)[i].image.writeToFile(full_path, .png);
                                             editor.popups.export_to_png = false;

@@ -133,7 +133,11 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                 var index: usize = 0;
                 while (index < file.layers.slice().len) : (index += 1) {
                     const layer = file.layers.slice().get(index);
-                    const layer_name = try std.fmt.allocPrintZ(pixi.app.allocator, "pixi-ldtk{s}{c}{s}__{s}.png", .{ relative_path, std.fs.path.sep, base_name, layer.name });
+                    const layer_name = try std.fmt.allocPrintZ(
+                        pixi.app.allocator,
+                        "pixi-ldtk{s}{c}{s}__{s}.png",
+                        .{ relative_path, std.fs.path.sep, base_name, layer.name },
+                    );
                     try layer_names.append(layer_name);
                 }
 

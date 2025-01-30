@@ -1,10 +1,10 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
-const core = @import("mach").core;
+const Editor = pixi.Editor;
 const imgui = @import("zig-imgui");
 
-pub fn draw() !void {
-    if (pixi.editor.popups.file_setup) {
+pub fn draw(editor: *Editor) !void {
+    if (editor.popups.file_setup) {
         imgui.openPopup("File Setup...", imgui.PopupFlags_None);
     } else return;
 
@@ -27,14 +27,14 @@ pub fn draw() !void {
     modal_flags |= imgui.WindowFlags_NoResize;
     modal_flags |= imgui.WindowFlags_NoCollapse;
 
-    if (imgui.beginPopupModal("File Setup...", &pixi.editor.popups.file_setup, modal_flags)) {
+    if (imgui.beginPopupModal("File Setup...", &editor.popups.file_setup, modal_flags)) {
         defer imgui.endPopup();
 
         const style = imgui.getStyle();
 
         const full_width = popup_width - (style.frame_padding.x * 3) - imgui.calcTextSize("Tile Height").x;
-        const base_name = std.fs.path.basename(&pixi.editor.popups.file_setup_path);
-        const base_name_index = if (std.mem.indexOf(u8, pixi.editor.popups.file_setup_path[0..], base_name)) |index| index else 0;
+        const base_name = std.fs.path.basename(&editor.popups.file_setup_path);
+        const base_name_index = if (std.mem.indexOf(u8, editor.popups.file_setup_path[0..], base_name)) |index| index else 0;
 
         imgui.spacing();
         imgui.pushItemWidth(full_width);
@@ -45,33 +45,33 @@ pub fn draw() !void {
 
         const enter = imgui.inputText(
             "Name",
-            pixi.editor.popups.file_setup_path[base_name_index..],
-            pixi.editor.popups.file_setup_path[base_name_index..].len,
+            editor.popups.file_setup_path[base_name_index..],
+            editor.popups.file_setup_path[base_name_index..].len,
             input_text_flags,
         );
 
-        const max_file_size = pixi.editor.settings.max_file_size;
-        const max_file_width = switch (pixi.editor.popups.file_setup_state) {
-            .slice, .import_png => pixi.editor.popups.file_setup_width,
+        const max_file_size = editor.settings.max_file_size;
+        const max_file_width = switch (editor.popups.file_setup_state) {
+            .slice, .import_png => editor.popups.file_setup_width,
             else => max_file_size[0],
         };
-        const max_file_height = switch (pixi.editor.popups.file_setup_state) {
-            .slice, .import_png => pixi.editor.popups.file_setup_height,
+        const max_file_height = switch (editor.popups.file_setup_state) {
+            .slice, .import_png => editor.popups.file_setup_height,
             else => max_file_size[1],
         };
 
         imgui.spacing();
-        if (inputIntClamp("Tile Width", &pixi.editor.popups.file_setup_tile_size[0], 1, max_file_width)) {
-            pixi.editor.popups.file_setup_tiles[0] = std.math.clamp(switch (pixi.editor.popups.file_setup_state) {
+        if (inputIntClamp("Tile Width", &editor.popups.file_setup_tile_size[0], 1, max_file_width)) {
+            editor.popups.file_setup_tiles[0] = std.math.clamp(switch (editor.popups.file_setup_state) {
                 .slice, .import_png => @divTrunc(max_file_width, pixi.editor.popups.file_setup_tile_size[0]),
-                else => pixi.editor.popups.file_setup_tiles[0],
-            }, 1, @divTrunc(max_file_width, pixi.editor.popups.file_setup_tile_size[0]));
+                else => editor.popups.file_setup_tiles[0],
+            }, 1, @divTrunc(max_file_width, editor.popups.file_setup_tile_size[0]));
         }
-        if (inputIntClamp("Tile Height", &pixi.editor.popups.file_setup_tile_size[1], 1, max_file_height)) {
-            pixi.editor.popups.file_setup_tiles[1] = std.math.clamp(switch (pixi.editor.popups.file_setup_state) {
-                .slice, .import_png => @divTrunc(max_file_height, pixi.editor.popups.file_setup_tile_size[1]),
-                else => pixi.editor.popups.file_setup_tiles[1],
-            }, 1, @divTrunc(max_file_height, pixi.editor.popups.file_setup_tile_size[1]));
+        if (inputIntClamp("Tile Height", &editor.popups.file_setup_tile_size[1], 1, max_file_height)) {
+            editor.popups.file_setup_tiles[1] = std.math.clamp(switch (editor.popups.file_setup_state) {
+                .slice, .import_png => @divTrunc(max_file_height, editor.popups.file_setup_tile_size[1]),
+                else => editor.popups.file_setup_tiles[1],
+            }, 1, @divTrunc(max_file_height, editor.popups.file_setup_tile_size[1]));
         }
 
         imgui.spacing();
@@ -83,12 +83,12 @@ pub fn draw() !void {
             else => {},
         }
 
-        if (imgui.inputInt("Tiles Wide", &pixi.editor.popups.file_setup_tiles[0])) {
-            pixi.editor.popups.file_setup_tiles[0] = std.math.clamp(pixi.editor.popups.file_setup_tiles[0], 1, @divTrunc(max_file_width, pixi.editor.popups.file_setup_tile_size[0]));
+        if (imgui.inputInt("Tiles Wide", &editor.popups.file_setup_tiles[0])) {
+            editor.popups.file_setup_tiles[0] = std.math.clamp(editor.popups.file_setup_tiles[0], 1, @divTrunc(max_file_width, editor.popups.file_setup_tile_size[0]));
         }
 
-        if (imgui.inputInt("Tiles Tall", &pixi.editor.popups.file_setup_tiles[1])) {
-            pixi.editor.popups.file_setup_tiles[1] = std.math.clamp(pixi.editor.popups.file_setup_tiles[1], 1, @divTrunc(max_file_height, pixi.editor.popups.file_setup_tile_size[1]));
+        if (imgui.inputInt("Tiles Tall", &editor.popups.file_setup_tiles[1])) {
+            editor.popups.file_setup_tiles[1] = std.math.clamp(editor.popups.file_setup_tiles[1], 1, @divTrunc(max_file_height, editor.popups.file_setup_tile_size[1]));
         }
 
         switch (pixi.editor.popups.file_setup_state) {
@@ -99,27 +99,27 @@ pub fn draw() !void {
         imgui.spacing();
 
         const combined_size: [2]i32 = .{
-            pixi.editor.popups.file_setup_tile_size[0] * pixi.editor.popups.file_setup_tiles[0],
-            pixi.editor.popups.file_setup_tile_size[1] * pixi.editor.popups.file_setup_tiles[1],
+            editor.popups.file_setup_tile_size[0] * editor.popups.file_setup_tiles[0],
+            editor.popups.file_setup_tile_size[1] * editor.popups.file_setup_tiles[1],
         };
 
-        const sizes_match = switch (pixi.editor.popups.file_setup_state) {
-            .slice, .import_png => combined_size[0] == pixi.editor.popups.file_setup_width and combined_size[1] == pixi.editor.popups.file_setup_height,
+        const sizes_match = switch (editor.popups.file_setup_state) {
+            .slice, .import_png => combined_size[0] == editor.popups.file_setup_width and combined_size[1] == editor.popups.file_setup_height,
             else => true,
         };
 
         imgui.text(
             "Image size: %dx%d",
-            if (!sizes_match) pixi.editor.popups.file_setup_width else combined_size[0],
-            if (!sizes_match) pixi.editor.popups.file_setup_height else combined_size[1],
+            if (!sizes_match) editor.popups.file_setup_width else combined_size[0],
+            if (!sizes_match) editor.popups.file_setup_height else combined_size[1],
         );
         imgui.spacing();
 
-        const file_setup_path = std.mem.trimRight(u8, &pixi.editor.popups.file_setup_path, "\u{0}");
-        const ext = std.fs.path.extension(&pixi.editor.popups.file_setup_path);
+        const file_setup_path = std.mem.trimRight(u8, &editor.popups.file_setup_path, "\u{0}");
+        const ext = std.fs.path.extension(&editor.popups.file_setup_path);
 
         if (!sizes_match) {
-            imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Tile sizes and count do not match image size! %dx%d", combined_size[0], combined_size[1]);
+            imgui.textColored(editor.theme.text_red.toImguiVec4(), "Tile sizes and count do not match image size! %dx%d", combined_size[0], combined_size[1]);
         } else if (ext.len < 5 or !std.mem.eql(u8, ".pixi", ext[0..5])) {
             imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "File name must end with .pixi extension!");
         } else {
@@ -129,7 +129,7 @@ pub fn draw() !void {
         const spacing = 5.0;
         const half_width = (popup_width - (style.frame_padding.x * 2.0) - spacing) / 2.0;
         if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
-            pixi.editor.popups.fileSetupClose();
+            editor.popups.fileSetupClose();
         }
         imgui.sameLineEx(0.0, spacing);
         if (!sizes_match) {
@@ -138,34 +138,34 @@ pub fn draw() !void {
 
         if (imgui.buttonEx("Ok", .{ .x = half_width, .y = 0.0 }) or enter) {
             if (ext.len > 0 and std.mem.eql(u8, ".pixi", ext[0..5])) {
-                switch (pixi.editor.popups.file_setup_state) {
+                switch (editor.popups.file_setup_state) {
                     .new => {
-                        if (try pixi.editor.newFile(try pixi.editor.arena.allocator().dupeZ(u8, file_setup_path), null)) {
-                            if (pixi.editor.getFile(0)) |file| {
+                        if (try editor.newFile(try editor.arena.allocator().dupeZ(u8, file_setup_path), null)) {
+                            if (editor.getFile(0)) |file| {
                                 try file.save();
                             }
                         }
                     },
                     .import_png => {
                         const file_setup_png_path = std.mem.trimRight(u8, &pixi.editor.popups.file_setup_png_path, "\u{0}");
-                        if (try pixi.editor.importPng(try pixi.editor.arena.allocator().dupeZ(u8, file_setup_png_path), try pixi.editor.arena.allocator().dupeZ(u8, file_setup_path))) {
-                            if (pixi.editor.getFile(0)) |file| {
+                        if (try editor.importPng(try editor.arena.allocator().dupeZ(u8, file_setup_png_path), try editor.arena.allocator().dupeZ(u8, file_setup_path))) {
+                            if (editor.getFile(0)) |file| {
                                 try file.save();
                             }
                         }
                     },
                     .slice => {
-                        if (pixi.editor.getFileIndex(pixi.editor.popups.file_setup_path[0..file_setup_path.len :0])) |index| {
-                            if (pixi.editor.getFile(index)) |file| {
-                                file.tile_width = @as(u32, @intCast(pixi.editor.popups.file_setup_tile_size[0]));
-                                file.tile_height = @as(u32, @intCast(pixi.editor.popups.file_setup_tile_size[1]));
+                        if (editor.getFileIndex(editor.popups.file_setup_path[0..file_setup_path.len :0])) |index| {
+                            if (editor.getFile(index)) |file| {
+                                file.tile_width = @as(u32, @intCast(editor.popups.file_setup_tile_size[0]));
+                                file.tile_height = @as(u32, @intCast(editor.popups.file_setup_tile_size[1]));
                             }
                         }
                     },
                     else => {},
                 }
 
-                pixi.editor.popups.fileSetupClose();
+                editor.popups.fileSetupClose();
             }
         }
 

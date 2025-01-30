@@ -12,6 +12,8 @@ pub const Recents = @import("Recents.zig");
 pub const Tools = @import("Tools.zig");
 pub const Theme = @import("Theme.zig");
 
+pub const Constants = @import("Constants.zig");
+
 const zip = @import("zip");
 const zstbi = @import("zstbi");
 const zgpu = @import("zgpu");

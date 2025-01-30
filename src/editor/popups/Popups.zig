@@ -44,7 +44,7 @@ file_confirm_close_exit: bool = false,
 // Layer Setup
 layer_setup: bool = false,
 layer_setup_state: RenameState = .none,
-layer_setup_name: [128:0]u8 = undefined,
+layer_setup_name: [Editor.Constants.layer_name_max_length:0]u8 = undefined,
 layer_setup_index: usize = 0,
 // Export to png
 export_to_png: bool = false,
@@ -57,7 +57,7 @@ animation_index: usize = 0,
 animation_state: AnimationState = .none,
 animation_start: usize = 0,
 animation_length: usize = 0,
-animation_name: [128:0]u8 = undefined,
+animation_name: [Editor.Constants.animation_name_max_length:0]u8 = undefined,
 animation_fps: usize = 0,
 
 heightmap: bool = false,
@@ -103,9 +103,9 @@ pub fn init(popups: *Popups) !void {
 
 pub fn draw(popups: *Popups, app: *App, editor: *Editor) !void {
     try popup_rename.draw(popups, app, editor);
-    try popup_file_setup.draw();
+    try popup_file_setup.draw(editor);
     try popup_about.draw();
-    try popup_file_confirm_close.draw();
+    try popup_file_confirm_close.draw(editor);
     try popup_layer_setup.draw(editor);
     try popup_export_to_png.draw(editor);
     try popup_animation.draw(editor);
