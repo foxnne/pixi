@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const mach = @import("mach");
 const gpu = mach.gpu;
@@ -88,7 +89,7 @@ pub fn init(
     pixi.core.on_tick = app_mod.id.tick;
     pixi.core.on_exit = app_mod.id.deinit;
 
-    const allocator = gpa.allocator();
+    const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
 
     // Run from the directory where the executable is located so relative assets can be found.
     var buffer: [1024]u8 = undefined;
