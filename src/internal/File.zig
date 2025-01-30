@@ -1019,18 +1019,14 @@ pub fn processAnimationTool(file: *File) !void {
     }
 }
 
-pub const FillToolOptions = struct {
-    texture_position_offset: [2]f32 = .{ 0.0, 0.0 },
-};
-
 // Internal dfs function for flood fill
-fn fillToolDFS(file: *File, fill_layer: Layer, pixels: ([][4]u8), x: usize, y: usize, bounds: [4]usize, original_color: [4]u8, new_color: [4]u8) !void {
+fn fillToolDFS(file: *File, fill_layer: Layer, pixels: [][4]u8, x: usize, y: usize, bounds: [4]usize, original_color: [4]u8, new_color: [4]u8) !void {
     if (x >= bounds[0] + bounds[2] or y >= bounds[1] + bounds[3] or x < bounds[0] or y < bounds[1]) {
         return;
     }
     const pixel_index = fill_layer.getPixelIndex(.{ x, y });
     const color = pixels[pixel_index];
-    if (!std.mem.eql(u8, &color, &original_color)) {
+    if (!std.meta.eql(color, original_color)) {
         return;
     }
 
@@ -1043,6 +1039,10 @@ fn fillToolDFS(file: *File, fill_layer: Layer, pixels: ([][4]u8), x: usize, y: u
     try fillToolDFS(file, fill_layer, pixels, x, y + 1, bounds, original_color, new_color);
     try file.buffers.stroke.append(pixel_index, original_color);
 }
+
+pub const FillToolOptions = struct {
+    texture_position_offset: [2]f32 = .{ 0.0, 0.0 },
+};
 
 pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !void {
     if (switch (pixi.editor.tools.current) {
@@ -1091,13 +1091,13 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
             const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
             const index = selected_layer.getPixelIndex(pixel);
-            var pixels = @as([*][4]u8, @ptrCast(selected_layer.texture.image.data.ptr))[0 .. selected_layer.texture.image.data.len / 4];
+            var pixels = selected_layer.pixels();
 
             const tile_column = @divTrunc(pixel[0], @as(usize, @intCast(file.tile_width)));
             const tile_row = @divTrunc(pixel[1], @as(usize, @intCast(file.tile_height)));
 
             const bounds_x: usize = tile_column * @as(usize, @intCast(file.tile_width));
-            const bounds_y: usize = tile_row * @as(usize, @intCast(file.tile_width));
+            const bounds_y: usize = tile_row * @as(usize, @intCast(file.tile_height));
 
             const bounds_width: usize = @intCast(file.tile_width);
             const bounds_height: usize = @intCast(file.tile_height);
