@@ -7,8 +7,8 @@ pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 }
 // Generated files, these contain helpers for autocomplete
 // So you can get a named index into atlas.sprites
 pub const animations = @import("animations.zig");
-pub const atlas = paths.pixi_atlas;
 pub const paths = @import("assets.zig");
+pub const atlas = paths.pixi_atlas;
 pub const shaders = @import("shaders.zig");
 
 // Other helpers and namespaces
