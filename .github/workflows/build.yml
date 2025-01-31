@@ -81,8 +81,8 @@ jobs:
         with: 
           name: arm64-macos
           path: zig-out/bin
-            arm64-macos:
 
+  # arm64-macos:
   # If it runs on 13 it should run on 14 as well
   # x86_64-macos:
   #   runs-on: macos-13
