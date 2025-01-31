@@ -84,6 +84,7 @@ jobs:
   #           arm64-macos:
 
   # If it runs on 13 it should run on 14 as well
+  x86_64-macos:
     runs-on: macos-13
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
     # to the branch.
