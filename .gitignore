@@ -6,5 +6,6 @@ buildrunner.zig
 imgui.ini
 recents.json
 .temp/
+*.code-workspace
 
 .zig-cache/

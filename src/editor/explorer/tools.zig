@@ -62,9 +62,15 @@ pub fn draw(editor: *Editor) !void {
 
         imgui.spacing();
 
+        const chip_width = pixi.editor.settings.color_chip_radius * 2.0;
+        const max_radius = (chip_width * 1.5) / 2.0;
+        const min_radius = (chip_width * 1.0) / 2.0;
+
         if (imgui.collapsingHeader(pixi.fa.paint_brush ++ "  Colors", imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
             defer imgui.unindent();
+
+            defer imgui.spacing();
 
             var heightmap_visible: bool = false;
             if (editor.getFile(editor.open_file_index)) |file| {
@@ -151,86 +157,113 @@ pub fn draw(editor: *Editor) !void {
 
                 editor.hotkeys.disable = disable_hotkeys;
             }
-        }
 
-        const chip_width = 24.0;
+            {
+                defer imgui.endChild();
+                if (imgui.beginChild(
+                    "ColorVariations",
+                    .{ .x = -1.0, .y = chip_width * 1.5 },
+                    imgui.ChildFlags_None,
+                    imgui.WindowFlags_ChildWindow | imgui.WindowFlags_NoScrollWithMouse | imgui.WindowFlags_NoScrollbar,
+                )) {
+                    const count: usize = @intFromFloat((imgui.getContentRegionAvail().x) / (chip_width + style.item_spacing.x));
 
-        {
-            imgui.indent();
-            defer imgui.unindent();
+                    const hue_shift: f32 = editor.settings.suggested_hue_shift;
+                    const hue_step: f32 = hue_shift / @as(f32, @floatFromInt(count));
 
-            defer imgui.endChild();
-            if (imgui.beginChild("ColorVariations", .{ .x = -1.0, .y = 28.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow | imgui.WindowFlags_NoScrollWithMouse)) {
-                const count: usize = @intFromFloat((imgui.getContentRegionAvail().x) / (chip_width + style.item_spacing.x));
+                    const sat_shift: f32 = editor.settings.suggested_sat_shift;
+                    const sat_step: f32 = sat_shift / @as(f32, @floatFromInt(count));
 
-                const hue_shift: f32 = editor.settings.suggested_hue_shift;
-                const hue_step: f32 = hue_shift / @as(f32, @floatFromInt(count));
+                    const lit_shift: f32 = editor.settings.suggested_lit_shift;
+                    const lit_step: f32 = lit_shift / @as(f32, @floatFromInt(count));
 
-                const sat_shift: f32 = editor.settings.suggested_sat_shift;
-                const sat_step: f32 = sat_shift / @as(f32, @floatFromInt(count));
+                    imgui.spacing();
 
-                const lit_shift: f32 = editor.settings.suggested_lit_shift;
-                const lit_step: f32 = lit_shift / @as(f32, @floatFromInt(count));
+                    const chip_bar_width = @as(f32, @floatFromInt(count)) * (chip_width + style.item_spacing.x);
 
-                imgui.spacing();
+                    const width_difference = imgui.getContentRegionAvail().x - chip_bar_width;
 
-                const chip_bar_width = @as(f32, @floatFromInt(count)) * (chip_width + style.item_spacing.x);
-
-                const width_difference = imgui.getContentRegionAvail().x - chip_bar_width;
-
-                if (width_difference > 0.0) {
-                    imgui.indentEx(width_difference / 2.0);
-                }
-
-                const red = @as(f32, @floatFromInt(editor.colors.primary[0])) / 255.0;
-                const green = @as(f32, @floatFromInt(editor.colors.primary[1])) / 255.0;
-                const blue = @as(f32, @floatFromInt(editor.colors.primary[2])) / 255.0;
-                const alpha = @as(f32, @floatFromInt(editor.colors.primary[3])) / 255.0;
-
-                const primary_hsl = zmath.rgbToHsl(.{ red, green, blue, alpha });
-
-                const lightness_index: usize = @intFromFloat(@floor(primary_hsl[2] * @as(f32, @floatFromInt(count))));
-
-                for (0..count) |i| {
-                    const towards_purple: f32 = std.math.sign((primary_hsl[0] * 360.0) - 270.0);
-                    const towards_yellow: f32 = std.math.sign((primary_hsl[0] * 360.0) - 60.0);
-                    const purple_half: f32 = if (i < @divFloor(count, 2)) towards_purple else towards_yellow;
-                    const difference: f32 = @as(f32, @floatFromInt(lightness_index)) - @as(f32, @floatFromInt(i));
-
-                    const hue: f32 = primary_hsl[0] + std.math.clamp(difference * hue_step * purple_half, -hue_shift, hue_shift);
-                    const saturation: f32 = primary_hsl[1] + difference * sat_step * purple_half;
-                    const lightness: f32 = primary_hsl[2] - difference * lit_step;
-
-                    var variation_hsl = zmath.hslToRgb(.{ hue, saturation, lightness, alpha });
-                    variation_hsl = zmath.clampFast(variation_hsl, zmath.f32x4s(0.0), zmath.f32x4s(1.0));
-
-                    const variation_color: imgui.Vec4 = .{ .x = variation_hsl[0], .y = variation_hsl[1], .z = variation_hsl[2], .w = variation_hsl[3] };
-
-                    imgui.pushIDInt(@intCast(i));
-                    defer imgui.popID();
-                    if (imgui.colorButtonEx("##color", variation_color, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width })) {
-                        editor.colors.primary = .{
-                            @intFromFloat(variation_color.x * 255.0),
-                            @intFromFloat(variation_color.y * 255.0),
-                            @intFromFloat(variation_color.z * 255.0),
-                            @intFromFloat(variation_color.w * 255.0),
-                        };
-                    }
-                    imgui.sameLine();
-
-                    if (imgui.beginItemTooltip()) {
-                        defer imgui.endTooltip();
-                        imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for suggested color options.");
+                    if (width_difference > 0.0) {
+                        imgui.indentEx(width_difference / 2.0);
                     }
 
-                    if (imgui.beginPopupContextItem()) {
-                        defer imgui.endPopup();
+                    const red = @as(f32, @floatFromInt(editor.colors.primary[0])) / 255.0;
+                    const green = @as(f32, @floatFromInt(editor.colors.primary[1])) / 255.0;
+                    const blue = @as(f32, @floatFromInt(editor.colors.primary[2])) / 255.0;
+                    const alpha = @as(f32, @floatFromInt(editor.colors.primary[3])) / 255.0;
 
-                        imgui.separatorText("Suggested Colors");
+                    const primary_hsl = zmath.rgbToHsl(.{ red, green, blue, alpha });
 
-                        _ = imgui.sliderFloat("Hue Shift", &editor.settings.suggested_hue_shift, 0.0, 1.0);
-                        _ = imgui.sliderFloat("Saturation Shift", &editor.settings.suggested_sat_shift, 0.0, 1.0);
-                        _ = imgui.sliderFloat("Lightness Shift", &editor.settings.suggested_lit_shift, 0.0, 1.0);
+                    const lightness_index: usize = @intFromFloat(@floor(primary_hsl[2] * @as(f32, @floatFromInt(count))));
+
+                    for (0..count) |i| {
+                        const towards_purple: f32 = std.math.sign((primary_hsl[0] * 360.0) - 270.0);
+                        const towards_yellow: f32 = std.math.sign((primary_hsl[0] * 360.0) - 60.0);
+                        const purple_half: f32 = if (i < @divFloor(count, 2)) towards_purple else towards_yellow;
+                        const difference: f32 = @as(f32, @floatFromInt(lightness_index)) - @as(f32, @floatFromInt(i));
+
+                        const hue: f32 = primary_hsl[0] + std.math.clamp(difference * hue_step * purple_half, -hue_shift, hue_shift);
+                        const saturation: f32 = primary_hsl[1] + difference * sat_step * purple_half;
+                        const lightness: f32 = primary_hsl[2] - difference * lit_step;
+
+                        var variation_hsl = zmath.hslToRgb(.{ hue, saturation, lightness, alpha });
+                        variation_hsl = zmath.clampFast(variation_hsl, zmath.f32x4s(0.0), zmath.f32x4s(1.0));
+
+                        const variation_color: imgui.Vec4 = .{ .x = variation_hsl[0], .y = variation_hsl[1], .z = variation_hsl[2], .w = variation_hsl[3] };
+
+                        const top_left = imgui.getCursorPos();
+
+                        imgui.pushIDInt(@intCast(i));
+                        defer imgui.popID();
+                        if (imgui.invisibleButton(
+                            "##color",
+                            .{ .x = chip_width, .y = chip_width * 1.5 },
+                            imgui.ColorEditFlags_None,
+                        )) {
+                            editor.colors.primary = .{
+                                @intFromFloat(variation_color.x * 255.0),
+                                @intFromFloat(variation_color.y * 255.0),
+                                @intFromFloat(variation_color.z * 255.0),
+                                @intFromFloat(variation_color.w * 255.0),
+                            };
+                        }
+
+                        {
+                            const window_pos = imgui.getWindowPos();
+                            const center: [2]f32 = .{ top_left.x + min_radius + window_pos.x + imgui.getScrollX(), top_left.y + min_radius + window_pos.y - imgui.getScrollY() };
+
+                            const dist_x = @abs(imgui.getMousePos().x - center[0]);
+                            const dist_y = @abs(imgui.getMousePos().y - center[1]);
+                            const dist = @sqrt(dist_x * dist_x + dist_y * dist_y);
+
+                            if (imgui.getWindowDrawList()) |draw_list| {
+                                const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 2.0), 0.0, 1.0));
+
+                                draw_list.addCircleFilled(
+                                    .{ .x = center[0], .y = center[1] },
+                                    radius,
+                                    pixi.math.Color.initFloats(variation_color.x, variation_color.y, variation_color.z, variation_color.w).toU32(),
+                                    20,
+                                );
+                            }
+                        }
+
+                        imgui.sameLine();
+
+                        if (imgui.beginItemTooltip()) {
+                            defer imgui.endTooltip();
+                            imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for suggested color options.");
+                        }
+
+                        if (imgui.beginPopupContextItem()) {
+                            defer imgui.endPopup();
+
+                            imgui.separatorText("Suggested Colors");
+
+                            _ = imgui.sliderFloat("Hue Shift", &editor.settings.suggested_hue_shift, 0.0, 1.0);
+                            _ = imgui.sliderFloat("Saturation Shift", &editor.settings.suggested_sat_shift, 0.0, 1.0);
+                            _ = imgui.sliderFloat("Lightness Shift", &editor.settings.suggested_lit_shift, 0.0, 1.0);
+                        }
                     }
                 }
             }
@@ -274,16 +307,36 @@ pub fn draw(editor: *Editor) !void {
                 if (editor.colors.palette) |palette| {
                     scroll_y = imgui.getScrollY();
                     for (palette.colors, 0..) |color, i| {
-                        const c: imgui.Vec4 = .{
-                            .x = @as(f32, @floatFromInt(color[0])) / 255.0,
-                            .y = @as(f32, @floatFromInt(color[1])) / 255.0,
-                            .z = @as(f32, @floatFromInt(color[2])) / 255.0,
-                            .w = @as(f32, @floatFromInt(color[3])) / 255.0,
-                        };
                         imgui.pushIDInt(@as(c_int, @intCast(i)));
-                        if (imgui.colorButtonEx(palette.name, .{ .x = c.x, .y = c.y, .z = c.z, .w = c.w }, imgui.ColorEditFlags_None, .{ .x = chip_width, .y = chip_width })) {
+
+                        const top_left = imgui.getCursorPos();
+
+                        if (imgui.invisibleButton(
+                            palette.name,
+                            .{ .x = chip_width, .y = chip_width },
+                            imgui.ColorEditFlags_None,
+                        )) {
                             editor.colors.primary = color;
                         }
+
+                        {
+                            const window_pos = imgui.getWindowPos();
+                            const center: [2]f32 = .{ top_left.x + (chip_width / 2.0) + window_pos.x + imgui.getScrollX(), top_left.y + (chip_width / 2.0) + window_pos.y - imgui.getScrollY() };
+
+                            const dist_x = @abs(imgui.getMousePos().x - center[0]);
+                            const dist_y = @abs(imgui.getMousePos().y - center[1]);
+                            const dist = @sqrt(dist_x * dist_x + dist_y * dist_y);
+
+                            if (imgui.getForegroundDrawList()) |draw_list| {
+                                draw_list.pushClipRect(.{ .x = window_pos.x, .y = window_pos.y }, .{ .x = window_pos.x + imgui.getWindowWidth(), .y = window_pos.y + imgui.getWindowHeight() }, false);
+                                defer draw_list.popClipRect();
+
+                                const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 2.0), 0.0, 1.0));
+
+                                draw_list.addCircleFilled(.{ .x = center[0], .y = center[1] }, radius, pixi.math.Color.initBytes(color[0], color[1], color[2], color[3]).toU32(), 100);
+                            }
+                        }
+
                         imgui.popID();
 
                         if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)

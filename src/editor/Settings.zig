@@ -125,6 +125,9 @@ zoom_ctrl: bool = false,
 /// Setting to generate a compatiblity layer between pixi and level editors
 compatibility: Compatibility = .none,
 
+/// Radius of the color chips in palettes and suggested colors
+color_chip_radius: f32 = 12.0,
+
 /// Loads settings or if fails, returns default settings
 pub fn loadOrDefault(allocator: std.mem.Allocator) !Settings {
     const data = try pixi.fs.read(allocator, "settings.json");

@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) !void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "pixi.zig",
+        .name = "pixi",
         .root_source_file = b.path("src/pixi.zig"),
         .target = target,
         .optimize = optimize,
@@ -70,7 +70,7 @@ pub fn build(b: *std.Build) !void {
         //     // MacOS: this must be defined for macOS 13.3 and older.
         //     // Critically, this MUST NOT be included as a -D__kernel_ptr_semantics flag. If it is,
         //     // then this macro will not be defined even if `defineCMacro` was also called!
-        nfd_lib.addCMacro("__kernel_ptr_semantics", "");
+        //nfd_lib.addCMacro("__kernel_ptr_semantics", "");
         //mach.addPaths(nfd_lib);
         if (mach_dep.builder.lazyDependency("xcode_frameworks", .{})) |dep| {
             nfd_lib.addSystemIncludePath(dep.path("include"));
