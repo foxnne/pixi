@@ -103,17 +103,16 @@ pub fn draw(editor: *Editor) !void {
 
                 var sprite_index: usize = 0;
                 while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
-                    const sprite = file.sprites.slice().get(sprite_index);
-                    const selected_sprite_index = file.spriteSelectionIndex(sprite.index);
+                    const selected_sprite_index = file.spriteSelectionIndex(sprite_index);
                     const contains = selected_sprite_index != null;
                     const color = if (contains) editor.theme.text.toImguiVec4() else editor.theme.text_secondary.toImguiVec4();
                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                     defer imgui.popStyleColor();
 
-                    const name = try file.calculateSpriteName(editor.arena.allocator(), sprite.index);
+                    const name = try file.calculateSpriteName(editor.arena.allocator(), sprite_index);
 
                     if (imgui.selectableEx(name, contains, imgui.SelectableFlags_None, .{ .x = 0.0, .y = 0.0 })) {
-                        try file.makeSpriteSelection(sprite.index);
+                        try file.makeSpriteSelection(sprite_index);
                     }
                 }
             }

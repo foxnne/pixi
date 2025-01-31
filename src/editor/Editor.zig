@@ -325,12 +325,11 @@ pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) 
     // Create sprites for all tiles.
     {
         const tiles = @as(usize, @intCast(editor.popups.file_setup_tiles[0] * editor.popups.file_setup_tiles[1]));
+        try internal.sprites.setCapacity(pixi.app.allocator, tiles);
+
         var i: usize = 0;
         while (i < tiles) : (i += 1) {
-            const sprite: pixi.Internal.Sprite = .{
-                .index = i,
-            };
-            try internal.sprites.append(pixi.app.allocator, sprite);
+            internal.sprites.appendAssumeCapacity(.{});
         }
     }
 

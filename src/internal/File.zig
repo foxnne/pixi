@@ -261,9 +261,8 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
         }
         _ = zip.zip_entry_close(pixi_file);
 
-        for (ext.sprites, 0..) |sprite, i| {
+        for (ext.sprites) |sprite| {
             try internal.sprites.append(pixi.app.allocator, .{
-                .index = i,
                 .origin = .{ @floatFromInt(sprite.origin[0]), @floatFromInt(sprite.origin[1]) },
             });
         }

@@ -107,7 +107,6 @@ pub fn draw(editor: *Editor) !void {
                                     const frame = keyframe.frames.items[i];
 
                                     const color = animation.getFrameNodeColor(frame.id);
-                                    const sprite = file.sprites.slice().get(frame.sprite_index);
 
                                     const sprite_name = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}##{d}{d}{d}", .{
                                         try file.calculateSpriteName(editor.arena.allocator(), frame.sprite_index),
@@ -129,10 +128,10 @@ pub fn draw(editor: *Editor) !void {
                                     imgui.sameLine();
 
                                     if (imgui.selectable(sprite_name)) {
-                                        for (file.selected_sprites.items) |selected_sprite| {
-                                            if (selected_sprite != sprite.index or file.selected_sprites.items.len > 1) {
+                                        for (file.selected_sprites.items, 0..) |selected_sprite, sprite_index| {
+                                            if (selected_sprite != sprite_index or file.selected_sprites.items.len > 1) {
                                                 file.selected_sprites.clearAndFree();
-                                                try file.selected_sprites.append(sprite.index);
+                                                try file.selected_sprites.append(sprite_index);
                                             }
                                         }
                                         file.selected_keyframe_animation_index = animation_index;

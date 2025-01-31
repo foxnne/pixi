@@ -88,18 +88,17 @@ pub fn draw(editor: *Editor) !void {
                         while (i < animation.start + animation.length) : (i += 1) {
                             var sprite_index: usize = 0;
                             while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
-                                const sprite = file.sprites.slice().get(sprite_index);
-                                if (i == sprite.index) {
-                                    const color = if (file.selected_sprite_index == sprite.index) editor.theme.text.toImguiVec4() else editor.theme.text_secondary.toImguiVec4();
+                                if (i == sprite_index) {
+                                    const color = if (file.selected_sprite_index == sprite_index) editor.theme.text.toImguiVec4() else editor.theme.text_secondary.toImguiVec4();
                                     imgui.pushStyleColorImVec4(imgui.Col_Text, color);
                                     defer imgui.popStyleColor();
 
-                                    const sprite_name = try file.calculateSpriteName(editor.arena.allocator(), sprite.index);
+                                    const sprite_name = try file.calculateSpriteName(editor.arena.allocator(), sprite_index);
 
                                     if (imgui.selectable(sprite_name)) {
                                         file.flipbook_scroll_request = .{
                                             .from = file.flipbook_scroll,
-                                            .to = file.flipbookScrollFromSpriteIndex(sprite.index),
+                                            .to = file.flipbookScrollFromSpriteIndex(sprite_index),
                                             .state = file.selected_animation_state,
                                         };
                                     }
