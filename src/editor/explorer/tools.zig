@@ -237,6 +237,9 @@ pub fn draw(editor: *Editor) !void {
                             const dist = @sqrt(dist_x * dist_x + dist_y * dist_y);
 
                             if (imgui.getWindowDrawList()) |draw_list| {
+                                draw_list.pushClipRectFullScreen();
+                                defer draw_list.popClipRect();
+
                                 const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 2.0), 0.0, 1.0));
 
                                 draw_list.addCircleFilled(
@@ -276,9 +279,6 @@ pub fn draw(editor: *Editor) !void {
         }
 
         if (imgui.collapsingHeader(pixi.fa.palette ++ "  Palettes", imgui.TreeNodeFlags_SpanFullWidth | imgui.TreeNodeFlags_DefaultOpen)) {
-            imgui.indent();
-            defer imgui.unindent();
-
             imgui.setNextItemWidth(-1.0);
             if (imgui.beginCombo("##PaletteCombo", if (editor.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {
                 defer imgui.endCombo();
@@ -301,11 +301,14 @@ pub fn draw(editor: *Editor) !void {
             const shadow_max: imgui.Vec2 = .{ .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x) - style.item_spacing.x, .y = shadow_min.y + pixi.editor.settings.shadow_length };
             const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.editor.settings.shadow_opacity * 4.0).toU32();
             var scroll_y: f32 = 0.0;
+            var scroll_x: f32 = 0.0;
 
             defer imgui.endChild(); // This can get cut off and causes a crash if begin child is not called because its off screen.
             if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = @max(content_region_avail, chip_width) }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                 if (editor.colors.palette) |palette| {
                     scroll_y = imgui.getScrollY();
+                    scroll_x = imgui.getScrollX();
+
                     for (palette.colors, 0..) |color, i| {
                         imgui.pushIDInt(@as(c_int, @intCast(i)));
 
@@ -321,13 +324,23 @@ pub fn draw(editor: *Editor) !void {
 
                         {
                             const window_pos = imgui.getWindowPos();
-                            const center: [2]f32 = .{ top_left.x + (chip_width / 2.0) + window_pos.x + imgui.getScrollX(), top_left.y + (chip_width / 2.0) + window_pos.y - imgui.getScrollY() };
+                            const center: [2]f32 = .{ top_left.x + (chip_width / 2.0) + window_pos.x + scroll_x, top_left.y + (chip_width / 2.0) + window_pos.y - scroll_y };
 
                             const dist_x = @abs(imgui.getMousePos().x - center[0]);
                             const dist_y = @abs(imgui.getMousePos().y - center[1]);
                             const dist = @sqrt(dist_x * dist_x + dist_y * dist_y);
 
                             if (imgui.getWindowDrawList()) |draw_list| {
+                                draw_list.pushClipRect(
+                                    .{ .x = window_pos.x - 24.0, .y = window_pos.y },
+                                    .{
+                                        .x = window_pos.x + imgui.getContentRegionAvail().x,
+                                        .y = window_pos.y + imgui.getWindowHeight(),
+                                    },
+                                    false,
+                                );
+                                defer draw_list.popClipRect();
+
                                 const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 2.0), 0.0, 1.0));
 
                                 draw_list.addCircleFilled(.{ .x = center[0], .y = center[1] }, radius, pixi.math.Color.initBytes(color[0], color[1], color[2], color[3]).toU32(), 100);
