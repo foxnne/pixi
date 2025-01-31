@@ -327,10 +327,7 @@ pub fn draw(editor: *Editor) !void {
                             const dist_y = @abs(imgui.getMousePos().y - center[1]);
                             const dist = @sqrt(dist_x * dist_x + dist_y * dist_y);
 
-                            if (imgui.getForegroundDrawList()) |draw_list| {
-                                draw_list.pushClipRect(.{ .x = window_pos.x, .y = window_pos.y }, .{ .x = window_pos.x + imgui.getWindowWidth(), .y = window_pos.y + imgui.getWindowHeight() }, false);
-                                defer draw_list.popClipRect();
-
+                            if (imgui.getWindowDrawList()) |draw_list| {
                                 const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 2.0), 0.0, 1.0));
 
                                 draw_list.addCircleFilled(.{ .x = center[0], .y = center[1] }, radius, pixi.math.Color.initBytes(color[0], color[1], color[2], color[3]).toU32(), 100);
