@@ -10,8 +10,7 @@ pub fn load(allocator: std.mem.Allocator) !Recents {
     var folders = std.ArrayList([:0]const u8).init(allocator);
     var exports = std.ArrayList([:0]const u8).init(allocator);
 
-    const read_opt: ?[]const u8 = pixi.fs.read(allocator, "recents.json") catch null;
-    if (read_opt) |read| {
+    if (pixi.fs.read(allocator, "recents.json") catch null) |read| {
         defer allocator.free(read);
 
         const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
