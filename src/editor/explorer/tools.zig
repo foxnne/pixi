@@ -240,12 +240,17 @@ pub fn draw(editor: *Editor) !void {
                                 draw_list.pushClipRectFullScreen();
                                 defer draw_list.popClipRect();
 
-                                const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 2.0), 0.0, 1.0));
+                                const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 1.5), 0.0, 1.0));
 
                                 draw_list.addCircleFilled(
                                     .{ .x = center[0], .y = center[1] },
                                     radius,
-                                    pixi.math.Color.initFloats(variation_color.x, variation_color.y, variation_color.z, variation_color.w).toU32(),
+                                    pixi.math.Color.initFloats(
+                                        variation_color.x,
+                                        variation_color.y,
+                                        variation_color.z,
+                                        variation_color.w,
+                                    ).toU32(),
                                     20,
                                 );
                             }
@@ -297,9 +302,20 @@ pub fn draw(editor: *Editor) !void {
 
             const content_region_avail = imgui.getContentRegionAvail().y;
 
-            const shadow_min: imgui.Vec2 = .{ .x = imgui.getCursorPosX() + imgui.getWindowPos().x, .y = imgui.getCursorPosY() + imgui.getWindowPos().y };
-            const shadow_max: imgui.Vec2 = .{ .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x) - style.item_spacing.x, .y = shadow_min.y + pixi.editor.settings.shadow_length };
-            const shadow_color = pixi.math.Color.initFloats(0.0, 0.0, 0.0, pixi.editor.settings.shadow_opacity * 4.0).toU32();
+            const shadow_min: imgui.Vec2 = .{
+                .x = imgui.getCursorPosX() + imgui.getWindowPos().x,
+                .y = imgui.getCursorPosY() + imgui.getWindowPos().y,
+            };
+            const shadow_max: imgui.Vec2 = .{
+                .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x) - style.item_spacing.x,
+                .y = shadow_min.y + pixi.editor.settings.shadow_length,
+            };
+            const shadow_color = pixi.math.Color.initFloats(
+                0.0,
+                0.0,
+                0.0,
+                pixi.editor.settings.shadow_opacity * 4.0,
+            ).toU32();
             var scroll_y: f32 = 0.0;
             var scroll_x: f32 = 0.0;
 
@@ -324,7 +340,10 @@ pub fn draw(editor: *Editor) !void {
 
                         {
                             const window_pos = imgui.getWindowPos();
-                            const center: [2]f32 = .{ top_left.x + (chip_width / 2.0) + window_pos.x + scroll_x, top_left.y + (chip_width / 2.0) + window_pos.y - scroll_y };
+                            const center: [2]f32 = .{
+                                top_left.x + (chip_width / 2.0) + window_pos.x + scroll_x,
+                                top_left.y + (chip_width / 2.0) + window_pos.y - scroll_y,
+                            };
 
                             const dist_x = @abs(imgui.getMousePos().x - center[0]);
                             const dist_y = @abs(imgui.getMousePos().y - center[1]);
@@ -341,9 +360,14 @@ pub fn draw(editor: *Editor) !void {
                                 );
                                 defer draw_list.popClipRect();
 
-                                const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 2.0), 0.0, 1.0));
+                                const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 1.5), 0.0, 1.0));
 
-                                draw_list.addCircleFilled(.{ .x = center[0], .y = center[1] }, radius, pixi.math.Color.initBytes(color[0], color[1], color[2], color[3]).toU32(), 100);
+                                draw_list.addCircleFilled(
+                                    .{ .x = center[0], .y = center[1] },
+                                    radius,
+                                    pixi.math.Color.initBytes(color[0], color[1], color[2], color[3]).toU32(),
+                                    20,
+                                );
                             }
                         }
 
