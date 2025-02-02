@@ -238,8 +238,11 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             else => {},
         }
 
-        if (!app.should_close)
-            _ = imgui_mach.processEvent(event);
+        if (!app.should_close) {
+            if (imgui.getCurrentContext() != null) {
+                _ = imgui_mach.processEvent(event);
+            }
+        }
     }
     var window = core.windows.getValue(app.window);
 
