@@ -2,7 +2,11 @@ const std = @import("std");
 const mach = @import("mach");
 const Core = mach.Core;
 
-pub const version: std.SemanticVersion = .{ .major = 0, .minor = 2, .patch = 0 };
+pub const version: std.SemanticVersion = .{
+    .major = 0,
+    .minor = 2,
+    .patch = 0,
+};
 
 // Generated files, these contain helpers for autocomplete
 // So you can get a named index into atlas.sprites
@@ -38,21 +42,19 @@ pub const Internal = struct {
     pub const Sprite = @import("internal/Sprite.zig");
 };
 
-/// pixi.animation, which refers to a frame-by-frame sprite animation
+/// Frame-by-frame sprite animation
 pub const Animation = Internal.Animation;
 
-/// pixi.atlas, which contains a list of sprites and animations
+/// Contains lists of sprites and animations
 pub const Atlas = @import("Atlas.zig");
 
-/// pixi.file, this is the data that gets written to disk in a .pixi file and read back into this type
+/// The data that gets written to disk in a .pixi file and read back into this type
 pub const File = @import("File.zig");
 
-/// pixi.layer, which contains information such as the name, visibility, and collapse settings
+/// Contains information such as the name, visibility, and collapse settings of a texture layer
 pub const Layer = @import("Layer.zig");
 
-/// pixi.sprite, which is just a name, source location within the atlas texture, and origin
-/// TODO: can we discover a new way to handle this and remove the name field?
-/// Names could instead be derived from what animations they take part in
+/// Source location within the atlas texture, and origin location
 pub const Sprite = @import("Sprite.zig");
 
 // Global pointers
@@ -90,7 +92,7 @@ pub fn main() !void {
     var mods: Modules = undefined;
     try mods.init(allocator);
     // TODO: enable mods.deinit(allocator); for allocator leak detection
-    // defer mods.deinit(allocator);
+    defer mods.deinit(allocator);
 
     const application = mods.get(.app);
     application.run(.main);

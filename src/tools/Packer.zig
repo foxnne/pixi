@@ -369,6 +369,11 @@ pub fn recurseFiles(root_directory: [:0]const u8) !void {
     return;
 }
 
+pub fn packAndClearAsync(self: *Packer) !void {
+    const thread = try std.Thread.spawn(.{}, packAndClear, .{self});
+    thread.detach();
+}
+
 pub fn packAndClear(self: *Packer) !void {
     if (try self.packRects()) |size| {
         var atlas_texture = try pixi.gfx.Texture.createEmpty(size[0], size[1], .{});

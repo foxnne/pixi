@@ -26,54 +26,59 @@ pub const Extension = enum {
 };
 
 pub fn draw(editor: *Editor) !void {
+    imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.background.toImguiVec4());
-    defer imgui.popStyleColorEx(2);
+    defer imgui.popStyleColorEx(3);
+
+    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
+    defer imgui.popStyleVar();
 
     if (editor.project_folder) |path| {
         const folder = std.fs.path.basename(path);
-        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
 
         // Open files
         const file_count = editor.open_files.items.len;
         if (file_count > 0) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
-            imgui.separatorText("Open Files  " ++ pixi.fa.file_powerpoint);
-            imgui.popStyleColor();
+            if (imgui.collapsingHeader(pixi.fa.file ++ "  Open Files", imgui.TreeNodeFlags_DefaultOpen)) {
+                imgui.indent();
+                defer imgui.unindent();
 
-            if (imgui.beginChild("OpenFiles", .{
-                .x = -1.0,
-                .y = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (imgui.getTextLineHeight() + 6.0),
-            }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-                defer imgui.endChild();
-                imgui.spacing();
+                if (imgui.beginChild("OpenFiles", .{
+                    .x = 0.0,
+                    .y = @as(f32, @floatFromInt(@min(file_count + 1, 6))) * (imgui.getTextLineHeight() + 6.0),
+                }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
+                    defer imgui.endChild();
 
-                for (editor.open_files.items, 0..) |file, i| {
-                    imgui.textColored(editor.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ " ");
-                    imgui.sameLine();
-                    const name = std.fs.path.basename(file.path);
-                    const label = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}", .{name});
-                    if (imgui.selectable(label)) {
-                        editor.setActiveFile(i);
-                    }
+                    imgui.spacing();
 
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
-                    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0);
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
-                    imgui.pushID(file.path);
-                    if (imgui.beginPopupContextItem()) {
-                        try contextMenuFile(editor, file.path);
-                        imgui.endPopup();
-                    }
-                    imgui.popID();
-                    imgui.popStyleVarEx(4);
+                    for (editor.open_files.items, 0..) |file, i| {
+                        imgui.textColored(editor.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ " ");
+                        imgui.sameLine();
+                        const name = std.fs.path.basename(file.path);
+                        const label = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}", .{name});
+                        if (imgui.selectable(label)) {
+                            editor.setActiveFile(i);
+                        }
 
-                    if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
-                        if (imgui.beginTooltip()) {
-                            defer imgui.endTooltip();
+                        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
+                        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
+                        imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0);
+                        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
+                        imgui.pushID(file.path);
+                        if (imgui.beginPopupContextItem()) {
+                            try contextMenuFile(editor, file.path);
+                            imgui.endPopup();
+                        }
+                        imgui.popID();
+                        imgui.popStyleVarEx(4);
 
-                            imgui.textColored(editor.theme.text_secondary.toImguiVec4(), file.path);
+                        if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
+                            if (imgui.beginTooltip()) {
+                                defer imgui.endTooltip();
+
+                                imgui.textColored(editor.theme.text_secondary.toImguiVec4(), file.path);
+                            }
                         }
                     }
                 }
@@ -83,9 +88,6 @@ pub fn draw(editor: *Editor) !void {
         const index = if (std.mem.indexOf(u8, path, folder)) |i| i else 0;
 
         imgui.spacing();
-        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
-        imgui.separatorText("Project Folder  " ++ pixi.fa.folder_open);
-        imgui.popStyleColor();
 
         // File tree
         var open: bool = true;
@@ -119,8 +121,6 @@ pub fn draw(editor: *Editor) !void {
             defer imgui.endChild();
         }
 
-        imgui.popStyleVar();
-
         if (!open) {
             if (editor.project_folder) |f| {
                 pixi.app.allocator.free(f);
@@ -129,49 +129,46 @@ pub fn draw(editor: *Editor) !void {
             editor.project_folder = null;
         }
     } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-        imgui.textWrapped("Open a folder to begin editing.");
-        imgui.popStyleColor();
+        if (imgui.collapsingHeader(pixi.fa.clock ++ "  Recents", imgui.TreeNodeFlags_DefaultOpen)) {
+            imgui.indent();
+            defer imgui.unindent();
 
-        if (editor.recents.folders.items.len > 0) {
-            imgui.spacing();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
-            imgui.separatorText("Recents  " ++ pixi.fa.clock);
-            imgui.popStyleColor();
-            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
-            defer imgui.popStyleColor();
-            if (imgui.beginChild("Recents", .{
-                .x = imgui.getWindowWidth() - editor.settings.explorer_grip,
-                .y = 0.0,
-            }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) {
-                defer imgui.endChild();
+            if (editor.recents.folders.items.len > 0) {
+                imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
+                defer imgui.popStyleColor();
+                if (imgui.beginChild("Recents", .{
+                    .x = imgui.getContentRegionAvail().x,
+                    .y = 0.0,
+                }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) {
+                    defer imgui.endChild();
 
-                var i: usize = editor.recents.folders.items.len;
-                while (i > 0) {
-                    i -= 1;
-                    const folder = editor.recents.folders.items[i];
-                    const label = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s} {s}##{s}", .{ pixi.fa.folder, std.fs.path.basename(folder), folder });
+                    var i: usize = editor.recents.folders.items.len;
+                    while (i > 0) {
+                        i -= 1;
+                        const folder = editor.recents.folders.items[i];
+                        const label = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s} {s}##{s}", .{ pixi.fa.folder, std.fs.path.basename(folder), folder });
 
-                    if (imgui.selectable(label)) {
-                        try editor.setProjectFolder(folder);
-                    }
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
-                    imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0);
-                    imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
-                    defer imgui.popStyleVarEx(4);
-                    if (imgui.beginPopupContextItem()) {
-                        defer imgui.endPopup();
-                        if (imgui.menuItem("Remove")) {
-                            const item = editor.recents.folders.orderedRemove(i);
-                            pixi.app.allocator.free(item);
+                        if (imgui.selectable(label)) {
+                            try editor.setProjectFolder(folder);
                         }
-                    }
+                        imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
+                        imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
+                        imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0);
+                        imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
+                        defer imgui.popStyleVarEx(4);
+                        if (imgui.beginPopupContextItem()) {
+                            defer imgui.endPopup();
+                            if (imgui.menuItem("Remove")) {
+                                const item = editor.recents.folders.orderedRemove(i);
+                                pixi.app.allocator.free(item);
+                            }
+                        }
 
-                    imgui.sameLineEx(0.0, 5.0);
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-                    imgui.text(folder);
-                    imgui.popStyleColor();
+                        imgui.sameLineEx(0.0, 5.0);
+                        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
+                        imgui.text(folder);
+                        imgui.popStyleColor();
+                    }
                 }
             }
         }

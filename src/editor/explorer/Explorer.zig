@@ -21,7 +21,7 @@ pub const layers = @import("layers.zig");
 pub const sprites = @import("sprites.zig");
 pub const animations = @import("animations.zig");
 pub const keyframe_animations = @import("keyframe_animations.zig");
-pub const pack = @import("pack.zig");
+pub const project = @import("project.zig");
 pub const settings = @import("settings.zig");
 
 pane: Pane = .files,
@@ -158,16 +158,16 @@ pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer
             .pack => {
                 if (imgui.beginMenuBar()) {
                     if (editor.hotkeys.hotkey(.{ .sidebar = .pack })) |hotkey| {
-                        const title = try std.fmt.allocPrintZ(editor.arena.allocator(), "Packing ({s})", .{hotkey.shortcut});
+                        const title = try std.fmt.allocPrintZ(editor.arena.allocator(), "Project ({s})", .{hotkey.shortcut});
                         imgui.separatorText(title);
                     } else {
-                        imgui.separatorText("Packing");
+                        imgui.separatorText("Project");
                     }
                     imgui.endMenuBar();
                 }
                 imgui.spacing();
                 imgui.spacing();
-                try pack.draw(app, editor, packer);
+                try project.draw(app, editor, packer);
             },
             .settings => {
                 if (imgui.beginMenuBar()) {

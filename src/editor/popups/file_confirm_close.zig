@@ -103,9 +103,7 @@ pub fn draw(editor: *Editor) !void {
         if (imgui.buttonEx(if (pixi.editor.popups.file_confirm_close_state == .one) "Save & Close" else "Save & Close All", .{ .x = third_width, .y = 0.0 })) {
             switch (pixi.editor.popups.file_confirm_close_state) {
                 .one => {
-                    if (editor.getFile(editor.popups.file_confirm_close_index)) |file| {
-                        _ = try file.save();
-                    }
+                    try editor.save();
                     try editor.closeFile(editor.popups.file_confirm_close_index);
                 },
                 .all => {

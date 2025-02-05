@@ -141,17 +141,13 @@ pub fn draw(editor: *Editor) !void {
                 switch (editor.popups.file_setup_state) {
                     .new => {
                         if (try editor.newFile(try editor.arena.allocator().dupeZ(u8, file_setup_path), null)) {
-                            if (editor.getFile(0)) |file| {
-                                try file.save();
-                            }
+                            try editor.save();
                         }
                     },
                     .import_png => {
                         const file_setup_png_path = std.mem.trimRight(u8, &pixi.editor.popups.file_setup_png_path, "\u{0}");
                         if (try editor.importPng(try editor.arena.allocator().dupeZ(u8, file_setup_png_path), try editor.arena.allocator().dupeZ(u8, file_setup_path))) {
-                            if (editor.getFile(0)) |file| {
-                                try file.save();
-                            }
+                            try editor.save();
                         }
                     },
                     .slice => {

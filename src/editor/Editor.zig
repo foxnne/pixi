@@ -11,6 +11,7 @@ pub const Colors = @import("Colors.zig");
 pub const Recents = @import("Recents.zig");
 pub const Tools = @import("Tools.zig");
 pub const Theme = @import("Theme.zig");
+pub const Project = @import("Project.zig");
 
 pub const Constants = @import("Constants.zig");
 
@@ -55,6 +56,8 @@ artboard: *Artboard,
 sidebar: *Sidebar,
 
 project_folder: ?[:0]const u8 = null,
+project: ?Project = null,
+buffers: Buffers = .{},
 
 previous_atlas_export: ?[:0]const u8 = null,
 open_files: std.ArrayList(pixi.Internal.File) = undefined,
@@ -72,6 +75,12 @@ selection_invert: bool = false,
 
 clipboard_image: ?zstbi.Image = null,
 clipboard_position: [2]u32 = .{ 0, 0 },
+
+pub const Buffers = struct {
+    atlas_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
+    texture_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
+    heightmap_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
+};
 
 pub fn init(
     app: *App,
@@ -249,6 +258,8 @@ pub fn setProjectFolder(editor: *Editor, path: [:0]const u8) !void {
     editor.project_folder = try pixi.app.allocator.dupeZ(u8, path);
     try editor.recents.appendFolder(try pixi.app.allocator.dupeZ(u8, path));
     editor.explorer.pane = .files;
+
+    editor.project = Project.load() catch null;
 }
 
 pub fn saving(editor: *Editor) bool {
@@ -459,6 +470,35 @@ pub fn forceCloseAllFiles(editor: *Editor) !void {
     }
 }
 
+pub fn save(editor: *Editor) !void {
+    if (editor.project_folder) |project_folder| {
+        if (editor.project) |project| {
+            if (project.pack_on_save) {
+                try pixi.Packer.recurseFiles(project_folder);
+                try pixi.packer.packAndClear();
+                if (project.packed_atlas_output) |packed_atlas_output| {
+                    const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_atlas_output });
+                    try editor.atlas.save(path, .data);
+                }
+
+                if (project.packed_texture_output) |packed_texture_output| {
+                    const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_texture_output });
+                    try editor.atlas.save(path, .texture);
+                }
+
+                if (project.packed_heightmap_output) |packed_heightmap_output| {
+                    const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_heightmap_output });
+                    try editor.atlas.save(path, .heightmap);
+                }
+            }
+        }
+    }
+
+    if (editor.open_files.items.len == 0) return;
+    var file = &editor.open_files.items[editor.open_file_index];
+    try file.save();
+}
+
 pub fn saveAllFiles(editor: *Editor) !void {
     for (editor.open_files.items) |*file| {
         _ = try file.save();
@@ -518,6 +558,7 @@ pub fn deinit(editor: *Editor, app: *App) !void {
     editor.settings.deinit(app.allocator);
 
     if (editor.project_folder) |folder| app.allocator.free(folder);
+    if (editor.project) |*project| project.deinit();
 
     editor.arena.deinit();
 }

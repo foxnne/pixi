@@ -1746,6 +1746,19 @@ pub fn save(self: *File) !void {
     self.saving = false;
 }
 
+pub fn saveAsync(self: *File) !void {
+    //if (!self.dirty()) return;
+    const thread = try std.Thread.spawn(.{}, save, .{self});
+    thread.detach();
+
+    switch (pixi.editor.settings.compatibility) {
+        .none => {},
+        .ldtk => {
+            try self.saveLDtk();
+        },
+    }
+}
+
 pub fn saveLDtk(self: *File) !void {
     if (pixi.editor.project_folder) |project_folder_path| {
         const ldtk_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
@@ -1800,19 +1813,6 @@ pub fn saveLDtk(self: *File) !void {
 
         try std.json.stringify(output, options, out_stream);
         pixi.packer.clearAndFree();
-    }
-}
-
-pub fn saveAsync(self: *File) !void {
-    //if (!self.dirty()) return;
-    const thread = try std.Thread.spawn(.{}, save, .{self});
-    thread.detach();
-
-    switch (pixi.editor.settings.compatibility) {
-        .none => {},
-        .ldtk => {
-            try self.saveLDtk();
-        },
     }
 }
 

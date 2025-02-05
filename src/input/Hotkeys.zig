@@ -161,7 +161,7 @@ pub fn process(self: *Self, editor: *Editor) !void {
 
         if (self.hotkey(.{ .proc = .save })) |hk| {
             if (hk.pressed()) {
-                try file.saveAsync();
+                try editor.save();
             }
         }
 
