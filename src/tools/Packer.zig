@@ -330,9 +330,9 @@ pub fn appendProject(_: Packer) !void {
     }
 }
 
-pub fn recurseFiles(root_directory: [:0]const u8) !void {
+pub fn recurseFiles(packer: *Packer, root_directory: [:0]const u8) !void {
     const recursor = struct {
-        fn search(directory: [:0]const u8) !void {
+        fn search(p: *Packer, directory: [:0]const u8) !void {
             var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
             defer dir.close();
 
@@ -346,25 +346,25 @@ pub fn recurseFiles(root_directory: [:0]const u8) !void {
 
                         if (pixi.editor.getFileIndex(abs_path)) |index| {
                             if (pixi.editor.getFile(index)) |file| {
-                                try pixi.packer.append(file);
+                                try p.append(file);
                             }
                         } else {
                             if (try pixi.Internal.File.load(abs_path)) |file| {
-                                try pixi.packer.open_files.append(file);
-                                try pixi.packer.append(&pixi.packer.open_files.items[pixi.packer.open_files.items.len - 1]);
+                                try p.open_files.append(file);
+                                try p.append(&p.open_files.items[p.open_files.items.len - 1]);
                             }
                         }
                     }
                 } else if (entry.kind == .directory) {
                     const abs_path = try std.fs.path.joinZ(pixi.app.allocator, &[_][]const u8{ directory, entry.name });
                     defer pixi.app.allocator.free(abs_path);
-                    try search(abs_path);
+                    try search(p, abs_path);
                 }
             }
         }
     }.search;
 
-    try recursor(root_directory);
+    try recursor(packer, root_directory);
 
     return;
 }

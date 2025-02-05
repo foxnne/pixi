@@ -34,6 +34,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
                 try project.save();
             }
             if (imgui.isItemFocused()) disable_hotkeys = true;
+
             if (project.packed_atlas_output) |packed_atlas_output| {
                 if (!std.mem.eql(u8, ".atlas", std.fs.path.extension(packed_atlas_output))) {
                     imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Atlas file name must end with .atlas extension!");
@@ -88,7 +89,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
         if (imgui.buttonEx("Pack and Export", .{ .x = window_size.x, .y = 0.0 })) {
             if (editor.project_folder) |project_folder| {
                 packer.target = .project;
-                try pixi.Packer.recurseFiles(project_folder);
+                try packer.recurseFiles(project_folder);
                 try packer.packAndClear();
 
                 if (project.packed_atlas_output) |packed_atlas_output| {
@@ -174,7 +175,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
                 switch (packer.target) {
                     .project => {
                         if (editor.project_folder) |folder| {
-                            try pixi.Packer.recurseFiles(folder);
+                            try packer.recurseFiles(folder);
                             try packer.packAndClear();
                         }
                     },

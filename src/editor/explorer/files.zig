@@ -50,8 +50,6 @@ pub fn draw(editor: *Editor) !void {
                 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
                     defer imgui.endChild();
 
-                    imgui.spacing();
-
                     for (editor.open_files.items, 0..) |file, i| {
                         imgui.textColored(editor.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ " ");
                         imgui.sameLine();
@@ -87,12 +85,12 @@ pub fn draw(editor: *Editor) !void {
 
         const index = if (std.mem.indexOf(u8, path, folder)) |i| i else 0;
 
-        imgui.spacing();
+        const project_header_label = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}  {s}", .{ pixi.fa.folder, path[index.. :0] });
 
         // File tree
         var open: bool = true;
         if (imgui.collapsingHeaderBoolPtr(
-            path[index.. :0],
+            project_header_label,
             &open,
             imgui.TreeNodeFlags_DefaultOpen,
         )) {
@@ -161,6 +159,7 @@ pub fn draw(editor: *Editor) !void {
                             if (imgui.menuItem("Remove")) {
                                 const item = editor.recents.folders.orderedRemove(i);
                                 pixi.app.allocator.free(item);
+                                try editor.recents.save();
                             }
                         }
 
@@ -264,7 +263,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) 
                     imgui.popID();
                 } else if (entry.kind == .directory) {
                     const abs_path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &[_][]const u8{ directory, entry.name });
-                    const folder = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}  {s}", .{ pixi.fa.folder, entry.name });
+                    const folder = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), " {s} {s}", .{ pixi.fa.folder, entry.name });
                     imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.editor.theme.text_secondary.toImguiVec4());
                     defer imgui.popStyleColor();
 

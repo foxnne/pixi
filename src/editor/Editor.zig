@@ -474,7 +474,7 @@ pub fn save(editor: *Editor) !void {
     if (editor.project_folder) |project_folder| {
         if (editor.project) |project| {
             if (project.pack_on_save) {
-                try pixi.Packer.recurseFiles(project_folder);
+                try pixi.packer.recurseFiles(project_folder);
                 try pixi.packer.packAndClear();
                 if (project.packed_atlas_output) |packed_atlas_output| {
                     const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_atlas_output });

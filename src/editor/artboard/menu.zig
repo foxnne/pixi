@@ -144,11 +144,6 @@ pub fn draw(editor: *Editor) !void {
                     try file.redo();
             }
         }
-        if (imgui.beginMenu("Tools")) {
-            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
-            imgui.popStyleColor();
-            imgui.endMenu();
-        }
         if (imgui.menuItem("About")) {
             editor.popups.about = true;
         }
