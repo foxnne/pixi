@@ -400,23 +400,26 @@ pub fn drawCanvasPack(editor: *Editor, packer: *Packer) void {
 
     if (imgui.beginTabBar("PackedTextures", packed_textures_flags)) {
         defer imgui.endTabBar();
-
-        if (imgui.beginTabItem(
-            "Atlas.Diffusemap",
-            null,
-            imgui.TabItemFlags_None,
-        )) {
-            defer imgui.endTabItem();
-            canvas_pack.draw(.texture, editor, packer);
+        if (editor.atlas.texture != null) {
+            if (imgui.beginTabItem(
+                "Texture",
+                null,
+                imgui.TabItemFlags_None,
+            )) {
+                defer imgui.endTabItem();
+                canvas_pack.draw(.texture, editor, packer);
+            }
         }
 
-        if (imgui.beginTabItem(
-            "Atlas.Heightmap",
-            null,
-            imgui.TabItemFlags_None,
-        )) {
-            defer imgui.endTabItem();
-            canvas_pack.draw(.heightmap, editor, packer);
+        if (editor.atlas.heightmap != null) {
+            if (imgui.beginTabItem(
+                "Heightmap",
+                null,
+                imgui.TabItemFlags_None,
+            )) {
+                defer imgui.endTabItem();
+                canvas_pack.draw(.heightmap, editor, packer);
+            }
         }
     }
 }

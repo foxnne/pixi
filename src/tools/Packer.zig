@@ -324,9 +324,9 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
     }
 }
 
-pub fn appendProject(_: Packer) !void {
+pub fn appendProject(packer: *Packer) !void {
     if (pixi.editor.project_folder) |root_directory| {
-        try recurseFiles(root_directory);
+        try recurseFiles(packer, root_directory);
     }
 }
 
@@ -369,16 +369,11 @@ pub fn recurseFiles(packer: *Packer, root_directory: [:0]const u8) !void {
     return;
 }
 
-pub fn packAndClearAsync(self: *Packer) !void {
-    const thread = try std.Thread.spawn(.{}, packAndClear, .{self});
-    thread.detach();
-}
-
-pub fn packAndClear(self: *Packer) !void {
-    if (try self.packRects()) |size| {
+pub fn packAndClear(packer: *Packer) !void {
+    if (try packer.packRects()) |size| {
         var atlas_texture = try pixi.gfx.Texture.createEmpty(size[0], size[1], .{});
 
-        for (self.frames.items, self.sprites.items) |frame, sprite| {
+        for (packer.frames.items, packer.sprites.items) |frame, sprite| {
             if (sprite.image) |image|
                 atlas_texture.blit(image.pixels, frame.slice());
         }
@@ -391,10 +386,10 @@ pub fn packAndClear(self: *Packer) !void {
             pixi.editor.atlas.texture = atlas_texture;
         }
 
-        if (self.contains_height) {
+        if (packer.contains_height) {
             var atlas_texture_h = try pixi.gfx.Texture.createEmpty(size[0], size[1], .{});
 
-            for (self.frames.items, self.sprites.items) |frame, sprite| {
+            for (packer.frames.items, packer.sprites.items) |frame, sprite| {
                 if (sprite.heightmap_image) |image|
                     atlas_texture_h.blit(image.pixels, frame.slice());
             }
@@ -413,16 +408,16 @@ pub fn packAndClear(self: *Packer) !void {
         }
 
         const atlas: pixi.Atlas = .{
-            .sprites = try pixi.app.allocator.alloc(pixi.Sprite, self.sprites.items.len),
-            .animations = try pixi.app.allocator.alloc(pixi.Animation, self.animations.items.len),
+            .sprites = try pixi.app.allocator.alloc(pixi.Sprite, packer.sprites.items.len),
+            .animations = try pixi.app.allocator.alloc(pixi.Animation, packer.animations.items.len),
         };
 
-        for (atlas.sprites, self.sprites.items, self.frames.items) |*dst, src, src_rect| {
+        for (atlas.sprites, packer.sprites.items, packer.frames.items) |*dst, src, src_rect| {
             dst.source = .{ src_rect.x, src_rect.y, src_rect.w, src_rect.h };
             dst.origin = src.origin;
         }
 
-        for (atlas.animations, self.animations.items) |*dst, src| {
+        for (atlas.animations, packer.animations.items) |*dst, src| {
             dst.name = try pixi.app.allocator.dupeZ(u8, src.name);
             dst.fps = src.fps;
             dst.length = src.length;
@@ -430,7 +425,7 @@ pub fn packAndClear(self: *Packer) !void {
         }
 
         if (pixi.editor.atlas.data) |*data| {
-            for (data.animations) |animation| {
+            for (data.animations) |*animation| {
                 pixi.app.allocator.free(animation.name);
             }
             pixi.app.allocator.free(data.sprites);
@@ -441,7 +436,7 @@ pub fn packAndClear(self: *Packer) !void {
             pixi.editor.atlas.data = atlas;
         }
 
-        self.clearAndFree();
+        packer.clearAndFree();
     }
 }
 

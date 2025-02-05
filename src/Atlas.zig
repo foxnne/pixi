@@ -18,13 +18,23 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: [:0]const u8) !Atlas {
     const parsed = try std.json.parseFromSlice(Atlas, allocator, read, options);
     defer parsed.deinit();
 
+    const animations = try allocator.dupe(Animation, parsed.value.animations);
+
+    for (animations) |*animation| {
+        animation.name = try allocator.dupeZ(u8, animation.name);
+    }
+
     return .{
         .sprites = try allocator.dupe(Sprite, parsed.value.sprites),
-        .animations = try allocator.dupe(Animation, parsed.value.animations),
+        .animations = animations,
     };
 }
 
 pub fn deinit(atlas: *Atlas, allocator: std.mem.Allocator) void {
+    for (atlas.animations) |*animation| {
+        allocator.free(animation.name);
+    }
+
     allocator.free(atlas.sprites);
     allocator.free(atlas.animations);
 }

@@ -67,9 +67,6 @@ pub fn draw(editor: *Editor) !void {
         const min_radius = (chip_width * 1.0) / 2.0;
 
         if (imgui.collapsingHeader(pixi.fa.paint_brush ++ "  Colors", imgui.TreeNodeFlags_DefaultOpen)) {
-            imgui.indent();
-            defer imgui.unindent();
-
             defer imgui.spacing();
 
             var heightmap_visible: bool = false;
@@ -78,11 +75,15 @@ pub fn draw(editor: *Editor) !void {
             }
 
             if (heightmap_visible) {
+                imgui.indentEx(10);
+                defer imgui.unindentEx(10);
                 var height: i32 = @as(i32, @intCast(editor.colors.height));
                 if (imgui.sliderInt("Height", &height, 0, 255)) {
                     editor.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
                 }
             } else {
+                imgui.indentEx(10);
+                defer imgui.unindentEx(10);
                 var disable_hotkeys: bool = false;
 
                 const primary: imgui.Vec4 = if (editor.tools.current == .heightmap) .{ .x = 255, .y = 255, .z = 255, .w = 255 } else .{

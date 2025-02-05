@@ -80,6 +80,7 @@ pub const Buffers = struct {
     atlas_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
     texture_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
     heightmap_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
+    generated_zig_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
 };
 
 pub fn init(
@@ -474,7 +475,7 @@ pub fn save(editor: *Editor) !void {
     if (editor.project_folder) |project_folder| {
         if (editor.project) |project| {
             if (project.pack_on_save) {
-                try pixi.packer.recurseFiles(project_folder);
+                try pixi.packer.appendProject();
                 try pixi.packer.packAndClear();
                 if (project.packed_atlas_output) |packed_atlas_output| {
                     const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_atlas_output });
@@ -496,7 +497,7 @@ pub fn save(editor: *Editor) !void {
 
     if (editor.open_files.items.len == 0) return;
     var file = &editor.open_files.items[editor.open_file_index];
-    try file.save();
+    try file.saveAsync();
 }
 
 pub fn saveAllFiles(editor: *Editor) !void {

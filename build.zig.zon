@@ -9,9 +9,9 @@
     .version = "0.0.2",
     .dependencies = .{
         .mach = .{
-            //.path = "src/.temp/mach-dev/",
-            .url = "https://pkg.machengine.org/mach/8bd988d21dc77d14f4eaff45187ea91241f4f738.tar.gz",
-            .hash = "1220843439075c711575d222c20577106449a5ede322a4a51361f1ac7d359fa3145a",
+            .path = "src/.temp/mach-dev/",
+            // .url = "https://pkg.machengine.org/mach/8bd988d21dc77d14f4eaff45187ea91241f4f738.tar.gz",
+            // .hash = "1220843439075c711575d222c20577106449a5ede322a4a51361f1ac7d359fa3145a",
         },
         .zig_imgui = .{
             .url = "https://github.com/foxnne/zig-imgui/archive/e9e49f12d76ce8ca32fdc81f93084ccd4f1f7c40.tar.gz",

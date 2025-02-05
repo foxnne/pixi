@@ -21,6 +21,23 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
     const window_size = imgui.getContentRegionAvail();
 
     if (editor.project) |*project| {
+        if (editor.project_folder) |project_folder| {
+            const info_text = try std.fs.path.joinZ(
+                editor.arena.allocator(),
+                &.{ project_folder, ".pixiproject" },
+            );
+
+            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.editor.theme.text_background.toImguiVec4());
+            imgui.text("Paths are relative to:");
+            imgui.textWrapped(project_folder);
+            imgui.text("Settings are being saved to:");
+            imgui.textWrapped(info_text);
+            imgui.popStyleColor();
+        } else {
+            editor.project.?.deinit();
+            editor.project = null;
+        }
+
         var disable_hotkeys = false;
         {
             if (imgui.inputText(
@@ -37,7 +54,11 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
 
             if (project.packed_atlas_output) |packed_atlas_output| {
                 if (!std.mem.eql(u8, ".atlas", std.fs.path.extension(packed_atlas_output))) {
-                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Atlas file name must end with .atlas extension!");
+                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Atlas file path must end with .atlas extension!");
+                }
+                if (std.mem.eql(u8, packed_atlas_output, "")) {
+                    project.packed_heightmap_output = null;
+                    try project.save();
                 }
             }
         }
@@ -55,8 +76,12 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
             }
             if (imgui.isItemFocused()) disable_hotkeys = true;
             if (project.packed_texture_output) |packed_texture_output| {
-                if (!std.mem.eql(u8, ".png", std.fs.path.extension(packed_texture_output))) {
-                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Texture file name must end with .png extension!");
+                if (!std.mem.eql(u8, ".png", std.fs.path.extension(packed_texture_output)))
+                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Texture file path must end with .png extension!");
+
+                if (std.mem.eql(u8, packed_texture_output, "")) {
+                    project.packed_heightmap_output = null;
+                    try project.save();
                 }
             }
         }
@@ -75,7 +100,34 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
             if (imgui.isItemFocused()) disable_hotkeys = true;
             if (project.packed_heightmap_output) |packed_heightmap_output| {
                 if (!std.mem.eql(u8, ".png", std.fs.path.extension(packed_heightmap_output))) {
-                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Heightmap file name must end with .png extension!");
+                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Heightmap file path must end with .png extension!");
+                }
+                if (std.mem.eql(u8, packed_heightmap_output, "")) {
+                    project.packed_heightmap_output = null;
+                    try project.save();
+                }
+            }
+        }
+
+        {
+            if (imgui.inputText(
+                "Generated Zig Output",
+                editor.buffers.generated_zig_path[0..],
+                editor.buffers.generated_zig_path.len,
+                imgui.InputTextFlags_AutoSelectAll,
+            )) {
+                const trimmed_text = std.mem.trim(u8, &editor.buffers.generated_zig_path, "\u{0}");
+                project.generated_zig_output = trimmed_text;
+                try project.save();
+            }
+            if (imgui.isItemFocused()) disable_hotkeys = true;
+            if (project.generated_zig_output) |generated_zig_output| {
+                if (!std.mem.eql(u8, ".zig", std.fs.path.extension(generated_zig_output))) {
+                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Zig file path must end with .zig extension!");
+                }
+                if (std.mem.eql(u8, generated_zig_output, "")) {
+                    project.generated_zig_output = null;
+                    try project.save();
                 }
             }
         }
@@ -89,7 +141,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
         if (imgui.buttonEx("Pack and Export", .{ .x = window_size.x, .y = 0.0 })) {
             if (editor.project_folder) |project_folder| {
                 packer.target = .project;
-                try packer.recurseFiles(project_folder);
+                try packer.appendProject();
                 try packer.packAndClear();
 
                 if (project.packed_atlas_output) |packed_atlas_output| {
@@ -174,10 +226,8 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
             if (imgui.buttonEx("Pack", .{ .x = window_size.x, .y = 0.0 })) {
                 switch (packer.target) {
                     .project => {
-                        if (editor.project_folder) |folder| {
-                            try packer.recurseFiles(folder);
-                            try packer.packAndClear();
-                        }
+                        try packer.appendProject();
+                        try packer.packAndClear();
                     },
                     .all_open => {
                         for (editor.open_files.items) |*file| {

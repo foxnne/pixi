@@ -17,6 +17,7 @@ pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
     }) |texture| {
         var canvas_flags: imgui.WindowFlags = 0;
         canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
+        defer imgui.endChild();
         if (imgui.beginChild(
             "PackerCanvas",
             .{ .x = 0.0, .y = 0.0 },
@@ -46,10 +47,6 @@ pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
                 camera.processPanZoom(.packer);
             }
 
-            if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
-                camera.processZoomTooltip();
-            }
-
             const width: f32 = @floatFromInt(texture.image.width);
             const height: f32 = @floatFromInt(texture.image.height);
 
@@ -57,9 +54,5 @@ pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
             camera.drawTexture(texture.view_handle, texture.image.width, texture.image.height, center_offset, 0xFFFFFFFF);
             camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, pixi.editor.theme.text_secondary.toU32());
         }
-        imgui.endChild();
-
-        // Draw the packed atlas texture
-        {}
     }
 }
