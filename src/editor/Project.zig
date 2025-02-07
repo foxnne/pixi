@@ -81,6 +81,30 @@ pub fn save(project: *Project) !void {
     return error.FailedToSaveProject;
 }
 
+// Project output assets will be exported to a join of parent_folder and the individual output paths for each asset
+pub fn exportAssets(project: *Project, parent_folder: [:0]const u8) !void {
+    if (project.packed_atlas_output) |packed_atlas_output| {
+        const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ parent_folder, packed_atlas_output });
+        try pixi.editor.atlas.save(path, .data);
+    }
+
+    if (project.packed_texture_output) |packed_texture_output| {
+        const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ parent_folder, packed_texture_output });
+        try pixi.editor.atlas.save(path, .texture);
+    }
+
+    if (project.packed_heightmap_output) |packed_heightmap_output| {
+        const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ parent_folder, packed_heightmap_output });
+        try pixi.editor.atlas.save(path, .heightmap);
+    }
+
+    if (project.generated_zig_output) |generated_zig_output| {
+        const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ parent_folder, generated_zig_output });
+        _ = path;
+        // TODO: implement
+    }
+}
+
 pub fn deinit(project: *Project) void {
     if (read) |r| pixi.app.allocator.free(r);
 

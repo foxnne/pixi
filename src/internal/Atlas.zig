@@ -19,7 +19,7 @@ pub const Selector = enum {
     data,
 };
 
-pub fn save(self: Atlas, path: []const u8, selector: Selector) !void {
+pub fn save(atlas: Atlas, path: []const u8, selector: Selector) !void {
     switch (selector) {
         .texture, .heightmap => {
             if (!std.mem.eql(u8, ".png", std.fs.path.extension(path))) {
@@ -29,8 +29,8 @@ pub fn save(self: Atlas, path: []const u8, selector: Selector) !void {
             const write_path = std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}", .{path}) catch unreachable;
 
             switch (selector) {
-                .texture => if (self.texture) |texture| try texture.image.writeToFile(write_path, .png),
-                .heightmap => if (self.heightmap) |heightmap| try heightmap.image.writeToFile(write_path, .png),
+                .texture => if (atlas.texture) |texture| try texture.image.writeToFile(write_path, .png),
+                .heightmap => if (atlas.heightmap) |heightmap| try heightmap.image.writeToFile(write_path, .png),
                 else => unreachable,
             }
         },
@@ -39,14 +39,14 @@ pub fn save(self: Atlas, path: []const u8, selector: Selector) !void {
                 std.log.debug("File name must end with .atlas extension!", .{});
                 return;
             }
-            if (self.data) |atlas| {
+            if (atlas.data) |data| {
                 var handle = try std.fs.cwd().createFile(path, .{});
                 defer handle.close();
 
                 const out_stream = handle.writer();
                 const options: std.json.StringifyOptions = .{};
 
-                try std.json.stringify(atlas, options, out_stream);
+                try std.json.stringify(data, options, out_stream);
             }
         },
     }

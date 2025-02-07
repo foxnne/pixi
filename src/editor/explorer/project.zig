@@ -143,21 +143,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
                 packer.target = .project;
                 try packer.appendProject();
                 try packer.packAndClear();
-
-                if (project.packed_atlas_output) |packed_atlas_output| {
-                    const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_atlas_output });
-                    try editor.atlas.save(path, .data);
-                }
-
-                if (project.packed_texture_output) |packed_texture_output| {
-                    const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_texture_output });
-                    try editor.atlas.save(path, .texture);
-                }
-
-                if (project.packed_heightmap_output) |packed_heightmap_output| {
-                    const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_heightmap_output });
-                    try editor.atlas.save(path, .heightmap);
-                }
+                try project.exportAssets(project_folder);
             }
         }
 

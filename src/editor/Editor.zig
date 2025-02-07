@@ -471,26 +471,15 @@ pub fn forceCloseAllFiles(editor: *Editor) !void {
     }
 }
 
+/// Performs a save operation on the currently open file.
+/// Also will perform a full project pack and export if project.pack_on_save is true
 pub fn save(editor: *Editor) !void {
     if (editor.project_folder) |project_folder| {
-        if (editor.project) |project| {
+        if (editor.project) |*project| {
             if (project.pack_on_save) {
                 try pixi.packer.appendProject();
                 try pixi.packer.packAndClear();
-                if (project.packed_atlas_output) |packed_atlas_output| {
-                    const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_atlas_output });
-                    try editor.atlas.save(path, .data);
-                }
-
-                if (project.packed_texture_output) |packed_texture_output| {
-                    const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_texture_output });
-                    try editor.atlas.save(path, .texture);
-                }
-
-                if (project.packed_heightmap_output) |packed_heightmap_output| {
-                    const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ project_folder, packed_heightmap_output });
-                    try editor.atlas.save(path, .heightmap);
-                }
+                try project.exportAssets(project_folder);
             }
         }
     }
