@@ -273,7 +273,7 @@ pub fn listen(
     self: *LinuxWatcher,
     assets: *Assets,
 ) !void {
-    for (assets.getWatchDirs(assets.allocator)) |p| {
+    for (try assets.getWatchDirs(assets.allocator)) |p| {
         _ = try self.addTree(assets.allocator, .input, p);
     }
 
