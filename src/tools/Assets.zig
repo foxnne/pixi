@@ -127,6 +127,38 @@ pub fn getWatchPaths(assets: *Assets, allocator: std.mem.Allocator) ![]const []c
     return paths.toOwnedSlice();
 }
 
+pub fn getWatchDirs(assets: *Assets, allocator: std.mem.Allocator) ![]const []const u8 {
+    var dirs = std.ArrayList([]const u8).init(allocator);
+
+    var textures = assets.textures.slice();
+    tex_blk: while (textures.next()) |id| {
+        if (std.fs.path.dirname(textures.objs.get(id, .path))) |tex_dir| {
+            for (dirs.items) |dir| {
+                if (std.mem.eql(u8, dir, tex_dir)) {
+                    continue :tex_blk;
+                }
+            }
+
+            try dirs.append(tex_dir);
+        }
+    }
+
+    var atlases = assets.atlases.slice();
+    atl_blk: while (atlases.next()) |id| {
+        if (std.fs.path.dirname(atlases.objs.get(id, .path))) |atl_dir| {
+            for (dirs.items) |dir| {
+                if (std.mem.eql(u8, dir, atl_dir)) {
+                    continue :atl_blk;
+                }
+            }
+
+            try dirs.append(atl_dir);
+        }
+    }
+
+    return dirs.toOwnedSlice();
+}
+
 /// Spawns a watch thread for all of the currently registered assets
 /// If you add or change assets, you need to call stopWatch and then watch again to reset the background thread
 pub fn watch(assets: *Assets) !void {
@@ -149,8 +181,8 @@ fn spawnWatchThread(assets: *Assets) !void {
 fn stopWatchThread(assets: *Assets) void {
     assets.watching = false;
     assets.watcher.stop();
-    assets.thread.join();
-    assets.thread = undefined;
+    //assets.thread.join();
+    //assets.thread = undefined;
 }
 
 pub fn listen(assets: *Assets) !void {
@@ -175,7 +207,7 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
             var textures = assets.textures.slice();
             while (textures.next()) |texture_id| {
                 const p = assets.getPath(texture_id);
-                if (std.mem.containsAtLeast(u8, changed_path, 1, p)) {
+                if (comparePaths(assets.allocator, changed_path, p) catch false) {
                     try assets.reload(texture_id);
 
                     std.log.debug("Reloaded texture {s}", .{changed_path});
@@ -186,7 +218,7 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
             var atlases = assets.atlases.slice();
             while (atlases.next()) |atlas_id| {
                 const p = assets.getPath(atlas_id);
-                if (std.mem.containsAtLeast(u8, changed_path, 1, p)) {
+                if (comparePaths(assets.allocator, changed_path, p) catch false) {
                     try assets.reload(atlas_id);
 
                     std.log.debug("Reloaded atlas {s}", .{changed_path});
@@ -198,6 +230,8 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
 }
 
 pub fn deinit(assets: *Assets) void {
+    assets.stopWatch();
+
     var textures = assets.textures.slice();
     while (textures.next()) |id| {
         var t = assets.textures.getValue(id);
@@ -215,4 +249,16 @@ pub fn deinit(assets: *Assets) void {
     }
 
     zstbi.deinit();
+}
+
+fn comparePaths(allocator: std.mem.Allocator, path1: []const u8, path2: []const u8) !bool {
+    const rel_1 = try std.fs.path.relative(allocator, pixi.app.root_path, path1);
+    const rel_2 = try std.fs.path.relative(allocator, pixi.app.root_path, path2);
+
+    std.log.debug("{s} {s}", .{ rel_1, rel_2 });
+
+    defer allocator.free(rel_1);
+    defer allocator.free(rel_2);
+
+    return std.mem.eql(u8, rel_1, rel_2);
 }
