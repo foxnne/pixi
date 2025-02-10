@@ -27,17 +27,10 @@ const WatchEntry = struct {
 pub fn stop(_: *LinuxWatcher) void {}
 
 pub fn init(
-    gpa: std.mem.Allocator,
-    //out_dir_path: []const u8,
-    in_dir_paths: []const []const u8,
+    _: std.mem.Allocator,
 ) !LinuxWatcher {
     const notify_fd = try std.posix.inotify_init1(0);
-    var self: LinuxWatcher = .{ .notify_fd = notify_fd };
-    //_ = try self.addTree(gpa, .output, out_dir_path);
-    for (in_dir_paths) |p| {
-        _ = try self.addTree(gpa, .input, p);
-    }
-    return self;
+    return .{ .notify_fd = notify_fd };
 }
 
 /// Register `child` with the `parent`
@@ -278,9 +271,12 @@ fn dropWatch(
 
 pub fn listen(
     self: *LinuxWatcher,
-    gpa: std.mem.Allocator,
     assets: *Assets,
 ) !void {
+    for (assets.getWatchDirs(assets.allocator)) |p| {
+        _ = try self.addTree(assets.allocator, .input, p);
+    }
+
     const Event = std.os.linux.inotify_event;
     const event_size = @sizeOf(Event);
     while (!assets.invalid) {
@@ -294,13 +290,9 @@ pub fn listen(
             const parent = self.watch_fds.get(event.wd).?;
             event_data = event_data[event_size + event.len ..];
 
-            // std.debug.print("flags: ", .{});
-            // Mask.debugPrint(event.mask);
-            // std.debug.print("for {s}/{?s}\n", .{ parent.dir_path, event.getName() });
-
             if (Mask.is(event.mask, .IN_IGNORED)) {
                 log.debug("IGNORE {s}", .{parent.dir_path});
-                self.dropWatch(gpa, event.wd);
+                self.dropWatch(assets.allocator, event.wd);
                 continue;
             } else if (Mask.is(event.mask, .IN_MOVE_SELF)) {
                 if (event.getName() == null) {
@@ -312,15 +304,15 @@ pub fn listen(
             if (Mask.is(event.mask, .IN_ISDIR)) {
                 if (Mask.is(event.mask, .IN_CREATE)) {
                     const dir_name = event.getName().?;
-                    const dir_path = try std.fs.path.join(gpa, &.{
+                    const dir_path = try std.fs.path.join(assets.allocator, &.{
                         parent.dir_path,
                         dir_name,
                     });
 
                     log.debug("ISDIR CREATE {s}", .{dir_path});
 
-                    const new_fd = try self.addTree(gpa, parent.kind, dir_path);
-                    try self.addChild(gpa, event.wd, new_fd);
+                    const new_fd = try self.addTree(assets.allocator, parent.kind, dir_path);
+                    try self.addChild(assets.allocator, event.wd, new_fd);
                     const data = self.watch_fds.get(new_fd).?;
                     switch (data.kind) {
                         .input => {
@@ -333,11 +325,11 @@ pub fn listen(
                     continue;
                 } else if (Mask.is(event.mask, .IN_MOVED_FROM)) {
                     log.debug("MOVING {s}/{s}", .{ parent.dir_path, event.getName().? });
-                    try self.moveDirStart(gpa, event.wd, event.cookie, event.getName().?);
+                    try self.moveDirStart(assets.allocator, event.wd, event.cookie, event.getName().?);
                     continue;
                 } else if (Mask.is(event.mask, .IN_MOVED_TO)) {
                     log.debug("MOVED {s}/{s}", .{ parent.dir_path, event.getName().? });
-                    const moved_fd = try self.moveDirEnd(gpa, event.wd, event.cookie, event.getName().?);
+                    const moved_fd = try self.moveDirEnd(assets.allocator, event.wd, event.cookie, event.getName().?);
                     const moved = self.watch_fds.get(moved_fd).?;
                     switch (moved.kind) {
                         .input => {
