@@ -18,6 +18,7 @@ const Core = mach.Core;
 const App = @This();
 const Editor = pixi.Editor;
 const Packer = pixi.Packer;
+const Assets = pixi.Assets;
 
 // Mach module, systems, and main
 pub const mach_module = .app;
@@ -27,6 +28,7 @@ pub const mach_systems = .{ .main, .init, .lateInit, .tick, .deinit };
 pub const main = mach.schedule(.{
     .{ Core, .init },
     .{ App, .init },
+    .{ Assets, .init },
     .{ Editor, .init },
     .{ Packer, .init },
     .{ Core, .main },
@@ -41,7 +43,7 @@ mouse: pixi.input.Mouse = undefined,
 root_path: [:0]const u8 = undefined,
 delta_time: f32 = 0.0,
 total_time: f32 = 0.0,
-assets: Assets = undefined,
+//loaded_assets: LoadedAssets = undefined,
 batcher: pixi.gfx.Batcher = undefined,
 pipeline_default: *gpu.RenderPipeline = undefined,
 pipeline_compute: *gpu.ComputePipeline = undefined,
@@ -51,24 +53,9 @@ window_size: [2]f32 = undefined,
 framebuffer_size: [2]f32 = undefined,
 should_close: bool = false,
 
-/// Assets for the pixi.app itself. Since we use our own atlas format for all art assets,
-/// we just have a single texture and atlas to load.
-pub const Assets = struct {
-    atlas_texture: pixi.gfx.Texture,
-    atlas: pixi.Atlas,
-
-    pub fn load(allocator: std.mem.Allocator) !Assets {
-        return .{
-            .atlas_texture = try pixi.gfx.Texture.loadFromFile(pixi.paths.pixi_png.path, .{}),
-            .atlas = try pixi.Atlas.loadFromFile(allocator, pixi.atlas.path),
-        };
-    }
-
-    pub fn deinit(self: *Assets, allocator: std.mem.Allocator) void {
-        self.atlas_texture.deinit();
-        self.atlas.deinit(allocator);
-    }
-};
+// These are the only two assets pixi needs outside of fonts
+texture_id: mach.ObjectID = 0,
+atlas_id: mach.ObjectID = 0,
 
 var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
 
@@ -78,6 +65,7 @@ pub fn init(
     core: *Core,
     editor: *Editor,
     packer: *Packer,
+    assets: *Assets,
     app_mod: mach.Mod(App),
 ) !void {
     // Store our global pointers so we can access them from non-mach functions for now
@@ -85,6 +73,7 @@ pub fn init(
     pixi.core = core;
     pixi.editor = editor;
     pixi.packer = packer;
+    pixi.assets = assets;
 
     pixi.core.on_tick = app_mod.id.tick;
     pixi.core.on_exit = app_mod.id.deinit;
@@ -112,17 +101,24 @@ pub fn init(
 
 /// This is called from the event fired when the window is done being
 /// initialized by the platform
-pub fn lateInit(app: *App, core: *Core, editor_mod: mach.Mod(Editor)) !void {
+pub fn lateInit(
+    app: *App,
+    core: *Core,
+    assets: *Assets,
+    editor_mod: mach.Mod(Editor),
+) !void {
     const window = pixi.core.windows.getValue(app.window);
 
     // Now that we have a valid device, we can initialize our pipelines
     try pixi.gfx.init(app);
 
-    // Initialize zstbi to load assets
-    zstbi.init(app.allocator);
+    // Load our atlas and texture
+    app.texture_id = try assets.loadTexture(pixi.paths.pixi_png.path, .{});
+    app.atlas_id = try assets.loadAtlas(pixi.paths.pixi_atlas.path);
 
-    // Load assets
-    app.assets = try Assets.load(app.allocator);
+    // This will spawn a thread for watching our asset paths for changes,
+    // and reloading individual assets if they change on disk
+    try assets.watch();
 
     // Setup
     app.mouse = try pixi.input.Mouse.initDefault(app.allocator);
@@ -323,7 +319,7 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
 }
 
 /// This is a mach-called function, and the parameters are automatically injected.
-pub fn deinit(app: *App, packer: *Packer, editor_mod: mach.Mod(Editor)) !void {
+pub fn deinit(app: *App, packer: *Packer, editor_mod: mach.Mod(Editor), assets_mod: mach.Mod(Assets)) !void {
     editor_mod.call(.deinit);
 
     app.allocator.free(app.mouse.buttons);
@@ -335,13 +331,12 @@ pub fn deinit(app: *App, packer: *Packer, editor_mod: mach.Mod(Editor)) !void {
     app.pipeline_compute.release();
     app.uniform_buffer_default.release();
 
-    app.assets.deinit(app.allocator);
-
     imgui_mach.shutdown();
     imgui.getIO().fonts.?.clear();
     imgui.destroyContext(null);
 
-    zstbi.deinit();
+    assets_mod.call(.deinit);
+
     app.allocator.free(app.root_path);
 
     _ = gpa.detectLeaks();

@@ -6,6 +6,7 @@ const zstbi = @import("zstbi");
 const Core = @import("mach").Core;
 const App = pixi.App;
 const Editor = pixi.Editor;
+const Assets = pixi.Assets;
 
 const Popups = @This();
 
@@ -101,10 +102,10 @@ pub fn init(popups: *Popups) !void {
     popups.* = .{};
 }
 
-pub fn draw(popups: *Popups, app: *App, editor: *Editor) !void {
+pub fn draw(popups: *Popups, app: *App, editor: *Editor, assets: *Assets) !void {
     try popup_rename.draw(popups, app, editor);
     try popup_file_setup.draw(editor);
-    try popup_about.draw();
+    try popup_about.draw(editor, assets);
     try popup_file_confirm_close.draw(editor);
     try popup_layer_setup.draw(editor);
     try popup_export_to_png.draw(editor);

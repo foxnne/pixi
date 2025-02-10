@@ -22,7 +22,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
 
     if (editor.project) |*project| {
         if (editor.project_folder) |project_folder| {
-            const info_text = try std.fs.path.joinZ(
+            const project_path = try std.fs.path.joinZ(
                 editor.arena.allocator(),
                 &.{ project_folder, ".pixiproject" },
             );
@@ -31,7 +31,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
             imgui.text("Paths are relative to:");
             imgui.textWrapped(project_folder);
             imgui.text("Settings are being saved to:");
-            imgui.textWrapped(info_text);
+            imgui.textWrapped(project_path);
             imgui.popStyleColor();
         } else {
             editor.project.?.deinit();
@@ -125,7 +125,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
                 if (!std.mem.eql(u8, ".zig", std.fs.path.extension(generated_zig_output))) {
                     imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Zig file path must end with .zig extension!");
                 }
-                if (std.mem.eql(u8, generated_zig_output, "")) {
+                if (generated_zig_output.len == 0) {
                     project.generated_zig_output = null;
                     try project.save();
                 }
@@ -150,7 +150,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
         editor.hotkeys.disable = disable_hotkeys;
     } else {
         imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-        imgui.textWrapped("No project file found, would you like to create a project file to specify constant output paths and other project-specific behaviors?");
+        imgui.textWrapped("No .pixiproject file found at project folder, would you like to create a project file to specify constant output paths and other project-specific behaviors?");
         imgui.popStyleColor();
 
         if (imgui.buttonEx("Create Project", .{ .x = window_size.x, .y = 0.0 })) {
@@ -188,14 +188,6 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
                     }
                 }
             }
-
-            // _ = imgui.checkbox("Pack tileset", &pixi.app.pack_tileset);
-            // if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
-            //     if (imgui.beginTooltip()) {
-            //         defer imgui.endTooltip();
-            //         imgui.textColored(pixi.editor.theme.text_secondary.toImguiVec4(), "Do not tightly pack sprites, pack a uniform grid");
-            //     }
-            // }
 
             var packable: bool = true;
             if (packer.target == .project and editor.project_folder == null) packable = false;
@@ -258,9 +250,9 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
                 if (response.type == .export_atlas) {
                     try editor.recents.appendExport(try app.allocator.dupeZ(u8, response.path));
 
-                    const atlas_path = try std.fmt.allocPrintZ(app.allocator, "{s}.atlas", .{response.path});
-                    const texture_path = try std.fmt.allocPrintZ(app.allocator, "{s}.png", .{response.path});
-                    const heightmap_path = try std.fmt.allocPrintZ(app.allocator, "{s}.png", .{response.path});
+                    const atlas_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}.atlas", .{response.path});
+                    const texture_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}.png", .{response.path});
+                    const heightmap_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}_h.png", .{response.path});
 
                     try editor.atlas.save(atlas_path, .data);
                     try editor.atlas.save(texture_path, .texture);
@@ -273,9 +265,9 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
 
             if (editor.recents.exports.items.len > 0) {
                 if (imgui.buttonEx("Repeat Last Export", .{ .x = window_size.x, .y = 0.0 })) {
-                    const atlas_path = try std.fmt.allocPrintZ(app.allocator, "{s}.atlas", .{editor.recents.exports.getLast()});
-                    const texture_path = try std.fmt.allocPrintZ(app.allocator, "{s}.png", .{editor.recents.exports.getLast()});
-                    const heightmap_path = try std.fmt.allocPrintZ(app.allocator, "{s}.png", .{editor.recents.exports.getLast()});
+                    const atlas_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}.atlas", .{editor.recents.exports.getLast()});
+                    const texture_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}.png", .{editor.recents.exports.getLast()});
+                    const heightmap_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}_h.png", .{editor.recents.exports.getLast()});
 
                     try editor.atlas.save(atlas_path, .data);
                     try editor.atlas.save(texture_path, .texture);

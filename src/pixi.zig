@@ -62,6 +62,7 @@ pub var core: *Core = undefined;
 pub var app: *App = undefined;
 pub var editor: *Editor = undefined;
 pub var packer: *Packer = undefined;
+pub var assets: *Assets = undefined;
 
 // Modules
 pub const App = @import("App.zig");
@@ -71,6 +72,7 @@ pub const Popups = @import("editor/popups/Popups.zig");
 pub const Explorer = @import("editor/explorer/Explorer.zig");
 pub const Artboard = @import("editor/artboard/Artboard.zig");
 pub const Sidebar = @import("editor/Sidebar.zig");
+pub const Assets = @import("tools/Assets.zig");
 
 // The set of Mach modules our application may use.
 const Modules = mach.Modules(.{
@@ -82,6 +84,7 @@ const Modules = mach.Modules(.{
     Packer,
     Popups,
     Sidebar,
+    Assets,
 });
 
 // TODO: move this to a mach "entrypoint" zig module which handles nuances like WASM requires.

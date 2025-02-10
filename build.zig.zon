@@ -10,8 +10,8 @@
     .dependencies = .{
         .mach = .{
             //.path = "src/.temp/mach-dev/",
-            .url = "https://pkg.machengine.org/mach/8bd988d21dc77d14f4eaff45187ea91241f4f738.tar.gz",
-            .hash = "1220843439075c711575d222c20577106449a5ede322a4a51361f1ac7d359fa3145a",
+            .url = "https://pkg.machengine.org/mach/2410814e916970672a837c2d67a5a0a3f927ca4b.tar.gz",
+            .hash = "1220a7773e217670fcd702abdbd6a792fa293449334e8245eecfe887c67611660cc3",
         },
         .zig_imgui = .{
             .url = "https://github.com/foxnne/zig-imgui/archive/e9e49f12d76ce8ca32fdc81f93084ccd4f1f7c40.tar.gz",

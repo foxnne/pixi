@@ -6,6 +6,7 @@ const Core = @import("mach").Core;
 const App = pixi.App;
 const Editor = pixi.Editor;
 const Packer = pixi.Packer;
+const Assets = pixi.Assets;
 
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
@@ -35,7 +36,7 @@ pub fn init(artboard: *Artboard) void {
 
 pub fn deinit() void {}
 
-pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer: *Packer) !void {
+pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer: *Packer, assets: *Assets) !void {
     imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
     defer imgui.popStyleVar();
     imgui.setNextWindowPos(.{
@@ -236,7 +237,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer
                             }
                         }
                     } else {
-                        try drawLogoScreen(app, editor);
+                        try drawLogoScreen(app, editor, assets);
                     }
                 } else {
                     drawGrip(art_width, app, editor);
@@ -290,58 +291,62 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer
     imgui.end();
 }
 
-pub fn drawLogoScreen(app: *App, editor: *Editor) !void {
-    imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Border, editor.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.background.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-    defer imgui.popStyleColorEx(5);
-    { // Draw semi-transparent logo
+pub fn drawLogoScreen(app: *App, editor: *Editor, assets: *Assets) !void {
+    if (assets.getTexture(app.texture_id)) |texture| {
+        if (assets.getAtlas(app.atlas_id)) |atlas| {
+            imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.background.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Border, editor.theme.background.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.background.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.foreground.toImguiVec4());
+            imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
+            defer imgui.popStyleColorEx(5);
+            { // Draw semi-transparent logo
 
-        const logo_sprite = app.assets.atlas.sprites[pixi.atlas.logo_0_default];
+                const logo_sprite = atlas.sprites[pixi.atlas.logo_0_default];
 
-        const src: [4]f32 = .{
-            @floatFromInt(logo_sprite.source[0]),
-            @floatFromInt(logo_sprite.source[1]),
-            @floatFromInt(logo_sprite.source[2]),
-            @floatFromInt(logo_sprite.source[3]),
-        };
+                const src: [4]f32 = .{
+                    @floatFromInt(logo_sprite.source[0]),
+                    @floatFromInt(logo_sprite.source[1]),
+                    @floatFromInt(logo_sprite.source[2]),
+                    @floatFromInt(logo_sprite.source[3]),
+                };
 
-        const w = src[2] * 32.0;
-        const h = src[3] * 32.0;
-        const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
+                const w = src[2] * 32.0;
+                const h = src[3] * 32.0;
+                const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
 
-        const inv_w = 1.0 / @as(f32, @floatFromInt(app.assets.atlas_texture.image.width));
-        const inv_h = 1.0 / @as(f32, @floatFromInt(app.assets.atlas_texture.image.height));
+                const inv_w = 1.0 / @as(f32, @floatFromInt(texture.image.width));
+                const inv_h = 1.0 / @as(f32, @floatFromInt(texture.image.height));
 
-        imgui.setCursorPosX(center[0] - w / 2.0);
-        imgui.setCursorPosY(center[1] - h / 2.0);
-        imgui.imageEx(
-            app.assets.atlas_texture.view_handle,
-            .{ .x = w, .y = h },
-            .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
-            .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
-            .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
-            .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
-        );
-        imgui.dummy(.{ .x = 1.0, .y = 15.0 });
-    }
-    { // Draw `Open Folder` button
-        const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
-        const size = imgui.calcTextSize(text);
-        imgui.setCursorPosX((imgui.getWindowWidth() / 2.0) - size.x / 2.0);
-        if (imgui.buttonEx(text, .{ .x = size.x, .y = 0.0 })) {
-            editor.popups.file_dialog_request = .{
-                .state = .folder,
-                .type = .project,
-            };
-        }
-        if (editor.popups.file_dialog_response) |response| {
-            if (response.type == .project) {
-                try editor.setProjectFolder(response.path);
-                nfd.freePath(response.path);
-                editor.popups.file_dialog_response = null;
+                imgui.setCursorPosX(center[0] - w / 2.0);
+                imgui.setCursorPosY(center[1] - h / 2.0);
+                imgui.imageEx(
+                    texture.view_handle,
+                    .{ .x = w, .y = h },
+                    .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
+                    .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
+                    .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
+                    .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
+                );
+                imgui.dummy(.{ .x = 1.0, .y = 15.0 });
+            }
+            { // Draw `Open Folder` button
+                const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
+                const size = imgui.calcTextSize(text);
+                imgui.setCursorPosX((imgui.getWindowWidth() / 2.0) - size.x / 2.0);
+                if (imgui.buttonEx(text, .{ .x = size.x, .y = 0.0 })) {
+                    editor.popups.file_dialog_request = .{
+                        .state = .folder,
+                        .type = .project,
+                    };
+                }
+                if (editor.popups.file_dialog_response) |response| {
+                    if (response.type == .project) {
+                        try editor.setProjectFolder(response.path);
+                        nfd.freePath(response.path);
+                        editor.popups.file_dialog_response = null;
+                    }
+                }
             }
         }
     }
