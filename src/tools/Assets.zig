@@ -15,7 +15,7 @@ pub const AssetType = enum {
 // Mach module, systems, and main
 pub const mach_module = .assets;
 pub const mach_systems = .{ .init, .listen, .deinit };
-pub const mach_tags = .{ .auto_reload, .reload };
+pub const mach_tags = .{.auto_reload};
 
 const log = std.log.scoped(.watcher);
 const ListenerFn = fn (self: *Assets, path: []const u8, name: []const u8) void;
@@ -42,12 +42,16 @@ watcher: Watcher = undefined,
 thread: std.Thread = undefined,
 watching: bool = false,
 
+var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
+
 pub fn init(assets: *Assets) !void {
-    zstbi.init(pixi.app.allocator);
+    const allocator = gpa.allocator();
+
+    zstbi.init(allocator);
     assets.* = .{
         .textures = assets.textures,
         .atlases = assets.atlases,
-        .allocator = pixi.app.allocator,
+        .allocator = allocator,
     };
 }
 
@@ -127,6 +131,8 @@ pub fn getWatchPaths(assets: *Assets, allocator: std.mem.Allocator) ![]const []c
     return paths.toOwnedSlice();
 }
 
+/// Returns the watch directories for the currently loaded assets.
+/// Caller owns the memory.
 pub fn getWatchDirs(assets: *Assets, allocator: std.mem.Allocator) ![]const []const u8 {
     var dirs = std.ArrayList([]const u8).init(allocator);
 
@@ -185,10 +191,24 @@ fn stopWatchThread(assets: *Assets) void {
     //assets.thread = undefined;
 }
 
+/// Kicks off the listening loop, this will not return
 pub fn listen(assets: *Assets) !void {
     try assets.watcher.listen(assets);
 }
 
+fn comparePaths(allocator: std.mem.Allocator, path1: []const u8, path2: []const u8) !bool {
+    const rel_1 = try std.fs.path.relative(allocator, pixi.app.root_path, path1);
+    const rel_2 = try std.fs.path.relative(allocator, pixi.app.root_path, path2);
+
+    std.log.debug("{s} {s}", .{ rel_1, rel_2 });
+
+    defer allocator.free(rel_1);
+    defer allocator.free(rel_2);
+
+    return std.mem.eql(u8, rel_1, rel_2);
+}
+
+/// Called from the watchers when assets change, this is where we reload our assets based on path.
 pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
     const changed_path = std.fs.path.join(assets.allocator, &.{ path, name }) catch return;
     defer assets.allocator.free(changed_path);
@@ -206,6 +226,8 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
         .texture => {
             var textures = assets.textures.slice();
             while (textures.next()) |texture_id| {
+                if (!assets.textures.hasTag(texture_id, Assets, .auto_reload)) continue;
+
                 const p = assets.getPath(texture_id);
                 if (comparePaths(assets.allocator, changed_path, p) catch false) {
                     try assets.reload(texture_id);
@@ -217,6 +239,8 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
         .atlas => {
             var atlases = assets.atlases.slice();
             while (atlases.next()) |atlas_id| {
+                if (!assets.atlases.hasTag(atlas_id, Assets, .auto_reload)) continue;
+
                 const p = assets.getPath(atlas_id);
                 if (comparePaths(assets.allocator, changed_path, p) catch false) {
                     try assets.reload(atlas_id);
@@ -249,16 +273,4 @@ pub fn deinit(assets: *Assets) void {
     }
 
     zstbi.deinit();
-}
-
-fn comparePaths(allocator: std.mem.Allocator, path1: []const u8, path2: []const u8) !bool {
-    const rel_1 = try std.fs.path.relative(allocator, pixi.app.root_path, path1);
-    const rel_2 = try std.fs.path.relative(allocator, pixi.app.root_path, path2);
-
-    std.log.debug("{s} {s}", .{ rel_1, rel_2 });
-
-    defer allocator.free(rel_1);
-    defer allocator.free(rel_2);
-
-    return std.mem.eql(u8, rel_1, rel_2);
 }
