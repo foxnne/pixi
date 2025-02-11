@@ -279,7 +279,7 @@ pub fn listen(
 
     const Event = std.os.linux.inotify_event;
     const event_size = @sizeOf(Event);
-    while (!assets.invalid) {
+    while (assets.watching) {
         var buffer: [event_size * 10]u8 = undefined;
         const len = try std.posix.read(self.notify_fd, &buffer);
         if (len < 0) @panic("notify fd read error");
