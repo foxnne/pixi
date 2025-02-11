@@ -316,10 +316,10 @@ pub fn listen(
                     const data = self.watch_fds.get(new_fd).?;
                     switch (data.kind) {
                         .input => {
-                            assets.onInputChange(data.dir_path, "");
+                            assets.onAssetChange(data.dir_path, "");
                         },
                         .output => {
-                            assets.onOutputChange(data.dir_path, "");
+                            assets.onAssetChange(data.dir_path, "");
                         },
                     }
                     continue;
@@ -333,10 +333,10 @@ pub fn listen(
                     const moved = self.watch_fds.get(moved_fd).?;
                     switch (moved.kind) {
                         .input => {
-                            assets.onInputChange(moved.dir_path, "");
+                            assets.onAssetChange(moved.dir_path, "");
                         },
                         .output => {
-                            assets.onOutputChange(moved.dir_path, "");
+                            assets.onAssetChange(moved.dir_path, "");
                         },
                     }
                     continue;
@@ -348,11 +348,11 @@ pub fn listen(
                     switch (parent.kind) {
                         .input => {
                             const name = event.getName() orelse continue;
-                            assets.onInputChange(parent.dir_path, name);
+                            assets.onAssetChange(parent.dir_path, name);
                         },
                         .output => {
                             const name = event.getName() orelse continue;
-                            assets.onOutputChange(parent.dir_path, name);
+                            assets.onAssetChange(parent.dir_path, name);
                         },
                     }
                 }
