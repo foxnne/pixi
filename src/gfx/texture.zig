@@ -1,15 +1,8 @@
 const std = @import("std");
-const glfw = @import("glfw");
-const zgpu = @import("zgpu");
 const zstbi = @import("zstbi");
-const wgpu = zgpu.wgpu;
-const zm = @import("zmath");
 const pixi = @import("../pixi.zig");
 
-const Core = @import("mach").Core;
 const gpu = @import("mach").gpu;
-
-const game = @import("game");
 
 pub const Texture = struct {
     handle: *gpu.Texture,
@@ -35,7 +28,7 @@ pub const Texture = struct {
     }
 
     pub fn loadFromMemory(data: []const u8, options: SamplerOptions) !Texture {
-        const image = try zstbi.Image.loadFromMemory(data, 0);
+        const image = try zstbi.Image.loadFromMemory(data, 4);
         return create(image, options);
     }
 
@@ -67,6 +60,7 @@ pub const Texture = struct {
         const view = texture.createView(&view_descriptor);
 
         const queue = device.getQueue();
+        defer queue.release();
 
         const data_layout = gpu.Texture.DataLayout{
             .bytes_per_row = image.width * 4,
