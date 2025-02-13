@@ -2,10 +2,18 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const imgui = @import("zig-imgui");
 
+var timer: f32 = 0.0;
+var sprite_index: usize = 0;
+
 pub fn draw(editor: *pixi.Editor, assets: *pixi.Assets) !void {
     if (editor.popups.about) {
         imgui.openPopup("About", imgui.PopupFlags_None);
     } else return;
+
+    if (timer <= 1.0)
+        timer += pixi.app.delta_time
+    else
+        timer = 0.0;
 
     if (assets.getTexture(pixi.app.texture_id)) |texture| {
         if (assets.getAtlas(pixi.app.atlas_id)) |atlas| {
@@ -36,7 +44,7 @@ pub fn draw(editor: *pixi.Editor, assets: *pixi.Assets) !void {
                 defer imgui.endPopup();
                 imgui.spacing();
 
-                const fox_sprite = atlas.sprites[pixi.atlas.fox_0_default];
+                const fox_sprite = atlas.sprites[pixi.atlas.fox_default_0];
 
                 const src: [4]f32 = .{
                     @floatFromInt(fox_sprite.source[0]),

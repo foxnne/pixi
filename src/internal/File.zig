@@ -411,7 +411,7 @@ pub fn processSampleTool(file: *File, canvas: Canvas, options: SampleToolOptions
     if (!sample_key and !sample_button) return;
 
     imgui.setMouseCursor(imgui.MouseCursor_None);
-    file.camera.drawCursor(pixi.atlas.dropper_0_default, 0xFFFFFFFF);
+    file.camera.drawCursor(pixi.atlas.dropper_default_0, 0xFFFFFFFF);
 
     const mouse_position = pixi.app.mouse.position;
     var camera = switch (canvas) {
@@ -509,11 +509,11 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
     switch (pixi.editor.tools.current) {
         .pencil, .heightmap => {
             imgui.setMouseCursor(imgui.MouseCursor_None);
-            file.camera.drawCursor(pixi.atlas.pencil_0_default, 0xFFFFFFFF);
+            file.camera.drawCursor(pixi.atlas.pencil_default_0, 0xFFFFFFFF);
         },
         .eraser => {
             imgui.setMouseCursor(imgui.MouseCursor_None);
-            file.camera.drawCursor(pixi.atlas.eraser_0_default, 0xFFFFFFFF);
+            file.camera.drawCursor(pixi.atlas.eraser_default_0, 0xFFFFFFFF);
         },
         else => {},
     }
@@ -868,7 +868,7 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
 
     if (sample_key or sample_button) return;
 
-    const cursor_sprite_index: usize = if (add) pixi.atlas.selection_add_0_default else if (rem) pixi.atlas.selection_rem_0_default else pixi.atlas.selection_0_default;
+    const cursor_sprite_index: usize = if (add) pixi.atlas.selection_add_default_0 else if (rem) pixi.atlas.selection_rem_default_0 else pixi.atlas.selection_default_0;
     imgui.setMouseCursor(imgui.MouseCursor_None);
     file.camera.drawCursor(cursor_sprite_index, 0xFFFFFFFF);
 
@@ -1063,7 +1063,7 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
     if (sample_key or sample_button) return;
 
     imgui.setMouseCursor(imgui.MouseCursor_None);
-    file.camera.drawCursor(pixi.atlas.bucket_0_default, 0xFFFFFFFF);
+    file.camera.drawCursor(pixi.atlas.bucket_default_0, 0xFFFFFFFF);
 
     var canvas_center_offset = canvasCenterOffset(file, canvas);
     canvas_center_offset[0] += options.texture_position_offset[0];

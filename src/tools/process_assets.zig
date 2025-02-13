@@ -87,12 +87,12 @@ fn process(step: *Step, options: Step.MakeOptions) anyerror!void {
                     try assets_writer.print("pub const {s}{s} = struct {{\n", .{ name, "_atlas" });
                     try assets_writer.print("  pub const path = \"{s}\";\n", .{path_fixed});
 
-                    const atlas = try Atlas.loadFromFile(self.builder.allocator, file);
+                    var atlas = try Atlas.loadFromFile(self.builder.allocator, file);
 
-                    for (atlas.sprites, 0..) |sprite, i| {
-                        const sprite_name = try self.builder.allocator.alloc(u8, sprite.name.len);
-                        _ = std.mem.replace(u8, sprite.name, " ", "_", sprite_name);
-                        _ = std.mem.replace(u8, sprite_name, ".", "_", sprite_name);
+                    for (atlas.sprites, 0..) |_, i| {
+                        const sprite_name = try atlas.spriteName(self.builder.allocator, i);
+                        // _ = std.mem.replace(u8, sprite.name, " ", "_", sprite_name);
+                        // _ = std.mem.replace(u8, sprite_name, ".", "_", sprite_name);
 
                         try assets_writer.print("  pub const {s} = {d};\n", .{ sprite_name, i });
                     }
@@ -120,9 +120,7 @@ fn process(step: *Step, options: Step.MakeOptions) anyerror!void {
 
                             var animation_index = animation.start;
                             while (animation_index < animation.start + animation.length) : (animation_index += 1) {
-                                const sprite_name = try self.builder.allocator.alloc(u8, atlas.sprites[animation_index].name.len);
-                                _ = std.mem.replace(u8, atlas.sprites[animation_index].name, " ", "_", sprite_name);
-                                _ = std.mem.replace(u8, sprite_name, ".", "_", sprite_name);
+                                const sprite_name = try atlas.spriteName(self.builder.allocator, animation_index);
 
                                 try animations_writer.print("    assets.{s}_atlas.{s},\n", .{ name, sprite_name });
                             }

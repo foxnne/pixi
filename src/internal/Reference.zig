@@ -40,7 +40,7 @@ pub fn processSampleTool(reference: *Reference) void {
     if (!sample_key and !sample_button) return;
 
     imgui.setMouseCursor(imgui.MouseCursor_None);
-    reference.camera.drawCursor(pixi.atlas.dropper_0_default, 0xFFFFFFFF);
+    reference.camera.drawCursor(pixi.atlas.dropper_default_0, 0xFFFFFFFF);
 
     const mouse_position = pixi.app.mouse.position;
     var camera = reference.camera;
