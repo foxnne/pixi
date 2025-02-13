@@ -129,11 +129,14 @@ compatibility: Compatibility = .none,
 color_chip_radius: f32 = 12.0,
 
 /// Loads settings or if fails, returns default settings
-pub fn loadOrDefault(allocator: std.mem.Allocator) !Settings {
+pub fn load(allocator: std.mem.Allocator) !Settings {
     if (pixi.fs.read(allocator, "settings.json") catch null) |data| {
         defer allocator.free(data);
 
-        const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
+        const options = std.json.ParseOptions{
+            .duplicate_field_behavior = .use_first,
+            .ignore_unknown_fields = true,
+        };
         if (std.json.parseFromSlice(Settings, allocator, data, options) catch null) |p| {
             parsed = p;
             return p.value;

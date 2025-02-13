@@ -101,7 +101,7 @@ pub fn init(
         .explorer = _explorer,
         .artboard = _artboard,
         .sidebar = _sidebar,
-        .settings = try Settings.loadOrDefault(app.allocator),
+        .settings = try Settings.load(app.allocator),
         .hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
         .recents = try Recents.load(app.allocator),
         .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
