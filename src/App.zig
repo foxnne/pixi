@@ -178,6 +178,7 @@ pub fn lateInit(
 
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
+    const label = @tagName(mach_module) ++ ".tick";
     // Process dialog requests
     editor_mod.call(.processDialogRequest);
 
@@ -263,7 +264,7 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
         defer back_buffer_view.release();
 
         const imgui_commands = commands: {
-            const encoder = window.device.createCommandEncoder(null);
+            const encoder = window.device.createCommandEncoder(&.{ .label = label });
             defer encoder.release();
 
             const background: gpu.Color = .{
@@ -292,7 +293,7 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
                 pass.release();
             }
 
-            break :commands encoder.finish(null);
+            break :commands encoder.finish(&.{ .label = label });
         };
         defer imgui_commands.release();
 

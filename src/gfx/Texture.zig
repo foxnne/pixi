@@ -59,7 +59,6 @@ pub fn create(image: zstbi.Image, options: SamplerOptions) Texture {
     };
 
     const queue = device.getQueue();
-    defer queue.release();
 
     const data_layout = gpu.Texture.DataLayout{
         .bytes_per_row = image.width * 4,
@@ -117,7 +116,6 @@ pub fn blit(self: *Texture, src_pixels: [][4]u8, dst_rect: [4]u32) void {
 pub fn update(texture: *Texture, device: *gpu.Device) void {
     const image_size = gpu.Extent3D{ .width = texture.image.width, .height = texture.image.height };
     const queue = device.getQueue();
-    defer queue.release();
 
     const data_layout = gpu.Texture.DataLayout{
         .bytes_per_row = texture.image.width * 4,
