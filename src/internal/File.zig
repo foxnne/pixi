@@ -186,12 +186,14 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
             .name = "Temporary",
             .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
             .visible = true,
+            .id = internal.newId(),
         };
 
         internal.selection_layer = .{
             .name = "Selection",
             .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
             .visible = true,
+            .id = internal.newId(),
         };
 
         for (ext.layers) |l| {
