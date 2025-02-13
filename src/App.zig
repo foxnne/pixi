@@ -4,10 +4,6 @@ const builtin = @import("builtin");
 const mach = @import("mach");
 const gpu = mach.gpu;
 
-const zstbi = @import("zstbi");
-const zm = @import("zmath");
-const nfd = @import("nfd");
-
 const imgui = @import("zig-imgui");
 const imgui_mach = imgui.backends.mach;
 

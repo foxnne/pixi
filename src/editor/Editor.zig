@@ -15,9 +15,7 @@ pub const Project = @import("Project.zig");
 
 pub const Constants = @import("Constants.zig");
 
-const zip = @import("zip");
 const zstbi = @import("zstbi");
-const zgpu = @import("zgpu");
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
@@ -159,6 +157,7 @@ pub fn tick(
     editor.theme.push(core, app);
     defer editor.theme.pop();
 
+    // Clear temp layer either piecemeal or all at once if there is a transform texture present
     if (editor.getFile(editor.open_file_index)) |file| {
         if (file.buffers.temporary_stroke.indices.items.len > 0) {
             for (file.buffers.temporary_stroke.indices.items) |index| {
@@ -166,6 +165,9 @@ pub fn tick(
             }
             file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
             file.buffers.temporary_stroke.clearAndFree();
+        } else if (file.transform_texture != null) {
+            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+            file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
         }
     }
 
