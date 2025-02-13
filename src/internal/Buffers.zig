@@ -5,6 +5,7 @@ const History = @import("History.zig");
 const Buffers = @This();
 
 stroke: Stroke,
+temporary_stroke: Stroke,
 
 pub const Stroke = struct {
     indices: std.ArrayList(usize),
@@ -50,14 +51,17 @@ pub const Stroke = struct {
 pub fn init(allocator: std.mem.Allocator) Buffers {
     return .{
         .stroke = Stroke.init(allocator),
+        .temporary_stroke = Stroke.init(allocator),
     };
 }
 
 pub fn clearAndFree(buffers: *Buffers) void {
     buffers.stroke.clearAndFree();
+    buffers.temporary_stroke.clearAndFree();
 }
 
 pub fn deinit(buffers: *Buffers) void {
     buffers.clearAndFree();
     buffers.stroke.deinit();
+    buffers.temporary_stroke.deinit();
 }

@@ -231,8 +231,6 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
                 const p = assets.getPath(texture_id);
                 if (comparePaths(assets.allocator, changed_path, p) catch false) {
                     try assets.reload(texture_id);
-
-                    std.log.debug("Reloaded texture {s}", .{changed_path});
                 }
             }
         },
@@ -244,8 +242,6 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
                 const p = assets.getPath(atlas_id);
                 if (comparePaths(assets.allocator, changed_path, p) catch false) {
                     try assets.reload(atlas_id);
-
-                    std.log.debug("Reloaded atlas {s}", .{changed_path});
                 }
             }
         },

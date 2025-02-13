@@ -504,6 +504,14 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
 
     if (sample_key or sample_button) return;
 
+    if (file.buffers.temporary_stroke.indices.items.len > 0) {
+        for (file.buffers.temporary_stroke.indices.items) |index| {
+            file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
+        }
+        file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+        file.buffers.temporary_stroke.clearAndFree();
+    }
+
     switch (pixi.editor.tools.current) {
         .pencil, .heightmap => {
             imgui.setMouseCursor(imgui.MouseCursor_None);
@@ -828,12 +836,16 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                     for (0..(size * size)) |index| {
                         if (file.temporary_layer.getIndexShapeOffset(pixel, index)) |result| {
                             file.temporary_layer.setPixelIndex(result.index, color, false);
+
+                            try file.buffers.temporary_stroke.append(result.index, color);
                         }
                     }
                     file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
                 },
                 else => {
                     file.temporary_layer.setPixel(pixel, color, true);
+
+                    try file.buffers.temporary_stroke.append(file.temporary_layer.getPixelIndex(pixel), color);
                 },
             }
         }
@@ -861,6 +873,14 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
     const pressed: bool = if (pixi.app.mouse.button(.primary)) |bt| bt.pressed() else false;
 
     if (sample_key or sample_button) return;
+
+    if (file.buffers.temporary_stroke.indices.items.len > 0) {
+        for (file.buffers.temporary_stroke.indices.items) |index| {
+            file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
+        }
+        file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+        file.buffers.temporary_stroke.clearAndFree();
+    }
 
     const cursor_sprite_index: usize = if (add) pixi.atlas.selection_add_0_default else if (rem) pixi.atlas.selection_rem_0_default else pixi.atlas.selection_0_default;
     imgui.setMouseCursor(imgui.MouseCursor_None);
@@ -923,8 +943,10 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
                         if (pixi.editor.selection_invert) .{ 255, 255, 255, selection_opacity } else .{ 0, 0, 0, selection_opacity }
                     else if (pixi.editor.selection_invert) .{ 0, 0, 0, selection_opacity } else .{ 255, 255, 255, selection_opacity };
 
-                    if (file.layers.slice().get(file.selected_layer_index).pixels()[result.index][3] != 0)
+                    if (file.layers.slice().get(file.selected_layer_index).pixels()[result.index][3] != 0) {
                         file.temporary_layer.setPixelIndex(result.index, color, false);
+                        try file.buffers.temporary_stroke.append(result.index, color);
+                    }
                 }
             }
             file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));

@@ -94,9 +94,8 @@ pub fn getIndexShapeOffset(self: Layer, origin: [2]usize, current_index: usize) 
 
 pub fn clear(self: *Layer, update: bool) void {
     const p = self.pixels();
-    for (p) |*pixel| {
-        pixel.* = .{ 0, 0, 0, 0 };
-    }
+    @memset(p, .{ 0, 0, 0, 0 });
+
     if (update)
         self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }

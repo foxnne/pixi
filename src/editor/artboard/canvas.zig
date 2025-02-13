@@ -85,8 +85,8 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
     }
 
     // TODO: Only clear and update if we need to?
-    //if (file.transform_texture == null)
-    file.temporary_layer.clear(true);
+    // if (file.transform_texture == null and file.temporary_layer_dirty)
+    //     file.temporary_layer.clear(true);
 
     editor.selection_time += app.delta_time;
     if (editor.selection_time >= 0.3) {
