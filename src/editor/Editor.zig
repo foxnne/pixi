@@ -159,12 +159,22 @@ pub fn tick(
     editor.theme.push(core, app);
     defer editor.theme.pop();
 
+    if (editor.getFile(editor.open_file_index)) |file| {
+        if (file.buffers.temporary_stroke.indices.items.len > 0) {
+            for (file.buffers.temporary_stroke.indices.items) |index| {
+                file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
+            }
+            file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+            file.buffers.temporary_stroke.clearAndFree();
+        }
+    }
+
     sidebar_mod.call(.draw);
     explorer_mod.call(.draw);
     artboard_mod.call(.draw);
     popups_mod.call(.draw);
 
-    // Accept transformations
+    // Accept transformations and clear temporary layer
     {
         const window = core.windows.getValue(app.window);
         for (editor.open_files.items) |*file| {

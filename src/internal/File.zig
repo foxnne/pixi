@@ -504,14 +504,6 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
 
     if (sample_key or sample_button) return;
 
-    if (file.buffers.temporary_stroke.indices.items.len > 0) {
-        for (file.buffers.temporary_stroke.indices.items) |index| {
-            file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
-        }
-        file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
-        file.buffers.temporary_stroke.clearAndFree();
-    }
-
     switch (pixi.editor.tools.current) {
         .pencil, .heightmap => {
             imgui.setMouseCursor(imgui.MouseCursor_None);
@@ -873,14 +865,6 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
     const pressed: bool = if (pixi.app.mouse.button(.primary)) |bt| bt.pressed() else false;
 
     if (sample_key or sample_button) return;
-
-    if (file.buffers.temporary_stroke.indices.items.len > 0) {
-        for (file.buffers.temporary_stroke.indices.items) |index| {
-            file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
-        }
-        file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
-        file.buffers.temporary_stroke.clearAndFree();
-    }
 
     const cursor_sprite_index: usize = if (add) pixi.atlas.selection_add_0_default else if (rem) pixi.atlas.selection_rem_0_default else pixi.atlas.selection_0_default;
     imgui.setMouseCursor(imgui.MouseCursor_None);
