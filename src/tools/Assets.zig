@@ -4,6 +4,9 @@ const mach = @import("mach");
 const builtin = @import("builtin");
 const pixi = @import("../pixi.zig");
 
+const imgui = @import("zig-imgui");
+const imgui_mach = imgui.backends.mach;
+
 const Assets = @This();
 
 pub const AssetType = enum {
@@ -199,8 +202,6 @@ pub fn listen(assets: *Assets) !void {
 fn comparePaths(allocator: std.mem.Allocator, path1: []const u8, path2: []const u8) !bool {
     const rel_1 = try std.fs.path.relative(allocator, pixi.app.root_path, path1);
     const rel_2 = try std.fs.path.relative(allocator, pixi.app.root_path, path2);
-
-    std.log.debug("{s} {s}", .{ rel_1, rel_2 });
 
     defer allocator.free(rel_1);
     defer allocator.free(rel_2);

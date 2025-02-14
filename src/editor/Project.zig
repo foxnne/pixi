@@ -15,9 +15,6 @@ packed_heightmap_output: ?[]const u8 = null,
 /// Path for the final packed atlas to save
 packed_atlas_output: ?[]const u8 = null,
 
-/// If a valid path is present, pixi will generate a zig struct containing useful indexes and names
-generated_zig_output: ?[]const u8 = null,
-
 /// If true, the entire project will be repacked and exported on any project file save
 pack_on_save: bool = true,
 
@@ -44,10 +41,6 @@ pub fn load() !?Project {
                     @memcpy(pixi.editor.buffers.heightmap_path[0..packed_heightmap_output.len], packed_heightmap_output);
                 }
 
-                if (p.value.generated_zig_output) |generated_zig_output| {
-                    @memcpy(pixi.editor.buffers.generated_zig_path[0..generated_zig_output.len], generated_zig_output);
-                }
-
                 return p.value;
             } else {
                 std.log.debug("Failed to parse project file!", .{});
@@ -71,7 +64,6 @@ pub fn save(project: *Project) !void {
             .packed_atlas_output = project.packed_atlas_output,
             .packed_texture_output = project.packed_texture_output,
             .packed_heightmap_output = project.packed_heightmap_output,
-            .generated_zig_output = project.generated_zig_output,
             .pack_on_save = project.pack_on_save,
         }, options, out_stream);
 
@@ -97,12 +89,6 @@ pub fn exportAssets(project: *Project, parent_folder: [:0]const u8) !void {
         const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ parent_folder, packed_heightmap_output });
         try pixi.editor.atlas.save(path, .heightmap);
     }
-
-    if (project.generated_zig_output) |generated_zig_output| {
-        const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ parent_folder, generated_zig_output });
-        _ = path;
-        // TODO: implement
-    }
 }
 
 pub fn deinit(project: *Project) void {
@@ -120,9 +106,6 @@ pub fn deinit(project: *Project) void {
         }
         if (project.packed_heightmap_output) |heightmap| {
             pixi.app.allocator.free(heightmap);
-        }
-        if (project.generated_zig_output) |generated| {
-            pixi.app.allocator.free(generated);
         }
     }
 }

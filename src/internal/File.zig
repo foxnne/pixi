@@ -411,7 +411,7 @@ pub fn processSampleTool(file: *File, canvas: Canvas, options: SampleToolOptions
     if (!sample_key and !sample_button) return;
 
     imgui.setMouseCursor(imgui.MouseCursor_None);
-    file.camera.drawCursor(pixi.atlas.dropper_default_0, 0xFFFFFFFF);
+    file.camera.drawCursor(pixi.atlas.sprites.dropper_default, 0xFFFFFFFF);
 
     const mouse_position = pixi.app.mouse.position;
     var camera = switch (canvas) {
@@ -509,11 +509,11 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
     switch (pixi.editor.tools.current) {
         .pencil, .heightmap => {
             imgui.setMouseCursor(imgui.MouseCursor_None);
-            file.camera.drawCursor(pixi.atlas.pencil_default_0, 0xFFFFFFFF);
+            file.camera.drawCursor(pixi.atlas.sprites.pencil_default, 0xFFFFFFFF);
         },
         .eraser => {
             imgui.setMouseCursor(imgui.MouseCursor_None);
-            file.camera.drawCursor(pixi.atlas.eraser_default_0, 0xFFFFFFFF);
+            file.camera.drawCursor(pixi.atlas.sprites.eraser_default, 0xFFFFFFFF);
         },
         else => {},
     }
@@ -524,7 +524,10 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
     const mouse_position = pixi.app.mouse.position;
     const previous_mouse_position = pixi.app.mouse.previous_position;
 
-    var selected_layer: pixi.Internal.Layer = if (file.heightmap.visible) if (file.heightmap.layer) |hml| hml else file.layers.slice().get(file.selected_layer_index) else file.layers.slice().get(file.selected_layer_index);
+    var selected_layer: pixi.Internal.Layer = if (file.heightmap.visible)
+        if (file.heightmap.layer) |hml| hml else file.layers.slice().get(file.selected_layer_index)
+    else
+        file.layers.slice().get(file.selected_layer_index);
 
     const camera = switch (canvas) {
         .primary => file.camera,
@@ -868,7 +871,7 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
 
     if (sample_key or sample_button) return;
 
-    const cursor_sprite_index: usize = if (add) pixi.atlas.selection_add_default_0 else if (rem) pixi.atlas.selection_rem_default_0 else pixi.atlas.selection_default_0;
+    const cursor_sprite_index: usize = if (add) pixi.atlas.sprites.selection_add_default else if (rem) pixi.atlas.sprites.selection_rem_default else pixi.atlas.sprites.selection_default;
     imgui.setMouseCursor(imgui.MouseCursor_None);
     file.camera.drawCursor(cursor_sprite_index, 0xFFFFFFFF);
 
@@ -1063,7 +1066,7 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
     if (sample_key or sample_button) return;
 
     imgui.setMouseCursor(imgui.MouseCursor_None);
-    file.camera.drawCursor(pixi.atlas.bucket_default_0, 0xFFFFFFFF);
+    file.camera.drawCursor(pixi.atlas.sprites.bucket_default, 0xFFFFFFFF);
 
     var canvas_center_offset = canvasCenterOffset(file, canvas);
     canvas_center_offset[0] += options.texture_position_offset[0];

@@ -15,8 +15,8 @@
         },
         .zig_imgui = .{
             //.path = "src/.temp/zig-imgui/",
-            .url = "https://github.com/foxnne/zig-imgui/archive/7e329c4031579566455511f249e8e0f543221f1d.tar.gz",
-            .hash = "122018e211f218f195d29b34466d8b4a6caf1c01345c2748739d982a1e8ff0df4e51",
+            .url = "https://github.com/foxnne/zig-imgui/archive/5aafd039bddc3345e2035016d43a45b8d846b7a2.tar.gz",
+            .hash = "1220034e62c3bf2572bb37a3e15d137c835aa578bc3102d4e64ca463bfe655d7321a",
         },
         .zstbi = .{
             .url = "https://github.com/foxnne/zstbi/archive/d9a0947365b1ee8131fcf518feac8dfe896cfcfa.tar.gz",

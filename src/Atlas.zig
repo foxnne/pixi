@@ -33,8 +33,12 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: [:0]const u8) !Atlas {
 pub fn spriteName(atlas: *Atlas, allocator: std.mem.Allocator, index: usize) ![]const u8 {
     for (atlas.animations) |animation| {
         if (index >= animation.start and index < animation.start + animation.length) {
-            const frame: usize = index - animation.start;
-            return std.fmt.allocPrint(allocator, "{s}_{d}", .{ animation.name, frame });
+            if (animation.length > 1) {
+                const frame: usize = index - animation.start;
+                return std.fmt.allocPrint(allocator, "{s}_{d}", .{ animation.name, frame });
+            } else {
+                return std.fmt.allocPrint(allocator, "{s}", .{animation.name});
+            }
         }
     }
 

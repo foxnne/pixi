@@ -110,29 +110,6 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
         }
 
         {
-            if (imgui.inputText(
-                "Generated Zig Output",
-                editor.buffers.generated_zig_path[0..],
-                editor.buffers.generated_zig_path.len,
-                imgui.InputTextFlags_AutoSelectAll,
-            )) {
-                const trimmed_text = std.mem.trim(u8, &editor.buffers.generated_zig_path, "\u{0}");
-                project.generated_zig_output = trimmed_text;
-                try project.save();
-            }
-            if (imgui.isItemFocused()) disable_hotkeys = true;
-            if (project.generated_zig_output) |generated_zig_output| {
-                if (!std.mem.eql(u8, ".zig", std.fs.path.extension(generated_zig_output))) {
-                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Zig file path must end with .zig extension!");
-                }
-                if (generated_zig_output.len == 0) {
-                    project.generated_zig_output = null;
-                    try project.save();
-                }
-            }
-        }
-
-        {
             if (imgui.checkbox("Pack and Export on save", &project.pack_on_save)) {
                 try project.save();
             }

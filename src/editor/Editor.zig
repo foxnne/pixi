@@ -108,7 +108,7 @@ pub fn init(
     editor.open_files = std.ArrayList(pixi.Internal.File).init(app.allocator);
     editor.open_references = std.ArrayList(pixi.Internal.Reference).init(app.allocator);
 
-    editor.colors.keyframe_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.pear36_hex.path);
+    editor.colors.keyframe_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
 
     sidebar_mod.call(.init);
     explorer_mod.call(.init);

@@ -44,7 +44,7 @@ pub fn draw(editor: *pixi.Editor, assets: *pixi.Assets) !void {
                 defer imgui.endPopup();
                 imgui.spacing();
 
-                const fox_sprite = atlas.sprites[pixi.atlas.fox_default_0];
+                const fox_sprite = atlas.sprites[pixi.atlas.sprites.fox_default_0];
 
                 const src: [4]f32 = .{
                     @floatFromInt(fox_sprite.source[0]),

@@ -302,7 +302,7 @@ pub fn drawLogoScreen(app: *App, editor: *Editor, assets: *Assets) !void {
             defer imgui.popStyleColorEx(5);
             { // Draw semi-transparent logo
 
-                const logo_sprite = atlas.sprites[pixi.atlas.logo_default_0];
+                const logo_sprite = atlas.sprites[pixi.atlas.sprites.logo_default];
 
                 const src: [4]f32 = .{
                     @floatFromInt(logo_sprite.source[0]),

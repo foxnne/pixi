@@ -108,8 +108,8 @@ pub fn lateInit(
     try pixi.gfx.init(app);
 
     // Load our atlas and texture
-    app.texture_id = try assets.loadTexture(pixi.paths.pixi_png.path, .{});
-    app.atlas_id = try assets.loadAtlas(pixi.paths.pixi_atlas.path);
+    app.texture_id = try assets.loadTexture(pixi.paths.@"pixi.png", .{});
+    app.atlas_id = try assets.loadAtlas(pixi.paths.@"pixi.atlas");
 
     // Add our watch tags
     try assets.textures.setTag(app.texture_id, Assets, .auto_reload, null);
@@ -156,7 +156,7 @@ pub fn lateInit(
     cozette_config.rasterizer_density = 1.0;
     cozette_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
 
-    _ = io.fonts.?.addFontFromFileTTF(pixi.paths.root ++ "fonts/CozetteVector.ttf", pixi.editor.settings.font_size, &cozette_config, null);
+    _ = io.fonts.?.addFontFromFileTTF(pixi.paths.@"CozetteVector.ttf", pixi.editor.settings.font_size, &cozette_config, null);
 
     var fa_config: imgui.FontConfig = std.mem.zeroes(imgui.FontConfig);
     fa_config.merge_mode = true;
@@ -169,8 +169,8 @@ pub fn lateInit(
     fa_config.ellipsis_char = imgui.UNICODE_CODEPOINT_MAX;
     const ranges: []const u16 = &.{ 0xf000, 0xf976, 0 };
 
-    _ = io.fonts.?.addFontFromFileTTF(pixi.paths.root ++ "fonts/fa-solid-900.ttf", pixi.editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
-    _ = io.fonts.?.addFontFromFileTTF(pixi.paths.root ++ "fonts/fa-regular-400.ttf", pixi.editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
+    _ = io.fonts.?.addFontFromFileTTF(pixi.paths.@"fa-solid-900.ttf", pixi.editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
+    _ = io.fonts.?.addFontFromFileTTF(pixi.paths.@"fa-regular-400.ttf", pixi.editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
 
     // This will load our theme
     editor_mod.call(.lateInit);
