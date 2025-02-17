@@ -188,5 +188,15 @@ fn getAllFiles(allocator: std.mem.Allocator, root_directory: []const u8, recurse
 
     try recursor(allocator, root_directory, recurse, &list);
 
+    std.mem.sort([:0]const u8, list.items, Context{}, compare);
+
     return try list.toOwnedSlice();
+}
+
+const Context = struct {};
+fn compare(_: Context, a: [:0]const u8, b: [:0]const u8) bool {
+    const base_a = std.fs.path.basename(a);
+    const base_b = std.fs.path.basename(b);
+
+    return std.mem.order(u8, base_a, base_b) == .lt;
 }

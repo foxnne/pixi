@@ -95,7 +95,7 @@ pub fn draw(editor: *Editor) !void {
             }
         }
 
-        if (imgui.collapsingHeader(pixi.fa.atlas ++ "  Sprites", imgui.TreeNodeFlags_DefaultOpen)) {
+        if (imgui.collapsingHeader(pixi.fa.th ++ "  Sprites", imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 5.0 });
             defer imgui.popStyleVar();
             if (imgui.beginChild("Sprites", .{ .x = 0.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
