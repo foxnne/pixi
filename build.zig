@@ -14,10 +14,6 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    _ = b.addModule("pixi", .{
-        .root_source_file = b.path("src/pixi.zig"),
-    });
-
     // Create our Mach pixi module, where all our code lives.
     const pixi_mod = b.createModule(.{
         .root_source_file = b.path("src/pixi.zig"),
