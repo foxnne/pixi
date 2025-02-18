@@ -275,7 +275,7 @@ pub fn draw(editor: *Editor) !void {
                             full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{c}{s}.png", .{ response.path, std.fs.path.sep, name });
                         }
 
-                        try file.layers.items(.texture)[file.selected_layer_index].image.writeToFile(full_path, .png);
+                        try file.layers.items(.texture)[file.selected_layer_index].stbi_image().writeToFile(full_path, .png);
                         editor.popups.export_to_png = false;
                     },
 
@@ -286,7 +286,7 @@ pub fn draw(editor: *Editor) !void {
                                 const folder = response.path;
                                 const name = file.layers.items(.name)[i];
                                 const full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
-                                try file.layers.items(.texture)[i].image.writeToFile(full_path, .png);
+                                try file.layers.items(.texture)[i].stbi_image().writeToFile(full_path, .png);
                                 editor.popups.export_to_png = false;
                             } else {
                                 const base_name = std.fs.path.basename(response.path);
@@ -299,7 +299,7 @@ pub fn draw(editor: *Editor) !void {
                                             const name = base_name[0..ext_index];
                                             const full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{s}_{d}.png", .{ folder, name, i });
 
-                                            try file.layers.items(.texture)[i].image.writeToFile(full_path, .png);
+                                            try file.layers.items(.texture)[i].stbi_image().writeToFile(full_path, .png);
                                             editor.popups.export_to_png = false;
                                         }
                                     }
@@ -316,7 +316,7 @@ pub fn draw(editor: *Editor) !void {
                         var i: usize = file.layers.slice().len;
                         while (i > 0) {
                             i -= 1;
-                            const src_image = file.layers.items(.texture)[i].image;
+                            const src_image = file.layers.items(.texture)[i].stbi_image();
                             const src_pixels = @as([*][4]u8, @ptrCast(src_image.data.ptr))[0 .. src_image.data.len / 4];
                             for (src_pixels, 0..) |src, j| {
                                 if (src[3] != 0) dest_pixels[j] = src;

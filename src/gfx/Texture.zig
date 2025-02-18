@@ -6,10 +6,33 @@ const gpu = @import("mach").gpu;
 
 const Texture = @This();
 
+/// gpu texture handle
 handle: *gpu.Texture,
+
+/// gpu texture view handle
 view_handle: *gpu.TextureView,
+
+/// gpu sampler handle
 sampler_handle: *gpu.Sampler,
-image: zstbi.Image,
+
+// Image fields
+pixels: []u8,
+width: u32,
+height: u32,
+num_components: u32,
+bytes_per_component: u32,
+bytes_per_row: u32,
+is_hdr: bool,
+
+// Options fields
+address_mode: gpu.Sampler.AddressMode = .clamp_to_edge,
+filter: gpu.FilterMode = .nearest,
+format: gpu.Texture.Format = .rgba8_unorm,
+storage_binding: bool = false,
+texture_binding: bool = true,
+copy_dst: bool = true,
+copy_src: bool = true,
+render_attachment: bool = true,
 
 pub const SamplerOptions = struct {
     address_mode: gpu.Sampler.AddressMode = .clamp_to_edge,
@@ -42,10 +65,10 @@ pub fn create(image: zstbi.Image, options: SamplerOptions) Texture {
         .size = image_size,
         .format = options.format,
         .usage = .{
-            .texture_binding = true,
-            .copy_dst = true,
-            .copy_src = true,
-            .render_attachment = true,
+            .texture_binding = options.texture_binding,
+            .copy_dst = options.copy_dst,
+            .copy_src = options.copy_src,
+            .render_attachment = options.render_attachment,
             .storage_binding = options.storage_binding,
         },
     };
@@ -83,7 +106,13 @@ pub fn create(image: zstbi.Image, options: SamplerOptions) Texture {
         .handle = texture,
         .view_handle = view,
         .sampler_handle = sampler,
-        .image = image,
+        .pixels = image.data,
+        .width = image.width,
+        .height = image.height,
+        .num_components = image.num_components,
+        .bytes_per_component = image.bytes_per_component,
+        .bytes_per_row = image.bytes_per_row,
+        .is_hdr = image.is_hdr,
     };
 }
 
@@ -93,12 +122,12 @@ pub fn blit(self: *Texture, src_pixels: [][4]u8, dst_rect: [4]u32) void {
     const width = @as(usize, @intCast(dst_rect[2]));
     const height = @as(usize, @intCast(dst_rect[3]));
 
-    const tex_width = @as(usize, @intCast(self.image.width));
+    const tex_width = @as(usize, @intCast(self.width));
 
     var yy = y;
     var h = height;
 
-    var dst_pixels = @as([*][4]u8, @ptrCast(self.image.data.ptr))[0 .. self.image.data.len / 4];
+    var dst_pixels = @as([*][4]u8, @ptrCast(self.pixels.ptr))[0 .. self.pixels.len / 4];
 
     var data = dst_pixels[x + yy * tex_width .. x + yy * tex_width + width];
     var src_y: usize = 0;
@@ -114,20 +143,34 @@ pub fn blit(self: *Texture, src_pixels: [][4]u8, dst_rect: [4]u32) void {
 }
 
 pub fn update(texture: *Texture, device: *gpu.Device) void {
-    const image_size = gpu.Extent3D{ .width = texture.image.width, .height = texture.image.height };
+    const image_size = gpu.Extent3D{ .width = texture.width, .height = texture.height };
     const queue = device.getQueue();
 
     const data_layout = gpu.Texture.DataLayout{
-        .bytes_per_row = texture.image.width * 4,
-        .rows_per_image = texture.image.height,
+        .bytes_per_row = texture.width * 4,
+        .rows_per_image = texture.height,
     };
 
-    queue.writeTexture(&.{ .texture = texture.handle }, &data_layout, &image_size, texture.image.data);
+    queue.writeTexture(&.{ .texture = texture.handle }, &data_layout, &image_size, texture.pixels);
+}
+
+pub fn stbi_image(texture: *const Texture) zstbi.Image {
+    return zstbi.Image{
+        .data = texture.pixels,
+        .width = texture.width,
+        .height = texture.height,
+        .num_components = texture.num_components,
+        .bytes_per_component = texture.bytes_per_component,
+        .bytes_per_row = texture.bytes_per_row,
+        .is_hdr = texture.is_hdr,
+    };
 }
 
 pub fn deinit(texture: *Texture) void {
     texture.handle.release();
     texture.view_handle.release();
     texture.sampler_handle.release();
-    texture.image.deinit();
+
+    var image = texture.stbi_image();
+    image.deinit();
 }

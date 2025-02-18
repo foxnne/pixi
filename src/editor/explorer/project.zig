@@ -21,7 +21,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
     const window_size = imgui.getContentRegionAvail();
 
     if (editor.project) |*project| {
-        if (editor.project_folder) |project_folder| {
+        if (editor.folder) |project_folder| {
             const project_path = try std.fs.path.joinZ(
                 editor.arena.allocator(),
                 &.{ project_folder, ".pixiproject" },
@@ -116,7 +116,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
         }
 
         if (imgui.buttonEx("Pack and Export", .{ .x = window_size.x, .y = 0.0 })) {
-            if (editor.project_folder) |project_folder| {
+            if (editor.folder) |project_folder| {
                 packer.target = .project;
                 try packer.appendProject();
                 try packer.packAndClear();
@@ -131,7 +131,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
         imgui.popStyleColor();
 
         if (imgui.buttonEx("Create Project", .{ .x = window_size.x, .y = 0.0 })) {
-            if (editor.project_folder != null) {
+            if (editor.folder != null) {
                 editor.project = .{};
             }
 
@@ -167,7 +167,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
             }
 
             var packable: bool = true;
-            if (packer.target == .project and editor.project_folder == null) packable = false;
+            if (packer.target == .project and editor.folder == null) packable = false;
             if (packer.target == .all_open and editor.open_files.items.len <= 1) packable = false;
             if (editor.saving()) {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
@@ -201,7 +201,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
             if (!packable)
                 imgui.endDisabled();
 
-            if (packer.target == .project and editor.project_folder == null) {
+            if (packer.target == .project and editor.folder == null) {
                 imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
                 defer imgui.popStyleColor();
                 imgui.textWrapped("Select a project folder to pack.");
@@ -213,7 +213,7 @@ pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
             imgui.text("Sprites: %d", data.sprites.len);
             imgui.text("Animations: %d", data.animations.len);
             if (editor.atlas.texture) |texture| {
-                imgui.text("Atlas size: %dx%d", texture.image.width, texture.image.height);
+                imgui.text("Atlas size: %dx%d", texture.width, texture.height);
             }
 
             if (imgui.buttonEx("Export", .{ .x = window_size.x, .y = 0.0 })) {

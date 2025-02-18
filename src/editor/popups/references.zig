@@ -96,8 +96,8 @@ pub fn draw(editor: *Editor) !void {
                     const window_width = imgui.getWindowWidth();
                     const window_height = imgui.getWindowHeight();
 
-                    const file_width: f32 = @floatFromInt(reference.texture.image.width);
-                    const file_height: f32 = @floatFromInt(reference.texture.image.height);
+                    const file_width: f32 = @floatFromInt(reference.texture.width);
+                    const file_height: f32 = @floatFromInt(reference.texture.height);
 
                     const canvas_center_offset = reference.canvasCenterOffset();
 
@@ -120,8 +120,8 @@ pub fn draw(editor: *Editor) !void {
                         const color = pixi.math.Color.initFloats(1.0, 1.0, 1.0, reference.opacity / 100.0);
                         reference.camera.drawTexture(
                             reference.texture.view_handle,
-                            reference.texture.image.width,
-                            reference.texture.image.height,
+                            reference.texture.width,
+                            reference.texture.height,
                             canvas_center_offset,
                             color.toU32(),
                         );

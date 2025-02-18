@@ -253,7 +253,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             const layer = if (pixels.layer < 0) file.heightmap.layer.? else file.layers.slice().get(@as(usize, @intCast(pixels.layer)));
             for (pixels.indices, 0..) |pixel_index, i| {
                 const color: [4]u8 = pixels.values[i];
-                var current_pixels = @as([*][4]u8, @ptrCast(layer.texture.image.data.ptr))[0 .. layer.texture.image.data.len / 4];
+                var current_pixels = @as([*][4]u8, @ptrCast(layer.texture.pixels.ptr))[0 .. layer.texture.pixels.len / 4];
                 pixels.values[i] = current_pixels[pixel_index];
                 current_pixels[pixel_index] = color;
                 if (color[3] == 0 and pixels.layer >= 0) {

@@ -31,22 +31,21 @@ pub const main = mach.schedule(.{
 });
 
 // App fields
-timer: mach.time.Timer,
-window: mach.ObjectID,
-
 allocator: std.mem.Allocator = undefined,
-mouse: pixi.input.Mouse = undefined,
-root_path: [:0]const u8 = undefined,
-delta_time: f32 = 0.0,
-total_time: f32 = 0.0,
 batcher: pixi.gfx.Batcher = undefined,
-pipeline_default: *gpu.RenderPipeline = undefined,
-pipeline_compute: *gpu.ComputePipeline = undefined,
-uniform_buffer_default: *gpu.Buffer = undefined,
 content_scale: [2]f32 = undefined,
-window_size: [2]f32 = undefined,
+delta_time: f32 = 0.0,
 framebuffer_size: [2]f32 = undefined,
+mouse: pixi.input.Mouse = undefined,
+pipeline_compute: *gpu.ComputePipeline = undefined,
+pipeline_default: *gpu.RenderPipeline = undefined,
+root_path: [:0]const u8 = undefined,
 should_close: bool = false,
+timer: mach.time.Timer,
+total_time: f32 = 0.0,
+uniform_buffer_default: *gpu.Buffer = undefined,
+window: mach.ObjectID,
+window_size: [2]f32 = undefined,
 
 // These are the only two assets pixi needs outside of fonts
 texture_id: mach.ObjectID = 0,

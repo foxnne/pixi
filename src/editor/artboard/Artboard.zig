@@ -277,7 +277,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer
                 }
                 imgui.endChild();
 
-                if (editor.project_folder != null or editor.open_files.items.len > 0) {
+                if (editor.folder != null or editor.open_files.items.len > 0) {
                     imgui.pushStyleColorImVec4(imgui.Col_ChildBg, pixi.editor.theme.highlight_primary.toImguiVec4());
                     defer imgui.popStyleColor();
                     if (imgui.beginChild("InfoBar", .{ .x = -1.0, .y = 0.0 }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
@@ -315,8 +315,8 @@ pub fn drawLogoScreen(app: *App, editor: *Editor, assets: *Assets) !void {
                 const h = src[3] * 32.0;
                 const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
 
-                const inv_w = 1.0 / @as(f32, @floatFromInt(texture.image.width));
-                const inv_h = 1.0 / @as(f32, @floatFromInt(texture.image.height));
+                const inv_w = 1.0 / @as(f32, @floatFromInt(texture.width));
+                const inv_h = 1.0 / @as(f32, @floatFromInt(texture.height));
 
                 imgui.setCursorPosX(center[0] - w / 2.0);
                 imgui.setCursorPosY(center[1] - h / 2.0);

@@ -7,12 +7,12 @@ const App = pixi.App;
 const Core = mach.Core;
 const Editor = @This();
 
-pub const Settings = @import("Settings.zig");
 pub const Colors = @import("Colors.zig");
-pub const Recents = @import("Recents.zig");
-pub const Tools = @import("Tools.zig");
-pub const Theme = @import("Theme.zig");
 pub const Project = @import("Project.zig");
+pub const Recents = @import("Recents.zig");
+pub const Settings = @import("Settings.zig");
+pub const Theme = @import("Theme.zig");
+pub const Tools = @import("Tools.zig");
 
 pub const Constants = @import("Constants.zig");
 
@@ -22,9 +22,9 @@ const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
 // Modules
+pub const Artboard = @import("artboard/Artboard.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
 pub const Popups = @import("popups/Popups.zig");
-pub const Artboard = @import("artboard/Artboard.zig");
 pub const Sidebar = @import("Sidebar.zig");
 
 pub const mach_module = .editor;
@@ -52,8 +52,11 @@ popups: *Popups,
 artboard: *Artboard,
 sidebar: *Sidebar,
 
-project_folder: ?[:0]const u8 = null,
+/// The root folder that will be searched for files and a .pixiproject file
+folder: ?[:0]const u8 = null,
+/// The current project which, if present, handles export paths
 project: ?Project = null,
+/// Backing allocations for the project paths
 buffers: Buffers = .{},
 
 previous_atlas_export: ?[:0]const u8 = null,
@@ -77,7 +80,6 @@ pub const Buffers = struct {
     atlas_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
     texture_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
     heightmap_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
-    generated_zig_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
 };
 
 pub fn init(
@@ -126,7 +128,7 @@ pub fn lateInit(core: *Core, app: *App, editor: *Editor) !void {
 pub fn processDialogRequest(editor: *Editor) !void {
     if (editor.popups.file_dialog_request) |request| {
         defer editor.popups.file_dialog_request = null;
-        const initial = if (request.initial) |initial| initial else editor.project_folder;
+        const initial = if (request.initial) |initial| initial else editor.folder;
 
         if (switch (request.state) {
             .file => try nfd.openFileDialog(request.filter, initial),
@@ -264,10 +266,10 @@ pub fn close(app: *App, editor: *Editor) void {
 }
 
 pub fn setProjectFolder(editor: *Editor, path: [:0]const u8) !void {
-    if (editor.project_folder) |folder| {
+    if (editor.folder) |folder| {
         pixi.app.allocator.free(folder);
     }
-    editor.project_folder = try pixi.app.allocator.dupeZ(u8, path);
+    editor.folder = try pixi.app.allocator.dupeZ(u8, path);
     try editor.recents.appendFolder(try pixi.app.allocator.dupeZ(u8, path));
     editor.explorer.pane = .files;
 
@@ -485,7 +487,7 @@ pub fn forceCloseAllFiles(editor: *Editor) !void {
 /// Performs a save operation on the currently open file.
 /// Also will perform a full project pack and export if project.pack_on_save is true
 pub fn save(editor: *Editor) !void {
-    if (editor.project_folder) |project_folder| {
+    if (editor.folder) |project_folder| {
         if (editor.project) |*project| {
             if (project.pack_on_save) {
                 try pixi.packer.appendProject();
@@ -558,7 +560,7 @@ pub fn deinit(editor: *Editor, app: *App) !void {
     try editor.settings.save(app.allocator);
     editor.settings.deinit(app.allocator);
 
-    if (editor.project_folder) |folder| app.allocator.free(folder);
+    if (editor.folder) |folder| app.allocator.free(folder);
     if (editor.project) |*project| project.deinit();
 
     editor.arena.deinit();

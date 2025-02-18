@@ -29,8 +29,8 @@ pub fn save(atlas: Atlas, path: []const u8, selector: Selector) !void {
             const write_path = std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}", .{path}) catch unreachable;
 
             switch (selector) {
-                .texture => if (atlas.texture) |texture| try texture.image.writeToFile(write_path, .png),
-                .heightmap => if (atlas.heightmap) |heightmap| try heightmap.image.writeToFile(write_path, .png),
+                .texture => if (atlas.texture) |*texture| try texture.stbi_image().writeToFile(write_path, .png),
+                .heightmap => if (atlas.heightmap) |*heightmap| try heightmap.stbi_image().writeToFile(write_path, .png),
                 else => unreachable,
             }
         },

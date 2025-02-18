@@ -197,8 +197,8 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
 
         file.flipbook_camera.drawTexture(
             file.keyframe_animation_texture.view_handle,
-            file.keyframe_animation_texture.image.width,
-            file.keyframe_animation_texture.image.height,
+            file.keyframe_animation_texture.width,
+            file.keyframe_animation_texture.height,
             file.canvasCenterOffset(.primary),
             0xFFFFFFFF,
         );
@@ -365,7 +365,7 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
                             }
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
-                            @memset(file.keyframe_animation_texture.image.data, 0.0);
+                            @memset(file.keyframe_animation_texture.pixels, 0.0);
                             file.keyframe_animation_texture.update(pixi.core.windows.get(pixi.app.window, .device));
                         }
                     }
@@ -487,7 +487,7 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
                             }
 
                             // We are using a load on the gpu texture, so we need to clear this texture on the gpu after we are done
-                            @memset(file.keyframe_animation_texture.image.data, 0.0);
+                            @memset(file.keyframe_animation_texture.pixels, 0);
                             file.keyframe_animation_texture.update(pixi.core.windows.get(pixi.app.window, .device));
                         }
                     }

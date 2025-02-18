@@ -12,16 +12,16 @@ id: u32 = 0,
 transform_bindgroup: ?*gpu.BindGroup = null,
 
 pub fn pixels(self: *const Layer) [][4]u8 {
-    return @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
+    return @as([*][4]u8, @ptrCast(self.texture.pixels.ptr))[0 .. self.texture.pixels.len / 4];
 }
 
 pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {
-    return pixel[0] + pixel[1] * @as(usize, @intCast(self.texture.image.width));
+    return pixel[0] + pixel[1] * @as(usize, @intCast(self.texture.width));
 }
 
 pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
     const index = self.getPixelIndex(pixel);
-    const p = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
+    const p = @as([*][4]u8, @ptrCast(self.texture.pixels.ptr))[0 .. self.texture.pixels.len / 4];
     return p[index];
 }
 
@@ -80,7 +80,7 @@ pub fn getIndexShapeOffset(self: Layer, origin: [2]usize, current_index: usize) 
 
     const pixel_i32: [2]i32 = .{ @as(i32, @intCast(origin[0])) + pixel_offset[0], @as(i32, @intCast(origin[1])) + pixel_offset[1] };
 
-    if (pixel_i32[0] < 0 or pixel_i32[1] < 0 or pixel_i32[0] >= self.texture.image.width or pixel_i32[1] >= self.texture.image.height) {
+    if (pixel_i32[0] < 0 or pixel_i32[1] < 0 or pixel_i32[0] >= self.texture.width or pixel_i32[1] >= self.texture.height) {
         return null;
     }
 

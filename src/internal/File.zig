@@ -1740,14 +1740,14 @@ pub fn save(self: *File) !void {
             const name = self.layers.items(.name)[index];
             const layer_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{name});
             _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
-            try self.layers.items(.texture)[index].image.writeToFn(write, z, .png);
+            try self.layers.items(.texture)[index].stbi_image().writeToFn(write, z, .png);
             _ = zip.zip_entry_close(z);
         }
 
-        if (self.heightmap.layer) |working_layer| {
+        if (self.heightmap.layer) |*working_layer| {
             const layer_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{working_layer.name});
             _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
-            try working_layer.texture.image.writeToFn(write, z, .png);
+            try working_layer.texture.stbi_image().writeToFn(write, z, .png);
             _ = zip.zip_entry_close(z);
         }
 
@@ -1771,7 +1771,7 @@ pub fn saveAsync(self: *File) !void {
 }
 
 pub fn saveLDtk(self: *File) !void {
-    if (pixi.editor.project_folder) |project_folder_path| {
+    if (pixi.editor.folder) |project_folder_path| {
         const ldtk_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
         defer pixi.app.allocator.free(ldtk_path);
 
@@ -1803,7 +1803,7 @@ pub fn saveLDtk(self: *File) !void {
 
                 try std.fs.cwd().makePath(file_folder_path);
 
-                try working_layer.texture.image.writeToFile(layer_save_name, .png);
+                try working_layer.texture.stbi_image().writeToFile(layer_save_name, .png);
             }
         }
 
@@ -1858,8 +1858,8 @@ pub fn cut(self: *File, append_history: bool) !void {
                 const dst_pixels = @as([*][4]u8, @ptrCast(copy_image.data.ptr))[0 .. copy_image.data.len / 4];
 
                 const src_layer = self.layers.slice().get(self.selected_layer_index);
-                const src_pixels = @as([*][4]u8, @ptrCast(src_layer.texture.image.data.ptr))[0 .. src_layer.texture.image.data.len / 4];
-                const mask_pixels = @as([*][4]u8, @ptrCast(self.selection_layer.texture.image.data.ptr))[0 .. self.selection_layer.texture.image.data.len / 4];
+                const src_pixels = @as([*][4]u8, @ptrCast(src_layer.texture.pixels.ptr))[0 .. src_layer.texture.pixels.len / 4];
+                const mask_pixels = @as([*][4]u8, @ptrCast(self.selection_layer.texture.pixels.ptr))[0 .. self.selection_layer.texture.pixels.len / 4];
 
                 // Copy pixels to image
                 {
@@ -1921,8 +1921,8 @@ pub fn copy(self: *File) !void {
                 const dst_pixels = @as([*][4]u8, @ptrCast(copy_image.data.ptr))[0 .. copy_image.data.len / 4];
 
                 const src_layer = &self.layers.slice().get(self.selected_layer_index);
-                const src_pixels = @as([*][4]u8, @ptrCast(src_layer.texture.image.data.ptr))[0 .. src_layer.texture.image.data.len / 4];
-                const mask_pixels = @as([*][4]u8, @ptrCast(self.selection_layer.texture.image.data.ptr))[0 .. self.selection_layer.texture.image.data.len / 4];
+                const src_pixels = @as([*][4]u8, @ptrCast(src_layer.texture.pixels.ptr))[0 .. src_layer.texture.pixels.len / 4];
+                const mask_pixels = @as([*][4]u8, @ptrCast(self.selection_layer.texture.pixels.ptr))[0 .. self.selection_layer.texture.pixels.len / 4];
 
                 // Copy pixels to image
                 {
@@ -2109,7 +2109,7 @@ pub fn renameLayer(file: *File, name: [:0]const u8, index: usize) !void {
 pub fn duplicateLayer(self: *File, name: [:0]const u8, src_index: usize) !void {
     const src = self.layers.slice().get(src_index);
     var texture = try pixi.gfx.Texture.createEmpty(self.width, self.height, .{});
-    @memcpy(texture.image.data, src.texture.image.data);
+    @memcpy(texture.pixels, src.texture.pixels);
     texture.update(pixi.core.windows.get(pixi.app.window, .device));
     try self.layers.insert(pixi.app.allocator, 0, .{
         .name = try pixi.app.allocator.dupeZ(u8, name),
@@ -2386,7 +2386,7 @@ pub fn spriteToImage(file: *File, sprite_index: usize, all_layers: bool) !zstbi.
 
             const first_index = working_layer.getPixelIndex(.{ src_x, src_y });
 
-            var src_pixels = @as([*][4]u8, @ptrCast(working_layer.texture.image.data.ptr))[0 .. working_layer.texture.image.data.len / 4];
+            var src_pixels = @as([*][4]u8, @ptrCast(working_layer.texture.pixels.ptr))[0 .. working_layer.texture.pixels.len / 4];
             var dest_pixels = @as([*][4]u8, @ptrCast(sprite_image.data.ptr))[0 .. sprite_image.data.len / 4];
 
             var r: usize = 0;
@@ -2408,7 +2408,7 @@ pub fn spriteToImage(file: *File, sprite_index: usize, all_layers: bool) !zstbi.
 
         const first_index = selected_layer.getPixelIndex(.{ src_x, src_y });
 
-        var src_pixels = @as([*][4]u8, @ptrCast(selected_layer.texture.image.data.ptr))[0 .. selected_layer.texture.image.data.len / 4];
+        var src_pixels = @as([*][4]u8, @ptrCast(selected_layer.texture.pixels.ptr))[0 .. selected_layer.texture.pixels.len / 4];
         var dest_pixels = @as([*][4]u8, @ptrCast(sprite_image.data.ptr))[0 .. sprite_image.data.len / 4];
 
         var r: usize = 0;
@@ -2510,7 +2510,7 @@ pub fn copySprite(file: *File, src_index: usize, dst_index: usize, layer_id: usi
     const src_first_index = working_layer.getPixelIndex(.{ src_x, src_y });
     const dst_first_index = working_layer.getPixelIndex(.{ dst_x, dst_y });
 
-    var src_pixels = @as([*][4]u8, @ptrCast(working_layer.texture.image.data.ptr))[0 .. working_layer.texture.image.data.len / 4];
+    var src_pixels = @as([*][4]u8, @ptrCast(working_layer.texture.pixels.ptr))[0 .. working_layer.texture.pixels.len / 4];
 
     var row: usize = 0;
     while (row < @as(usize, @intCast(file.tile_height))) : (row += 1) {
@@ -2572,7 +2572,7 @@ pub fn shiftDirection(file: *File, direction: pixi.math.Direction) !void {
     const src_first_index = selected_layer.getPixelIndex(.{ src_x, src_y });
     const dst_first_index = selected_layer.getPixelIndex(.{ dst_x, dst_y });
 
-    var src_pixels = @as([*][4]u8, @ptrCast(selected_layer.texture.image.data.ptr))[0 .. selected_layer.texture.image.data.len / 4];
+    var src_pixels = @as([*][4]u8, @ptrCast(selected_layer.texture.pixels.ptr))[0 .. selected_layer.texture.pixels.len / 4];
 
     const forwards: bool = switch (direction) {
         .e, .s => false,
@@ -2623,7 +2623,7 @@ pub fn eraseSprite(file: *File, sprite_index: usize, append_history: bool) !void
 
     const src_first_index = selected_layer.getPixelIndex(.{ src_x, src_y });
 
-    var src_pixels = @as([*][4]u8, @ptrCast(selected_layer.texture.image.data.ptr))[0 .. selected_layer.texture.image.data.len / 4];
+    var src_pixels = @as([*][4]u8, @ptrCast(selected_layer.texture.pixels.ptr))[0 .. selected_layer.texture.pixels.len / 4];
 
     var row: usize = 0;
     while (row < @as(usize, @intCast(file.tile_height))) : (row += 1) {

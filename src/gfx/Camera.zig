@@ -288,8 +288,8 @@ pub fn drawCursor(_: Camera, sprite_index: usize, color: u32) void {
                 @floatFromInt(sprite.source[3]),
             };
 
-            const inv_w = 1.0 / @as(f32, @floatFromInt(texture.image.width));
-            const inv_h = 1.0 / @as(f32, @floatFromInt(texture.image.height));
+            const inv_w = 1.0 / @as(f32, @floatFromInt(texture.width));
+            const inv_h = 1.0 / @as(f32, @floatFromInt(texture.height));
 
             var min: imgui.Vec2 = .{ .x = position[0], .y = position[1] };
             var max: imgui.Vec2 = .{ .x = position[0] + sprite_source[2], .y = position[1] + sprite_source[3] };
@@ -316,7 +316,7 @@ pub fn drawCursor(_: Camera, sprite_index: usize, color: u32) void {
 }
 
 pub fn drawLayer(camera: Camera, layer: pixi.Internal.Layer, position: [2]f32) void {
-    const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(layer.texture.image.width)), @as(f32, @floatFromInt(layer.texture.image.height)) });
+    const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(layer.texture.width)), @as(f32, @floatFromInt(layer.texture.height)) });
 
     const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
     const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
@@ -335,8 +335,8 @@ pub fn drawLayer(camera: Camera, layer: pixi.Internal.Layer, position: [2]f32) v
 pub fn drawSprite(camera: Camera, layer: pixi.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
     const rect_min_max = camera.getRectMinMax(dst_rect);
 
-    const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
-    const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.image.height));
+    const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.width));
+    const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.height));
 
     const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
     const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
@@ -358,8 +358,8 @@ pub fn drawSprite(camera: Camera, layer: pixi.Internal.Layer, src_rect: [4]f32, 
 pub fn drawSpriteQuad(camera: Camera, layer: pixi.Internal.Layer, src_rect: [4]f32, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32) void {
     const dst = camera.getQuad(dst_p1, dst_p2, dst_p3, dst_p4);
 
-    const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.image.width));
-    const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.image.height));
+    const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.width));
+    const inv_h = 1.0 / @as(f32, @floatFromInt(layer.texture.height));
 
     const uvmin: imgui.Vec2 = .{ .x = src_rect[0] * inv_w, .y = src_rect[1] * inv_h };
     const uvmax: imgui.Vec2 = .{ .x = (src_rect[0] + src_rect[2]) * inv_w, .y = (src_rect[1] + src_rect[3]) * inv_h };
@@ -672,19 +672,19 @@ pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
         .primary => pixi.editor.open_files.items[pixi.editor.open_file_index].canvasCenterOffset(.primary),
         .flipbook => pixi.editor.open_files.items[pixi.editor.open_file_index].canvasCenterOffset(.flipbook),
         .reference => pixi.editor.open_references.items[pixi.editor.open_reference_index].canvasCenterOffset(),
-        .packer => .{ -@as(f32, @floatFromInt(pixi.editor.atlas.texture.?.image.width)) / 2.0, -@as(f32, @floatFromInt(pixi.editor.atlas.texture.?.image.height)) / 2.0 },
+        .packer => .{ -@as(f32, @floatFromInt(pixi.editor.atlas.texture.?.width)) / 2.0, -@as(f32, @floatFromInt(pixi.editor.atlas.texture.?.height)) / 2.0 },
     };
 
     const canvas_width = switch (target) {
         .primary, .flipbook => pixi.editor.open_files.items[pixi.editor.open_file_index].width,
-        .reference => pixi.editor.open_references.items[pixi.editor.open_reference_index].texture.image.width,
-        .packer => pixi.editor.atlas.texture.?.image.width,
+        .reference => pixi.editor.open_references.items[pixi.editor.open_reference_index].texture.width,
+        .packer => pixi.editor.atlas.texture.?.width,
     };
 
     const canvas_height = switch (target) {
         .primary, .flipbook => pixi.editor.open_files.items[pixi.editor.open_file_index].height,
-        .reference => pixi.editor.open_references.items[pixi.editor.open_reference_index].texture.image.height,
-        .packer => pixi.editor.atlas.texture.?.image.height,
+        .reference => pixi.editor.open_references.items[pixi.editor.open_reference_index].texture.height,
+        .packer => pixi.editor.atlas.texture.?.height,
     };
 
     const previous_zoom = camera.zoom;

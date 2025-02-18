@@ -310,8 +310,8 @@ pub fn transformSprite(self: *Batcher, t: *const gfx.Texture, s: pixi.Sprite, ve
     const width = @as(f32, @floatFromInt(s.source[2]));
     const height = @as(f32, @floatFromInt(s.source[3]));
 
-    const tex_width = @as(f32, @floatFromInt(t.image.width));
-    const tex_height = @as(f32, @floatFromInt(t.image.height));
+    const tex_width = @as(f32, @floatFromInt(t.width));
+    const tex_height = @as(f32, @floatFromInt(t.height));
 
     var centroid = zmath.f32x4(0.0, 0.0, 0.0, 0.0);
     for (vertices) |v| {
@@ -530,7 +530,7 @@ pub fn end(self: *Batcher, uniforms: anytype, uniform_buffer: *gpu.Buffer) !void
                             compute_pass.setPipeline(compute_pipeline_handle);
                             compute_pass.setBindGroup(0, compute_bind_group_handle, &.{});
 
-                            compute_pass.dispatchWorkgroups(self.context.output_texture.?.image.width, self.context.output_texture.?.image.height, 1);
+                            compute_pass.dispatchWorkgroups(self.context.output_texture.?.width, self.context.output_texture.?.height, 1);
                         }
 
                         encoder.copyBufferToBuffer(compute_buffer, 0, staging_buffer, 0, self.context.buffer_size);

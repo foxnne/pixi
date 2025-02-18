@@ -34,7 +34,7 @@ pub fn draw(editor: *Editor) !void {
     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
     defer imgui.popStyleVar();
 
-    if (editor.project_folder) |path| {
+    if (editor.folder) |path| {
         const folder = std.fs.path.basename(path);
 
         // Open files
@@ -120,11 +120,11 @@ pub fn draw(editor: *Editor) !void {
         }
 
         if (!open) {
-            if (editor.project_folder) |f| {
+            if (editor.folder) |f| {
                 pixi.app.allocator.free(f);
             }
 
-            editor.project_folder = null;
+            editor.folder = null;
         }
     } else {
         if (imgui.collapsingHeader(pixi.fa.clock ++ "  Recents", imgui.TreeNodeFlags_DefaultOpen)) {

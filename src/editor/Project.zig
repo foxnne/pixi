@@ -19,7 +19,7 @@ packed_atlas_output: ?[]const u8 = null,
 pack_on_save: bool = true,
 
 pub fn load() !?Project {
-    if (pixi.editor.project_folder) |folder| {
+    if (pixi.editor.folder) |folder| {
         const file = try std.fs.path.join(pixi.editor.arena.allocator(), &.{ folder, ".pixiproject" });
 
         if (pixi.fs.read(pixi.app.allocator, file) catch null) |r| {
@@ -52,7 +52,7 @@ pub fn load() !?Project {
 }
 
 pub fn save(project: *Project) !void {
-    if (pixi.editor.project_folder) |folder| {
+    if (pixi.editor.folder) |folder| {
         const file = try std.fs.path.join(pixi.editor.arena.allocator(), &.{ folder, ".pixiproject" });
         var handle = try std.fs.createFileAbsolute(file, .{});
         defer handle.close();
@@ -73,7 +73,7 @@ pub fn save(project: *Project) !void {
     return error.FailedToSaveProject;
 }
 
-// Project output assets will be exported to a join of parent_folder and the individual output paths for each asset
+/// Project output assets will be exported to a join of parent_folder and the individual output paths for each asset
 pub fn exportAssets(project: *Project, parent_folder: [:0]const u8) !void {
     if (project.packed_atlas_output) |packed_atlas_output| {
         const path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &.{ parent_folder, packed_atlas_output });

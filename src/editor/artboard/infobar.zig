@@ -18,7 +18,7 @@ pub fn draw(editor: *Editor) void {
     imgui.setCursorPosY(y);
     imgui.setCursorPosX(5.0);
 
-    if (editor.project_folder) |path| {
+    if (editor.folder) |path| {
         imgui.setCursorPosY(y + 2.0);
         imgui.textColored(editor.theme.foreground.toImguiVec4(), pixi.fa.folder_open);
         imgui.setCursorPosY(y);

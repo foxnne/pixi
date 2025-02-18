@@ -17,19 +17,19 @@ pub fn deinit(reference: *Reference) void {
 }
 
 pub fn canvasCenterOffset(reference: *Reference) [2]f32 {
-    const width: f32 = @floatFromInt(reference.texture.image.width);
-    const height: f32 = @floatFromInt(reference.texture.image.height);
+    const width: f32 = @floatFromInt(reference.texture.width);
+    const height: f32 = @floatFromInt(reference.texture.height);
 
     return .{ -width / 2.0, -height / 2.0 };
 }
 
 pub fn getPixelIndex(reference: Reference, pixel: [2]usize) usize {
-    return pixel[0] + pixel[1] * @as(usize, @intCast(reference.texture.image.width));
+    return pixel[0] + pixel[1] * @as(usize, @intCast(reference.texture.width));
 }
 
 pub fn getPixel(self: Reference, pixel: [2]usize) [4]u8 {
     const index = self.getPixelIndex(pixel);
-    const pixels = @as([*][4]u8, @ptrCast(self.texture.image.data.ptr))[0 .. self.texture.image.data.len / 4];
+    const pixels = @as([*][4]u8, @ptrCast(self.texture.pixels.ptr))[0 .. self.texture.pixels.len / 4];
     return pixels[index];
 }
 
@@ -48,8 +48,8 @@ pub fn processSampleTool(reference: *Reference) void {
     const pixel_coord_opt = camera.pixelCoordinates(.{
         .texture_position = canvasCenterOffset(reference),
         .position = mouse_position,
-        .width = reference.texture.image.width,
-        .height = reference.texture.image.height,
+        .width = reference.texture.width,
+        .height = reference.texture.height,
     });
 
     if (pixel_coord_opt) |pixel_coord| {

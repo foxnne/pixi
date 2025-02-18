@@ -74,8 +74,8 @@ pub fn draw(editor: *pixi.Editor, assets: *pixi.Assets) !void {
                     );
                 }
 
-                const inv_w = 1.0 / @as(f32, @floatFromInt(texture.image.width));
-                const inv_h = 1.0 / @as(f32, @floatFromInt(texture.image.height));
+                const inv_w = 1.0 / @as(f32, @floatFromInt(texture.width));
+                const inv_h = 1.0 / @as(f32, @floatFromInt(texture.height));
 
                 imgui.setCursorPosX(center[0] - w / 2.0);
                 imgui.setCursorPosY(center[1] - h / 6.0);
