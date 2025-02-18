@@ -101,7 +101,7 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                         pixi.editor.theme.background.toU32(),
                     );
                     // Draw background
-                    file.flipbook_camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
+                    file.flipbook_camera.drawTexture(&file.background, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
                     file.selected_sprite_index = sprite_index;
                     if (!file.setAnimationFromSpriteIndex()) {
                         file.selected_animation_state = .pause;
@@ -115,8 +115,10 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                         layer_index -= 1;
                         if (!file.layers.items(.visible)[layer_index]) continue;
 
+                        var layer = file.layers.slice().get(layer_index);
+
                         file.flipbook_camera.drawSpriteQuad(
-                            file.layers.slice().get(layer_index),
+                            &layer,
                             src_rect,
                             dst_p1,
                             dst_p2,
@@ -131,7 +133,7 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                     }
 
                     if (sprite_index == file.selected_sprite_index)
-                        file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
+                        file.flipbook_camera.drawSprite(&file.temporary_layer, src_rect, dst_rect);
 
                     if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
                         if (sprite_index != file.selected_sprite_index) {
@@ -208,7 +210,7 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                             const dst_rect: [4]f32 = .{ dst_x + offset_x, dst_y + offset_y, dst_width, dst_height };
 
                             // Draw background
-                            file.flipbook_camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
+                            file.flipbook_camera.drawTexture(&file.background, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
                             file.selected_sprite_index = sprite_index;
                             if (!file.setAnimationFromSpriteIndex()) {
                                 file.selected_animation_state = .pause;
@@ -220,11 +222,13 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                                 layer_index -= 1;
                                 if (!file.layers.items(.visible)[layer_index]) continue;
 
-                                file.flipbook_camera.drawSprite(file.layers.slice().get(layer_index), src_rect, dst_rect);
+                                var layer = file.layers.slice().get(layer_index);
+
+                                file.flipbook_camera.drawSprite(&layer, src_rect, dst_rect);
                             }
 
                             if (sprite_index == file.selected_sprite_index)
-                                file.flipbook_camera.drawSprite(file.temporary_layer, src_rect, dst_rect);
+                                file.flipbook_camera.drawSprite(&file.temporary_layer, src_rect, dst_rect);
 
                             if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
                                 file.flipbook_camera.drawRect(dst_rect, 1, pixi.editor.theme.text.toU32());

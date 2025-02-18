@@ -119,9 +119,7 @@ pub fn draw(editor: *Editor) !void {
                     { // Draw reference texture
                         const color = pixi.math.Color.initFloats(1.0, 1.0, 1.0, reference.opacity / 100.0);
                         reference.camera.drawTexture(
-                            reference.texture.view_handle,
-                            reference.texture.width,
-                            reference.texture.height,
+                            &reference.texture,
                             canvas_center_offset,
                             color.toU32(),
                         );

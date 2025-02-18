@@ -120,7 +120,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
             const y = @as(f32, @floatFromInt(tile_row)) * tile_height + canvas_center_offset[1];
 
             if (editor.explorer.pane != .pack)
-                file.camera.drawTexture(file.background.view_handle, file.tile_width, file.tile_height, .{ x, y }, 0x88FFFFFF);
+                file.camera.drawTexture(&file.background, .{ x, y }, 0x88FFFFFF);
 
             try file.processStrokeTool(.primary, .{});
             try file.processFillTool(.primary, .{});
@@ -218,12 +218,14 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
         while (i > 0) {
             i -= 1;
 
-            if (file.layers.items(.visible)[i])
-                file.camera.drawLayer(file.layers.slice().get(i), canvas_center_offset);
+            if (file.layers.items(.visible)[i]) {
+                var layer = file.layers.slice().get(i);
+                file.camera.drawLayer(&layer, canvas_center_offset);
+            }
         }
 
         // Draw the temporary layer
-        file.camera.drawLayer(file.temporary_layer, canvas_center_offset);
+        file.camera.drawLayer(&file.temporary_layer, canvas_center_offset);
 
         // Draw grid
         file.camera.drawGrid(canvas_center_offset, file_width, file_height, @as(usize, @intFromFloat(file_width / tile_width)), @as(usize, @intFromFloat(file_height / tile_height)), pixi.editor.theme.text_secondary.toU32(), false);
@@ -233,14 +235,14 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
 
         if (file.heightmap.visible) {
             file.camera.drawRectFilled(.{ canvas_center_offset[0], canvas_center_offset[1], file_width, file_height }, 0x60FFFFFF);
-            if (file.heightmap.layer) |layer| {
+            if (file.heightmap.layer) |*layer| {
                 file.camera.drawLayer(layer, canvas_center_offset);
             }
         }
     }
 
     if (editor.tools.current == .selection) {
-        file.camera.drawLayer(file.selection_layer, canvas_center_offset);
+        file.camera.drawLayer(&file.selection_layer, canvas_center_offset);
     }
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient

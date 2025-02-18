@@ -14,7 +14,7 @@ pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
     if (switch (mode) {
         .texture => editor.atlas.texture,
         .heightmap => editor.atlas.heightmap,
-    }) |texture| {
+    }) |*texture| {
         var canvas_flags: imgui.WindowFlags = 0;
         canvas_flags |= imgui.WindowFlags_HorizontalScrollbar;
         defer imgui.endChild();
@@ -51,7 +51,7 @@ pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
             const height: f32 = @floatFromInt(texture.height);
 
             const center_offset: [2]f32 = .{ -width / 2.0, -height / 2.0 };
-            camera.drawTexture(texture.view_handle, texture.width, texture.height, center_offset, 0xFFFFFFFF);
+            camera.drawTexture(texture, center_offset, 0xFFFFFFFF);
             camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, pixi.editor.theme.text_secondary.toU32());
         }
     }

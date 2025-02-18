@@ -196,9 +196,7 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
         file.flipbook_camera.drawLine(.{ -l / 2.0, 0.0 }, .{ l / 2.0, 0.0 }, 0x550000FF, 1.0);
 
         file.flipbook_camera.drawTexture(
-            file.keyframe_animation_texture.view_handle,
-            file.keyframe_animation_texture.width,
-            file.keyframe_animation_texture.height,
+            &file.keyframe_animation_texture,
             file.canvasCenterOffset(.primary),
             0xFFFFFFFF,
         );

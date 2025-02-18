@@ -256,15 +256,15 @@ pub fn drawAnimationRect(camera: Camera, start_rect: [4]f32, end_rect: [4]f32, t
     }
 }
 
-pub fn drawTexture(camera: Camera, texture: *gpu.TextureView, width: u32, height: u32, position: [2]f32, color: u32) void {
-    const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(width)), @as(f32, @floatFromInt(height)) });
+pub fn drawTexture(camera: Camera, texture: *pixi.gfx.Texture, position: [2]f32, color: u32) void {
+    const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(texture.width)), @as(f32, @floatFromInt(texture.height)) });
 
     const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
     const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };
 
     if (imgui.getWindowDrawList()) |draw_list|
         draw_list.addImageEx(
-            texture,
+            texture.handle,
             min,
             max,
             .{ .x = 0.0, .y = 0.0 },
@@ -314,7 +314,7 @@ pub fn drawCursor(_: Camera, sprite_index: usize, color: u32) void {
         );
 }
 
-pub fn drawLayer(camera: Camera, layer: pixi.Internal.Layer, position: [2]f32) void {
+pub fn drawLayer(camera: Camera, layer: *pixi.Internal.Layer, position: [2]f32) void {
     const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(layer.texture.width)), @as(f32, @floatFromInt(layer.texture.height)) });
 
     const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
@@ -331,7 +331,7 @@ pub fn drawLayer(camera: Camera, layer: pixi.Internal.Layer, position: [2]f32) v
         );
 }
 
-pub fn drawSprite(camera: Camera, layer: pixi.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
+pub fn drawSprite(camera: Camera, layer: *pixi.Internal.Layer, src_rect: [4]f32, dst_rect: [4]f32) void {
     const rect_min_max = camera.getRectMinMax(dst_rect);
 
     const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.width));
@@ -354,7 +354,7 @@ pub fn drawSprite(camera: Camera, layer: pixi.Internal.Layer, src_rect: [4]f32, 
         );
 }
 
-pub fn drawSpriteQuad(camera: Camera, layer: pixi.Internal.Layer, src_rect: [4]f32, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32) void {
+pub fn drawSpriteQuad(camera: Camera, layer: *pixi.Internal.Layer, src_rect: [4]f32, dst_p1: [2]f32, dst_p2: [2]f32, dst_p3: [2]f32, dst_p4: [2]f32) void {
     const dst = camera.getQuad(dst_p1, dst_p2, dst_p3, dst_p4);
 
     const inv_w = 1.0 / @as(f32, @floatFromInt(layer.texture.width));

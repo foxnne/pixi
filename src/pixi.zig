@@ -13,8 +13,6 @@ pub const version: std.SemanticVersion = .{
 pub const paths = @import("generated/paths.zig");
 pub const atlas = @import("generated/atlas.zig");
 
-pub const shaders = @import("shaders/shaders.zig");
-
 // Other helpers and namespaces
 pub const algorithms = @import("algorithms/algorithms.zig");
 pub const fa = @import("tools/font_awesome.zig");
@@ -22,6 +20,7 @@ pub const fs = @import("tools/fs.zig");
 pub const gfx = @import("gfx/gfx.zig");
 pub const input = @import("input/input.zig");
 pub const math = @import("math/math.zig");
+pub const shaders = @import("shaders/shaders.zig");
 
 // Modules
 
@@ -83,8 +82,8 @@ pub const Atlas = @import("Atlas.zig");
 /// The data that gets written to disk in a .pixi file and read back into this type
 pub const File = @import("File.zig");
 
-/// Contains information such as the name, visibility, and collapse settings of a texture layer
+/// Contains information such as the name, visibility and collapse settings of a texture layer
 pub const Layer = @import("Layer.zig");
 
-/// Source location within the atlas texture, and origin location
+/// Source location within the atlas texture and origin location
 pub const Sprite = @import("Sprite.zig");

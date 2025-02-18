@@ -53,7 +53,7 @@ pub fn loadTexture(assets: *Assets, path: []const u8, options: pixi.gfx.Texture.
     assets.textures.lock();
     defer assets.textures.unlock();
 
-    const term_path = try std.fmt.allocPrintZ(assets.allocator, "{s}", .{path});
+    const term_path = try assets.allocator.dupeZ(u8, path);
 
     if (pixi.gfx.Texture.loadFromFile(term_path, options) catch null) |texture| {
         const texture_id = try assets.textures.new(texture);
@@ -71,7 +71,7 @@ pub fn loadAtlas(assets: *Assets, path: []const u8) !?mach.ObjectID {
     assets.atlases.lock();
     defer assets.atlases.unlock();
 
-    const term_path = try std.fmt.allocPrintZ(assets.allocator, "{s}", .{path});
+    const term_path = try assets.allocator.dupeZ(u8, path);
 
     if (pixi.Atlas.loadFromFile(assets.allocator, term_path) catch null) |atlas| {
         const atlas_id = try assets.atlases.new(atlas);
