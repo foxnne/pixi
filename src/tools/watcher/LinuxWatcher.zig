@@ -1,7 +1,7 @@
 const LinuxWatcher = @This();
 
 const std = @import("std");
-const Assets = @import("../Assets.zig");
+const Assets = @import("../../Assets.zig");
 
 const log = std.log.scoped(.watcher);
 

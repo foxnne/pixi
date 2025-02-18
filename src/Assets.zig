@@ -2,10 +2,7 @@ const std = @import("std");
 const zstbi = @import("zstbi");
 const mach = @import("mach");
 const builtin = @import("builtin");
-const pixi = @import("../pixi.zig");
-
-const imgui = @import("zig-imgui");
-const imgui_mach = imgui.backends.mach;
+const pixi = @import("pixi.zig");
 
 const Assets = @This();
 
@@ -18,27 +15,20 @@ pub const AssetType = enum {
 // Mach module, systems, and main
 pub const mach_module = .assets;
 pub const mach_systems = .{ .init, .listen, .deinit };
-pub const mach_tags = .{.auto_reload};
+pub const mach_tags = .{ .auto_reload, .path };
 
 const log = std.log.scoped(.watcher);
 const ListenerFn = fn (self: *Assets, path: []const u8, name: []const u8) void;
 const Watcher = switch (builtin.target.os.tag) {
-    .linux => @import("watcher/LinuxWatcher.zig"),
-    .macos => @import("watcher/MacosWatcher.zig"),
-    .windows => @import("watcher/WindowsWatcher.zig"),
+    .linux => @import("tools/watcher/LinuxWatcher.zig"),
+    .macos => @import("tools/watcher/MacosWatcher.zig"),
+    .windows => @import("tools/watcher/WindowsWatcher.zig"),
     else => @compileError("unsupported platform"),
 };
 
-textures: mach.Objects(.{ .track_fields = false }, struct {
-    path: [:0]const u8,
-    options: pixi.gfx.Texture.SamplerOptions = .{},
-    texture: ?pixi.gfx.Texture = null,
-}),
-
-atlases: mach.Objects(.{ .track_fields = false }, struct {
-    path: [:0]const u8,
-    atlas: ?pixi.Atlas = null,
-}),
+paths: mach.Objects(.{ .track_fields = false }, struct { value: [:0]const u8 }),
+textures: mach.Objects(.{ .track_fields = false }, pixi.gfx.Texture),
+atlases: mach.Objects(.{ .track_fields = false }, pixi.Atlas),
 
 allocator: std.mem.Allocator,
 watcher: Watcher = undefined,
@@ -54,118 +44,125 @@ pub fn init(assets: *Assets) !void {
     assets.* = .{
         .textures = assets.textures,
         .atlases = assets.atlases,
+        .paths = assets.paths,
         .allocator = allocator,
     };
 }
 
-pub fn loadTexture(assets: *Assets, path: []const u8, options: pixi.gfx.Texture.SamplerOptions) !mach.ObjectID {
+pub fn loadTexture(assets: *Assets, path: []const u8, options: pixi.gfx.Texture.SamplerOptions) !?mach.ObjectID {
     assets.textures.lock();
     defer assets.textures.unlock();
 
     const term_path = try std.fmt.allocPrintZ(assets.allocator, "{s}", .{path});
 
-    const id = try assets.textures.new(.{
-        .path = term_path,
-        .texture = pixi.gfx.Texture.loadFromFile(term_path, options) catch null,
-        .options = options,
-    });
+    if (pixi.gfx.Texture.loadFromFile(term_path, options) catch null) |texture| {
+        const texture_id = try assets.textures.new(texture);
+        const path_id = try assets.paths.new(.{ .value = term_path });
 
-    return id;
+        try assets.textures.setTag(texture_id, Assets, .path, path_id);
+
+        return texture_id;
+    }
+
+    return null;
 }
 
-pub fn loadAtlas(assets: *Assets, path: []const u8) !mach.ObjectID {
+pub fn loadAtlas(assets: *Assets, path: []const u8) !?mach.ObjectID {
     assets.atlases.lock();
     defer assets.atlases.unlock();
 
     const term_path = try std.fmt.allocPrintZ(assets.allocator, "{s}", .{path});
 
-    const id = try assets.atlases.new(.{
-        .path = term_path,
-        .atlas = pixi.Atlas.loadFromFile(assets.allocator, term_path) catch null,
-    });
+    if (pixi.Atlas.loadFromFile(assets.allocator, term_path) catch null) |atlas| {
+        const atlas_id = try assets.atlases.new(atlas);
+        const path_id = try assets.paths.new(.{ .value = term_path });
 
-    return id;
+        try assets.atlases.setTag(atlas_id, Assets, .path, path_id);
+
+        return atlas_id;
+    }
+
+    return null;
 }
 
 pub fn reload(assets: *Assets, id: mach.ObjectID) !void {
     if (assets.textures.is(id)) {
-        var t = assets.textures.getValue(id);
-        defer assets.textures.setValueRaw(id, t);
-        if (t.texture) |*texture| texture.deinit();
-        t.texture = pixi.gfx.Texture.loadFromFile(t.path, t.options) catch null;
+        var old_texture = assets.textures.getValue(id);
+        defer old_texture.deinit();
+
+        if (assets.textures.getTag(id, Assets, .path)) |path_id| {
+            const path = assets.paths.get(path_id, .value);
+
+            if (pixi.gfx.Texture.loadFromFile(
+                path,
+                .{
+                    .address_mode = old_texture.address_mode,
+                    .copy_dst = old_texture.copy_dst,
+                    .copy_src = old_texture.copy_src,
+                    .filter = old_texture.filter,
+                    .format = old_texture.format,
+                    .render_attachment = old_texture.render_attachment,
+                    .storage_binding = old_texture.storage_binding,
+                    .texture_binding = old_texture.texture_binding,
+                },
+            ) catch null) |texture| {
+                assets.textures.setValueRaw(id, texture);
+            }
+        }
     } else if (assets.atlases.is(id)) {
-        var a = assets.atlases.getValue(id);
-        defer assets.atlases.setValueRaw(id, a);
-        if (a.atlas) |*atlas| atlas.deinit(assets.allocator);
-        a.atlas = pixi.Atlas.loadFromFile(assets.allocator, a.path) catch null;
+        var old_atlas = assets.atlases.getValue(id);
+        defer old_atlas.deinit(assets.allocator);
+
+        if (assets.atlases.getTag(id, Assets, .path)) |path_id| {
+            const path = assets.paths.get(path_id, .value);
+
+            if (pixi.Atlas.loadFromFile(assets.allocator, path) catch null) |atlas| {
+                assets.atlases.setValueRaw(id, atlas);
+            }
+        }
     }
 }
 
-pub fn getTexture(assets: *Assets, id: mach.ObjectID) ?pixi.gfx.Texture {
-    return assets.textures.get(id, .texture);
+pub fn getTexture(assets: *Assets, id: mach.ObjectID) pixi.gfx.Texture {
+    return assets.textures.getValue(id);
 }
 
-pub fn getAtlas(assets: *Assets, id: mach.ObjectID) ?pixi.Atlas {
-    return assets.atlases.get(id, .atlas);
-}
-
-pub fn getPath(assets: *Assets, id: mach.ObjectID) []const u8 {
-    if (assets.textures.is(id))
-        return assets.textures.get(id, .path)
-    else if (assets.atlases.is(id))
-        return assets.atlases.get(id, .path)
-    else
-        return "";
+pub fn getAtlas(assets: *Assets, id: mach.ObjectID) pixi.Atlas {
+    return assets.atlases.getValue(id);
 }
 
 /// Returns the watch paths for the currently loaded assets.
 /// Caller owns the memory.
 pub fn getWatchPaths(assets: *Assets, allocator: std.mem.Allocator) ![]const []const u8 {
-    var paths = std.ArrayList([]const u8).init(allocator);
+    var out_paths = std.ArrayList([]const u8).init(allocator);
 
-    var textures = assets.textures.slice();
-    while (textures.next()) |id|
-        try paths.append(textures.objs.get(id, .path));
+    var paths = assets.paths.slice();
+    while (paths.next()) |id| {
+        try out_paths.append(assets.paths.get(id, .value));
+    }
 
-    var atlases = assets.atlases.slice();
-    while (atlases.next()) |id|
-        try paths.append(atlases.objs.get(id, .path));
-
-    return paths.toOwnedSlice();
+    return out_paths.toOwnedSlice();
 }
 
 /// Returns the watch directories for the currently loaded assets.
 /// Caller owns the memory.
 pub fn getWatchDirs(assets: *Assets, allocator: std.mem.Allocator) ![]const []const u8 {
-    var dirs = std.ArrayList([]const u8).init(allocator);
+    var out_dirs = std.ArrayList([]const u8).init(allocator);
 
-    var textures = assets.textures.slice();
-    tex_blk: while (textures.next()) |id| {
-        if (std.fs.path.dirname(textures.objs.get(id, .path))) |tex_dir| {
-            for (dirs.items) |dir| {
-                if (std.mem.eql(u8, dir, tex_dir)) {
-                    continue :tex_blk;
+    var paths = assets.paths.slice();
+    path_blk: while (paths.next()) |id| {
+        if (std.fs.path.dirname(assets.paths.get(id, .value))) |new_dir| {
+            for (out_dirs.items) |dir| {
+                if (std.mem.eql(u8, dir, new_dir)) {
+                    continue :path_blk;
                 }
             }
 
-            try dirs.append(tex_dir);
+            try out_dirs.append(new_dir);
         }
     }
 
-    var atlases = assets.atlases.slice();
-    atl_blk: while (atlases.next()) |id| {
-        if (std.fs.path.dirname(atlases.objs.get(id, .path))) |atl_dir| {
-            for (dirs.items) |dir| {
-                if (std.mem.eql(u8, dir, atl_dir)) {
-                    continue :atl_blk;
-                }
-            }
-
-            try dirs.append(atl_dir);
-        }
-    }
-
-    return dirs.toOwnedSlice();
+    return out_dirs.toOwnedSlice();
 }
 
 /// Spawns a watch thread for all of the currently registered assets
@@ -229,9 +226,10 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
             while (textures.next()) |texture_id| {
                 if (!assets.textures.hasTag(texture_id, Assets, .auto_reload)) continue;
 
-                const p = assets.getPath(texture_id);
-                if (comparePaths(assets.allocator, changed_path, p) catch false) {
-                    try assets.reload(texture_id);
+                if (assets.textures.getTag(texture_id, Assets, .path)) |path_id| {
+                    if (comparePaths(assets.allocator, changed_path, assets.paths.get(path_id, .value)) catch false) {
+                        assets.reload(texture_id) catch log.debug("Texture failed to reload: {s}", .{changed_path});
+                    }
                 }
             }
         },
@@ -240,9 +238,10 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
             while (atlases.next()) |atlas_id| {
                 if (!assets.atlases.hasTag(atlas_id, Assets, .auto_reload)) continue;
 
-                const p = assets.getPath(atlas_id);
-                if (comparePaths(assets.allocator, changed_path, p) catch false) {
-                    try assets.reload(atlas_id);
+                if (assets.atlases.getTag(atlas_id, Assets, .path)) |path_id| {
+                    if (comparePaths(assets.allocator, changed_path, assets.paths.get(path_id, .value)) catch false) {
+                        assets.reload(atlas_id) catch log.debug("Atlas failed to reload: {s}", .{changed_path});
+                    }
                 }
             }
         },
@@ -256,17 +255,18 @@ pub fn deinit(assets: *Assets) void {
     var textures = assets.textures.slice();
     while (textures.next()) |id| {
         var t = assets.textures.getValue(id);
-        if (t.texture) |*texture| texture.deinit();
-
-        assets.allocator.free(textures.objs.get(id, .path));
+        t.deinit();
     }
 
     var atlases = assets.atlases.slice();
     while (atlases.next()) |id| {
         var a = assets.atlases.getValue(id);
-        if (a.atlas) |*atlas| atlas.deinit(assets.allocator);
+        a.deinit(assets.allocator);
+    }
 
-        assets.allocator.free(atlases.objs.get(id, .path));
+    var paths = assets.paths.slice();
+    while (paths.next()) |id| {
+        assets.allocator.free(assets.paths.get(id, .value));
     }
 
     zstbi.deinit();

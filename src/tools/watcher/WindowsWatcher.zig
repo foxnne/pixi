@@ -3,7 +3,7 @@ const WindowsWatcher = @This();
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const windows = std.os.windows;
-const Assets = @import("../Assets.zig");
+const Assets = @import("../../Assets.zig");
 
 const log = std.log.scoped(.watcher);
 

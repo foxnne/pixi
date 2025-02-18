@@ -13,7 +13,7 @@ pub const version: std.SemanticVersion = .{
 pub const paths = @import("generated/paths.zig");
 pub const atlas = @import("generated/atlas.zig");
 
-pub const shaders = @import("shaders.zig");
+pub const shaders = @import("shaders/shaders.zig");
 
 // Other helpers and namespaces
 pub const algorithms = @import("algorithms/algorithms.zig");
@@ -28,7 +28,7 @@ pub const math = @import("math/math.zig");
 /// App contains the main schedule, which is run by the mach entrypoint
 pub const App = @import("App.zig");
 pub const Artboard = @import("editor/artboard/Artboard.zig");
-pub const Assets = @import("tools/Assets.zig");
+pub const Assets = @import("Assets.zig");
 pub const Editor = @import("editor/Editor.zig");
 pub const Explorer = @import("editor/explorer/Explorer.zig");
 pub const Packer = @import("tools/Packer.zig");

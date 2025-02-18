@@ -16,18 +16,33 @@ view_handle: *gpu.TextureView,
 sampler_handle: *gpu.Sampler,
 
 // Image fields
+
+/// actual image data
 pixels: []u8,
+
+/// width of the texture
 width: u32,
+
+/// height of the texture
 height: u32,
+
+/// number of components in the texture
 num_components: u32,
+
+/// bytes per component in the texture
 bytes_per_component: u32,
+
+/// bytes per row in the texture
 bytes_per_row: u32,
+
+/// whether the texture is a HDR texture
 is_hdr: bool,
 
 // Options fields
 address_mode: gpu.Sampler.AddressMode = .clamp_to_edge,
 filter: gpu.FilterMode = .nearest,
 format: gpu.Texture.Format = .rgba8_unorm,
+
 storage_binding: bool = false,
 texture_binding: bool = true,
 copy_dst: bool = true,
@@ -39,6 +54,10 @@ pub const SamplerOptions = struct {
     filter: gpu.FilterMode = .nearest,
     format: gpu.Texture.Format = .rgba8_unorm,
     storage_binding: bool = false,
+    texture_binding: bool = true,
+    copy_dst: bool = true,
+    copy_src: bool = true,
+    render_attachment: bool = true,
 };
 
 pub fn createEmpty(width: u32, height: u32, options: SamplerOptions) !Texture {

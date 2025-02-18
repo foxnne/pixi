@@ -274,45 +274,44 @@ pub fn drawTexture(camera: Camera, texture: *gpu.TextureView, width: u32, height
 }
 
 pub fn drawCursor(_: Camera, sprite_index: usize, color: u32) void {
-    if (pixi.assets.getAtlas(pixi.app.atlas_id)) |atlas| {
-        if (pixi.assets.getTexture(pixi.app.texture_id)) |texture| {
-            if (sprite_index >= atlas.sprites.len) return;
+    const texture = pixi.assets.getTexture(pixi.app.texture_id);
+    const atlas = pixi.assets.getAtlas(pixi.app.atlas_id);
 
-            const sprite = atlas.sprites[sprite_index];
-            const position = pixi.app.mouse.position;
+    if (sprite_index >= atlas.sprites.len) return;
 
-            const sprite_source: [4]f32 = .{
-                @floatFromInt(sprite.source[0]),
-                @floatFromInt(sprite.source[1]),
-                @floatFromInt(sprite.source[2]),
-                @floatFromInt(sprite.source[3]),
-            };
+    const sprite = atlas.sprites[sprite_index];
+    const position = pixi.app.mouse.position;
 
-            const inv_w = 1.0 / @as(f32, @floatFromInt(texture.width));
-            const inv_h = 1.0 / @as(f32, @floatFromInt(texture.height));
+    const sprite_source: [4]f32 = .{
+        @floatFromInt(sprite.source[0]),
+        @floatFromInt(sprite.source[1]),
+        @floatFromInt(sprite.source[2]),
+        @floatFromInt(sprite.source[3]),
+    };
 
-            var min: imgui.Vec2 = .{ .x = position[0], .y = position[1] };
-            var max: imgui.Vec2 = .{ .x = position[0] + sprite_source[2], .y = position[1] + sprite_source[3] };
+    const inv_w = 1.0 / @as(f32, @floatFromInt(texture.width));
+    const inv_h = 1.0 / @as(f32, @floatFromInt(texture.height));
 
-            min.x += @floatFromInt(sprite.origin[0]);
-            min.y -= @floatFromInt(sprite.origin[1]);
-            max.x += @floatFromInt(sprite.origin[0]);
-            max.y -= @floatFromInt(sprite.origin[1]);
+    var min: imgui.Vec2 = .{ .x = position[0], .y = position[1] };
+    var max: imgui.Vec2 = .{ .x = position[0] + sprite_source[2], .y = position[1] + sprite_source[3] };
 
-            const uvmin: imgui.Vec2 = .{ .x = sprite_source[0] * inv_w, .y = sprite_source[1] * inv_h };
-            const uvmax: imgui.Vec2 = .{ .x = (sprite_source[0] + sprite_source[2]) * inv_w, .y = (sprite_source[1] + sprite_source[3]) * inv_h };
+    min.x += @floatFromInt(sprite.origin[0]);
+    min.y -= @floatFromInt(sprite.origin[1]);
+    max.x += @floatFromInt(sprite.origin[0]);
+    max.y -= @floatFromInt(sprite.origin[1]);
 
-            if (imgui.getForegroundDrawList()) |draw_list|
-                draw_list.addImageEx(
-                    texture.view_handle,
-                    min,
-                    max,
-                    uvmin,
-                    uvmax,
-                    color,
-                );
-        }
-    }
+    const uvmin: imgui.Vec2 = .{ .x = sprite_source[0] * inv_w, .y = sprite_source[1] * inv_h };
+    const uvmax: imgui.Vec2 = .{ .x = (sprite_source[0] + sprite_source[2]) * inv_w, .y = (sprite_source[1] + sprite_source[3]) * inv_h };
+
+    if (imgui.getForegroundDrawList()) |draw_list|
+        draw_list.addImageEx(
+            texture.view_handle,
+            min,
+            max,
+            uvmin,
+            uvmax,
+            color,
+        );
 }
 
 pub fn drawLayer(camera: Camera, layer: pixi.Internal.Layer, position: [2]f32) void {

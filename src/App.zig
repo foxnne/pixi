@@ -107,12 +107,16 @@ pub fn lateInit(
     try pixi.gfx.init(app);
 
     // Load our atlas and texture
-    app.texture_id = try assets.loadTexture(pixi.paths.@"pixi.png", .{});
-    app.atlas_id = try assets.loadAtlas(pixi.paths.@"pixi.atlas");
-
-    // Add our watch tags
-    try assets.textures.setTag(app.texture_id, Assets, .auto_reload, null);
-    try assets.atlases.setTag(app.atlas_id, Assets, .auto_reload, null);
+    if (try assets.loadTexture(pixi.paths.@"pixi.png", .{})) |texture_id| {
+        app.texture_id = texture_id;
+        // Add our auto_reload tag for automatic asset reload
+        try assets.textures.setTag(texture_id, Assets, .auto_reload, null);
+    }
+    if (try assets.loadAtlas(pixi.paths.@"pixi.atlas")) |atlas_id| {
+        app.atlas_id = atlas_id;
+        // Add our auto_reload tag for automatic asset reload
+        try assets.atlases.setTag(atlas_id, Assets, .auto_reload, null);
+    }
 
     // This will spawn a thread for watching our asset paths for changes,
     // and reloading individual assets if they change on disk

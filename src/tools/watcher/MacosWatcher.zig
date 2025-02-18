@@ -1,7 +1,7 @@
 const MacosWatcher = @This();
 
 const std = @import("std");
-const Assets = @import("../Assets.zig");
+const Assets = @import("../../Assets.zig");
 const c = @cImport({
     @cInclude("CoreServices/CoreServices.h");
 });
