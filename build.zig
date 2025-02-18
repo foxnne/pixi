@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Create our Mach pixi module, where all our code lives.
+    // Create our pixi module, where our Modules declaration lives
     const pixi_mod = b.createModule(.{
         .root_source_file = b.path("src/pixi.zig"),
         .optimize = optimize,
@@ -26,12 +26,11 @@ pub fn build(b: *std.Build) !void {
 
     const zip_pkg = zip.package(b, .{});
 
-    // Add Mach import to our app.
+    // Add mach import to our app.
     const mach_dep = b.dependency("mach", .{
         .target = target,
         .optimize = optimize,
     });
-    pixi_mod.addImport("mach", mach_dep.module("mach"));
 
     const zig_imgui_dep = b.dependency("zig_imgui", .{ .target = target, .optimize = optimize });
 
@@ -43,7 +42,9 @@ pub fn build(b: *std.Build) !void {
     });
 
     // Have Mach create the executable for us
-    const exe = @import("mach").addExecutable(mach_dep.builder, .{
+    // The mod we pass as .app must contain the Modules definition
+    // And the Modules must include an App containing the main schedule
+    const exe = mach.addExecutable(mach_dep.builder, .{
         .name = "Pixi",
         .app = pixi_mod,
         .target = target,

@@ -20,7 +20,7 @@ const Assets = pixi.Assets;
 pub const mach_module = .app;
 pub const mach_systems = .{ .main, .init, .lateInit, .tick, .deinit };
 
-// pixi.zig `main()` runs this schedule
+// mach entrypoint module runs this schedule
 pub const main = mach.schedule(.{
     .{ Core, .init },
     .{ App, .init },
