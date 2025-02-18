@@ -93,19 +93,16 @@ pub fn reload(assets: *Assets, id: mach.ObjectID) !void {
         if (assets.textures.getTag(id, Assets, .path)) |path_id| {
             const path = assets.paths.get(path_id, .value);
 
-            if (pixi.gfx.Texture.loadFromFile(
-                path,
-                .{
-                    .address_mode = old_texture.address_mode,
-                    .copy_dst = old_texture.copy_dst,
-                    .copy_src = old_texture.copy_src,
-                    .filter = old_texture.filter,
-                    .format = old_texture.format,
-                    .render_attachment = old_texture.render_attachment,
-                    .storage_binding = old_texture.storage_binding,
-                    .texture_binding = old_texture.texture_binding,
-                },
-            ) catch null) |texture| {
+            if (pixi.gfx.Texture.loadFromFile(path, .{
+                .address_mode = old_texture.address_mode,
+                .copy_dst = old_texture.copy_dst,
+                .copy_src = old_texture.copy_src,
+                .filter = old_texture.filter,
+                .format = old_texture.format,
+                .render_attachment = old_texture.render_attachment,
+                .storage_binding = old_texture.storage_binding,
+                .texture_binding = old_texture.texture_binding,
+            }) catch null) |texture| {
                 assets.textures.setValueRaw(id, texture);
             }
         }
@@ -173,7 +170,7 @@ pub fn watch(assets: *Assets) !void {
 }
 
 /// Stops the asset watching thread
-pub fn stopWatch(assets: *Assets) void {
+pub fn stopWatching(assets: *Assets) void {
     assets.stopWatchThread();
 }
 
@@ -250,7 +247,7 @@ pub fn onAssetChange(assets: *Assets, path: []const u8, name: []const u8) void {
 }
 
 pub fn deinit(assets: *Assets) void {
-    assets.stopWatch();
+    assets.stopWatching();
 
     var textures = assets.textures.slice();
     while (textures.next()) |id| {

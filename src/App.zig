@@ -322,12 +322,10 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
 }
 
 /// This is a mach-called function, and the parameters are automatically injected.
-pub fn deinit(app: *App, packer: *Packer, editor_mod: mach.Mod(Editor), assets_mod: mach.Mod(Assets)) !void {
+pub fn deinit(app: *App, packer_mod: mach.Mod(Packer), editor_mod: mach.Mod(Editor), assets_mod: mach.Mod(Assets)) !void {
     editor_mod.call(.deinit);
 
     app.allocator.free(app.mouse.buttons);
-
-    packer.deinit();
 
     app.batcher.deinit();
     app.pipeline_default.release();
@@ -339,6 +337,7 @@ pub fn deinit(app: *App, packer: *Packer, editor_mod: mach.Mod(Editor), assets_m
     imgui.destroyContext(null);
 
     assets_mod.call(.deinit);
+    packer_mod.call(.deinit);
 
     app.allocator.free(app.root_path);
 
