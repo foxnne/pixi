@@ -36,7 +36,7 @@ pub fn draw(editor: *Editor) !void {
 
         imgui.spacing();
         if (imgui.smallButton(pixi.fa.plus)) {
-            editor.popups.layer_setup_name = [_:0]u8{0} ** Editor.Constants.layer_name_max_length;
+            editor.popups.layer_setup_name = [_:0]u8{0} ** Editor.Constants.max_name_len;
             std.mem.copyForwards(u8, &editor.popups.layer_setup_name, "New Layer");
             editor.popups.layer_setup_state = .none;
             editor.popups.layer_setup = true;
@@ -133,7 +133,7 @@ pub fn draw(editor: *Editor) !void {
                     defer imgui.endPopup();
 
                     if (imgui.menuItem("Rename...")) {
-                        editor.popups.layer_setup_name = [_:0]u8{0} ** Editor.Constants.layer_name_max_length;
+                        editor.popups.layer_setup_name = [_:0]u8{0} ** Editor.Constants.max_name_len;
                         @memcpy(editor.popups.layer_setup_name[0..layer.name.len], layer.name);
                         editor.popups.layer_setup_index = i;
                         editor.popups.layer_setup_state = .rename;
@@ -143,7 +143,7 @@ pub fn draw(editor: *Editor) !void {
                     if (imgui.menuItem("Duplicate...")) {
                         const new_name = try std.fmt.allocPrint(pixi.app.allocator, "{s}_copy", .{layer.name});
                         defer pixi.app.allocator.free(new_name);
-                        editor.popups.layer_setup_name = [_:0]u8{0} ** Editor.Constants.layer_name_max_length;
+                        editor.popups.layer_setup_name = [_:0]u8{0} ** Editor.Constants.max_name_len;
                         @memcpy(editor.popups.layer_setup_name[0..new_name.len], new_name);
                         editor.popups.layer_setup_index = i;
                         editor.popups.layer_setup_state = .duplicate;

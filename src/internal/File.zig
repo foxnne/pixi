@@ -986,7 +986,7 @@ pub fn processAnimationTool(file: *File) !void {
                     }
                     if (valid) {
                         // Create new animation
-                        pixi.editor.popups.animation_name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length;
+                        pixi.editor.popups.animation_name = [_:0]u8{0} ** Editor.Constants.max_name_len;
                         const new_name = "New_Animation";
                         @memcpy(pixi.editor.popups.animation_name[0..new_name.len], new_name);
                         pixi.editor.popups.animation_state = .create;
@@ -1010,7 +1010,7 @@ pub fn processAnimationTool(file: *File) !void {
                             // Edit existing animation
                             var change: History.Change = .{ .animation = .{
                                 .index = file.selected_animation_index,
-                                .name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length,
+                                .name = [_:0]u8{0} ** Editor.Constants.max_name_len,
                                 .fps = animation.fps,
                                 .start = animation.start,
                                 .length = animation.length,
@@ -2097,7 +2097,7 @@ pub fn createLayer(self: *File, name: [:0]const u8) !void {
 
 pub fn renameLayer(file: *File, name: [:0]const u8, index: usize) !void {
     var change: History.Change = .{ .layer_name = .{
-        .name = [_:0]u8{0} ** Editor.Constants.layer_name_max_length,
+        .name = [_:0]u8{0} ** Editor.Constants.max_name_len,
         .index = index,
     } };
     @memcpy(change.layer_name.name[0..file.layers.items(.name)[index].len], file.layers.items(.name)[index]);
@@ -2154,7 +2154,7 @@ pub fn renameAnimation(self: *File, name: []const u8, index: usize) !void {
     const animation = self.animations.slice().get(index);
     var change: History.Change = .{ .animation = .{
         .index = index,
-        .name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length,
+        .name = [_:0]u8{0} ** Editor.Constants.max_name_len,
         .fps = animation.fps,
         .start = animation.start,
         .length = animation.length,

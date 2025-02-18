@@ -75,7 +75,7 @@ pub const Sidebar = @import("editor/Sidebar.zig");
 pub const Assets = @import("tools/Assets.zig");
 
 // The set of Mach modules our application may use.
-const Modules = mach.Modules(.{
+pub const Modules = mach.Modules(.{
     App,
     Artboard,
     Core,

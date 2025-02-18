@@ -5,6 +5,7 @@ const pixi = @import("../pixi.zig");
 
 const App = pixi.App;
 const Core = mach.Core;
+const Editor = @This();
 
 pub const Settings = @import("Settings.zig");
 pub const Colors = @import("Colors.zig");
@@ -19,8 +20,6 @@ const zstbi = @import("zstbi");
 const nfd = @import("nfd");
 const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
-
-pub const Editor = @This();
 
 // Modules
 pub const Explorer = @import("explorer/Explorer.zig");

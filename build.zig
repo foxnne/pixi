@@ -18,16 +18,24 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("src/pixi.zig"),
     });
 
+    // Create our Mach pixi module, where all our code lives.
+    const pixi_mod = b.createModule(.{
+        .root_source_file = b.path("src/pixi.zig"),
+        .optimize = optimize,
+        .target = target,
+    });
+
     const zstbi = b.dependency("zstbi", .{ .target = target, .optimize = optimize });
     const zmath = b.dependency("zmath", .{ .target = target, .optimize = optimize });
 
     const zip_pkg = zip.package(b, .{});
 
+    // Add Mach import to our app.
     const mach_dep = b.dependency("mach", .{
         .target = target,
         .optimize = optimize,
-        .core = true,
     });
+    pixi_mod.addImport("mach", mach_dep.module("mach"));
 
     const zig_imgui_dep = b.dependency("zig_imgui", .{ .target = target, .optimize = optimize });
 
@@ -38,12 +46,14 @@ pub fn build(b: *std.Build) !void {
         },
     });
 
-    const exe = b.addExecutable(.{
-        .name = "pixi",
-        .root_source_file = b.path("src/pixi.zig"),
+    // Have Mach create the executable for us
+    const exe = @import("mach").addExecutable(mach_dep.builder, .{
+        .name = "Pixi",
+        .app = pixi_mod,
         .target = target,
         .optimize = optimize,
     });
+    b.installArtifact(exe);
 
     if (optimize != .Debug) {
         switch (target.result.os.tag) {
@@ -55,16 +65,15 @@ pub fn build(b: *std.Build) !void {
     const run_cmd = b.addRunArtifact(exe);
     const run_step = b.step("run", "Run the example");
 
-    exe.root_module.addImport("mach", mach_dep.module("mach"));
-    exe.root_module.addImport("zstbi", zstbi.module("root"));
-    exe.root_module.addImport("zmath", zmath.module("root"));
-    exe.root_module.addImport("nfd", nfd.getModule(b));
-    exe.root_module.addImport("zip", zip_pkg.module);
-    exe.root_module.addImport("zig-imgui", imgui_module);
-    //exe.root_module.addImport("pixi", module);
+    pixi_mod.addImport("mach", mach_dep.module("mach"));
+    pixi_mod.addImport("zstbi", zstbi.module("root"));
+    pixi_mod.addImport("zmath", zmath.module("root"));
+    pixi_mod.addImport("nfd", nfd.getModule(b));
+    pixi_mod.addImport("zip", zip_pkg.module);
+    pixi_mod.addImport("zig-imgui", imgui_module);
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
-    exe.root_module.addImport("nfd", nfd_lib);
+    pixi_mod.addImport("nfd", nfd_lib);
 
     if (target.result.isDarwin()) {
         //     // MacOS: this must be defined for macOS 13.3 and older.

@@ -98,7 +98,7 @@ pub fn draw(file: *pixi.Internal.File, mouse_ratio: f32, editor: *Editor) !void 
                         // Apply history of animation state
                         var change: History.Change = .{ .animation = .{
                             .index = file.selected_animation_index,
-                            .name = [_:0]u8{0} ** Editor.Constants.animation_name_max_length,
+                            .name = [_:0]u8{0} ** Editor.Constants.max_name_len,
                             .fps = animation.fps,
                             .start = animation.start,
                             .length = animation.length,
