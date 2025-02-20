@@ -309,22 +309,29 @@ pub fn drawLogoScreen(_: *App, editor: *Editor, _: *Assets) !void {
 
             const opacity: u8 = 255;
 
-            const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
-                pixi.math.Color.initBytes(0, 0, 0, 0),
-                pixi.math.Color.initBytes(230, 175, 137, opacity),
-                pixi.math.Color.initBytes(230, 175, 137, opacity),
-                pixi.math.Color.initBytes(216, 145, 115, opacity),
-                pixi.math.Color.initBytes(41, 23, 41, opacity),
-                pixi.math.Color.initBytes(216, 145, 115, opacity),
-                pixi.math.Color.initBytes(194, 109, 92, opacity),
-                pixi.math.Color.initBytes(194, 109, 92, opacity),
-                pixi.math.Color.initBytes(194, 109, 92, opacity),
-                pixi.math.Color.initBytes(180, 89, 76, opacity),
-                pixi.math.Color.initBytes(41, 23, 41, opacity),
-                pixi.math.Color.initBytes(41, 23, 41, opacity),
-                pixi.math.Color.initBytes(41, 23, 41, opacity),
-                pixi.math.Color.initBytes(0, 0, 0, 0),
-                pixi.math.Color.initBytes(0, 0, 0, 0),
+            const color_0 = pixi.math.Color.initBytes(0, 0, 0, 0).toU32();
+            const color_1 = pixi.math.Color.initBytes(230, 175, 137, opacity).lerp(editor.theme.background, 0.3).toU32();
+            const color_2 = pixi.math.Color.initBytes(216, 145, 115, opacity).lerp(editor.theme.background, 0.3).toU32();
+            const color_3 = pixi.math.Color.initBytes(41, 23, 41, opacity).lerp(editor.theme.background, 0.3).toU32();
+            const color_4 = pixi.math.Color.initBytes(194, 109, 92, opacity).lerp(editor.theme.background, 0.3).toU32();
+            const color_5 = pixi.math.Color.initBytes(180, 89, 76, opacity).lerp(editor.theme.background, 0.3).toU32();
+
+            const logo_colors: [15]u32 = [_]u32{
+                color_0,
+                color_1,
+                color_1,
+                color_2,
+                color_3,
+                color_2,
+                color_4,
+                color_4,
+                color_4,
+                color_5,
+                color_3,
+                color_3,
+                color_3,
+                color_0,
+                color_0,
             };
 
             const window_center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
@@ -355,14 +362,14 @@ pub fn drawLogoScreen(_: *App, editor: *Editor, _: *Assets) !void {
                 draw_list.addRectFilled(
                     .{ .x = min[0], .y = min[1] },
                     .{ .x = max[0], .y = max[1] },
-                    color.toU32(),
+                    color,
                 );
 
                 draw_list.addEllipseFilledEx(
                     .{ .x = center[0], .y = center[1] - diameter / 2.0 },
                     diameter / 2.0,
                     radius,
-                    color.toU32(),
+                    color,
                     0.0,
                     20,
                 );
