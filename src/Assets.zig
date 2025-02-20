@@ -135,7 +135,13 @@ pub fn getWatchPaths(assets: *Assets, allocator: std.mem.Allocator) ![]const []c
 
     var paths = assets.paths.slice();
     while (paths.next()) |id| {
-        try out_paths.append(assets.paths.get(id, .value));
+        const path = paths.objs.get(id, .value);
+        for (out_paths.items) |out_path| {
+            if (std.mem.eql(u8, path, out_path)) {
+                continue;
+            }
+        }
+        try out_paths.append(path);
     }
 
     return out_paths.toOwnedSlice();
@@ -148,7 +154,7 @@ pub fn getWatchDirs(assets: *Assets, allocator: std.mem.Allocator) ![]const []co
 
     var paths = assets.paths.slice();
     path_blk: while (paths.next()) |id| {
-        if (std.fs.path.dirname(assets.paths.get(id, .value))) |new_dir| {
+        if (std.fs.path.dirname(paths.objs.get(id, .value))) |new_dir| {
             for (out_dirs.items) |dir| {
                 if (std.mem.eql(u8, dir, new_dir)) {
                     continue :path_blk;

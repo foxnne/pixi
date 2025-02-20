@@ -188,18 +188,10 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
     // Process events
     while (core.nextEvent()) |event| {
         switch (event) {
-            .window_open => {
-                app_mod.call(.lateInit);
-            },
-            .key_press => |key_press| {
-                editor.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);
-            },
-            .key_repeat => |key_repeat| {
-                editor.hotkeys.setHotkeyState(key_repeat.key, key_repeat.mods, .repeat);
-            },
-            .key_release => |key_release| {
-                editor.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release);
-            },
+            .window_open => app_mod.call(.lateInit),
+            .key_press => |key_press| editor.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press),
+            .key_repeat => |key_repeat| editor.hotkeys.setHotkeyState(key_repeat.key, key_repeat.mods, .repeat),
+            .key_release => |key_release| editor.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release),
             .mouse_scroll => |mouse_scroll| {
                 // TODO: Fix this in the editor code, we dont want to block mouse input based on popups
                 if (!editor.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
@@ -207,18 +199,10 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
                     app.mouse.scroll_y = mouse_scroll.yoffset;
                 }
             },
-            .zoom_gesture => |gesture| {
-                app.mouse.magnify = gesture.zoom;
-            },
-            .mouse_motion => |mouse_motion| {
-                app.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) };
-            },
-            .mouse_press => |mouse_press| {
-                app.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press);
-            },
-            .mouse_release => |mouse_release| {
-                app.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release);
-            },
+            .zoom_gesture => |gesture| app.mouse.magnify = gesture.zoom,
+            .mouse_motion => |mouse_motion| app.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) },
+            .mouse_press => |mouse_press| app.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press),
+            .mouse_release => |mouse_release| app.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release),
             .close => {
                 // Currently, just pass along this message to the editor
                 // and allow the editor to set the app.should_close or not

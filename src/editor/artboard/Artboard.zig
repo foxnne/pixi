@@ -291,45 +291,86 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer
     imgui.end();
 }
 
-pub fn drawLogoScreen(app: *App, editor: *Editor, assets: *Assets) !void {
-    const texture = assets.getTexture(app.texture_id);
-    const atlas = assets.getAtlas(app.atlas_id);
-
+pub fn drawLogoScreen(_: *App, editor: *Editor, _: *Assets) !void {
     imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_Border, editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.background.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.foreground.toImguiVec4());
     imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
     defer imgui.popStyleColorEx(5);
+
+    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 0.0, .y = 0.0 });
+    defer imgui.popStyleVar();
+
     { // Draw semi-transparent logo
 
-        const logo_sprite = atlas.sprites[pixi.atlas.sprites.logo_default];
+        if (imgui.getWindowDrawList()) |draw_list| {
+            const diameter: f32 = 32.0;
 
-        const src: [4]f32 = .{
-            @floatFromInt(logo_sprite.source[0]),
-            @floatFromInt(logo_sprite.source[1]),
-            @floatFromInt(logo_sprite.source[2]),
-            @floatFromInt(logo_sprite.source[3]),
-        };
+            const opacity: u8 = 255;
 
-        const w = src[2] * 32.0;
-        const h = src[3] * 32.0;
-        const center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
+            const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
+                pixi.math.Color.initBytes(0, 0, 0, 0),
+                pixi.math.Color.initBytes(230, 175, 137, opacity),
+                pixi.math.Color.initBytes(230, 175, 137, opacity),
+                pixi.math.Color.initBytes(216, 145, 115, opacity),
+                pixi.math.Color.initBytes(41, 23, 41, opacity),
+                pixi.math.Color.initBytes(216, 145, 115, opacity),
+                pixi.math.Color.initBytes(194, 109, 92, opacity),
+                pixi.math.Color.initBytes(194, 109, 92, opacity),
+                pixi.math.Color.initBytes(194, 109, 92, opacity),
+                pixi.math.Color.initBytes(180, 89, 76, opacity),
+                pixi.math.Color.initBytes(41, 23, 41, opacity),
+                pixi.math.Color.initBytes(41, 23, 41, opacity),
+                pixi.math.Color.initBytes(41, 23, 41, opacity),
+                pixi.math.Color.initBytes(0, 0, 0, 0),
+                pixi.math.Color.initBytes(0, 0, 0, 0),
+            };
 
-        const inv_w = 1.0 / @as(f32, @floatFromInt(texture.width));
-        const inv_h = 1.0 / @as(f32, @floatFromInt(texture.height));
+            const window_center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
+            imgui.setCursorPosX(window_center[0] - diameter * 1.5);
+            imgui.setCursorPosY(window_center[1] - diameter * 4.0);
 
-        imgui.setCursorPosX(center[0] - w / 2.0);
-        imgui.setCursorPosY(center[1] - h / 2.0);
-        imgui.imageEx(
-            texture.view_handle,
-            .{ .x = w, .y = h },
-            .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
-            .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },
-            .{ .x = 1.0, .y = 1.0, .z = 1.0, .w = 0.30 },
-            .{ .x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0 },
-        );
-        imgui.dummy(.{ .x = 1.0, .y = 15.0 });
+            for (logo_colors, 0..) |color, i| {
+                const top_left = imgui.getCursorPos();
+
+                _ = imgui.dummy(.{ .x = diameter, .y = diameter });
+
+                const center: [2]f32 = .{
+                    imgui.getWindowPos().x + top_left.x + (diameter / 2.0),
+                    imgui.getWindowPos().y + top_left.y + (diameter / 2.0),
+                };
+
+                const dist_x = @abs(imgui.getMousePos().x - center[0]);
+                const dist_y = @abs(imgui.getMousePos().y - center[1]);
+                const dist = @sqrt(dist_x * dist_x + dist_y * dist_y);
+
+                const t = std.math.clamp(dist / (diameter * 1.5), 0.0, 1.0);
+
+                const min: [2]f32 = .{ center[0] - diameter / 2.0, center[1] - diameter / 2.0 };
+                const max: [2]f32 = .{ center[0] + diameter / 2.0, center[1] + diameter / 2.0 };
+
+                draw_list.addRectFilled(
+                    .{ .x = min[0], .y = min[1] },
+                    .{ .x = max[0], .y = max[1] },
+                    color.toU32(),
+                );
+
+                draw_list.addCircleFilled(
+                    .{ .x = center[0], .y = center[1] + std.math.lerp(-diameter / 2.0, 0.0, t) },
+                    diameter / 2.0,
+                    color.toU32(),
+                    20,
+                );
+
+                if (@mod(i + 1, 3) != 0) {
+                    imgui.sameLine();
+                } else {
+                    imgui.setCursorPosX(window_center[0] - diameter * 1.5);
+                }
+            }
+            imgui.dummy(.{ .x = 1.0, .y = 16.0 });
+        }
     }
     { // Draw `Open Folder` button
         const text: [:0]const u8 = "  Open Folder  " ++ pixi.fa.folder_open ++ " ";
