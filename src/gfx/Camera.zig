@@ -256,8 +256,8 @@ pub fn drawAnimationRect(camera: Camera, start_rect: [4]f32, end_rect: [4]f32, t
     }
 }
 
-pub fn drawTexture(camera: Camera, texture: *pixi.gfx.Texture, position: [2]f32, color: u32) void {
-    const rect_min_max = camera.getRectMinMax(.{ position[0], position[1], @as(f32, @floatFromInt(texture.width)), @as(f32, @floatFromInt(texture.height)) });
+pub fn drawTexture(camera: Camera, texture: *pixi.gfx.Texture, rect: [4]f32, color: u32) void {
+    const rect_min_max = camera.getRectMinMax(rect);
 
     const min: imgui.Vec2 = .{ .x = rect_min_max[0][0], .y = rect_min_max[0][1] };
     const max: imgui.Vec2 = .{ .x = rect_min_max[1][0], .y = rect_min_max[1][1] };

@@ -101,7 +101,7 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                         pixi.editor.theme.background.toU32(),
                     );
                     // Draw background
-                    file.flipbook_camera.drawTexture(&file.background, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
+                    file.flipbook_camera.drawTexture(&file.background, dst_rect, 0x88FFFFFF);
                     file.selected_sprite_index = sprite_index;
                     if (!file.setAnimationFromSpriteIndex()) {
                         file.selected_animation_state = .pause;
@@ -210,7 +210,7 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                             const dst_rect: [4]f32 = .{ dst_x + offset_x, dst_y + offset_y, dst_width, dst_height };
 
                             // Draw background
-                            file.flipbook_camera.drawTexture(&file.background, .{ dst_rect[0], dst_rect[1] }, 0x88FFFFFF);
+                            file.flipbook_camera.drawTexture(&file.background, dst_rect, 0x88FFFFFF);
                             file.selected_sprite_index = sprite_index;
                             if (!file.setAnimationFromSpriteIndex()) {
                                 file.selected_animation_state = .pause;

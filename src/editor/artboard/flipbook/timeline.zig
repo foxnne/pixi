@@ -197,7 +197,7 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
 
         file.flipbook_camera.drawTexture(
             &file.keyframe_animation_texture,
-            file.canvasCenterOffset(.primary),
+            .{ canvas_center_offset[0], canvas_center_offset[1], @floatFromInt(file.tile_width), @floatFromInt(file.tile_height) },
             0xFFFFFFFF,
         );
 

@@ -120,7 +120,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
             const y = @as(f32, @floatFromInt(tile_row)) * tile_height + canvas_center_offset[1];
 
             if (editor.explorer.pane != .pack)
-                file.camera.drawTexture(&file.background, .{ x, y }, 0x88FFFFFF);
+                file.camera.drawTexture(&file.background, .{ x, y, @floatFromInt(file.tile_width), @floatFromInt(file.tile_height) }, 0x88FFFFFF);
 
             try file.processStrokeTool(.primary, .{});
             try file.processFillTool(.primary, .{});

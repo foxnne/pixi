@@ -120,7 +120,7 @@ pub fn draw(editor: *Editor) !void {
                         const color = pixi.math.Color.initFloats(1.0, 1.0, 1.0, reference.opacity / 100.0);
                         reference.camera.drawTexture(
                             &reference.texture,
-                            canvas_center_offset,
+                            .{ canvas_center_offset[0], canvas_center_offset[1], @floatFromInt(reference.texture.width), @floatFromInt(reference.texture.height) },
                             color.toU32(),
                         );
                     }

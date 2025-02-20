@@ -50,9 +50,9 @@ pub fn draw(mode: PackTexture, editor: *Editor, packer: *Packer) void {
             const width: f32 = @floatFromInt(texture.width);
             const height: f32 = @floatFromInt(texture.height);
 
-            const center_offset: [2]f32 = .{ -width / 2.0, -height / 2.0 };
-            camera.drawTexture(texture, center_offset, 0xFFFFFFFF);
-            camera.drawRect(.{ center_offset[0], center_offset[1], width, height }, 2.0, pixi.editor.theme.text_secondary.toU32());
+            const rect: [4]f32 = .{ -width / 2.0, -height / 2.0, width, height };
+            camera.drawTexture(texture, rect, 0xFFFFFFFF);
+            camera.drawRect(rect, 2.0, pixi.editor.theme.text_secondary.toU32());
         }
     }
 }
