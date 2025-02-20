@@ -345,10 +345,12 @@ pub fn drawLogoScreen(_: *App, editor: *Editor, _: *Assets) !void {
                 const dist_y = @abs(imgui.getMousePos().y - center[1]);
                 const dist = @sqrt(dist_x * dist_x + dist_y * dist_y);
 
-                const t = std.math.clamp(dist / (diameter * 1.5), 0.0, 1.0);
+                const t = std.math.clamp(dist / (diameter * 4.0), 0.0, 1.0);
 
                 const min: [2]f32 = .{ center[0] - diameter / 2.0, center[1] - diameter / 2.0 };
                 const max: [2]f32 = .{ center[0] + diameter / 2.0, center[1] + diameter / 2.0 };
+
+                const radius = pixi.math.ease(diameter / 2.0, 0.0, t, .ease_in_out);
 
                 draw_list.addRectFilled(
                     .{ .x = min[0], .y = min[1] },
@@ -356,10 +358,12 @@ pub fn drawLogoScreen(_: *App, editor: *Editor, _: *Assets) !void {
                     color.toU32(),
                 );
 
-                draw_list.addCircleFilled(
-                    .{ .x = center[0], .y = center[1] + std.math.lerp(-diameter / 2.0, 0.0, t) },
+                draw_list.addEllipseFilledEx(
+                    .{ .x = center[0], .y = center[1] - radius },
                     diameter / 2.0,
+                    radius,
                     color.toU32(),
+                    0.0,
                     20,
                 );
 
