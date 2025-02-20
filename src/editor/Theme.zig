@@ -190,6 +190,8 @@ pub const StyleColorButton = struct {
 };
 
 pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
+    var disable_hotkeys = pixi.editor.hotkeys.disable;
+
     const c = args.col.toImguiVec4();
     var c_slice = args.col.toSlice();
     if (imgui.colorButton(
@@ -209,8 +211,11 @@ pub fn styleColorEdit(desc_id: [:0]const u8, args: StyleColorButton) bool {
             args.col.value[3] = c_slice[3];
         }
         imgui.popStyleColorEx(1);
+        disable_hotkeys = true;
     }
     imgui.sameLine();
     imgui.text(desc_id);
+
+    pixi.editor.hotkeys.disable = disable_hotkeys;
     return false;
 }
