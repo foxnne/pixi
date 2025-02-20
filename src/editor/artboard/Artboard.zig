@@ -359,7 +359,7 @@ pub fn drawLogoScreen(_: *App, editor: *Editor, _: *Assets) !void {
                 );
 
                 draw_list.addEllipseFilledEx(
-                    .{ .x = center[0], .y = center[1] - radius },
+                    .{ .x = center[0], .y = center[1] - diameter / 2.0 },
                     diameter / 2.0,
                     radius,
                     color.toU32(),
