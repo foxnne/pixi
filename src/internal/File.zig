@@ -2172,6 +2172,8 @@ pub fn renameAnimation(self: *File, name: []const u8, index: usize) !void {
 pub fn deleteAnimation(self: *File, index: usize) !void {
     if (index >= self.animations.slice().len) return;
     const animation = self.animations.slice().get(index);
+    self.animations.orderedRemove(index);
+
     try self.deleted_animations.append(pixi.app.allocator, animation);
     try self.history.append(.{ .animation_restore_delete = .{
         .action = .restore,
