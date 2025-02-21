@@ -18,7 +18,7 @@ pub const popup_file_setup = @import("file_setup.zig");
 pub const popup_about = @import("about.zig");
 pub const popup_file_confirm_close = @import("file_confirm_close.zig");
 pub const popup_layer_setup = @import("layer_setup.zig");
-pub const popup_export_to_png = @import("export_png.zig");
+pub const popup_print = @import("print.zig");
 pub const popup_animation = @import("animation.zig");
 pub const popup_heightmap = @import("heightmap.zig");
 pub const popup_references = @import("references.zig");
@@ -47,11 +47,12 @@ layer_setup: bool = false,
 layer_setup_state: RenameState = .none,
 layer_setup_name: [Editor.Constants.max_name_len:0]u8 = undefined,
 layer_setup_index: usize = 0,
-// Export to png
-export_to_png: bool = false,
-export_to_png_state: ExportToPngState = .selected_sprite,
-export_to_png_scale: u32 = 1,
-export_to_png_preserve_names: bool = true,
+// Print
+print: bool = false,
+print_state: PrintState = .selected_sprite,
+print_scale: u32 = 1,
+print_preserve_names: bool = false,
+print_animation_gif: bool = true,
 // Animation
 animation: bool = false,
 animation_index: usize = 0,
@@ -70,7 +71,7 @@ file_dialog_response: ?FileDialogResponse = null,
 
 pub const SetupState = enum { none, new, slice, import_png };
 pub const RenameState = enum { none, rename, duplicate };
-pub const ExportToPngState = enum { selected_sprite, selected_animation, selected_layer, all_layers, full_image };
+pub const PrintState = enum { selected_sprite, selected_animation, selected_layer, all_layers, full_image };
 pub const CloseState = enum { none, one, all };
 pub const AnimationState = enum { none, create, edit };
 pub const UserState = enum { file, folder, save };
@@ -108,7 +109,7 @@ pub fn draw(popups: *Popups, app: *App, editor: *Editor, assets: *Assets) !void 
     try popup_about.draw(editor, assets);
     try popup_file_confirm_close.draw(editor);
     try popup_layer_setup.draw(editor);
-    try popup_export_to_png.draw(editor);
+    try popup_print.draw(editor);
     try popup_animation.draw(editor);
     try popup_heightmap.draw(editor);
     try popup_references.draw(editor);
@@ -123,7 +124,7 @@ pub fn anyPopupOpen(popups: *Popups) bool {
         popups.file_setup or
         popups.file_confirm_close or
         popups.layer_setup or
-        popups.export_to_png or
+        popups.print or
         popups.animation or
         popups.about or
         popups.heightmap;

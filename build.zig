@@ -41,6 +41,29 @@ pub fn build(b: *std.Build) !void {
         },
     });
 
+    const timerModule = b.addModule("timer", .{ .root_source_file = .{ .cwd_relative = "src/tools/timer.zig" } });
+
+    // quantization library
+    const quantizeLib = b.addStaticLibrary(.{
+        .name = "quantize",
+        .root_source_file = .{ .cwd_relative = "src/tools/quantize/quantize.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    addImport(quantizeLib, "timer", timerModule);
+    const quantizeModule = quantizeLib.root_module;
+
+    // zgif library
+    const zgifLibrary = b.addStaticLibrary(.{
+        .name = "zgif",
+        .root_source_file = .{ .cwd_relative = "src/tools/gif.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    addCGif(b, zgifLibrary);
+    addImport(zgifLibrary, "quantize", quantizeModule);
+    const zgif_module = zgifLibrary.root_module;
+    zgif_module.addImport("zstbi", zstbi.module("root"));
     // Have Mach create the executable for us
     // The mod we pass as .app must contain the Modules definition
     // And the Modules must include an App containing the main schedule
@@ -68,6 +91,7 @@ pub fn build(b: *std.Build) !void {
     pixi_mod.addImport("nfd", nfd.getModule(b));
     pixi_mod.addImport("zip", zip_pkg.module);
     pixi_mod.addImport("zig-imgui", imgui_module);
+    pixi_mod.addImport("zgif", zgif_module);
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
     pixi_mod.addImport("nfd", nfd_lib);
@@ -109,4 +133,18 @@ pub fn build(b: *std.Build) !void {
 
 inline fn thisDir() []const u8 {
     return comptime std.fs.path.dirname(@src().file) orelse ".";
+}
+
+fn addImport(
+    compile: *std.Build.Step.Compile,
+    name: [:0]const u8,
+    module: *std.Build.Module,
+) void {
+    compile.root_module.addImport(name, module);
+}
+
+fn addCGif(b: *std.Build, compile: *std.Build.Step.Compile) void {
+    compile.addIncludePath(std.Build.path(b, "src/deps/cgif/inc"));
+    compile.addCSourceFile(.{ .file = std.Build.path(b, "src/deps/cgif/cgif.c") });
+    compile.addCSourceFile(.{ .file = std.Build.path(b, "src/deps/cgif/cgif_raw.c") });
 }

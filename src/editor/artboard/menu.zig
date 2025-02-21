@@ -55,7 +55,7 @@ pub fn draw(editor: *Editor) !void {
                 false,
                 file != null,
             )) {
-                editor.popups.export_to_png = true;
+                editor.popups.print = true;
             }
 
             if (imgui.menuItemEx(

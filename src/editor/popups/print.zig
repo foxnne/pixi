@@ -5,10 +5,11 @@ const Editor = pixi.Editor;
 const imgui = @import("zig-imgui");
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
+const gif = @import("zgif");
 
 pub fn draw(editor: *Editor) !void {
-    if (editor.popups.export_to_png) {
-        imgui.openPopup("Export to .png...", imgui.PopupFlags_None);
+    if (editor.popups.print) {
+        imgui.openPopup("Export...", imgui.PopupFlags_None);
     } else return;
 
     const popup_width = 350;
@@ -31,8 +32,8 @@ pub fn draw(editor: *Editor) !void {
     modal_flags |= imgui.WindowFlags_NoCollapse;
 
     if (imgui.beginPopupModal(
-        "Export to .png...",
-        &editor.popups.export_to_png,
+        "Export...",
+        &editor.popups.print,
         modal_flags,
     )) {
         defer imgui.endPopup();
@@ -42,7 +43,7 @@ pub fn draw(editor: *Editor) !void {
         const content = imgui.getContentRegionAvail();
         const half_width = (popup_width - (style.frame_padding.x * 2.0) - spacing) / 2.0;
 
-        const plot_name = switch (editor.popups.export_to_png_state) {
+        const plot_name = switch (editor.popups.print_state) {
             .selected_sprite => "Selected Sprite",
             .selected_animation => "Selected Animation",
             .selected_layer => "Selected Layer",
@@ -58,7 +59,7 @@ pub fn draw(editor: *Editor) !void {
             defer imgui.endCombo();
             var i: usize = 0;
             while (i < 5) : (i += 1) {
-                const current = @as(Editor.Popups.ExportToPngState, @enumFromInt(i));
+                const current = @as(Editor.Popups.PrintState, @enumFromInt(i));
                 const current_plot_name = switch (current) {
                     .selected_sprite => "Selected Sprite",
                     .selected_animation => "Selected Animation",
@@ -68,11 +69,11 @@ pub fn draw(editor: *Editor) !void {
                 };
                 if (imgui.selectableEx(
                     current_plot_name,
-                    current == editor.popups.export_to_png_state,
+                    current == editor.popups.print_state,
                     imgui.SelectableFlags_None,
                     .{ .x = 0.0, .y = 0.0 },
                 )) {
-                    editor.popups.export_to_png_state = current;
+                    editor.popups.print_state = current;
                 }
             }
         }
@@ -82,9 +83,9 @@ pub fn draw(editor: *Editor) !void {
 
         var image_scale: i32 = 1;
 
-        switch (editor.popups.export_to_png_state) {
+        switch (editor.popups.print_state) {
             .selected_sprite, .selected_animation => {
-                image_scale = @as(i32, @intCast(editor.popups.export_to_png_scale));
+                image_scale = @as(i32, @intCast(editor.popups.print_scale));
 
                 imgui.text("Select an export scale:");
                 if (imgui.sliderInt(
@@ -93,7 +94,7 @@ pub fn draw(editor: *Editor) !void {
                     1,
                     16,
                 )) {
-                    editor.popups.export_to_png_scale = @as(u32, @intCast(image_scale));
+                    editor.popups.print_scale = @as(u32, @intCast(image_scale));
                 }
             },
             else => {
@@ -102,13 +103,25 @@ pub fn draw(editor: *Editor) !void {
         }
         imgui.spacing();
 
-        switch (editor.popups.export_to_png_state) {
+        switch (editor.popups.print_state) {
+            .selected_animation => {
+                _ = imgui.checkbox("Export as GIF", &editor.popups.print_animation_gif);
+            },
+            else => {},
+        }
+
+        switch (editor.popups.print_state) {
             .selected_sprite,
-            .selected_animation,
             .selected_layer,
             .all_layers,
             => {
-                _ = imgui.checkbox("Preserve names", &editor.popups.export_to_png_preserve_names);
+                _ = imgui.checkbox("Preserve names", &editor.popups.print_preserve_names);
+                imgui.spacing();
+            },
+            .selected_animation,
+            => {
+                if (!editor.popups.print_animation_gif)
+                    _ = imgui.checkbox("Preserve names", &editor.popups.print_preserve_names);
                 imgui.spacing();
             },
             else => {
@@ -119,13 +132,13 @@ pub fn draw(editor: *Editor) !void {
         imgui.popItemWidth();
 
         if (imgui.buttonEx("Cancel", .{ .x = half_width, .y = 0.0 })) {
-            editor.popups.export_to_png = false;
+            editor.popups.print = false;
         }
         imgui.sameLine();
         if (imgui.buttonEx("Export", .{ .x = half_width, .y = 0.0 })) {
-            switch (editor.popups.export_to_png_state) {
+            switch (editor.popups.print_state) {
                 .selected_sprite => {
-                    if (editor.popups.export_to_png_preserve_names) {
+                    if (editor.popups.print_preserve_names) {
                         editor.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .export_sprite,
@@ -139,10 +152,16 @@ pub fn draw(editor: *Editor) !void {
                     }
                 },
                 .selected_animation => {
-                    if (editor.popups.export_to_png_preserve_names) {
+                    if (editor.popups.print_preserve_names and !editor.popups.print_animation_gif) {
                         editor.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .export_animation,
+                        };
+                    } else if (editor.popups.print_animation_gif) {
+                        editor.popups.file_dialog_request = .{
+                            .state = .save,
+                            .type = .export_animation,
+                            .filter = "gif",
                         };
                     } else {
                         editor.popups.file_dialog_request = .{
@@ -153,7 +172,7 @@ pub fn draw(editor: *Editor) !void {
                     }
                 },
                 .selected_layer => {
-                    if (editor.popups.export_to_png_preserve_names) {
+                    if (editor.popups.print_preserve_names) {
                         editor.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .export_layer,
@@ -167,7 +186,7 @@ pub fn draw(editor: *Editor) !void {
                     }
                 },
                 .all_layers => {
-                    if (editor.popups.export_to_png_preserve_names) {
+                    if (editor.popups.print_preserve_names) {
                         editor.popups.file_dialog_request = .{
                             .state = .folder,
                             .type = .export_all_layers,
@@ -206,58 +225,92 @@ pub fn draw(editor: *Editor) !void {
                         var sprite_image = try file.spriteToImage(file.selected_sprite_index, true);
                         defer sprite_image.deinit();
 
-                        if (editor.popups.export_to_png_scale > 1) {
-                            var scaled_image = sprite_image.resize(file.tile_width * editor.popups.export_to_png_scale, file.tile_height * editor.popups.export_to_png_scale);
+                        if (editor.popups.print_scale > 1) {
+                            var scaled_image = sprite_image.resize(file.tile_width * editor.popups.print_scale, file.tile_height * editor.popups.print_scale);
                             defer scaled_image.deinit();
                             try scaled_image.writeToFile(full_path, .png);
                         } else {
                             try sprite_image.writeToFile(full_path, .png);
                         }
-                        editor.popups.export_to_png = false;
+                        editor.popups.print = false;
                     },
 
                     .export_animation => {
                         const animation = file.animations.slice().get(file.selected_animation_index);
 
                         var i: usize = animation.start;
-                        while (i < animation.start + animation.length) : (i += 1) {
-                            if (editor.popups.export_to_png_preserve_names) {
-                                const folder = response.path;
-                                const full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{c}{s}_{d}.png", .{ folder, std.fs.path.sep, animation.name, i - animation.start });
+                        if (editor.popups.print_animation_gif) {
+                            var images = std.ArrayList(zstbi.Image).init(editor.arena.allocator());
 
-                                var sprite_image = try file.spriteToImage(i, true);
-                                defer sprite_image.deinit();
+                            const path = response.path;
 
-                                if (editor.popups.export_to_png_scale > 1) {
-                                    var scaled_image = sprite_image.resize(file.tile_width * editor.popups.export_to_png_scale, file.tile_height * editor.popups.export_to_png_scale);
-                                    defer scaled_image.deinit();
-                                    try scaled_image.writeToFile(full_path, .png);
-                                } else {
-                                    try sprite_image.writeToFile(full_path, .png);
+                            const ext = std.fs.path.extension(path);
+
+                            if (std.mem.eql(u8, ext, ".gif")) {
+                                while (i < animation.start + animation.length) : (i += 1) {
+                                    var sprite_image = try file.spriteToImageBGRA(i, true);
+                                    defer sprite_image.deinit();
+
+                                    const scaled_image = sprite_image.resize(
+                                        file.tile_width * editor.popups.print_scale,
+                                        file.tile_height * editor.popups.print_scale,
+                                    );
+
+                                    try images.append(scaled_image);
                                 }
-                                editor.popups.export_to_png = false;
-                            } else {
-                                const base_name = std.fs.path.basename(response.path);
-                                if (std.mem.indexOf(u8, response.path, base_name)) |folder_index| {
-                                    const folder = response.path[0..folder_index];
-                                    const ext = std.fs.path.extension(base_name);
 
-                                    if (std.mem.eql(u8, ext, ".png")) {
-                                        if (std.mem.indexOf(u8, base_name, ext)) |ext_index| {
-                                            const name = base_name[0..ext_index];
-                                            const full_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{s}_{d}.png", .{ folder, name, i });
+                                var new_gif = try gif.Gif.init(editor.arena.allocator(), .{
+                                    .path = path,
+                                    .width = file.tile_width * editor.popups.print_scale,
+                                    .height = file.tile_height * editor.popups.print_scale,
+                                    .use_dithering = false,
+                                });
 
-                                            var sprite_image = try file.spriteToImage(i, true);
-                                            defer sprite_image.deinit();
+                                const frames = images.items;
+                                try new_gif.addFrames(frames, @intCast(animation.fps));
 
-                                            if (editor.popups.export_to_png_scale > 1) {
-                                                var scaled_image = sprite_image.resize(file.tile_width * editor.popups.export_to_png_scale, file.tile_height * editor.popups.export_to_png_scale);
-                                                defer scaled_image.deinit();
-                                                try scaled_image.writeToFile(full_path, .png);
-                                            } else {
-                                                try sprite_image.writeToFile(full_path, .png);
+                                try new_gif.close();
+                            }
+                        } else {
+                            while (i < animation.start + animation.length) : (i += 1) {
+                                if (editor.popups.print_preserve_names) {
+                                    const folder = response.path;
+                                    const full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{c}{s}_{d}.png", .{ folder, std.fs.path.sep, animation.name, i - animation.start });
+
+                                    var sprite_image = try file.spriteToImage(i, true);
+                                    defer sprite_image.deinit();
+
+                                    if (editor.popups.print_scale > 1) {
+                                        var scaled_image = sprite_image.resize(file.tile_width * editor.popups.print_scale, file.tile_height * editor.popups.print_scale);
+                                        defer scaled_image.deinit();
+                                        try scaled_image.writeToFile(full_path, .png);
+                                    } else {
+                                        try sprite_image.writeToFile(full_path, .png);
+                                    }
+                                    editor.popups.print = false;
+                                } else {
+                                    const base_name = std.fs.path.basename(response.path);
+                                    if (std.mem.indexOf(u8, response.path, base_name)) |folder_index| {
+                                        const folder = response.path[0..folder_index];
+                                        const ext = std.fs.path.extension(base_name);
+
+                                        if (std.mem.eql(u8, ext, ".png")) {
+                                            if (std.mem.indexOf(u8, base_name, ext)) |ext_index| {
+                                                const name = base_name[0..ext_index];
+                                                const full_path = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}{s}_{d}.png", .{ folder, name, i });
+
+                                                var sprite_image = try file.spriteToImage(i, true);
+                                                defer sprite_image.deinit();
+
+                                                if (editor.popups.print_scale > 1) {
+                                                    var scaled_image = sprite_image.resize(file.tile_width * editor.popups.print_scale, file.tile_height * editor.popups.print_scale);
+                                                    defer scaled_image.deinit();
+                                                    try scaled_image.writeToFile(full_path, .png);
+                                                } else {
+                                                    try sprite_image.writeToFile(full_path, .png);
+                                                }
+                                                editor.popups.print = false;
                                             }
-                                            editor.popups.export_to_png = false;
                                         }
                                     }
                                 }
@@ -276,18 +329,18 @@ pub fn draw(editor: *Editor) !void {
                         }
 
                         try file.layers.items(.texture)[file.selected_layer_index].stbi_image().writeToFile(full_path, .png);
-                        editor.popups.export_to_png = false;
+                        editor.popups.print = false;
                     },
 
                     .export_all_layers => {
                         var i: usize = 0;
                         while (i < file.layers.slice().len) : (i += 1) {
-                            if (editor.popups.export_to_png_preserve_names) {
+                            if (editor.popups.print_preserve_names) {
                                 const folder = response.path;
                                 const name = file.layers.items(.name)[i];
                                 const full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{c}{s}.png", .{ folder, std.fs.path.sep, name });
                                 try file.layers.items(.texture)[i].stbi_image().writeToFile(full_path, .png);
-                                editor.popups.export_to_png = false;
+                                editor.popups.print = false;
                             } else {
                                 const base_name = std.fs.path.basename(response.path);
                                 if (std.mem.indexOf(u8, response.path, base_name)) |folder_index| {
@@ -300,7 +353,7 @@ pub fn draw(editor: *Editor) !void {
                                             const full_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}{s}_{d}.png", .{ folder, name, i });
 
                                             try file.layers.items(.texture)[i].stbi_image().writeToFile(full_path, .png);
-                                            editor.popups.export_to_png = false;
+                                            editor.popups.print = false;
                                         }
                                     }
                                 }
@@ -323,7 +376,7 @@ pub fn draw(editor: *Editor) !void {
                             }
                         }
                         try dest_image.writeToFile(response.path, .png);
-                        editor.popups.export_to_png = false;
+                        editor.popups.print = false;
                     },
                     else => {},
                 }

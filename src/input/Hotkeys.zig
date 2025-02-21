@@ -177,7 +177,7 @@ pub fn process(self: *Self, editor: *Editor) !void {
 
         if (self.hotkey(.{ .proc = .export_png })) |hk| {
             if (hk.pressed())
-                pixi.editor.popups.export_to_png = true;
+                pixi.editor.popups.print = true;
         }
 
         if (self.hotkey(.{ .proc = .size_up })) |hk| {

@@ -2431,6 +2431,78 @@ pub fn spriteToImage(file: *File, sprite_index: usize, all_layers: bool) !zstbi.
     return sprite_image;
 }
 
+pub fn spriteToImageBGRA(file: *File, sprite_index: usize, all_layers: bool) !zstbi.Image {
+    const sprite_image = try zstbi.Image.createEmpty(file.tile_width, file.tile_height, 4, .{});
+
+    const tiles_wide = @divExact(file.width, file.tile_width);
+
+    const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
+    const row = @divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide);
+
+    const src_x = column * file.tile_width;
+    const src_y = row * file.tile_height;
+
+    if (all_layers) {
+        var i: usize = file.layers.slice().len;
+        while (i > 0) {
+            i -= 1;
+
+            const working_layer = file.layers.slice().get(i);
+
+            if (!working_layer.visible) continue;
+
+            const first_index = working_layer.getPixelIndex(.{ src_x, src_y });
+
+            var src_pixels = @as([*][4]u8, @ptrCast(working_layer.texture.pixels.ptr))[0 .. working_layer.texture.pixels.len / 4];
+            var dest_pixels = @as([*][4]u8, @ptrCast(sprite_image.data.ptr))[0 .. sprite_image.data.len / 4];
+
+            var r: usize = 0;
+            while (r < @as(usize, @intCast(file.tile_height))) : (r += 1) {
+                const p_src = first_index + (r * @as(usize, @intCast(file.width)));
+                const src = src_pixels[p_src .. p_src + @as(usize, @intCast(file.tile_width))];
+
+                const p_dest = r * @as(usize, @intCast(file.tile_width));
+                const dest = dest_pixels[p_dest .. p_dest + @as(usize, @intCast(file.tile_width))];
+
+                for (src, 0..) |pixel, pixel_i| {
+                    if (pixel[3] != 0)
+                        dest[pixel_i] = pixel;
+                }
+            }
+        }
+    } else {
+        const selected_layer = file.layers.slice().get(file.selected_layer_index);
+
+        const first_index = selected_layer.getPixelIndex(.{ src_x, src_y });
+
+        var src_pixels = @as([*][4]u8, @ptrCast(selected_layer.texture.pixels.ptr))[0 .. selected_layer.texture.pixels.len / 4];
+        var dest_pixels = @as([*][4]u8, @ptrCast(sprite_image.data.ptr))[0 .. sprite_image.data.len / 4];
+
+        var r: usize = 0;
+        while (r < @as(usize, @intCast(file.tile_height))) : (r += 1) {
+            const p_src = first_index + (r * @as(usize, @intCast(file.width)));
+            const src = src_pixels[p_src .. p_src + @as(usize, @intCast(file.tile_width))];
+
+            const p_dest = r * @as(usize, @intCast(file.tile_width));
+            const dest = dest_pixels[p_dest .. p_dest + @as(usize, @intCast(file.tile_width))];
+
+            for (src, 0..) |pixel, pixel_i| {
+                if (pixel[3] != 0)
+                    dest[pixel_i] = pixel;
+            }
+        }
+    }
+
+    var i: usize = 0;
+    while (i < sprite_image.data.len - 4) : (i += 4) {
+        const b = sprite_image.data[i + 2];
+        sprite_image.data[i + 2] = sprite_image.data[i];
+        sprite_image.data[i] = b;
+    }
+
+    return sprite_image;
+}
+
 pub fn getSpriteIndexAfterDirection(self: *File, direction: pixi.math.Direction) usize {
     if (direction == .none) return self.selected_sprite_index;
 
