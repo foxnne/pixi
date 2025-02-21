@@ -20,28 +20,21 @@
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R5R4LL2PJ)
 
-## Features planned for 0.1
-- [x] Typical pixel art operations. (draw, erase, color select)
+## Currently supported features
+- [x] Typical pixel art operations. (draw, erase, dropper, bucket, selection, transformation, etc)
 - [x] Create animations and preview easily, edit directly on the preview.
 - [x] View previous and next frames of the animation.
 - [x] Set sprite origins for drawing sprites easily in game frameworks.
 - [x] Import and slice existing .png spritesheets.
 - [x] Intuitive and customizeable user interface.
 - [x] Sprite packing
+- [x] Theming
+- [x] Automatic packing and export on file save
+- [x] Also a zig library offering modules for handling assets 
 
 ## User Interface
 - The user interface is driven by [Dear Imgui](https://github.com/ocornut/imgui) which should be familiar to many.
 - The general layout takes many ideas from VSCode, as well as general project setup using folders.
-
-## Planned Features
-
-- Export/import options.
-    - Possibly .pyxel and .asesprite import
-    - Export to .zig to directly use in Zig frameworks
-    - .gif support
-- [x] Palettes
-- Tiles 
-- Possibly much more
 
 ## Compilation
 - [Linux] Ensure `gtk+3-devel` or similar is installed (for native file dialogs).
@@ -51,13 +44,12 @@
 - Build.
     - ```git clone https://github.com/foxnne/pixi.git```
     - ```cd pixi```
-    - **Dawn** ```zig build run```
-    - **sysgpu** ```zig build run -Duse_sysgpu=true```
+    - ```zig build run```
 
 ## Credits
 - The wonderful [Dear Imgui](https://github.com/ocornut/imgui) used for almost all of the user interface.
+- [emidoots](https://github.com/emidoots) for all the help and [mach](https://github.com/hexops/mach).
 - [michal-z](https://github.com/michal-z) for all the help and [zig-gamedev](https://github.com/michal-z/zig-gamedev).
-- [slimsag](https://github.com/slimsag) for all the help and [mach-core](https://github.com/hexops/mach-core).
 - [prime31](https://github.com/prime31) for all the help.
 - Any and all contributors
 
