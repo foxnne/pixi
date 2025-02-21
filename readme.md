@@ -1,6 +1,6 @@
 
 <p align="center">  
-  <img width="25%" src="https://github.com/foxnne/pixi/assets/49629865/cd1768c1-ff39-4724-ab3a-bbb59690de1a">
+  <img width="25%" src="https://github.com/user-attachments/assets/808c1e9f-f0ad-44bf-9728-00b3a283ace9">
   <h3 align=center></h3>
 </p>
 
