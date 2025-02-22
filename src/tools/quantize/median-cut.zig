@@ -233,12 +233,51 @@ pub fn quantizeBgraImage(config: QuantizerConfig, image: []const u8) !QuantizedI
     }
 
     const allocator = config.allocator;
-    const color_table = try quantizeHistogram(
+    var color_table = try quantizeHistogram(
         allocator,
         &all_colors,
         n_pixels,
         config.ncolors,
     );
+
+    var sub_ind: ?u8 = null;
+
+    for (0..n_pixels) |i| {
+        const b = image[i * 4];
+        const g = image[i * 4 + 1];
+        const r = image[i * 4 + 2];
+        const a = image[i * 4 + 3];
+
+        if (a == 0) {
+            const nearest_color = getGlobalColor(&all_colors, r, g, b);
+
+            std.log.debug("{any}, index: {d}", .{ nearest_color.RGB, nearest_color.index_in_color_table });
+
+            std.log.debug("before: {any}\n\n", .{color_table});
+
+            const transparent_r = color_table[nearest_color.index_in_color_table * 3];
+            const transparent_g = color_table[nearest_color.index_in_color_table * 3 + 1];
+            const transparent_b = color_table[nearest_color.index_in_color_table * 3 + 2];
+
+            const other_r = color_table[0];
+            const other_g = color_table[1];
+            const other_b = color_table[2];
+
+            color_table[nearest_color.index_in_color_table * 3] = other_r;
+            color_table[nearest_color.index_in_color_table * 3 + 1] = other_g;
+            color_table[nearest_color.index_in_color_table * 3 + 2] = other_b;
+
+            color_table[0] = transparent_r;
+            color_table[1] = transparent_g;
+            color_table[2] = transparent_b;
+
+            sub_ind = nearest_color.index_in_color_table;
+
+            std.log.debug("after:{any}\n\n", .{color_table});
+
+            break;
+        }
+    }
 
     // Now go over the input image, and replace each pixel with the index of the partition
     var image_buf = try allocator.alloc(u8, n_pixels);
@@ -246,8 +285,22 @@ pub fn quantizeBgraImage(config: QuantizerConfig, image: []const u8) !QuantizedI
         const b = image[i * 4];
         const g = image[i * 4 + 1];
         const r = image[i * 4 + 2];
+        const a = image[i * 4 + 3];
+
+        if (a == 0) {
+            image_buf[i] = 0;
+            continue;
+        }
 
         const nearest_color = getGlobalColor(&all_colors, r, g, b);
+
+        if (nearest_color.index_in_color_table == 0) {
+            if (sub_ind) |ind| {
+                image_buf[i] = ind;
+                continue;
+            }
+        }
+
         image_buf[i] = nearest_color.index_in_color_table;
     }
 
