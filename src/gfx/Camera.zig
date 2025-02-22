@@ -264,7 +264,7 @@ pub fn drawTexture(camera: Camera, texture: *pixi.gfx.Texture, rect: [4]f32, col
 
     if (imgui.getWindowDrawList()) |draw_list|
         draw_list.addImageEx(
-            texture.handle,
+            texture.view_handle,
             min,
             max,
             .{ .x = 0.0, .y = 0.0 },
