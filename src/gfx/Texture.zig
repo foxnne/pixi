@@ -7,13 +7,13 @@ const gpu = @import("mach").gpu;
 const Texture = @This();
 
 /// gpu texture handle
-handle: *gpu.Texture,
+texture: *gpu.Texture,
 
 /// gpu texture view handle
-view_handle: *gpu.TextureView,
+texture_view: *gpu.TextureView,
 
 /// gpu sampler handle
-sampler_handle: *gpu.Sampler,
+sampler: *gpu.Sampler,
 
 // Image fields
 
@@ -122,9 +122,9 @@ pub fn create(image: zstbi.Image, options: SamplerOptions) Texture {
     const sampler = device.createSampler(&sampler_descriptor);
 
     return Texture{
-        .handle = texture,
-        .view_handle = view,
-        .sampler_handle = sampler,
+        .texture = texture,
+        .texture_view = view,
+        .sampler = sampler,
         .pixels = image.data,
         .width = image.width,
         .height = image.height,
@@ -170,7 +170,7 @@ pub fn update(texture: *Texture, device: *gpu.Device) void {
         .rows_per_image = texture.height,
     };
 
-    queue.writeTexture(&.{ .texture = texture.handle }, &data_layout, &image_size, texture.pixels);
+    queue.writeTexture(&.{ .texture = texture.texture }, &data_layout, &image_size, texture.pixels);
 }
 
 pub fn stbi_image(texture: *const Texture) zstbi.Image {
@@ -186,9 +186,9 @@ pub fn stbi_image(texture: *const Texture) zstbi.Image {
 }
 
 pub fn deinit(texture: *Texture) void {
-    texture.handle.release();
-    texture.view_handle.release();
-    texture.sampler_handle.release();
+    texture.texture.release();
+    texture.texture_view.release();
+    texture.sampler.release();
 
     var image = texture.stbi_image();
     image.deinit();

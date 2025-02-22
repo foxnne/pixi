@@ -81,7 +81,7 @@ pub fn draw(editor: *pixi.Editor, assets: *pixi.Assets) !void {
         imgui.setCursorPosX(center[0] - w / 2.0);
         imgui.setCursorPosY(center[1] - h / 6.0);
         imgui.imageEx(
-            texture.view_handle,
+            texture.texture_view,
             .{ .x = w, .y = h },
             .{ .x = src[0] * inv_w, .y = src[1] * inv_h },
             .{ .x = (src[0] + src[2]) * inv_w, .y = (src[1] + src[3]) * inv_h },

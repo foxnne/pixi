@@ -481,7 +481,7 @@ pub fn end(self: *Batcher, uniforms: anytype, uniform_buffer: *gpu.Buffer) !void
         defer back_buffer_view.release();
 
         const color_attachments = [_]gpu.RenderPassColorAttachment{.{
-            .view = if (self.context.output_texture) |out_texture| out_texture.view_handle else back_buffer_view,
+            .view = if (self.context.output_texture) |out_texture| out_texture.texture_view else back_buffer_view,
             .load_op = .load,
             .store_op = .store,
             .clear_value = self.context.clear_color,

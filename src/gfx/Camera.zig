@@ -264,7 +264,7 @@ pub fn drawTexture(camera: Camera, texture: *pixi.gfx.Texture, rect: [4]f32, col
 
     if (imgui.getWindowDrawList()) |draw_list|
         draw_list.addImageEx(
-            texture.view_handle,
+            texture.texture_view,
             min,
             max,
             .{ .x = 0.0, .y = 0.0 },
@@ -305,7 +305,7 @@ pub fn drawCursor(_: Camera, sprite_index: usize, color: u32) void {
 
     if (imgui.getForegroundDrawList()) |draw_list|
         draw_list.addImageEx(
-            texture.view_handle,
+            texture.texture_view,
             min,
             max,
             uvmin,
@@ -322,7 +322,7 @@ pub fn drawLayer(camera: Camera, layer: *pixi.Internal.Layer, position: [2]f32) 
 
     if (imgui.getWindowDrawList()) |draw_list|
         draw_list.addImageEx(
-            layer.texture.view_handle,
+            layer.texture.texture_view,
             min,
             max,
             .{ .x = 0.0, .y = 0.0 },
@@ -345,7 +345,7 @@ pub fn drawSprite(camera: Camera, layer: *pixi.Internal.Layer, src_rect: [4]f32,
 
     if (imgui.getWindowDrawList()) |draw_list|
         draw_list.addImageEx(
-            layer.texture.view_handle,
+            layer.texture.texture_view,
             min,
             max,
             uvmin,
@@ -365,7 +365,7 @@ pub fn drawSpriteQuad(camera: Camera, layer: *pixi.Internal.Layer, src_rect: [4]
 
     if (imgui.getWindowDrawList()) |draw_list| {
         draw_list.addImageQuadEx(
-            layer.texture.view_handle,
+            layer.texture.texture_view,
             dst[0],
             dst[1],
             dst[2],

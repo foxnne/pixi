@@ -225,8 +225,8 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
                             .layout = pipeline_layout_default,
                             .entries = &.{
                                 mach.gpu.BindGroup.Entry.initBuffer(0, pixi.app.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0),
-                                mach.gpu.BindGroup.Entry.initTextureView(1, new_layer.texture.view_handle),
-                                mach.gpu.BindGroup.Entry.initSampler(2, new_layer.texture.sampler_handle),
+                                mach.gpu.BindGroup.Entry.initTextureView(1, new_layer.texture.texture_view),
+                                mach.gpu.BindGroup.Entry.initSampler(2, new_layer.texture.sampler),
                             },
                         }),
                     );
@@ -2021,8 +2021,8 @@ pub fn paste(self: *File) !void {
                 .layout = pipeline_layout_default,
                 .entries = &.{
                     gpu.BindGroup.Entry.initBuffer(0, pixi.app.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0),
-                    gpu.BindGroup.Entry.initTextureView(1, self.transform_texture.?.texture.view_handle),
-                    gpu.BindGroup.Entry.initSampler(2, self.transform_texture.?.texture.sampler_handle),
+                    gpu.BindGroup.Entry.initTextureView(1, self.transform_texture.?.texture.texture_view),
+                    gpu.BindGroup.Entry.initSampler(2, self.transform_texture.?.texture.sampler),
                 },
             }),
         );
@@ -2034,7 +2034,7 @@ pub fn paste(self: *File) !void {
             &mach.gpu.BindGroup.Descriptor.init(.{
                 .layout = compute_layout_default,
                 .entries = &.{
-                    mach.gpu.BindGroup.Entry.initTextureView(0, self.temporary_layer.texture.view_handle),
+                    mach.gpu.BindGroup.Entry.initTextureView(0, self.temporary_layer.texture.texture_view),
                     mach.gpu.BindGroup.Entry.initBuffer(1, self.transform_compute_buffer.?, 0, @sizeOf([4]f32) * (self.width * self.height), @sizeOf([4]f32)),
                 },
             }),
