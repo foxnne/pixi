@@ -365,8 +365,10 @@ pub fn drawLogoScreen(_: *App, editor: *Editor, _: *Assets) !void {
                     color,
                 );
 
+                const fun_offset = if (@import("builtin").target.os.tag == .windows) 0.5 else 0.0;
+
                 draw_list.addEllipseFilledEx(
-                    .{ .x = center[0] - 0.5, .y = center[1] - diameter / 2.0 },
+                    .{ .x = center[0] - fun_offset, .y = center[1] - diameter / 2.0 },
                     diameter / 2.0,
                     radius,
                     if (radius > 0.0) color else 0,
