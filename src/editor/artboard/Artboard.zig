@@ -365,7 +365,7 @@ pub fn drawLogoScreen(_: *App, editor: *Editor, _: *Assets) !void {
                     color,
                 );
 
-                const fun_offset = if (@import("builtin").target.os.tag == .windows) 0.5 else 0.0;
+                const fun_offset: f32 = if (pixi.app.content_scale[0] > 1.0) 0.0 else 0.5;
 
                 draw_list.addEllipseFilledEx(
                     .{ .x = center[0] - fun_offset, .y = center[1] - diameter / 2.0 },

@@ -26,6 +26,7 @@ pub const GifFrame = struct {
 };
 
 pub const GifConfig = struct {
+    transparent: bool = false,
     use_dithering: bool = true,
     use_local_palette: bool = true,
     path: [:0]const u8,
@@ -49,15 +50,18 @@ pub const Gif = struct {
         // Configure CGIF's config object
         const cgif_config = try allocator.create(cgif.CGIF_Config);
         initCGifConfig(cgif_config, config.path, config.width, config.height);
-        cgif_config.attrFlags = cgif.CGIF_ATTR_IS_ANIMATED | cgif.CGIF_ATTR_HAS_TRANSPARENCY;
+        cgif_config.attrFlags = cgif.CGIF_ATTR_IS_ANIMATED;
+        if (config.transparent)
+            cgif_config.attrFlags |= cgif.CGIF_ATTR_HAS_TRANSPARENCY;
 
         const cgif_frame_config = try allocator.create(cgif.CGIF_FrameConfig);
         initFrameConfig(cgif_frame_config);
 
         cgif_frame_config.transIndex = 0;
-        cgif_frame_config.genFlags =
-            cgif.CGIF_FRAME_GEN_USE_TRANSPARENCY | // TODO: set transIndex
-            cgif.CGIF_FRAME_GEN_USE_DIFF_WINDOW;
+        cgif_frame_config.genFlags = cgif.CGIF_FRAME_GEN_USE_DIFF_WINDOW;
+
+        if (config.transparent)
+            cgif_frame_config.genFlags |= cgif.CGIF_FRAME_GEN_USE_TRANSPARENCY;
 
         var gif: ?*cgif.CGIF = null;
         if (config.use_local_palette) {
@@ -108,67 +112,6 @@ pub const Gif = struct {
         // CGIF uses units of 0.01s for frame delay.
         const duration = @as(f64, @floatFromInt(duration_ms)) / 10.0;
         const duration_int: u64 = @intFromFloat(@round(duration));
-
-        // const pixels = @as([*][4]u8, @ptrCast(frame.data.ptr))[0 .. frame.data.len / 4];
-        // var transparent: bool = false;
-        // var color_table_adjusted: bool = false;
-
-        // for (pixels) |p| {
-        //     if (p[3] == 0) {
-        //         transparent = true;
-        //         break;
-        //     }
-        // }
-
-        // if (transparent) {
-        //     // A fully transparent pixel exists
-        //     for (quantized.image_buffer, pixels, 0..) |color_table_index, actual_color, i| {
-        //         if (actual_color[3] == 0) {
-        //             if (!color_table_adjusted) {
-        //                 // If we are here, we have hit a transparent pixel, but we havent swapped out the
-        //                 // color table colors to arrange the transparent color to be first
-
-        //                 // So first we will swap the two colors in the color table
-        //                 const transparent_r = quantized.color_table[color_table_index];
-        //                 const transparent_g = quantized.color_table[color_table_index + 1];
-        //                 const transparent_b = quantized.color_table[color_table_index + 2];
-
-        //                 std.log.debug("transparent color: {d}, {d}, {d} swapped with {d}, {d}, {d}", .{
-        //                     transparent_r,
-        //                     transparent_g,
-        //                     transparent_b,
-        //                     quantized.color_table[0],
-        //                     quantized.color_table[1],
-        //                     quantized.color_table[2],
-        //                 });
-
-        //                 quantized.color_table[color_table_index] = quantized.color_table[0];
-        //                 quantized.color_table[color_table_index + 1] = quantized.color_table[1];
-        //                 quantized.color_table[color_table_index + 2] = quantized.color_table[2];
-
-        //                 quantized.color_table[0] = transparent_r;
-        //                 quantized.color_table[1] = transparent_g;
-        //                 quantized.color_table[2] = transparent_b;
-
-        //                 // Now our color table has our transparent color first.
-        //                 color_table_adjusted = true;
-
-        //                 var rewind_index: usize = i;
-        //                 while (rewind_index > 0) : (rewind_index -= 1) {
-        //                     switch (quantized.image_buffer[rewind_index]) {
-        //                         0 => {
-        //                             quantized.image_buffer[rewind_index] = color_table_index;
-        //                         },
-        //                         else => {},
-        //                     }
-        //                 }
-        //             }
-        //             // The color table has already been fixed, we just need to set all the
-        //             // transparent pixels to point to the correct index
-        //             quantized.image_buffer[i] = ;
-        //         }
-        //     }
-        // }
 
         self.cgif_frame_config.delay = @truncate(duration_int);
         self.cgif_frame_config.pImageData = quantized.image_buffer.ptr;

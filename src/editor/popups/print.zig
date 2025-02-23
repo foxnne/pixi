@@ -259,11 +259,25 @@ pub fn draw(editor: *Editor) !void {
                                     try images.append(scaled_image);
                                 }
 
+                                // Search all of our frames for transparency
+                                var transparent: bool = false;
+
+                                blk: for (images.items) |image| {
+                                    const pixels = @as([*][4]u8, @ptrCast(image.data.ptr))[0 .. image.data.len / 4];
+                                    for (pixels) |p| {
+                                        if (p[3] == 0) {
+                                            transparent = true;
+                                            break :blk;
+                                        }
+                                    }
+                                }
+
                                 var new_gif = try gif.Gif.init(editor.arena.allocator(), .{
                                     .path = path,
                                     .width = file.tile_width * editor.popups.print_scale,
                                     .height = file.tile_height * editor.popups.print_scale,
                                     .use_dithering = false,
+                                    .transparent = transparent,
                                 });
 
                                 const frames = images.items;
