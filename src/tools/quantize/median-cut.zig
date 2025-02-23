@@ -251,10 +251,6 @@ pub fn quantizeBgraImage(config: QuantizerConfig, image: []const u8) !QuantizedI
         if (a == 0) {
             const nearest_color = getGlobalColor(&all_colors, r, g, b);
 
-            std.log.debug("{any}, index: {d}", .{ nearest_color.RGB, nearest_color.index_in_color_table });
-
-            std.log.debug("before: {any}\n\n", .{color_table});
-
             const transparent_r = color_table[nearest_color.index_in_color_table * 3];
             const transparent_g = color_table[nearest_color.index_in_color_table * 3 + 1];
             const transparent_b = color_table[nearest_color.index_in_color_table * 3 + 2];
@@ -272,9 +268,6 @@ pub fn quantizeBgraImage(config: QuantizerConfig, image: []const u8) !QuantizedI
             color_table[2] = transparent_b;
 
             sub_ind = nearest_color.index_in_color_table;
-
-            std.log.debug("after:{any}\n\n", .{color_table});
-
             break;
         }
     }

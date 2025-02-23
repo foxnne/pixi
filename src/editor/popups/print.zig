@@ -281,6 +281,7 @@ pub fn draw(editor: *Editor) !void {
                                 });
 
                                 const frames = images.items;
+                                defer images.deinit();
                                 try new_gif.addFrames(frames, @intCast(animation.fps));
 
                                 try new_gif.close();
