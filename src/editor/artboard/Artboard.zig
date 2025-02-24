@@ -335,7 +335,7 @@ pub fn drawLogoScreen(_: *App, editor: *Editor, _: *Assets) !void {
             };
 
             const window_center: [2]f32 = .{ imgui.getWindowWidth() / 2.0, imgui.getWindowHeight() / 2.0 };
-            imgui.setCursorPosX(window_center[0] - diameter * 1.5);
+            imgui.setCursorPosX(@trunc(window_center[0] - diameter * 1.5));
             imgui.setCursorPosY(window_center[1] - diameter * 4.0);
 
             for (logo_colors, 0..) |color, i| {
