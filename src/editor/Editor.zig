@@ -172,10 +172,10 @@ pub fn tick(
         }
     }
 
+    popups_mod.call(.draw);
     sidebar_mod.call(.draw);
     explorer_mod.call(.draw);
     artboard_mod.call(.draw);
-    popups_mod.call(.draw);
 
     // Accept transformations and clear temporary layer
     {
