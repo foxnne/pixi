@@ -185,6 +185,15 @@ pub fn stbi_image(texture: *const Texture) zstbi.Image {
     };
 }
 
+pub fn deinitWithoutClear(texture: *Texture) void {
+    texture.texture.release();
+    texture.texture_view.release();
+    texture.sampler.release();
+
+    var image = texture.stbi_image();
+    image.deinit();
+}
+
 pub fn deinit(texture: *Texture) void {
     imgui.backends.mach.clearBindGroup(texture.texture_view);
 

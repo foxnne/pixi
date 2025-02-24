@@ -88,7 +88,7 @@ pub fn loadAtlas(assets: *Assets, path: []const u8) !?mach.ObjectID {
 pub fn reload(assets: *Assets, id: mach.ObjectID) !void {
     if (assets.textures.is(id)) {
         var old_texture = assets.textures.getValue(id);
-        defer old_texture.deinit();
+        defer old_texture.deinitWithoutClear();
 
         if (assets.textures.getTag(id, Assets, .path)) |path_id| {
             const path = assets.paths.get(path_id, .value);

@@ -466,8 +466,13 @@ pub fn processSampleTool(file: *File, canvas: Canvas, options: SampleToolOptions
                     pixi.editor.tools.set(.eraser);
             } else {
                 if (pixi.editor.tools.current == .eraser) {
-                    if (pixi.editor.settings.eyedropper_auto_switch_layer)
-                        pixi.editor.tools.set(pixi.editor.tools.previous);
+                    if (pixi.editor.settings.eyedropper_auto_switch_layer) {
+                        if (pixi.editor.tools.previous == .eraser) {
+                            pixi.editor.tools.set(.pencil);
+                        } else {
+                            pixi.editor.tools.set(pixi.editor.tools.previous);
+                        }
+                    }
                 }
                 pixi.editor.colors.primary = color;
             }
