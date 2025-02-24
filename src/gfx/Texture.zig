@@ -1,7 +1,7 @@
 const std = @import("std");
 const zstbi = @import("zstbi");
 const pixi = @import("../pixi.zig");
-
+const imgui = @import("zig-imgui");
 const gpu = @import("mach").gpu;
 
 const Texture = @This();
@@ -186,6 +186,8 @@ pub fn stbi_image(texture: *const Texture) zstbi.Image {
 }
 
 pub fn deinit(texture: *Texture) void {
+    imgui.backends.mach.clearBindGroup(texture.texture_view);
+
     texture.texture.release();
     texture.texture_view.release();
     texture.sampler.release();
