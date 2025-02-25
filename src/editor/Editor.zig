@@ -209,7 +209,18 @@ pub fn tick(
                         if (staging_buffer.getConstMappedRange([4]f32, 0, buffer_size)) |buffer_mapped| {
                             for (write_layer.pixels(), buffer_mapped, 0..) |*p, b, i| {
                                 if (b[3] != 0.0) {
-                                    try file.buffers.stroke.append(i, p.*);
+                                    // At this point, if we are using a transform hotkey, stroke will contain
+                                    // the state before the cut, so we dont want to overwrite any of the existing
+                                    // values, only add new ones.
+                                    var contains: bool = false;
+                                    for (file.buffers.stroke.indices.items) |ind| {
+                                        if (ind == i) {
+                                            contains = true;
+                                        }
+                                    }
+
+                                    if (!contains)
+                                        try file.buffers.stroke.append(i, p.*);
 
                                     const out: [4]u8 = .{
                                         @as(u8, @intFromFloat(b[0] * 255.0)),

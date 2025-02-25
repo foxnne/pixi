@@ -195,7 +195,8 @@ pub fn deinitWithoutClear(texture: *Texture) void {
 }
 
 pub fn deinit(texture: *Texture) void {
-    imgui.backends.mach.clearBindGroup(texture.texture_view);
+    if (imgui.getCurrentContext() != null)
+        imgui.backends.mach.clearBindGroup(texture.texture_view);
 
     texture.texture.release();
     texture.texture_view.release();
