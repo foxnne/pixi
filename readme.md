@@ -30,7 +30,8 @@
 - [x] Sprite packing
 - [x] Theming
 - [x] Automatic packing and export on file save
-- [x] Also a zig library offering modules for handling assets 
+- [x] Also a zig library offering modules for handling assets
+- [x] NEW: Export animations as .gifs 
 
 ## User Interface
 - The user interface is driven by [Dear Imgui](https://github.com/ocornut/imgui) which should be familiar to many.
