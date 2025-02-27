@@ -10,6 +10,8 @@
             "MTL_SHADER_VALIDATION_TEXTURE_USAGE": "1",
             "MTL_DEBUG_LAYER": "1",
             "METAL_DEVICE_WRAPPER_TYPE": "1",
+            "MTL_DEBUG_LAYER_VALIDATE_LOAD_ACTIONS": "1",
+            "MTL_DEBUG_LAYER_VALIDATE_UNRETAINED_RESOURCES": "0x4",
         },
     },
     "tasks": [
