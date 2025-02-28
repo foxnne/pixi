@@ -225,6 +225,9 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
         event_called = true;
         elapsed_time = 0.0;
 
+        // Process input
+        try pixi.input.process();
+
         if (!app.should_close) {
             if (imgui.getCurrentContext() != null) {
                 _ = imgui_mach.processEvent(event);
@@ -232,9 +235,6 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
         }
     }
     var window = core.windows.getValue(app.window);
-
-    // Process input
-    try pixi.input.process();
 
     if (framerate_capture >= 1.0) {
         framerate_capture = 0.0;
@@ -308,9 +308,9 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
         }
     } else {
         // TODO: Figure out how to accurately sleep the correct amount of time
-        // For now we are just gonna stupidly rely on sleeping for 3/4 of a frame time
+        // For now we are just gonna stupidly rely on sleeping for half of a frame time
         // will allow wake-up time before there is a delay in responsiveness.
-        std.Thread.sleep(@intFromFloat((app.delta_time * 0.75) * 1000000000.0));
+        std.Thread.sleep(@intFromFloat((app.delta_time * 0.5) * 1000000000.0));
     }
 
     for (app.mouse.buttons) |*button| {
