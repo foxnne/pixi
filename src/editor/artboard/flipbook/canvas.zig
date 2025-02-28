@@ -17,10 +17,10 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
 
     // Progress flipbook scroll request
     if (file.flipbook_scroll_request) |*request| {
-        if (request.elapsed < 0.5) {
+        if (request.elapsed < editor.settings.editor_animation_time) {
             file.selected_animation_state = .pause;
             request.elapsed += app.delta_time;
-            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed / 0.5, .ease_in_out);
+            file.flipbook_scroll = pixi.math.ease(request.from, request.to, request.elapsed / editor.settings.editor_animation_time, .ease_in_out);
         } else {
             file.flipbook_scroll = request.to;
             file.selected_animation_state = request.state;

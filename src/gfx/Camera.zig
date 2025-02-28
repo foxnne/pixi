@@ -9,10 +9,14 @@ const gpu = mach.gpu;
 const imgui = @import("zig-imgui");
 const zm = @import("zmath");
 
-pub const Camera = @This();
+const Camera = @This();
+
 position: [2]f32 = .{ 0.0, 0.0 },
 zoom: f32 = 1.0,
 zoom_initialized: bool = false,
+
+//TODO: Ensure that these timer values are less than editor.settings.editor_animation_time,
+// to make sure that these animations finish before the editor sleeps
 zoom_timer: f32 = 0.2,
 zoom_wait_timer: f32 = 0.4,
 zoom_tooltip_timer: f32 = 0.6,

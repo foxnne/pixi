@@ -52,6 +52,7 @@ texture_id: mach.ObjectID = 0,
 atlas_id: mach.ObjectID = 0,
 
 var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
+var extra_time: f32 = 0.0;
 
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn init(
@@ -185,6 +186,7 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
     // Process dialog requests
     editor_mod.call(.processDialogRequest);
 
+    var event_called: bool = false;
     // Process events
     while (core.nextEvent()) |event| {
         switch (event) {
@@ -217,9 +219,10 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
                     app.framebuffer_size[1] / app.window_size[1],
                 };
             },
-
             else => {},
         }
+        event_called = true;
+        extra_time = 0.0;
 
         if (!app.should_close) {
             if (imgui.getCurrentContext() != null) {
@@ -229,10 +232,6 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
     }
     var window = core.windows.getValue(app.window);
 
-    // New imgui frame
-    try imgui_mach.newFrame();
-    imgui.newFrame();
-
     // Update times
     app.delta_time = app.timer.lap();
     app.total_time += app.delta_time;
@@ -240,57 +239,69 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
     // Process input
     try pixi.input.process();
 
-    // Process editor tick
-    editor_mod.call(.tick);
+    const new_frame_conditions: bool = event_called or editor.newFrame();
+    if (new_frame_conditions or extra_time < editor.settings.editor_animation_time or app.delta_time > 1.0) {
+        if (!new_frame_conditions) extra_time += app.delta_time;
 
-    // Render imgui
-    imgui.render();
+        // New imgui frame
+        try imgui_mach.newFrame();
+        imgui.newFrame();
 
-    // Pass commands to the window queue for presenting
-    if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
-        defer back_buffer_view.release();
+        // Process editor tick
+        editor_mod.call(.tick);
 
-        const imgui_commands = commands: {
-            const encoder = window.device.createCommandEncoder(&.{ .label = label });
-            defer encoder.release();
+        // Render imgui
+        imgui.render();
 
-            const background: gpu.Color = .{
-                .r = @floatCast(editor.theme.foreground.value[0]),
-                .g = @floatCast(editor.theme.foreground.value[1]),
-                .b = @floatCast(editor.theme.foreground.value[2]),
-                .a = 1.0,
-            };
+        // Pass commands to the window queue for presenting
+        if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
+            defer back_buffer_view.release();
 
-            // Gui pass.
-            {
-                const color_attachment = gpu.RenderPassColorAttachment{
-                    .view = back_buffer_view,
-                    .clear_value = background,
-                    .load_op = .clear,
-                    .store_op = .store,
+            const imgui_commands = commands: {
+                const encoder = window.device.createCommandEncoder(&.{ .label = label });
+                defer encoder.release();
+
+                const background: gpu.Color = .{
+                    .r = @floatCast(editor.theme.foreground.value[0]),
+                    .g = @floatCast(editor.theme.foreground.value[1]),
+                    .b = @floatCast(editor.theme.foreground.value[2]),
+                    .a = 1.0,
                 };
 
-                const render_pass_info = gpu.RenderPassDescriptor.init(.{
-                    .color_attachments = &.{color_attachment},
-                });
-                const pass = encoder.beginRenderPass(&render_pass_info);
+                // Gui pass.
+                {
+                    const color_attachment = gpu.RenderPassColorAttachment{
+                        .view = back_buffer_view,
+                        .clear_value = background,
+                        .load_op = .clear,
+                        .store_op = .store,
+                    };
 
-                imgui_mach.renderDrawData(imgui.getDrawData().?, pass) catch {};
-                pass.end();
-                pass.release();
+                    const render_pass_info = gpu.RenderPassDescriptor.init(.{
+                        .color_attachments = &.{color_attachment},
+                    });
+                    const pass = encoder.beginRenderPass(&render_pass_info);
+
+                    imgui_mach.renderDrawData(imgui.getDrawData().?, pass) catch {};
+                    pass.end();
+                    pass.release();
+                }
+
+                break :commands encoder.finish(&.{ .label = label });
+            };
+            defer imgui_commands.release();
+
+            if (app.batcher.empty) {
+                window.queue.submit(&.{imgui_commands});
+            } else {
+                const batcher_commands = try app.batcher.finish();
+                defer batcher_commands.release();
+                window.queue.submit(&.{ batcher_commands, imgui_commands });
             }
-
-            break :commands encoder.finish(&.{ .label = label });
-        };
-        defer imgui_commands.release();
-
-        if (app.batcher.empty) {
-            window.queue.submit(&.{imgui_commands});
-        } else {
-            const batcher_commands = try app.batcher.finish();
-            defer batcher_commands.release();
-            window.queue.submit(&.{ batcher_commands, imgui_commands });
         }
+    } else {
+        // Sleep for one frame
+        std.Thread.sleep(@intFromFloat(app.delta_time * 1000000000.0));
     }
 
     for (app.mouse.buttons) |*button| {

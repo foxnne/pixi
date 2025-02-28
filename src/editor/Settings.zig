@@ -62,6 +62,10 @@ sprite_edit_height: f32 = 100,
 /// Height of the animation edit panel
 animation_edit_height: f32 = 100,
 
+/// Time of editor animations in seconds
+/// If set to 0.0, animations are effectively disabled.
+editor_animation_time: f32 = 0.75,
+
 /// Maximum zoom sensitivity applied at last zoom steps.
 zoom_max_sensitivity: f32 = 1.0,
 

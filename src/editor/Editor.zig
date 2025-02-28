@@ -260,6 +260,10 @@ pub fn tick(
     _ = editor.arena.reset(.retain_capacity);
 }
 
+pub fn newFrame(editor: *Editor) bool {
+    return if (editor.getFile(0)) |file| file.flipbook_scroll_request != null or file.selected_animation_state == .play else false;
+}
+
 pub fn close(app: *App, editor: *Editor) void {
     var should_close = true;
     for (editor.open_files.items) |file| {
