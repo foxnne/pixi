@@ -52,7 +52,8 @@ texture_id: mach.ObjectID = 0,
 atlas_id: mach.ObjectID = 0,
 
 var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-var extra_time: f32 = 0.0;
+var elapsed_time: f32 = 0.0;
+var framerate_capture: f32 = 0.0;
 
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn init(
@@ -222,7 +223,7 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             else => {},
         }
         event_called = true;
-        extra_time = 0.0;
+        elapsed_time = 0.0;
 
         if (!app.should_close) {
             if (imgui.getCurrentContext() != null) {
@@ -232,16 +233,22 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
     }
     var window = core.windows.getValue(app.window);
 
-    // Update times
-    app.delta_time = app.timer.lap();
-    app.total_time += app.delta_time;
-
     // Process input
     try pixi.input.process();
 
+    if (framerate_capture >= 1.0) {
+        framerate_capture = 0.0;
+    } else {
+        framerate_capture += app.delta_time;
+    }
+
     const new_frame_conditions: bool = event_called or editor.newFrame();
-    if (new_frame_conditions or extra_time < editor.settings.editor_animation_time or app.delta_time > 1.0) {
-        if (!new_frame_conditions) extra_time += app.delta_time;
+    if (new_frame_conditions or elapsed_time < editor.settings.editor_animation_time or framerate_capture >= 1.0) {
+        if (!new_frame_conditions and !(framerate_capture >= 1.0)) elapsed_time += app.delta_time;
+
+        // Update times
+        app.delta_time = app.timer.lap();
+        app.total_time += app.delta_time;
 
         // New imgui frame
         try imgui_mach.newFrame();
