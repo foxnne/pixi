@@ -7,6 +7,7 @@
     },
     .name = "pixi",
     .version = "0.0.2",
+    .mach_zig_version = "2024.11.0-mach",
     .dependencies = .{
         .mach = .{
             .url = "https://pkg.machengine.org/mach/b14f8e69ee8eb834695eb0d0582053e555d10156.tar.gz",
