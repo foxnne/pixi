@@ -261,7 +261,7 @@ pub fn tick(
 }
 
 pub fn newFrame(editor: *Editor) bool {
-    return if (editor.getFile(0)) |file| file.flipbook_scroll_request != null or file.selected_animation_state == .play else false;
+    return if (editor.getFile(editor.open_file_index)) |file| file.flipbook_scroll_request != null or file.selected_animation_state == .play else false;
 }
 
 pub fn close(app: *App, editor: *Editor) void {

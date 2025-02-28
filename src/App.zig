@@ -222,11 +222,11 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             },
             else => {},
         }
+
+        try pixi.input.process();
+
         event_called = true;
         elapsed_time = 0.0;
-
-        // Process input
-        try pixi.input.process();
 
         if (!app.should_close) {
             if (imgui.getCurrentContext() != null) {
@@ -234,16 +234,18 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             }
         }
     }
+
     var window = core.windows.getValue(app.window);
 
     if (framerate_capture >= 1.0) {
         framerate_capture = 0.0;
-    } else {
+    } else if (elapsed_time >= editor.settings.editor_animation_time) {
         framerate_capture += app.delta_time;
     }
 
     const new_frame_conditions: bool = event_called or editor.newFrame();
     if (new_frame_conditions or elapsed_time < editor.settings.editor_animation_time or framerate_capture >= 1.0) {
+
         // Update times
         app.delta_time = app.timer.lap();
         app.total_time += app.delta_time;
@@ -310,11 +312,7 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
         // TODO: Figure out how to accurately sleep the correct amount of time
         // For now we are just gonna stupidly rely on sleeping for half of a frame time
         // will allow wake-up time before there is a delay in responsiveness.
-        std.Thread.sleep(@intFromFloat((app.delta_time * 0.5) * 1000000000.0));
-    }
-
-    for (app.mouse.buttons) |*button| {
-        button.previous_state = button.state;
+        std.Thread.sleep(@intFromFloat(app.delta_time * 0.5 * 1000000000.0));
     }
 
     app.mouse.previous_position = app.mouse.position;
