@@ -308,7 +308,9 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
         }
     } else {
         // TODO: Figure out how to accurately sleep the correct amount of time
-        std.Thread.sleep(@intFromFloat((app.delta_time / 2.0) * 1000000000.0));
+        // For now we are just gonna stupidly rely on sleeping for 3/4 of a frame time
+        // will allow wake-up time before there is a delay in responsiveness.
+        std.Thread.sleep(@intFromFloat((app.delta_time * 0.75) * 1000000000.0));
     }
 
     for (app.mouse.buttons) |*button| {
