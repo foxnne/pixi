@@ -52,8 +52,8 @@ texture_id: mach.ObjectID = 0,
 atlas_id: mach.ObjectID = 0,
 
 var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-var elapsed_time: f32 = 0.0;
-var framerate_capture: f32 = 0.0;
+// var elapsed_time: f32 = 0.0;
+// var framerate_capture: f32 = 0.0;
 
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn init(
@@ -73,6 +73,8 @@ pub fn init(
 
     pixi.core.on_tick = app_mod.id.tick;
     pixi.core.on_exit = app_mod.id.deinit;
+
+    //core.frame.target = 60;
 
     const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
 
@@ -184,10 +186,15 @@ pub fn lateInit(
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
     const label = @tagName(mach_module) ++ ".tick";
+
+    // Update times
+    app.delta_time = app.timer.lap();
+    app.total_time += app.delta_time;
+
     // Process dialog requests
     editor_mod.call(.processDialogRequest);
 
-    var event_called: bool = false;
+    //var event_called: bool = false;
     // Process events
     while (core.nextEvent()) |event| {
         switch (event) {
@@ -203,7 +210,10 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
                 }
             },
             .zoom_gesture => |gesture| app.mouse.magnify = gesture.zoom,
-            .mouse_motion => |mouse_motion| app.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) },
+            .mouse_motion => |mouse_motion| {
+                app.mouse.previous_position = app.mouse.position;
+                app.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) };
+            },
             .mouse_press => |mouse_press| app.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press),
             .mouse_release => |mouse_release| app.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release),
             .close => {
@@ -225,8 +235,8 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
 
         try pixi.input.process();
 
-        event_called = true;
-        elapsed_time = 0.0;
+        //event_called = true;
+        //elapsed_time = 0.0;
 
         if (!app.should_close) {
             if (imgui.getCurrentContext() != null) {
@@ -237,85 +247,81 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
 
     var window = core.windows.getValue(app.window);
 
-    if (framerate_capture >= 1.0) {
-        framerate_capture = 0.0;
-    } else if (elapsed_time >= editor.settings.editor_animation_time) {
-        framerate_capture += app.delta_time;
-    }
+    //if (framerate_capture >= 1.0) {
+    //framerate_capture = 0.0;
+    //} else if (elapsed_time >= editor.settings.editor_animation_time) {
+    //framerate_capture += app.delta_time;
+    //}
 
-    const new_frame_conditions: bool = event_called or editor.newFrame();
-    if (new_frame_conditions or elapsed_time < editor.settings.editor_animation_time or framerate_capture >= 1.0) {
+    //const new_frame_conditions: bool = event_called or editor.newFrame();
+    //if (new_frame_conditions or elapsed_time < editor.settings.editor_animation_time or framerate_capture >= 1.0) {
+    //if (!new_frame_conditions and !(framerate_capture >= 1.0)) elapsed_time += app.delta_time;
 
-        // Update times
-        app.delta_time = app.timer.lap();
-        app.total_time += app.delta_time;
+    // New imgui frame
+    try imgui_mach.newFrame();
+    imgui.newFrame();
 
-        if (!new_frame_conditions and !(framerate_capture >= 1.0)) elapsed_time += app.delta_time;
+    // Process editor tick
+    editor_mod.call(.tick);
 
-        // New imgui frame
-        try imgui_mach.newFrame();
-        imgui.newFrame();
+    // Render imgui
+    imgui.render();
 
-        // Process editor tick
-        editor_mod.call(.tick);
+    // Pass commands to the window queue for presenting
+    if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
+        defer back_buffer_view.release();
 
-        // Render imgui
-        imgui.render();
+        const imgui_commands = commands: {
+            const encoder = window.device.createCommandEncoder(&.{ .label = label });
+            defer encoder.release();
 
-        // Pass commands to the window queue for presenting
-        if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
-            defer back_buffer_view.release();
+            const background: gpu.Color = .{
+                .r = @floatCast(editor.theme.foreground.value[0]),
+                .g = @floatCast(editor.theme.foreground.value[1]),
+                .b = @floatCast(editor.theme.foreground.value[2]),
+                .a = 1.0,
+            };
 
-            const imgui_commands = commands: {
-                const encoder = window.device.createCommandEncoder(&.{ .label = label });
-                defer encoder.release();
-
-                const background: gpu.Color = .{
-                    .r = @floatCast(editor.theme.foreground.value[0]),
-                    .g = @floatCast(editor.theme.foreground.value[1]),
-                    .b = @floatCast(editor.theme.foreground.value[2]),
-                    .a = 1.0,
+            // Gui pass.
+            {
+                const color_attachment = gpu.RenderPassColorAttachment{
+                    .view = back_buffer_view,
+                    .clear_value = background,
+                    .load_op = .clear,
+                    .store_op = .store,
                 };
 
-                // Gui pass.
-                {
-                    const color_attachment = gpu.RenderPassColorAttachment{
-                        .view = back_buffer_view,
-                        .clear_value = background,
-                        .load_op = .clear,
-                        .store_op = .store,
-                    };
+                const render_pass_info = gpu.RenderPassDescriptor.init(.{
+                    .color_attachments = &.{color_attachment},
+                });
+                const pass = encoder.beginRenderPass(&render_pass_info);
 
-                    const render_pass_info = gpu.RenderPassDescriptor.init(.{
-                        .color_attachments = &.{color_attachment},
-                    });
-                    const pass = encoder.beginRenderPass(&render_pass_info);
-
-                    imgui_mach.renderDrawData(imgui.getDrawData().?, pass) catch {};
-                    pass.end();
-                    pass.release();
-                }
-
-                break :commands encoder.finish(&.{ .label = label });
-            };
-            defer imgui_commands.release();
-
-            if (app.batcher.empty) {
-                window.queue.submit(&.{imgui_commands});
-            } else {
-                const batcher_commands = try app.batcher.finish();
-                defer batcher_commands.release();
-                window.queue.submit(&.{ batcher_commands, imgui_commands });
+                imgui_mach.renderDrawData(imgui.getDrawData().?, pass) catch {};
+                pass.end();
+                pass.release();
             }
-        }
-    } else {
-        // TODO: Figure out how to accurately sleep the correct amount of time
-        // For now we are just gonna stupidly rely on sleeping for half of a frame time
-        // will allow wake-up time before there is a delay in responsiveness.
-        std.Thread.sleep(@intFromFloat(app.delta_time * 0.5 * 1000000000.0));
-    }
 
-    app.mouse.previous_position = app.mouse.position;
+            break :commands encoder.finish(&.{ .label = label });
+        };
+        defer imgui_commands.release();
+
+        if (app.batcher.empty) {
+            window.queue.submit(&.{imgui_commands});
+        } else {
+            const batcher_commands = try app.batcher.finish();
+            defer batcher_commands.release();
+            window.queue.submit(&.{ batcher_commands, imgui_commands });
+        }
+    }
+    //} else {
+    // TODO: Figure out how to accurately sleep the correct amount of time
+    // For now we are just gonna stupidly rely on sleeping for half of a frame time
+    // will allow wake-up time before there is a delay in responsiveness.
+    //std.Thread.sleep(@divTrunc(core.frame.delay_ns, 2));
+    //std.Thread.sleep(core.frame.delay_ns);
+    //}
+
+    //app.mouse.previous_position = app.mouse.position;
 
     // Finally, close if we should and aren't in the middle of saving
     if (app.should_close and !editor.saving()) {
