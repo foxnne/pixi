@@ -244,11 +244,11 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
 
     const new_frame_conditions: bool = event_called or editor.newFrame();
     if (new_frame_conditions or elapsed_time < editor.settings.editor_animation_time or framerate_capture >= 1.0) {
-        if (!new_frame_conditions and !(framerate_capture >= 1.0)) elapsed_time += app.delta_time;
-
         // Update times
         app.delta_time = app.timer.lap();
         app.total_time += app.delta_time;
+
+        if (!new_frame_conditions and !(framerate_capture >= 1.0)) elapsed_time += app.delta_time;
 
         // New imgui frame
         try imgui_mach.newFrame();
@@ -307,8 +307,8 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             }
         }
     } else {
-        // Sleep for one frame
-        std.Thread.sleep(@intFromFloat(app.delta_time * 1000000000.0));
+        // TODO: Figure out how to accurately sleep the correct amount of time
+        std.Thread.sleep(@intFromFloat((app.delta_time / 2.0) * 1000000000.0));
     }
 
     for (app.mouse.buttons) |*button| {
