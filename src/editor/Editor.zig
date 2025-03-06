@@ -260,6 +260,23 @@ pub fn tick(
     _ = editor.arena.reset(.retain_capacity);
 }
 
+pub fn anyAnimationPlaying(editor: *Editor) bool {
+    if (editor.settings.split_artboard) {
+        if (editor.getFile(editor.artboard.open_file_index_0)) |file| {
+            if (file.selected_animation_state == .play) return true;
+        }
+        if (editor.getFile(editor.artboard.open_file_index_1)) |file| {
+            if (file.selected_animation_state == .play) return true;
+        }
+    } else {
+        if (editor.getFile(editor.open_file_index)) |file| {
+            if (file.selected_animation_state == .play) return true;
+        }
+    }
+
+    return false;
+}
+
 pub fn newFrame(editor: *Editor) bool {
     return if (editor.getFile(editor.open_file_index)) |file| file.flipbook_scroll_request != null or file.selected_animation_state == .play else false;
 }

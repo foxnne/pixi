@@ -188,9 +188,12 @@ pub fn lateInit(
 }
 
 pub var update_cursor: bool = false;
+pub var update_render_time: f32 = 0.0;
 
 pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Editor)) !void {
-    if (imgui.getCurrentContext() == null) return;
+    if (imgui.getCurrentContext() == null or
+        !(update_render_time < editor.settings.editor_animation_time or editor.anyAnimationPlaying()))
+        return;
 
     // New imgui frame
     try imgui_mach.newFrame();
@@ -210,6 +213,7 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
     app.delta_time = app.timer.lap();
     app.total_time += app.delta_time;
 
+    update_render_time += app.delta_time;
     app.frame.tick();
 
     // Pass commands to the window queue for presenting
@@ -264,11 +268,8 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
     }
 }
 
-var extra_frame: bool = true;
-
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
-    var had_event: bool = true;
     // Process dialog requests
     editor_mod.call(.processDialogRequest);
     // Process events
@@ -315,14 +316,15 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
                 _ = imgui_mach.processEvent(event);
             }
         }
-        had_event = true;
+
+        update_render_time = 0.0;
     }
     if (update_cursor) {
         imgui_mach.updateCursor();
         update_cursor = false;
     }
 
-    core.frame.target = 2000;
+    core.frame.target = 1000;
     std.Thread.sleep(core.frame.delay_ns);
 
     try pixi.input.process();
