@@ -195,13 +195,14 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
         !(update_render_time < editor.settings.editor_animation_time or editor.anyAnimationPlaying()))
         return;
 
+    update_cursor = true;
+
     // New imgui frame
     try imgui_mach.newFrame();
     imgui.newFrame();
 
     // Process editor tick
     editor_mod.call(.tick);
-    update_cursor = true;
 
     // Render imgui
     imgui.render();
@@ -319,15 +320,16 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
 
         update_render_time = 0.0;
     }
+    try pixi.input.process();
     if (update_cursor) {
         imgui_mach.updateCursor();
         update_cursor = false;
+        pixi.app.mouse.pushPreviousStates();
+        pixi.editor.hotkeys.pushHotkeyPreviousStates();
     }
 
     core.frame.target = 1000;
     std.Thread.sleep(core.frame.delay_ns);
-
-    try pixi.input.process();
 
     // Finally, close if we should and aren't in the middle of saving
     if (app.should_close and !editor.saving()) {
