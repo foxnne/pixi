@@ -187,7 +187,7 @@ pub fn lateInit(
     editor_mod.call(.lateInit);
 }
 
-var had_event: bool = true;
+pub var update_cursor: bool = false;
 
 pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Editor)) !void {
     if (imgui.getCurrentContext() == null) return;
@@ -198,10 +198,10 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
 
     // Process editor tick
     editor_mod.call(.tick);
+    update_cursor = true;
 
     // Render imgui
     imgui.render();
-    had_event = false;
 
     const label = @tagName(mach_module) ++ ".render";
     const window = core.windows.getValue(app.window);
@@ -264,9 +264,11 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
     }
 }
 
+var extra_frame: bool = true;
+
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
-
+    var had_event: bool = true;
     // Process dialog requests
     editor_mod.call(.processDialogRequest);
     // Process events
@@ -311,10 +313,13 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
         if (!app.should_close) {
             if (imgui.getCurrentContext() != null) {
                 _ = imgui_mach.processEvent(event);
-                imgui_mach.updateCursor();
             }
         }
         had_event = true;
+    }
+    if (update_cursor) {
+        imgui_mach.updateCursor();
+        update_cursor = false;
     }
 
     core.frame.target = 2000;
