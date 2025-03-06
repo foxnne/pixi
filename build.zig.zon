@@ -10,13 +10,15 @@
     .mach_zig_version = "2024.11.0-mach",
     .dependencies = .{
         .mach = .{
-            .url = "https://pkg.machengine.org/mach/b14f8e69ee8eb834695eb0d0582053e555d10156.tar.gz",
-            .hash = "12208832468a607cf5da2e724b4386dd41c433b08e98b1ef28302f0f981e96045c1d",
+            //.path = "src/.temp/mach-dev",
+            .url = "https://github.com/foxnne/mach/archive/f3ceebfaf4d8aaa7ab3f29b94608c41ea204ab24.tar.gz",
+            .hash = "122050c73239ff40d48824048e31d893435753107a6d1d8b3cdc21a17b43fa703c3e",
         },
         .zig_imgui = .{
             //.path = "src/.temp/zig-imgui/",
-            .url = "https://github.com/foxnne/zig-imgui/archive/8cb1c5a05315fb1e59f7dc4a5bde4e66dabc8fe7.tar.gz",
-            .hash = "1220af97816541650e237d73af0c5e12842b843de1f52617a570fcc24ca12e8c7135",
+            .url = "https://github.com/foxnne/zig-imgui/archive/5aa9281b29a61db91f4db29cdaf158321a91beb4.tar.gz",
+            .hash = "1220630398f144a39075c8574b0ff9915dbfb64a9398af05f334fab3c11108ebd42f",
+            // .hash = "1220af97816541650e237d73af0c5e12842b843de1f52617a570fcc24ca12e8c7135",
         },
         .zstbi = .{
             .url = "https://github.com/foxnne/zstbi/archive/d9a0947365b1ee8131fcf518feac8dfe896cfcfa.tar.gz",

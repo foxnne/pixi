@@ -18,7 +18,7 @@ const Assets = pixi.Assets;
 
 // Mach module, systems, and main
 pub const mach_module = .app;
-pub const mach_systems = .{ .main, .init, .lateInit, .tick, .deinit };
+pub const mach_systems = .{ .main, .init, .lateInit, .tick, .render, .deinit };
 
 // mach entrypoint module runs this schedule
 pub const main = mach.schedule(.{
@@ -47,13 +47,15 @@ uniform_buffer_default: *gpu.Buffer = undefined,
 window: mach.ObjectID,
 window_size: [2]f32 = undefined,
 
+frame: mach.time.Frequency = undefined,
+
 // These are the only two assets pixi needs outside of fonts
 texture_id: mach.ObjectID = 0,
 atlas_id: mach.ObjectID = 0,
 
 var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-// var elapsed_time: f32 = 0.0;
-// var framerate_capture: f32 = 0.0;
+var elapsed_time: f32 = 0.0;
+var framerate_capture: f32 = 0.0;
 
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn init(
@@ -86,7 +88,8 @@ pub fn init(
     // Here we have access to all the initial fields of the window
     const window = try pixi.core.windows.new(.{
         .title = "Pixi",
-        .vsync_mode = .double,
+        .on_tick = app_mod.id.render,
+        .power_preference = .low_power,
     });
 
     app.* = .{
@@ -94,6 +97,7 @@ pub fn init(
         .timer = try mach.time.Timer.start(),
         .window = window,
         .root_path = try allocator.dupeZ(u8, path),
+        .frame = .{ .target = 1 },
     };
 }
 
@@ -183,79 +187,10 @@ pub fn lateInit(
     editor_mod.call(.lateInit);
 }
 
-/// This is a mach-called function, and the parameters are automatically injected.
-pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
-    const label = @tagName(mach_module) ++ ".tick";
+var had_event: bool = true;
 
-    // Update times
-    app.delta_time = app.timer.lap();
-    app.total_time += app.delta_time;
-
-    // Process dialog requests
-    editor_mod.call(.processDialogRequest);
-
-    //var event_called: bool = false;
-    // Process events
-    while (core.nextEvent()) |event| {
-        switch (event) {
-            .window_open => app_mod.call(.lateInit),
-            .key_press => |key_press| editor.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press),
-            .key_repeat => |key_repeat| editor.hotkeys.setHotkeyState(key_repeat.key, key_repeat.mods, .repeat),
-            .key_release => |key_release| editor.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release),
-            .mouse_scroll => |mouse_scroll| {
-                // TODO: Fix this in the editor code, we dont want to block mouse input based on popups
-                if (!editor.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
-                    app.mouse.scroll_x = mouse_scroll.xoffset;
-                    app.mouse.scroll_y = mouse_scroll.yoffset;
-                }
-            },
-            .zoom_gesture => |gesture| app.mouse.magnify = gesture.zoom,
-            .mouse_motion => |mouse_motion| {
-                app.mouse.previous_position = app.mouse.position;
-                app.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) };
-            },
-            .mouse_press => |mouse_press| app.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press),
-            .mouse_release => |mouse_release| app.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release),
-            .close => {
-                // Currently, just pass along this message to the editor
-                // and allow the editor to set the app.should_close or not
-                editor_mod.call(.close);
-            },
-            .window_resize => |resize| {
-                const window = core.windows.getValue(app.window);
-                app.window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.height) };
-                app.framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
-                app.content_scale = .{
-                    app.framebuffer_size[0] / app.window_size[0],
-                    app.framebuffer_size[1] / app.window_size[1],
-                };
-            },
-            else => {},
-        }
-
-        try pixi.input.process();
-
-        //event_called = true;
-        //elapsed_time = 0.0;
-
-        if (!app.should_close) {
-            if (imgui.getCurrentContext() != null) {
-                _ = imgui_mach.processEvent(event);
-            }
-        }
-    }
-
-    var window = core.windows.getValue(app.window);
-
-    //if (framerate_capture >= 1.0) {
-    //framerate_capture = 0.0;
-    //} else if (elapsed_time >= editor.settings.editor_animation_time) {
-    //framerate_capture += app.delta_time;
-    //}
-
-    //const new_frame_conditions: bool = event_called or editor.newFrame();
-    //if (new_frame_conditions or elapsed_time < editor.settings.editor_animation_time or framerate_capture >= 1.0) {
-    //if (!new_frame_conditions and !(framerate_capture >= 1.0)) elapsed_time += app.delta_time;
+pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Editor)) !void {
+    if (imgui.getCurrentContext() == null) return;
 
     // New imgui frame
     try imgui_mach.newFrame();
@@ -266,6 +201,16 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
 
     // Render imgui
     imgui.render();
+    had_event = false;
+
+    const label = @tagName(mach_module) ++ ".render";
+    const window = core.windows.getValue(app.window);
+
+    // Update times
+    app.delta_time = app.timer.lap();
+    app.total_time += app.delta_time;
+
+    app.frame.tick();
 
     // Pass commands to the window queue for presenting
     if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
@@ -312,16 +257,70 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             defer batcher_commands.release();
             window.queue.submit(&.{ batcher_commands, imgui_commands });
         }
-    }
-    //} else {
-    // TODO: Figure out how to accurately sleep the correct amount of time
-    // For now we are just gonna stupidly rely on sleeping for half of a frame time
-    // will allow wake-up time before there is a delay in responsiveness.
-    //std.Thread.sleep(@divTrunc(core.frame.delay_ns, 2));
-    //std.Thread.sleep(core.frame.delay_ns);
-    //}
 
-    //app.mouse.previous_position = app.mouse.position;
+        mach.sysgpu.Impl.deviceTick(window.device);
+
+        window.swap_chain.present();
+    }
+}
+
+/// This is a mach-called function, and the parameters are automatically injected.
+pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
+
+    // Process dialog requests
+    editor_mod.call(.processDialogRequest);
+    // Process events
+    while (core.nextEvent()) |event| {
+        switch (event) {
+            .window_open => app_mod.call(.lateInit),
+
+            .key_press => |key_press| editor.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press),
+            .key_repeat => |key_repeat| editor.hotkeys.setHotkeyState(key_repeat.key, key_repeat.mods, .repeat),
+            .key_release => |key_release| editor.hotkeys.setHotkeyState(key_release.key, key_release.mods, .release),
+            .mouse_scroll => |mouse_scroll| {
+                // TODO: Fix this in the editor code, we dont want to block mouse input based on popups
+                if (!editor.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
+                    app.mouse.scroll_x = mouse_scroll.xoffset;
+                    app.mouse.scroll_y = mouse_scroll.yoffset;
+                }
+            },
+            .zoom_gesture => |gesture| app.mouse.magnify = gesture.zoom,
+            .mouse_motion => |mouse_motion| {
+                app.mouse.previous_position = app.mouse.position;
+                app.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) };
+            },
+            .mouse_press => |mouse_press| app.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press),
+            .mouse_release => |mouse_release| app.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release),
+            .close => {
+                // Currently, just pass along this message to the editor
+                // and allow the editor to set the app.should_close or not
+                editor_mod.call(.close);
+            },
+            .window_resize => |resize| {
+                const window = core.windows.getValue(app.window);
+                app.window_size = .{ @floatFromInt(resize.size.width), @floatFromInt(resize.size.height) };
+                app.framebuffer_size = .{ @floatFromInt(window.framebuffer_width), @floatFromInt(window.framebuffer_height) };
+                app.content_scale = .{
+                    app.framebuffer_size[0] / app.window_size[0],
+                    app.framebuffer_size[1] / app.window_size[1],
+                };
+            },
+            else => {},
+        }
+
+        if (!app.should_close) {
+            if (imgui.getCurrentContext() != null) {
+                _ = imgui_mach.processEvent(event);
+                imgui_mach.updateCursor();
+            }
+        }
+        had_event = true;
+    }
+
+    core.frame.target = 2000;
+    std.Thread.sleep(core.frame.delay_ns);
+
+    try pixi.input.process();
 
     // Finally, close if we should and aren't in the middle of saving
     if (app.should_close and !editor.saving()) {
