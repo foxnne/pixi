@@ -343,11 +343,11 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             .b = editor.theme.foreground.value[2],
             .a = editor.theme.foreground.value[3],
         });
+    } else {
+        // We want this to run at 1000 fps, its only polling input
+        core.frame.target = 1000;
+        std.Thread.sleep(core.frame.delay_ns);
     }
-
-    // We want this to run at 1000 fps, its only polling input
-    core.frame.target = 1000;
-    std.Thread.sleep(core.frame.delay_ns);
 
     // Finally, close if we should and aren't in the middle of saving
     if (app.should_close and !editor.saving()) {

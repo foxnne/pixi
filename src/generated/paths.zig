@@ -7,7 +7,6 @@ pub const palettes = "assets/palettes/";
 
 pub const themes = "assets/themes/";
 
-pub const @".pixiproject" = "assets/.pixiproject";
 pub const @"CozetteVector.ttf" = "assets/fonts/CozetteVector.ttf";
 pub const @"apollo.hex" = "assets/palettes/apollo.hex";
 pub const @"cursors.pixi" = "assets/src/cursors.pixi";
