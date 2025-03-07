@@ -187,7 +187,7 @@ pub fn lateInit(
     editor_mod.call(.lateInit);
 }
 
-pub var update_cursor: bool = false;
+pub var updated_editor: bool = false;
 pub var update_render_time: f32 = 0.0;
 
 pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Editor)) !void {
@@ -195,14 +195,16 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
         !(update_render_time < editor.settings.editor_animation_time or editor.anyAnimationPlaying()))
         return;
 
-    update_cursor = true;
-
     // New imgui frame
     try imgui_mach.newFrame();
     imgui.newFrame();
 
     // Process editor tick
     editor_mod.call(.tick);
+    updated_editor = true;
+
+    pixi.app.mouse.pushPreviousStates();
+    pixi.editor.hotkeys.pushHotkeyPreviousStates();
 
     // Render imgui
     imgui.render();
@@ -271,6 +273,7 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
 
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), editor_mod: mach.Mod(Editor)) !void {
+
     // Process dialog requests
     editor_mod.call(.processDialogRequest);
     // Process events
@@ -320,14 +323,26 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
 
         update_render_time = 0.0;
     }
+
+    // Process input each input tick
     try pixi.input.process();
-    if (update_cursor) {
+
+    // Only update cursor and push previous input states if we recently updated the editor
+    // These are things that must be run on the main thread but are affected by the timing of
+    // the render thread.
+    if (updated_editor) {
+        updated_editor = false;
         imgui_mach.updateCursor();
-        update_cursor = false;
-        pixi.app.mouse.pushPreviousStates();
-        pixi.editor.hotkeys.pushHotkeyPreviousStates();
+
+        core.windows.set(app.window, .decoration_color, .{
+            .r = editor.theme.foreground.value[0],
+            .g = editor.theme.foreground.value[1],
+            .b = editor.theme.foreground.value[2],
+            .a = editor.theme.foreground.value[3],
+        });
     }
 
+    // We want this to run at 1000 fps, its only polling input
     core.frame.target = 1000;
     std.Thread.sleep(core.frame.delay_ns);
 
