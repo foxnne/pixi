@@ -30,7 +30,7 @@ pub const Sidebar = @import("Sidebar.zig");
 pub const mach_module = .editor;
 pub const mach_systems = .{
     .init,
-    .lateInit,
+    .loadTheme,
     .processDialogRequest,
     .tick,
     .close,
@@ -117,7 +117,7 @@ pub fn init(
     popups_mod.call(.init);
 }
 
-pub fn lateInit(core: *Core, app: *App, editor: *Editor) !void {
+pub fn loadTheme(core: *Core, app: *App, editor: *Editor) !void {
     const theme_path = try std.fs.path.joinZ(app.allocator, &.{ pixi.paths.themes, editor.settings.theme });
     defer app.allocator.free(theme_path);
 

@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const zmath = @import("zmath");
 
 const mach = @import("mach");
 const gpu = mach.gpu;
@@ -47,8 +48,6 @@ uniform_buffer_default: *gpu.Buffer = undefined,
 window: mach.ObjectID,
 window_size: [2]f32 = undefined,
 
-frame: mach.time.Frequency = undefined,
-
 // These are the only two assets pixi needs outside of fonts
 texture_id: mach.ObjectID = 0,
 atlas_id: mach.ObjectID = 0,
@@ -76,8 +75,6 @@ pub fn init(
     pixi.core.on_tick = app_mod.id.tick;
     pixi.core.on_exit = app_mod.id.deinit;
 
-    //core.frame.target = 60;
-
     const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
 
     // Run from the directory where the executable is located so relative assets can be found.
@@ -97,7 +94,6 @@ pub fn init(
         .timer = try mach.time.Timer.start(),
         .window = window,
         .root_path = try allocator.dupeZ(u8, path),
-        .frame = .{ .target = 1 },
     };
 }
 
@@ -184,15 +180,14 @@ pub fn lateInit(
     _ = io.fonts.?.addFontFromFileTTF(pixi.paths.@"fa-regular-400.ttf", pixi.editor.settings.font_size, &fa_config, @ptrCast(ranges.ptr)).?;
 
     // This will load our theme
-    editor_mod.call(.lateInit);
+    editor_mod.call(.loadTheme);
 }
 
 pub var updated_editor: bool = false;
 pub var update_render_time: f32 = 0.0;
 
 pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Editor)) !void {
-    if (imgui.getCurrentContext() == null or
-        !(update_render_time < editor.settings.editor_animation_time or editor.anyAnimationPlaying()))
+    if (!(update_render_time < editor.settings.editor_animation_time or editor.anyAnimationPlaying()))
         return;
 
     // New imgui frame
@@ -207,64 +202,59 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
     imgui.render();
 
     const label = @tagName(mach_module) ++ ".render";
-    const window = core.windows.getValue(app.window);
-
-    // Update times
-    app.delta_time = app.timer.lap();
-    app.total_time += app.delta_time;
-
-    update_render_time += app.delta_time;
-    app.frame.tick();
+    var window = core.windows.getValue(app.window);
 
     // Pass commands to the window queue for presenting
     if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
         defer back_buffer_view.release();
 
-        const imgui_commands = commands: {
-            const encoder = window.device.createCommandEncoder(&.{ .label = label });
-            defer encoder.release();
+        if (imgui.getDrawData()) |draw_data| {
+            const imgui_commands = commands: {
+                const encoder = window.device.createCommandEncoder(&.{ .label = label });
+                defer encoder.release();
 
-            const background: gpu.Color = .{
-                .r = @floatCast(editor.theme.foreground.value[0]),
-                .g = @floatCast(editor.theme.foreground.value[1]),
-                .b = @floatCast(editor.theme.foreground.value[2]),
-                .a = 1.0,
-            };
-
-            // Gui pass.
-            {
-                const color_attachment = gpu.RenderPassColorAttachment{
-                    .view = back_buffer_view,
-                    .clear_value = background,
-                    .load_op = .clear,
-                    .store_op = .store,
+                const background: gpu.Color = .{
+                    .r = @floatCast(editor.theme.foreground.value[0]),
+                    .g = @floatCast(editor.theme.foreground.value[1]),
+                    .b = @floatCast(editor.theme.foreground.value[2]),
+                    .a = 1.0,
                 };
 
-                const render_pass_info = gpu.RenderPassDescriptor.init(.{
-                    .color_attachments = &.{color_attachment},
-                });
-                const pass = encoder.beginRenderPass(&render_pass_info);
+                // Gui pass.
+                {
+                    const color_attachment = gpu.RenderPassColorAttachment{
+                        .view = back_buffer_view,
+                        .clear_value = background,
+                        .load_op = .clear,
+                        .store_op = .store,
+                    };
 
-                imgui_mach.renderDrawData(imgui.getDrawData().?, pass) catch {};
-                pass.end();
-                pass.release();
+                    const render_pass_info = gpu.RenderPassDescriptor.init(.{
+                        .color_attachments = &.{color_attachment},
+                    });
+                    const pass = encoder.beginRenderPass(&render_pass_info);
+
+                    imgui_mach.renderDrawData(draw_data, pass) catch {};
+                    pass.end();
+                    pass.release();
+                }
+
+                break :commands encoder.finish(&.{ .label = label });
+            };
+            defer imgui_commands.release();
+
+            if (app.batcher.empty) {
+                window.queue.submit(&.{imgui_commands});
+            } else {
+                const batcher_commands = try app.batcher.finish();
+                defer batcher_commands.release();
+                window.queue.submit(&.{ batcher_commands, imgui_commands });
             }
 
-            break :commands encoder.finish(&.{ .label = label });
-        };
-        defer imgui_commands.release();
+            mach.sysgpu.Impl.deviceTick(window.device);
 
-        if (app.batcher.empty) {
-            window.queue.submit(&.{imgui_commands});
-        } else {
-            const batcher_commands = try app.batcher.finish();
-            defer batcher_commands.release();
-            window.queue.submit(&.{ batcher_commands, imgui_commands });
+            window.swap_chain.present();
         }
-
-        mach.sysgpu.Impl.deviceTick(window.device);
-
-        window.swap_chain.present();
     }
 }
 
@@ -326,14 +316,19 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
                 _ = imgui_mach.processEvent(event);
             }
         }
-
         update_render_time = 0.0;
     }
+
+    // Update times
+    app.delta_time = app.timer.lap();
+    app.total_time += app.delta_time;
 
     // Only update cursor and push previous input states if we recently updated the editor
     // These are things that must be run on the main thread but are affected by the timing of
     // the render thread.
     if (updated_editor) {
+        update_render_time += app.delta_time;
+
         updated_editor = false;
         imgui_mach.updateCursor();
 
@@ -343,11 +338,9 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             .b = editor.theme.foreground.value[2],
             .a = editor.theme.foreground.value[3],
         });
-    } else {
-        // We want this to run at 1000 fps, its only polling input
-        core.frame.target = 1000;
-        std.Thread.sleep(core.frame.delay_ns);
     }
+    core.frame.target = 1000;
+    std.Thread.sleep(core.frame.delay_ns);
 
     // Finally, close if we should and aren't in the middle of saving
     if (app.should_close and !editor.saving()) {
