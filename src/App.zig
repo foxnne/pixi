@@ -85,7 +85,7 @@ pub fn init(
     // Here we have access to all the initial fields of the window
     const window = try pixi.core.windows.new(.{
         .title = "Pixi",
-        .on_tick = app_mod.id.render,
+        .on_tick = if (builtin.os.tag == .macos) app_mod.id.render else null,
         .power_preference = .low_power,
     });
 
@@ -322,6 +322,10 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
     // Update times
     app.delta_time = app.timer.lap();
     app.total_time += app.delta_time;
+
+    if (core.windows.get(app.window, .on_tick) == null) {
+        app_mod.call(.render);
+    }
 
     // Only update cursor and push previous input states if we recently updated the editor
     // These are things that must be run on the main thread but are affected by the timing of
