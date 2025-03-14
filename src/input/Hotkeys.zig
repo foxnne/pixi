@@ -1,7 +1,8 @@
 const std = @import("std");
 
 const pixi = @import("../pixi.zig");
-const Core = @import("mach").Core;
+const mach = @import("mach");
+const Core = mach.Core;
 const Editor = pixi.Editor;
 
 const zm = @import("zmath");
@@ -71,6 +72,8 @@ pub const Action = union(enum) {
 
 hotkeys: []Hotkey,
 disable: bool = false,
+timer: mach.time.Timer = undefined,
+delta_time: f32 = 0.0,
 
 pub const Hotkey = struct {
     shortcut: [:0]const u8 = undefined,
@@ -79,6 +82,7 @@ pub const Hotkey = struct {
     action: Action,
     state: bool = false,
     previous_state: bool = false,
+    time: f32 = 0.0,
 
     /// Returns true the frame the key was pressed.
     pub fn pressed(self: Hotkey) bool {
@@ -150,6 +154,8 @@ pub fn pushHotkeyPreviousStates(self: *Self) void {
 }
 
 pub fn process(self: *Self, editor: *Editor) !void {
+    self.delta_time = self.timer.lap();
+
     if (self.disable) {
         return;
     }
@@ -195,6 +201,15 @@ pub fn process(self: *Self, editor: *Editor) !void {
                     },
                     else => {},
                 }
+            } else if (hk.down()) {
+                hk.time += self.delta_time;
+
+                if (hk.time > editor.settings.hotkey_repeat_time) {
+                    hk.time = 0.0;
+
+                    if (editor.tools.stroke_size < editor.settings.stroke_max_size)
+                        editor.tools.stroke_size += 1;
+                }
             }
         }
 
@@ -206,6 +221,15 @@ pub fn process(self: *Self, editor: *Editor) !void {
                             editor.tools.stroke_size -= 1;
                     },
                     else => {},
+                }
+            } else if (hk.down()) {
+                hk.time += self.delta_time;
+
+                if (hk.time > editor.settings.hotkey_repeat_time) {
+                    hk.time = 0.0;
+
+                    if (editor.tools.stroke_size > 1)
+                        editor.tools.stroke_size -= 1;
                 }
             }
         }
@@ -879,5 +903,5 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
     }
 
-    return .{ .hotkeys = try hotkeys.toOwnedSlice() };
+    return .{ .hotkeys = try hotkeys.toOwnedSlice(), .timer = try mach.time.Timer.start() };
 }

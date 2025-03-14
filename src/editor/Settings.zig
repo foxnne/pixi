@@ -66,6 +66,10 @@ animation_edit_height: f32 = 100,
 /// If set to 0.0, animations are effectively disabled.
 editor_animation_time: f32 = 0.75,
 
+/// Time it takes for a hotkey to repeat if possible,
+/// example: sizing up or down the current tool size
+hotkey_repeat_time: f32 = 0.075,
+
 /// Maximum zoom sensitivity applied at last zoom steps.
 zoom_max_sensitivity: f32 = 1.0,
 
