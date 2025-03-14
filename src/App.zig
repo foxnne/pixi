@@ -190,6 +190,10 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
     if (!(update_render_time < editor.settings.editor_animation_time or editor.anyAnimationPlaying()))
         return;
 
+    // Update times
+    app.delta_time = app.timer.lap();
+    app.total_time += app.delta_time;
+
     // New imgui frame
     try imgui_mach.newFrame();
     imgui.newFrame();
@@ -318,10 +322,6 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
         }
         update_render_time = 0.0;
     }
-
-    // Update times
-    app.delta_time = app.timer.lap();
-    app.total_time += app.delta_time;
 
     if (core.windows.get(app.window, .on_tick) == null) {
         app_mod.call(.render);
