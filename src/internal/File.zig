@@ -73,16 +73,25 @@ pub const TransformTexture = struct {
     vertices: [4]TransformVertex,
     pivot: ?TransformVertex = null,
     control: ?TransformControl = null,
-    pan: bool = false,
-    rotate: bool = false,
+    action: TransformAction = .none,
+    //pan: bool = false,
+    //rotate: bool = false,
     rotation: f32 = 0.0,
     rotation_grip_height: f32 = 8.0,
     texture: pixi.gfx.Texture,
     confirm: bool = false,
-    pivot_move: bool = false,
+    //pivot_move: bool = false,
     pivot_offset_angle: f32 = 0.0,
     temporary: bool = false,
     keyframe_parent_id: ?u32 = null,
+};
+
+pub const TransformAction = enum {
+    none,
+    pan,
+    rotate,
+    move_pivot,
+    move_vertex,
 };
 
 pub const TransformVertex = struct {
@@ -1169,8 +1178,10 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
     const modifier_primary: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
     const modifier_secondary: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
 
-    if (transform_texture.control) |*control| {
-        control.mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect;
+    if (transform_texture.action == .move_pivot) {
+        if (transform_texture.control) |*control| {
+            control.mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect;
+        }
     }
 
     const camera = switch (canvas) {
@@ -1187,10 +1198,11 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
 
     if (pixi.app.mouse.button(.primary)) |bt| {
         if (bt.released()) {
-            transform_texture.control = null;
-            transform_texture.pan = false;
-            transform_texture.rotate = false;
-            transform_texture.pivot_move = false;
+            transform_texture.action = .none;
+            // transform_texture.control = null;
+            // transform_texture.pan = false;
+            // transform_texture.rotate = false;
+            // transform_texture.pivot_move = false;
         }
     }
 
@@ -1244,7 +1256,7 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
         .{ .position = zmath.mul(transform_texture.vertices[3].position - pivot, rotation_matrix) + pivot },
     };
 
-    if (transform_texture.pivot_move) {
+    if (transform_texture.action == .move_pivot) {
         if (window_hovered) {
             const mouse_position = pixi.app.mouse.position;
 
@@ -1321,12 +1333,13 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
             cursor = imgui.MouseCursor_Hand;
             if (pixi.app.mouse.button(.primary)) |bt| {
                 if (bt.pressed()) {
-                    transform_texture.rotate = true;
+                    if (transform_texture.action == .none)
+                        transform_texture.action = .rotate;
                 }
             }
         }
 
-        if (transform_texture.rotate or hovered or transform_texture.pivot_move) {
+        if (transform_texture.action == .rotate or hovered or transform_texture.action == .move_pivot) {
             control_scale = 1.5;
 
             const dist = @sqrt(std.math.pow(f32, control_center[0] - pivot[0], 2) + std.math.pow(f32, control_center[1] - pivot[1], 2));
@@ -1355,7 +1368,8 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
             if (camera.isHovered(grip_rect) and options.allow_vert_move and window_hovered) {
                 hovered_index = vertex_index;
                 if (pixi.app.mouse.button(.primary)) |bt| {
-                    if (bt.pressed()) {
+                    if (bt.pressed() and transform_texture.action == .none) {
+                        transform_texture.action = .move_vertex;
                         transform_texture.control = .{
                             .index = vertex_index,
                             .mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect,
@@ -1421,29 +1435,30 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
             cursor = imgui.MouseCursor_Hand;
         }
 
-        if (((pan_hovered and !pivot_hovered) or (pan_hovered and !options.allow_pivot_move)) and mouse_pressed) {
-            transform_texture.pan = true;
+        if (((pan_hovered and !pivot_hovered) or (pan_hovered and !options.allow_pivot_move)) and mouse_pressed and transform_texture.action == .none) {
+            transform_texture.action = .pan;
         }
-        if (pivot_hovered and mouse_pressed and options.allow_pivot_move) {
-            transform_texture.pivot_move = true;
+        if (pivot_hovered and mouse_pressed and options.allow_pivot_move and transform_texture.action == .none) {
+            transform_texture.action = .move_pivot;
             transform_texture.control = null;
         }
 
-        const centroid_scale: f32 = if (pan_hovered or transform_texture.pan or pivot_hovered or transform_texture.pivot_move) 1.5 else 1.0;
+        const centroid_scale: f32 = if (pan_hovered or transform_texture.action == .pan or pivot_hovered or transform_texture.action == .move_pivot) 1.5 else 1.0;
         camera.drawCircleFilled(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, half_grip_size * camera.zoom * centroid_scale, default_color);
     }
 
     { // Handle setting the mouse cursor based on controls
-
-        if (transform_texture.control) |c| {
-            switch (c.index) {
-                0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
-                1, 3 => cursor = imgui.MouseCursor_ResizeNESW,
-                else => unreachable,
+        if (transform_texture.action == .move_vertex and options.allow_vert_move) {
+            if (transform_texture.control) |c| {
+                switch (c.index) {
+                    0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
+                    1, 3 => cursor = imgui.MouseCursor_ResizeNESW,
+                    else => unreachable,
+                }
             }
         }
 
-        if (options.allow_pivot_move) {
+        if (options.allow_pivot_move and transform_texture.action == .move_pivot) {
             if (hovered_index) |i| {
                 switch (i) {
                     0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
@@ -1453,7 +1468,7 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
             }
         }
 
-        if (transform_texture.pan or transform_texture.rotate or transform_texture.pivot_move)
+        if (transform_texture.action == .pan or transform_texture.action == .rotate or transform_texture.action == .move_pivot)
             cursor = imgui.MouseCursor_ResizeAll;
 
         if (cursor != imgui.MouseCursor_None and cursor != imgui.MouseCursor_Arrow)
@@ -1461,7 +1476,7 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
     }
 
     { // Handle moving the vertices when panning
-        if (transform_texture.pan) {
+        if (transform_texture.action == .pan) {
             if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
                 const mouse_position = pixi.app.mouse.position;
                 const prev_mouse_position = pixi.app.mouse.previous_position;
@@ -1496,7 +1511,7 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
     }
 
     { // Handle changing the rotation when rotating
-        if (transform_texture.rotate) {
+        if (transform_texture.action == .rotate) {
             if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
                 const mouse_position = pixi.app.mouse.position;
                 const current_pixel_coords = camera.pixelCoordinatesRaw(.{
@@ -1558,118 +1573,120 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
     }
 
     blk_vert: { // Handle moving the vertices when moving a single control
-        if (transform_texture.control) |control| {
-            if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
-                const mouse_position = pixi.app.mouse.position;
-                const current_pixel_coords = camera.pixelCoordinatesRaw(.{
-                    .texture_position = .{ offset[0], offset[1] },
-                    .position = mouse_position,
-                    .width = file.width,
-                    .height = file.height,
-                });
+        if (transform_texture.action == .move_vertex and options.allow_vert_move) {
+            if (transform_texture.control) |control| {
+                if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
+                    const mouse_position = pixi.app.mouse.position;
+                    const current_pixel_coords = camera.pixelCoordinatesRaw(.{
+                        .texture_position = .{ offset[0], offset[1] },
+                        .position = mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
 
-                switch (control.mode) {
-                    .locked_aspect, .free_aspect => { // TODO: implement locked aspect
+                    switch (control.mode) {
+                        .locked_aspect, .free_aspect => { // TODO: implement locked aspect
 
-                        // First, move the selected vertex to the mouse position
-                        const control_vert = &rotated_vertices[control.index];
-                        const position = @trunc(zmath.loadArr2(current_pixel_coords));
-                        control_vert.position = position;
+                            // First, move the selected vertex to the mouse position
+                            const control_vert = &rotated_vertices[control.index];
+                            const position = @trunc(zmath.loadArr2(current_pixel_coords));
+                            control_vert.position = position;
 
-                        // Find adjacent verts
-                        const adjacent_index_cw = if (control.index < 3) control.index + 1 else 0;
-                        const adjacent_index_ccw = if (control.index > 0) control.index - 1 else 3;
+                            // Find adjacent verts
+                            const adjacent_index_cw = if (control.index < 3) control.index + 1 else 0;
+                            const adjacent_index_ccw = if (control.index > 0) control.index - 1 else 3;
 
-                        const opposite_index: usize = switch (control.index) {
-                            0 => 2,
-                            1 => 3,
-                            2 => 0,
-                            3 => 1,
-                            else => unreachable,
-                        };
-
-                        const adjacent_vert_cw = &rotated_vertices[adjacent_index_cw];
-                        const adjacent_vert_ccw = &rotated_vertices[adjacent_index_ccw];
-                        const opposite_vert = &rotated_vertices[opposite_index];
-
-                        // Get rotation directions to apply to adjacent vertex
-                        const rotation_direction = zmath.mul(zmath.loadArr2(.{ 0.0, 1.0 }), rotation_matrix);
-                        const rotation_perp = zmath.mul(zmath.loadArr2(.{ 1.0, 0.0 }), rotation_matrix);
-
-                        { // Calculate intersection point to set adjacent vert
-                            const as = control_vert.position;
-                            const bs = opposite_vert.position;
-                            const ad = -rotation_direction;
-                            const bd = rotation_perp;
-                            const dx = bs[0] - as[0];
-                            const dy = bs[1] - as[1];
-                            const det = bd[0] * ad[1] - bd[1] * ad[0];
-                            if (det == 0.0) break :blk_vert;
-                            const u = (dy * bd[0] - dx * bd[1]) / det;
-                            switch (control.index) {
-                                1, 3 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
-                                0, 2 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
+                            const opposite_index: usize = switch (control.index) {
+                                0 => 2,
+                                1 => 3,
+                                2 => 0,
+                                3 => 1,
                                 else => unreachable,
+                            };
+
+                            const adjacent_vert_cw = &rotated_vertices[adjacent_index_cw];
+                            const adjacent_vert_ccw = &rotated_vertices[adjacent_index_ccw];
+                            const opposite_vert = &rotated_vertices[opposite_index];
+
+                            // Get rotation directions to apply to adjacent vertex
+                            const rotation_direction = zmath.mul(zmath.loadArr2(.{ 0.0, 1.0 }), rotation_matrix);
+                            const rotation_perp = zmath.mul(zmath.loadArr2(.{ 1.0, 0.0 }), rotation_matrix);
+
+                            { // Calculate intersection point to set adjacent vert
+                                const as = control_vert.position;
+                                const bs = opposite_vert.position;
+                                const ad = -rotation_direction;
+                                const bd = rotation_perp;
+                                const dx = bs[0] - as[0];
+                                const dy = bs[1] - as[1];
+                                const det = bd[0] * ad[1] - bd[1] * ad[0];
+                                if (det == 0.0) break :blk_vert;
+                                const u = (dy * bd[0] - dx * bd[1]) / det;
+                                switch (control.index) {
+                                    1, 3 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
+                                    0, 2 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
+                                    else => unreachable,
+                                }
                             }
-                        }
 
-                        { // Calculate intersection point to set adjacent vert
-                            const as = control_vert.position;
-                            const bs = opposite_vert.position;
-                            const ad = -rotation_perp;
-                            const bd = rotation_direction;
-                            const dx = bs[0] - as[0];
-                            const dy = bs[1] - as[1];
-                            const det = bd[0] * ad[1] - bd[1] * ad[0];
-                            if (det == 0.0) break :blk_vert;
-                            const u = (dy * bd[0] - dx * bd[1]) / det;
-                            switch (control.index) {
-                                1, 3 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
-                                0, 2 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
-                                else => unreachable,
+                            { // Calculate intersection point to set adjacent vert
+                                const as = control_vert.position;
+                                const bs = opposite_vert.position;
+                                const ad = -rotation_perp;
+                                const bd = rotation_direction;
+                                const dx = bs[0] - as[0];
+                                const dy = bs[1] - as[1];
+                                const det = bd[0] * ad[1] - bd[1] * ad[0];
+                                if (det == 0.0) break :blk_vert;
+                                const u = (dy * bd[0] - dx * bd[1]) / det;
+                                switch (control.index) {
+                                    1, 3 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
+                                    0, 2 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
+                                    else => unreachable,
+                                }
                             }
-                        }
 
-                        // Recalculate the centroid with new vertex positions
-                        var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
-                        if (transform_texture.pivot == null) {
-                            for (rotated_vertices) |vertex| {
-                                rotated_centroid += vertex.position; // Collect centroid
+                            // Recalculate the centroid with new vertex positions
+                            var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
+                            if (transform_texture.pivot == null) {
+                                for (rotated_vertices) |vertex| {
+                                    rotated_centroid += vertex.position; // Collect centroid
+                                }
+                                rotated_centroid /= zmath.f32x4s(4.0); // Average position
                             }
-                            rotated_centroid /= zmath.f32x4s(4.0); // Average position
-                        }
 
-                        // Reverse the rotation, then finalize the changes
-                        for (&rotated_vertices, 0..) |*vert, i| {
-                            vert.position -= rotated_centroid;
-                            vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
-                            vert.position += rotated_centroid;
+                            // Reverse the rotation, then finalize the changes
+                            for (&rotated_vertices, 0..) |*vert, i| {
+                                vert.position -= rotated_centroid;
+                                vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
+                                vert.position += rotated_centroid;
 
-                            transform_texture.vertices[i].position = vert.position;
-                        }
-                    },
-                    .free => {
-                        const control_vert = &rotated_vertices[control.index];
-
-                        const position = @trunc(zmath.loadArr2(current_pixel_coords));
-                        control_vert.position = position;
-
-                        var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
-                        if (transform_texture.pivot == null) {
-                            for (rotated_vertices) |vertex| {
-                                rotated_centroid += vertex.position; // Collect centroid
+                                transform_texture.vertices[i].position = vert.position;
                             }
-                            rotated_centroid /= zmath.f32x4s(4.0); // Average position
-                        }
+                        },
+                        .free => {
+                            const control_vert = &rotated_vertices[control.index];
 
-                        for (&rotated_vertices, 0..) |*vert, i| {
-                            vert.position -= rotated_centroid;
-                            vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
-                            vert.position += rotated_centroid;
+                            const position = @trunc(zmath.loadArr2(current_pixel_coords));
+                            control_vert.position = position;
 
-                            transform_texture.vertices[i].position = vert.position;
-                        }
-                    },
+                            var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
+                            if (transform_texture.pivot == null) {
+                                for (rotated_vertices) |vertex| {
+                                    rotated_centroid += vertex.position; // Collect centroid
+                                }
+                                rotated_centroid /= zmath.f32x4s(4.0); // Average position
+                            }
+
+                            for (&rotated_vertices, 0..) |*vert, i| {
+                                vert.position -= rotated_centroid;
+                                vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
+                                vert.position += rotated_centroid;
+
+                                transform_texture.vertices[i].position = vert.position;
+                            }
+                        },
+                    }
                 }
             }
         }
