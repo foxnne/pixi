@@ -11,8 +11,8 @@
     .dependencies = .{
         .mach = .{
             //.path = "src/.temp/mach-dev/",
-            .url = "https://github.com/foxnne/mach/archive/31a51b3b141b7ef3c6012c9579d1c1158cf6c891.tar.gz",
-            .hash = "122029820ce2db7139c56c2a111588e542c29fcdd2e96979034204169fa3bd5b5be9",
+            .url = "https://github.com/foxnne/mach/archive/24e6db38d0e4274367ff2595aa8199e0f0157875.tar.gz",
+            .hash = "12200958b6ba6cef9104aba34e6968f89b3d27b3e988c7f52aca7cb08ea0e5f118be",
         },
         .zig_imgui = .{
             //.path = "src/.temp/zig-imgui/",
