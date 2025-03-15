@@ -57,12 +57,6 @@ magnify: ?f32 = null,
 scroll_x: ?f32 = null,
 scroll_y: ?f32 = null,
 
-pub fn pushPreviousStates(self: *Self) void {
-    for (self.buttons) |*bt| {
-        bt.previous_state = bt.state;
-    }
-}
-
 pub fn button(self: *Self, action: Action) ?*Button {
     for (self.buttons) |*bt| {
         if (bt.action == action)

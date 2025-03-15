@@ -147,12 +147,6 @@ pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
     }
 }
 
-pub fn pushHotkeyPreviousStates(self: *Self) void {
-    for (self.hotkeys) |*hk| {
-        hk.previous_state = hk.state;
-    }
-}
-
 pub fn process(self: *Self, editor: *Editor) !void {
     self.delta_time = self.timer.lap();
 

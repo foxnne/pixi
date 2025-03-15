@@ -74,13 +74,10 @@ pub const TransformTexture = struct {
     pivot: ?TransformVertex = null,
     control: ?TransformControl = null,
     action: TransformAction = .none,
-    //pan: bool = false,
-    //rotate: bool = false,
     rotation: f32 = 0.0,
     rotation_grip_height: f32 = 8.0,
     texture: pixi.gfx.Texture,
     confirm: bool = false,
-    //pivot_move: bool = false,
     pivot_offset_angle: f32 = 0.0,
     temporary: bool = false,
     keyframe_parent_id: ?u32 = null,
@@ -1197,13 +1194,7 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
     const offset = zmath.loadArr2(if (canvas == .flipbook) .{ 0.0, 0.0 } else file.canvasCenterOffset(canvas));
 
     if (pixi.app.mouse.button(.primary)) |bt| {
-        if (bt.released()) {
-            transform_texture.action = .none;
-            // transform_texture.control = null;
-            // transform_texture.pan = false;
-            // transform_texture.rotate = false;
-            // transform_texture.pivot_move = false;
-        }
+        if (bt.released()) transform_texture.action = .none;
     }
 
     const grip_size: f32 = 10.0 / camera.zoom;
