@@ -89,7 +89,7 @@ pub fn draw(artboard: *Artboard, core: *Core, app: *App, editor: *Editor, packer
         const window_width = imgui.getContentRegionAvail().x;
         const artboard_height = if (editor.open_files.items.len > 0 and editor.explorer.pane != .pack) window_height - window_height * editor.settings.flipbook_height else 0.0;
 
-        const artboard_flipbook_ratio = (app.mouse.position[1] - imgui.getCursorScreenPos().y) / window_height;
+        const artboard_flipbook_ratio = (app.mouse.position[1] - imgui.getCursorScreenPos().y - editor.settings.explorer_grip / 2.0) / window_height;
 
         const split_index: usize = if (editor.settings.split_artboard) 3 else 1;
 
@@ -432,14 +432,12 @@ pub fn drawGrip(window_width: f32, app: *App, editor: *Editor) void {
 
     if (imgui.isItemActive()) {
         color = editor.theme.text.toImguiVec4();
-        const prev = app.mouse.previous_position;
-        const cur = app.mouse.position;
 
-        const diff = (cur[0] - prev[0]) / window_width;
+        const ratio = (app.mouse.position[0] - editor.settings.explorer_grip - editor.settings.sidebar_width - editor.settings.explorer_width - editor.settings.explorer_grip / 2.0) / window_width;
 
         imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
         editor.settings.split_artboard_ratio = std.math.clamp(
-            editor.settings.split_artboard_ratio + diff,
+            ratio,
             0.1,
             0.9,
         );

@@ -242,14 +242,10 @@ pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer
 
         if (imgui.isItemActive()) {
             color = editor.theme.text.toImguiVec4();
-            const prev = app.mouse.previous_position;
-            const cur = app.mouse.position;
-
-            const diff = cur[0] - prev[0];
 
             imgui.setMouseCursor(imgui.MouseCursor_ResizeEW);
             editor.settings.explorer_width = std.math.clamp(
-                editor.settings.explorer_width + diff,
+                editor.settings.explorer_width + (app.mouse.position[0] - editor.settings.explorer_width - editor.settings.sidebar_width - editor.settings.explorer_grip / 2.0),
                 200,
                 app.window_size[0] / 2.0 - editor.settings.sidebar_width,
             );
