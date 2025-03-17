@@ -1348,7 +1348,9 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
             // }
         }
 
-        camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * camera.zoom * control_scale, default_color);
+        const color = if (hovered or transform_texture.action == .rotate) highlight_color else default_color;
+
+        camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * camera.zoom * control_scale, color);
     }
 
     if (options.allow_vert_move) {
@@ -1422,6 +1424,8 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
         const pan_hovered: bool = window_hovered and hovered_index == null and transform_texture.control == null and (camera.isHoveredTriangle(triangle_a) or camera.isHoveredTriangle(triangle_b));
         const mouse_pressed = if (pixi.app.mouse.button(.primary)) |bt| bt.pressed() else false;
 
+        const pivot_color = if (pivot_hovered) highlight_color else default_color;
+
         if (pan_hovered or pivot_hovered) {
             cursor = imgui.MouseCursor_Hand;
         }
@@ -1435,7 +1439,7 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
         }
 
         const centroid_scale: f32 = if (pan_hovered or transform_texture.action == .pan or pivot_hovered or transform_texture.action == .move_pivot) 1.5 else 1.0;
-        camera.drawCircleFilled(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, half_grip_size * camera.zoom * centroid_scale, default_color);
+        camera.drawCircleFilled(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, half_grip_size * camera.zoom * centroid_scale, pivot_color);
     }
 
     { // Handle setting the mouse cursor based on controls

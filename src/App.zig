@@ -293,7 +293,6 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             },
             .zoom_gesture => |gesture| app.mouse.magnify = gesture.zoom,
             .mouse_motion => |mouse_motion| {
-                app.mouse.previous_position = app.mouse.position;
                 app.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) };
             },
             .mouse_press => |mouse_press| app.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press),

@@ -259,6 +259,8 @@ pub fn tick(
     for (app.mouse.buttons) |*bt| {
         bt.previous_state = bt.state;
     }
+
+    app.mouse.previous_position = app.mouse.position;
     // Reset the arena but keep the memory from the last frame available
     _ = editor.arena.reset(.retain_capacity);
 }
