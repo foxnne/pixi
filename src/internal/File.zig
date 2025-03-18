@@ -1194,7 +1194,10 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
     const offset = zmath.loadArr2(if (canvas == .flipbook) .{ 0.0, 0.0 } else file.canvasCenterOffset(canvas));
 
     if (pixi.app.mouse.button(.primary)) |bt| {
-        if (bt.released()) transform_texture.action = .none;
+        if (bt.released()) {
+            transform_texture.action = .none;
+            transform_texture.control = null;
+        }
     }
 
     const grip_size: f32 = 10.0 / camera.zoom;
