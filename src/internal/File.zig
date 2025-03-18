@@ -2065,30 +2065,26 @@ pub fn paste(self: *File) !void {
 }
 
 pub fn createBackground(self: *File) !void {
-    var image = try zstbi.Image.createEmpty(self.tile_width * 2, self.tile_height * 2, 4, .{});
-    // Set background image data to checkerboard
-    {
-        var i: usize = 0;
-        while (i < @as(usize, @intCast(self.tile_width * 2 * self.tile_height * 2 * 4))) : (i += 4) {
-            const r = i;
-            const g = i + 1;
-            const b = i + 2;
-            const a = i + 3;
-            const primary = pixi.editor.theme.checkerboard_primary.bytes();
-            const secondary = pixi.editor.theme.checkerboard_secondary.bytes();
-            if (i % 3 == 0) {
-                image.data[r] = primary[0];
-                image.data[g] = primary[1];
-                image.data[b] = primary[2];
-                image.data[a] = primary[3];
-            } else {
-                image.data[r] = secondary[0];
-                image.data[g] = secondary[1];
-                image.data[b] = secondary[2];
-                image.data[a] = secondary[3];
-            }
+    const width: usize = @intCast(self.tile_width * 2);
+    const height: usize = @intCast(self.tile_height * 2);
+
+    var image = try zstbi.Image.createEmpty(@intCast(width), @intCast(height), 4, .{});
+
+    const primary = pixi.editor.theme.checkerboard_primary.bytes();
+    const secondary = pixi.editor.theme.checkerboard_secondary.bytes();
+
+    var y: usize = 0;
+    while (y < height) : (y += 1) {
+        var x: usize = 0;
+        while (x < width * 4) : (x += 4) {
+            const r: usize = (y * width * 4) + (x);
+
+            const marker = @mod(y + @divExact(x, 4), 2);
+
+            @memcpy(image.data[r .. r + 4], if (marker == 0) &primary else &secondary);
         }
     }
+
     self.background = pixi.gfx.Texture.create(image, .{});
 }
 
