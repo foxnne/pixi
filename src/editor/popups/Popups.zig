@@ -14,6 +14,7 @@ pub const mach_module = .popups;
 pub const mach_systems = .{ .init, .deinit, .draw };
 
 pub const popup_rename = @import("rename.zig");
+pub const popup_folder = @import("folder.zig");
 pub const popup_file_setup = @import("file_setup.zig");
 pub const popup_about = @import("about.zig");
 pub const popup_file_confirm_close = @import("file_confirm_close.zig");
@@ -28,6 +29,11 @@ rename: bool = false,
 rename_state: RenameState = .none,
 rename_path: [Editor.Constants.max_path_len:0]u8 = undefined,
 rename_old_path: [Editor.Constants.max_path_len:0]u8 = undefined,
+
+// New Folder
+folder: bool = false,
+folder_path: [Editor.Constants.max_path_len:0]u8 = undefined,
+
 // File setup
 file_setup: bool = false,
 file_setup_state: SetupState = .none,
@@ -105,6 +111,7 @@ pub fn init(popups: *Popups) !void {
 
 pub fn draw(popups: *Popups, app: *App, editor: *Editor, assets: *Assets) !void {
     try popup_rename.draw(popups, app, editor);
+    try popup_folder.draw(popups, app);
     try popup_file_setup.draw(editor);
     try popup_about.draw(editor, assets);
     try popup_file_confirm_close.draw(editor);
