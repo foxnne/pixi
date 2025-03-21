@@ -142,7 +142,8 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return null;
 
-    if (zip.zip_open(path.ptr, 0, 'r')) |pixi_file| {
+    blk_open: {
+        const pixi_file = zip.zip_open(path.ptr, 0, 'r') orelse break :blk_open;
         defer zip.zip_close(pixi_file);
 
         var buf: ?*anyopaque = null;
@@ -211,34 +212,35 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
             if (zip.zip_entry_open(pixi_file, layer_image_name.ptr) == 0) {
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
 
-                if (img_buf) |data| {
-                    const pipeline_layout_default = pixi.app.pipeline_default.getBindGroupLayout(0);
-                    defer pipeline_layout_default.release();
+                const data = img_buf orelse continue;
 
-                    var new_layer: pixi.Internal.Layer = .{
-                        .name = try pixi.app.allocator.dupeZ(u8, l.name),
-                        .texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
-                        .id = internal.newId(),
-                        .visible = l.visible,
-                        .collapse = l.collapse,
-                        .transform_bindgroup = undefined,
-                    };
+                const pipeline_layout_default = pixi.app.pipeline_default.getBindGroupLayout(0);
+                defer pipeline_layout_default.release();
 
-                    const device: *mach.gpu.Device = pixi.core.windows.get(pixi.app.window, .device);
+                var new_layer: pixi.Internal.Layer = .{
+                    .name = try pixi.app.allocator.dupeZ(u8, l.name),
+                    .texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
+                    .id = internal.newId(),
+                    .visible = l.visible,
+                    .collapse = l.collapse,
+                    .transform_bindgroup = undefined,
+                };
 
-                    new_layer.transform_bindgroup = device.createBindGroup(
-                        &mach.gpu.BindGroup.Descriptor.init(.{
-                            .layout = pipeline_layout_default,
-                            .entries = &.{
-                                mach.gpu.BindGroup.Entry.initBuffer(0, pixi.app.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0),
-                                mach.gpu.BindGroup.Entry.initTextureView(1, new_layer.texture.texture_view),
-                                mach.gpu.BindGroup.Entry.initSampler(2, new_layer.texture.sampler),
-                            },
-                        }),
-                    );
-                    try internal.layers.append(pixi.app.allocator, new_layer);
-                }
+                const device: *mach.gpu.Device = pixi.core.windows.get(pixi.app.window, .device);
+
+                new_layer.transform_bindgroup = device.createBindGroup(
+                    &mach.gpu.BindGroup.Descriptor.init(.{
+                        .layout = pipeline_layout_default,
+                        .entries = &.{
+                            mach.gpu.BindGroup.Entry.initBuffer(0, pixi.app.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0),
+                            mach.gpu.BindGroup.Entry.initTextureView(1, new_layer.texture.texture_view),
+                            mach.gpu.BindGroup.Entry.initSampler(2, new_layer.texture.sampler),
+                        },
+                    }),
+                );
+                try internal.layers.append(pixi.app.allocator, new_layer);
             }
+
             _ = zip.zip_entry_close(pixi_file);
         }
 
@@ -249,13 +251,15 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
             .texture = internal.layers.items(.texture)[0],
         };
 
-        if (zip.zip_entry_open(pixi_file, "heightmap.png") == 0) {
-            var img_buf: ?*anyopaque = null;
-            var img_len: usize = 0;
+        blk_heightmap: {
+            if (zip.zip_entry_open(pixi_file, "heightmap.png") == 0) {
+                var img_buf: ?*anyopaque = null;
+                var img_len: usize = 0;
 
-            _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
+                _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
 
-            if (img_buf) |data| {
+                const data = img_buf orelse break :blk_heightmap;
+
                 var new_layer: pixi.Internal.Layer = .{
                     .name = try pixi.app.allocator.dupeZ(u8, "heightmap"),
                     .texture = undefined,
@@ -285,6 +289,7 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
         }
         return internal;
     }
+
     return error.FailedToOpenFile;
 }
 

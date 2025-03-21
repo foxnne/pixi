@@ -19,7 +19,7 @@ const Assets = pixi.Assets;
 
 // Mach module, systems, and main
 pub const mach_module = .app;
-pub const mach_systems = .{ .main, .init, .lateInit, .tick, .render, .deinit };
+pub const mach_systems = .{ .main, .init, .setup, .tick, .render, .deinit };
 
 // mach entrypoint module runs this schedule
 pub const main = mach.schedule(.{
@@ -99,7 +99,7 @@ pub fn init(
 
 /// This is called from the event fired when the window is done being
 /// initialized by the platform
-pub fn lateInit(
+pub fn setup(
     app: *App,
     core: *Core,
     assets: *Assets,
@@ -208,57 +208,60 @@ pub fn render(core: *Core, app: *App, editor: *Editor, editor_mod: mach.Mod(Edit
     const label = @tagName(mach_module) ++ ".render";
     var window = core.windows.getValue(app.window);
 
-    // Pass commands to the window queue for presenting
-    if (window.swap_chain.getCurrentTextureView()) |back_buffer_view| {
+    blk_render: {
+        const back_buffer_view = window.swap_chain.getCurrentTextureView() orelse break :blk_render;
+
+        // Pass commands to the window queue for presenting
+
         defer back_buffer_view.release();
 
-        if (imgui.getDrawData()) |draw_data| {
-            const imgui_commands = commands: {
-                const encoder = window.device.createCommandEncoder(&.{ .label = label });
-                defer encoder.release();
+        const draw_data = imgui.getDrawData() orelse break :blk_render;
 
-                const background: gpu.Color = .{
-                    .r = @floatCast(editor.theme.foreground.value[0]),
-                    .g = @floatCast(editor.theme.foreground.value[1]),
-                    .b = @floatCast(editor.theme.foreground.value[2]),
-                    .a = 1.0,
+        const imgui_commands = commands: {
+            const encoder = window.device.createCommandEncoder(&.{ .label = label });
+            defer encoder.release();
+
+            const background: gpu.Color = .{
+                .r = @floatCast(editor.theme.foreground.value[0]),
+                .g = @floatCast(editor.theme.foreground.value[1]),
+                .b = @floatCast(editor.theme.foreground.value[2]),
+                .a = 1.0,
+            };
+
+            // Gui pass.
+            {
+                const color_attachment = gpu.RenderPassColorAttachment{
+                    .view = back_buffer_view,
+                    .clear_value = background,
+                    .load_op = .clear,
+                    .store_op = .store,
                 };
 
-                // Gui pass.
-                {
-                    const color_attachment = gpu.RenderPassColorAttachment{
-                        .view = back_buffer_view,
-                        .clear_value = background,
-                        .load_op = .clear,
-                        .store_op = .store,
-                    };
+                const render_pass_info = gpu.RenderPassDescriptor.init(.{
+                    .color_attachments = &.{color_attachment},
+                });
+                const pass = encoder.beginRenderPass(&render_pass_info);
 
-                    const render_pass_info = gpu.RenderPassDescriptor.init(.{
-                        .color_attachments = &.{color_attachment},
-                    });
-                    const pass = encoder.beginRenderPass(&render_pass_info);
-
-                    imgui_mach.renderDrawData(draw_data, pass) catch {};
-                    pass.end();
-                    pass.release();
-                }
-
-                break :commands encoder.finish(&.{ .label = label });
-            };
-            defer imgui_commands.release();
-
-            if (app.batcher.empty) {
-                window.queue.submit(&.{imgui_commands});
-            } else {
-                const batcher_commands = try app.batcher.finish();
-                defer batcher_commands.release();
-                window.queue.submit(&.{ batcher_commands, imgui_commands });
+                imgui_mach.renderDrawData(draw_data, pass) catch {};
+                pass.end();
+                pass.release();
             }
 
-            mach.sysgpu.Impl.deviceTick(window.device);
+            break :commands encoder.finish(&.{ .label = label });
+        };
+        defer imgui_commands.release();
 
-            window.swap_chain.present();
+        if (app.batcher.empty) {
+            window.queue.submit(&.{imgui_commands});
+        } else {
+            const batcher_commands = try app.batcher.finish();
+            defer batcher_commands.release();
+            window.queue.submit(&.{ batcher_commands, imgui_commands });
         }
+
+        mach.sysgpu.Impl.deviceTick(window.device);
+
+        window.swap_chain.present();
     }
 }
 
@@ -270,7 +273,7 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
     // Process events
     while (core.nextEvent()) |event| {
         switch (event) {
-            .window_open => app_mod.call(.lateInit),
+            .window_open => app_mod.call(.setup),
 
             .key_press => |key_press| {
                 editor.hotkeys.setHotkeyState(key_press.key, key_press.mods, .press);

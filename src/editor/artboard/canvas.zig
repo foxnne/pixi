@@ -142,7 +142,11 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
                             request.from = file.flipbook_scroll;
                             request.to = file.flipbookScrollFromSpriteIndex(tile_index);
                         } else {
-                            file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
+                            file.flipbook_scroll_request = .{
+                                .from = file.flipbook_scroll,
+                                .to = file.flipbookScrollFromSpriteIndex(tile_index),
+                                .state = file.selected_animation_state,
+                            };
                         }
                     }
                 }
@@ -159,57 +163,53 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
     }
 
     // Draw transform texture on gpu to temporary texture
-    {
-        if (file.transform_texture) |*transform_texture| {
-            if (file.transform_bindgroup) |transform_bindgroup| {
-                if (file.transform_compute_bindgroup) |compute_bindgroup| {
-                    if (file.transform_compute_buffer) |compute_buffer| {
-                        if (file.transform_staging_buffer) |staging_buffer| {
-                            const width: f32 = @floatFromInt(file.width);
-                            const height: f32 = @floatFromInt(file.height);
+    blk_transform: {
+        const transform_texture = file.transform_texture orelse break :blk_transform;
+        const transform_bindgroup = file.transform_bindgroup orelse break :blk_transform;
+        const compute_bindgroup = file.transform_compute_bindgroup orelse break :blk_transform;
+        const compute_buffer = file.transform_compute_buffer orelse break :blk_transform;
+        const staging_buffer = file.transform_staging_buffer orelse break :blk_transform;
 
-                            const buffer_size: usize = @as(usize, @intCast(file.width * file.height * @sizeOf([4]f32)));
+        const width: f32 = @floatFromInt(file.width);
+        const height: f32 = @floatFromInt(file.height);
 
-                            const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
-                                zmath.orthographicLh(width, height, -100, 100),
-                            ) };
+        const buffer_size: usize = @as(usize, @intCast(file.width * file.height * @sizeOf([4]f32)));
 
-                            try app.batcher.begin(.{
-                                .pipeline_handle = app.pipeline_default,
-                                .compute_pipeline_handle = app.pipeline_compute,
-                                .bind_group_handle = transform_bindgroup,
-                                .compute_bind_group_handle = compute_bindgroup,
-                                .output_texture = &file.temporary_layer.texture,
-                                .compute_buffer = compute_buffer,
-                                .staging_buffer = staging_buffer,
-                                .buffer_size = buffer_size,
-                                .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
-                            });
+        const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
+            zmath.orthographicLh(width, height, -100, 100),
+        ) };
 
-                            var pivot = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
-                            if (transform_texture.pivot == null) {
-                                for (&transform_texture.vertices) |*vertex| {
-                                    pivot += vertex.position; // Collect centroid
-                                }
-                                pivot /= zmath.f32x4s(4.0); // Average position
-                            }
-                            //pivot += zmath.loadArr2(.{ canvas_center_offset[0], canvas_center_offset[1] });
+        try app.batcher.begin(.{
+            .pipeline_handle = app.pipeline_default,
+            .compute_pipeline_handle = app.pipeline_compute,
+            .bind_group_handle = transform_bindgroup,
+            .compute_bind_group_handle = compute_bindgroup,
+            .output_texture = &file.temporary_layer.texture,
+            .compute_buffer = compute_buffer,
+            .staging_buffer = staging_buffer,
+            .buffer_size = buffer_size,
+            .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+        });
 
-                            try app.batcher.transformTexture(
-                                transform_texture.vertices,
-                                .{ canvas_center_offset[0], -canvas_center_offset[1] },
-                                .{ pivot[0], -pivot[1] },
-                                .{
-                                    .rotation = -transform_texture.rotation,
-                                },
-                            );
-
-                            try app.batcher.end(uniforms, app.uniform_buffer_default);
-                        }
-                    }
-                }
+        var pivot = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
+        if (transform_texture.pivot == null) {
+            for (&transform_texture.vertices) |*vertex| {
+                pivot += vertex.position; // Collect centroid
             }
+            pivot /= zmath.f32x4s(4.0); // Average position
         }
+        //pivot += zmath.loadArr2(.{ canvas_center_offset[0], canvas_center_offset[1] });
+
+        try app.batcher.transformTexture(
+            transform_texture.vertices,
+            .{ canvas_center_offset[0], -canvas_center_offset[1] },
+            .{ pivot[0], -pivot[1] },
+            .{
+                .rotation = -transform_texture.rotation,
+            },
+        );
+
+        try app.batcher.end(uniforms, app.uniform_buffer_default);
     }
 
     // Draw all layers in reverse order
@@ -246,41 +246,40 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
     }
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient
-    {
-        if (file.heightmap.visible) {
-            if (file.camera.zoom >= 30.0) {
-                if (file.camera.pixelCoordinates(.{
-                    .texture_position = canvas_center_offset,
-                    .position = app.mouse.position,
-                    .width = file.width,
-                    .height = file.height,
-                })) |pixel_coord| {
-                    const temp_x = @as(usize, @intFromFloat(pixel_coord[0]));
-                    const temp_y = @as(usize, @intFromFloat(pixel_coord[1]));
-                    const position = .{ pixel_coord[0] + canvas_center_offset[0] + 0.2, pixel_coord[1] + canvas_center_offset[1] + 0.25 };
-                    try file.camera.drawText("{d}", .{editor.colors.height}, position, 0xFFFFFFFF);
+    blk_heightmap: {
+        if (!file.heightmap.visible) break :blk_heightmap;
+        if (file.camera.zoom < 30.0) break :blk_heightmap;
 
-                    const min: [2]u32 = .{
-                        @intCast(@max(@as(i32, @intCast(temp_x)) - 5, 0)),
-                        @intCast(@max(@as(i32, @intCast(temp_y)) - 5, 0)),
-                    };
+        if (file.camera.pixelCoordinates(.{
+            .texture_position = canvas_center_offset,
+            .position = app.mouse.position,
+            .width = file.width,
+            .height = file.height,
+        })) |pixel_coord| {
+            const temp_x = @as(usize, @intFromFloat(pixel_coord[0]));
+            const temp_y = @as(usize, @intFromFloat(pixel_coord[1]));
+            const position = .{ pixel_coord[0] + canvas_center_offset[0] + 0.2, pixel_coord[1] + canvas_center_offset[1] + 0.25 };
+            try file.camera.drawText("{d}", .{editor.colors.height}, position, 0xFFFFFFFF);
 
-                    const max: [2]u32 = .{
-                        @intCast(@min(temp_x + 5, file.width)),
-                        @intCast(@min(temp_y + 5, file.height)),
-                    };
+            const min: [2]u32 = .{
+                @intCast(@max(@as(i32, @intCast(temp_x)) - 5, 0)),
+                @intCast(@max(@as(i32, @intCast(temp_y)) - 5, 0)),
+            };
 
-                    var x: u32 = min[0];
-                    while (x < max[0]) : (x += 1) {
-                        var y: u32 = min[1];
-                        while (y < max[1]) : (y += 1) {
-                            const pixel = .{ @as(usize, @intCast(x)), @as(usize, @intCast(y)) };
-                            const pixel_color = file.heightmap.layer.?.getPixel(pixel);
-                            if (pixel_color[3] != 0 and (pixel[0] != temp_x or pixel[1] != temp_y)) {
-                                const pixel_position = .{ canvas_center_offset[0] + @as(f32, @floatFromInt(x)) + 0.2, canvas_center_offset[1] + @as(f32, @floatFromInt(y)) + 0.25 };
-                                try file.camera.drawText("{d}", .{pixel_color[0]}, pixel_position, 0xFFFFFFFF);
-                            }
-                        }
+            const max: [2]u32 = .{
+                @intCast(@min(temp_x + 5, file.width)),
+                @intCast(@min(temp_y + 5, file.height)),
+            };
+
+            var x: u32 = min[0];
+            while (x < max[0]) : (x += 1) {
+                var y: u32 = min[1];
+                while (y < max[1]) : (y += 1) {
+                    const pixel = .{ @as(usize, @intCast(x)), @as(usize, @intCast(y)) };
+                    const pixel_color = file.heightmap.layer.?.getPixel(pixel);
+                    if (pixel_color[3] != 0 and (pixel[0] != temp_x or pixel[1] != temp_y)) {
+                        const pixel_position = .{ canvas_center_offset[0] + @as(f32, @floatFromInt(x)) + 0.2, canvas_center_offset[1] + @as(f32, @floatFromInt(y)) + 0.25 };
+                        try file.camera.drawText("{d}", .{pixel_color[0]}, pixel_position, 0xFFFFFFFF);
                     }
                 }
             }
