@@ -136,29 +136,20 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
                     if (editor.explorer.pane == .sprites or file.flipbook_view == .timeline) {
                         try file.makeSpriteSelection(tile_index);
                     } else if (editor.tools.current != .animation) {
-                        // Ensure we only set the request state on the first set.
-                        if (file.flipbook_scroll_request) |*request| {
-                            request.elapsed = 0.0;
-                            request.from = file.flipbook_scroll;
-                            request.to = file.flipbookScrollFromSpriteIndex(tile_index);
-                        } else {
-                            file.flipbook_scroll_request = .{
-                                .from = file.flipbook_scroll,
-                                .to = file.flipbookScrollFromSpriteIndex(tile_index),
-                                .state = file.selected_animation_state,
-                            };
-                        }
+                        // Ensure we only set the flipbook scroll on the first set.
+                        file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(tile_index);
                     }
                 }
             }
         } else {
+            // Here we track releasing the mouse when we are no longer hovering over the active canvas rect
             if (editor.mouse.button(.primary)) |primary| {
                 if (primary.released()) {
                     if (editor.explorer.pane == .sprites or file.flipbook_view == .timeline) {
                         file.selected_sprites.clearAndFree();
                     }
 
-                    if (file.buffers.stroke.values.items.len > 0 and file.buffers.stroke.canvas == .primary) {
+                    if (file.buffers.stroke.values.items.len > 0) {
                         const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
                         const change = try file.buffers.stroke.toChange(layer_index);
                         try file.history.append(change);
@@ -167,6 +158,9 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
             }
         }
     } else {
+        // Here we no longer are hovering over our canvas window, but there is an active primary canvas stroke,
+        // so we need to push the change. This can happen when drawing on the canvas and moving the mouse off
+        // the canvas view into the flipbook or explorer.
         if (file.buffers.stroke.values.items.len > 0 and file.buffers.stroke.canvas == .primary) {
             const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
             const change = try file.buffers.stroke.toChange(layer_index);

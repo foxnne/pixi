@@ -15,22 +15,6 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
 
     const canvas_center_offset = file.canvasCenterOffset(.flipbook);
 
-    if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
-        if (editor.mouse.button(.primary)) |primary| {
-            if (primary.released()) {
-                if (file.buffers.stroke.values.items.len > 0 and file.buffers.stroke.canvas == .flipbook) {
-                    const change = try file.buffers.stroke.toChange(if (file.heightmap.visible) -1 else @intCast(file.selected_layer_index));
-                    try file.history.append(change);
-                }
-            }
-        }
-    } else {
-        if (file.buffers.stroke.values.items.len > 0 and file.buffers.stroke.canvas == .flipbook) {
-            const change = try file.buffers.stroke.toChange(if (file.heightmap.visible) -1 else @intCast(file.selected_layer_index));
-            try file.history.append(change);
-        }
-    }
-
     // Progress flipbook scroll request
     if (file.flipbook_scroll_request) |*request| {
         if (request.elapsed < editor.settings.editor_animation_time) {
@@ -260,6 +244,17 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                 }
             }
         },
+    }
+
+    if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
+        if (editor.mouse.button(.primary)) |primary| {
+            if (primary.released()) {
+                if (file.buffers.stroke.values.items.len > 0) {
+                    const change = try file.buffers.stroke.toChange(if (file.heightmap.visible) -1 else @intCast(file.selected_layer_index));
+                    try file.history.append(change);
+                }
+            }
+        }
     }
 
     if (file.selected_animation_state == .play) {
