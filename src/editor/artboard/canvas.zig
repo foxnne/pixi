@@ -103,7 +103,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
     }
 
     if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
-        const mouse_position = app.mouse.position;
+        const mouse_position = editor.mouse.position;
 
         if (file.camera.pixelCoordinates(.{
             .texture_position = canvas_center_offset,
@@ -128,7 +128,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
             try file.processSampleTool(.primary, .{});
             try file.processSelectionTool(.primary, .{});
 
-            if (app.mouse.button(.primary)) |primary| {
+            if (editor.mouse.button(.primary)) |primary| {
                 if (primary.pressed()) {
                     const tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
                     const tile_index = tile_column + tile_row * tiles_wide;
@@ -152,13 +152,25 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
                 }
             }
         } else {
-            if (app.mouse.button(.primary)) |primary| {
+            if (editor.mouse.button(.primary)) |primary| {
                 if (primary.released()) {
                     if (editor.explorer.pane == .sprites or file.flipbook_view == .timeline) {
                         file.selected_sprites.clearAndFree();
                     }
+
+                    if (file.buffers.stroke.values.items.len > 0 and file.buffers.stroke.canvas == .primary) {
+                        const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
+                        const change = try file.buffers.stroke.toChange(layer_index);
+                        try file.history.append(change);
+                    }
                 }
             }
+        }
+    } else {
+        if (file.buffers.stroke.values.items.len > 0 and file.buffers.stroke.canvas == .primary) {
+            const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
+            const change = try file.buffers.stroke.toChange(layer_index);
+            try file.history.append(change);
         }
     }
 
@@ -252,7 +264,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
 
         if (file.camera.pixelCoordinates(.{
             .texture_position = canvas_center_offset,
-            .position = app.mouse.position,
+            .position = editor.mouse.position,
             .width = file.width,
             .height = file.height,
         })) |pixel_coord| {
@@ -328,7 +340,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
         }
 
         if (editor.popups.animation_length > 0 and editor.tools.current == .animation and !transforming) {
-            if (app.mouse.button(.primary)) |primary| {
+            if (editor.mouse.button(.primary)) |primary| {
                 if (primary.down() or editor.popups.animation) {
                     const start_column = @mod(@as(u32, @intCast(editor.popups.animation_start)), tiles_wide);
                     const start_row = @divTrunc(@as(u32, @intCast(editor.popups.animation_start)), tiles_wide);
@@ -364,7 +376,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
                     const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-                    const thickness: f32 = if (i == file.selected_animation_index and (if (app.mouse.button(.primary)) |primary| primary.up() else false and !app.popups.animation)) 4.0 else 2.0;
+                    const thickness: f32 = if (i == file.selected_animation_index and (if (editor.mouse.button(.primary)) |primary| primary.up() else false and !app.popups.animation)) 4.0 else 2.0;
                     file.camera.drawAnimationRect(start_rect, end_rect, thickness, pixi.editor.theme.highlight_primary.toU32(), pixi.editor.theme.text_red.toU32());
                 }
             } else if (editor.explorer.pane != .pack and !transforming and editor.explorer.pane != .keyframe_animations) {

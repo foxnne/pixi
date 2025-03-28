@@ -37,7 +37,7 @@ batcher: pixi.gfx.Batcher = undefined,
 content_scale: [2]f32 = undefined,
 delta_time: f32 = 0.0,
 framebuffer_size: [2]f32 = undefined,
-mouse: pixi.input.Mouse = undefined,
+
 pipeline_compute: *gpu.ComputePipeline = undefined,
 pipeline_default: *gpu.RenderPipeline = undefined,
 root_path: [:0]const u8 = undefined,
@@ -126,8 +126,7 @@ pub fn setup(
     // and reloading individual assets if they change on disk
     try assets.watch();
 
-    // Setup
-    app.mouse = try pixi.input.Mouse.initDefault(app.allocator);
+    // Setup batcher
     app.batcher = try pixi.gfx.Batcher.init(app.allocator, 1000);
 
     // Store information about the window in float format
@@ -290,16 +289,16 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
             .mouse_scroll => |mouse_scroll| {
                 // TODO: Fix this in the editor code, we dont want to block mouse input based on popups
                 if (!editor.popups.anyPopupOpen()) { // Only record mouse scrolling for canvases when popups are closed
-                    app.mouse.scroll_x = mouse_scroll.xoffset;
-                    app.mouse.scroll_y = mouse_scroll.yoffset;
+                    editor.mouse.scroll_x = mouse_scroll.xoffset;
+                    editor.mouse.scroll_y = mouse_scroll.yoffset;
                 }
             },
-            .zoom_gesture => |gesture| app.mouse.magnify = gesture.zoom,
+            .zoom_gesture => |gesture| editor.mouse.magnify = gesture.zoom,
             .mouse_motion => |mouse_motion| {
-                app.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) };
+                editor.mouse.position = .{ @floatCast(mouse_motion.pos.x), @floatCast(mouse_motion.pos.y) };
             },
-            .mouse_press => |mouse_press| app.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press),
-            .mouse_release => |mouse_release| app.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release),
+            .mouse_press => |mouse_press| editor.mouse.setButtonState(mouse_press.button, mouse_press.mods, .press),
+            .mouse_release => |mouse_release| editor.mouse.setButtonState(mouse_release.button, mouse_release.mods, .release),
             .close => {
                 // Currently, just pass along this message to the editor
                 // and allow the editor to set the app.should_close or not
@@ -357,8 +356,6 @@ pub fn tick(core: *Core, app: *App, editor: *Editor, app_mod: mach.Mod(App), edi
 /// This is a mach-called function, and the parameters are automatically injected.
 pub fn deinit(app: *App, packer_mod: mach.Mod(Packer), editor_mod: mach.Mod(Editor), assets_mod: mach.Mod(Assets)) !void {
     editor_mod.call(.deinit);
-
-    app.allocator.free(app.mouse.buttons);
 
     app.batcher.deinit();
     app.pipeline_default.release();

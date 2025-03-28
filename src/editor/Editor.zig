@@ -44,6 +44,7 @@ arena: std.heap.ArenaAllocator,
 theme: Theme,
 settings: Settings,
 hotkeys: pixi.input.Hotkeys,
+mouse: pixi.input.Mouse,
 recents: Recents,
 
 // Module pointers
@@ -102,6 +103,7 @@ pub fn init(
         .sidebar = _sidebar,
         .settings = try Settings.load(app.allocator),
         .hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
+        .mouse = try pixi.input.Mouse.initDefault(app.allocator),
         .recents = try Recents.load(app.allocator),
         .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
     };
@@ -224,7 +226,7 @@ pub fn tick(
                     }
 
                     if (!contains)
-                        try file.buffers.stroke.append(i, p.*);
+                        try file.buffers.stroke.append(i, p.*, .primary);
 
                     const out: [4]u8 = .{
                         @as(u8, @intFromFloat(b[0] * 255.0)),
@@ -256,11 +258,11 @@ pub fn tick(
         hotkey.previous_state = hotkey.state;
     }
 
-    for (app.mouse.buttons) |*bt| {
+    for (editor.mouse.buttons) |*bt| {
         bt.previous_state = bt.state;
     }
 
-    app.mouse.previous_position = app.mouse.position;
+    editor.mouse.previous_position = editor.mouse.position;
     // Reset the arena but keep the memory from the last frame available
     _ = editor.arena.reset(.retain_capacity);
 }
@@ -588,6 +590,7 @@ pub fn deinit(editor: *Editor, app: *App) !void {
     if (editor.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();
 
     app.allocator.free(editor.hotkeys.hotkeys);
+    app.allocator.free(editor.mouse.buttons);
 
     if (editor.clipboard_image) |*image| image.deinit();
 

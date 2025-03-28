@@ -10,6 +10,7 @@ temporary_stroke: Stroke,
 pub const Stroke = struct {
     indices: std.ArrayList(usize),
     values: std.ArrayList([4]u8),
+    canvas: pixi.Internal.File.Canvas = .primary,
 
     pub fn init(allocator: std.mem.Allocator) Stroke {
         return .{
@@ -18,14 +19,16 @@ pub const Stroke = struct {
         };
     }
 
-    pub fn append(stroke: *Stroke, index: usize, value: [4]u8) !void {
+    pub fn append(stroke: *Stroke, index: usize, value: [4]u8, canvas: pixi.Internal.File.Canvas) !void {
         try stroke.indices.append(index);
         try stroke.values.append(value);
+        stroke.canvas = canvas;
     }
 
-    pub fn appendSlice(stroke: *Stroke, indices: []usize, values: [][4]u8) !void {
+    pub fn appendSlice(stroke: *Stroke, indices: []usize, values: [][4]u8, canvas: pixi.Internal.File.Canvas) !void {
         try stroke.indices.appendSlice(indices);
         try stroke.values.appendSlice(values);
+        stroke.canvas = canvas;
     }
 
     pub fn toChange(stroke: *Stroke, layer: i32) !History.Change {

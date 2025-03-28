@@ -97,7 +97,7 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
             var rel_mouse_y: ?f32 = null;
 
             if (window_hovered) {
-                const mouse_position = pixi.app.mouse.position;
+                const mouse_position = pixi.editor.mouse.position;
                 rel_mouse_x = mouse_position[0] - window_position.x + scroll_x;
                 rel_mouse_y = mouse_position[1] - window_position.y + scroll_y;
             }
@@ -107,7 +107,7 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
 
                 // Set the y scroll manually as allowing default scroll blocks x scroll on the parent window
                 if (window_hovered) {
-                    if (pixi.app.mouse.scroll_y) |scroll_delta_y| {
+                    if (pixi.editor.mouse.scroll_y) |scroll_delta_y| {
                         imgui.setScrollY(imgui.getScrollY() - scroll_delta_y * if (pixi.editor.settings.input_scheme == .trackpad) @as(f32, 10.0) else @as(f32, 1.0));
                     }
                 }
@@ -228,7 +228,7 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
                                     scaled_node_size,
                                 })) {
                                     if (frame.id != selected_keyframe.active_frame_id) {
-                                        if (pixi.app.mouse.button(.primary)) |bt| {
+                                        if (pixi.editor.mouse.button(.primary)) |bt| {
                                             if (bt.pressed()) {
                                                 var change: bool = true;
 
@@ -506,7 +506,7 @@ pub fn drawVerticalLines(file: *pixi.Internal.File, animation_length: usize, scr
     var rel_mouse_y: ?f32 = null;
 
     if (window_hovered) {
-        const mouse_position = pixi.app.mouse.position;
+        const mouse_position = pixi.editor.mouse.position;
         rel_mouse_x = mouse_position[0] - window_position.x + scroll[0];
         rel_mouse_y = mouse_position[1] - window_position.y + scroll[1];
     }
@@ -528,7 +528,7 @@ pub fn drawVerticalLines(file: *pixi.Internal.File, animation_length: usize, scr
                     ms_hovered = ms;
 
                     const hovered_time = ms_float / 1000.0;
-                    if (pixi.app.mouse.button(.primary)) |bt| {
+                    if (pixi.editor.mouse.button(.primary)) |bt| {
                         if (bt.released()) {
                             const primary_hotkey_down: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
 
@@ -599,7 +599,7 @@ pub fn drawNodeArea(file: *pixi.Internal.File, animation_length: usize, scroll: 
     var rel_mouse_y: ?f32 = null;
 
     if (window_hovered) {
-        const mouse_position = pixi.app.mouse.position;
+        const mouse_position = pixi.editor.mouse.position;
         rel_mouse_x = mouse_position[0] - window_position.x + scroll[0];
         rel_mouse_y = mouse_position[1] - window_position.y + scroll[1];
     }
@@ -610,7 +610,7 @@ pub fn drawNodeArea(file: *pixi.Internal.File, animation_length: usize, scroll: 
         var animation = file.keyframe_animations.slice().get(index);
         if (imgui.getWindowDrawList()) |draw_list| {
             defer {
-                if (pixi.app.mouse.button(.primary)) |bt| {
+                if (pixi.editor.mouse.button(.primary)) |bt| {
                     if (bt.released()) {
                         keyframe_dragging = null;
                         frame_node_dragging = null;
@@ -686,7 +686,7 @@ pub fn drawNodeArea(file: *pixi.Internal.File, animation_length: usize, scroll: 
                             }
 
                             // Make changes to the current active frame id and elapsed time
-                            if (pixi.app.mouse.button(.primary)) |bt| {
+                            if (pixi.editor.mouse.button(.primary)) |bt| {
                                 if (bt.pressed() and line_hovered and window_hovered) {
                                     file.keyframe_animations.items(.active_keyframe_id)[index] = hovered_kf.id;
                                     file.keyframe_animations.items(.elapsed_time)[index] = @as(f32, @floatFromInt(ms)) / 1000.0;
@@ -744,7 +744,7 @@ pub fn drawNodeArea(file: *pixi.Internal.File, animation_length: usize, scroll: 
 
                 if (@mod(ms, 10) == 0 and line_hovered and window_hovered) {
                     if (frame_node_dragging) |dragging_frame_id| {
-                        if (pixi.app.mouse.button(.primary)) |bt| {
+                        if (pixi.editor.mouse.button(.primary)) |bt| {
                             if (bt.released()) {
                                 if (!secondary_down) {
                                     if (animation.getKeyframeFromFrame(dragging_frame_id)) |dragging_keyframe| {
@@ -818,7 +818,7 @@ pub fn drawNodeArea(file: *pixi.Internal.File, animation_length: usize, scroll: 
                     // Also handle creating
                     if (keyframe_dragging) |dragging_keyframe_id| {
                         if (animation.keyframe(dragging_keyframe_id)) |dragging_keyframe| {
-                            if (pixi.app.mouse.button(.primary)) |bt| {
+                            if (pixi.editor.mouse.button(.primary)) |bt| {
                                 if (bt.released()) {
                                     if (line_hovered and window_hovered and animation.getKeyframeMilliseconds(ms) == null) {
                                         var dragged_keyframe = dragging_keyframe;
