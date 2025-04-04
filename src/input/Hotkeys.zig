@@ -33,6 +33,7 @@ pub const Proc = enum(u32) {
     redo,
     primary,
     secondary,
+    confirm,
     escape,
     sample,
     zoom,
@@ -438,6 +439,13 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .shortcut = "esc",
             .key = Key.escape,
             .action = .{ .proc = Proc.escape },
+        });
+
+        // Enter
+        try hotkeys.append(.{
+            .shortcut = "enter",
+            .key = Key.enter,
+            .action = .{ .proc = Proc.confirm },
         });
     }
 

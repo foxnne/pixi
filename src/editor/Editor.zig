@@ -166,11 +166,11 @@ pub fn tick(
             for (file.buffers.temporary_stroke.indices.items) |index| {
                 file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
             }
-            file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+            file.temporary_layer.texture.update(core.windows.get(app.window, .device));
             file.buffers.temporary_stroke.clearAndFree();
         } else if (file.transform_texture != null) {
             @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-            file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+            file.temporary_layer.texture.update(core.windows.get(app.window, .device));
         }
     }
 

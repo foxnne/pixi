@@ -51,11 +51,11 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
 
                 imgui.text("Transformation");
                 imgui.separator();
-                if (imgui.button("Confirm") or (core.keyPressed(Core.Key.enter) and editor.open_file_index == editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Confirm") or (if (editor.hotkeys.hotkey(.{ .proc = .confirm })) |hk| hk.pressed() else false and editor.open_file_index == editor.getFileIndex(file.path).?)) {
                     transform_texture.confirm = true;
                 }
                 imgui.sameLine();
-                if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and editor.open_file_index == editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Cancel") or (if (editor.hotkeys.hotkey(.{ .proc = .escape })) |hk| hk.pressed() else false and editor.open_file_index == editor.getFileIndex(file.path).?)) {
                     var change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
                     change.pixels.temporary = true;
                     try file.history.append(change);
@@ -83,10 +83,6 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
 
         file.camera.processPanZoom(.primary);
     }
-
-    // TODO: Only clear and update if we need to?
-    // if (file.transform_texture == null and file.temporary_layer_dirty)
-    //     file.temporary_layer.clear(true);
 
     editor.selection_time += app.delta_time;
     if (editor.selection_time >= 0.3) {
