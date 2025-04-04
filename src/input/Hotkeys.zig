@@ -11,7 +11,6 @@ const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
 const Key = Core.Key;
-const Mods = Core.KeyMods;
 
 const builtin = @import("builtin");
 
@@ -104,6 +103,25 @@ pub const Hotkey = struct {
     pub fn up(self: Hotkey) bool {
         return self.state == false;
     }
+
+    pub const Mods = struct {
+        shift: ?bool = null,
+        control: ?bool = null,
+        alt: ?bool = null,
+        super: ?bool = null,
+        caps_lock: ?bool = null,
+        num_lock: ?bool = null,
+
+        pub fn resolve(required: Mods, provided: Core.KeyMods) bool {
+            if (required.shift) |shift| if (provided.shift != shift) return false;
+            if (required.control) |control| if (provided.control != control) return false;
+            if (required.alt) |alt| if (provided.alt != alt) return false;
+            if (required.super) |super| if (provided.super != super) return false;
+            if (required.caps_lock) |caps_lock| if (provided.caps_lock != caps_lock) return false;
+            if (required.num_lock) |num_lock| if (provided.num_lock != num_lock) return false;
+            return true;
+        }
+    };
 };
 
 pub fn hotkey(self: *Self, action: Action) ?*Hotkey {
@@ -126,7 +144,7 @@ pub fn hotkey(self: *Self, action: Action) ?*Hotkey {
     return null;
 }
 
-pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
+pub fn setHotkeyState(self: *Self, k: Key, mods: Core.KeyMods, state: KeyState) void {
     for (self.hotkeys) |*hk| {
         if (hk.key == k) {
             if (state == .release or (hk.mods == null and @as(u8, @bitCast(mods)) == 0)) {
@@ -136,7 +154,7 @@ pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
                     else => true,
                 };
             } else if (hk.mods) |md| {
-                if (@as(u8, @bitCast(md)) == @as(u8, @bitCast(mods))) {
+                if (md.resolve(mods)) {
                     hk.previous_state = hk.state;
                     hk.state = switch (state) {
                         .release => false,
@@ -411,10 +429,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .primary },
         });
@@ -424,12 +438,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .shortcut = "shift",
             .key = Key.left_shift,
             .mods = .{
-                .control = false,
-                .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .secondary },
         });
@@ -457,10 +466,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .save },
         });
@@ -473,9 +478,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .save_all },
         });
@@ -488,9 +490,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .undo },
         });
@@ -503,9 +502,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .redo },
         });
@@ -516,10 +512,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux or pixi.editor.settings.zoom_ctrl,
                 .super = !windows_or_linux and !pixi.editor.settings.zoom_ctrl,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .zoom },
         });
@@ -528,12 +520,7 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         try hotkeys.append(.{
             .key = Key.left_alt,
             .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
+                .alt = true,
             },
             .action = .{ .procedure = .sample },
         });
@@ -545,10 +532,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .open_folder },
         });
@@ -560,10 +543,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .export_png },
         });
@@ -618,8 +597,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
 
         try hotkeys.append(.{
-            .shortcut = "backspace",
-            .key = Key.backspace,
+            .shortcut = if (windows_or_linux) "delete" else "backspace",
+            .key = if (windows_or_linux) Key.delete else Key.backspace,
             .action = .{ .procedure = .erase_sprite },
         });
 
@@ -654,9 +633,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .copy },
         });
@@ -668,9 +644,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .cut },
         });
@@ -682,9 +655,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .paste },
         });
@@ -696,9 +666,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .transform },
         });
@@ -710,9 +677,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .copy_right },
         });
@@ -724,9 +688,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .copy_left },
         });
@@ -738,9 +699,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .copy_up },
         });
@@ -752,9 +710,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .copy_down },
         });
@@ -766,9 +721,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = false,
                 .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .shift_right },
         });
@@ -780,9 +732,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = false,
                 .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .shift_left },
         });
@@ -794,9 +743,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = false,
                 .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .shift_up },
         });
@@ -808,9 +754,6 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = false,
                 .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
             .action = .{ .procedure = .shift_down },
         });
