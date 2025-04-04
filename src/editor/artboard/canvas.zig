@@ -51,11 +51,11 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
 
                 imgui.text("Transformation");
                 imgui.separator();
-                if (imgui.button("Confirm") or (if (editor.hotkeys.hotkey(.{ .proc = .confirm })) |hk| hk.pressed() else false and editor.open_file_index == editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Confirm") or (if (editor.hotkeys.hotkey(.{ .procedure = .confirm })) |hk| hk.pressed() else false and editor.open_file_index == editor.getFileIndex(file.path).?)) {
                     transform_texture.confirm = true;
                 }
                 imgui.sameLine();
-                if (imgui.button("Cancel") or (if (editor.hotkeys.hotkey(.{ .proc = .escape })) |hk| hk.pressed() else false and editor.open_file_index == editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Cancel") or (if (editor.hotkeys.hotkey(.{ .procedure = .escape })) |hk| hk.pressed() else false and editor.open_file_index == editor.getFileIndex(file.path).?)) {
                     var change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
                     change.pixels.temporary = true;
                     try file.history.append(change);

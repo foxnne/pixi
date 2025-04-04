@@ -34,7 +34,7 @@ pub fn getPixel(self: Reference, pixel: [2]usize) [4]u8 {
 }
 
 pub fn processSampleTool(reference: *Reference) void {
-    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .sample })) |hotkey| hotkey.down() else false;
     const sample_button = if (pixi.editor.mouse.button(.sample)) |sample| sample.down() else false;
 
     if (!sample_key and !sample_button) return;

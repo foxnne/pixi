@@ -21,7 +21,7 @@ pub fn draw(editor: *Editor) !void {
         defer imgui.endMenuBar();
         if (imgui.beginMenu("File")) {
             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
-            if (imgui.menuItemEx("Open Folder...", if (editor.hotkeys.hotkey(.{ .proc = .folder })) |hotkey| hotkey.shortcut else "", false, true)) {
+            if (imgui.menuItemEx("Open Folder...", if (editor.hotkeys.hotkey(.{ .procedure = .open_folder })) |hotkey| hotkey.shortcut else "", false, true)) {
                 editor.popups.file_dialog_request = .{
                     .state = .folder,
                     .type = .project,
@@ -51,7 +51,7 @@ pub fn draw(editor: *Editor) !void {
 
             if (imgui.menuItemEx(
                 "Export as .png...",
-                if (editor.hotkeys.hotkey(.{ .proc = .export_png })) |hotkey| hotkey.shortcut else "",
+                if (editor.hotkeys.hotkey(.{ .procedure = .export_png })) |hotkey| hotkey.shortcut else "",
                 false,
                 file != null,
             )) {
@@ -60,7 +60,7 @@ pub fn draw(editor: *Editor) !void {
 
             if (imgui.menuItemEx(
                 "Save",
-                if (editor.hotkeys.hotkey(.{ .proc = .save })) |hotkey| hotkey.shortcut else "",
+                if (editor.hotkeys.hotkey(.{ .procedure = .save })) |hotkey| hotkey.shortcut else "",
                 false,
                 file != null and file.?.dirty(),
             )) {
@@ -129,7 +129,7 @@ pub fn draw(editor: *Editor) !void {
             if (editor.getFile(editor.open_file_index)) |file| {
                 if (imgui.menuItemEx(
                     "Undo",
-                    if (editor.hotkeys.hotkey(.{ .proc = .undo })) |hotkey| hotkey.shortcut else "",
+                    if (editor.hotkeys.hotkey(.{ .procedure = .undo })) |hotkey| hotkey.shortcut else "",
                     false,
                     file.history.undo_stack.items.len > 0,
                 ))
@@ -137,7 +137,7 @@ pub fn draw(editor: *Editor) !void {
 
                 if (imgui.menuItemEx(
                     "Redo",
-                    if (editor.hotkeys.hotkey(.{ .proc = .redo })) |hotkey| hotkey.shortcut else "",
+                    if (editor.hotkeys.hotkey(.{ .procedure = .redo })) |hotkey| hotkey.shortcut else "",
                     false,
                     file.history.redo_stack.items.len > 0,
                 ))

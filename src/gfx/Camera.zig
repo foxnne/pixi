@@ -665,7 +665,7 @@ pub const PanZoomTarget = enum {
 };
 
 pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
-    var zoom_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
+    var zoom_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .zoom })) |hotkey| hotkey.down() else false;
     if (pixi.editor.settings.input_scheme != .trackpad) zoom_key = true;
     if (pixi.editor.mouse.magnify != null) zoom_key = true;
 
@@ -906,7 +906,7 @@ pub fn drawColorTooltip(camera: Camera, color: [4]u8) !void {
 }
 
 pub fn processZoomTooltip(camera: *Camera) void {
-    const zoom_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
+    const zoom_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .zoom })) |hotkey| hotkey.down() else false;
     const zooming = (pixi.editor.mouse.scroll_y != null and zoom_key) or pixi.editor.mouse.magnify != null;
 
     // Draw current zoom tooltip

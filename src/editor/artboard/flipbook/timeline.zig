@@ -232,7 +232,7 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
                                             if (bt.pressed()) {
                                                 var change: bool = true;
 
-                                                if (pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| {
+                                                if (pixi.editor.hotkeys.hotkey(.{ .procedure = .secondary })) |hk| {
                                                     if (hk.down()) {
                                                         frame.parent_id = null;
                                                         change = false;
@@ -240,7 +240,7 @@ pub fn draw(file: *pixi.Internal.File, editor: *Editor) !void {
                                                 }
 
                                                 if (frame.id != selected_keyframe.active_frame_id) {
-                                                    if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                                    if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| {
                                                         if (hk.down()) {
                                                             if (selected_keyframe.frame(selected_keyframe.active_frame_id)) |active_frame| {
                                                                 active_frame.parent_id = frame.id;
@@ -530,7 +530,7 @@ pub fn drawVerticalLines(file: *pixi.Internal.File, animation_length: usize, scr
                     const hovered_time = ms_float / 1000.0;
                     if (pixi.editor.mouse.button(.primary)) |bt| {
                         if (bt.released()) {
-                            const primary_hotkey_down: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
+                            const primary_hotkey_down: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| hk.down() else false;
 
                             if (primary_hotkey_down) {
                                 if (animation_index == null) {
@@ -604,7 +604,7 @@ pub fn drawNodeArea(file: *pixi.Internal.File, animation_length: usize, scroll: 
         rel_mouse_y = mouse_position[1] - window_position.y + scroll[1];
     }
 
-    const secondary_down: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+    const secondary_down: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .secondary })) |hk| hk.down() else false;
 
     if (animation_index) |index| {
         var animation = file.keyframe_animations.slice().get(index);

@@ -416,7 +416,7 @@ pub const SampleToolOptions = struct {
 };
 
 pub fn processSampleTool(file: *File, canvas: Canvas, options: SampleToolOptions) !void {
-    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .sample })) |hotkey| hotkey.down() else false;
     const sample_button = if (pixi.editor.mouse.button(.sample)) |sample| sample.down() else false;
 
     if (!sample_key and !sample_button) return;
@@ -517,7 +517,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
         else => true,
     }) return;
 
-    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .sample })) |hotkey| hotkey.down() else false;
     const sample_button = if (pixi.editor.mouse.button(.sample)) |sample| sample.down() else false;
 
     if (sample_key or sample_button) return;
@@ -608,7 +608,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                                 defer previous_pixel_opt = pixel;
                                 if (previous_pixel_opt) |previous_pixel| {
                                     if (pixel[1] != previous_pixel[1]) {
-                                        if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                        if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| {
                                             if (hk.down()) {
                                                 const pixel_signed: i32 = @intCast(pixel[1]);
                                                 const previous_pixel_signed: i32 = @intCast(previous_pixel[1]);
@@ -878,11 +878,11 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
         else => true,
     }) return;
 
-    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .sample })) |hotkey| hotkey.down() else false;
     const sample_button = if (pixi.editor.mouse.button(.sample)) |sample| sample.down() else false;
 
-    const add: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
-    const rem: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+    const add: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| hk.down() else false;
+    const rem: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .secondary })) |hk| hk.down() else false;
     const pressed: bool = if (pixi.editor.mouse.button(.primary)) |bt| bt.pressed() else false;
 
     if (sample_key or sample_button) return;
@@ -990,7 +990,7 @@ pub fn processAnimationTool(file: *File) !void {
             pixi.editor.popups.animation_start = tile_index;
 
         if (if (pixi.editor.mouse.button(.primary)) |primary| primary.released() else false) {
-            if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |primary| {
+            if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |primary| {
                 if (primary.down()) {
                     var valid: bool = true;
                     var i: usize = pixi.editor.popups.animation_start;
@@ -1076,7 +1076,7 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
         else => true,
     }) return;
 
-    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .sample })) |hotkey| hotkey.down() else false;
     const sample_button = if (pixi.editor.mouse.button(.sample)) |sample| sample.down() else false;
 
     if (sample_key or sample_button) return;
@@ -1139,7 +1139,7 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
                 return;
             }
 
-            if (if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false) {
+            if (if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| hk.down() else false) {
                 for (bounds_x..bounds_x + bounds_width) |x| {
                     for (bounds_y..bounds_y + bounds_height) |y| {
                         if (std.mem.eql(u8, &selected_layer.getPixel(.{ x, y }), &old_color)) {
@@ -1177,8 +1177,8 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
 
     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
 
-    const modifier_primary: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
-    const modifier_secondary: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+    const modifier_primary: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| hk.down() else false;
+    const modifier_secondary: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .secondary })) |hk| hk.down() else false;
 
     if (transform_texture.action == .move_pivot) {
         if (transform_texture.control) |*control| {
@@ -2351,8 +2351,8 @@ pub fn makeSpriteSelection(self: *File, selected_sprite: usize) !void {
     const selection = self.selected_sprites.items.len > 0;
     const selected_sprite_index = self.spriteSelectionIndex(selected_sprite);
     const contains = selected_sprite_index != null;
-    const primary_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| hotkey.down() else false;
-    const secondary_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hotkey| hotkey.down() else false;
+    const primary_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hotkey| hotkey.down() else false;
+    const secondary_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .secondary })) |hotkey| hotkey.down() else false;
     if (primary_key) {
         if (!contains) {
             try self.selected_sprites.append(selected_sprite);
