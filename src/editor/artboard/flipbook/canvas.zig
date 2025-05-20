@@ -138,7 +138,7 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                     if (file.flipbook_camera.isHovered(dst_rect) and !imgui.isAnyItemHovered()) {
                         if (sprite_index != file.selected_sprite_index) {
                             file.flipbook_camera.drawQuad(dst_p1, dst_p2, dst_p3, dst_p4, pixi.editor.theme.text.toU32(), 2.0);
-                            if (if (app.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != sprite_index) {
+                            if (if (editor.mouse.button(.primary)) |primary| primary.pressed() else false and file.selected_sprite_index != sprite_index) {
                                 file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(sprite_index), .state = file.selected_animation_state };
                             }
                         } else {
@@ -244,6 +244,17 @@ pub fn draw(file: *pixi.Internal.File, app: *App, editor: *Editor) !void {
                 }
             }
         },
+    }
+
+    if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
+        if (editor.mouse.button(.primary)) |primary| {
+            if (primary.released()) {
+                if (file.buffers.stroke.values.items.len > 0) {
+                    const change = try file.buffers.stroke.toChange(if (file.heightmap.visible) -1 else @intCast(file.selected_layer_index));
+                    try file.history.append(change);
+                }
+            }
+        }
     }
 
     if (file.selected_animation_state == .play) {

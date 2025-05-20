@@ -177,10 +177,12 @@ pub fn draw(core: *Core, editor: *Editor) !void {
             imgui.popItemWidth();
         }
 
+        const window = core.windows.getValue(pixi.app.window);
+
         imgui.spacing();
         imgui.separator();
-        imgui.textColored(editor.theme.text_background.toImguiVec4(), "Framerate: %d", core.frame.rate);
-
+        imgui.textColored(editor.theme.text_background.toImguiVec4(), "Render Refresh Rate: %d", window.frame.rate);
+        imgui.textColored(editor.theme.text_background.toImguiVec4(), "Input Refresh Rate: %d", core.frame.rate);
         imgui.popItemWidth();
     }
 }

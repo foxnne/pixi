@@ -30,7 +30,7 @@ pub const Sidebar = @import("Sidebar.zig");
 pub const mach_module = .editor;
 pub const mach_systems = .{
     .init,
-    .lateInit,
+    .loadTheme,
     .processDialogRequest,
     .tick,
     .close,
@@ -44,6 +44,7 @@ arena: std.heap.ArenaAllocator,
 theme: Theme,
 settings: Settings,
 hotkeys: pixi.input.Hotkeys,
+mouse: pixi.input.Mouse,
 recents: Recents,
 
 // Module pointers
@@ -102,6 +103,7 @@ pub fn init(
         .sidebar = _sidebar,
         .settings = try Settings.load(app.allocator),
         .hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
+        .mouse = try pixi.input.Mouse.initDefault(app.allocator),
         .recents = try Recents.load(app.allocator),
         .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
     };
@@ -117,7 +119,7 @@ pub fn init(
     popups_mod.call(.init);
 }
 
-pub fn lateInit(core: *Core, app: *App, editor: *Editor) !void {
+pub fn loadTheme(core: *Core, app: *App, editor: *Editor) !void {
     const theme_path = try std.fs.path.joinZ(app.allocator, &.{ pixi.paths.themes, editor.settings.theme });
     defer app.allocator.free(theme_path);
 
@@ -164,11 +166,11 @@ pub fn tick(
             for (file.buffers.temporary_stroke.indices.items) |index| {
                 file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
             }
-            file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+            file.temporary_layer.texture.update(core.windows.get(app.window, .device));
             file.buffers.temporary_stroke.clearAndFree();
         } else if (file.transform_texture != null) {
             @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-            file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+            file.temporary_layer.texture.update(core.windows.get(app.window, .device));
         }
     }
 
@@ -181,74 +183,74 @@ pub fn tick(
     {
         const window = core.windows.getValue(app.window);
         for (editor.open_files.items) |*file| {
-            if (file.transform_texture) |*transform_texture| {
-                if (transform_texture.confirm) {
-                    // Blit temp layer to selected layer
-                    if (file.transform_staging_buffer) |staging_buffer| {
-                        const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
+            const transform_texture = if (file.transform_texture) |*tt| tt else continue;
+            const staging_buffer = file.transform_staging_buffer orelse continue;
 
-                        var response: mach.gpu.Buffer.MapAsyncStatus = undefined;
-                        const callback = (struct {
-                            pub inline fn callback(ctx: *mach.gpu.Buffer.MapAsyncStatus, status: mach.gpu.Buffer.MapAsyncStatus) void {
-                                ctx.* = status;
-                            }
-                        }).callback;
+            if (!transform_texture.confirm) continue;
 
-                        staging_buffer.mapAsync(.{ .read = true }, 0, buffer_size * @sizeOf([4]f32), &response, callback);
-                        while (true) {
-                            if (response == mach.gpu.Buffer.MapAsyncStatus.success) {
-                                break;
-                            } else {
-                                window.device.tick();
-                            }
-                        }
+            // Blit temp layer to selected layer
 
-                        const layer_index = file.selected_layer_index;
-                        const write_layer = file.layers.get(file.selected_layer_index);
+            const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
 
-                        if (staging_buffer.getConstMappedRange([4]f32, 0, buffer_size)) |buffer_mapped| {
-                            for (write_layer.pixels(), buffer_mapped, 0..) |*p, b, i| {
-                                if (b[3] != 0.0) {
-                                    // At this point, if we are using a transform hotkey, stroke will contain
-                                    // the state before the cut, so we dont want to overwrite any of the existing
-                                    // values, only add new ones.
-                                    var contains: bool = false;
-                                    for (file.buffers.stroke.indices.items) |ind| {
-                                        if (ind == i) {
-                                            contains = true;
-                                        }
-                                    }
+            var response: mach.gpu.Buffer.MapAsyncStatus = undefined;
+            const callback = (struct {
+                pub inline fn callback(ctx: *mach.gpu.Buffer.MapAsyncStatus, status: mach.gpu.Buffer.MapAsyncStatus) void {
+                    ctx.* = status;
+                }
+            }).callback;
 
-                                    if (!contains)
-                                        try file.buffers.stroke.append(i, p.*);
-
-                                    const out: [4]u8 = .{
-                                        @as(u8, @intFromFloat(b[0] * 255.0)),
-                                        @as(u8, @intFromFloat(b[1] * 255.0)),
-                                        @as(u8, @intFromFloat(b[2] * 255.0)),
-                                        @as(u8, @intFromFloat(b[3] * 255.0)),
-                                    };
-                                    p.* = out;
-                                }
-                            }
-                        }
-
-                        // Submit the stroke change buffer
-                        if (file.buffers.stroke.indices.items.len > 0) {
-                            const change = try file.buffers.stroke.toChange(@intCast(layer_index));
-                            try file.history.append(change);
-                        }
-
-                        staging_buffer.unmap();
-
-                        var texture: *pixi.gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
-                        texture.update(window.device);
-                    }
-
-                    transform_texture.texture.deinit();
-                    file.transform_texture = null;
+            staging_buffer.mapAsync(.{ .read = true }, 0, buffer_size * @sizeOf([4]f32), &response, callback);
+            while (true) {
+                if (response == mach.gpu.Buffer.MapAsyncStatus.success) {
+                    break;
+                } else {
+                    window.device.tick();
                 }
             }
+
+            const layer_index = file.selected_layer_index;
+            const write_layer = file.layers.get(file.selected_layer_index);
+
+            const buffer_mapped = staging_buffer.getConstMappedRange([4]f32, 0, buffer_size) orelse continue;
+
+            for (write_layer.pixels(), buffer_mapped, 0..) |*p, b, i| {
+                if (b[3] != 0.0) {
+                    // At this point, if we are using a transform hotkey, stroke will contain
+                    // the state before the cut, so we dont want to overwrite any of the existing
+                    // values, only add new ones.
+                    var contains: bool = false;
+                    for (file.buffers.stroke.indices.items) |ind| {
+                        if (ind == i) {
+                            contains = true;
+                        }
+                    }
+
+                    if (!contains)
+                        try file.buffers.stroke.append(i, p.*, .primary);
+
+                    const out: [4]u8 = .{
+                        @as(u8, @intFromFloat(b[0] * 255.0)),
+                        @as(u8, @intFromFloat(b[1] * 255.0)),
+                        @as(u8, @intFromFloat(b[2] * 255.0)),
+                        @as(u8, @intFromFloat(b[3] * 255.0)),
+                    };
+                    p.* = out;
+                }
+            }
+
+            // Submit the stroke change buffer
+            if (file.buffers.stroke.indices.items.len > 0) {
+                const change = try file.buffers.stroke.toChange(@intCast(layer_index));
+                try file.history.append(change);
+            }
+
+            staging_buffer.unmap();
+
+            var texture: *pixi.gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
+            texture.update(window.device);
+
+            transform_texture.texture.deinit();
+            file.transform_texture = null;
         }
     }
 
@@ -256,8 +258,30 @@ pub fn tick(
         hotkey.previous_state = hotkey.state;
     }
 
+    for (editor.mouse.buttons) |*bt| {
+        bt.previous_state = bt.state;
+    }
+
+    editor.mouse.previous_position = editor.mouse.position;
     // Reset the arena but keep the memory from the last frame available
     _ = editor.arena.reset(.retain_capacity);
+}
+
+pub fn anyAnimationPlaying(editor: *Editor) bool {
+    if (editor.settings.split_artboard) {
+        if (editor.getFile(editor.artboard.open_file_index_0)) |file| {
+            if (file.selected_animation_state == .play) return true;
+        }
+        if (editor.getFile(editor.artboard.open_file_index_1)) |file| {
+            if (file.selected_animation_state == .play) return true;
+        }
+    } else {
+        if (editor.getFile(editor.open_file_index)) |file| {
+            if (file.selected_animation_state == .play) return true;
+        }
+    }
+
+    return false;
 }
 
 pub fn newFrame(editor: *Editor) bool {
@@ -566,6 +590,7 @@ pub fn deinit(editor: *Editor, app: *App) !void {
     if (editor.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();
 
     app.allocator.free(editor.hotkeys.hotkeys);
+    app.allocator.free(editor.mouse.buttons);
 
     if (editor.clipboard_image) |*image| image.deinit();
 

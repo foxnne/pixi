@@ -284,7 +284,7 @@ pub fn drawCursor(_: Camera, sprite_index: usize, color: u32) void {
     if (sprite_index >= atlas.sprites.len) return;
 
     const sprite = atlas.sprites[sprite_index];
-    const position = pixi.app.mouse.position;
+    const position = pixi.editor.mouse.position;
 
     const sprite_source: [4]f32 = .{
         @floatFromInt(sprite.source[0]),
@@ -432,12 +432,12 @@ pub fn setNearZoomFloor(camera: *Camera) void {
 }
 
 pub fn isHovered(camera: Camera, rect: [4]f32) bool {
-    const mouse_position = pixi.app.mouse.position;
+    const mouse_position = pixi.editor.mouse.position;
     return camera.isContained(rect, mouse_position);
 }
 
 pub fn isHoveredTriangle(camera: Camera, triangle: [3]zm.F32x4) bool {
-    const mouse_position = pixi.app.mouse.position;
+    const mouse_position = pixi.editor.mouse.position;
     return camera.isContainedTriangle(triangle, mouse_position);
 }
 
@@ -665,9 +665,9 @@ pub const PanZoomTarget = enum {
 };
 
 pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
-    var zoom_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
+    var zoom_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .zoom })) |hotkey| hotkey.down() else false;
     if (pixi.editor.settings.input_scheme != .trackpad) zoom_key = true;
-    if (pixi.app.mouse.magnify != null) zoom_key = true;
+    if (pixi.editor.mouse.magnify != null) zoom_key = true;
 
     if (target == .packer and pixi.editor.atlas.texture == null) return;
 
@@ -694,7 +694,7 @@ pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
 
     const previous_mouse = camera.coordinatesRaw(.{
         .texture_position = canvas_center_offset,
-        .position = pixi.app.mouse.position,
+        .position = pixi.editor.mouse.position,
         .width = canvas_width,
         .height = canvas_height,
     });
@@ -702,14 +702,14 @@ pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
     // Handle controls while canvas is hovered
     if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
         camera.processZoomTooltip();
-        if (pixi.app.mouse.scroll_x) |x| {
+        if (pixi.editor.mouse.scroll_x) |x| {
             if (!zoom_key and camera.zoom_timer >= pixi.editor.settings.zoom_time) {
                 camera.position[0] -= x * pixi.editor.settings.pan_sensitivity * (1.0 / camera.zoom);
             }
-            pixi.app.mouse.scroll_x = null;
+            pixi.editor.mouse.scroll_x = null;
         }
 
-        if (pixi.app.mouse.scroll_y) |y| {
+        if (pixi.editor.mouse.scroll_y) |y| {
             if (zoom_key) {
                 camera.zoom_timer = 0.0;
                 camera.zoom_wait_timer = 0.0;
@@ -736,10 +736,10 @@ pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
             } else if (camera.zoom_timer >= pixi.editor.settings.zoom_time) {
                 camera.position[1] -= y * pixi.editor.settings.pan_sensitivity * (1.0 / camera.zoom);
             }
-            pixi.app.mouse.scroll_y = null;
+            pixi.editor.mouse.scroll_y = null;
         }
 
-        if (pixi.app.mouse.magnify) |magnification| {
+        if (pixi.editor.mouse.magnify) |magnification| {
             camera.zoom_timer = 0.0;
             camera.zoom_wait_timer = 0.0;
 
@@ -750,7 +750,7 @@ pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
 
             camera.zoom += zoom_delta;
 
-            pixi.app.mouse.magnify = null;
+            pixi.editor.mouse.magnify = null;
         }
 
         const mouse_drag_delta = imgui.getMouseDragDelta(imgui.MouseButton_Middle, 0.0);
@@ -772,7 +772,7 @@ pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
             }
         },
         .mouse => {
-            if (pixi.app.mouse.scroll_x == null and pixi.app.mouse.scroll_y == null and camera.zoom_wait_timer >= pixi.editor.settings.zoom_wait_time) {
+            if (pixi.editor.mouse.scroll_x == null and pixi.editor.mouse.scroll_y == null and camera.zoom_wait_timer >= pixi.editor.settings.zoom_wait_time) {
                 camera.zoom_timer = @min(camera.zoom_timer + pixi.app.delta_time, pixi.editor.settings.zoom_time);
             }
         },
@@ -839,11 +839,11 @@ pub fn processPanZoom(camera: *Camera, target: PanZoomTarget) void {
     if (@abs(zoom_delta) > 0.0) {
         const current_mouse =
             camera.coordinatesRaw(.{
-            .texture_position = canvas_center_offset,
-            .position = pixi.app.mouse.position,
-            .width = canvas_width,
-            .height = canvas_height,
-        });
+                .texture_position = canvas_center_offset,
+                .position = pixi.editor.mouse.position,
+                .width = canvas_width,
+                .height = canvas_height,
+            });
 
         const difference: [2]f32 = .{ previous_mouse[0] - current_mouse[0], previous_mouse[1] - current_mouse[1] };
 
@@ -906,8 +906,8 @@ pub fn drawColorTooltip(camera: Camera, color: [4]u8) !void {
 }
 
 pub fn processZoomTooltip(camera: *Camera) void {
-    const zoom_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .zoom })) |hotkey| hotkey.down() else false;
-    const zooming = (pixi.app.mouse.scroll_y != null and zoom_key) or pixi.app.mouse.magnify != null;
+    const zoom_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .zoom })) |hotkey| hotkey.down() else false;
+    const zooming = (pixi.editor.mouse.scroll_y != null and zoom_key) or pixi.editor.mouse.magnify != null;
 
     // Draw current zoom tooltip
     if (camera.zoom_tooltip_timer < pixi.editor.settings.zoom_tooltip_time) {

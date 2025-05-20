@@ -51,11 +51,11 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
 
                 imgui.text("Transformation");
                 imgui.separator();
-                if (imgui.button("Confirm") or (core.keyPressed(Core.Key.enter) and editor.open_file_index == editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Confirm") or (if (editor.hotkeys.hotkey(.{ .procedure = .confirm })) |hk| hk.pressed() else false and editor.open_file_index == editor.getFileIndex(file.path).?)) {
                     transform_texture.confirm = true;
                 }
                 imgui.sameLine();
-                if (imgui.button("Cancel") or (core.keyPressed(Core.Key.escape) and editor.open_file_index == editor.getFileIndex(file.path).?)) {
+                if (imgui.button("Cancel") or (if (editor.hotkeys.hotkey(.{ .procedure = .escape })) |hk| hk.pressed() else false and editor.open_file_index == editor.getFileIndex(file.path).?)) {
                     var change = try file.buffers.stroke.toChange(@intCast(file.selected_layer_index));
                     change.pixels.temporary = true;
                     try file.history.append(change);
@@ -84,10 +84,6 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
         file.camera.processPanZoom(.primary);
     }
 
-    // TODO: Only clear and update if we need to?
-    // if (file.transform_texture == null and file.temporary_layer_dirty)
-    //     file.temporary_layer.clear(true);
-
     editor.selection_time += app.delta_time;
     if (editor.selection_time >= 0.3) {
         for (file.selection_layer.pixels()) |*pixel| {
@@ -103,7 +99,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
     }
 
     if (imgui.isWindowHovered(imgui.HoveredFlags_None)) {
-        const mouse_position = app.mouse.position;
+        const mouse_position = editor.mouse.position;
 
         if (file.camera.pixelCoordinates(.{
             .texture_position = canvas_center_offset,
@@ -128,7 +124,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
             try file.processSampleTool(.primary, .{});
             try file.processSelectionTool(.primary, .{});
 
-            if (app.mouse.button(.primary)) |primary| {
+            if (editor.mouse.button(.primary)) |primary| {
                 if (primary.pressed()) {
                     const tiles_wide = @divExact(@as(usize, @intCast(file.width)), @as(usize, @intCast(file.tile_width)));
                     const tile_index = tile_column + tile_row * tiles_wide;
@@ -136,80 +132,86 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
                     if (editor.explorer.pane == .sprites or file.flipbook_view == .timeline) {
                         try file.makeSpriteSelection(tile_index);
                     } else if (editor.tools.current != .animation) {
-                        // Ensure we only set the request state on the first set.
-                        if (file.flipbook_scroll_request) |*request| {
-                            request.elapsed = 0.0;
-                            request.from = file.flipbook_scroll;
-                            request.to = file.flipbookScrollFromSpriteIndex(tile_index);
-                        } else {
-                            file.flipbook_scroll_request = .{ .from = file.flipbook_scroll, .to = file.flipbookScrollFromSpriteIndex(tile_index), .state = file.selected_animation_state };
-                        }
+                        // Ensure we only set the flipbook scroll on the first set.
+                        file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(tile_index);
                     }
                 }
             }
         } else {
-            if (app.mouse.button(.primary)) |primary| {
+            // Here we track releasing the mouse when we are no longer hovering over the active canvas rect
+            if (editor.mouse.button(.primary)) |primary| {
                 if (primary.released()) {
                     if (editor.explorer.pane == .sprites or file.flipbook_view == .timeline) {
                         file.selected_sprites.clearAndFree();
                     }
-                }
-            }
-        }
-    }
 
-    // Draw transform texture on gpu to temporary texture
-    {
-        if (file.transform_texture) |*transform_texture| {
-            if (file.transform_bindgroup) |transform_bindgroup| {
-                if (file.transform_compute_bindgroup) |compute_bindgroup| {
-                    if (file.transform_compute_buffer) |compute_buffer| {
-                        if (file.transform_staging_buffer) |staging_buffer| {
-                            const width: f32 = @floatFromInt(file.width);
-                            const height: f32 = @floatFromInt(file.height);
-
-                            const buffer_size: usize = @as(usize, @intCast(file.width * file.height * @sizeOf([4]f32)));
-
-                            const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
-                                zmath.orthographicLh(width, height, -100, 100),
-                            ) };
-
-                            try app.batcher.begin(.{
-                                .pipeline_handle = app.pipeline_default,
-                                .compute_pipeline_handle = app.pipeline_compute,
-                                .bind_group_handle = transform_bindgroup,
-                                .compute_bind_group_handle = compute_bindgroup,
-                                .output_texture = &file.temporary_layer.texture,
-                                .compute_buffer = compute_buffer,
-                                .staging_buffer = staging_buffer,
-                                .buffer_size = buffer_size,
-                                .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
-                            });
-
-                            var pivot = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
-                            if (transform_texture.pivot == null) {
-                                for (&transform_texture.vertices) |*vertex| {
-                                    pivot += vertex.position; // Collect centroid
-                                }
-                                pivot /= zmath.f32x4s(4.0); // Average position
-                            }
-                            //pivot += zmath.loadArr2(.{ canvas_center_offset[0], canvas_center_offset[1] });
-
-                            try app.batcher.transformTexture(
-                                transform_texture.vertices,
-                                .{ canvas_center_offset[0], -canvas_center_offset[1] },
-                                .{ pivot[0], -pivot[1] },
-                                .{
-                                    .rotation = -transform_texture.rotation,
-                                },
-                            );
-
-                            try app.batcher.end(uniforms, app.uniform_buffer_default);
-                        }
+                    if (file.buffers.stroke.values.items.len > 0) {
+                        const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
+                        const change = try file.buffers.stroke.toChange(layer_index);
+                        try file.history.append(change);
                     }
                 }
             }
         }
+    } else {
+        // Here we no longer are hovering over our canvas window, but there is an active primary canvas stroke,
+        // so we need to push the change. This can happen when drawing on the canvas and moving the mouse off
+        // the canvas view into the flipbook or explorer.
+        if (file.buffers.stroke.values.items.len > 0 and file.buffers.stroke.canvas == .primary) {
+            const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
+            const change = try file.buffers.stroke.toChange(layer_index);
+            try file.history.append(change);
+        }
+    }
+
+    // Draw transform texture on gpu to temporary texture
+    blk_transform: {
+        const transform_texture = file.transform_texture orelse break :blk_transform;
+        const transform_bindgroup = file.transform_bindgroup orelse break :blk_transform;
+        const compute_bindgroup = file.transform_compute_bindgroup orelse break :blk_transform;
+        const compute_buffer = file.transform_compute_buffer orelse break :blk_transform;
+        const staging_buffer = file.transform_staging_buffer orelse break :blk_transform;
+
+        const width: f32 = @floatFromInt(file.width);
+        const height: f32 = @floatFromInt(file.height);
+
+        const buffer_size: usize = @as(usize, @intCast(file.width * file.height * @sizeOf([4]f32)));
+
+        const uniforms = pixi.gfx.UniformBufferObject{ .mvp = zmath.transpose(
+            zmath.orthographicLh(width, height, -100, 100),
+        ) };
+
+        try app.batcher.begin(.{
+            .pipeline_handle = app.pipeline_default,
+            .compute_pipeline_handle = app.pipeline_compute,
+            .bind_group_handle = transform_bindgroup,
+            .compute_bind_group_handle = compute_bindgroup,
+            .output_texture = &file.temporary_layer.texture,
+            .compute_buffer = compute_buffer,
+            .staging_buffer = staging_buffer,
+            .buffer_size = buffer_size,
+            .clear_color = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 },
+        });
+
+        var pivot = if (transform_texture.pivot) |pivot| pivot.position else zmath.f32x4s(0.0);
+        if (transform_texture.pivot == null) {
+            for (&transform_texture.vertices) |*vertex| {
+                pivot += vertex.position; // Collect centroid
+            }
+            pivot /= zmath.f32x4s(4.0); // Average position
+        }
+        //pivot += zmath.loadArr2(.{ canvas_center_offset[0], canvas_center_offset[1] });
+
+        try app.batcher.transformTexture(
+            transform_texture.vertices,
+            .{ canvas_center_offset[0], -canvas_center_offset[1] },
+            .{ pivot[0], -pivot[1] },
+            .{
+                .rotation = -transform_texture.rotation,
+            },
+        );
+
+        try app.batcher.end(uniforms, app.uniform_buffer_default);
     }
 
     // Draw all layers in reverse order
@@ -246,41 +248,40 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
     }
 
     // Draw height in pixels if currently editing heightmap and zoom is sufficient
-    {
-        if (file.heightmap.visible) {
-            if (file.camera.zoom >= 30.0) {
-                if (file.camera.pixelCoordinates(.{
-                    .texture_position = canvas_center_offset,
-                    .position = app.mouse.position,
-                    .width = file.width,
-                    .height = file.height,
-                })) |pixel_coord| {
-                    const temp_x = @as(usize, @intFromFloat(pixel_coord[0]));
-                    const temp_y = @as(usize, @intFromFloat(pixel_coord[1]));
-                    const position = .{ pixel_coord[0] + canvas_center_offset[0] + 0.2, pixel_coord[1] + canvas_center_offset[1] + 0.25 };
-                    try file.camera.drawText("{d}", .{editor.colors.height}, position, 0xFFFFFFFF);
+    blk_heightmap: {
+        if (!file.heightmap.visible) break :blk_heightmap;
+        if (file.camera.zoom < 30.0) break :blk_heightmap;
 
-                    const min: [2]u32 = .{
-                        @intCast(@max(@as(i32, @intCast(temp_x)) - 5, 0)),
-                        @intCast(@max(@as(i32, @intCast(temp_y)) - 5, 0)),
-                    };
+        if (file.camera.pixelCoordinates(.{
+            .texture_position = canvas_center_offset,
+            .position = editor.mouse.position,
+            .width = file.width,
+            .height = file.height,
+        })) |pixel_coord| {
+            const temp_x = @as(usize, @intFromFloat(pixel_coord[0]));
+            const temp_y = @as(usize, @intFromFloat(pixel_coord[1]));
+            const position = .{ pixel_coord[0] + canvas_center_offset[0] + 0.2, pixel_coord[1] + canvas_center_offset[1] + 0.25 };
+            try file.camera.drawText("{d}", .{editor.colors.height}, position, 0xFFFFFFFF);
 
-                    const max: [2]u32 = .{
-                        @intCast(@min(temp_x + 5, file.width)),
-                        @intCast(@min(temp_y + 5, file.height)),
-                    };
+            const min: [2]u32 = .{
+                @intCast(@max(@as(i32, @intCast(temp_x)) - 5, 0)),
+                @intCast(@max(@as(i32, @intCast(temp_y)) - 5, 0)),
+            };
 
-                    var x: u32 = min[0];
-                    while (x < max[0]) : (x += 1) {
-                        var y: u32 = min[1];
-                        while (y < max[1]) : (y += 1) {
-                            const pixel = .{ @as(usize, @intCast(x)), @as(usize, @intCast(y)) };
-                            const pixel_color = file.heightmap.layer.?.getPixel(pixel);
-                            if (pixel_color[3] != 0 and (pixel[0] != temp_x or pixel[1] != temp_y)) {
-                                const pixel_position = .{ canvas_center_offset[0] + @as(f32, @floatFromInt(x)) + 0.2, canvas_center_offset[1] + @as(f32, @floatFromInt(y)) + 0.25 };
-                                try file.camera.drawText("{d}", .{pixel_color[0]}, pixel_position, 0xFFFFFFFF);
-                            }
-                        }
+            const max: [2]u32 = .{
+                @intCast(@min(temp_x + 5, file.width)),
+                @intCast(@min(temp_y + 5, file.height)),
+            };
+
+            var x: u32 = min[0];
+            while (x < max[0]) : (x += 1) {
+                var y: u32 = min[1];
+                while (y < max[1]) : (y += 1) {
+                    const pixel = .{ @as(usize, @intCast(x)), @as(usize, @intCast(y)) };
+                    const pixel_color = file.heightmap.layer.?.getPixel(pixel);
+                    if (pixel_color[3] != 0 and (pixel[0] != temp_x or pixel[1] != temp_y)) {
+                        const pixel_position = .{ canvas_center_offset[0] + @as(f32, @floatFromInt(x)) + 0.2, canvas_center_offset[1] + @as(f32, @floatFromInt(y)) + 0.25 };
+                        try file.camera.drawText("{d}", .{pixel_color[0]}, pixel_position, 0xFFFFFFFF);
                     }
                 }
             }
@@ -329,7 +330,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
         }
 
         if (editor.popups.animation_length > 0 and editor.tools.current == .animation and !transforming) {
-            if (app.mouse.button(.primary)) |primary| {
+            if (editor.mouse.button(.primary)) |primary| {
                 if (primary.down() or editor.popups.animation) {
                     const start_column = @mod(@as(u32, @intCast(editor.popups.animation_start)), tiles_wide);
                     const start_row = @divTrunc(@as(u32, @intCast(editor.popups.animation_start)), tiles_wide);
@@ -365,7 +366,7 @@ pub fn draw(file: *pixi.Internal.File, core: *Core, app: *App, editor: *Editor) 
                     const end_y = @as(f32, @floatFromInt(end_row)) * tile_height + canvas_center_offset[1];
                     const end_rect: [4]f32 = .{ end_x, end_y, tile_width, tile_height };
 
-                    const thickness: f32 = if (i == file.selected_animation_index and (if (app.mouse.button(.primary)) |primary| primary.up() else false and !app.popups.animation)) 4.0 else 2.0;
+                    const thickness: f32 = if (i == file.selected_animation_index and (if (editor.mouse.button(.primary)) |primary| primary.up() else false and !app.popups.animation)) 4.0 else 2.0;
                     file.camera.drawAnimationRect(start_rect, end_rect, thickness, pixi.editor.theme.highlight_primary.toU32(), pixi.editor.theme.text_red.toU32());
                 }
             } else if (editor.explorer.pane != .pack and !transforming and editor.explorer.pane != .keyframe_animations) {

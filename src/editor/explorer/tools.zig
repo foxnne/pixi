@@ -469,7 +469,7 @@ pub fn drawTooltip(editor: *Editor, tool: pixi.Editor.Tools.Tool) !void {
 
             switch (tool) {
                 .animation => {
-                    if (editor.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| {
+                    if (editor.hotkeys.hotkey(.{ .procedure = .primary })) |hotkey| {
                         const first_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut});
                         defer pixi.app.allocator.free(first_text);
 
@@ -484,8 +484,8 @@ pub fn drawTooltip(editor: *Editor, tool: pixi.Editor.Tools.Tool) !void {
                     imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
                 },
                 .selection => {
-                    if (editor.hotkeys.hotkey(.{ .proc = .primary })) |primary_hk| {
-                        if (editor.hotkeys.hotkey(.{ .proc = .secondary })) |secondary_hk| {
+                    if (editor.hotkeys.hotkey(.{ .procedure = .primary })) |primary_hk| {
+                        if (editor.hotkeys.hotkey(.{ .procedure = .secondary })) |secondary_hk| {
                             imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
                             const first_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag while holding ({s}) to add to selection.", .{primary_hk.shortcut});
                             defer pixi.app.allocator.free(first_text);

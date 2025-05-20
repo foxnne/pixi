@@ -73,16 +73,22 @@ pub const TransformTexture = struct {
     vertices: [4]TransformVertex,
     pivot: ?TransformVertex = null,
     control: ?TransformControl = null,
-    pan: bool = false,
-    rotate: bool = false,
+    action: TransformAction = .none,
     rotation: f32 = 0.0,
     rotation_grip_height: f32 = 8.0,
     texture: pixi.gfx.Texture,
     confirm: bool = false,
-    pivot_move: bool = false,
     pivot_offset_angle: f32 = 0.0,
     temporary: bool = false,
     keyframe_parent_id: ?u32 = null,
+};
+
+pub const TransformAction = enum {
+    none,
+    pan,
+    rotate,
+    move_pivot,
+    move_vertex,
 };
 
 pub const TransformVertex = struct {
@@ -136,7 +142,8 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return null;
 
-    if (zip.zip_open(path.ptr, 0, 'r')) |pixi_file| {
+    blk_open: {
+        const pixi_file = zip.zip_open(path.ptr, 0, 'r') orelse break :blk_open;
         defer zip.zip_close(pixi_file);
 
         var buf: ?*anyopaque = null;
@@ -205,34 +212,35 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
             if (zip.zip_entry_open(pixi_file, layer_image_name.ptr) == 0) {
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
 
-                if (img_buf) |data| {
-                    const pipeline_layout_default = pixi.app.pipeline_default.getBindGroupLayout(0);
-                    defer pipeline_layout_default.release();
+                const data = img_buf orelse continue;
 
-                    var new_layer: pixi.Internal.Layer = .{
-                        .name = try pixi.app.allocator.dupeZ(u8, l.name),
-                        .texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
-                        .id = internal.newId(),
-                        .visible = l.visible,
-                        .collapse = l.collapse,
-                        .transform_bindgroup = undefined,
-                    };
+                const pipeline_layout_default = pixi.app.pipeline_default.getBindGroupLayout(0);
+                defer pipeline_layout_default.release();
 
-                    const device: *mach.gpu.Device = pixi.core.windows.get(pixi.app.window, .device);
+                var new_layer: pixi.Internal.Layer = .{
+                    .name = try pixi.app.allocator.dupeZ(u8, l.name),
+                    .texture = try pixi.gfx.Texture.loadFromMemory(@as([*]u8, @ptrCast(data))[0..img_len], .{}),
+                    .id = internal.newId(),
+                    .visible = l.visible,
+                    .collapse = l.collapse,
+                    .transform_bindgroup = undefined,
+                };
 
-                    new_layer.transform_bindgroup = device.createBindGroup(
-                        &mach.gpu.BindGroup.Descriptor.init(.{
-                            .layout = pipeline_layout_default,
-                            .entries = &.{
-                                mach.gpu.BindGroup.Entry.initBuffer(0, pixi.app.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0),
-                                mach.gpu.BindGroup.Entry.initTextureView(1, new_layer.texture.texture_view),
-                                mach.gpu.BindGroup.Entry.initSampler(2, new_layer.texture.sampler),
-                            },
-                        }),
-                    );
-                    try internal.layers.append(pixi.app.allocator, new_layer);
-                }
+                const device: *mach.gpu.Device = pixi.core.windows.get(pixi.app.window, .device);
+
+                new_layer.transform_bindgroup = device.createBindGroup(
+                    &mach.gpu.BindGroup.Descriptor.init(.{
+                        .layout = pipeline_layout_default,
+                        .entries = &.{
+                            mach.gpu.BindGroup.Entry.initBuffer(0, pixi.app.uniform_buffer_default, 0, @sizeOf(pixi.gfx.UniformBufferObject), 0),
+                            mach.gpu.BindGroup.Entry.initTextureView(1, new_layer.texture.texture_view),
+                            mach.gpu.BindGroup.Entry.initSampler(2, new_layer.texture.sampler),
+                        },
+                    }),
+                );
+                try internal.layers.append(pixi.app.allocator, new_layer);
             }
+
             _ = zip.zip_entry_close(pixi_file);
         }
 
@@ -243,13 +251,15 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
             .texture = internal.layers.items(.texture)[0],
         };
 
-        if (zip.zip_entry_open(pixi_file, "heightmap.png") == 0) {
-            var img_buf: ?*anyopaque = null;
-            var img_len: usize = 0;
+        blk_heightmap: {
+            if (zip.zip_entry_open(pixi_file, "heightmap.png") == 0) {
+                var img_buf: ?*anyopaque = null;
+                var img_len: usize = 0;
 
-            _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
+                _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
 
-            if (img_buf) |data| {
+                const data = img_buf orelse break :blk_heightmap;
+
                 var new_layer: pixi.Internal.Layer = .{
                     .name = try pixi.app.allocator.dupeZ(u8, "heightmap"),
                     .texture = undefined,
@@ -279,6 +289,7 @@ pub fn load(path: [:0]const u8) !?pixi.Internal.File {
         }
         return internal;
     }
+
     return error.FailedToOpenFile;
 }
 
@@ -405,15 +416,15 @@ pub const SampleToolOptions = struct {
 };
 
 pub fn processSampleTool(file: *File, canvas: Canvas, options: SampleToolOptions) !void {
-    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-    const sample_button = if (pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .sample })) |hotkey| hotkey.down() else false;
+    const sample_button = if (pixi.editor.mouse.button(.sample)) |sample| sample.down() else false;
 
     if (!sample_key and !sample_button) return;
 
     imgui.setMouseCursor(imgui.MouseCursor_None);
     file.camera.drawCursor(pixi.atlas.sprites.dropper_default, 0xFFFFFFFF);
 
-    const mouse_position = pixi.app.mouse.position;
+    const mouse_position = pixi.editor.mouse.position;
     var camera = switch (canvas) {
         .primary => file.camera,
         .flipbook => file.flipbook_camera,
@@ -506,8 +517,8 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
         else => true,
     }) return;
 
-    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-    const sample_button = if (pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .sample })) |hotkey| hotkey.down() else false;
+    const sample_button = if (pixi.editor.mouse.button(.sample)) |sample| sample.down() else false;
 
     if (sample_key or sample_button) return;
 
@@ -526,8 +537,8 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
     var canvas_center_offset = canvasCenterOffset(file, canvas);
     canvas_center_offset[0] += options.texture_position_offset[0];
     canvas_center_offset[1] += options.texture_position_offset[1];
-    const mouse_position = pixi.app.mouse.position;
-    const previous_mouse_position = pixi.app.mouse.previous_position;
+    const mouse_position = pixi.editor.mouse.position;
+    const previous_mouse_position = pixi.editor.mouse.previous_position;
 
     var selected_layer: pixi.Internal.Layer = if (file.heightmap.visible)
         if (file.heightmap.layer) |hml| hml else file.layers.slice().get(file.selected_layer_index)
@@ -555,7 +566,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
         }),
     };
 
-    if (if (pixi.app.mouse.button(.primary)) |primary| primary.down() else false) {
+    if (if (pixi.editor.mouse.button(.primary)) |primary| primary.down() else false) {
         const color = switch (pixi.editor.tools.current) {
             .pencil => if (file.heightmap.visible) [_]u8{ pixi.editor.colors.height, 0, 0, 255 } else pixi.editor.colors.primary,
             .eraser => [_]u8{ 0, 0, 0, 0 },
@@ -563,7 +574,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
             else => unreachable,
         };
 
-        if (!std.mem.eql(f32, &pixi.app.mouse.position, &pixi.app.mouse.previous_position)) {
+        if (!std.mem.eql(f32, &pixi.editor.mouse.position, &pixi.editor.mouse.previous_position)) {
             if (pixel_coords_opt) |pixel_coord| {
                 const prev_pixel_coords_opt = switch (canvas) {
                     .primary => camera.pixelCoordinates(.{
@@ -597,12 +608,12 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                                 defer previous_pixel_opt = pixel;
                                 if (previous_pixel_opt) |previous_pixel| {
                                     if (pixel[1] != previous_pixel[1]) {
-                                        if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| {
+                                        if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| {
                                             if (hk.down()) {
                                                 const pixel_signed: i32 = @intCast(pixel[1]);
                                                 const previous_pixel_signed: i32 = @intCast(previous_pixel[1]);
                                                 const difference: i32 = pixel_signed - previous_pixel_signed;
-                                                const sign: i32 = @intFromFloat(std.math.sign((pixi.app.mouse.position[1] - pixi.app.mouse.previous_position[1]) * -1.0));
+                                                const sign: i32 = @intFromFloat(std.math.sign((pixi.editor.mouse.position[1] - pixi.editor.mouse.previous_position[1]) * -1.0));
                                                 pixi.editor.colors.height = @intCast(std.math.clamp(@as(i32, @intCast(pixi.editor.colors.height)) + difference * sign, 0, 255));
                                             }
                                         }
@@ -628,7 +639,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                                         const current_value: [4]u8 = selected_layer.getPixel(current_pixel);
 
                                         if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
-                                            try file.buffers.stroke.append(current_index, current_value);
+                                            try file.buffers.stroke.append(current_index, current_value, canvas);
                                         selected_layer.setPixel(current_pixel, color, false);
                                     } else break;
                                 }
@@ -650,7 +661,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                                         const current_value: [4]u8 = selected_layer.getPixel(current_pixel);
 
                                         if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
-                                            try file.buffers.stroke.append(current_index, current_value);
+                                            try file.buffers.stroke.append(current_index, current_value, canvas);
                                         selected_layer.setPixel(current_pixel, color, false);
                                     } else break;
                                 }
@@ -675,7 +686,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                                     if (valid) {
                                         if (selected_layer.getIndexShapeOffset(pixel, stroke_index)) |shape_result| {
                                             if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{shape_result.index}))
-                                                try file.buffers.stroke.append(shape_result.index, shape_result.color);
+                                                try file.buffers.stroke.append(shape_result.index, shape_result.color, canvas);
                                             selected_layer.setPixelIndex(shape_result.index, color, false);
                                         }
                                     }
@@ -687,7 +698,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                             for (0..(size * size)) |stroke_index| {
                                 if (selected_layer.getIndexShapeOffset(pixel, stroke_index)) |result| {
                                     if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{result.index}))
-                                        try file.buffers.stroke.append(result.index, result.color);
+                                        try file.buffers.stroke.append(result.index, result.color, canvas);
                                     selected_layer.setPixelIndex(result.index, color, false);
 
                                     // if (color[3] == 0) {
@@ -712,7 +723,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                     pixi.app.allocator.free(pixel_coords);
                 }
             }
-        } else if (if (pixi.app.mouse.button(.primary)) |primary| primary.pressed() else false) {
+        } else if (if (pixi.editor.mouse.button(.primary)) |primary| primary.pressed() else false) {
             if (pixel_coords_opt) |pixel_coord| {
                 const pixel: [2]usize = .{ @intFromFloat(pixel_coord[0]), @intFromFloat(pixel_coord[1]) };
 
@@ -741,7 +752,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                                 const current_value: [4]u8 = selected_layer.getPixel(current_pixel);
 
                                 if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
-                                    try file.buffers.stroke.append(current_index, current_value);
+                                    try file.buffers.stroke.append(current_index, current_value, canvas);
                                 selected_layer.setPixel(current_pixel, color, true);
                             } else break;
                         }
@@ -763,7 +774,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                                 const current_value: [4]u8 = selected_layer.getPixel(current_pixel);
 
                                 if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
-                                    try file.buffers.stroke.append(current_index, current_value);
+                                    try file.buffers.stroke.append(current_index, current_value, canvas);
                                 selected_layer.setPixel(current_pixel, color, true);
                             } else break;
                         }
@@ -788,7 +799,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                             if (valid) {
                                 if (selected_layer.getIndexShapeOffset(pixel, stroke_index)) |shape_result| {
                                     if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{shape_result.index}))
-                                        try file.buffers.stroke.append(shape_result.index, shape_result.color);
+                                        try file.buffers.stroke.append(shape_result.index, shape_result.color, canvas);
                                     selected_layer.setPixelIndex(shape_result.index, color, false);
                                 }
                             }
@@ -801,7 +812,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
 
                     for (0..(size * size)) |stroke_index| {
                         if (selected_layer.getIndexShapeOffset(pixel, stroke_index)) |result| {
-                            try file.buffers.stroke.append(result.index, result.color);
+                            try file.buffers.stroke.append(result.index, result.color, canvas);
                             selected_layer.setPixelIndex(result.index, color, false);
 
                             if (color[3] == 0) {
@@ -839,7 +850,7 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                         if (file.temporary_layer.getIndexShapeOffset(pixel, index)) |result| {
                             file.temporary_layer.setPixelIndex(result.index, color, false);
 
-                            try file.buffers.temporary_stroke.append(result.index, color);
+                            try file.buffers.temporary_stroke.append(result.index, color, canvas);
                         }
                     }
                     file.temporary_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
@@ -847,13 +858,13 @@ pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions
                 else => {
                     file.temporary_layer.setPixel(pixel, color, true);
 
-                    try file.buffers.temporary_stroke.append(file.temporary_layer.getPixelIndex(pixel), color);
+                    try file.buffers.temporary_stroke.append(file.temporary_layer.getPixelIndex(pixel), color, canvas);
                 },
             }
         }
 
         // Submit the stroke change buffer
-        if (file.buffers.stroke.indices.items.len > 0 and if (pixi.app.mouse.button(.primary)) |primary| primary.released() else false) {
+        if (file.buffers.stroke.indices.items.len > 0 and (if (pixi.editor.mouse.button(.primary)) |primary| primary.released() else false)) {
             const layer_index: i32 = if (file.heightmap.visible) -1 else @as(i32, @intCast(file.selected_layer_index));
             const change = try file.buffers.stroke.toChange(layer_index);
             try file.history.append(change);
@@ -867,12 +878,12 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
         else => true,
     }) return;
 
-    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-    const sample_button = if (pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .sample })) |hotkey| hotkey.down() else false;
+    const sample_button = if (pixi.editor.mouse.button(.sample)) |sample| sample.down() else false;
 
-    const add: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
-    const rem: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
-    const pressed: bool = if (pixi.app.mouse.button(.primary)) |bt| bt.pressed() else false;
+    const add: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| hk.down() else false;
+    const rem: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .secondary })) |hk| hk.down() else false;
+    const pressed: bool = if (pixi.editor.mouse.button(.primary)) |bt| bt.pressed() else false;
 
     if (sample_key or sample_button) return;
 
@@ -883,7 +894,7 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
     var canvas_center_offset = canvasCenterOffset(file, canvas);
     canvas_center_offset[0] += options.texture_position_offset[0];
     canvas_center_offset[1] += options.texture_position_offset[1];
-    const mouse_position = pixi.app.mouse.position;
+    const mouse_position = pixi.editor.mouse.position;
 
     const camera = switch (canvas) {
         .primary => file.camera,
@@ -916,7 +927,7 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
 
         const selection_opacity: u8 = 200;
 
-        if (if (pixi.app.mouse.button(.primary)) |primary| primary.down() else false) {
+        if (if (pixi.editor.mouse.button(.primary)) |primary| primary.down() else false) {
             for (0..(stroke_size * stroke_size)) |index| {
                 if (file.selection_layer.getIndexShapeOffset(pixel, index)) |result| {
                     var color: [4]u8 = if (@mod(@divTrunc(result.index, file.width) + result.index, 2) == 0)
@@ -939,7 +950,7 @@ pub fn processSelectionTool(file: *File, canvas: Canvas, options: StrokeToolOpti
 
                     if (file.layers.slice().get(file.selected_layer_index).pixels()[result.index][3] != 0) {
                         file.temporary_layer.setPixelIndex(result.index, color, false);
-                        try file.buffers.temporary_stroke.append(result.index, color);
+                        try file.buffers.temporary_stroke.append(result.index, color, canvas);
                     }
                 }
             }
@@ -952,7 +963,7 @@ pub fn processAnimationTool(file: *File) !void {
     if (pixi.editor.explorer.pane != .animations or pixi.editor.tools.current != .animation) return;
 
     const canvas_center_offset = canvasCenterOffset(file, .primary);
-    const mouse_position = pixi.app.mouse.position;
+    const mouse_position = pixi.editor.mouse.position;
 
     if (file.camera.pixelCoordinates(.{
         .texture_position = canvas_center_offset,
@@ -975,11 +986,11 @@ pub fn processAnimationTool(file: *File) !void {
             pixi.editor.popups.animation_length = 1;
         }
 
-        if (if (pixi.app.mouse.button(.primary)) |primary| primary.pressed() else false)
+        if (if (pixi.editor.mouse.button(.primary)) |primary| primary.pressed() else false)
             pixi.editor.popups.animation_start = tile_index;
 
-        if (if (pixi.app.mouse.button(.primary)) |primary| primary.released() else false) {
-            if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |primary| {
+        if (if (pixi.editor.mouse.button(.primary)) |primary| primary.released() else false) {
+            if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |primary| {
                 if (primary.down()) {
                     var valid: bool = true;
                     var i: usize = pixi.editor.popups.animation_start;
@@ -1035,7 +1046,7 @@ pub fn processAnimationTool(file: *File) !void {
 }
 
 // Internal dfs function for flood fill
-fn fillToolDFS(file: *File, fill_layer: Layer, pixels: [][4]u8, x: usize, y: usize, bounds: [4]usize, original_color: [4]u8, new_color: [4]u8) !void {
+fn fillToolDFS(file: *File, fill_layer: Layer, pixels: [][4]u8, x: usize, y: usize, bounds: [4]usize, original_color: [4]u8, new_color: [4]u8, canvas: Canvas) !void {
     if (x >= bounds[0] + bounds[2] or y >= bounds[1] + bounds[3] or x < bounds[0] or y < bounds[1]) {
         return;
     }
@@ -1048,11 +1059,11 @@ fn fillToolDFS(file: *File, fill_layer: Layer, pixels: [][4]u8, x: usize, y: usi
     pixels[pixel_index] = new_color;
 
     // Recursively fill adjacent pixels
-    if (@as(i32, @intCast(x)) - 1 >= 0) try fillToolDFS(file, fill_layer, pixels, x - 1, y, bounds, original_color, new_color);
-    try fillToolDFS(file, fill_layer, pixels, x + 1, y, bounds, original_color, new_color);
-    if (@as(i32, @intCast(y)) - 1 >= 0) try fillToolDFS(file, fill_layer, pixels, x, y - 1, bounds, original_color, new_color);
-    try fillToolDFS(file, fill_layer, pixels, x, y + 1, bounds, original_color, new_color);
-    try file.buffers.stroke.append(pixel_index, original_color);
+    if (@as(i32, @intCast(x)) - 1 >= 0) try fillToolDFS(file, fill_layer, pixels, x - 1, y, bounds, original_color, new_color, canvas);
+    try fillToolDFS(file, fill_layer, pixels, x + 1, y, bounds, original_color, new_color, canvas);
+    if (@as(i32, @intCast(y)) - 1 >= 0) try fillToolDFS(file, fill_layer, pixels, x, y - 1, bounds, original_color, new_color, canvas);
+    try fillToolDFS(file, fill_layer, pixels, x, y + 1, bounds, original_color, new_color, canvas);
+    try file.buffers.stroke.append(pixel_index, original_color, canvas);
 }
 
 pub const FillToolOptions = struct {
@@ -1065,8 +1076,8 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
         else => true,
     }) return;
 
-    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .sample })) |hotkey| hotkey.down() else false;
-    const sample_button = if (pixi.app.mouse.button(.sample)) |sample| sample.down() else false;
+    const sample_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .sample })) |hotkey| hotkey.down() else false;
+    const sample_button = if (pixi.editor.mouse.button(.sample)) |sample| sample.down() else false;
 
     if (sample_key or sample_button) return;
 
@@ -1076,7 +1087,7 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
     var canvas_center_offset = canvasCenterOffset(file, canvas);
     canvas_center_offset[0] += options.texture_position_offset[0];
     canvas_center_offset[1] += options.texture_position_offset[1];
-    const mouse_position = pixi.app.mouse.position;
+    const mouse_position = pixi.editor.mouse.position;
 
     var selected_layer: pixi.Internal.Layer = file.layers.slice().get(file.selected_layer_index);
 
@@ -1101,7 +1112,7 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
         }),
     };
 
-    if (if (pixi.app.mouse.button(.primary)) |primary| primary.pressed() else false) {
+    if (if (pixi.editor.mouse.button(.primary)) |primary| primary.pressed() else false) {
         if (pixel_coords_opt) |pixel_coord| {
             const pixel = .{ @as(usize, @intFromFloat(pixel_coord[0])), @as(usize, @intFromFloat(pixel_coord[1])) };
 
@@ -1128,7 +1139,7 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
                 return;
             }
 
-            if (if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false) {
+            if (if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| hk.down() else false) {
                 for (bounds_x..bounds_x + bounds_width) |x| {
                     for (bounds_y..bounds_y + bounds_height) |y| {
                         if (std.mem.eql(u8, &selected_layer.getPixel(.{ x, y }), &old_color)) {
@@ -1136,12 +1147,12 @@ pub fn processFillTool(file: *File, canvas: Canvas, options: FillToolOptions) !v
 
                             const pixel_index = selected_layer.getPixelIndex(.{ x, y });
 
-                            try file.buffers.stroke.append(pixel_index, old_color);
+                            try file.buffers.stroke.append(pixel_index, old_color, canvas);
                         }
                     }
                 }
             } else {
-                try fillToolDFS(file, selected_layer, pixels, pixel[0], pixel[1], bounds, old_color, new_color);
+                try fillToolDFS(file, selected_layer, pixels, pixel[0], pixel[1], bounds, old_color, new_color, canvas);
             }
 
             selected_layer.texture.update(pixi.core.windows.get(pixi.app.window, .device));
@@ -1166,11 +1177,13 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
 
     const window_hovered: bool = imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows);
 
-    const modifier_primary: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hk| hk.down() else false;
-    const modifier_secondary: bool = if (pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hk| hk.down() else false;
+    const modifier_primary: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hk| hk.down() else false;
+    const modifier_secondary: bool = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .secondary })) |hk| hk.down() else false;
 
-    if (transform_texture.control) |*control| {
-        control.mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect;
+    if (transform_texture.action == .move_pivot) {
+        if (transform_texture.control) |*control| {
+            control.mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect;
+        }
     }
 
     const camera = switch (canvas) {
@@ -1185,12 +1198,15 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
 
     const offset = zmath.loadArr2(if (canvas == .flipbook) .{ 0.0, 0.0 } else file.canvasCenterOffset(canvas));
 
-    if (pixi.app.mouse.button(.primary)) |bt| {
+    if (!imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
+        transform_texture.action = .none;
+        transform_texture.control = null;
+    }
+
+    if (pixi.editor.mouse.button(.primary)) |bt| {
         if (bt.released()) {
+            transform_texture.action = .none;
             transform_texture.control = null;
-            transform_texture.pan = false;
-            transform_texture.rotate = false;
-            transform_texture.pivot_move = false;
         }
     }
 
@@ -1244,9 +1260,9 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
         .{ .position = zmath.mul(transform_texture.vertices[3].position - pivot, rotation_matrix) + pivot },
     };
 
-    if (transform_texture.pivot_move) {
+    if (transform_texture.action == .move_pivot) {
         if (window_hovered) {
-            const mouse_position = pixi.app.mouse.position;
+            const mouse_position = pixi.editor.mouse.position;
 
             const current_pixel_coords = camera.pixelCoordinatesRaw(.{
                 .texture_position = .{ offset[0], offset[1] },
@@ -1319,14 +1335,15 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
         if (camera.isHovered(.{ control_center[0] + offset[0] - half_grip_size, control_center[1] + offset[1] - half_grip_size, grip_size, grip_size }) and window_hovered) {
             hovered = true;
             cursor = imgui.MouseCursor_Hand;
-            if (pixi.app.mouse.button(.primary)) |bt| {
+            if (pixi.editor.mouse.button(.primary)) |bt| {
                 if (bt.pressed()) {
-                    transform_texture.rotate = true;
+                    if (transform_texture.action == .none)
+                        transform_texture.action = .rotate;
                 }
             }
         }
 
-        if (transform_texture.rotate or hovered or transform_texture.pivot_move) {
+        if (transform_texture.action == .rotate or hovered or transform_texture.action == .move_pivot) {
             control_scale = 1.5;
 
             const dist = @sqrt(std.math.pow(f32, control_center[0] - pivot[0], 2) + std.math.pow(f32, control_center[1] - pivot[1], 2));
@@ -1344,7 +1361,9 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
             // }
         }
 
-        camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * camera.zoom * control_scale, default_color);
+        const color = if (hovered or transform_texture.action == .rotate) highlight_color else default_color;
+
+        camera.drawCircleFilled(.{ control_center[0] + offset[0], control_center[1] + offset[1] }, half_grip_size * camera.zoom * control_scale, color);
     }
 
     if (options.allow_vert_move) {
@@ -1354,8 +1373,9 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
 
             if (camera.isHovered(grip_rect) and options.allow_vert_move and window_hovered) {
                 hovered_index = vertex_index;
-                if (pixi.app.mouse.button(.primary)) |bt| {
-                    if (bt.pressed()) {
+                if (pixi.editor.mouse.button(.primary)) |bt| {
+                    if (bt.pressed() and transform_texture.action == .none) {
+                        transform_texture.action = .move_vertex;
                         transform_texture.control = .{
                             .index = vertex_index,
                             .mode = if (modifier_primary) .free else if (modifier_secondary) .locked_aspect else .free_aspect,
@@ -1415,35 +1435,38 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
         };
 
         const pan_hovered: bool = window_hovered and hovered_index == null and transform_texture.control == null and (camera.isHoveredTriangle(triangle_a) or camera.isHoveredTriangle(triangle_b));
-        const mouse_pressed = if (pixi.app.mouse.button(.primary)) |bt| bt.pressed() else false;
+        const mouse_pressed = if (pixi.editor.mouse.button(.primary)) |bt| bt.pressed() else false;
+
+        const pivot_color = if (pivot_hovered) highlight_color else default_color;
 
         if (pan_hovered or pivot_hovered) {
             cursor = imgui.MouseCursor_Hand;
         }
 
-        if (((pan_hovered and !pivot_hovered) or (pan_hovered and !options.allow_pivot_move)) and mouse_pressed) {
-            transform_texture.pan = true;
+        if (((pan_hovered and !pivot_hovered) or (pan_hovered and !options.allow_pivot_move)) and mouse_pressed and transform_texture.action == .none) {
+            transform_texture.action = .pan;
         }
-        if (pivot_hovered and mouse_pressed and options.allow_pivot_move) {
-            transform_texture.pivot_move = true;
+        if (pivot_hovered and mouse_pressed and options.allow_pivot_move and transform_texture.action == .none) {
+            transform_texture.action = .move_pivot;
             transform_texture.control = null;
         }
 
-        const centroid_scale: f32 = if (pan_hovered or transform_texture.pan or pivot_hovered or transform_texture.pivot_move) 1.5 else 1.0;
-        camera.drawCircleFilled(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, half_grip_size * camera.zoom * centroid_scale, default_color);
+        const centroid_scale: f32 = if (pan_hovered or transform_texture.action == .pan or pivot_hovered or transform_texture.action == .move_pivot) 1.5 else 1.0;
+        camera.drawCircleFilled(.{ pivot[0] + offset[0], pivot[1] + offset[1] }, half_grip_size * camera.zoom * centroid_scale, pivot_color);
     }
 
     { // Handle setting the mouse cursor based on controls
-
-        if (transform_texture.control) |c| {
-            switch (c.index) {
-                0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
-                1, 3 => cursor = imgui.MouseCursor_ResizeNESW,
-                else => unreachable,
+        if (transform_texture.action == .move_vertex and options.allow_vert_move) {
+            if (transform_texture.control) |c| {
+                switch (c.index) {
+                    0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
+                    1, 3 => cursor = imgui.MouseCursor_ResizeNESW,
+                    else => unreachable,
+                }
             }
         }
 
-        if (options.allow_pivot_move) {
+        if (options.allow_pivot_move and transform_texture.action == .move_pivot) {
             if (hovered_index) |i| {
                 switch (i) {
                     0, 2 => cursor = imgui.MouseCursor_ResizeNWSE,
@@ -1453,7 +1476,7 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
             }
         }
 
-        if (transform_texture.pan or transform_texture.rotate or transform_texture.pivot_move)
+        if (transform_texture.action == .pan or transform_texture.action == .rotate or transform_texture.action == .move_pivot)
             cursor = imgui.MouseCursor_ResizeAll;
 
         if (cursor != imgui.MouseCursor_None and cursor != imgui.MouseCursor_Arrow)
@@ -1461,10 +1484,10 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
     }
 
     { // Handle moving the vertices when panning
-        if (transform_texture.pan) {
+        if (transform_texture.action == .pan) {
             if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
-                const mouse_position = pixi.app.mouse.position;
-                const prev_mouse_position = pixi.app.mouse.previous_position;
+                const mouse_position = pixi.editor.mouse.position;
+                const prev_mouse_position = pixi.editor.mouse.previous_position;
                 const current_pixel_coords = camera.pixelCoordinatesRaw(.{
                     .texture_position = .{ offset[0], offset[1] },
                     .position = mouse_position,
@@ -1496,9 +1519,9 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
     }
 
     { // Handle changing the rotation when rotating
-        if (transform_texture.rotate) {
+        if (transform_texture.action == .rotate) {
             if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
-                const mouse_position = pixi.app.mouse.position;
+                const mouse_position = pixi.editor.mouse.position;
                 const current_pixel_coords = camera.pixelCoordinatesRaw(.{
                     .texture_position = .{ offset[0], offset[1] },
                     .position = mouse_position,
@@ -1558,118 +1581,120 @@ pub fn processTransformTextureControls(file: *File, transform_texture: *pixi.Int
     }
 
     blk_vert: { // Handle moving the vertices when moving a single control
-        if (transform_texture.control) |control| {
-            if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
-                const mouse_position = pixi.app.mouse.position;
-                const current_pixel_coords = camera.pixelCoordinatesRaw(.{
-                    .texture_position = .{ offset[0], offset[1] },
-                    .position = mouse_position,
-                    .width = file.width,
-                    .height = file.height,
-                });
+        if (transform_texture.action == .move_vertex and options.allow_vert_move) {
+            if (transform_texture.control) |control| {
+                if (imgui.isWindowHovered(imgui.HoveredFlags_ChildWindows)) {
+                    const mouse_position = pixi.editor.mouse.position;
+                    const current_pixel_coords = camera.pixelCoordinatesRaw(.{
+                        .texture_position = .{ offset[0], offset[1] },
+                        .position = mouse_position,
+                        .width = file.width,
+                        .height = file.height,
+                    });
 
-                switch (control.mode) {
-                    .locked_aspect, .free_aspect => { // TODO: implement locked aspect
+                    switch (control.mode) {
+                        .locked_aspect, .free_aspect => { // TODO: implement locked aspect
 
-                        // First, move the selected vertex to the mouse position
-                        const control_vert = &rotated_vertices[control.index];
-                        const position = @trunc(zmath.loadArr2(current_pixel_coords));
-                        control_vert.position = position;
+                            // First, move the selected vertex to the mouse position
+                            const control_vert = &rotated_vertices[control.index];
+                            const position = @trunc(zmath.loadArr2(current_pixel_coords));
+                            control_vert.position = position;
 
-                        // Find adjacent verts
-                        const adjacent_index_cw = if (control.index < 3) control.index + 1 else 0;
-                        const adjacent_index_ccw = if (control.index > 0) control.index - 1 else 3;
+                            // Find adjacent verts
+                            const adjacent_index_cw = if (control.index < 3) control.index + 1 else 0;
+                            const adjacent_index_ccw = if (control.index > 0) control.index - 1 else 3;
 
-                        const opposite_index: usize = switch (control.index) {
-                            0 => 2,
-                            1 => 3,
-                            2 => 0,
-                            3 => 1,
-                            else => unreachable,
-                        };
-
-                        const adjacent_vert_cw = &rotated_vertices[adjacent_index_cw];
-                        const adjacent_vert_ccw = &rotated_vertices[adjacent_index_ccw];
-                        const opposite_vert = &rotated_vertices[opposite_index];
-
-                        // Get rotation directions to apply to adjacent vertex
-                        const rotation_direction = zmath.mul(zmath.loadArr2(.{ 0.0, 1.0 }), rotation_matrix);
-                        const rotation_perp = zmath.mul(zmath.loadArr2(.{ 1.0, 0.0 }), rotation_matrix);
-
-                        { // Calculate intersection point to set adjacent vert
-                            const as = control_vert.position;
-                            const bs = opposite_vert.position;
-                            const ad = -rotation_direction;
-                            const bd = rotation_perp;
-                            const dx = bs[0] - as[0];
-                            const dy = bs[1] - as[1];
-                            const det = bd[0] * ad[1] - bd[1] * ad[0];
-                            if (det == 0.0) break :blk_vert;
-                            const u = (dy * bd[0] - dx * bd[1]) / det;
-                            switch (control.index) {
-                                1, 3 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
-                                0, 2 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
+                            const opposite_index: usize = switch (control.index) {
+                                0 => 2,
+                                1 => 3,
+                                2 => 0,
+                                3 => 1,
                                 else => unreachable,
+                            };
+
+                            const adjacent_vert_cw = &rotated_vertices[adjacent_index_cw];
+                            const adjacent_vert_ccw = &rotated_vertices[adjacent_index_ccw];
+                            const opposite_vert = &rotated_vertices[opposite_index];
+
+                            // Get rotation directions to apply to adjacent vertex
+                            const rotation_direction = zmath.mul(zmath.loadArr2(.{ 0.0, 1.0 }), rotation_matrix);
+                            const rotation_perp = zmath.mul(zmath.loadArr2(.{ 1.0, 0.0 }), rotation_matrix);
+
+                            { // Calculate intersection point to set adjacent vert
+                                const as = control_vert.position;
+                                const bs = opposite_vert.position;
+                                const ad = -rotation_direction;
+                                const bd = rotation_perp;
+                                const dx = bs[0] - as[0];
+                                const dy = bs[1] - as[1];
+                                const det = bd[0] * ad[1] - bd[1] * ad[0];
+                                if (det == 0.0) break :blk_vert;
+                                const u = (dy * bd[0] - dx * bd[1]) / det;
+                                switch (control.index) {
+                                    1, 3 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
+                                    0, 2 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
+                                    else => unreachable,
+                                }
                             }
-                        }
 
-                        { // Calculate intersection point to set adjacent vert
-                            const as = control_vert.position;
-                            const bs = opposite_vert.position;
-                            const ad = -rotation_perp;
-                            const bd = rotation_direction;
-                            const dx = bs[0] - as[0];
-                            const dy = bs[1] - as[1];
-                            const det = bd[0] * ad[1] - bd[1] * ad[0];
-                            if (det == 0.0) break :blk_vert;
-                            const u = (dy * bd[0] - dx * bd[1]) / det;
-                            switch (control.index) {
-                                1, 3 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
-                                0, 2 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
-                                else => unreachable,
+                            { // Calculate intersection point to set adjacent vert
+                                const as = control_vert.position;
+                                const bs = opposite_vert.position;
+                                const ad = -rotation_perp;
+                                const bd = rotation_direction;
+                                const dx = bs[0] - as[0];
+                                const dy = bs[1] - as[1];
+                                const det = bd[0] * ad[1] - bd[1] * ad[0];
+                                if (det == 0.0) break :blk_vert;
+                                const u = (dy * bd[0] - dx * bd[1]) / det;
+                                switch (control.index) {
+                                    1, 3 => adjacent_vert_ccw.position = as + ad * zmath.f32x4s(u),
+                                    0, 2 => adjacent_vert_cw.position = as + ad * zmath.f32x4s(u),
+                                    else => unreachable,
+                                }
                             }
-                        }
 
-                        // Recalculate the centroid with new vertex positions
-                        var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
-                        if (transform_texture.pivot == null) {
-                            for (rotated_vertices) |vertex| {
-                                rotated_centroid += vertex.position; // Collect centroid
+                            // Recalculate the centroid with new vertex positions
+                            var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
+                            if (transform_texture.pivot == null) {
+                                for (rotated_vertices) |vertex| {
+                                    rotated_centroid += vertex.position; // Collect centroid
+                                }
+                                rotated_centroid /= zmath.f32x4s(4.0); // Average position
                             }
-                            rotated_centroid /= zmath.f32x4s(4.0); // Average position
-                        }
 
-                        // Reverse the rotation, then finalize the changes
-                        for (&rotated_vertices, 0..) |*vert, i| {
-                            vert.position -= rotated_centroid;
-                            vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
-                            vert.position += rotated_centroid;
+                            // Reverse the rotation, then finalize the changes
+                            for (&rotated_vertices, 0..) |*vert, i| {
+                                vert.position -= rotated_centroid;
+                                vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
+                                vert.position += rotated_centroid;
 
-                            transform_texture.vertices[i].position = vert.position;
-                        }
-                    },
-                    .free => {
-                        const control_vert = &rotated_vertices[control.index];
-
-                        const position = @trunc(zmath.loadArr2(current_pixel_coords));
-                        control_vert.position = position;
-
-                        var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
-                        if (transform_texture.pivot == null) {
-                            for (rotated_vertices) |vertex| {
-                                rotated_centroid += vertex.position; // Collect centroid
+                                transform_texture.vertices[i].position = vert.position;
                             }
-                            rotated_centroid /= zmath.f32x4s(4.0); // Average position
-                        }
+                        },
+                        .free => {
+                            const control_vert = &rotated_vertices[control.index];
 
-                        for (&rotated_vertices, 0..) |*vert, i| {
-                            vert.position -= rotated_centroid;
-                            vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
-                            vert.position += rotated_centroid;
+                            const position = @trunc(zmath.loadArr2(current_pixel_coords));
+                            control_vert.position = position;
 
-                            transform_texture.vertices[i].position = vert.position;
-                        }
-                    },
+                            var rotated_centroid = if (transform_texture.pivot) |p| p.position else zmath.f32x4s(0.0);
+                            if (transform_texture.pivot == null) {
+                                for (rotated_vertices) |vertex| {
+                                    rotated_centroid += vertex.position; // Collect centroid
+                                }
+                                rotated_centroid /= zmath.f32x4s(4.0); // Average position
+                            }
+
+                            for (&rotated_vertices, 0..) |*vert, i| {
+                                vert.position -= rotated_centroid;
+                                vert.position = zmath.mul(vert.position, zmath.inverse(rotation_matrix));
+                                vert.position += rotated_centroid;
+
+                                transform_texture.vertices[i].position = vert.position;
+                            }
+                        },
+                    }
                 }
             }
         }
@@ -1879,7 +1904,7 @@ pub fn cut(self: *File, append_history: bool) !void {
                             if (msk_pixel[3] != 0) {
                                 @memcpy(dst_pixel, src_pixel);
 
-                                try self.buffers.stroke.append(start + i, src_pixel.*);
+                                try self.buffers.stroke.append(start + i, src_pixel.*, .primary);
                                 @memset(src_pixel, 0);
                             }
                         }
@@ -2050,30 +2075,26 @@ pub fn paste(self: *File) !void {
 }
 
 pub fn createBackground(self: *File) !void {
-    var image = try zstbi.Image.createEmpty(self.tile_width * 2, self.tile_height * 2, 4, .{});
-    // Set background image data to checkerboard
-    {
-        var i: usize = 0;
-        while (i < @as(usize, @intCast(self.tile_width * 2 * self.tile_height * 2 * 4))) : (i += 4) {
-            const r = i;
-            const g = i + 1;
-            const b = i + 2;
-            const a = i + 3;
-            const primary = pixi.editor.theme.checkerboard_primary.bytes();
-            const secondary = pixi.editor.theme.checkerboard_secondary.bytes();
-            if (i % 3 == 0) {
-                image.data[r] = primary[0];
-                image.data[g] = primary[1];
-                image.data[b] = primary[2];
-                image.data[a] = primary[3];
-            } else {
-                image.data[r] = secondary[0];
-                image.data[g] = secondary[1];
-                image.data[b] = secondary[2];
-                image.data[a] = secondary[3];
-            }
+    const width: usize = @intCast(self.tile_width * 2);
+    const height: usize = @intCast(self.tile_height * 2);
+
+    var image = try zstbi.Image.createEmpty(@intCast(width), @intCast(height), 4, .{});
+
+    const primary = pixi.editor.theme.checkerboard_primary.bytes();
+    const secondary = pixi.editor.theme.checkerboard_secondary.bytes();
+
+    var y: usize = 0;
+    while (y < height) : (y += 1) {
+        var x: usize = 0;
+        while (x < width * 4) : (x += 4) {
+            const r: usize = (y * width * 4) + (x);
+
+            const marker = @mod(y + @divExact(x, 4), 2);
+
+            @memcpy(image.data[r .. r + 4], if (marker == 0) &primary else &secondary);
         }
     }
+
     self.background = pixi.gfx.Texture.create(image, .{});
 }
 
@@ -2330,8 +2351,8 @@ pub fn makeSpriteSelection(self: *File, selected_sprite: usize) !void {
     const selection = self.selected_sprites.items.len > 0;
     const selected_sprite_index = self.spriteSelectionIndex(selected_sprite);
     const contains = selected_sprite_index != null;
-    const primary_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .primary })) |hotkey| hotkey.down() else false;
-    const secondary_key = if (pixi.editor.hotkeys.hotkey(.{ .proc = .secondary })) |hotkey| hotkey.down() else false;
+    const primary_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .primary })) |hotkey| hotkey.down() else false;
+    const secondary_key = if (pixi.editor.hotkeys.hotkey(.{ .procedure = .secondary })) |hotkey| hotkey.down() else false;
     if (primary_key) {
         if (!contains) {
             try self.selected_sprites.append(selected_sprite);
@@ -2532,12 +2553,8 @@ pub fn getSpriteIndexAfterDirection(self: *File, direction: pixi.math.Direction)
     return future_index;
 }
 
-pub fn selectDirection(self: *File, direction: pixi.math.Direction) void {
-    self.flipbook_scroll_request = .{
-        .from = self.flipbook_scroll,
-        .to = self.flipbookScrollFromSpriteIndex(self.getSpriteIndexAfterDirection(direction)),
-        .state = self.selected_animation_state,
-    };
+pub fn selectDirection(file: *File, direction: pixi.math.Direction) void {
+    file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(file.getSpriteIndexAfterDirection(direction));
 }
 
 pub fn copyDirection(file: *File, direction: pixi.math.Direction) !void {
@@ -2547,11 +2564,7 @@ pub fn copyDirection(file: *File, direction: pixi.math.Direction) !void {
 
     try copySprite(file, src_index, dst_index, layer_id);
 
-    file.flipbook_scroll_request = .{
-        .from = file.flipbook_scroll,
-        .to = file.flipbookScrollFromSpriteIndex(dst_index),
-        .state = file.selected_animation_state,
-    };
+    file.flipbook_scroll = file.flipbookScrollFromSpriteIndex(dst_index);
 }
 
 pub fn copySpriteAllLayers(file: *File, src_index: usize, dst_index: usize) !void {
@@ -2600,7 +2613,7 @@ pub fn copySprite(file: *File, src_index: usize, dst_index: usize, layer_id: usi
         const dest = src_pixels[dest_i .. dest_i + @as(usize, @intCast(file.tile_width))];
 
         for (src, 0..) |pixel, pixel_i| {
-            try file.buffers.stroke.append(pixel_i + dest_i, dest[pixel_i]);
+            try file.buffers.stroke.append(pixel_i + dest_i, dest[pixel_i], .primary);
             dest[pixel_i] = pixel;
         }
     }
@@ -2671,7 +2684,7 @@ pub fn shiftDirection(file: *File, direction: pixi.math.Direction) !void {
         const dest = src_pixels[dest_i .. dest_i + tile_width];
 
         for (src, 0..) |_, pixel_i| {
-            try file.buffers.stroke.append(pixel_i + dest_i, dest[pixel_i]);
+            try file.buffers.stroke.append(pixel_i + dest_i, dest[pixel_i], .primary);
         }
         switch (direction) {
             .e => std.mem.copyBackwards([4]u8, dest, src),
@@ -2710,7 +2723,7 @@ pub fn eraseSprite(file: *File, sprite_index: usize, append_history: bool) !void
         const dest = src_pixels[p_dest .. p_dest + @as(usize, @intCast(file.tile_width))];
 
         for (dest, 0..) |pixel, pixel_i| {
-            try file.buffers.stroke.append(pixel_i + p_dest, pixel);
+            try file.buffers.stroke.append(pixel_i + p_dest, pixel, .primary);
             dest[pixel_i] = .{ 0.0, 0.0, 0.0, 0.0 };
         }
     }

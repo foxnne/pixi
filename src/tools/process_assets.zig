@@ -62,6 +62,11 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
             // Iterate all files
             for (files) |file| {
                 const ext = std.fs.path.extension(file);
+
+                if (std.mem.eql(u8, ext, "")) {
+                    continue;
+                }
+
                 const base = std.fs.path.basename(file);
                 const ext_ind = std.mem.lastIndexOf(u8, base, ".");
                 const name = base[0..ext_ind.?];

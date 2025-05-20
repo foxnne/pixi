@@ -1,7 +1,8 @@
 const std = @import("std");
 
 const pixi = @import("../pixi.zig");
-const Core = @import("mach").Core;
+const mach = @import("mach");
+const Core = mach.Core;
 const Editor = pixi.Editor;
 
 const zm = @import("zmath");
@@ -10,7 +11,6 @@ const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
 const Key = Core.Key;
-const Mods = Core.KeyMods;
 
 const builtin = @import("builtin");
 
@@ -25,17 +25,18 @@ pub const KeyState = enum {
     release,
 };
 
-pub const Proc = enum(u32) {
+pub const Procedure = enum(u32) {
     save,
     save_all,
     undo,
     redo,
     primary,
     secondary,
+    confirm,
     escape,
     sample,
     zoom,
-    folder,
+    open_folder,
     export_png,
     size_up,
     size_down,
@@ -66,11 +67,13 @@ pub const Proc = enum(u32) {
 pub const Action = union(enum) {
     tool: Tool,
     sidebar: Pane,
-    proc: Proc,
+    procedure: Procedure,
 };
 
 hotkeys: []Hotkey,
 disable: bool = false,
+timer: mach.time.Timer = undefined,
+delta_time: f32 = 0.0,
 
 pub const Hotkey = struct {
     shortcut: [:0]const u8 = undefined,
@@ -79,6 +82,7 @@ pub const Hotkey = struct {
     action: Action,
     state: bool = false,
     previous_state: bool = false,
+    time: f32 = 0.0,
 
     /// Returns true the frame the key was pressed.
     pub fn pressed(self: Hotkey) bool {
@@ -99,6 +103,25 @@ pub const Hotkey = struct {
     pub fn up(self: Hotkey) bool {
         return self.state == false;
     }
+
+    pub const Mods = struct {
+        shift: ?bool = null,
+        control: ?bool = null,
+        alt: ?bool = null,
+        super: ?bool = null,
+        caps_lock: ?bool = null,
+        num_lock: ?bool = null,
+
+        pub fn resolve(required: Mods, provided: Core.KeyMods) bool {
+            if (required.shift) |shift| if (provided.shift != shift) return false;
+            if (required.control) |control| if (provided.control != control) return false;
+            if (required.alt) |alt| if (provided.alt != alt) return false;
+            if (required.super) |super| if (provided.super != super) return false;
+            if (required.caps_lock) |caps_lock| if (provided.caps_lock != caps_lock) return false;
+            if (required.num_lock) |num_lock| if (provided.num_lock != num_lock) return false;
+            return true;
+        }
+    };
 };
 
 pub fn hotkey(self: *Self, action: Action) ?*Hotkey {
@@ -112,8 +135,8 @@ pub fn hotkey(self: *Self, action: Action) ?*Hotkey {
                 .sidebar => |sidebar| {
                     if (sidebar == action.sidebar) return hk;
                 },
-                .proc => |proc| {
-                    if (proc == action.proc) return hk;
+                .procedure => |proc| {
+                    if (proc == action.procedure) return hk;
                 },
             }
         }
@@ -121,18 +144,18 @@ pub fn hotkey(self: *Self, action: Action) ?*Hotkey {
     return null;
 }
 
-pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
+pub fn setHotkeyState(self: *Self, k: Key, mods: Core.KeyMods, state: KeyState) void {
     for (self.hotkeys) |*hk| {
         if (hk.key == k) {
             if (state == .release or (hk.mods == null and @as(u8, @bitCast(mods)) == 0)) {
-                //hk.previous_state = hk.state;
+                hk.previous_state = hk.state;
                 hk.state = switch (state) {
                     .release => false,
                     else => true,
                 };
             } else if (hk.mods) |md| {
-                if (@as(u8, @bitCast(md)) == @as(u8, @bitCast(mods))) {
-                    //hk.previous_state = hk.state;
+                if (md.resolve(mods)) {
+                    hk.previous_state = hk.state;
                     hk.state = switch (state) {
                         .release => false,
                         else => true,
@@ -143,13 +166,9 @@ pub fn setHotkeyState(self: *Self, k: Key, mods: Mods, state: KeyState) void {
     }
 }
 
-pub fn pushHotkeyPreviousStates(self: *Self) void {
-    for (self.hotkeys) |*hk| {
-        hk.previous_state = hk.state;
-    }
-}
-
 pub fn process(self: *Self, editor: *Editor) !void {
+    self.delta_time = self.timer.lap();
+
     if (self.disable) {
         return;
     }
@@ -157,7 +176,7 @@ pub fn process(self: *Self, editor: *Editor) !void {
     if (editor.getFile(editor.open_file_index)) |file| {
         if (file.transform_texture != null) return;
 
-        if (self.hotkey(.{ .proc = .escape })) |hk| {
+        if (self.hotkey(.{ .procedure = .escape })) |hk| {
             if (hk.pressed()) {
                 if (file.selected_sprites.items.len > 0) {
                     file.selected_sprites.clearAndFree();
@@ -165,28 +184,28 @@ pub fn process(self: *Self, editor: *Editor) !void {
             }
         }
 
-        if (self.hotkey(.{ .proc = .save })) |hk| {
+        if (self.hotkey(.{ .procedure = .save })) |hk| {
             if (hk.pressed()) {
                 try editor.save();
             }
         }
 
-        if (self.hotkey(.{ .proc = .undo })) |hk| {
+        if (self.hotkey(.{ .procedure = .undo })) |hk| {
             if (hk.pressed())
                 try file.undo();
         }
 
-        if (self.hotkey(.{ .proc = .redo })) |hk| {
+        if (self.hotkey(.{ .procedure = .redo })) |hk| {
             if (hk.pressed())
                 try file.redo();
         }
 
-        if (self.hotkey(.{ .proc = .export_png })) |hk| {
+        if (self.hotkey(.{ .procedure = .export_png })) |hk| {
             if (hk.pressed())
                 pixi.editor.popups.print = true;
         }
 
-        if (self.hotkey(.{ .proc = .size_up })) |hk| {
+        if (self.hotkey(.{ .procedure = .size_up })) |hk| {
             if (hk.pressed()) {
                 switch (editor.tools.current) {
                     .pencil, .eraser, .selection => {
@@ -195,10 +214,19 @@ pub fn process(self: *Self, editor: *Editor) !void {
                     },
                     else => {},
                 }
+            } else if (hk.down()) {
+                hk.time += self.delta_time;
+
+                if (hk.time > editor.settings.hotkey_repeat_time) {
+                    hk.time = 0.0;
+
+                    if (editor.tools.stroke_size < editor.settings.stroke_max_size)
+                        editor.tools.stroke_size += 1;
+                }
             }
         }
 
-        if (self.hotkey(.{ .proc = .size_down })) |hk| {
+        if (self.hotkey(.{ .procedure = .size_down })) |hk| {
             if (hk.pressed()) {
                 switch (editor.tools.current) {
                     .pencil, .eraser, .selection => {
@@ -207,10 +235,19 @@ pub fn process(self: *Self, editor: *Editor) !void {
                     },
                     else => {},
                 }
+            } else if (hk.down()) {
+                hk.time += self.delta_time;
+
+                if (hk.time > editor.settings.hotkey_repeat_time) {
+                    hk.time = 0.0;
+
+                    if (editor.tools.stroke_size > 1)
+                        editor.tools.stroke_size -= 1;
+                }
             }
         }
 
-        if (self.hotkey(.{ .proc = .height_up })) |hk| {
+        if (self.hotkey(.{ .procedure = .height_up })) |hk| {
             if (hk.pressed()) {
                 if (file.heightmap.visible) {
                     if (editor.colors.height < 255)
@@ -219,7 +256,7 @@ pub fn process(self: *Self, editor: *Editor) !void {
             }
         }
 
-        if (self.hotkey(.{ .proc = .height_down })) |hk| {
+        if (self.hotkey(.{ .procedure = .height_down })) |hk| {
             if (hk.pressed()) {
                 if (file.heightmap.visible) {
                     if (editor.colors.height > 0)
@@ -228,13 +265,13 @@ pub fn process(self: *Self, editor: *Editor) !void {
             }
         }
 
-        if (self.hotkey(.{ .proc = .toggle_heightmap })) |hk| {
+        if (self.hotkey(.{ .procedure = .toggle_heightmap })) |hk| {
             if (hk.pressed()) {
                 file.heightmap.toggle();
             }
         }
 
-        if (self.hotkey(.{ .proc = .play_pause })) |hk| {
+        if (self.hotkey(.{ .procedure = .play_pause })) |hk| {
             if (hk.pressed()) {
                 file.selected_animation_state = switch (file.selected_animation_state) {
                     .pause => .play,
@@ -243,111 +280,111 @@ pub fn process(self: *Self, editor: *Editor) !void {
             }
         }
 
-        if (self.hotkey(.{ .proc = .select_right })) |hk| {
+        if (self.hotkey(.{ .procedure = .select_right })) |hk| {
             if (hk.pressed()) {
                 file.selectDirection(.e);
             }
         }
 
-        if (self.hotkey(.{ .proc = .select_left })) |hk| {
+        if (self.hotkey(.{ .procedure = .select_left })) |hk| {
             if (hk.pressed()) {
                 file.selectDirection(.w);
             }
         }
 
-        if (self.hotkey(.{ .proc = .select_up })) |hk| {
+        if (self.hotkey(.{ .procedure = .select_up })) |hk| {
             if (hk.pressed()) {
                 file.selectDirection(.n);
             }
         }
 
-        if (self.hotkey(.{ .proc = .select_down })) |hk| {
+        if (self.hotkey(.{ .procedure = .select_down })) |hk| {
             if (hk.pressed()) {
                 file.selectDirection(.s);
             }
         }
 
-        if (self.hotkey(.{ .proc = .copy })) |hk| {
+        if (self.hotkey(.{ .procedure = .copy })) |hk| {
             if (hk.pressed()) {
                 try file.copy();
             }
         }
 
-        if (self.hotkey(.{ .proc = .cut })) |hk| {
+        if (self.hotkey(.{ .procedure = .cut })) |hk| {
             if (hk.pressed()) {
                 try file.cut(true);
             }
         }
 
-        if (self.hotkey(.{ .proc = .paste })) |hk| {
+        if (self.hotkey(.{ .procedure = .paste })) |hk| {
             if (hk.pressed()) {
                 try file.paste();
             }
         }
 
-        if (self.hotkey(.{ .proc = .transform })) |hk| {
+        if (self.hotkey(.{ .procedure = .transform })) |hk| {
             if (hk.pressed()) {
                 try file.cut(false);
                 try file.paste();
             }
         }
 
-        if (self.hotkey(.{ .proc = .copy_right })) |hk| {
+        if (self.hotkey(.{ .procedure = .copy_right })) |hk| {
             if (hk.pressed()) {
                 try file.copyDirection(.e);
             }
         }
 
-        if (self.hotkey(.{ .proc = .copy_left })) |hk| {
+        if (self.hotkey(.{ .procedure = .copy_left })) |hk| {
             if (hk.pressed()) {
                 try file.copyDirection(.w);
             }
         }
 
-        if (self.hotkey(.{ .proc = .copy_up })) |hk| {
+        if (self.hotkey(.{ .procedure = .copy_up })) |hk| {
             if (hk.pressed()) {
                 try file.copyDirection(.n);
             }
         }
 
-        if (self.hotkey(.{ .proc = .copy_down })) |hk| {
+        if (self.hotkey(.{ .procedure = .copy_down })) |hk| {
             if (hk.pressed()) {
                 try file.copyDirection(.s);
             }
         }
 
-        if (self.hotkey(.{ .proc = .erase_sprite })) |hk| {
+        if (self.hotkey(.{ .procedure = .erase_sprite })) |hk| {
             if (hk.pressed()) {
                 try file.eraseSprite(file.selected_sprite_index, true);
             }
         }
 
-        if (self.hotkey(.{ .proc = .shift_right })) |hk| {
+        if (self.hotkey(.{ .procedure = .shift_right })) |hk| {
             if (hk.pressed()) {
                 try file.shiftDirection(.e);
             }
         }
 
-        if (self.hotkey(.{ .proc = .shift_left })) |hk| {
+        if (self.hotkey(.{ .procedure = .shift_left })) |hk| {
             if (hk.pressed()) {
                 try file.shiftDirection(.w);
             }
         }
 
-        if (self.hotkey(.{ .proc = .shift_up })) |hk| {
+        if (self.hotkey(.{ .procedure = .shift_up })) |hk| {
             if (hk.pressed()) {
                 try file.shiftDirection(.n);
             }
         }
 
-        if (self.hotkey(.{ .proc = .shift_down })) |hk| {
+        if (self.hotkey(.{ .procedure = .shift_down })) |hk| {
             if (hk.pressed()) {
                 try file.shiftDirection(.s);
             }
         }
     }
 
-    if (self.hotkey(.{ .proc = .folder })) |hk| {
+    if (self.hotkey(.{ .procedure = .open_folder })) |hk| {
         if (hk.pressed()) {
             editor.popups.file_dialog_request = .{
                 .state = .folder,
@@ -356,7 +393,7 @@ pub fn process(self: *Self, editor: *Editor) !void {
         }
     }
 
-    if (self.hotkey(.{ .proc = .toggle_references })) |hk| {
+    if (self.hotkey(.{ .procedure = .toggle_references })) |hk| {
         if (hk.pressed()) {
             editor.popups.references = !editor.popups.references;
         }
@@ -392,12 +429,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.primary },
+            .action = .{ .procedure = .primary },
         });
 
         // Secondary
@@ -405,21 +438,23 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .shortcut = "shift",
             .key = Key.left_shift,
             .mods = .{
-                .control = false,
-                .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.secondary },
+            .action = .{ .procedure = .secondary },
         });
 
         // Escape
         try hotkeys.append(.{
             .shortcut = "esc",
             .key = Key.escape,
-            .action = .{ .proc = Proc.escape },
+            .action = .{ .procedure = .escape },
+        });
+
+        // Enter
+        try hotkeys.append(.{
+            .shortcut = "enter",
+            .key = Key.enter,
+            .action = .{ .procedure = .confirm },
         });
     }
 
@@ -431,12 +466,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.save },
+            .action = .{ .procedure = .save },
         });
 
         // Save all
@@ -447,11 +478,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.save_all },
+            .action = .{ .procedure = .save_all },
         });
 
         // Undo
@@ -462,11 +490,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.undo },
+            .action = .{ .procedure = .undo },
         });
 
         // Redo
@@ -477,11 +502,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.redo },
+            .action = .{ .procedure = .redo },
         });
 
         // Zoom
@@ -490,26 +512,17 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux or pixi.editor.settings.zoom_ctrl,
                 .super = !windows_or_linux and !pixi.editor.settings.zoom_ctrl,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.zoom },
+            .action = .{ .procedure = .zoom },
         });
 
         // Sample
         try hotkeys.append(.{
             .key = Key.left_alt,
             .mods = .{
-                .control = false,
-                .super = false,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
+                .alt = true,
             },
-            .action = .{ .proc = Proc.sample },
+            .action = .{ .procedure = .sample },
         });
 
         // Open folder
@@ -519,12 +532,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.folder },
+            .action = .{ .procedure = .open_folder },
         });
 
         // Export png
@@ -534,91 +543,87 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
             .mods = .{
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
-                .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.export_png },
+            .action = .{ .procedure = .export_png },
         });
 
         // Toggle heightmap
         try hotkeys.append(.{
             .shortcut = "/",
             .key = Key.slash,
-            .action = .{ .proc = Proc.toggle_heightmap },
+            .action = .{ .procedure = .toggle_heightmap },
         });
 
         // Toggle reference window
         try hotkeys.append(.{
             .shortcut = "r",
             .key = Key.r,
-            .action = .{ .proc = Proc.toggle_references },
+            .action = .{ .procedure = .toggle_references },
         });
 
         // Size up
         try hotkeys.append(.{
             .shortcut = "]",
             .key = Key.right_bracket,
-            .action = .{ .proc = Proc.size_up },
+            .action = .{ .procedure = .size_up },
         });
 
         // Size down
         try hotkeys.append(.{
             .shortcut = "[",
             .key = Key.left_bracket,
-            .action = .{ .proc = Proc.size_down },
+            .action = .{ .procedure = .size_down },
         });
 
         // Height up
         try hotkeys.append(.{
             .shortcut = ".",
             .key = Key.period,
-            .action = .{ .proc = Proc.height_up },
+            .action = .{ .procedure = .height_up },
         });
 
         // Height down
         try hotkeys.append(.{
             .shortcut = ",",
             .key = Key.comma,
-            .action = .{ .proc = Proc.height_down },
+            .action = .{ .procedure = .height_down },
         });
 
         // Play/Pause
         try hotkeys.append(.{
             .shortcut = "space",
             .key = Key.space,
-            .action = .{ .proc = Proc.play_pause },
+            .action = .{ .procedure = .play_pause },
         });
 
         try hotkeys.append(.{
-            .shortcut = "backspace",
-            .key = Key.backspace,
-            .action = .{ .proc = Proc.erase_sprite },
+            .shortcut = if (windows_or_linux) "delete" else "backspace",
+            .key = if (windows_or_linux) Key.delete else Key.backspace,
+            .action = .{ .procedure = .erase_sprite },
         });
 
         try hotkeys.append(.{
             .shortcut = "right arrow",
             .key = Key.right,
-            .action = .{ .proc = Proc.select_right },
+            .action = .{ .procedure = .select_right },
         });
 
         try hotkeys.append(.{
             .shortcut = "left arrow",
             .key = Key.left,
-            .action = .{ .proc = Proc.select_left },
+            .action = .{ .procedure = .select_left },
         });
 
         try hotkeys.append(.{
             .shortcut = "up arrow",
             .key = Key.up,
-            .action = .{ .proc = Proc.select_up },
+            .action = .{ .procedure = .select_up },
         });
 
         try hotkeys.append(.{
             .shortcut = "down arrow",
             .key = Key.down,
-            .action = .{ .proc = Proc.select_down },
+            .action = .{ .procedure = .select_down },
         });
 
         try hotkeys.append(.{
@@ -628,11 +633,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.copy },
+            .action = .{ .procedure = .copy },
         });
 
         try hotkeys.append(.{
@@ -642,11 +644,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.cut },
+            .action = .{ .procedure = .cut },
         });
 
         try hotkeys.append(.{
@@ -656,11 +655,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.paste },
+            .action = .{ .procedure = .paste },
         });
 
         try hotkeys.append(.{
@@ -670,11 +666,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.transform },
+            .action = .{ .procedure = .transform },
         });
 
         try hotkeys.append(.{
@@ -684,11 +677,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.copy_right },
+            .action = .{ .procedure = .copy_right },
         });
 
         try hotkeys.append(.{
@@ -698,11 +688,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.copy_left },
+            .action = .{ .procedure = .copy_left },
         });
 
         try hotkeys.append(.{
@@ -712,11 +699,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.copy_up },
+            .action = .{ .procedure = .copy_up },
         });
 
         try hotkeys.append(.{
@@ -726,11 +710,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = windows_or_linux,
                 .super = !windows_or_linux,
                 .shift = false,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.copy_down },
+            .action = .{ .procedure = .copy_down },
         });
 
         try hotkeys.append(.{
@@ -740,11 +721,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = false,
                 .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.shift_right },
+            .action = .{ .procedure = .shift_right },
         });
 
         try hotkeys.append(.{
@@ -754,11 +732,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = false,
                 .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.shift_left },
+            .action = .{ .procedure = .shift_left },
         });
 
         try hotkeys.append(.{
@@ -768,11 +743,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = false,
                 .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.shift_up },
+            .action = .{ .procedure = .shift_up },
         });
 
         try hotkeys.append(.{
@@ -782,11 +754,8 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
                 .control = false,
                 .super = false,
                 .shift = true,
-                .alt = false,
-                .caps_lock = false,
-                .num_lock = false,
             },
-            .action = .{ .proc = Proc.shift_down },
+            .action = .{ .procedure = .shift_down },
         });
     }
 
@@ -879,5 +848,5 @@ pub fn initDefault(allocator: std.mem.Allocator) !Self {
         });
     }
 
-    return .{ .hotkeys = try hotkeys.toOwnedSlice() };
+    return .{ .hotkeys = try hotkeys.toOwnedSlice(), .timer = try mach.time.Timer.start() };
 }
