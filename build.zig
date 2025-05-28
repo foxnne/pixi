@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const mach = @import("mach");
+//const mach = @import("mach");
 
 const nfd = @import("src/deps/nfd-zig/build.zig");
 const zip = @import("src/deps/zip/build.zig");
@@ -15,11 +15,12 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Create our pixi module, where our Modules declaration lives
-    const pixi_mod = b.createModule(.{
-        .root_source_file = b.path("src/pixi.zig"),
-        .optimize = optimize,
-        .target = target,
-    });
+    // const pixi_mod = b.createModule(.{
+    //     .root_source_file = b.path("src/pixi.zig"),
+    //     .optimize = optimize,
+    //     .target = target,
+    // });
+    // _ = pixi_mod; // autofix
 
     const zstbi = b.dependency("zstbi", .{ .target = target, .optimize = optimize });
     const zmath = b.dependency("zmath", .{ .target = target, .optimize = optimize });
@@ -27,19 +28,21 @@ pub fn build(b: *std.Build) !void {
     const zip_pkg = zip.package(b, .{});
 
     // Add mach import to our app.
-    const mach_dep = b.dependency("mach", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    // const mach_dep = b.dependency("mach", .{
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
 
-    const zig_imgui_dep = b.dependency("zig_imgui", .{ .target = target, .optimize = optimize });
+    const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl3 });
 
-    const imgui_module = b.addModule("zig-imgui", .{
-        .root_source_file = zig_imgui_dep.path("src/imgui.zig"),
-        .imports = &.{
-            .{ .name = "mach", .module = mach_dep.module("mach") },
-        },
-    });
+    // const zig_imgui_dep = b.dependency("zig_imgui", .{ .target = target, .optimize = optimize });
+
+    // const imgui_module = b.addModule("zig-imgui", .{
+    //     .root_source_file = zig_imgui_dep.path("src/imgui.zig"),
+    //     .imports = &.{
+    //         .{ .name = "mach", .module = mach_dep.module("mach") },
+    //     },
+    // });
 
     const timerModule = b.addModule("timer", .{ .root_source_file = .{ .cwd_relative = "src/tools/timer.zig" } });
 
@@ -64,12 +67,19 @@ pub fn build(b: *std.Build) !void {
     addImport(zgifLibrary, "quantize", quantizeModule);
     const zgif_module = zgifLibrary.root_module;
     zgif_module.addImport("zstbi", zstbi.module("root"));
+
     // Have Mach create the executable for us
     // The mod we pass as .app must contain the Modules definition
     // And the Modules must include an App containing the main schedule
-    const exe = mach.addExecutable(mach_dep.builder, .{
+    // const exe = mach.addExecutable(mach_dep.builder, .{
+    //     .name = "Pixi",
+    //     .app = pixi_mod,
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    const exe = b.addExecutable(.{
         .name = "Pixi",
-        .app = pixi_mod,
+        .root_source_file = .{ .cwd_relative = "src/App.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -85,31 +95,35 @@ pub fn build(b: *std.Build) !void {
     const run_cmd = b.addRunArtifact(exe);
     const run_step = b.step("run", "Run the example");
 
-    pixi_mod.addImport("mach", mach_dep.module("mach"));
-    pixi_mod.addImport("zstbi", zstbi.module("root"));
-    pixi_mod.addImport("zmath", zmath.module("root"));
-    pixi_mod.addImport("nfd", nfd.getModule(b));
-    pixi_mod.addImport("zip", zip_pkg.module);
-    pixi_mod.addImport("zig-imgui", imgui_module);
-    pixi_mod.addImport("zgif", zgif_module);
+    //pixi_mod.addImport("mach", mach_dep.module("mach"));
+    exe.root_module.addImport("zstbi", zstbi.module("root"));
+    exe.root_module.addImport("zmath", zmath.module("root"));
+    exe.root_module.addImport("nfd", nfd.getModule(b));
+    exe.root_module.addImport("zip", zip_pkg.module);
+
+    exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl3"));
+
+    //pixi_mod.addImport("zig-imgui", imgui_module);
+    exe.root_module.addImport("zgif", zgif_module);
 
     const nfd_lib = nfd.makeLib(b, target, optimize);
-    pixi_mod.addImport("nfd", nfd_lib);
+    exe.root_module.addImport("nfd", nfd_lib);
 
-    if (target.result.isDarwin()) {
-        //     // MacOS: this must be defined for macOS 13.3 and older.
-        //     // Critically, this MUST NOT be included as a -D__kernel_ptr_semantics flag. If it is,
-        //     // then this macro will not be defined even if `defineCMacro` was also called!
-        //nfd_lib.addCMacro("__kernel_ptr_semantics", "");
-        //mach.addPaths(nfd_lib);
-        if (mach_dep.builder.lazyDependency("xcode_frameworks", .{})) |dep| {
-            nfd_lib.addSystemIncludePath(dep.path("include"));
+    if (target.result.os.tag == .macos) {
+        if (b.lazyDependency("mach_objc", .{
+            .target = target,
+            .optimize = optimize,
+        })) |dep| {
+            exe.root_module.addImport("objc", dep.module("mach-objc"));
+            if (dep.builder.lazyDependency("xcode_frameworks", .{})) |xcode_dep| {
+                nfd_lib.addSystemIncludePath(xcode_dep.path("include"));
+            }
         }
     }
 
     exe.linkLibCpp();
 
-    exe.linkLibrary(zig_imgui_dep.artifact("imgui"));
+    //exe.linkLibrary(zig_imgui_dep.artifact("imgui"));
     exe.linkLibrary(zstbi.artifact("zstbi"));
     zip.link(exe);
 

@@ -244,7 +244,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
     var temporary: bool = false;
 
     // Modify this change before its put into the other stack.
-    var change = active_stack.pop();
+    var change = active_stack.pop().?;
 
     switch (change) {
         .pixels => |*pixels| {
@@ -326,7 +326,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             const a = layer_restore_delete.action;
             switch (a) {
                 .restore => {
-                    try file.layers.insert(pixi.app.allocator, layer_restore_delete.index, file.deleted_layers.pop());
+                    try file.layers.insert(pixi.app.allocator, layer_restore_delete.index, file.deleted_layers.pop().?);
                     layer_restore_delete.action = .delete;
                 },
                 .delete => {
@@ -382,7 +382,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             const a = animation_restore_delete.action;
             switch (a) {
                 .restore => {
-                    const animation = file.deleted_animations.pop();
+                    const animation = file.deleted_animations.pop().?;
                     try file.animations.insert(pixi.app.allocator, animation_restore_delete.index, animation);
                     animation_restore_delete.action = .delete;
                 },
