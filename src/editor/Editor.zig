@@ -3,7 +3,7 @@ const std = @import("std");
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
 
-const widgets = @import("widgets/Widgets.zig");
+pub const Widgets = @import("widgets/Widgets.zig");
 
 const App = pixi.App;
 const Editor = @This();
@@ -156,6 +156,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .handle_size_max = handle_size,
             .distance_max = handle_dist,
         },
+        .uncollapse_ratio = pixi.editor.settings.explorer_ratio,
     }, .{
         .expand = .both,
         .background = true,
@@ -167,7 +168,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     if (dvui.firstFrame(explorer_artboard.wd.id)) {
         explorer_artboard.split_ratio.* = 0.0;
         explorer_artboard.animateSplit(pixi.editor.settings.explorer_ratio);
-    } else {
+    } else if (!explorer_artboard.collapsing and !explorer_artboard.collapsed_state) {
         editor.settings.explorer_ratio = explorer_artboard.split_ratio.*;
     }
 

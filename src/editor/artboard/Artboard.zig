@@ -85,6 +85,7 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
         .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
         .handle_size = 2,
         .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
+        .uncollapse_ratio = pixi.editor.settings.flipbook_ratio,
     }, .{
         .expand = .both,
         .background = false,
@@ -97,7 +98,7 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
         canvas_flipbook.collapsing = false;
         canvas_flipbook.split_ratio.* = 1.0;
         canvas_flipbook.animateSplit(pixi.editor.settings.flipbook_ratio);
-    } else {
+    } else if (!canvas_flipbook.collapsing and !canvas_flipbook.collapsed_state) {
         pixi.editor.settings.flipbook_ratio = canvas_flipbook.split_ratio.*;
     }
 

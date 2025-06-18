@@ -39,9 +39,9 @@ const Editor = pixi.Editor;
 // App fields
 allocator: std.mem.Allocator = undefined,
 //batcher: pixi.gfx.Batcher = undefined,
-content_scale: [2]f32 = undefined,
+//content_scale: [2]f32 = undefined,
 delta_time: f32 = 0.0,
-framebuffer_size: [2]f32 = undefined,
+//framebuffer_size: [2]f32 = undefined,
 
 //pipeline_compute: *gpu.ComputePipeline = undefined,
 //pipeline_default: *gpu.RenderPipeline = undefined,
@@ -52,15 +52,13 @@ total_time: f32 = 0.0,
 //uniform_buffer_default: *gpu.Buffer = undefined,
 //window: mach.ObjectID,
 window: *dvui.Window = undefined,
-window_size: [2]f32 = undefined,
+//window_size: [2]f32 = undefined,
 
 // These are the only two assets pixi needs outside of fonts
 //texture_id: mach.ObjectID = 0,
 //atlas_id: mach.ObjectID = 0,
 
 var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-var elapsed_time: f32 = 0.0;
-var framerate_capture: f32 = 0.0;
 
 // To be a dvui App:
 // * declare "dvui_app"
@@ -160,13 +158,6 @@ pub fn AppDeinit() void {
 pub fn AppFrame() !dvui.App.Result {
     return try pixi.editor.tick();
 }
-
-const width = 450;
-const handle_size = 10;
-
-const handle_dist = 60;
-
-pub fn frame() !dvui.App.Result {}
 
 // pub fn init(
 //     app: *App,
