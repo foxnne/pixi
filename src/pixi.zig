@@ -22,33 +22,16 @@ pub const input = @import("input/input.zig");
 pub const math = @import("math/math.zig");
 pub const shaders = @import("shaders/shaders.zig");
 
-// Modules
-
-/// App contains the main schedule, which is run by the mach entrypoint
 pub const App = @import("App.zig");
-pub const Artboard = @import("editor/artboard/Artboard.zig");
+//pub const Artboard = @import("editor/artboard/Artboard.zig");
 pub const Assets = @import("Assets.zig");
 pub const Editor = @import("editor/Editor.zig");
 pub const Explorer = @import("editor/explorer/Explorer.zig");
 pub const Packer = @import("tools/Packer.zig");
-pub const Popups = @import("editor/popups/Popups.zig");
+//pub const Popups = @import("editor/popups/Popups.zig");
 pub const Sidebar = @import("editor/Sidebar.zig");
 
-// The set of Mach modules our application may use.
-pub const Modules = mach.Modules(.{
-    App,
-    Artboard,
-    Assets,
-    Core,
-    Editor,
-    Explorer,
-    Packer,
-    Popups,
-    Sidebar,
-});
-
 // Global pointers
-pub var core: *Core = undefined;
 pub var app: *App = undefined;
 pub var editor: *Editor = undefined;
 pub var packer: *Packer = undefined;

@@ -1,57 +1,58 @@
 const std = @import("std");
 
-const mach = @import("mach");
 const pixi = @import("../pixi.zig");
+const dvui = @import("dvui");
+
+const widgets = @import("widgets/Widgets.zig");
 
 const App = pixi.App;
-const Core = mach.Core;
 const Editor = @This();
 
 pub const Colors = @import("Colors.zig");
 pub const Project = @import("Project.zig");
 pub const Recents = @import("Recents.zig");
 pub const Settings = @import("Settings.zig");
-pub const Theme = @import("Theme.zig");
+//pub const Theme = @import("Theme.zig");
 pub const Tools = @import("Tools.zig");
 
 pub const Constants = @import("Constants.zig");
 
 const zstbi = @import("zstbi");
 const nfd = @import("nfd");
-const imgui = @import("zig-imgui");
 const zmath = @import("zmath");
 
 // Modules
 pub const Artboard = @import("artboard/Artboard.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
-pub const Popups = @import("popups/Popups.zig");
+//pub const Popups = @import("popups/Popups.zig");
 pub const Sidebar = @import("Sidebar.zig");
 
-pub const mach_module = .editor;
-pub const mach_systems = .{
-    .init,
-    .loadTheme,
-    .processDialogRequest,
-    .tick,
-    .close,
-    .deinit,
-};
+// pub const mach_module = .editor;
+// pub const mach_systems = .{
+//     .init,
+//     .loadTheme,
+//     .processDialogRequest,
+//     .tick,
+//     .close,
+//     .deinit,
+// };
 
 /// This arena is for small per-frame editor allocations, such as path joins, null terminations and labels.
 /// Do not free these allocations, instead, this allocator will be .reset(.retain_capacity) each frame
 arena: std.heap.ArenaAllocator,
+allocator: std.mem.Allocator,
 
-theme: Theme,
+//theme: Theme,
 settings: Settings,
-hotkeys: pixi.input.Hotkeys,
-mouse: pixi.input.Mouse,
+//hotkeys: pixi.input.Hotkeys,
+//mouse: pixi.input.Mouse,
 recents: Recents,
 
 // Module pointers
 explorer: *Explorer,
-popups: *Popups,
+//popups: *Popups,
 artboard: *Artboard,
-sidebar: *Sidebar,
+sidebar: Sidebar,
 
 /// The root folder that will be searched for files and a .pixiproject file
 folder: ?[:0]const u8 = null,
@@ -61,12 +62,12 @@ project: ?Project = null,
 buffers: Buffers = .{},
 
 previous_atlas_export: ?[:0]const u8 = null,
-open_files: std.ArrayList(pixi.Internal.File) = undefined,
-open_references: std.ArrayList(pixi.Internal.Reference) = undefined,
+//open_files: std.ArrayList(pixi.Internal.File) = undefined,
+//open_references: std.ArrayList(pixi.Internal.Reference) = undefined,
 open_file_index: usize = 0,
 open_reference_index: usize = 0,
 
-atlas: pixi.Internal.Atlas = .{},
+//atlas: pixi.Internal.Atlas = .{},
 tools: Tools = .{},
 
 colors: Colors = .{},
@@ -85,186 +86,248 @@ pub const Buffers = struct {
 
 pub fn init(
     app: *App,
-    editor: *Editor,
-    _popups: *Popups,
-    _explorer: *Explorer,
-    _artboard: *Artboard,
-    _sidebar: *Sidebar,
-    sidebar_mod: mach.Mod(Sidebar),
-    explorer_mod: mach.Mod(Explorer),
-    artboard_mod: mach.Mod(Artboard),
-    popups_mod: mach.Mod(Popups),
-) !void {
-    editor.* = .{
-        .theme = undefined, // Leave theme undefined for now since settings need to load first
-        .popups = _popups,
-        .explorer = _explorer,
-        .artboard = _artboard,
-        .sidebar = _sidebar,
+) !Editor {
+    var editor: Editor = .{
+        //.theme = undefined, // Leave theme undefined for now since settings need to load first
+        //.popups = try Popups.init(),
+        .explorer = try app.allocator.create(Explorer),
+        .artboard = try app.allocator.create(Artboard),
+        .sidebar = try Sidebar.init(),
         .settings = try Settings.load(app.allocator),
-        .hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
-        .mouse = try pixi.input.Mouse.initDefault(app.allocator),
+        //.hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
+        //.mouse = try pixi.input.Mouse.initDefault(app.allocator),
         .recents = try Recents.load(app.allocator),
         .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
+        .allocator = app.allocator,
     };
 
-    editor.open_files = std.ArrayList(pixi.Internal.File).init(app.allocator);
-    editor.open_references = std.ArrayList(pixi.Internal.Reference).init(app.allocator);
+    editor.explorer.* = try Explorer.init();
+    editor.artboard.* = try Artboard.init();
+    //editor.open_files = std.ArrayList(pixi.Internal.File).init(editor.allocator);
+    //editor.open_references = std.ArrayList(pixi.Internal.Reference).init(editor.allocator);
 
     editor.colors.keyframe_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
 
-    sidebar_mod.call(.init);
-    explorer_mod.call(.init);
-    artboard_mod.call(.init);
-    popups_mod.call(.init);
+    return editor;
 }
 
-pub fn loadTheme(core: *Core, app: *App, editor: *Editor) !void {
-    const theme_path = try std.fs.path.joinZ(app.allocator, &.{ pixi.paths.themes, editor.settings.theme });
-    defer app.allocator.free(theme_path);
+// pub fn loadTheme(editor: *Editor) !void {
+//     _ = editor; // autofix
+//     //const theme_path = try std.fs.path.joinZ(editor.arena, &.{ pixi.paths.themes, editor.settings.theme });
 
-    editor.theme = try Theme.loadOrDefault(theme_path);
-    editor.theme.init(core, app);
-}
+//     //editor.theme = try Theme.loadOrDefault(theme_path);
+//     //editor.theme.init();
+// }
 
-pub fn processDialogRequest(editor: *Editor) !void {
-    if (editor.popups.file_dialog_request) |request| {
-        defer editor.popups.file_dialog_request = null;
-        const initial = if (request.initial) |initial| initial else editor.folder;
+// pub fn processDialogRequest(editor: *Editor) !void {
+//     if (editor.popups.file_dialog_request) |request| {
+//         defer editor.popups.file_dialog_request = null;
+//         const initial = if (request.initial) |initial| initial else editor.folder;
 
-        if (switch (request.state) {
-            .file => try nfd.openFileDialog(request.filter, initial),
-            .folder => try nfd.openFolderDialog(initial),
-            .save => try nfd.saveFileDialog(request.filter, initial),
-        }) |path| {
-            editor.popups.file_dialog_response = .{
-                .path = path,
-                .type = request.type,
-            };
+//         if (switch (request.state) {
+//             .file => try nfd.openFileDialog(request.filter, initial),
+//             .folder => try nfd.openFolderDialog(initial),
+//             .save => try nfd.saveFileDialog(request.filter, initial),
+//         }) |path| {
+//             editor.popups.file_dialog_response = .{
+//                 .path = path,
+//                 .type = request.type,
+//             };
+//         }
+//     }
+// }
+
+const handle_size = 10;
+const handle_dist = 60;
+
+pub fn tick(editor: *Editor) !dvui.App.Result {
+    var scaler = dvui.scale(
+        @src(),
+        .{ .scale = &dvui.currentWindow().content_scale, .pinch_zoom = .global },
+        .{ .expand = .both },
+    );
+    defer scaler.deinit();
+
+    var explorer_artboard = dvui.paned(@src(), .{
+        .direction = .horizontal,
+        .collapsed_size = 450 + 1,
+        .handle_size = 2,
+        .handle_dynamic = .{
+            .handle_size_max = handle_size,
+            .distance_max = handle_dist,
+        },
+    }, .{
+        .expand = .both,
+        .background = true,
+        .min_size_content = .{ .h = 100, .w = 100 },
+        .color_fill = .fill_window,
+    });
+    defer explorer_artboard.deinit();
+
+    if (dvui.firstFrame(explorer_artboard.wd.id)) {
+        explorer_artboard.split_ratio.* = editor.settings.explorer_ratio;
+    } else {
+        editor.settings.explorer_ratio = explorer_artboard.split_ratio.*;
+    }
+
+    if (explorer_artboard.showFirst()) {
+        const hbox = dvui.box(
+            @src(),
+            .horizontal,
+            .{
+                .expand = .both,
+                .background = false,
+            },
+        );
+        defer hbox.deinit();
+
+        // Sidebar area
+        {
+            const result = try editor.sidebar.draw();
+            if (result != .ok) {
+                return result;
+            }
+        }
+
+        // Explorer area
+        {
+            const result = try editor.explorer.draw();
+            if (result != .ok) {
+                return result;
+            }
         }
     }
-}
 
-pub fn tick(
-    core: *Core,
-    app: *App,
-    editor: *Editor,
-    sidebar_mod: mach.Mod(Sidebar),
-    explorer_mod: mach.Mod(Explorer),
-    artboard_mod: mach.Mod(Artboard),
-    popups_mod: mach.Mod(Popups),
-) !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = editor.settings.explorer_title_align, .y = 0.5 });
-    defer imgui.popStyleVar();
+    if (explorer_artboard.showSecond()) {
+        // Artboard Area
+        const result = try editor.artboard.draw();
+        if (result != .ok) {
+            return result;
+        }
+    }
 
-    editor.theme.push(core, app);
-    defer editor.theme.pop();
+    // look at demo() for examples of dvui widgets, shows in a floating window
+    dvui.Examples.demo();
+
+    //_ = editor.arena.reset(.retain_capacity);
+
+    return .ok;
+    // imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = pixi.editor.settings.explorer_title_align, .y = 0.5 });
+    // defer imgui.popStyleVar();
+
+    // editor.theme.push();
+    // defer editor.theme.pop();
 
     // Clear temp layer either piecemeal or all at once if there is a transform texture present
-    if (editor.getFile(editor.open_file_index)) |file| {
-        if (file.buffers.temporary_stroke.indices.items.len > 0) {
-            for (file.buffers.temporary_stroke.indices.items) |index| {
-                file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
-            }
-            file.temporary_layer.texture.update(core.windows.get(app.window, .device));
-            file.buffers.temporary_stroke.clearAndFree();
-        } else if (file.transform_texture != null) {
-            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-            file.temporary_layer.texture.update(core.windows.get(app.window, .device));
-        }
-    }
+    // if (editor.getFile(editor.open_file_index)) |file| {
+    //     if (file.buffers.temporary_stroke.indices.items.len > 0) {
+    //         for (file.buffers.temporary_stroke.indices.items) |index| {
+    //             file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
+    //         }
+    //         file.temporary_layer.texture.update(core.windows.get(app.window, .device));
+    //         file.buffers.temporary_stroke.clearAndFree();
+    //     } else if (file.transform_texture != null) {
+    //         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+    //         file.temporary_layer.texture.update(core.windows.get(app.window, .device));
+    //     }
+    // }
 
-    popups_mod.call(.draw);
-    sidebar_mod.call(.draw);
-    explorer_mod.call(.draw);
-    artboard_mod.call(.draw);
+    //editor.popups.draw();
+
+    //editor.explorer.draw();
+    //editor.artboard.draw();
+
+    // popups_mod.call(.draw);
+    // sidebar_mod.call(.draw);
+    // explorer_mod.call(.draw);
+    // artboard_mod.call(.draw);
 
     // Accept transformations and clear temporary layer
-    {
-        const window = core.windows.getValue(app.window);
-        for (editor.open_files.items) |*file| {
-            const transform_texture = if (file.transform_texture) |*tt| tt else continue;
-            const staging_buffer = file.transform_staging_buffer orelse continue;
+    // {
+    //     const window = core.windows.getValue(app.window);
+    //     for (editor.open_files.items) |*file| {
+    //         const transform_texture = if (file.transform_texture) |*tt| tt else continue;
+    //         const staging_buffer = file.transform_staging_buffer orelse continue;
 
-            if (!transform_texture.confirm) continue;
+    //         if (!transform_texture.confirm) continue;
 
-            // Blit temp layer to selected layer
+    //         // Blit temp layer to selected layer
 
-            const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
+    //         const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
 
-            var response: mach.gpu.Buffer.MapAsyncStatus = undefined;
-            const callback = (struct {
-                pub inline fn callback(ctx: *mach.gpu.Buffer.MapAsyncStatus, status: mach.gpu.Buffer.MapAsyncStatus) void {
-                    ctx.* = status;
-                }
-            }).callback;
+    //         var response: mach.gpu.Buffer.MapAsyncStatus = undefined;
+    //         const callback = (struct {
+    //             pub inline fn callback(ctx: *mach.gpu.Buffer.MapAsyncStatus, status: mach.gpu.Buffer.MapAsyncStatus) void {
+    //                 ctx.* = status;
+    //             }
+    //         }).callback;
 
-            staging_buffer.mapAsync(.{ .read = true }, 0, buffer_size * @sizeOf([4]f32), &response, callback);
-            while (true) {
-                if (response == mach.gpu.Buffer.MapAsyncStatus.success) {
-                    break;
-                } else {
-                    window.device.tick();
-                }
-            }
+    //         staging_buffer.mapAsync(.{ .read = true }, 0, buffer_size * @sizeOf([4]f32), &response, callback);
+    //         while (true) {
+    //             if (response == mach.gpu.Buffer.MapAsyncStatus.success) {
+    //                 break;
+    //             } else {
+    //                 window.device.tick();
+    //             }
+    //         }
 
-            const layer_index = file.selected_layer_index;
-            const write_layer = file.layers.get(file.selected_layer_index);
+    //         const layer_index = file.selected_layer_index;
+    //         const write_layer = file.layers.get(file.selected_layer_index);
 
-            const buffer_mapped = staging_buffer.getConstMappedRange([4]f32, 0, buffer_size) orelse continue;
+    //         const buffer_mapped = staging_buffer.getConstMappedRange([4]f32, 0, buffer_size) orelse continue;
 
-            for (write_layer.pixels(), buffer_mapped, 0..) |*p, b, i| {
-                if (b[3] != 0.0) {
-                    // At this point, if we are using a transform hotkey, stroke will contain
-                    // the state before the cut, so we dont want to overwrite any of the existing
-                    // values, only add new ones.
-                    var contains: bool = false;
-                    for (file.buffers.stroke.indices.items) |ind| {
-                        if (ind == i) {
-                            contains = true;
-                        }
-                    }
+    //         for (write_layer.pixels(), buffer_mapped, 0..) |*p, b, i| {
+    //             if (b[3] != 0.0) {
+    //                 // At this point, if we are using a transform hotkey, stroke will contain
+    //                 // the state before the cut, so we dont want to overwrite any of the existing
+    //                 // values, only add new ones.
+    //                 var contains: bool = false;
+    //                 for (file.buffers.stroke.indices.items) |ind| {
+    //                     if (ind == i) {
+    //                         contains = true;
+    //                     }
+    //                 }
 
-                    if (!contains)
-                        try file.buffers.stroke.append(i, p.*, .primary);
+    //                 if (!contains)
+    //                     try file.buffers.stroke.append(i, p.*, .primary);
 
-                    const out: [4]u8 = .{
-                        @as(u8, @intFromFloat(b[0] * 255.0)),
-                        @as(u8, @intFromFloat(b[1] * 255.0)),
-                        @as(u8, @intFromFloat(b[2] * 255.0)),
-                        @as(u8, @intFromFloat(b[3] * 255.0)),
-                    };
-                    p.* = out;
-                }
-            }
+    //                 const out: [4]u8 = .{
+    //                     @as(u8, @intFromFloat(b[0] * 255.0)),
+    //                     @as(u8, @intFromFloat(b[1] * 255.0)),
+    //                     @as(u8, @intFromFloat(b[2] * 255.0)),
+    //                     @as(u8, @intFromFloat(b[3] * 255.0)),
+    //                 };
+    //                 p.* = out;
+    //             }
+    //         }
 
-            // Submit the stroke change buffer
-            if (file.buffers.stroke.indices.items.len > 0) {
-                const change = try file.buffers.stroke.toChange(@intCast(layer_index));
-                try file.history.append(change);
-            }
+    //         // Submit the stroke change buffer
+    //         if (file.buffers.stroke.indices.items.len > 0) {
+    //             const change = try file.buffers.stroke.toChange(@intCast(layer_index));
+    //             try file.history.append(change);
+    //         }
 
-            staging_buffer.unmap();
+    //         staging_buffer.unmap();
 
-            var texture: *pixi.gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
-            texture.update(window.device);
+    //         var texture: *pixi.gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
+    //         texture.update(window.device);
 
-            transform_texture.texture.deinit();
-            file.transform_texture = null;
-        }
-    }
+    //         transform_texture.texture.deinit();
+    //         file.transform_texture = null;
+    //     }
+    // }
 
-    for (editor.hotkeys.hotkeys) |*hotkey| {
-        hotkey.previous_state = hotkey.state;
-    }
+    // for (editor.hotkeys.hotkeys) |*hotkey| {
+    //     hotkey.previous_state = hotkey.state;
+    // }
 
-    for (editor.mouse.buttons) |*bt| {
-        bt.previous_state = bt.state;
-    }
+    // for (editor.mouse.buttons) |*bt| {
+    //     bt.previous_state = bt.state;
+    // }
 
-    editor.mouse.previous_position = editor.mouse.position;
+    // editor.mouse.previous_position = editor.mouse.position;
     // Reset the arena but keep the memory from the last frame available
-    _ = editor.arena.reset(.retain_capacity);
+
 }
 
 pub fn anyAnimationPlaying(editor: *Editor) bool {
@@ -574,33 +637,33 @@ pub fn closeReference(editor: *Editor, index: usize) !void {
     reference.deinit();
 }
 
-pub fn deinit(editor: *Editor, app: *App) !void {
-    for (editor.open_files.items) |_| try editor.closeFile(0);
-    editor.open_files.deinit();
+pub fn deinit(editor: *Editor) !void {
+    // for (editor.open_files.items) |_| try editor.closeFile(0);
+    // editor.open_files.deinit();
 
-    for (editor.open_references.items) |*reference| reference.deinit();
-    editor.open_references.deinit();
+    // for (editor.open_references.items) |*reference| reference.deinit();
+    // editor.open_references.deinit();
 
-    if (editor.atlas.data) |*data| data.deinit(app.allocator);
-    if (editor.previous_atlas_export) |path| app.allocator.free(path);
+    //if (editor.atlas.data) |*data| data.deinit(editor.allocator);
+    //if (editor.previous_atlas_export) |path| editor.allocator.free(path);
 
-    if (editor.atlas.texture) |*texture| texture.deinit();
-    if (editor.atlas.heightmap) |*heightmap| heightmap.deinit();
+    //if (editor.atlas.texture) |*texture| texture.deinit();
+    //if (editor.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();
 
-    app.allocator.free(editor.hotkeys.hotkeys);
-    app.allocator.free(editor.mouse.buttons);
+    // editor.allocator.free(editor.hotkeys.hotkeys);
+    // editor.allocator.free(editor.mouse.buttons);
 
     if (editor.clipboard_image) |*image| image.deinit();
 
     try editor.recents.save();
     editor.recents.deinit();
 
-    try editor.settings.save(app.allocator);
-    editor.settings.deinit(app.allocator);
+    try editor.settings.save(editor.allocator);
+    editor.settings.deinit(editor.allocator);
 
-    if (editor.folder) |folder| app.allocator.free(folder);
+    if (editor.folder) |folder| editor.allocator.free(folder);
     if (editor.project) |*project| project.deinit();
 
     editor.arena.deinit();

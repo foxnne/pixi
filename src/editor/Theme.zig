@@ -1,13 +1,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const mach = @import("mach");
 const pixi = @import("../pixi.zig");
 
 const App = pixi.App;
 const Color = pixi.math.Color;
-
-const imgui = @import("zig-imgui");
 
 const Theme = @This();
 
@@ -104,7 +101,7 @@ pub fn init(theme: *Theme, core: *mach.Core, app: *App) void {
     core.windows.set(app.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
-pub fn push(theme: *Theme, core: *mach.Core, app: *App) void {
+pub fn push(theme: *Theme) void {
     const bg = theme.background.toImguiVec4();
     const fg = theme.foreground.toImguiVec4();
     const text = theme.text.toImguiVec4();
@@ -145,21 +142,20 @@ pub fn push(theme: *Theme, core: *mach.Core, app: *App) void {
     imgui.pushStyleColorImVec4(imgui.Col_ModalWindowDimBg, modal_dim);
 
     // Set the window decoration color to match
-    if (core.windows.get(app.window, .decoration_color)) |color| {
-        if (color.r == fg.x and color.g == fg.y and color.b == fg.z and color.a == fg.w)
-            return;
-    }
-    core.windows.set(app.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
+
+    // if (core.windows.get(app.window, .decoration_color)) |color| {
+    //     if (color.r == fg.x and color.g == fg.y and color.b == fg.z and color.a == fg.w)
+    //         return;
+    // }
+    // core.windows.set(app.window, .decoration_color, .{ .r = fg.x, .g = fg.y, .b = fg.z, .a = fg.w });
 }
 
 pub fn loadOrDefault(file: [:0]const u8) !Theme {
-    if (pixi.fs.read(pixi.app.allocator, file) catch null) |read| {
-        defer pixi.app.allocator.free(read);
-
+    if (pixi.fs.read(pixi.editor.arena, file) catch null) |read| {
         const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-        if (std.json.parseFromSlice(Theme, pixi.app.allocator, read, options) catch null) |p| {
+        if (std.json.parseFromSlice(Theme, pixi.editor.arena, read, options) catch null) |p| {
             const theme = p.value;
-            p.deinit();
+            //p.deinit();
             return theme;
         }
     }

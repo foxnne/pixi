@@ -1,7 +1,6 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const Editor = pixi.Editor;
-const imgui = @import("zig-imgui");
 
 pub fn draw(editor: *Editor) !void {
     if (editor.popups.file_confirm_close) {

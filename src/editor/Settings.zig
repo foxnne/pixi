@@ -13,6 +13,9 @@ pub const Compatibility = enum { none, ldtk };
 /// Width of the explorer bar.
 explorer_width: f32 = 200.0,
 
+/// The ratio of the explorer to the artboard.
+explorer_ratio: f32 = 0.35,
+
 /// Width of the explorer grip.
 explorer_grip: f32 = 18.0,
 
@@ -26,7 +29,7 @@ split_artboard_ratio: f32 = 0.5,
 explorer_title_align: f32 = 0.0,
 
 /// Height of the flipbook window.
-flipbook_height: f32 = 0.3,
+flipbook_ratio: f32 = 0.3,
 
 /// Flipbook view, sequential or grid
 flipbook_view: FlipbookView = .sequential,

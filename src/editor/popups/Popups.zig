@@ -105,21 +105,22 @@ pub const FileDialogResponse = struct {
     type: UserPathType,
 };
 
-pub fn init(popups: *Popups) !void {
-    popups.* = .{};
+pub fn init() !Popups {
+    return .{};
 }
 
-pub fn draw(popups: *Popups, app: *App, editor: *Editor, assets: *Assets) !void {
-    try popup_rename.draw(popups, app, editor);
-    try popup_folder.draw(popups, app);
-    try popup_file_setup.draw(editor);
-    try popup_about.draw(editor, assets);
-    try popup_file_confirm_close.draw(editor);
-    try popup_layer_setup.draw(editor);
-    try popup_print.draw(editor);
-    try popup_animation.draw(editor);
-    try popup_heightmap.draw(editor);
-    try popup_references.draw(editor);
+pub fn draw(popups: *Popups) !void {
+    _ = popups; // autofix
+    // try popup_rename.draw(popups, pixi.app, pixi.editor);
+    // try popup_folder.draw(popups, pixi.app);
+    // try popup_file_setup.draw(popups, pixi.editor);
+    // try popup_about.draw(popups, pixi.editor, pixi.assets);
+    // try popup_file_confirm_close.draw(popups, pixi.editor);
+    // try popup_layer_setup.draw(popups, pixi.editor);
+    // try popup_print.draw(popups, pixi.editor);
+    // try popup_animation.draw(popups, pixi.editor);
+    // try popup_heightmap.draw(popups, pixi.editor);
+    // try popup_references.draw(popups, pixi.editor);
 }
 
 pub fn deinit() void {

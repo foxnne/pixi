@@ -3,8 +3,6 @@ const pixi = @import("../../pixi.zig");
 
 const App = pixi.App;
 
-const imgui = @import("zig-imgui");
-
 const Popups = @import("Popups.zig");
 const Editor = pixi.Editor;
 

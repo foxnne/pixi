@@ -4,11 +4,14 @@ const zmath = @import("zmath");
 const dvui = @import("dvui");
 const objc = @import("objc");
 
+const cozette_ttf = @embedFile("fonts/CozetteVector.ttf");
+const cozette_bold_ttf = @embedFile("fonts/CozetteVectorBold.ttf");
+
 //const mach = @import("mach");
 //const gpu = mach.gpu;
 
-const imgui = @import("zig-imgui");
-const imgui_mach = imgui.backends.mach;
+// const imgui = @import("zig-imgui");
+// const imgui_mach = imgui.backends.mach;
 
 const pixi = @import("pixi.zig");
 
@@ -16,8 +19,8 @@ const pixi = @import("pixi.zig");
 //const Core = mach.Core;
 const App = @This();
 const Editor = pixi.Editor;
-const Packer = pixi.Packer;
-const Assets = pixi.Assets;
+//const Packer = pixi.Packer;
+//const Assets = pixi.Assets;
 
 // Mach module, systems, and main
 // pub const mach_module = .app;
@@ -48,7 +51,7 @@ should_close: bool = false,
 total_time: f32 = 0.0,
 //uniform_buffer_default: *gpu.Buffer = undefined,
 //window: mach.ObjectID,
-window: dvui.Window = undefined,
+window: *dvui.Window = undefined,
 window_size: [2]f32 = undefined,
 
 // These are the only two assets pixi needs outside of fonts
@@ -65,7 +68,7 @@ var framerate_capture: f32 = 0.0;
 // * use the backend's log function
 pub const dvui_app: dvui.App = .{ .config = .{ .options = .{
     .size = .{ .w = 800.0, .h = 600.0 },
-    .min_size = .{ .w = 250.0, .h = 350.0 },
+    .min_size = .{ .w = 350.0, .h = 450.0 },
     .title = "Pixi",
 } }, .frameFn = AppFrame, .initFn = AppInit, .deinitFn = AppDeinit };
 
@@ -79,7 +82,7 @@ pub fn setTitlebarColor(win: *dvui.Window, color: [4]f32) void {
     if (builtin.os.tag == .macos) {
         // This sets the native window titlebar color on macos
         const native_window: ?*objc.app_kit.Window = @ptrCast(dvui.backend.c.SDL_GetPointerProperty(
-            dvui.backend.c.SDL_GetWindowProperties(win.backend.ctx.window),
+            dvui.backend.c.SDL_GetWindowProperties(win.backend.impl.window),
             dvui.backend.c.SDL_PROP_WINDOW_COCOA_WINDOW_POINTER,
             null,
         ));
@@ -98,151 +101,72 @@ pub fn setTitlebarColor(win: *dvui.Window, color: [4]f32) void {
 }
 
 // Runs before the first frame, after backend and dvui.Window.init()
-pub fn AppInit(win: *dvui.Window) void {
+pub fn AppInit(win: *dvui.Window) !void {
+    const allocator = gpa.allocator();
+
+    // Run from the directory where the executable is located so relative assets can be found.
+    var buffer: [1024]u8 = undefined;
+    const path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
+    std.posix.chdir(path) catch {};
+
+    pixi.app = try allocator.create(App);
+    pixi.app.* = .{
+        .allocator = allocator,
+        .window = win,
+        .root_path = allocator.dupeZ(u8, path) catch ".",
+    };
+
+    pixi.editor = try allocator.create(Editor);
+    pixi.editor.* = Editor.init(pixi.app) catch unreachable;
+
     setTitlebarColor(win, .{ 0.1647, 0.17254, 0.21176, 1.0 });
-}
 
-// Run as app is shutting down before dvui.Window.deinit()
-pub fn AppDeinit() void {}
+    dvui.addFont("CozetteVector", cozette_ttf, null) catch {};
+    dvui.addFont("CozetteVectorBold", cozette_bold_ttf, null) catch {};
 
-// Run each frame to do normal UI
-pub fn AppFrame() !dvui.App.Result {
     var theme = dvui.themeGet();
 
-    theme.color_fill = .{ .r = 39, .g = 40, .b = 48, .a = 255 };
+    theme.color_fill = .{ .r = 34, .g = 35, .b = 42, .a = 255 };
     theme.color_fill_window = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
     theme.color_text = .{ .r = 206, .g = 163, .b = 127, .a = 255 };
     theme.color_text_press = .{ .r = 186, .g = 143, .b = 107, .a = 255 };
-    theme.color_fill_control = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
-    theme.color_fill_hover = .{ .r = 48, .g = 52, .b = 62, .a = 255 };
+    theme.color_fill_control = theme.color_fill_window;
+    theme.color_fill_hover = .{ .r = 64, .g = 68, .b = 78, .a = 255 };
     theme.color_border = .{ .r = 48, .g = 52, .b = 62, .a = 255 };
-    theme.color_fill_press = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
+    theme.color_fill_press = theme.color_fill_window;
+    theme.color_accent = .{ .r = 47, .g = 179, .b = 135, .a = 255 };
+    theme.dark = true;
+    theme.name = "Pixi Dark";
+    theme.font_body = .{ .name = "CozetteVector", .size = 13 };
+    theme.font_caption = .{ .name = "Vera", .size = 11 };
+    theme.font_title = .{ .name = "Vera", .size = 12 };
+    theme.font_title_1 = .{ .name = "CozetteVectorBold", .size = 13 };
+    theme.font_title_2 = .{ .name = "CozetteVectorBold", .size = 12 };
+    theme.font_title_3 = .{ .name = "VeraBd", .size = 12 };
+    theme.font_title_4 = .{ .name = "VeraBd", .size = 13 };
+    theme.font_heading = .{ .name = "VeraBd", .size = 12 };
 
     dvui.themeSet(theme);
+}
 
-    return frame();
+// Run as app is shutting down before dvui.Window.deinit()
+pub fn AppDeinit() void {
+    pixi.editor.deinit() catch unreachable;
+}
+
+//var cozette_loaded: bool = false;
+
+// Run each frame to do normal UI
+pub fn AppFrame() !dvui.App.Result {
+    return try pixi.editor.tick();
 }
 
 const width = 450;
+const handle_size = 10;
 
-pub fn frame() !dvui.App.Result {
-    var scaler = try dvui.scale(@src(), .{ .scale = &dvui.currentWindow().content_scale, .pinch_zoom = .global }, .{ .expand = .both });
-    defer scaler.deinit();
+const handle_dist = 60;
 
-    // const box = dvui.box(@src(), .horizontal, .{ .expand = .both, .color_fill = .{ .color = .{ .r = 128, .g = 0, .b = 0, .a = 255 } } });
-    // defer box.deinit()
-
-    var paned = try dvui.paned(@src(), .{ .direction = .horizontal, .collapsed_size = width + 1 }, .{ .expand = .both, .background = true, .min_size_content = .{ .h = 100, .w = 100 }, .color_fill = .fill_window });
-    defer paned.deinit();
-
-    if (paned.showFirst()) {
-        var tl = try dvui.textLayout(@src(), .{}, .{ .expand = .horizontal, .font_style = .title_4, .background = false });
-        const lorem = "This is a dvui.App example that can compile on multiple backends.";
-        try tl.addText(lorem, .{});
-        try tl.addText("\n\n", .{});
-        try tl.format("Current backend: {s}", .{@tagName(dvui.backend.kind)}, .{});
-        if (dvui.backend.kind == .web) {
-            try tl.format(" : {s}", .{if (dvui.backend.wasm.wasm_about_webgl2() == 1) "webgl2" else "webgl (no mipmaps)"}, .{});
-        }
-        tl.deinit();
-    }
-
-    if (paned.showSecond()) {
-        const vbox = try dvui.box(@src(), .vertical, .{ .expand = .both, .background = false });
-        defer vbox.deinit();
-
-        {
-            var m = try dvui.menu(@src(), .horizontal, .{});
-            defer m.deinit();
-
-            if (try dvui.menuItemLabel(@src(), "File", .{ .submenu = true }, .{ .expand = .horizontal })) |r| {
-                var fw = try dvui.floatingMenu(@src(), .{ .from = r }, .{});
-                defer fw.deinit();
-
-                try dvui.Examples.submenus();
-
-                if (try dvui.menuItemLabel(@src(), "Dialog", .{}, .{ .expand = .horizontal }) != null) {
-                    fw.close();
-                }
-
-                if (try dvui.menuItemLabel(@src(), "Close Menu", .{}, .{ .expand = .horizontal }) != null) {
-                    fw.close();
-                }
-            }
-
-            if (try dvui.menuItemLabel(@src(), "Edit", .{ .submenu = true }, .{ .expand = .horizontal })) |r| {
-                var fw = try dvui.floatingMenu(@src(), .{ .from = r }, .{});
-                defer fw.deinit();
-                _ = try dvui.menuItemLabel(@src(), "Dummy", .{}, .{ .expand = .horizontal });
-                _ = try dvui.menuItemLabel(@src(), "Dummy Long", .{}, .{ .expand = .horizontal });
-                _ = try dvui.menuItemLabel(@src(), "Dummy Super Long", .{}, .{ .expand = .horizontal });
-            }
-        }
-
-        var second_paned = try dvui.paned(@src(), .{ .direction = .vertical, .collapsed_size = 150 }, .{ .expand = .both, .background = false, .min_size_content = .{ .h = 100, .w = 100 } });
-        defer second_paned.deinit();
-
-        if (second_paned.showFirst()) {
-            const hbox = try dvui.box(@src(), .horizontal, .{ .expand = .both, .background = true });
-            defer hbox.deinit();
-
-            const vbox2 = try dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.5 });
-            defer vbox2.deinit();
-
-            const label = if (dvui.Examples.show_demo_window) "Hide Demo Window" else "Show Demo Window";
-            if (try dvui.button(@src(), label, .{}, .{ .tag = "show-demo-btn", .gravity_y = 0.5 })) {
-                dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
-            }
-
-            //if (try dvui.button(@src(), "Panic", .{}, .{})) {
-            //std.debug.panic("This is a panic message after {d}s", .{@divTrunc(dvui.currentWindow().frame_time_ns, std.time.ns_per_s)});
-            //}
-            if (dvui.backend.kind != .web) {
-                if (try dvui.button(@src(), "Close", .{}, .{})) {
-                    return .close;
-                }
-            }
-        }
-
-        if (second_paned.showSecond()) {
-            // const menu = try dvui.menu(@src(), .horizontal, .{ .expand = .horizontal, .background = false });
-            // defer menu.deinit();
-
-            // if (try dvui.menuItemLabel(@src(), "File", .{ .submenu = true }, .{ .expand = .none, .background = false })) |rect| {
-            //     _ = rect; // autofix
-            // }
-
-            const vbox2 = try dvui.box(@src(), .vertical, .{ .expand = .both, .background = true });
-            defer vbox2.deinit();
-        }
-    }
-
-    // var tl2 = try dvui.textLayout(@src(), .{}, .{ .expand = .horizontal });
-    // try tl2.addText(
-    //     \\DVUI
-    //     \\- paints the entire window
-    //     \\- can show floating windows and dialogs
-    //     \\- rest of the window is a scroll area
-    // , .{});
-    // try tl2.addText("\n\n", .{});
-    // try tl2.addText("Framerate is variable and adjusts as needed for input events and animations.", .{});
-    // try tl2.addText("\n\n", .{});
-    // try tl2.addText("Framerate is capped by vsync.", .{});
-    // try tl2.addText("\n\n", .{});
-    // try tl2.addText("Cursor is always being set by dvui.", .{});
-    // try tl2.addText("\n\n", .{});
-    // if (dvui.useFreeType) {
-    //     try tl2.addText("Fonts are being rendered by FreeType 2.", .{});
-    // } else {
-    //     try tl2.addText("Fonts are being rendered by stb_truetype.", .{});
-    // }
-    // tl2.deinit();
-
-    // look at demo() for examples of dvui widgets, shows in a floating window
-    try dvui.Examples.demo();
-
-    return .ok;
-}
+pub fn frame() !dvui.App.Result {}
 
 // pub fn init(
 //     app: *App,

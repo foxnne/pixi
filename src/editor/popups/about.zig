@@ -1,6 +1,5 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
-const imgui = @import("zig-imgui");
 
 var timer: f32 = 0.0;
 var sprite_index: usize = 0;
