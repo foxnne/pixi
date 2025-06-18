@@ -82,15 +82,24 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
 
     var canvas_flipbook = dvui.paned(@src(), .{
         .direction = .vertical,
-        .collapsed_size = 150,
+        .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
         .handle_size = 2,
         .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
     }, .{
         .expand = .both,
         .background = false,
-        .min_size_content = .{ .h = 100, .w = 100 },
+        //.min_size_content = .{ .h = 100, .w = 100 },
     });
     defer canvas_flipbook.deinit();
+
+    if (dvui.firstFrame(canvas_flipbook.wd.id)) {
+        canvas_flipbook.collapsed_state = false;
+        canvas_flipbook.collapsing = false;
+        canvas_flipbook.split_ratio.* = 1.0;
+        canvas_flipbook.animateSplit(pixi.editor.settings.flipbook_ratio);
+    } else {
+        pixi.editor.settings.flipbook_ratio = canvas_flipbook.split_ratio.*;
+    }
 
     if (canvas_flipbook.showFirst()) {
 
@@ -226,14 +235,15 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
     }
 
     if (canvas_flipbook.showSecond()) {
+        // Canvas Area
+
+        const vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+        defer vbox.deinit();
+
+        // Flipbook area
+
         {
-            // Flipbook area
-            var totalBox = dvui.box(@src(), .horizontal, .{ .expand = .both, .background = true });
-            defer totalBox.deinit();
-
-            var drawBox = dvui.box(@src(), .vertical, .{ .expand = .horizontal, .min_size_content = .{ .w = 200, .h = 20 } });
-            var rs = drawBox.data().contentRectScale();
-
+            var rs = vbox.data().contentRectScale();
             rs.r.h = 20.0;
 
             var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
@@ -254,7 +264,6 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
 
             triangles.deinit(dvui.currentWindow().arena());
             path.deinit();
-            drawBox.deinit();
         }
 
         {

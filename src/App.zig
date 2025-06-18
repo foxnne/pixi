@@ -67,8 +67,8 @@ var framerate_capture: f32 = 0.0;
 // * expose the backend's main function
 // * use the backend's log function
 pub const dvui_app: dvui.App = .{ .config = .{ .options = .{
-    .size = .{ .w = 800.0, .h = 600.0 },
-    .min_size = .{ .w = 350.0, .h = 450.0 },
+    .size = .{ .w = 1200.0, .h = 800.0 },
+    .min_size = .{ .w = 640.0, .h = 480.0 },
     .title = "Pixi",
 } }, .frameFn = AppFrame, .initFn = AppInit, .deinitFn = AppDeinit };
 

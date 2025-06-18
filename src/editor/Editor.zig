@@ -150,7 +150,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
     var explorer_artboard = dvui.paned(@src(), .{
         .direction = .horizontal,
-        .collapsed_size = 450 + 1,
+        .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
         .handle_size = 2,
         .handle_dynamic = .{
             .handle_size_max = handle_size,
@@ -159,13 +159,14 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     }, .{
         .expand = .both,
         .background = true,
-        .min_size_content = .{ .h = 100, .w = 100 },
+        //.min_size_content = .{ .h = 100, .w = 100 },
         .color_fill = .fill_window,
     });
     defer explorer_artboard.deinit();
 
     if (dvui.firstFrame(explorer_artboard.wd.id)) {
-        explorer_artboard.split_ratio.* = editor.settings.explorer_ratio;
+        explorer_artboard.split_ratio.* = 0.0;
+        explorer_artboard.animateSplit(pixi.editor.settings.explorer_ratio);
     } else {
         editor.settings.explorer_ratio = explorer_artboard.split_ratio.*;
     }

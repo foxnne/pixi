@@ -109,7 +109,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !void {
 
         var tl2 = dvui.textLayout(@src(), .{}, .{
             .background = false,
-            .padding = dvui.Rect.all(0),
+            .padding = dvui.Rect.all(4),
         });
         tl2.format("{s}", .{pixi.Editor.Explorer.title(option, false)}, .{
             .font_style = .caption,

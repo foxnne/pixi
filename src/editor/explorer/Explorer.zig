@@ -76,7 +76,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
 pub fn drawHeader(explorer: *Explorer) !void {
     const header_title = title(explorer.pane, true);
 
-    const text_layout = dvui.textLayout(@src(), .{}, .{ .background = false });
+    const text_layout = dvui.textLayout(@src(), .{}, .{ .background = false, .max_size_content = .{ .h = dvui.themeGet().font_heading.lineHeight() * 2.0, .w = std.math.floatMax(f32) } });
     defer text_layout.deinit();
 
     text_layout.addText(header_title, .{ .font_style = .heading });
