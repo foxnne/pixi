@@ -107,6 +107,7 @@ pub fn init(
     //editor.open_references = std.ArrayList(pixi.Internal.Reference).init(editor.allocator);
 
     editor.colors.keyframe_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
+    editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
 
     return editor;
 }
@@ -369,7 +370,7 @@ pub fn close(app: *App, editor: *Editor) void {
     app.should_close = should_close;
 }
 
-pub fn setProjectFolder(editor: *Editor, path: [:0]const u8) !void {
+pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
     if (editor.folder) |folder| {
         pixi.app.allocator.free(folder);
     }

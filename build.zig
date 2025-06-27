@@ -102,6 +102,9 @@ pub fn build(b: *std.Build) !void {
     exe.root_module.addImport("zip", zip_pkg.module);
 
     exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl3"));
+    if (b.lazyDependency("icons", .{ .target = target, .optimize = optimize })) |dep| {
+        exe.root_module.addImport("icons", dep.module("icons"));
+    }
 
     //pixi_mod.addImport("zig-imgui", imgui_module);
     exe.root_module.addImport("zgif", zgif_module);

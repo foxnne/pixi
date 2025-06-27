@@ -30,7 +30,7 @@ pub const Pane = enum(u32) {
     sprites,
     animations,
     keyframe_animations,
-    pack,
+    project,
     settings,
 };
 
@@ -49,7 +49,7 @@ pub fn title(pane: Pane, all_caps: bool) []const u8 {
         .sprites => if (all_caps) "SPRITES" else "Sprites",
         .animations => if (all_caps) "ANIMATIONS" else "Animations",
         .keyframe_animations => if (all_caps) "KEYFRAME ANIMATIONS" else "Keyframe Animations",
-        .pack => if (all_caps) "PACKING" else "Packing",
+        .project => if (all_caps) "PROJECT" else "Project",
         .settings => if (all_caps) "SETTINGS" else "Settings",
     };
 }
@@ -65,9 +65,46 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
 
     _ = dvui.separator(@src(), .{ .expand = .horizontal });
 
+    const pane_vbox = dvui.box(@src(), .vertical, .{
+        .expand = .both,
+        .background = false,
+    });
+    defer pane_vbox.deinit();
+
+    var scroll = dvui.scrollArea(@src(), .{ .horizontal = .auto }, .{
+        .expand = .both,
+        .background = false,
+        .color_fill = .fill,
+    });
+    defer scroll.deinit();
+
     switch (explorer.pane) {
         .files => try files.draw(),
         else => {},
+    }
+
+    // Only draw shadow if the scroll bar has been scrolled some
+    if (scroll.si.offset(.vertical) > 0.0) {
+        var rs = pane_vbox.data().contentRectScale();
+        rs.r.h = 20.0;
+
+        var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        path.addRect(rs.r, dvui.Rect.Physical.all(5));
+
+        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+
+        const black: dvui.Color = .black;
+        const ca0 = black.opacity(0.1);
+        const ca1 = black.opacity(0);
+
+        for (triangles.vertexes) |*v| {
+            const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
+            v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+        }
+        try dvui.renderTriangles(triangles, null);
+
+        triangles.deinit(dvui.currentWindow().arena());
+        path.deinit();
     }
 
     return .ok;

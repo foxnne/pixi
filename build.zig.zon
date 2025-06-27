@@ -36,6 +36,11 @@
             .hash = "mach_objc-0.0.0-AAAAAEgvDQBBGTHtfgZD-MGfQARlVomEfEYZsAgYjIYd",
             .lazy = true,
         },
+        .icons = .{
+            .url = "https://github.com/nat3Github/zig-lib-icons/archive/8e34a0324d46d73a5a59bda09892ac5140b54c0f.tar.gz",
+            .lazy = true,
+            .hash = "icons-0.0.0-iJxA-c33MwAwe2T9SnPQlmpIkKfdNt9jQ5buN-CLufTe",
+        },
         .dvui = .{
             //.path = "../dvui-dev/",
             .url = "https://github.com/foxnne/dvui-dev/archive/ebcc56f83c0fcd727e0eae83a426bf57881d04ed.tar.gz",

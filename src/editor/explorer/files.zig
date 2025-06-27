@@ -3,6 +3,8 @@ const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 const Editor = pixi.Editor;
 
+const icons = @import("icons");
+
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
@@ -23,35 +25,17 @@ pub const Extension = enum {
     zip,
     _7z,
     tar,
+    gif,
 };
 
 pub fn draw() !void {
-    // var tree = try dvui.TreeWidget.init(@src(), .{}, .{ .expand = .both, .background = true, .color_fill = .{ .color = .red } });
-    // defer tree.deinit();
+    // var reorder = dvui.reorder(@src(), .{ .min_size_content = .{ .w = 120 }, .background = true, .border = dvui.Rect.all(1), .padding = dvui.Rect.all(4) });
+    // defer reorder.deinit();
+    var tree = Editor.Widgets.TreeWidget.tree(@src(), .{ .background = false, .expand = .both });
+    defer tree.deinit();
 
-    // try tree.install();
-
-    // if (try tree.branch(@src(), "Files", .{ .default_expanded = true }, .{})) {
-    //     if (try tree.branch(@src(), "Files2", .{ .default_expanded = true }, .{})) {
-    //         if (try tree.branch(@src(), "Files4", .{ .default_expanded = true }, .{})) {
-    //             if (try tree.leaf(@src(), "Files45", .{})) {}
-    //             if (try tree.leaf(@src(), "Files46", .{})) {}
-    //             if (try tree.branch(@src(), "Files3", .{ .default_expanded = false }, .{})) {
-    //                 if (try tree.leaf(@src(), "Files34", .{})) {}
-    //                 if (try tree.leaf(@src(), "Files35", .{})) {}
-    //             }
-    //         }
-    //     }
-    // }
-
-    // if (try dvui.expander(@src(), "Files", .{}, .{ .expand = .horizontal })) {
-    //     var vbox = try dvui.box(@src(), .vertical, .{ .margin = .{ .x = 10 } });
-    //     defer vbox.deinit();
-
-    //     try dvui.label(@src(), "Files", .{}, .{});
-    //     if (try dvui.expander(@src(), "Other Files", .{}, .{ .expand = .horizontal, .id_extra = 1 })) {
-    //         //try dvui.label(@src(), "Files");
-    //     }
+    // for (entries, 0..) |entry, i| {
+    //     drawSubs(tree, entry, i);
     // }
 
     // imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.background.toImguiVec4());
@@ -62,10 +46,50 @@ pub fn draw() !void {
     // imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
     // defer imgui.popStyleVar();
 
-    // if (editor.folder) |path|
-    //     try drawFiles(editor, path)
+    if (pixi.editor.folder) |path|
+        try drawFiles(path, tree);
     // else
     //     try drawRecents(editor);
+}
+
+pub fn drawFiles(path: []const u8, tree: *Editor.Widgets.TreeWidget) !void {
+    const folder = std.fs.path.basename(path);
+
+    const branch = tree.branch(@src(), .{ .expanded = true }, .{
+        .id_extra = 0,
+        .expand = .horizontal,
+        .color_fill_hover = .fill,
+    });
+    defer branch.deinit();
+
+    const color: dvui.Color = if (pixi.editor.colors.file_tree_palette) |*palette| palette.getDVUIColor(0) else dvui.themeGet().color_fill_hover;
+
+    _ = dvui.icon(@src(), "FolderIcon", icons.tvg.lucide.folder, .{ .fill_color = color }, .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) });
+    dvui.label(@src(), "{s}", .{folder}, .{
+        .color_fill = .{ .color = color },
+        .font_style = .title_1,
+        .gravity_y = 0.5,
+    });
+    _ = dvui.icon(@src(), "DropIcon", if (branch.expanded) dvui.entypo.triangle_down else dvui.entypo.triangle_right, .{ .fill_color = color }, .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) });
+
+    if (branch.expander(@src(), .{ .indent = 14 }, .{
+        .color_border = .{ .color = color },
+        .color_fill = .fill_window,
+        .corner_radius = branch.button.wd.options.corner_radius,
+        .box_shadow = .{
+            .color = .{ .color = .black },
+            .offset = .{ .x = -5, .y = 5 },
+            .shrink = 5,
+            .blur = 10,
+            .alpha = 0.15,
+        },
+        .expand = .horizontal,
+        .margin = dvui.Rect.all(5),
+        .background = true,
+        .border = .{ .x = 1 },
+    })) {
+        try recurseFiles(pixi.app.allocator, path, tree);
+    }
 }
 
 // fn drawFiles(editor: *Editor, path: [:0]const u8) !void {
@@ -213,128 +237,202 @@ pub fn draw() !void {
 // TODO: Rework this, we need to build and sort before presenting, currently files are displayed however they are loaded
 // When reworking, also try to reduce/remove global pointer usage, better to pass in editor or app pointers
 
-// pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: [:0]const u8) !void {
-//     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
-//     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
-//     imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0);
-//     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
-//     defer imgui.popStyleVarEx(4);
+pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, outer_tree: *Editor.Widgets.TreeWidget) !void {
+    var color_i: usize = 0;
+    const recursor = struct {
+        fn search(alloc: std.mem.Allocator, directory: []const u8, tree: *Editor.Widgets.TreeWidget, color_id: *usize) !void {
+            var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
+            defer dir.close();
 
-//     const recursor = struct {
-//         fn search(alloc: std.mem.Allocator, directory: [:0]const u8) !void {
-//             var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
-//             defer dir.close();
+            var iter = dir.iterate();
+            var id_extra: usize = 0;
+            while (try iter.next()) |entry| {
+                id_extra += 1;
 
-//             var iter = dir.iterate();
-//             while (try iter.next()) |entry| {
-//                 switch (entry.kind) {
-//                     .file => {
-//                         imgui.indent();
-//                         defer imgui.unindent();
-//                         const ext = extension(entry.name);
-//                         if (ext == .hidden) continue;
-//                         const icon = switch (ext) {
-//                             .pixi, .psd => pixi.fa.file_powerpoint,
-//                             .jpg, .png, .aseprite, .pyxel => pixi.fa.file_image,
-//                             .pdf => pixi.fa.file_pdf,
-//                             .json, .zig, .txt, .atlas => pixi.fa.file_code,
-//                             .tar, ._7z, .zip => pixi.fa.file_archive,
-//                             else => pixi.fa.file,
-//                         };
+                var color = dvui.themeGet().color_fill_hover;
+                if (pixi.editor.colors.file_tree_palette) |*palette| {
+                    color = palette.getDVUIColor(color_id.*);
+                }
 
-//                         const icon_color = switch (ext) {
-//                             .pixi, .zig => pixi.editor.theme.text_orange.toImguiVec4(),
-//                             .png, .psd => pixi.editor.theme.text_blue.toImguiVec4(),
-//                             .jpg => pixi.editor.theme.highlight_primary.toImguiVec4(),
-//                             .pdf => pixi.editor.theme.text_red.toImguiVec4(),
-//                             .json, .atlas => pixi.editor.theme.text_yellow.toImguiVec4(),
-//                             .txt, .zip, ._7z, .tar => pixi.editor.theme.text_background.toImguiVec4(),
-//                             else => pixi.editor.theme.text_background.toImguiVec4(),
-//                         };
+                const padding = dvui.Rect.all(2);
 
-//                         const text_color = switch (ext) {
-//                             .pixi => pixi.editor.theme.text.toImguiVec4(),
-//                             .jpg, .png, .json, .zig, .pdf, .aseprite, .pyxel, .psd, .tar, ._7z, .zip, .txt, .atlas => pixi.editor.theme.text_secondary.toImguiVec4(),
-//                             else => pixi.editor.theme.text_background.toImguiVec4(),
-//                         };
+                const branch = tree.branch(@src(), .{
+                    .expanded = false,
+                }, .{
+                    .id_extra = id_extra,
+                    .expand = .horizontal,
+                    .color_fill_hover = .fill,
+                    .padding = dvui.Rect.all(1),
+                });
+                defer branch.deinit();
 
-//                         const icon_spaced = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), " {s} ", .{icon});
+                {
+                    var context = dvui.context(@src(), .{ .rect = branch.vbox.data().borderRectScale().r }, .{});
+                    defer context.deinit();
 
-//                         imgui.textColored(icon_color, icon_spaced);
-//                         imgui.sameLine();
+                    if (context.activePoint()) |point| {
+                        var fw2 = dvui.floatingMenu(@src(), .{ .from = dvui.Rect.Natural.fromPoint(point) }, .{ .box_shadow = .{
+                            .color = .{ .color = .black },
+                            .offset = .{ .x = 0, .y = 0 },
+                            .shrink = 0,
+                            .blur = 10,
+                            .alpha = 0.15,
+                        } });
+                        defer fw2.deinit();
 
-//                         const abs_path = try std.fs.path.joinZ(alloc, &.{ directory, entry.name });
-//                         defer alloc.free(abs_path);
+                        if ((dvui.menuItemLabel(@src(), "Rename", .{}, .{ .expand = .horizontal })) != null) {
+                            fw2.close();
+                        }
 
-//                         imgui.pushStyleColorImVec4(imgui.Col_Text, text_color);
+                        if ((dvui.menuItemLabel(@src(), "Delete", .{}, .{ .expand = .horizontal })) != null) {
+                            fw2.close();
+                        }
+                    }
+                }
 
-//                         const selectable_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}", .{entry.name});
+                switch (entry.kind) {
+                    .file => {
+                        const ext = extension(entry.name);
+                        //if (ext == .hidden) continue;
+                        const icon = switch (ext) {
+                            .pixi, .psd => icons.tvg.lucide.@"file-pen-line",
+                            .jpg, .png, .aseprite, .pyxel, .gif => icons.tvg.lucide.@"file-image",
+                            .pdf => icons.tvg.lucide.@"file-text",
+                            .json, .zig, .txt, .atlas => icons.tvg.lucide.@"file-code-2",
+                            .tar, ._7z, .zip => icons.tvg.lucide.@"file-lock-2",
+                            else => icons.tvg.lucide.@"file-question",
+                        };
 
-//                         if (imgui.selectableEx(
-//                             selectable_name,
-//                             if (pixi.editor.getFileIndex(abs_path)) |_| true else false,
-//                             imgui.SelectableFlags_None,
-//                             .{ .x = 0.0, .y = 0.0 },
-//                         )) {
-//                             switch (ext) {
-//                                 .pixi => {
-//                                     _ = pixi.editor.openFile(abs_path) catch {
-//                                         std.log.debug("Failed to open file: {s}", .{abs_path});
-//                                     };
-//                                 },
-//                                 .png, .jpg => {
-//                                     _ = pixi.editor.openReference(abs_path) catch {
-//                                         std.log.debug("Failed to open reference: {s}", .{abs_path});
-//                                     };
-//                                 },
-//                                 else => {},
-//                             }
-//                         }
-//                         imgui.popStyleColor();
+                        // const icon_color = if (pixi.editor.colors.file_tree_palette) |*palette|
+                        //     switch (ext) {
+                        //         .pixi, .psd => palette.getDVUIColor(2),
+                        //         .jpg, .png, .aseprite, .pyxel => palette.getDVUIColor(3),
+                        //         .pdf => palette.getDVUIColor(4),
+                        //         .json, .zig, .txt, .atlas => palette.getDVUIColor(5),
+                        //         .tar, ._7z, .zip => palette.getDVUIColor(6),
+                        //         else => palette.getDVUIColor(0),
+                        //     }
+                        // else
+                        //     dvui.themeGet().color_fill_hover;
 
-//                         imgui.pushID(abs_path);
-//                         if (imgui.beginPopupContextItem()) {
-//                             //try contextMenuFile(pixi.editor, abs_path);
-//                             imgui.endPopup();
-//                         }
-//                         imgui.popID();
-//                     },
-//                     .directory => {
-//                         const abs_path = try std.fs.path.joinZ(pixi.editor.arena.allocator(), &[_][]const u8{ directory, entry.name });
-//                         const folder = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), " {s} {s}", .{ pixi.fa.folder, entry.name });
-//                         imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.editor.theme.text_secondary.toImguiVec4());
-//                         defer imgui.popStyleColor();
+                        const icon_color = color;
 
-//                         if (imgui.treeNode(folder)) {
-//                             imgui.pushID(abs_path);
-//                             if (imgui.beginPopupContextItem()) {
-//                                 try contextMenuFolder(pixi.editor, abs_path);
-//                                 imgui.endPopup();
-//                             }
-//                             imgui.popID();
+                        const text_color = dvui.themeGet().color_text;
 
-//                             try search(alloc, abs_path);
+                        _ = dvui.icon(
+                            @src(),
+                            "FileIcon",
+                            icon,
+                            .{ .fill_color = icon_color },
+                            .{
+                                .gravity_y = 0.5,
+                                .padding = padding,
+                            },
+                        );
+                        dvui.label(
+                            @src(),
+                            "{s}",
+                            .{entry.name},
+                            .{
+                                .color_text = .{ .color = text_color },
+                                .font_style = .title,
+                                .padding = padding,
+                            },
+                        );
 
-//                             imgui.treePop();
-//                         } else {
-//                             imgui.pushID(abs_path);
-//                             if (imgui.beginPopupContextItem()) {
-//                                 try contextMenuFolder(pixi.editor, abs_path);
-//                                 imgui.endPopup();
-//                             }
-//                             imgui.popID();
-//                         }
-//                     },
-//                     else => {},
-//                 }
-//             }
-//         }
-//     }.search;
+                        const abs_path = try std.fs.path.joinZ(
+                            alloc,
+                            &.{ directory, entry.name },
+                        );
+                        defer alloc.free(abs_path);
 
-//     try recursor(allocator, root_directory);
+                        if (branch.button.clicked()) {
+                            switch (ext) {
+                                .pixi => {
+                                    // _ = pixi.editor.openFile(abs_path) catch {
+                                    //     std.log.debug("Failed to open file: {s}", .{abs_path});
+                                    // };
+                                },
+                                .png, .jpg => {
+                                    // _ = pixi.editor.openReference(abs_path) catch {
+                                    //     std.log.debug("Failed to open reference: {s}", .{abs_path});
+                                    // };
+                                },
+                                else => {},
+                            }
+                        }
+                    },
+                    .directory => {
+                        const abs_path = try std.fs.path.joinZ(
+                            pixi.editor.arena.allocator(),
+                            &[_][]const u8{ directory, entry.name },
+                        );
+                        const folder_name = std.fs.path.basename(abs_path);
+                        const icon_color = color;
 
-//     return;
-// }
+                        _ = dvui.icon(
+                            @src(),
+                            "FolderIcon",
+                            if (branch.expanded) icons.tvg.lucide.@"folder-open" else icons.tvg.lucide.@"folder-closed",
+                            .{
+                                .fill_color = icon_color,
+                            },
+                            .{
+                                .gravity_y = 0.5,
+                                .padding = padding,
+                            },
+                        );
+                        dvui.label(@src(), "{s}", .{folder_name}, .{
+                            .color_text = .{ .color = dvui.themeGet().color_text },
+                            .font_style = .title,
+                            .padding = padding,
+                        });
+                        _ = dvui.icon(
+                            @src(),
+                            "DropIcon",
+                            if (branch.expanded) dvui.entypo.triangle_down else dvui.entypo.triangle_right,
+                            .{ .fill_color = icon_color },
+                            .{
+                                .gravity_y = 0.5,
+                                .gravity_x = 1.0,
+                                .padding = padding,
+                            },
+                        );
+
+                        if (branch.expander(@src(), .{ .indent = 14 }, .{
+                            .color_fill = .fill_window,
+                            .color_border = .{ .color = color },
+                            .background = true,
+                            .border = .{ .x = 1 },
+                            .expand = .horizontal,
+                            .corner_radius = branch.button.wd.options.corner_radius,
+                            .box_shadow = .{
+                                .color = .{ .color = .black },
+                                .offset = .{ .x = -5, .y = 5 },
+                                .shrink = 5,
+                                .blur = 10,
+                                .alpha = 0.15,
+                            },
+                        })) {
+                            try search(
+                                alloc,
+                                abs_path,
+                                tree,
+                                color_id,
+                            );
+                        }
+                        color_id.* = color_id.* + 1;
+                    },
+                    else => {},
+                }
+            }
+        }
+    }.search;
+
+    try recursor(allocator, root_directory, outer_tree, &color_i);
+
+    return;
+}
 
 // fn contextMenuFolder(editor: *Editor, folder: [:0]const u8) !void {
 //     imgui.pushStyleColorImVec4(imgui.Col_Separator, editor.theme.foreground.toImguiVec4());

@@ -1,5 +1,6 @@
 const std = @import("std");
 const pixi = @import("../pixi.zig");
+const dvui = @import("dvui");
 
 const PackedColor = packed struct(u32) { r: u8, g: u8, b: u8, a: u8 };
 
@@ -7,6 +8,11 @@ pub const Palette = @This();
 
 name: [:0]const u8,
 colors: [][4]u8,
+
+pub fn getDVUIColor(self: *Palette, id: usize) dvui.Color {
+    const new_id = id % self.colors.len;
+    return .{ .r = self.colors[new_id][0], .g = self.colors[new_id][1], .b = self.colors[new_id][2], .a = self.colors[new_id][3] };
+}
 
 pub fn loadFromFile(file: [:0]const u8) !Palette {
     var colors = std.ArrayList([4]u8).init(pixi.app.allocator);

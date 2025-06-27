@@ -2,6 +2,7 @@ const std = @import("std");
 
 const dvui = @import("dvui");
 const pixi = @import("../../pixi.zig");
+const icons = @import("icons");
 
 //const Core = @import("mach").Core;
 const App = pixi.App;
@@ -67,8 +68,6 @@ const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
     color_0,
 };
 
-var mouse_position: ?dvui.Point.Physical = null;
-
 pub fn draw(_: *Artboard) !dvui.App.Result {
     const artboard_vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = false });
     defer artboard_vbox.deinit();
@@ -92,6 +91,30 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
         //.min_size_content = .{ .h = 100, .w = 100 },
     });
     defer canvas_flipbook.deinit();
+
+    var double_clicked: bool = false;
+
+    for (dvui.events()) |event| {
+        if (event.evt == .mouse) {
+            if (event.evt.mouse.action == .press and event.evt.mouse.button == .left and canvas_flipbook.mouse_dist <= canvas_flipbook.handle_thick / 2.0) {
+                if (dvui.animationGet(canvas_flipbook.wd.id, "double_click")) |a| {
+                    if (a.value() < 1.0) {
+                        double_clicked = true;
+                    }
+                }
+                dvui.animation(canvas_flipbook.wd.id, "double_click", .{
+                    .start_val = 0.0,
+                    .end_val = 1.0,
+                    .end_time = 250_000,
+                    .easing = dvui.easing.linear,
+                });
+            }
+        }
+    }
+
+    if (double_clicked) {
+        canvas_flipbook.animateSplit(0.0);
+    }
 
     if (dvui.firstFrame(canvas_flipbook.wd.id)) {
         canvas_flipbook.collapsed_state = false;
@@ -120,19 +143,27 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
                 }
             }
 
+            const logo_pixel_size = 32;
+            const logo_width = 3;
+            const logo_height = 5;
+
+            const logo_vbox = dvui.box(@src(), .vertical, .{
+                .expand = .none,
+                .gravity_x = 0.5,
+                .gravity_y = 0.5,
+                .padding = dvui.Rect.all(10),
+            });
+            defer logo_vbox.deinit();
+
             { // Logo
-                const logo_pixel_size = 32;
-                const logo_width = 3;
-                const logo_height = 5;
 
-                const vbox2 = dvui.box(@src(), .vertical, .{ .expand = .none, .gravity_x = 0.5, .gravity_y = 0.5, .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size * logo_height } });
+                const vbox2 = dvui.box(@src(), .vertical, .{
+                    .expand = .none,
+                    .gravity_x = 0.5,
+                    .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size * logo_height },
+                    .padding = dvui.Rect.all(20),
+                });
                 defer vbox2.deinit();
-
-                for (dvui.events()) |event| {
-                    if (event.evt == .mouse) {
-                        mouse_position = event.evt.mouse.p;
-                    }
-                }
 
                 for (0..5) |i| {
                     const hbox = dvui.box(@src(), .horizontal, .{
@@ -206,6 +237,34 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
                             //try drawBubble(pixel.data().rectScale().r, color);
                             defer pixel.deinit();
                         }
+                    }
+                }
+            }
+
+            {
+                var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
+                    .gravity_x = 0.5,
+                    .padding = dvui.Rect.all(2),
+                });
+                defer button.deinit();
+
+                button.install();
+                button.processEvents();
+                button.drawBackground();
+
+                var hbox = dvui.box(@src(), .horizontal, .{
+                    .expand = .none,
+                    .id_extra = 2,
+                });
+                defer hbox.deinit();
+
+                dvui.label(@src(), "Open Folder (", .{}, .{});
+                _ = dvui.icon(@src(), "OpenFolderIcon", icons.tvg.lucide.command, .{}, .{ .gravity_y = 0.5 });
+                dvui.label(@src(), "+ F )", .{}, .{});
+
+                if (button.clicked()) {
+                    if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
+                        try pixi.editor.setProjectFolder(folder);
                     }
                 }
             }

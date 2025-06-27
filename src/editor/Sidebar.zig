@@ -30,7 +30,7 @@ pub fn draw(_: Sidebar) !dvui.App.Result {
         .{ .pane = .sprites, .icon = dvui.entypo.grid },
         .{ .pane = .animations, .icon = dvui.entypo.controller_play },
         .{ .pane = .keyframe_animations, .icon = dvui.entypo.key },
-        .{ .pane = .pack, .icon = dvui.entypo.box },
+        .{ .pane = .project, .icon = dvui.entypo.box },
         .{ .pane = .settings, .icon = dvui.entypo.cog },
     };
 
