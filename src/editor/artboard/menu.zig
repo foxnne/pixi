@@ -11,26 +11,9 @@ pub fn draw() !dvui.App.Result {
     var m = dvui.menu(@src(), .horizontal, .{});
     defer m.deinit();
 
-    if (for (dvui.events()) |*e| {
-        if (e.evt == .mouse) {
-            break e;
-        }
-    } else null) |e| {
-        mouse_distance = e.evt.mouse.p.y;
-    }
-
-    var alpha: u8 = 255 - @as(u8, @intFromFloat(std.math.clamp(mouse_distance, 0.0, 255.0)));
-
-    if (m.submenus_activated) {
-        alpha = 255;
-    }
-
-    var color = dvui.themeGet().color_text;
-    color.a = alpha;
-
-    if (try menuItem(@src(), "File", .{ .submenu = true }, .{
+    if (menuItem(@src(), "File", .{ .submenu = true }, .{
         .expand = .horizontal,
-        .color_accent = .fill,
+        //.color_accent = .fill,
     })) |r| {
         var animator = dvui.animate(@src(), .{
             .kind = .alpha,
@@ -43,16 +26,16 @@ pub fn draw() !dvui.App.Result {
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
         defer fw.deinit();
 
-        if (try menuItem(@src(), "Dialog", .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+        if (menuItem(@src(), "Dialog", .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
             fw.close();
         }
 
-        if (try menuItem(@src(), "Close Menu", .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+        if (menuItem(@src(), "Close Menu", .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
             fw.close();
         }
     }
 
-    if (try menuItem(
+    if (menuItem(
         @src(),
         "Edit",
         .{ .submenu = true },
@@ -71,15 +54,15 @@ pub fn draw() !dvui.App.Result {
 
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
         defer fw.deinit();
-        _ = try menuItem(@src(), "Dummy", .{}, .{ .expand = .horizontal, .color_accent = .fill });
-        _ = try menuItem(@src(), "Dummy Long", .{}, .{ .expand = .horizontal, .color_accent = .fill });
-        _ = try menuItem(@src(), "Dummy Super Long", .{}, .{ .expand = .horizontal, .color_accent = .fill });
+        _ = menuItem(@src(), "Dummy", .{}, .{ .expand = .horizontal, .color_accent = .fill });
+        _ = menuItem(@src(), "Dummy Long", .{}, .{ .expand = .horizontal, .color_accent = .fill });
+        _ = menuItem(@src(), "Dummy Super Long", .{}, .{ .expand = .horizontal, .color_accent = .fill });
     }
 
     return .ok;
 }
 
-pub fn menuItem(src: std.builtin.SourceLocation, label_str: []const u8, init_opts: dvui.MenuItemWidget.InitOptions, opts: dvui.Options) !?dvui.Rect.Natural {
+pub fn menuItem(src: std.builtin.SourceLocation, label_str: []const u8, init_opts: dvui.MenuItemWidget.InitOptions, opts: dvui.Options) ?dvui.Rect.Natural {
     var mi = dvui.menuItem(src, init_opts, opts);
 
     var ret: ?dvui.Rect.Natural = null;

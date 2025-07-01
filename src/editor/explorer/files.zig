@@ -8,6 +8,10 @@ const icons = @import("icons");
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
+var tree_removed_path: ?[]const u8 = null;
+var edit_path: ?[]const u8 = null;
+var input_widget: ?*dvui.TextEntryWidget = null;
+
 pub const Extension = enum {
     unsupported,
     hidden,
@@ -29,22 +33,8 @@ pub const Extension = enum {
 };
 
 pub fn draw() !void {
-    // var reorder = dvui.reorder(@src(), .{ .min_size_content = .{ .w = 120 }, .background = true, .border = dvui.Rect.all(1), .padding = dvui.Rect.all(4) });
-    // defer reorder.deinit();
     var tree = Editor.Widgets.TreeWidget.tree(@src(), .{ .background = false, .expand = .both });
     defer tree.deinit();
-
-    // for (entries, 0..) |entry, i| {
-    //     drawSubs(tree, entry, i);
-    // }
-
-    // imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.background.toImguiVec4());
-    // imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.background.toImguiVec4());
-    // imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.background.toImguiVec4());
-    // defer imgui.popStyleColorEx(3);
-
-    // imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
-    // defer imgui.popStyleVar();
 
     if (pixi.editor.folder) |path|
         try drawFiles(path, tree);
@@ -53,6 +43,11 @@ pub fn draw() !void {
 }
 
 pub fn drawFiles(path: []const u8, tree: *Editor.Widgets.TreeWidget) !void {
+    const filter_text_edit = dvui.textEntry(@src(), .{ .placeholder = "Filter..." }, .{ .expand = .horizontal });
+
+    const filter_text = filter_text_edit.getText();
+    filter_text_edit.deinit();
+
     const folder = std.fs.path.basename(path);
 
     const branch = tree.branch(@src(), .{ .expanded = true }, .{
@@ -64,15 +59,27 @@ pub fn drawFiles(path: []const u8, tree: *Editor.Widgets.TreeWidget) !void {
 
     const color: dvui.Color = if (pixi.editor.colors.file_tree_palette) |*palette| palette.getDVUIColor(0) else dvui.themeGet().color_fill_hover;
 
-    _ = dvui.icon(@src(), "FolderIcon", icons.tvg.lucide.folder, .{ .fill_color = color }, .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) });
+    _ = dvui.icon(
+        @src(),
+        "FolderIcon",
+        icons.tvg.lucide.folder,
+        .{ .fill_color = color },
+        .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
+    );
     dvui.label(@src(), "{s}", .{folder}, .{
         .color_fill = .{ .color = color },
         .font_style = .title_1,
         .gravity_y = 0.5,
     });
-    _ = dvui.icon(@src(), "DropIcon", if (branch.expanded) dvui.entypo.triangle_down else dvui.entypo.triangle_right, .{ .fill_color = color }, .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) });
+    _ = dvui.icon(
+        @src(),
+        "DropIcon",
+        if (branch.expanded) dvui.entypo.triangle_down else dvui.entypo.triangle_right,
+        .{ .fill_color = color },
+        .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
+    );
 
-    if (branch.expander(@src(), .{ .indent = 14 }, .{
+    if (branch.expander(@src(), .{ .indent = 24 }, .{
         .color_border = .{ .color = color },
         .color_fill = .fill_window,
         .corner_radius = branch.button.wd.options.corner_radius,
@@ -84,108 +91,13 @@ pub fn drawFiles(path: []const u8, tree: *Editor.Widgets.TreeWidget) !void {
             .alpha = 0.15,
         },
         .expand = .horizontal,
-        .margin = dvui.Rect.all(5),
+        .margin = .{ .x = 10, .w = 5 },
         .background = true,
-        .border = .{ .x = 1 },
+        .border = .{ .x = 1, .w = 1 },
     })) {
-        try recurseFiles(pixi.app.allocator, path, tree);
+        try recurseFiles(pixi.app.allocator, path, tree, filter_text);
     }
 }
-
-// fn drawFiles(editor: *Editor, path: [:0]const u8) !void {
-//     const folder = std.fs.path.basename(path);
-
-//     const open_files_len = editor.open_files.items.len;
-
-//     // Open files
-//     if (open_files_len > 0) {
-//         if (imgui.collapsingHeader(pixi.fa.file ++ "  Open Files", imgui.TreeNodeFlags_DefaultOpen)) {
-//             imgui.indent();
-//             defer imgui.unindent();
-
-//             if (imgui.beginChild("OpenFiles", .{
-//                 .x = 0.0,
-//                 .y = @as(f32, @floatFromInt(@min(open_files_len + 1, 6))) * (imgui.getTextLineHeight() + 6.0),
-//             }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-//                 defer imgui.endChild();
-
-//                 for (editor.open_files.items, 0..) |file, i| {
-//                     imgui.textColored(editor.theme.text_orange.toImguiVec4(), " " ++ pixi.fa.file_powerpoint ++ " ");
-//                     imgui.sameLine();
-//                     const name = std.fs.path.basename(file.path);
-//                     const label = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}", .{name});
-//                     if (imgui.selectable(label)) {
-//                         editor.setActiveFile(i);
-//                     }
-
-//                     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
-//                     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
-//                     imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0);
-//                     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
-//                     imgui.pushID(file.path);
-//                     if (imgui.beginPopupContextItem()) {
-//                         try contextMenuFile(editor, file.path);
-//                         imgui.endPopup();
-//                     }
-//                     imgui.popID();
-//                     imgui.popStyleVarEx(4);
-
-//                     if (imgui.isItemHovered(imgui.HoveredFlags_DelayNormal)) {
-//                         if (imgui.beginTooltip()) {
-//                             defer imgui.endTooltip();
-
-//                             imgui.textColored(editor.theme.text_secondary.toImguiVec4(), file.path);
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-
-//     const index = if (std.mem.indexOf(u8, path, folder)) |i| i else 0;
-
-//     const project_header_label = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}  {s}", .{ pixi.fa.folder, path[index.. :0] });
-
-//     // File tree
-//     var open: bool = true;
-//     if (imgui.collapsingHeaderBoolPtr(
-//         project_header_label,
-//         &open,
-//         imgui.TreeNodeFlags_DefaultOpen,
-//     )) {
-//         imgui.indent();
-//         defer imgui.unindent();
-
-//         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
-//         imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
-//         imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0);
-//         imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 4.0 });
-//         imgui.pushID(path);
-//         if (imgui.beginPopupContextItem()) {
-//             try contextMenuFolder(editor, path);
-//             imgui.endPopup();
-//         }
-//         imgui.popID();
-//         imgui.popStyleVarEx(4);
-
-//         if (imgui.beginChild("FileTree", .{
-//             .x = -1.0,
-//             .y = 0.0,
-//         }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) { // TODO: Should this also be ChildWindow?
-//             // File Tree
-//             try recurseFiles(pixi.app.allocator, path);
-//         }
-//         defer imgui.endChild();
-//     }
-
-//     if (!open) {
-//         if (editor.folder) |f| {
-//             pixi.app.allocator.free(f);
-//         }
-
-//         editor.folder = null;
-//     }
-// }
 
 // fn drawRecents(editor: *Editor) !void {
 //     if (imgui.collapsingHeader(pixi.fa.clock ++ "  Recents", imgui.TreeNodeFlags_DefaultOpen)) {
@@ -234,20 +146,46 @@ pub fn drawFiles(path: []const u8, tree: *Editor.Widgets.TreeWidget) !void {
 //     }
 // }
 
-// TODO: Rework this, we need to build and sort before presenting, currently files are displayed however they are loaded
-// When reworking, also try to reduce/remove global pointer usage, better to pass in editor or app pointers
+fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
+    return std.mem.order(u8, lhs.name, rhs.name) == .lt;
+}
 
-pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, outer_tree: *Editor.Widgets.TreeWidget) !void {
+pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, outer_tree: *Editor.Widgets.TreeWidget, outer_filter_text: []const u8) !void {
     var color_i: usize = 0;
     const recursor = struct {
-        fn search(alloc: std.mem.Allocator, directory: []const u8, tree: *Editor.Widgets.TreeWidget, color_id: *usize) !void {
+        fn search(alloc: std.mem.Allocator, directory: []const u8, tree: *Editor.Widgets.TreeWidget, color_id: *usize, filter_text: []const u8) !void {
             var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
             defer dir.close();
 
+            var entries = std.ArrayList(std.fs.Dir.Entry).init(alloc);
+            defer entries.deinit();
+
             var iter = dir.iterate();
-            var id_extra: usize = 0;
             while (try iter.next()) |entry| {
+                try entries.append(entry);
+            }
+
+            std.mem.sort(
+                std.fs.Dir.Entry,
+                entries.items,
+                {},
+                lessThan,
+            );
+
+            var id_extra: usize = 0;
+            for (entries.items) |entry| {
                 id_extra += 1;
+
+                if (entry.kind == .file) {
+                    if (std.ascii.indexOfIgnoreCase(entry.name, filter_text) == null) {
+                        continue;
+                    }
+                }
+
+                const abs_path = try std.fs.path.join(
+                    dvui.currentWindow().arena(),
+                    &[_][]const u8{ directory, entry.name },
+                );
 
                 var color = dvui.themeGet().color_fill_hover;
                 if (pixi.editor.colors.file_tree_palette) |*palette| {
@@ -266,8 +204,29 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                 });
                 defer branch.deinit();
 
-                {
-                    var context = dvui.context(@src(), .{ .rect = branch.vbox.data().borderRectScale().r }, .{});
+                if (branch.floating()) {
+                    if (tree_removed_path == null)
+                        tree_removed_path = alloc.dupe(u8, abs_path) catch null;
+                }
+
+                if (branch.insertBefore()) {
+                    if (tree_removed_path) |removed_path| {
+                        const old_sub_path = std.fs.path.basename(removed_path);
+
+                        const new_path = try std.fs.path.join(alloc, &.{ if (entry.kind == .directory) abs_path else directory, old_sub_path });
+                        defer alloc.free(new_path);
+
+                        if (!std.mem.eql(u8, removed_path, new_path)) {
+                            try std.fs.renameAbsolute(removed_path, new_path);
+                        }
+
+                        alloc.free(removed_path);
+                        tree_removed_path = null;
+                    }
+                }
+
+                { // Add right click context menu for item options
+                    var context = dvui.context(@src(), .{ .rect = branch.button.data().borderRectScale().r }, .{ .id_extra = id_extra });
                     defer context.deinit();
 
                     if (context.activePoint()) |point| {
@@ -280,7 +239,33 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                         } });
                         defer fw2.deinit();
 
+                        if ((dvui.menuItemLabel(@src(), "New File...", .{}, .{ .expand = .horizontal })) != null) {
+                            fw2.close();
+                        }
+
+                        if ((dvui.menuItemLabel(@src(), "New Folder...", .{}, .{ .expand = .horizontal })) != null) {
+                            switch (entry.kind) {
+                                .directory => {
+                                    const new_folder_path = try std.fs.path.join(alloc, &.{ abs_path, "New Folder" });
+                                    defer alloc.free(new_folder_path);
+
+                                    std.fs.makeDirAbsolute(new_folder_path) catch std.log.err("Failed to create folder: {s}", .{new_folder_path});
+                                },
+                                .file => {
+                                    const new_folder_path = try std.fs.path.join(alloc, &.{ directory, "New Folder" });
+                                    defer alloc.free(new_folder_path);
+
+                                    std.fs.makeDirAbsolute(new_folder_path) catch std.log.err("Failed to create folder: {s}", .{new_folder_path});
+                                },
+                                else => {},
+                            }
+
+                            fw2.close();
+                        }
+
                         if ((dvui.menuItemLabel(@src(), "Rename", .{}, .{ .expand = .horizontal })) != null) {
+                            if (edit_path == null)
+                                edit_path = alloc.dupe(u8, abs_path) catch null;
                             fw2.close();
                         }
 
@@ -303,18 +288,6 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                             else => icons.tvg.lucide.@"file-question",
                         };
 
-                        // const icon_color = if (pixi.editor.colors.file_tree_palette) |*palette|
-                        //     switch (ext) {
-                        //         .pixi, .psd => palette.getDVUIColor(2),
-                        //         .jpg, .png, .aseprite, .pyxel => palette.getDVUIColor(3),
-                        //         .pdf => palette.getDVUIColor(4),
-                        //         .json, .zig, .txt, .atlas => palette.getDVUIColor(5),
-                        //         .tar, ._7z, .zip => palette.getDVUIColor(6),
-                        //         else => palette.getDVUIColor(0),
-                        //     }
-                        // else
-                        //     dvui.themeGet().color_fill_hover;
-
                         const icon_color = color;
 
                         const text_color = dvui.themeGet().color_text;
@@ -329,22 +302,52 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                                 .padding = padding,
                             },
                         );
-                        dvui.label(
-                            @src(),
-                            "{s}",
-                            .{entry.name},
-                            .{
-                                .color_text = .{ .color = text_color },
-                                .font_style = .title,
-                                .padding = padding,
-                            },
-                        );
 
-                        const abs_path = try std.fs.path.joinZ(
-                            alloc,
-                            &.{ directory, entry.name },
-                        );
-                        defer alloc.free(abs_path);
+                        if (edit_path) |path| {
+                            if (std.mem.eql(u8, path, abs_path)) {
+                                const te = dvui.textEntry(@src(), .{ .placeholder = entry.name }, .{ .expand = .horizontal });
+
+                                if (dvui.firstFrame(te.data().id)) {
+                                    dvui.focusWidget(te.data().id, null, null);
+                                }
+
+                                if (dvui.focusedWidgetId() != te.data().id) {
+                                    edit_path = null;
+                                }
+
+                                // if (te.text.len > 0) {
+                                //     const new_path = try std.fs.path.join(alloc, &.{ directory, te.text });
+                                //     defer alloc.free(new_path);
+
+                                //     // if (!std.mem.eql(u8, path, new_path)) {
+                                //     //     try std.fs.renameAbsolute(path, new_path);
+                                //     // }
+                                // }
+                                te.deinit();
+                            } else {
+                                dvui.label(
+                                    @src(),
+                                    "{s}",
+                                    .{entry.name},
+                                    .{
+                                        .color_text = .{ .color = text_color },
+                                        .font_style = .title,
+                                        .padding = padding,
+                                    },
+                                );
+                            }
+                        } else {
+                            dvui.label(
+                                @src(),
+                                "{s}",
+                                .{entry.name},
+                                .{
+                                    .color_text = .{ .color = text_color },
+                                    .font_style = .title,
+                                    .padding = padding,
+                                },
+                            );
+                        }
 
                         if (branch.button.clicked()) {
                             switch (ext) {
@@ -363,10 +366,6 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                         }
                     },
                     .directory => {
-                        const abs_path = try std.fs.path.joinZ(
-                            pixi.editor.arena.allocator(),
-                            &[_][]const u8{ directory, entry.name },
-                        );
                         const folder_name = std.fs.path.basename(abs_path);
                         const icon_color = color;
 
@@ -403,7 +402,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                             .color_fill = .fill_window,
                             .color_border = .{ .color = color },
                             .background = true,
-                            .border = .{ .x = 1 },
+                            .border = .{ .x = 1, .w = 1 },
                             .expand = .horizontal,
                             .corner_radius = branch.button.wd.options.corner_radius,
                             .box_shadow = .{
@@ -419,6 +418,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                                 abs_path,
                                 tree,
                                 color_id,
+                                filter_text,
                             );
                         }
                         color_id.* = color_id.* + 1;
@@ -429,7 +429,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
         }
     }.search;
 
-    try recursor(allocator, root_directory, outer_tree, &color_i);
+    try recursor(allocator, root_directory, outer_tree, &color_i, outer_filter_text);
 
     return;
 }

@@ -92,30 +92,6 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
     });
     defer canvas_flipbook.deinit();
 
-    var double_clicked: bool = false;
-
-    for (dvui.events()) |event| {
-        if (event.evt == .mouse) {
-            if (event.evt.mouse.action == .press and event.evt.mouse.button == .left and canvas_flipbook.mouse_dist <= canvas_flipbook.handle_thick / 2.0) {
-                if (dvui.animationGet(canvas_flipbook.wd.id, "double_click")) |a| {
-                    if (a.value() < 1.0) {
-                        double_clicked = true;
-                    }
-                }
-                dvui.animation(canvas_flipbook.wd.id, "double_click", .{
-                    .start_val = 0.0,
-                    .end_val = 1.0,
-                    .end_time = 250_000,
-                    .easing = dvui.easing.linear,
-                });
-            }
-        }
-    }
-
-    if (double_clicked) {
-        canvas_flipbook.animateSplit(0.0);
-    }
-
     if (dvui.firstFrame(canvas_flipbook.wd.id)) {
         canvas_flipbook.collapsed_state = false;
         canvas_flipbook.collapsing = false;
@@ -301,7 +277,6 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
         defer vbox.deinit();
 
         // Flipbook area
-
         {
             var rs = vbox.data().contentRectScale();
             rs.r.h = 20.0;
@@ -325,29 +300,29 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
             triangles.deinit(dvui.currentWindow().arena());
             path.deinit();
         }
+    }
 
-        {
-            var rs = artboard_vbox.data().contentRectScale();
-            rs.r.w = 20.0;
+    {
+        var rs = artboard_vbox.data().contentRectScale();
+        rs.r.w = 20.0;
 
-            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-            path.addRect(rs.r, dvui.Rect.Physical.all(5));
+        var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
 
-            const black: dvui.Color = .black;
-            const ca0 = black.opacity(0.1);
-            const ca1 = black.opacity(0);
+        const black: dvui.Color = .black;
+        const ca0 = black.opacity(0.1);
+        const ca1 = black.opacity(0);
 
-            for (triangles.vertexes) |*v| {
-                const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
-                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-            }
-            try dvui.renderTriangles(triangles, null);
-
-            triangles.deinit(dvui.currentWindow().arena());
-            path.deinit();
+        for (triangles.vertexes) |*v| {
+            const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
+            v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
         }
+        try dvui.renderTriangles(triangles, null);
+
+        triangles.deinit(dvui.currentWindow().arena());
+        path.deinit();
     }
 
     return .ok;
