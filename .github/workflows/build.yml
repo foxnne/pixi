@@ -23,8 +23,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
+       - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 2024.11.0-mach
+          mirror: 'https://pkg.machengine.org/zig'
       - name: Update
         run: sudo apt-get update
       - name: Get GTK3
@@ -48,8 +51,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-       - name: Setup Zig
-        uses: mlugg/setup-zig@v2
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 2024.11.0-mach
+          mirror: 'https://pkg.machengine.org/zig'
       - name: Build
         run: zig build
       - name: Upload Artifacts
@@ -65,8 +71,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-       - name: Setup Zig
-        uses: mlugg/setup-zig@v2
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 2024.11.0-mach
+          mirror: 'https://pkg.machengine.org/zig'
       - name: build
         run: zig build
       - name: Upload Artifacts
