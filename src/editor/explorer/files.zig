@@ -33,7 +33,7 @@ pub const Extension = enum {
 };
 
 pub fn draw() !void {
-    var tree = Editor.Widgets.TreeWidget.tree(@src(), .{ .background = false, .expand = .both });
+    var tree = dvui.TreeWidget.tree(@src(), .{ .background = false, .expand = .both });
     defer tree.deinit();
 
     if (pixi.editor.folder) |path|
@@ -42,11 +42,21 @@ pub fn draw() !void {
     //     try drawRecents(editor);
 }
 
-pub fn drawFiles(path: []const u8, tree: *Editor.Widgets.TreeWidget) !void {
-    const filter_text_edit = dvui.textEntry(@src(), .{ .placeholder = "Filter..." }, .{ .expand = .horizontal });
+pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
+    const unique_id = dvui.parentGet().extendId(@src(), 0);
 
+    var filter_hbox = dvui.box(@src(), .horizontal, .{ .expand = .horizontal });
+    dvui.icon(
+        @src(),
+        "FilterIcon",
+        icons.tvg.lucide.search,
+        .{ .fill_color = dvui.themeGet().color_text },
+        .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
+    );
+    const filter_text_edit = dvui.textEntry(@src(), .{ .placeholder = "Filter..." }, .{ .expand = .horizontal });
     const filter_text = filter_text_edit.getText();
     filter_text_edit.deinit();
+    filter_hbox.deinit();
 
     const folder = std.fs.path.basename(path);
 
@@ -90,12 +100,12 @@ pub fn drawFiles(path: []const u8, tree: *Editor.Widgets.TreeWidget) !void {
             .blur = 10,
             .alpha = 0.15,
         },
-        .expand = .horizontal,
+        .expand = .both,
         .margin = .{ .x = 10, .w = 5 },
         .background = true,
         .border = .{ .x = 1, .w = 1 },
     })) {
-        try recurseFiles(pixi.app.allocator, path, tree, filter_text);
+        try recurseFiles(path, tree, unique_id, filter_text);
     }
 }
 
@@ -150,42 +160,46 @@ fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
     return std.mem.order(u8, lhs.name, rhs.name) == .lt;
 }
 
-pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, outer_tree: *Editor.Widgets.TreeWidget, outer_filter_text: []const u8) !void {
+pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, unique_id: dvui.WidgetId, outer_filter_text: []const u8) !void {
     var color_i: usize = 0;
+    var id_extra: usize = 0;
+
     const recursor = struct {
-        fn search(alloc: std.mem.Allocator, directory: []const u8, tree: *Editor.Widgets.TreeWidget, color_id: *usize, filter_text: []const u8) !void {
-            var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
+        fn search(directory: []const u8, tree: *dvui.TreeWidget, inner_unique_id: dvui.WidgetId, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8) !void {
+            var dir = std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true }) catch return;
             defer dir.close();
 
-            var entries = std.ArrayList(std.fs.Dir.Entry).init(alloc);
-            defer entries.deinit();
+            // Collect all files/folders in the directory and sort them alphabetically
+            var files = std.ArrayList(std.fs.Dir.Entry).init(dvui.currentWindow().arena());
 
             var iter = dir.iterate();
             while (try iter.next()) |entry| {
-                try entries.append(entry);
+                try files.append(entry);
             }
 
             std.mem.sort(
                 std.fs.Dir.Entry,
-                entries.items,
+                files.items,
                 {},
                 lessThan,
             );
 
-            var id_extra: usize = 0;
-            for (entries.items) |entry| {
-                id_extra += 1;
+            for (files.items) |entry| {
+                const abs_path = try std.fs.path.join(
+                    dvui.currentWindow().arena(),
+                    &.{ directory, entry.name },
+                );
 
                 if (entry.kind == .file) {
                     if (std.ascii.indexOfIgnoreCase(entry.name, filter_text) == null) {
                         continue;
                     }
+                } else if (filter_text.len > 0) {
+                    search(abs_path, tree, inner_unique_id, inner_id_extra, color_id, filter_text) catch continue;
+                    continue;
                 }
 
-                const abs_path = try std.fs.path.join(
-                    dvui.currentWindow().arena(),
-                    &[_][]const u8{ directory, entry.name },
-                );
+                inner_id_extra.* = dvui.hashIdKey(tree.data().id, abs_path);
 
                 var color = dvui.themeGet().color_fill_hover;
                 if (pixi.editor.colors.file_tree_palette) |*palette| {
@@ -197,7 +211,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                 const branch = tree.branch(@src(), .{
                     .expanded = false,
                 }, .{
-                    .id_extra = id_extra,
+                    .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
                     .color_fill_hover = .fill,
                     .padding = dvui.Rect.all(1),
@@ -205,28 +219,26 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                 defer branch.deinit();
 
                 if (branch.floating()) {
-                    if (tree_removed_path == null)
-                        tree_removed_path = alloc.dupe(u8, abs_path) catch null;
+                    if (dvui.dataGetSlice(null, inner_unique_id, "removed_path", []u8) == null)
+                        dvui.dataSetSlice(null, inner_unique_id, "removed_path", abs_path);
                 }
 
                 if (branch.insertBefore()) {
-                    if (tree_removed_path) |removed_path| {
+                    if (dvui.dataGetSlice(null, inner_unique_id, "removed_path", []u8)) |removed_path| {
                         const old_sub_path = std.fs.path.basename(removed_path);
 
-                        const new_path = try std.fs.path.join(alloc, &.{ if (entry.kind == .directory) abs_path else directory, old_sub_path });
-                        defer alloc.free(new_path);
+                        const new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ if (entry.kind == .directory) abs_path else directory, old_sub_path });
 
                         if (!std.mem.eql(u8, removed_path, new_path)) {
-                            try std.fs.renameAbsolute(removed_path, new_path);
+                            std.fs.renameAbsolute(removed_path, new_path) catch std.log.err("Failed to move {s} to {s}", .{ removed_path, new_path });
                         }
 
-                        alloc.free(removed_path);
-                        tree_removed_path = null;
+                        dvui.dataRemove(null, inner_unique_id, "removed_path");
                     }
                 }
 
                 { // Add right click context menu for item options
-                    var context = dvui.context(@src(), .{ .rect = branch.button.data().borderRectScale().r }, .{ .id_extra = id_extra });
+                    var context = dvui.context(@src(), .{ .rect = branch.button.data().borderRectScale().r }, .{ .id_extra = inner_id_extra.* });
                     defer context.deinit();
 
                     if (context.activePoint()) |point| {
@@ -246,15 +258,11 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                         if ((dvui.menuItemLabel(@src(), "New Folder...", .{}, .{ .expand = .horizontal })) != null) {
                             switch (entry.kind) {
                                 .directory => {
-                                    const new_folder_path = try std.fs.path.join(alloc, &.{ abs_path, "New Folder" });
-                                    defer alloc.free(new_folder_path);
-
+                                    const new_folder_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ abs_path, "New Folder" });
                                     std.fs.makeDirAbsolute(new_folder_path) catch std.log.err("Failed to create folder: {s}", .{new_folder_path});
                                 },
                                 .file => {
-                                    const new_folder_path = try std.fs.path.join(alloc, &.{ directory, "New Folder" });
-                                    defer alloc.free(new_folder_path);
-
+                                    const new_folder_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ directory, "New Folder" });
                                     std.fs.makeDirAbsolute(new_folder_path) catch std.log.err("Failed to create folder: {s}", .{new_folder_path});
                                 },
                                 else => {},
@@ -263,13 +271,18 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                             fw2.close();
                         }
 
-                        if ((dvui.menuItemLabel(@src(), "Rename", .{}, .{ .expand = .horizontal })) != null) {
-                            if (edit_path == null)
-                                edit_path = alloc.dupe(u8, abs_path) catch null;
+                        if ((dvui.menuItemLabel(@src(), "Rename", .{}, .{
+                            .expand = .horizontal,
+                        })) != null) {
+                            // if (edit_path == null)
+                            //     edit_path = alloc.dupe(u8, abs_path) catch null;
                             fw2.close();
                         }
 
-                        if ((dvui.menuItemLabel(@src(), "Delete", .{}, .{ .expand = .horizontal })) != null) {
+                        if ((dvui.menuItemLabel(@src(), "Delete", .{}, .{
+                            .expand = .horizontal,
+                            .color_accent = .err,
+                        })) != null) {
                             fw2.close();
                         }
                     }
@@ -414,9 +427,10 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
                             },
                         })) {
                             try search(
-                                alloc,
                                 abs_path,
                                 tree,
+                                inner_unique_id,
+                                inner_id_extra,
                                 color_id,
                                 filter_text,
                             );
@@ -429,7 +443,7 @@ pub fn recurseFiles(allocator: std.mem.Allocator, root_directory: []const u8, ou
         }
     }.search;
 
-    try recursor(allocator, root_directory, outer_tree, &color_i, outer_filter_text);
+    try recursor(root_directory, outer_tree, unique_id, &id_extra, &color_i, outer_filter_text);
 
     return;
 }
