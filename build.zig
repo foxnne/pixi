@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) !void {
     // _ = pixi_mod; // autofix
 
     const zstbi = b.dependency("zstbi", .{ .target = target, .optimize = optimize });
-    const zmath = b.dependency("zmath", .{ .target = target, .optimize = optimize });
+    //const zmath = b.dependency("zmath", .{ .target = target, .optimize = optimize });
 
     const zip_pkg = zip.package(b, .{});
 
@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) !void {
 
     //pixi_mod.addImport("mach", mach_dep.module("mach"));
     exe.root_module.addImport("zstbi", zstbi.module("root"));
-    exe.root_module.addImport("zmath", zmath.module("root"));
+    //exe.root_module.addImport("zmath", zmath.module("root"));
     exe.root_module.addImport("nfd", nfd.getModule(b));
     exe.root_module.addImport("zip", zip_pkg.module);
 
