@@ -26,9 +26,9 @@
             .lazy = true,
         },
         .icons = .{
-            .url = "https://github.com/nat3Github/zig-lib-icons/archive/8e34a0324d46d73a5a59bda09892ac5140b54c0f.tar.gz",
+            .url = "https://github.com/foxnne/zig-lib-icons/archive/1a4758f3947654a6b5b6b88523f1bca509835094.tar.gz",
+            .hash = "icons-0.0.0-iJxA-RP4MwDBfMN672stASocffHcNARGdTTK7LDWaBH2",
             .lazy = true,
-            .hash = "icons-0.0.0-iJxA-c33MwAwe2T9SnPQlmpIkKfdNt9jQ5buN-CLufTe",
         },
         .dvui = .{
             //.path = "../dvui-dev/",
