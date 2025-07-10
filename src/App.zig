@@ -127,7 +127,7 @@ pub fn AppInit(win: *dvui.Window) !void {
     theme.color_fill = .{ .r = 34, .g = 35, .b = 42, .a = 255 };
     theme.color_fill_window = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
     theme.color_text = .{ .r = 206, .g = 163, .b = 127, .a = 255 };
-    theme.color_text_press = .{ .r = 186, .g = 143, .b = 107, .a = 255 };
+    theme.color_text_press = .{ .r = 104, .g = 108, .b = 118, .a = 255 };
     theme.color_fill_control = theme.color_fill_window;
     theme.color_fill_hover = .{ .r = 64, .g = 68, .b = 78, .a = 255 };
     theme.color_border = .{ .r = 48, .g = 52, .b = 62, .a = 255 };
@@ -135,14 +135,14 @@ pub fn AppInit(win: *dvui.Window) !void {
     theme.color_accent = .{ .r = 47, .g = 179, .b = 135, .a = 255 };
     theme.dark = true;
     theme.name = "Pixi Dark";
-    theme.font_body = .{ .name = "CozetteVector", .size = 13 };
-    theme.font_caption = .{ .name = "Vera", .size = 11 };
-    theme.font_title = .{ .name = "Vera", .size = 12 };
-    theme.font_title_1 = .{ .name = "CozetteVectorBold", .size = 13 };
-    theme.font_title_2 = .{ .name = "CozetteVectorBold", .size = 12 };
-    theme.font_title_3 = .{ .name = "VeraBd", .size = 12 };
-    theme.font_title_4 = .{ .name = "VeraBd", .size = 13 };
-    theme.font_heading = .{ .name = "VeraBd", .size = 12 };
+    theme.font_body = .{ .name = "Vera", .size = 13 };
+    theme.font_caption = .{ .name = "CozetteVector", .size = 12 };
+    theme.font_title = .{ .name = "VeraBd", .size = 14 };
+    theme.font_title_1 = .{ .name = "CozetteVector", .size = 14 };
+    theme.font_title_2 = .{ .name = "CozetteVectorBold", .size = 14 };
+    theme.font_title_3 = .{ .name = "VeraBd", .size = 15 };
+    theme.font_title_4 = .{ .name = "VeraBd", .size = 16 };
+    theme.font_heading = .{ .name = "CozetteVectorBold", .size = 16 };
 
     dvui.themeSet(theme);
 }

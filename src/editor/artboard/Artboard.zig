@@ -3,12 +3,13 @@ const std = @import("std");
 const dvui = @import("dvui");
 const pixi = @import("../../pixi.zig");
 const icons = @import("icons");
+const widgets = pixi.Editor.Widgets;
 
 //const Core = @import("mach").Core;
 const App = pixi.App;
 const Editor = pixi.Editor;
-const Packer = pixi.Packer;
-const Assets = pixi.Assets;
+//const Packer = pixi.Packer;
+//const Assets = pixi.Assets;
 
 // const nfd = @import("nfd");
 // const imgui = @import("zig-imgui");
@@ -18,7 +19,7 @@ pub const Artboard = @This();
 // pub const mach_module = .artboard;
 // pub const mach_systems = .{ .init, .deinit, .draw };
 
-pub const menu = @import("menu.zig");
+//pub const menu = @import("menu.zig");
 //pub const rulers = @import("rulers.zig");
 //pub const canvas = @import("canvas.zig");
 //pub const canvas_pack = @import("canvas_pack.zig");
@@ -26,17 +27,13 @@ pub const menu = @import("menu.zig");
 //pub const flipbook = @import("flipbook/flipbook.zig");
 //pub const infobar = @import("infobar.zig");
 
-open_file_index_0: usize,
-open_file_index_1: usize,
+open_file_ids: std.ArrayList(u64),
 
-pub fn init() !Artboard {
+pub fn init(allocator: std.mem.Allocator) Artboard {
     return .{
-        .open_file_index_0 = 0,
-        .open_file_index_1 = 0,
+        .open_file_ids = .init(allocator),
     };
 }
-
-pub fn deinit() void {}
 
 const handle_size = 10;
 const handle_dist = 60;
@@ -68,242 +65,445 @@ const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
     color_0,
 };
 
+var temp_files: usize = 5;
+
 pub fn draw(_: *Artboard) !dvui.App.Result {
-    const artboard_vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = false });
-    defer artboard_vbox.deinit();
 
-    {
-        const result = try menu.draw();
-        if (result != .ok) {
-            return result;
-        }
-    }
+    // Canvas Area
+    const vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+    defer vbox.deinit();
 
-    var canvas_flipbook = dvui.paned(@src(), .{
-        .direction = .vertical,
-        .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
-        .handle_size = 2,
-        .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-        .uncollapse_ratio = pixi.editor.settings.flipbook_ratio,
-    }, .{
-        .expand = .both,
-        .background = false,
-        //.min_size_content = .{ .h = 100, .w = 100 },
+    var tabs = widgets.TabsWidget.init(@src(), .{ .dir = .horizontal }, .{
+        .expand = .horizontal,
     });
-    defer canvas_flipbook.deinit();
+    {
+        tabs.install();
+        defer tabs.deinit();
 
-    if (dvui.firstFrame(canvas_flipbook.wd.id)) {
-        canvas_flipbook.collapsed_state = false;
-        canvas_flipbook.collapsing = false;
-        canvas_flipbook.split_ratio.* = 1.0;
-        canvas_flipbook.animateSplit(pixi.editor.settings.flipbook_ratio);
-    } else if (!canvas_flipbook.collapsing and !canvas_flipbook.collapsed_state) {
-        pixi.editor.settings.flipbook_ratio = canvas_flipbook.split_ratio.*;
-    }
-
-    if (canvas_flipbook.showFirst()) {
-
-        // Canvas Area
-        const vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
-        defer vbox.deinit();
-
-        {
-            const label = if (dvui.Examples.show_demo_window) "Hide Demo Window" else "Show Demo Window";
-            if (dvui.button(@src(), label, .{}, .{ .tag = "show-demo-btn" })) {
-                dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
-            }
-
-            if (dvui.backend.kind != .web) {
-                if (dvui.button(@src(), "Close", .{}, .{})) {
-                    return .close;
-                }
-            }
-
-            const logo_pixel_size = 32;
-            const logo_width = 3;
-            const logo_height = 5;
-
-            const logo_vbox = dvui.box(@src(), .vertical, .{
-                .expand = .none,
-                .gravity_x = 0.5,
-                .gravity_y = 0.5,
-                .padding = dvui.Rect.all(10),
+        for (pixi.editor.open_files.values(), 0..) |file, i| {
+            const selected = pixi.editor.open_file_index == i;
+            var tab_box = tabs.addTab(selected, .{
+                .id_extra = i,
+                .corner_radius = dvui.Rect.all(0),
+                .color_fill_hover = .fill,
+                .color_fill = .fill_window,
+                .padding = dvui.Rect.all(0),
+                .margin = dvui.Rect.all(0),
+                .background = true,
             });
-            defer logo_vbox.deinit();
+            defer tab_box.deinit();
 
-            { // Logo
-
-                const vbox2 = dvui.box(@src(), .vertical, .{
-                    .expand = .none,
-                    .gravity_x = 0.5,
-                    .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size * logo_height },
-                    .padding = dvui.Rect.all(20),
-                });
-                defer vbox2.deinit();
-
-                for (0..5) |i| {
-                    const hbox = dvui.box(@src(), .horizontal, .{
-                        .expand = .none,
-                        .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size },
-                        .margin = dvui.Rect.all(0),
-                        .padding = dvui.Rect.all(0),
-                        .id_extra = i,
-                    });
-                    defer hbox.deinit();
-
-                    for (0..3) |j| {
-                        const index = i * logo_width + j;
-                        var pixi_color = logo_colors[index];
-
-                        if (pixi_color.value[3] < 1.0 and pixi_color.value[3] > 0.0) {
-                            const theme_bg = dvui.themeGet().color_fill;
-                            pixi_color = pixi_color.lerp(pixi.math.Color.initBytes(theme_bg.r, theme_bg.g, theme_bg.b, 255), pixi_color.value[3]);
-                            pixi_color.value[3] = 1.0;
-                        }
-
-                        const color = pixi_color.bytes();
-
-                        if (i == 0) {
-                            if (j == 0) {
-                                const pixel = dvui.box(@src(), .horizontal, .{
-                                    .expand = .none,
-                                    .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
-                                    .id_extra = j,
-                                    .background = true,
-                                    .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                                    .margin = dvui.Rect.all(0),
-                                    .padding = dvui.Rect.all(0),
-                                });
-                                defer pixel.deinit();
-                            } else if (j == 1) {
-                                const pixel = dvui.box(@src(), .horizontal, .{
-                                    .expand = .none,
-                                    .min_size_content = .{ .w = logo_pixel_size * 2, .h = logo_pixel_size },
-                                    .id_extra = j,
-                                    .background = true,
-                                    .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                                    .margin = dvui.Rect.all(0),
-                                    .padding = dvui.Rect.all(0),
-                                });
-                                defer pixel.deinit();
-                            }
-                        } else if (i == 2) {
-                            if (j == 0) {
-                                const pixel = dvui.box(@src(), .horizontal, .{
-                                    .expand = .none,
-                                    .min_size_content = .{ .w = logo_pixel_size * 3, .h = logo_pixel_size },
-                                    .id_extra = j,
-                                    .background = true,
-                                    .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                                    .margin = dvui.Rect.all(0),
-                                    .padding = dvui.Rect.all(0),
-                                });
-                                defer pixel.deinit();
-                            }
-                        } else if (i > 0) {
-                            const pixel = dvui.box(@src(), .horizontal, .{
-                                .expand = .none,
-                                .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
-                                .id_extra = j,
-                                .background = true,
-                                .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                                .margin = dvui.Rect.all(0),
-                                .padding = dvui.Rect.all(0),
-                            });
-                            //try drawBubble(pixel.data().rectScale().r, color);
-                            defer pixel.deinit();
-                        }
-                    }
-                }
-            }
-
+            var tab_button = dvui.ButtonWidget.init(@src(), .{}, .{
+                .margin = dvui.Rect.all(0),
+                .id_extra = i,
+            });
+            var hovered = false;
             {
-                var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
-                    .gravity_x = 0.5,
-                    .padding = dvui.Rect.all(2),
-                });
-                defer button.deinit();
+                defer tab_button.deinit();
+                tab_button.install();
+                tab_button.processEvents();
+                hovered = tab_button.hovered();
 
-                button.install();
-                button.processEvents();
-                button.drawBackground();
+                if (tab_button.clicked()) {
+                    pixi.editor.open_file_index = i;
+                }
 
-                var hbox = dvui.box(@src(), .horizontal, .{
-                    .expand = .none,
-                    .id_extra = 2,
+                const hbox = dvui.box(@src(), .horizontal, .{
+                    .background = true,
+                    .color_fill = if (hovered) .fill else .fill_window,
                 });
                 defer hbox.deinit();
 
-                dvui.label(@src(), "Open Folder (", .{}, .{});
-                _ = dvui.icon(@src(), "OpenFolderIcon", icons.tvg.lucide.command, .{}, .{ .gravity_y = 0.5 });
-                dvui.label(@src(), "+ F )", .{}, .{});
+                dvui.icon(@src(), "test.pixi icon", icons.tvg.lucide.file, .{}, .{
+                    .gravity_y = 0.5,
+                    .padding = dvui.Rect.all(2),
+                });
+                dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
+                    .color_text = if (selected) .text else .text_press,
+                    .padding = dvui.Rect.all(2),
+                    .gravity_y = 0.5,
+                });
+            }
 
-                if (button.clicked()) {
-                    if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
-                        try pixi.editor.setProjectFolder(folder);
+            var close_button = dvui.ButtonWidget.init(@src(), .{}, .{
+                .color_fill_hover = .err,
+                .color_fill = .fill_window,
+                .gravity_y = 0.5,
+                .padding = dvui.Rect.all(2),
+                .margin = .{ .w = 4 },
+            });
+            {
+                defer close_button.deinit();
+                close_button.install();
+                close_button.processEvents();
+                var color = dvui.Color.fromTheme(.text);
+
+                if (close_button.clicked()) {
+                    if (temp_files > 1) {
+                        std.log.debug("closed: {d}", .{i});
+                        temp_files -= 1;
+                    } else {
+                        temp_files = 5;
                     }
                 }
+
+                if (hovered or close_button.hovered()) {
+                    close_button.drawBackground();
+                } else color = color.opacity(0.0);
+
+                dvui.icon(@src(), "close", icons.tvg.lucide.x, .{
+                    .fill_color = color,
+                }, .{
+                    .gravity_y = 0.5,
+                });
             }
-        }
-
-        {
-            var rs = vbox.data().contentRectScale();
-            rs.r.h = 20.0;
-
-            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-            path.addRect(rs.r, dvui.Rect.Physical.all(5));
-
-            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
-
-            const black: dvui.Color = .black;
-            const ca0 = black.opacity(0.1);
-            const ca1 = black.opacity(0);
-
-            for (triangles.vertexes) |*v| {
-                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
-                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-            }
-            try dvui.renderTriangles(triangles, null);
-
-            triangles.deinit(dvui.currentWindow().arena());
-            path.deinit();
         }
     }
 
-    if (canvas_flipbook.showSecond()) {
-        // Canvas Area
+    var canvas_vbox = dvui.box(@src(), .vertical, .{ .expand = .both });
+    defer canvas_vbox.deinit();
 
-        const vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
-        defer vbox.deinit();
+    // const canvas_vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+    // defer canvas_vbox.deinit();
 
-        // Flipbook area
-        {
-            var rs = vbox.data().contentRectScale();
-            rs.r.h = 20.0;
+    if (pixi.editor.open_files.values().len > 0) {
+        const file = &pixi.editor.open_files.values()[pixi.editor.open_file_index];
 
-            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-            path.addRect(rs.r, dvui.Rect.Physical.all(5));
+        const canvas_scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.canvas.scroll_info }, .{
+            .expand = .both,
+            .background = true,
+            .gravity_y = 0.0,
+        });
 
-            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+        var scroll_container = &canvas_scroll_area.scroll.?;
 
-            const black: dvui.Color = .black;
-            const ca0 = black.opacity(0.1);
-            const ca1 = black.opacity(0);
+        // can use this to convert between viewport/virtual_size and screen coords
+        file.canvas.scroll_rect_scale = scroll_container.screenRectScale(.{});
 
-            for (triangles.vertexes) |*v| {
-                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
-                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+        var scaler = dvui.scale(@src(), .{ .scale = &file.canvas.scale }, .{ .rect = .{ .x = -file.canvas.origin.x, .y = -file.canvas.origin.y } });
+
+        // can use this to convert between data and screen coords
+        file.canvas.screen_rect_scale = scaler.screenRectScale(.{});
+
+        // keep record of bounding box
+        var mbbox: ?dvui.Rect.Physical = null;
+
+        var layer_index: usize = file.layers.len;
+        while (layer_index > 0) {
+            layer_index -= 1;
+            var image = dvui.image(@src(), .{
+                .source = .{ .texture = file.layers.items(.texture)[layer_index].toDvui() },
+            }, .{
+                .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
+                .min_size_content = .{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
+                .border = dvui.Rect.all(0),
+                .id_extra = layer_index,
+                .background = false,
+            });
+
+            const boxRect = image.rectScale().r;
+            if (mbbox) |b| {
+                mbbox = b.unionWith(boxRect);
+            } else {
+                mbbox = boxRect;
+            }
+        }
+
+        const tiles_wide: usize = @intCast(@divExact(file.width, file.tile_width));
+        const tiles_high: usize = @intCast(@divExact(file.height, file.tile_height));
+
+        // Outline the image with a rectangle
+        dvui.Path.stroke(.{ .points = &.{
+            file.canvas.screenFromWorldPoint(.{ .x = 0, .y = 0 }),
+            file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = 0 }),
+            file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(file.height)) }),
+            file.canvas.screenFromWorldPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(file.height)) }),
+        } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover), .closed = true });
+
+        for (0..tiles_wide) |x| {
+            dvui.Path.stroke(.{ .points = &.{
+                file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
+                file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
+            } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover) });
+        }
+
+        for (0..tiles_high) |y| {
+            dvui.Path.stroke(.{ .points = &.{
+                file.canvas.screenFromWorldPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
+                file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
+            } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover) });
+        }
+
+        var zoom: f32 = 1;
+        var zoomP: dvui.Point.Physical = .{};
+
+        // process scroll area events after boxes so the boxes get first pick (so
+        // the button works)
+        for (dvui.events()) |*e| {
+            if (!scroll_container.matchEvent(e))
+                continue;
+
+            switch (e.evt) {
+                .mouse => |me| {
+                    if (me.action == .press and me.button.pointer()) {
+                        e.handle(@src(), scroll_container.data());
+                        dvui.captureMouse(scroll_container.data(), e.num);
+                        dvui.dragPreStart(me.p, .{});
+                    } else if (me.action == .release and me.button.pointer()) {
+                        if (dvui.captured(scroll_container.data().id)) {
+                            e.handle(@src(), scroll_container.data());
+                            dvui.captureMouse(null, e.num);
+                            dvui.dragEnd();
+                        }
+                    } else if (me.action == .motion) {
+                        if (dvui.captured(scroll_container.data().id)) {
+                            if (dvui.dragging(me.p)) |dps| {
+                                e.handle(@src(), scroll_container.data());
+                                const rs = file.canvas.scroll_rect_scale;
+                                file.canvas.scroll_info.viewport.x -= dps.x / rs.s;
+                                file.canvas.scroll_info.viewport.y -= dps.y / rs.s;
+                                dvui.refresh(null, @src(), scroll_container.data().id);
+                            }
+                        }
+                    } else if ((me.action == .wheel_y or me.action == .wheel_x) and me.mod.matchBind("ctrl/cmd")) {
+                        e.handle(@src(), scroll_container.data());
+                        if (me.action == .wheel_y) {
+                            const base: f32 = 1.001;
+                            const zs = @exp(@log(base) * me.action.wheel_y);
+                            if (zs != 1.0) {
+                                zoom *= zs;
+                                zoomP = me.p;
+                            }
+                        }
+                    }
+                },
+                else => {},
+            }
+        }
+
+        if (zoom != 1.0) {
+            // scale around mouse point
+            // first get data point of mouse
+            // data from screen
+            const prevP = file.canvas.worldFromScreenPoint(zoomP);
+
+            // scale
+            var pp = prevP.scale(1 / file.canvas.scale, dvui.Point);
+            file.canvas.scale *= zoom;
+            pp = pp.scale(file.canvas.scale, dvui.Point);
+
+            // get where the mouse would be now
+            // data to screen
+            const newP = file.canvas.screenFromWorldPoint(pp);
+
+            // convert both to viewport
+            // viewport from screen minux viewport from screen
+            const diff = file.canvas.viewportFromScreenPoint(newP).diff(file.canvas.viewportFromScreenPoint(zoomP));
+            file.canvas.scroll_info.viewport.x += diff.x;
+            file.canvas.scroll_info.viewport.y += diff.y;
+
+            dvui.refresh(null, @src(), scroll_container.data().id);
+        }
+
+        scaler.deinit();
+
+        const scroll_container_id = scroll_container.data().id;
+
+        // // deinit is where scroll processes events
+        canvas_scroll_area.deinit();
+
+        // // don't mess with scrolling if we aren't being shown (prevents weirdness
+        // // when starting out)
+        if (!file.canvas.scroll_info.viewport.empty()) {
+            // add current viewport plus padding
+            const pad = 10;
+            var bbox = file.canvas.scroll_info.viewport.outsetAll(pad);
+            if (mbbox) |bb| {
+                // convert bb from screen space to viewport space
+                const scrollbbox = file.canvas.viewportFromScreenRect(bb);
+                bbox = bbox.unionWith(scrollbbox);
             }
 
-            try dvui.renderTriangles(triangles, null);
+            // adjust top if needed
+            if (bbox.y != 0) {
+                const adj = -bbox.y;
+                file.canvas.scroll_info.virtual_size.h += adj;
+                file.canvas.scroll_info.viewport.y += adj;
+                file.canvas.origin.y -= adj;
+                dvui.refresh(null, @src(), scroll_container_id);
+            }
 
-            triangles.deinit(dvui.currentWindow().arena());
-            path.deinit();
+            // adjust left if needed
+            if (bbox.x != 0) {
+                const adj = -bbox.x;
+                file.canvas.scroll_info.virtual_size.w += adj;
+                file.canvas.scroll_info.viewport.x += adj;
+                file.canvas.origin.x -= adj;
+                dvui.refresh(null, @src(), scroll_container_id);
+            }
+
+            // adjust bottom if needed
+            if (bbox.h != file.canvas.scroll_info.virtual_size.h) {
+                file.canvas.scroll_info.virtual_size.h = bbox.h;
+                dvui.refresh(null, @src(), scroll_container_id);
+            }
+
+            // adjust right if needed
+            if (bbox.w != file.canvas.scroll_info.virtual_size.w) {
+                file.canvas.scroll_info.virtual_size.w = bbox.w;
+                dvui.refresh(null, @src(), scroll_container_id);
+            }
         }
+
+        // _ = dvui.button(@src(), "test", .{}, .{
+        //     .gravity_x = 0.5,
+        //     .gravity_y = 0.5,
+        //     .padding = dvui.Rect.all(2),
+        // });
+
+        // const label = if (dvui.Examples.show_demo_window) "Hide Demo Window" else "Show Demo Window";
+        // if (dvui.button(@src(), label, .{}, .{ .tag = "show-demo-btn" })) {
+        //     dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
+        // }
+
+        // if (dvui.backend.kind != .web) {
+        //     if (dvui.button(@src(), "Close", .{}, .{})) {
+        //         return .close;
+        //     }
+        // }
+
+        // if (false) {
+        //     const logo_pixel_size = 32;
+        //     const logo_width = 3;
+        //     const logo_height = 5;
+
+        //     const logo_vbox = dvui.box(@src(), .vertical, .{
+        //         .expand = .none,
+        //         .gravity_x = 0.5,
+        //         .gravity_y = 0.5,
+        //         .padding = dvui.Rect.all(10),
+        //     });
+        //     defer logo_vbox.deinit();
+
+        //     { // Logo
+
+        //         const vbox2 = dvui.box(@src(), .vertical, .{
+        //             .expand = .none,
+        //             .gravity_x = 0.5,
+        //             .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size * logo_height },
+        //             .padding = dvui.Rect.all(20),
+        //         });
+        //         defer vbox2.deinit();
+
+        //         for (0..5) |i| {
+        //             const hbox = dvui.box(@src(), .horizontal, .{
+        //                 .expand = .none,
+        //                 .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size },
+        //                 .margin = dvui.Rect.all(0),
+        //                 .padding = dvui.Rect.all(0),
+        //                 .id_extra = i,
+        //             });
+        //             defer hbox.deinit();
+
+        //             for (0..3) |j| {
+        //                 const index = i * logo_width + j;
+        //                 var pixi_color = logo_colors[index];
+
+        //                 if (pixi_color.value[3] < 1.0 and pixi_color.value[3] > 0.0) {
+        //                     const theme_bg = dvui.themeGet().color_fill;
+        //                     pixi_color = pixi_color.lerp(pixi.math.Color.initBytes(theme_bg.r, theme_bg.g, theme_bg.b, 255), pixi_color.value[3]);
+        //                     pixi_color.value[3] = 1.0;
+        //                 }
+
+        //                 const color = pixi_color.bytes();
+
+        //                 if (i == 0) {
+        //                     if (j == 0) {
+        //                         const pixel = dvui.box(@src(), .horizontal, .{
+        //                             .expand = .none,
+        //                             .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
+        //                             .id_extra = j,
+        //                             .background = true,
+        //                             .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+        //                             .margin = dvui.Rect.all(0),
+        //                             .padding = dvui.Rect.all(0),
+        //                         });
+        //                         defer pixel.deinit();
+        //                     } else if (j == 1) {
+        //                         const pixel = dvui.box(@src(), .horizontal, .{
+        //                             .expand = .none,
+        //                             .min_size_content = .{ .w = logo_pixel_size * 2, .h = logo_pixel_size },
+        //                             .id_extra = j,
+        //                             .background = true,
+        //                             .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+        //                             .margin = dvui.Rect.all(0),
+        //                             .padding = dvui.Rect.all(0),
+        //                         });
+        //                         defer pixel.deinit();
+        //                     }
+        //                 } else if (i == 2) {
+        //                     if (j == 0) {
+        //                         const pixel = dvui.box(@src(), .horizontal, .{
+        //                             .expand = .none,
+        //                             .min_size_content = .{ .w = logo_pixel_size * 3, .h = logo_pixel_size },
+        //                             .id_extra = j,
+        //                             .background = true,
+        //                             .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+        //                             .margin = dvui.Rect.all(0),
+        //                             .padding = dvui.Rect.all(0),
+        //                         });
+        //                         defer pixel.deinit();
+        //                     }
+        //                 } else if (i > 0) {
+        //                     const pixel = dvui.box(@src(), .horizontal, .{
+        //                         .expand = .none,
+        //                         .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
+        //                         .id_extra = j,
+        //                         .background = true,
+        //                         .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+        //                         .margin = dvui.Rect.all(0),
+        //                         .padding = dvui.Rect.all(0),
+        //                     });
+        //                     //try drawBubble(pixel.data().rectScale().r, color);
+        //                     defer pixel.deinit();
+        //                 }
+        //             }
+        //         }
+        //     }
+
+        //     {
+        //         var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
+        //             .gravity_x = 0.5,
+        //             .padding = dvui.Rect.all(2),
+        //         });
+        //         defer button.deinit();
+
+        //         button.install();
+        //         button.processEvents();
+        //         button.drawBackground();
+
+        //         var hbox = dvui.box(@src(), .horizontal, .{
+        //             .expand = .none,
+        //             .id_extra = 2,
+        //         });
+        //         defer hbox.deinit();
+
+        //         dvui.label(@src(), "Open Folder (", .{}, .{});
+        //         _ = dvui.icon(@src(), "OpenFolderIcon", icons.tvg.lucide.command, .{}, .{ .gravity_y = 0.5 });
+        //         dvui.label(@src(), "+ F )", .{}, .{});
+
+        //         if (button.clicked()) {
+        //             if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
+        //                 try pixi.editor.setProjectFolder(folder);
+        //             }
+        //         }
+        //     }
+        // }
+
     }
 
     {
-        var rs = artboard_vbox.data().contentRectScale();
+        var rs = canvas_vbox.data().contentRectScale();
         rs.r.w = 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
@@ -317,6 +517,29 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
 
         for (triangles.vertexes) |*v| {
             const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
+            v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+        }
+        try dvui.renderTriangles(triangles, null);
+
+        triangles.deinit(dvui.currentWindow().arena());
+        path.deinit();
+    }
+
+    {
+        var rs = canvas_vbox.data().contentRectScale();
+        rs.r.h = 20.0;
+
+        var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        path.addRect(rs.r, dvui.Rect.Physical.all(5));
+
+        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+
+        const black: dvui.Color = .black;
+        const ca0 = black.opacity(0.1);
+        const ca1 = black.opacity(0);
+
+        for (triangles.vertexes) |*v| {
+            const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
             v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
         }
         try dvui.renderTriangles(triangles, null);

@@ -1,5 +1,5 @@
 const std = @import("std");
-const pixi = @import("../../pixi.zig");
+const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
 const Editor = pixi.Editor;
 const settings = pixi.settings;
@@ -13,7 +13,7 @@ pub fn draw() !dvui.App.Result {
 
     if (menuItem(@src(), "File", .{ .submenu = true }, .{
         .expand = .horizontal,
-        //.color_accent = .fill,
+        .color_accent = .fill,
     })) |r| {
         var animator = dvui.animate(@src(), .{
             .kind = .alpha,
@@ -26,7 +26,8 @@ pub fn draw() !dvui.App.Result {
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
         defer fw.deinit();
 
-        if (menuItem(@src(), "Dialog", .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+        if (menuItem(@src(), "Show Demo", .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+            dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
             fw.close();
         }
 

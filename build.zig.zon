@@ -14,11 +14,6 @@
             .url = "https://github.com/foxnne/zstbi/archive/431fd93a7c7a5a58f151e6ed96667e342bda06e4.tar.gz",
             .hash = "zstbi-0.10.0-moJi2dXnBwBOVDSKDDWl32Q40b1OApiJQtAh0azLfiR_",
         },
-        // .zmath = .{
-        //     .url = "https://github.com/foxnne/zmath/archive/9620a611a8c039711dc780bf296d8dc100d16d3a.tar.gz",
-        //     .hash = "zmath-0.10.0-AAAAAE8vAwAbnyituRjC_691tXpLcUqGQDj4uj4tn3MB",
-        //     .lazy = true,
-        // },
         .mach_objc = .{
             //.path = "src/.temp/mach-objc-dev",
             .url = "https://github.com/foxnne/mach-objc/archive/c2b1de1b24ce10e2eec1f2387b0a589f1f645bf3.tar.gz",
@@ -32,8 +27,8 @@
         },
         .dvui = .{
             //.path = "../dvui-dev/",
-            .url = "https://github.com/foxnne/dvui-dev/archive/7556eca79bff56756c4e3da224c87dd3bbf99972.tar.gz",
-            .hash = "dvui-0.2.0-AQFJmeME0ADKINxjnL8zwCkL-5k1wo87ZrOF17cCJa9r",
+            .url = "https://github.com/foxnne/dvui-dev/archive/bcef954021edbd98c5468193e5a14a547f58d3c5.tar.gz",
+            .hash = "dvui-0.2.0-AQFJmURP0QDYHOILVO1zq2Gps4eUbugYnOlLZbqheIwY",
         },
     },
 }

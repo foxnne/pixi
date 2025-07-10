@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
@@ -16,6 +17,7 @@ pub const Settings = @import("Settings.zig");
 pub const Tools = @import("Tools.zig");
 
 pub const Constants = @import("Constants.zig");
+pub const Hotkeys = @import("Hotkeys.zig");
 
 const zstbi = @import("zstbi");
 const nfd = @import("nfd");
@@ -26,6 +28,7 @@ pub const Artboard = @import("artboard/Artboard.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
 //pub const Popups = @import("popups/Popups.zig");
 pub const Sidebar = @import("Sidebar.zig");
+pub const Menu = @import("Menu.zig");
 
 // pub const mach_module = .editor;
 // pub const mach_systems = .{
@@ -63,6 +66,7 @@ buffers: Buffers = .{},
 
 previous_atlas_export: ?[:0]const u8 = null,
 //open_files: std.ArrayList(pixi.Internal.File) = undefined,
+open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 //open_references: std.ArrayList(pixi.Internal.Reference) = undefined,
 open_file_index: usize = 0,
 open_reference_index: usize = 0,
@@ -101,13 +105,15 @@ pub fn init(
         .allocator = app.allocator,
     };
 
-    editor.explorer.* = try Explorer.init();
-    editor.artboard.* = try Artboard.init();
-    //editor.open_files = std.ArrayList(pixi.Internal.File).init(editor.allocator);
+    editor.explorer.* = .init();
+    editor.artboard.* = .init(editor.allocator);
+    editor.open_files = .init(editor.allocator);
     //editor.open_references = std.ArrayList(pixi.Internal.Reference).init(editor.allocator);
 
     editor.colors.keyframe_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
     editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
+
+    try Hotkeys.register();
 
     return editor;
 }
@@ -142,6 +148,8 @@ const handle_size = 10;
 const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
+    try Hotkeys.tick();
+
     var scaler = dvui.scale(
         @src(),
         .{ .scale = &dvui.currentWindow().content_scale, .pinch_zoom = .global },
@@ -202,10 +210,97 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     }
 
     if (explorer_artboard.showSecond()) {
-        // Artboard Area
-        const result = try editor.artboard.draw();
-        if (result != .ok) {
-            return result;
+        const artboard_vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = false });
+        defer artboard_vbox.deinit();
+
+        {
+            const result = try Menu.draw();
+            if (result != .ok) {
+                return result;
+            }
+        }
+
+        var canvas_flipbook = dvui.paned(@src(), .{
+            .direction = .vertical,
+            .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
+            .handle_size = 2,
+            .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
+            .uncollapse_ratio = pixi.editor.settings.flipbook_ratio,
+        }, .{
+            .expand = .both,
+            .background = false,
+            //.min_size_content = .{ .h = 100, .w = 100 },
+        });
+        defer canvas_flipbook.deinit();
+
+        if (dvui.firstFrame(canvas_flipbook.wd.id)) {
+            canvas_flipbook.collapsed_state = false;
+            canvas_flipbook.collapsing = false;
+            canvas_flipbook.split_ratio.* = 1.0;
+            canvas_flipbook.animateSplit(pixi.editor.settings.flipbook_ratio);
+        } else if (!canvas_flipbook.collapsing and !canvas_flipbook.collapsed_state) {
+            pixi.editor.settings.flipbook_ratio = canvas_flipbook.split_ratio.*;
+        }
+
+        if (canvas_flipbook.showFirst()) {
+            // Artboard Area
+            const result = try editor.artboard.draw();
+            if (result != .ok) {
+                return result;
+            }
+        }
+
+        if (canvas_flipbook.showSecond()) {
+            const vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+            defer vbox.deinit();
+
+            {
+                var rs = vbox.data().contentRectScale();
+                rs.r.w = 20.0;
+
+                var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+                path.addRect(rs.r, dvui.Rect.Physical.all(5));
+
+                var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+
+                const black: dvui.Color = .black;
+                const ca0 = black.opacity(0.1);
+                const ca1 = black.opacity(0);
+
+                for (triangles.vertexes) |*v| {
+                    const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
+                    v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+                }
+                try dvui.renderTriangles(triangles, null);
+
+                triangles.deinit(dvui.currentWindow().arena());
+                path.deinit();
+            }
+
+            // Flipbook area
+            {
+                var rs = vbox.data().contentRectScale();
+                rs.r.h = 20.0;
+
+                var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+                path.addRect(rs.r, dvui.Rect.Physical.all(5));
+
+                var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+
+                const black: dvui.Color = .black;
+                const ca0 = black.opacity(0.1);
+                const ca1 = black.opacity(0);
+
+                for (triangles.vertexes) |*v| {
+                    const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
+                    v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+                }
+
+                try dvui.renderTriangles(triangles, null);
+
+                triangles.deinit(dvui.currentWindow().arena());
+                path.deinit();
+            }
         }
     }
 
@@ -481,11 +576,11 @@ pub fn importPng(editor: *Editor, png_path: [:0]const u8, new_file_path: [:0]con
 }
 
 /// Returns true if a new file was opened.
-pub fn openFile(editor: *Editor, path: [:0]const u8) !bool {
+pub fn openFile(editor: *Editor, path: []const u8) !bool {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return false;
 
-    for (editor.open_files.items, 0..) |file, i| {
+    for (editor.open_files.values(), 0..) |file, i| {
         if (std.mem.eql(u8, file.path, path)) {
             editor.setActiveFile(i);
             return false;
@@ -493,7 +588,7 @@ pub fn openFile(editor: *Editor, path: [:0]const u8) !bool {
     }
 
     if (try pixi.Internal.File.load(path)) |file| {
-        try editor.open_files.insert(0, file);
+        try editor.open_files.put(file.id, file);
         editor.setActiveFile(0);
         return true;
     }
@@ -525,21 +620,21 @@ pub fn openReference(editor: *Editor, path: [:0]const u8) !bool {
 }
 
 pub fn setActiveFile(editor: *Editor, index: usize) void {
-    if (index >= editor.open_files.items.len) return;
-    const file = &editor.open_files.items[index];
+    if (index >= editor.open_files.values().len) return;
+    const file = &editor.open_files.values()[index];
     if (file.heightmap.layer == null) {
         if (editor.tools.current == .heightmap)
             editor.tools.current = .pointer;
     }
-    if (file.transform_texture != null and editor.tools.current != .pointer) {
-        editor.tools.set(.pointer);
-    }
+    // if (file.transform_texture != null and editor.tools.current != .pointer) {
+    //     editor.tools.set(.pointer);
+    // }
     editor.open_file_index = index;
 }
 
 pub fn setCopyFile(editor: *Editor, index: usize) void {
-    if (index >= editor.open_files.items.len) return;
-    const file = &editor.open_files.items[index];
+    if (index >= editor.open_files.values().len) return;
+    const file = &editor.open_files.values()[index];
     if (file.heightmap.layer == null) {
         if (editor.tools.current == .heightmap)
             editor.tools.current = .pointer;
@@ -553,7 +648,7 @@ pub fn setActiveReference(editor: *Editor, index: usize) void {
 }
 
 pub fn getFileIndex(editor: *Editor, path: [:0]const u8) ?usize {
-    for (editor.open_files.items, 0..) |file, i| {
+    for (editor.open_files.values(), 0..) |file, i| {
         if (std.mem.eql(u8, file.path, path))
             return i;
     }
@@ -561,10 +656,10 @@ pub fn getFileIndex(editor: *Editor, path: [:0]const u8) ?usize {
 }
 
 pub fn getFile(editor: *Editor, index: usize) ?*pixi.Internal.File {
-    if (editor.open_files.items.len == 0) return null;
-    if (index >= editor.open_files.items.len) return null;
+    if (editor.open_files.values().len == 0) return null;
+    if (index >= editor.open_files.values().len) return null;
 
-    return &editor.open_files.items[index];
+    return &editor.open_files.values()[index];
 }
 
 pub fn getReference(editor: *Editor, index: usize) ?*pixi.Internal.Reference {

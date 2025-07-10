@@ -1,18 +1,19 @@
 const std = @import("std");
-const gpu = @import("mach").gpu;
+const dvui = @import("dvui");
 const pixi = @import("../pixi.zig");
 
+const Texture = @import("Texture.zig");
 const Layer = @This();
 
 name: [:0]const u8,
-texture: pixi.gfx.Texture,
+texture: Texture,
 visible: bool = true,
 collapse: bool = false,
-id: u32 = 0,
-transform_bindgroup: ?*gpu.BindGroup = null,
+id: u64,
+//transform_bindgroup: ?*gpu.BindGroup = null,
 
 pub fn pixels(self: *const Layer) [][4]u8 {
-    return @as([*][4]u8, @ptrCast(self.texture.pixels.ptr))[0 .. self.texture.pixels.len / 4];
+    return @as([*][4]u8, @ptrCast(self.texture.ptr))[0 .. (self.texture.width * self.texture.height) / 4];
 }
 
 pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {
@@ -21,23 +22,22 @@ pub fn getPixelIndex(self: Layer, pixel: [2]usize) usize {
 
 pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
     const index = self.getPixelIndex(pixel);
-    const p = @as([*][4]u8, @ptrCast(self.texture.pixels.ptr))[0 .. self.texture.pixels.len / 4];
-    return p[index];
+    return self.pixels()[index];
 }
 
 pub fn setPixel(self: *Layer, pixel: [2]usize, color: [4]u8, update: bool) void {
+    _ = update; // TODO: Update texture on GPU
     const index = self.getPixelIndex(pixel);
     var p = self.pixels();
     p[index] = color;
-    if (update)
-        self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+    //if (update)
+    //self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }
 
 pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8, update: bool) void {
+    _ = update; // TODO: Update texture on GPU
     var p = self.pixels();
     p[index] = color;
-    if (update)
-        self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }
 
 pub const ShapeOffsetResult = struct {

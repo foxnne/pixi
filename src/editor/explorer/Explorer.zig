@@ -20,7 +20,7 @@ pub const files = @import("files.zig");
 // pub const animations = @import("animations.zig");
 // pub const keyframe_animations = @import("keyframe_animations.zig");
 // pub const project = @import("project.zig");
-// pub const settings = @import("settings.zig");
+pub const settings = @import("settings.zig");
 
 pane: Pane = .files,
 
@@ -34,7 +34,7 @@ pub const Pane = enum(u32) {
     settings,
 };
 
-pub fn init() !Explorer {
+pub fn init() Explorer {
     return .{};
 }
 
@@ -53,6 +53,8 @@ pub fn title(pane: Pane, all_caps: bool) []const u8 {
         .settings => if (all_caps) "SETTINGS" else "Settings",
     };
 }
+
+pub fn processKeybinds(_: *Explorer) !void {}
 
 pub fn draw(explorer: *Explorer) !dvui.App.Result {
     const vbox = dvui.box(@src(), .vertical, .{
@@ -80,6 +82,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
 
     switch (explorer.pane) {
         .files => try files.draw(),
+        .settings => try settings.draw(),
         else => {},
     }
 
@@ -116,7 +119,7 @@ pub fn drawHeader(explorer: *Explorer) !void {
     const text_layout = dvui.textLayout(@src(), .{}, .{ .background = false, .max_size_content = .{ .h = dvui.themeGet().font_heading.lineHeight() * 2.0, .w = std.math.floatMax(f32) } });
     defer text_layout.deinit();
 
-    text_layout.addText(header_title, .{ .font_style = .heading });
+    text_layout.addText(header_title, .{ .font_style = .title });
 }
 
 // pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer: *Packer) !void {

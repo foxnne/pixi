@@ -33,7 +33,7 @@ pub const Extension = enum {
 };
 
 pub fn draw() !void {
-    var tree = dvui.TreeWidget.tree(@src(), .{ .background = false, .expand = .both });
+    var tree = dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{ .background = false, .expand = .both });
     defer tree.deinit();
 
     if (pixi.editor.folder) |path|
@@ -78,7 +78,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     );
     dvui.label(@src(), "{s}", .{folder}, .{
         .color_fill = .{ .color = color },
-        .font_style = .title_1,
+        .font_style = .heading,
         .gravity_y = 0.5,
     });
     _ = dvui.icon(
@@ -157,6 +157,9 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
 // }
 
 fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
+    if (lhs.kind == .directory and rhs.kind == .file) return true;
+    if (lhs.kind == .file and rhs.kind == .directory) return false;
+
     return std.mem.order(u8, lhs.name, rhs.name) == .lt;
 }
 
@@ -174,7 +177,10 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
             var iter = dir.iterate();
             while (try iter.next()) |entry| {
-                try files.append(entry);
+                try files.append(.{
+                    .name = dvui.currentWindow().arena().dupe(u8, entry.name) catch "Arena failed to allocate",
+                    .kind = entry.kind,
+                });
             }
 
             std.mem.sort(
@@ -344,7 +350,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                     .{entry.name},
                                     .{
                                         .color_text = .{ .color = text_color },
-                                        .font_style = .title,
+                                        .font_style = .body,
                                         .padding = padding,
                                     },
                                 );
@@ -353,10 +359,10 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             dvui.label(
                                 @src(),
                                 "{s}",
-                                .{entry.name},
+                                .{if (filter_text.len > 0) std.fs.path.relative(dvui.currentWindow().arena(), pixi.editor.folder.?, abs_path) catch entry.name else entry.name},
                                 .{
                                     .color_text = .{ .color = text_color },
-                                    .font_style = .title,
+                                    .font_style = .body,
                                     .padding = padding,
                                 },
                             );
@@ -365,9 +371,9 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         if (branch.button.clicked()) {
                             switch (ext) {
                                 .pixi => {
-                                    // _ = pixi.editor.openFile(abs_path) catch {
-                                    //     std.log.debug("Failed to open file: {s}", .{abs_path});
-                                    // };
+                                    _ = pixi.editor.openFile(abs_path) catch {
+                                        std.log.debug("Failed to open file: {s}", .{abs_path});
+                                    };
                                 },
                                 .png, .jpg => {
                                     // _ = pixi.editor.openReference(abs_path) catch {
@@ -396,7 +402,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         );
                         dvui.label(@src(), "{s}", .{folder_name}, .{
                             .color_text = .{ .color = dvui.themeGet().color_text },
-                            .font_style = .title,
+                            .font_style = .body,
                             .padding = padding,
                         });
                         _ = dvui.icon(
