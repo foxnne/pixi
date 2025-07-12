@@ -14,18 +14,20 @@ const Sprite = @import("Sprite.zig");
 const Animation = @import("Animation.zig");
 
 pub const CanvasData = struct {
+    rect: dvui.Rect.Physical = .{},
+    scroll_container: *dvui.ScrollContainerWidget = undefined,
     scroll_rect_scale: dvui.RectScale = .{},
     screen_rect_scale: dvui.RectScale = .{},
     scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
     origin: dvui.Point = .{},
     scale: f32 = 1.0,
 
-    pub fn worldFromScreenPoint(self: *CanvasData, screen: dvui.Point.Physical) dvui.Point {
+    pub fn dataFromScreenPoint(self: *CanvasData, screen: dvui.Point.Physical) dvui.Point {
         return self.screen_rect_scale.pointFromPhysical(screen);
     }
 
-    pub fn screenFromWorldPoint(self: *CanvasData, world: dvui.Point) dvui.Point.Physical {
-        return self.screen_rect_scale.pointToPhysical(world);
+    pub fn screenFromDataPoint(self: *CanvasData, data: dvui.Point) dvui.Point.Physical {
+        return self.screen_rect_scale.pointToPhysical(data);
     }
 
     pub fn viewportFromScreenPoint(self: *CanvasData, screen: dvui.Point.Physical) dvui.Point {
@@ -36,12 +38,12 @@ pub const CanvasData = struct {
         return self.scroll_rect_scale.pointToPhysical(viewport);
     }
 
-    pub fn worldFromScreenRect(self: *CanvasData, screen: dvui.Rect.Physical) dvui.Rect {
+    pub fn dataFromScreenRect(self: *CanvasData, screen: dvui.Rect.Physical) dvui.Rect {
         return self.screen_rect_scale.rectFromPhysical(screen);
     }
 
-    pub fn screenFromWorldRect(self: *CanvasData, world: dvui.Rect) dvui.Rect.Physical {
-        return self.screen_rect_scale.rectToPhysical(world);
+    pub fn screenFromDataRect(self: *CanvasData, data: dvui.Rect) dvui.Rect.Physical {
+        return self.screen_rect_scale.rectToPhysical(data);
     }
 
     pub fn viewportFromScreenRect(self: *CanvasData, screen: dvui.Rect.Physical) dvui.Rect {
@@ -50,6 +52,26 @@ pub const CanvasData = struct {
 
     pub fn screenFromViewportRect(self: *CanvasData, viewport: dvui.Rect) dvui.Rect.Physical {
         return self.scroll_rect_scale.rectToPhysical(viewport);
+    }
+
+    pub fn hovered(self: *CanvasData) bool {
+        return self.rect.contains(self.mouse());
+    }
+
+    pub fn mouse(self: *CanvasData) dvui.Point.Physical {
+        for (dvui.events()) |*e| {
+            if (!self.scroll_container.matchEvent(e))
+                continue;
+
+            switch (e.evt) {
+                .mouse => |me| {
+                    return me.p;
+                },
+                else => {},
+            }
+        }
+
+        return .{};
     }
 };
 //const KeyframeAnimation = @import("KeyframeAnimation.zig");
@@ -97,8 +119,7 @@ selection_layer: Layer,
 heightmap: Heightmap = .{},
 history: History,
 buffers: Buffers,
-//counter: u32 = 0,
-layer_counter: u64 = 0,
+counter: u64 = 0,
 //keyframe_counter: u32 = 0,
 //frame_counter: u32 = 0,
 saving: bool = false,
@@ -208,7 +229,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
         const ext = parsed.value;
 
         var internal: pixi.Internal.File = .{
-            .id = dvui.hashIdKey(dvui.currentWindow().data().id, path),
+            .id = pixi.editor.counter,
             .path = try pixi.app.allocator.dupe(u8, path),
             .width = ext.width,
             .height = ext.height,
@@ -218,7 +239,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
             .deleted_layers = .{},
             .deleted_heightmap_layers = .{},
             .sprites = .{},
-            .selected_sprites = std.ArrayList(usize).init(pixi.app.allocator),
+            .selected_sprites = .init(pixi.app.allocator),
             .animations = .{},
             //.keyframe_animations = .{},
             //.keyframe_animation_texture = undefined,
@@ -233,42 +254,58 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
 
         //try internal.createBackground();
 
-        internal.temporary_layer = .{
-            .name = "Temporary",
-            .texture = Texture.create(internal.width, internal.height, .nearest) catch return error.FileLoadError,
-            .visible = true,
-            .id = internal.newLayerID(),
-        };
+        internal.temporary_layer = try .init(internal.newID(), "Temporary", .{ internal.width, internal.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
 
-        internal.selection_layer = .{
-            .name = "Selection",
-            .texture = Texture.create(internal.width, internal.height, .nearest) catch return error.FileLoadError,
-            .visible = true,
-            .id = internal.newLayerID(),
-        };
+        // internal.selection_layer = .{
+        //     .name = "Selection",
+        //     .source = .{ .pixelsPMA = .{
+        //         .width = internal.width,
+        //         .height = internal.height,
+        //         .interpolation = .nearest,
+        //         .invalidation_strategy = .always,
+        //         .rgba = pixi.app.allocator.alloc(dvui.Color.PMA, internal.width * internal.height) catch return error.FileLoadError,
+        //     } },
+
+        //     //.texture = Texture.create(internal.width, internal.height, .nearest) catch return error.FileLoadError,
+        //     .visible = true,
+        //     .id = internal.newID(),
+        // };
 
         for (ext.layers) |l| {
-            const layer_image_name = std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{l.name}) catch "Memory Allocation Failed";
+            const layer_image_name = std.fmt.allocPrintZ(dvui.currentWindow().arena(), "{s}.png", .{l.name}) catch "Memory Allocation Failed";
 
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;
 
             if (zip.zip_entry_open(pixi_file, layer_image_name.ptr) == 0) {
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
-
                 const data = img_buf orelse continue;
 
                 // const pipeline_layout_default = pixi.app.pipeline_default.getBindGroupLayout(0);
                 // defer pipeline_layout_default.release();
 
-                const new_layer: pixi.Internal.Layer = .{
-                    .name = pixi.app.allocator.dupeZ(u8, l.name) catch "Memory Allocation Failed",
-                    .texture = Texture.loadFromFileData(l.name, @as([*]u8, @ptrCast(data))[0..img_len], .nearest) catch return error.FileLoadError,
-                    .id = internal.newLayerID(),
-                    .visible = l.visible,
-                    .collapse = l.collapse,
+                const new_layer: pixi.Internal.Layer = try .fromImageFile(
+                    internal.newID(),
+                    l.name,
+                    //.texture = Texture.loadFromFileData(l.name, @as([*]u8, @ptrCast(data))[0..img_len], .nearest) catch return error.FileLoadError,
+                    @as([*]u8, @ptrCast(data))[0..img_len],
+                    .ptr,
                     //.transform_bindgroup = undefined,
-                };
+                );
+
+                // const new_layer: pixi.Internal.Layer = .{
+                //     .name = pixi.app.allocator.dupeZ(u8, l.name) catch "Memory Allocation Failed",
+                //     //.texture = Texture.loadFromFileData(l.name, @as([*]u8, @ptrCast(data))[0..img_len], .nearest) catch return error.FileLoadError,
+                //     .source = .{ .imageFile = .{
+                //         .name = l.name,
+                //         .bytes = @as([*]u8, @ptrCast(data))[0..img_len],
+                //         .interpolation = .nearest,
+                //     } },
+                //     .id = internal.newID(),
+                //     .visible = l.visible,
+                //     .collapse = l.collapse,
+                //     //.transform_bindgroup = undefined,
+                // };
 
                 //const device: *mach.gpu.Device = pixi.core.windows.get(pixi.app.window, .device);
 
@@ -331,6 +368,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
                 .fps = animation.fps,
             }) catch return error.FileLoadError;
         }
+        pixi.editor.counter += 1;
         return internal;
     }
 
@@ -340,15 +378,15 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
 pub fn deinit(file: *File) void {
     file.history.deinit();
     file.buffers.deinit();
-    file.background.deinit();
-    {
-        dvui.textureDestroyLater(file.temporary_layer.texture);
-        dvui.textureDestroyLater(file.selection_layer.texture);
-        if (file.heightmap.layer) |*l| {
-            dvui.textureDestroyLater(l.texture);
-            pixi.app.allocator.free(l.name);
-        }
-    }
+    //file.background.deinit();
+    // {
+    //     //dvui.textureDestroyLater(file.temporary_layer.texture.toDvui());
+    //     //dvui.textureDestroyLater(file.selection_layer.texture.toDvui());
+    //     if (file.heightmap.layer) |*l| {
+    //         //dvui.textureDestroyLater(l.texture.toDvui());
+    //         pixi.app.allocator.free(l.name);
+    //     }
+    // }
     // if (file.transform_texture) |*texture| {
     //     texture.texture.deinit();
     // }
@@ -376,28 +414,26 @@ pub fn deinit(file: *File) void {
     //     buffer.release();
     // }
 
-    for (file.deleted_heightmap_layers.items(.texture)) |texture| {
-        dvui.textureDestroyLater(texture);
+    // for (file.deleted_heightmap_layers.items(.texture)) |*texture| {
+    //     dvui.textureDestroyLater(texture.toDvui());
+    // }
+    // for (file.deleted_layers.items(.texture)) |*texture| {
+    //     dvui.textureDestroyLater(texture.toDvui());
+    // }
+    for (file.layers.items(.name)) |name| {
+        pixi.app.allocator.free(name);
     }
-    for (file.deleted_layers.items(.texture)) |texture| {
-        dvui.textureDestroyLater(texture);
-    }
-    for (file.layers.items(.texture)) |texture| {
-        dvui.textureDestroyLater(texture);
-    }
-    for (file.layers.items(.name), 0..) |_, index| {
-        pixi.app.allocator.free(file.layers.items(.name)[index]);
-    }
+
     // for (file.layers.items(.transform_bindgroup)) |bindgroup| {
     //     if (bindgroup) |b|
     //         b.release();
     // }
-    for (file.deleted_layers.items(.name), 0..) |_, index| {
-        pixi.app.allocator.free(file.deleted_layers.items(.name)[index]);
-    }
-    for (file.deleted_layers.items(.texture)) |texture| {
-        dvui.textureDestroyLater(texture);
-    }
+    // for (file.deleted_layers.items(.name), 0..) |_, index| {
+    //     pixi.app.allocator.free(file.deleted_layers.items(.name)[index]);
+    // }
+    // for (file.deleted_layers.items(.texture)) |*texture| {
+    //     dvui.textureDestroyLater(texture.toDvui());
+    // }
     // for (file.deleted_layers.items(.transform_bindgroup)) |bindgroup| {
     //     if (bindgroup) |b|
     //         b.release();
@@ -405,9 +441,9 @@ pub fn deinit(file: *File) void {
     for (file.animations.items(.name), 0..) |_, index| {
         pixi.app.allocator.free(file.animations.items(.name)[index]);
     }
-    for (file.deleted_animations.items(.name), 0..) |_, index| {
-        pixi.app.allocator.free(file.deleted_animations.items(.name)[index]);
-    }
+    // for (file.deleted_animations.items(.name), 0..) |_, index| {
+    //     pixi.app.allocator.free(file.deleted_animations.items(.name)[index]);
+    // }
 
     //file.keyframe_animation_texture.deinit();
     file.layers.deinit(pixi.app.allocator);
@@ -448,9 +484,9 @@ pub fn createBackground(self: *File) !void {
     self.background = texture;
 }
 
-pub fn newLayerID(file: *File) u64 {
-    file.layer_counter += 1;
-    return file.layer_counter;
+pub fn newID(file: *File) u64 {
+    file.counter += 1;
+    return file.counter;
 }
 
 // pub fn newId(file: *File) u32 {

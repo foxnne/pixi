@@ -54,6 +54,7 @@ pub const Internal = struct {
     pub const Palette = @import("internal/Palette.zig");
     pub const Reference = @import("internal/Reference.zig");
     pub const Sprite = @import("internal/Sprite.zig");
+    pub const Texture = @import("internal/Texture.zig");
 };
 
 /// Frame-by-frame sprite animation

@@ -82,6 +82,8 @@ selection_invert: bool = false,
 clipboard_image: ?zstbi.Image = null,
 clipboard_position: [2]u32 = .{ 0, 0 },
 
+counter: u64 = 0,
+
 pub const Buffers = struct {
     atlas_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
     texture_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
@@ -711,11 +713,12 @@ pub fn saveAllFiles(editor: *Editor) !void {
 pub fn closeFile(editor: *Editor, index: usize) !void {
     // Handle confirm close if file is dirty
     {
-        const file = editor.open_files.items[index];
+        const file = editor.open_files.values()[index];
         if (file.dirty()) {
-            editor.popups.file_confirm_close = true;
-            editor.popups.file_confirm_close_state = .one;
-            editor.popups.file_confirm_close_index = index;
+            std.log.debug("closeFile: {d} is dirty", .{index});
+            // editor.popups.file_confirm_close = true;
+            // editor.popups.file_confirm_close_state = .one;
+            // editor.popups.file_confirm_close_index = index;
             return;
         }
     }
@@ -725,8 +728,9 @@ pub fn closeFile(editor: *Editor, index: usize) !void {
 
 pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     editor.open_file_index = 0;
-    var file: pixi.Internal.File = editor.open_files.orderedRemove(index);
+    var file = editor.open_files.values()[index];
     file.deinit();
+    editor.open_files.orderedRemoveAt(index);
 }
 
 pub fn closeReference(editor: *Editor, index: usize) !void {

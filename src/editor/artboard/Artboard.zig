@@ -65,8 +65,6 @@ const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
     color_0,
 };
 
-var temp_files: usize = 5;
-
 pub fn draw(_: *Artboard) !dvui.App.Result {
 
     // Canvas Area
@@ -139,12 +137,9 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
                 var color = dvui.Color.fromTheme(.text);
 
                 if (close_button.clicked()) {
-                    if (temp_files > 1) {
-                        std.log.debug("closed: {d}", .{i});
-                        temp_files -= 1;
-                    } else {
-                        temp_files = 5;
-                    }
+                    pixi.editor.closeFile(i) catch |err| {
+                        std.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
+                    };
                 }
 
                 if (hovered or close_button.hovered()) {
@@ -174,16 +169,14 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
             .background = true,
             .gravity_y = 0.0,
         });
-
-        var scroll_container = &canvas_scroll_area.scroll.?;
-
-        // can use this to convert between viewport/virtual_size and screen coords
-        file.canvas.scroll_rect_scale = scroll_container.screenRectScale(.{});
-
         var scaler = dvui.scale(@src(), .{ .scale = &file.canvas.scale }, .{ .rect = .{ .x = -file.canvas.origin.x, .y = -file.canvas.origin.y } });
 
+        file.canvas.scroll_container = &canvas_scroll_area.scroll.?;
+        // can use this to convert between viewport/virtual_size and screen coords
+        file.canvas.scroll_rect_scale = file.canvas.scroll_container.screenRectScale(.{});
         // can use this to convert between data and screen coords
         file.canvas.screen_rect_scale = scaler.screenRectScale(.{});
+        file.canvas.rect = file.canvas.screenFromDataRect(dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) }));
 
         // keep record of bounding box
         var mbbox: ?dvui.Rect.Physical = null;
@@ -192,12 +185,12 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
         while (layer_index > 0) {
             layer_index -= 1;
             var image = dvui.image(@src(), .{
-                .source = .{ .texture = file.layers.items(.texture)[layer_index].toDvui() },
+                .source = file.layers.items(.source)[layer_index],
             }, .{
                 .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
                 .min_size_content = .{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
                 .border = dvui.Rect.all(0),
-                .id_extra = layer_index,
+                .id_extra = file.layers.items(.id)[layer_index],
                 .background = false,
             });
 
@@ -209,28 +202,61 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
             }
         }
 
+        _ = dvui.image(@src(), .{
+            .source = file.temporary_layer.source,
+        }, .{
+            .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
+            .min_size_content = .{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
+            .border = dvui.Rect.all(0),
+            .id_extra = file.layers.len + 1,
+            .background = false,
+        });
+
         const tiles_wide: usize = @intCast(@divExact(file.width, file.tile_width));
         const tiles_high: usize = @intCast(@divExact(file.height, file.tile_height));
 
+        // const top_left = file.canvas.screenFromDataPoint(.{ .x = 0, .y = 0 });
+        // const top_right = file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = 0 });
+        // const bottom_right = file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(file.height)) });
+        // const bottom_left = file.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(file.height)) });
+
+        // file.canvas.image_rect.w = top_right.x - top_left.x;
+        // file.canvas.image_rect.h = bottom_left.y - top_left.y;
+
+        if (file.canvas.hovered()) {
+            dvui.cursorSet(.bad);
+
+            const pixels = file.temporary_layer.pixels();
+            @memset(pixels, .{ 0, 0, 0, 0 });
+
+            const data_mouse = file.canvas.dataFromScreenPoint(file.canvas.mouse());
+
+            file.temporary_layer.setPixel(
+                .{ @intFromFloat(data_mouse.x), @intFromFloat(data_mouse.y) },
+                .{ 255, 0, 0, 255 },
+                true,
+            );
+        }
+
         // Outline the image with a rectangle
         dvui.Path.stroke(.{ .points = &.{
-            file.canvas.screenFromWorldPoint(.{ .x = 0, .y = 0 }),
-            file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = 0 }),
-            file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(file.height)) }),
-            file.canvas.screenFromWorldPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(file.height)) }),
+            file.canvas.rect.topLeft(),
+            file.canvas.rect.topRight(),
+            file.canvas.rect.bottomRight(),
+            file.canvas.rect.bottomLeft(),
         } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover), .closed = true });
 
         for (0..tiles_wide) |x| {
             dvui.Path.stroke(.{ .points = &.{
-                file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
-                file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
+                file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
+                file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
             } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover) });
         }
 
         for (0..tiles_high) |y| {
             dvui.Path.stroke(.{ .points = &.{
-                file.canvas.screenFromWorldPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
-                file.canvas.screenFromWorldPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
+                file.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
+                file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
             } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover) });
         }
 
@@ -240,33 +266,33 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
         // process scroll area events after boxes so the boxes get first pick (so
         // the button works)
         for (dvui.events()) |*e| {
-            if (!scroll_container.matchEvent(e))
+            if (!file.canvas.scroll_container.matchEvent(e))
                 continue;
 
             switch (e.evt) {
                 .mouse => |me| {
-                    if (me.action == .press and me.button.pointer()) {
-                        e.handle(@src(), scroll_container.data());
-                        dvui.captureMouse(scroll_container.data(), e.num);
+                    if (me.action == .press and me.button == .middle) {
+                        e.handle(@src(), file.canvas.scroll_container.data());
+                        dvui.captureMouse(file.canvas.scroll_container.data(), e.num);
                         dvui.dragPreStart(me.p, .{});
-                    } else if (me.action == .release and me.button.pointer()) {
-                        if (dvui.captured(scroll_container.data().id)) {
-                            e.handle(@src(), scroll_container.data());
+                    } else if (me.action == .release and me.button == .middle) {
+                        if (dvui.captured(file.canvas.scroll_container.data().id)) {
+                            e.handle(@src(), file.canvas.scroll_container.data());
                             dvui.captureMouse(null, e.num);
                             dvui.dragEnd();
                         }
                     } else if (me.action == .motion) {
-                        if (dvui.captured(scroll_container.data().id)) {
+                        if (dvui.captured(file.canvas.scroll_container.data().id)) {
                             if (dvui.dragging(me.p)) |dps| {
-                                e.handle(@src(), scroll_container.data());
+                                e.handle(@src(), file.canvas.scroll_container.data());
                                 const rs = file.canvas.scroll_rect_scale;
                                 file.canvas.scroll_info.viewport.x -= dps.x / rs.s;
                                 file.canvas.scroll_info.viewport.y -= dps.y / rs.s;
-                                dvui.refresh(null, @src(), scroll_container.data().id);
+                                dvui.refresh(null, @src(), file.canvas.scroll_container.data().id);
                             }
                         }
                     } else if ((me.action == .wheel_y or me.action == .wheel_x) and me.mod.matchBind("ctrl/cmd")) {
-                        e.handle(@src(), scroll_container.data());
+                        e.handle(@src(), file.canvas.scroll_container.data());
                         if (me.action == .wheel_y) {
                             const base: f32 = 1.001;
                             const zs = @exp(@log(base) * me.action.wheel_y);
@@ -281,33 +307,33 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
             }
         }
 
+        // scale around mouse point
+        // first get data point of mouse
+        // data from screen
+        const prevP = file.canvas.dataFromScreenPoint(zoomP);
+
+        // scale
+        var pp = prevP.scale(1 / file.canvas.scale, dvui.Point);
+        file.canvas.scale *= zoom;
+        pp = pp.scale(file.canvas.scale, dvui.Point);
+
+        // get where the mouse would be now
+        // data to screen
+        const newP = file.canvas.screenFromDataPoint(pp);
+
         if (zoom != 1.0) {
-            // scale around mouse point
-            // first get data point of mouse
-            // data from screen
-            const prevP = file.canvas.worldFromScreenPoint(zoomP);
-
-            // scale
-            var pp = prevP.scale(1 / file.canvas.scale, dvui.Point);
-            file.canvas.scale *= zoom;
-            pp = pp.scale(file.canvas.scale, dvui.Point);
-
-            // get where the mouse would be now
-            // data to screen
-            const newP = file.canvas.screenFromWorldPoint(pp);
 
             // convert both to viewport
-            // viewport from screen minux viewport from screen
             const diff = file.canvas.viewportFromScreenPoint(newP).diff(file.canvas.viewportFromScreenPoint(zoomP));
             file.canvas.scroll_info.viewport.x += diff.x;
             file.canvas.scroll_info.viewport.y += diff.y;
 
-            dvui.refresh(null, @src(), scroll_container.data().id);
+            dvui.refresh(null, @src(), file.canvas.scroll_container.data().id);
         }
 
         scaler.deinit();
 
-        const scroll_container_id = scroll_container.data().id;
+        const scroll_container_id = file.canvas.scroll_container.data().id;
 
         // // deinit is where scroll processes events
         canvas_scroll_area.deinit();

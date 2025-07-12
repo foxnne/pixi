@@ -24,6 +24,7 @@ pub fn loadFromMemory(p: []const dvui.Color.PMA, width: u32, height: u32, interp
 
 pub fn create(width: u32, height: u32, interpolation: dvui.enums.TextureInterpolation) !Texture {
     const p = try pixi.app.allocator.alloc(dvui.Color.PMA, width * height);
+    @memset(p, .{ .r = 0, .g = 0, .b = 0, .a = 255 });
     return .fromDvui(dvui.Texture.fromPixelsPMA(p, width, height, interpolation) catch return error.FailedToCreateTexture);
 }
 
@@ -71,17 +72,25 @@ pub fn pixel(self: *Texture, x: u32, y: u32) u8 {
     return self.pixels()[y * self.width + x];
 }
 
-pub fn getPixelIndex(self: Texture, pixel_coords: [2]usize) usize {
-    return pixel_coords[0] + pixel_coords[1] * @as(usize, @intCast(self.width));
+pub fn getPixelIndex(self: Texture, pixel_coords: [2]u32) usize {
+    return @as(usize, @intCast(pixel_coords[0])) + @as(usize, @intCast(pixel_coords[1])) * @as(usize, @intCast(self.width));
 }
 
-pub fn getPixel(self: Texture, pixel_coords: [2]usize) u8 {
-    return self.pixels()[self.getPixelIndex(pixel_coords)];
+pub fn getPixel(self: Texture, pixel_coords: [2]u32) u8 {
+    const index = self.getPixelIndex(pixel_coords);
+    if (index < self.pixels().len) {
+        return self.pixels()[index];
+    }
+    return 0;
 }
 
-pub fn setPixel(self: *Texture, pixel_coords: [2]usize, color: [4]u8, update: bool) void {
+pub fn setPixel(self: *Texture, pixel_coords: [2]u32, color: [4]u8, update: bool) void {
     _ = update; // TODO: Update texture on GPU
-    self.pixels()[self.getPixelIndex(pixel_coords)] = color;
+
+    const index = self.getPixelIndex(pixel_coords);
+    if (index < self.pixels().len) {
+        self.pixels()[index] = color;
+    }
 }
 
 pub fn setPixelIndex(self: *Texture, index: usize, color: [4]u8, update: bool) void {
