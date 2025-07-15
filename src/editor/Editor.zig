@@ -649,14 +649,6 @@ pub fn setActiveReference(editor: *Editor, index: usize) void {
     editor.open_reference_index = index;
 }
 
-pub fn getFileIndex(editor: *Editor, path: [:0]const u8) ?usize {
-    for (editor.open_files.values(), 0..) |file, i| {
-        if (std.mem.eql(u8, file.path, path))
-            return i;
-    }
-    return null;
-}
-
 pub fn getFile(editor: *Editor, index: usize) ?*pixi.Internal.File {
     if (editor.open_files.values().len == 0) return null;
     if (index >= editor.open_files.values().len) return null;
@@ -710,6 +702,16 @@ pub fn saveAllFiles(editor: *Editor) !void {
     }
 }
 
+pub fn closeFileID(editor: *Editor, id: u64) !void {
+    if (editor.open_files.get(id)) |file| {
+        if (file.dirty()) {
+            std.log.debug("closeFile: {d} is dirty", .{id});
+            return;
+        }
+        try editor.rawCloseFileID(id);
+    }
+}
+
 pub fn closeFile(editor: *Editor, index: usize) !void {
     // Handle confirm close if file is dirty
     {
@@ -731,6 +733,14 @@ pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     var file = editor.open_files.values()[index];
     file.deinit();
     editor.open_files.orderedRemoveAt(index);
+}
+
+pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
+    if (editor.open_files.getPtr(id)) |file| {
+        editor.open_file_index = 0;
+        file.deinit();
+        _ = editor.open_files.orderedRemove(id);
+    }
 }
 
 pub fn closeReference(editor: *Editor, index: usize) !void {

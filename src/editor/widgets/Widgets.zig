@@ -6,3 +6,4 @@ const dvui = @import("dvui");
 pub const Widgets = @This();
 
 pub const TabsWidget = @import("TabsWidget.zig");
+pub const FileWidget = @import("FileWidget.zig");

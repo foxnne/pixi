@@ -10,10 +10,11 @@ name: []const u8,
 source: dvui.ImageSource,
 visible: bool = true,
 collapse: bool = false,
+dirty: bool = false,
 
 //transform_bindgroup: ?*gpu.BindGroup = null,
 
-pub fn init(id: u64, name: []const u8, s: [2]u32, default_color: dvui.Color.PMA, invalidation_strategy: dvui.ImageSource.InvalidationStrategy) !Layer {
+pub fn init(id: u64, name: []const u8, s: [2]u32, default_color: dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
     const num_pixels = s[0] * s[1];
     const p = pixi.app.allocator.alloc(dvui.Color.PMA, num_pixels) catch return error.MemoryAllocationFailed;
 
@@ -28,13 +29,13 @@ pub fn init(id: u64, name: []const u8, s: [2]u32, default_color: dvui.Color.PMA,
                 .width = s[0],
                 .height = s[1],
                 .interpolation = .nearest,
-                .invalidation_strategy = invalidation_strategy,
+                .invalidation = invalidation,
             },
         },
     };
 }
 
-pub fn fromImageFile(id: u64, name: []const u8, bytes: []const u8, invalidation_strategy: dvui.ImageSource.InvalidationStrategy) !Layer {
+pub fn fromImageFile(id: u64, name: []const u8, bytes: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
     var w: c_int = undefined;
     var h: c_int = undefined;
     var channels_in_file: c_int = undefined;
@@ -53,39 +54,39 @@ pub fn fromImageFile(id: u64, name: []const u8, bytes: []const u8, invalidation_
             .width = @as(u32, @intCast(w)),
             .height = @as(u32, @intCast(h)),
             .interpolation = .nearest,
-            .invalidation_strategy = invalidation_strategy,
+            .invalidation = invalidation,
         } },
     };
 }
 
-pub fn fromPixelsPMA(id: u64, name: []const u8, p: []dvui.Color.PMA, invalidation_strategy: dvui.ImageSource.InvalidationStrategy) Layer {
+pub fn fromPixelsPMA(id: u64, name: []const u8, p: []dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
         .source = .{ .pixelsPMA = .{
             .rgba = p,
             .interpolation = .nearest,
-            .invalidation_strategy = invalidation_strategy,
+            .invalidation = invalidation,
         } }, // TODO: Check if this is correct
     };
 }
 
-pub fn fromPixels(name: [:0]const u8, p: []u8, invalidation_strategy: dvui.ImageSource.InvalidationStrategy) Layer {
+pub fn fromPixels(name: [:0]const u8, p: []u8, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
     return .{
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
         .source = .{ .pixels = .{
             .rgba = p,
             .interpolation = .nearest,
-            .invalidation_strategy = invalidation_strategy,
+            .invalidation = invalidation,
         } }, // TODO: Check if this is correct
     };
 }
 
-pub fn fromTexture(id: u64, name: []const u8, texture: dvui.Texture, invalidation_strategy: dvui.ImageSource.InvalidationStrategy) Layer {
+pub fn fromTexture(id: u64, name: []const u8, texture: dvui.Texture, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = .{ .texture = texture, .invalidation_strategy = invalidation_strategy, .interpolation = .nearest },
+        .source = .{ .texture = texture, .invalidation = invalidation, .interpolation = .nearest },
     };
 }
 
@@ -115,38 +116,54 @@ pub fn pixels(self: *Layer) [][4]u8 {
     return &.{};
 }
 
-pub fn getPixelIndex(self: *Layer, pixel: [2]usize) usize {
-    const index = pixel[0] + pixel[1] * @as(usize, @intFromFloat(self.size().w));
+pub fn getPixelIndex(self: *Layer, pixel: dvui.Point) ?usize {
+    if (pixel.x < 0 or pixel.y < 0) {
+        return null;
+    }
+
+    if (pixel.x >= self.size().w or pixel.y >= self.size().h) {
+        return null;
+    }
+
+    const p: [2]usize = .{ @intFromFloat(pixel.x), @intFromFloat(pixel.y) };
+
+    const index = p[0] + p[1] * @as(usize, @intFromFloat(self.size().w));
     if (index >= self.pixels().len) {
         return 0;
     }
     return index;
 }
 
-pub fn getPixel(self: Layer, pixel: [2]usize) [4]u8 {
-    const index = self.getPixelIndex(pixel);
-    return self.pixels()[index];
+pub fn getPixel(self: *Layer, pixel: dvui.Point) ?[4]u8 {
+    if (self.getPixelIndex(pixel)) |index| {
+        return self.pixels()[index];
+    }
+    return null;
 }
 
-pub fn setPixel(self: *Layer, pixel: [2]usize, color: [4]u8, update: bool) void {
-    _ = update; // TODO: Update texture on GPU
-    const index = self.getPixelIndex(pixel);
-    var p = self.pixels();
-    p[index] = color;
+pub fn setPixel(self: *Layer, pixel: dvui.Point, color: [4]u8) void {
+    if (self.getPixelIndex(pixel)) |index| {
+        self.pixels()[index] = color;
+    }
     //if (update)
     //self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }
 
-pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8, update: bool) void {
-    _ = update; // TODO: Update texture on GPU
-    var p = self.pixels();
-    p[index] = color;
+pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8) void {
+    if (index >= self.pixels().len) {
+        return;
+    }
+    self.pixels()[index] = color;
 }
 
 pub const ShapeOffsetResult = struct {
     index: usize,
     color: [4]u8,
 };
+
+pub fn invalidateCache(self: *Layer) void {
+    dvui.textureInvalidateCache(self.source.hash());
+}
 
 /// Only used for handling getting the pixels surrounding the origin
 /// for stroke sizes larger than 1

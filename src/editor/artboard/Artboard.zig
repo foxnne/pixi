@@ -94,6 +94,7 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
             var tab_button = dvui.ButtonWidget.init(@src(), .{}, .{
                 .margin = dvui.Rect.all(0),
                 .id_extra = i,
+                .padding = .{ .x = 2, .y = 6, .h = 6, .w = 2 },
             });
             var hovered = false;
             {
@@ -112,7 +113,7 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
                 });
                 defer hbox.deinit();
 
-                dvui.icon(@src(), "test.pixi icon", icons.tvg.lucide.file, .{}, .{
+                dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{}, .{
                     .gravity_y = 0.5,
                     .padding = dvui.Rect.all(2),
                 });
@@ -127,7 +128,7 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
                 .color_fill_hover = .err,
                 .color_fill = .fill_window,
                 .gravity_y = 0.5,
-                .padding = dvui.Rect.all(2),
+                .padding = dvui.Rect.all(1),
                 .margin = .{ .w = 4 },
             });
             {
@@ -136,21 +137,22 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
                 close_button.processEvents();
                 var color = dvui.Color.fromTheme(.text);
 
-                if (close_button.clicked()) {
-                    pixi.editor.closeFile(i) catch |err| {
-                        std.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
-                    };
-                }
-
                 if (hovered or close_button.hovered()) {
                     close_button.drawBackground();
-                } else color = color.opacity(0.0);
+                } else color = if (file.dirty()) .fromTheme(.text) else color.opacity(0.0);
 
-                dvui.icon(@src(), "close", icons.tvg.lucide.x, .{
+                dvui.icon(@src(), "close", if (file.dirty() and !(hovered or close_button.hovered())) icons.tvg.lucide.@"circle-small" else icons.tvg.lucide.x, .{
                     .fill_color = color,
                 }, .{
                     .gravity_y = 0.5,
                 });
+
+                if (close_button.clicked()) {
+                    pixi.editor.closeFileID(file.id) catch |err| {
+                        std.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
+                    };
+                    break;
+                }
             }
         }
     }
@@ -164,228 +166,28 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
     if (pixi.editor.open_files.values().len > 0) {
         const file = &pixi.editor.open_files.values()[pixi.editor.open_file_index];
 
-        const canvas_scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.canvas.scroll_info }, .{
+        var file_widget = widgets.FileWidget.init(@src(), file, .{}, .{
             .expand = .both,
             .background = true,
-            .gravity_y = 0.0,
         });
-        var scaler = dvui.scale(@src(), .{ .scale = &file.canvas.scale }, .{ .rect = .{ .x = -file.canvas.origin.x, .y = -file.canvas.origin.y } });
+        defer file_widget.deinit();
 
-        file.canvas.scroll_container = &canvas_scroll_area.scroll.?;
-        // can use this to convert between viewport/virtual_size and screen coords
-        file.canvas.scroll_rect_scale = file.canvas.scroll_container.screenRectScale(.{});
-        // can use this to convert between data and screen coords
-        file.canvas.screen_rect_scale = scaler.screenRectScale(.{});
-        file.canvas.rect = file.canvas.screenFromDataRect(dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) }));
+        file_widget.processStrokeTool();
+        file_widget.processSampleTool();
 
-        // keep record of bounding box
-        var mbbox: ?dvui.Rect.Physical = null;
+        // Draw layers first, so that the scrolling bounding box is updated
+        file_widget.drawLayers();
 
-        var layer_index: usize = file.layers.len;
-        while (layer_index > 0) {
-            layer_index -= 1;
-            var image = dvui.image(@src(), .{
-                .source = file.layers.items(.source)[layer_index],
-            }, .{
-                .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
-                .min_size_content = .{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
-                .border = dvui.Rect.all(0),
-                .id_extra = file.layers.items(.id)[layer_index],
-                .background = false,
-            });
+        // Then process the scroll and zoom events last
+        file_widget.scrollAndZoom();
 
-            const boxRect = image.rectScale().r;
-            if (mbbox) |b| {
-                mbbox = b.unionWith(boxRect);
-            } else {
-                mbbox = boxRect;
-            }
-        }
+        // @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        // if (file_widget.hovered()) |pixel| {
+        //     //dvui.cursorSet(.bad);
+        //     file.temporary_layer.setPixel(pixel, .{ 255, 0, 0, 255 });
+        // }
 
-        _ = dvui.image(@src(), .{
-            .source = file.temporary_layer.source,
-        }, .{
-            .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
-            .min_size_content = .{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
-            .border = dvui.Rect.all(0),
-            .id_extra = file.layers.len + 1,
-            .background = false,
-        });
-
-        const tiles_wide: usize = @intCast(@divExact(file.width, file.tile_width));
-        const tiles_high: usize = @intCast(@divExact(file.height, file.tile_height));
-
-        // const top_left = file.canvas.screenFromDataPoint(.{ .x = 0, .y = 0 });
-        // const top_right = file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = 0 });
-        // const bottom_right = file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(file.height)) });
-        // const bottom_left = file.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(file.height)) });
-
-        // file.canvas.image_rect.w = top_right.x - top_left.x;
-        // file.canvas.image_rect.h = bottom_left.y - top_left.y;
-
-        if (file.canvas.hovered()) {
-            dvui.cursorSet(.bad);
-
-            const pixels = file.temporary_layer.pixels();
-            @memset(pixels, .{ 0, 0, 0, 0 });
-
-            const data_mouse = file.canvas.dataFromScreenPoint(file.canvas.mouse());
-
-            file.temporary_layer.setPixel(
-                .{ @intFromFloat(data_mouse.x), @intFromFloat(data_mouse.y) },
-                .{ 255, 0, 0, 255 },
-                true,
-            );
-        }
-
-        // Outline the image with a rectangle
-        dvui.Path.stroke(.{ .points = &.{
-            file.canvas.rect.topLeft(),
-            file.canvas.rect.topRight(),
-            file.canvas.rect.bottomRight(),
-            file.canvas.rect.bottomLeft(),
-        } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover), .closed = true });
-
-        for (0..tiles_wide) |x| {
-            dvui.Path.stroke(.{ .points = &.{
-                file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
-                file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
-            } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover) });
-        }
-
-        for (0..tiles_high) |y| {
-            dvui.Path.stroke(.{ .points = &.{
-                file.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
-                file.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
-            } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover) });
-        }
-
-        var zoom: f32 = 1;
-        var zoomP: dvui.Point.Physical = .{};
-
-        // process scroll area events after boxes so the boxes get first pick (so
-        // the button works)
-        for (dvui.events()) |*e| {
-            if (!file.canvas.scroll_container.matchEvent(e))
-                continue;
-
-            switch (e.evt) {
-                .mouse => |me| {
-                    if (me.action == .press and me.button == .middle) {
-                        e.handle(@src(), file.canvas.scroll_container.data());
-                        dvui.captureMouse(file.canvas.scroll_container.data(), e.num);
-                        dvui.dragPreStart(me.p, .{});
-                    } else if (me.action == .release and me.button == .middle) {
-                        if (dvui.captured(file.canvas.scroll_container.data().id)) {
-                            e.handle(@src(), file.canvas.scroll_container.data());
-                            dvui.captureMouse(null, e.num);
-                            dvui.dragEnd();
-                        }
-                    } else if (me.action == .motion) {
-                        if (dvui.captured(file.canvas.scroll_container.data().id)) {
-                            if (dvui.dragging(me.p)) |dps| {
-                                e.handle(@src(), file.canvas.scroll_container.data());
-                                const rs = file.canvas.scroll_rect_scale;
-                                file.canvas.scroll_info.viewport.x -= dps.x / rs.s;
-                                file.canvas.scroll_info.viewport.y -= dps.y / rs.s;
-                                dvui.refresh(null, @src(), file.canvas.scroll_container.data().id);
-                            }
-                        }
-                    } else if ((me.action == .wheel_y or me.action == .wheel_x) and me.mod.matchBind("ctrl/cmd")) {
-                        e.handle(@src(), file.canvas.scroll_container.data());
-                        if (me.action == .wheel_y) {
-                            const base: f32 = 1.001;
-                            const zs = @exp(@log(base) * me.action.wheel_y);
-                            if (zs != 1.0) {
-                                zoom *= zs;
-                                zoomP = me.p;
-                            }
-                        }
-                    }
-                },
-                else => {},
-            }
-        }
-
-        // scale around mouse point
-        // first get data point of mouse
-        // data from screen
-        const prevP = file.canvas.dataFromScreenPoint(zoomP);
-
-        // scale
-        var pp = prevP.scale(1 / file.canvas.scale, dvui.Point);
-        file.canvas.scale *= zoom;
-        pp = pp.scale(file.canvas.scale, dvui.Point);
-
-        // get where the mouse would be now
-        // data to screen
-        const newP = file.canvas.screenFromDataPoint(pp);
-
-        if (zoom != 1.0) {
-
-            // convert both to viewport
-            const diff = file.canvas.viewportFromScreenPoint(newP).diff(file.canvas.viewportFromScreenPoint(zoomP));
-            file.canvas.scroll_info.viewport.x += diff.x;
-            file.canvas.scroll_info.viewport.y += diff.y;
-
-            dvui.refresh(null, @src(), file.canvas.scroll_container.data().id);
-        }
-
-        scaler.deinit();
-
-        const scroll_container_id = file.canvas.scroll_container.data().id;
-
-        // // deinit is where scroll processes events
-        canvas_scroll_area.deinit();
-
-        // // don't mess with scrolling if we aren't being shown (prevents weirdness
-        // // when starting out)
-        if (!file.canvas.scroll_info.viewport.empty()) {
-            // add current viewport plus padding
-            const pad = 10;
-            var bbox = file.canvas.scroll_info.viewport.outsetAll(pad);
-            if (mbbox) |bb| {
-                // convert bb from screen space to viewport space
-                const scrollbbox = file.canvas.viewportFromScreenRect(bb);
-                bbox = bbox.unionWith(scrollbbox);
-            }
-
-            // adjust top if needed
-            if (bbox.y != 0) {
-                const adj = -bbox.y;
-                file.canvas.scroll_info.virtual_size.h += adj;
-                file.canvas.scroll_info.viewport.y += adj;
-                file.canvas.origin.y -= adj;
-                dvui.refresh(null, @src(), scroll_container_id);
-            }
-
-            // adjust left if needed
-            if (bbox.x != 0) {
-                const adj = -bbox.x;
-                file.canvas.scroll_info.virtual_size.w += adj;
-                file.canvas.scroll_info.viewport.x += adj;
-                file.canvas.origin.x -= adj;
-                dvui.refresh(null, @src(), scroll_container_id);
-            }
-
-            // adjust bottom if needed
-            if (bbox.h != file.canvas.scroll_info.virtual_size.h) {
-                file.canvas.scroll_info.virtual_size.h = bbox.h;
-                dvui.refresh(null, @src(), scroll_container_id);
-            }
-
-            // adjust right if needed
-            if (bbox.w != file.canvas.scroll_info.virtual_size.w) {
-                file.canvas.scroll_info.virtual_size.w = bbox.w;
-                dvui.refresh(null, @src(), scroll_container_id);
-            }
-        }
-
-        // _ = dvui.button(@src(), "test", .{}, .{
-        //     .gravity_x = 0.5,
-        //     .gravity_y = 0.5,
-        //     .padding = dvui.Rect.all(2),
-        // });
+        // file.temporary_layer.invalidateCache();
 
         // const label = if (dvui.Examples.show_demo_window) "Hide Demo Window" else "Show Demo Window";
         // if (dvui.button(@src(), label, .{}, .{ .tag = "show-demo-btn" })) {

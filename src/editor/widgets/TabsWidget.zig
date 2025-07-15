@@ -76,11 +76,6 @@ pub fn addTab(self: *TabsWidget, selected: bool, opts: Options) *dvui.BoxWidget 
     self.tab_box = dvui.BoxWidget.init(@src(), .{ .dir = .horizontal }, opts);
     self.tab_box.install();
 
-    const hovered = false;
-    //_ = dvui.clicked(self.tab_box.data(), .{ .hovered = &hovered });
-
-    if (hovered) self.tab_box.data().options.color_fill = .fill else self.tab_box.data().options.color_fill = .fill_window;
-
     self.tab_box.drawBackground();
 
     if (selected) {

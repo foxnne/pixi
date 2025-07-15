@@ -13,7 +13,7 @@ const Layer = @import("Layer.zig");
 const Sprite = @import("Sprite.zig");
 const Animation = @import("Animation.zig");
 
-pub const CanvasData = struct {
+pub const FileWidgetData = struct {
     rect: dvui.Rect.Physical = .{},
     scroll_container: *dvui.ScrollContainerWidget = undefined,
     scroll_rect_scale: dvui.RectScale = .{},
@@ -21,57 +21,80 @@ pub const CanvasData = struct {
     scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
     origin: dvui.Point = .{},
     scale: f32 = 1.0,
+    prev_drag_point: ?dvui.Point = null,
+    sample_pixel: ?dvui.Point.Physical = null,
 
-    pub fn dataFromScreenPoint(self: *CanvasData, screen: dvui.Point.Physical) dvui.Point {
+    pub fn dataFromScreenPoint(self: *FileWidgetData, screen: dvui.Point.Physical) dvui.Point {
         return self.screen_rect_scale.pointFromPhysical(screen);
     }
 
-    pub fn screenFromDataPoint(self: *CanvasData, data: dvui.Point) dvui.Point.Physical {
+    pub fn screenFromDataPoint(self: *FileWidgetData, data: dvui.Point) dvui.Point.Physical {
         return self.screen_rect_scale.pointToPhysical(data);
     }
 
-    pub fn viewportFromScreenPoint(self: *CanvasData, screen: dvui.Point.Physical) dvui.Point {
+    pub fn viewportFromScreenPoint(self: *FileWidgetData, screen: dvui.Point.Physical) dvui.Point {
         return self.scroll_rect_scale.pointFromPhysical(screen);
     }
 
-    pub fn screenFromViewportPoint(self: *CanvasData, viewport: dvui.Point) dvui.Point.Physical {
+    pub fn screenFromViewportPoint(self: *FileWidgetData, viewport: dvui.Point) dvui.Point.Physical {
         return self.scroll_rect_scale.pointToPhysical(viewport);
     }
 
-    pub fn dataFromScreenRect(self: *CanvasData, screen: dvui.Rect.Physical) dvui.Rect {
+    pub fn dataFromScreenRect(self: *FileWidgetData, screen: dvui.Rect.Physical) dvui.Rect {
         return self.screen_rect_scale.rectFromPhysical(screen);
     }
 
-    pub fn screenFromDataRect(self: *CanvasData, data: dvui.Rect) dvui.Rect.Physical {
+    pub fn screenFromDataRect(self: *FileWidgetData, data: dvui.Rect) dvui.Rect.Physical {
         return self.screen_rect_scale.rectToPhysical(data);
     }
 
-    pub fn viewportFromScreenRect(self: *CanvasData, screen: dvui.Rect.Physical) dvui.Rect {
+    pub fn viewportFromScreenRect(self: *FileWidgetData, screen: dvui.Rect.Physical) dvui.Rect {
         return self.scroll_rect_scale.rectFromPhysical(screen);
     }
 
-    pub fn screenFromViewportRect(self: *CanvasData, viewport: dvui.Rect) dvui.Rect.Physical {
+    pub fn screenFromViewportRect(self: *FileWidgetData, viewport: dvui.Rect) dvui.Rect.Physical {
         return self.scroll_rect_scale.rectToPhysical(viewport);
     }
 
-    pub fn hovered(self: *CanvasData) bool {
-        return self.rect.contains(self.mouse());
+    /// If the mouse position is currently contained within the canvas rect,
+    /// Returns the data/world point of the mouse, which corresponds to the pixel input of
+    /// Layer functions
+    pub fn hovered(self: *FileWidgetData) ?dvui.Point {
+        if (self.mouse()) |m| {
+            if (self.rect.contains(m.p)) {
+                return self.dataFromScreenPoint(m.p);
+            }
+        }
+
+        return null;
     }
 
-    pub fn mouse(self: *CanvasData) dvui.Point.Physical {
+    pub fn clicked(self: *FileWidgetData) ?dvui.Point {
+        if (self.hovered()) |p| {
+            if (dvui.clicked(
+                self.scroll_container.data().id,
+                .{ .rect = self.rect },
+            )) {
+                return p;
+            }
+        }
+    }
+
+    /// Returns the mouse screen position if an event occured this frame
+    pub fn mouse(self: *FileWidgetData) ?dvui.Event.Mouse {
         for (dvui.events()) |*e| {
             if (!self.scroll_container.matchEvent(e))
                 continue;
 
             switch (e.evt) {
                 .mouse => |me| {
-                    return me.p;
+                    return me;
                 },
                 else => {},
             }
         }
 
-        return .{};
+        return null;
     }
 };
 //const KeyframeAnimation = @import("KeyframeAnimation.zig");
@@ -82,7 +105,7 @@ width: u32,
 height: u32,
 tile_width: u32,
 tile_height: u32,
-canvas: CanvasData = .{},
+canvas: FileWidgetData = .{},
 
 //camera: pixi.gfx.Camera = .{},
 layers: std.MultiArrayList(Layer),
@@ -183,9 +206,10 @@ pub const Heightmap = struct {
     pub fn enable(self: *Heightmap) void {
         if (self.layer != null) {
             self.visible = true;
-        } else {
-            pixi.editor.popups.heightmap = true;
         }
+        // } else {
+        //     pixi.editor.popups.heightmap = true;
+        // }
     }
 
     pub fn disable(self: *Heightmap) void {
@@ -254,7 +278,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
 
         //try internal.createBackground();
 
-        internal.temporary_layer = try .init(internal.newID(), "Temporary", .{ internal.width, internal.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
+        internal.temporary_layer = try .init(internal.newID(), "Temporary", .{ internal.width, internal.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
 
         // internal.selection_layer = .{
         //     .name = "Selection",
@@ -631,6 +655,17 @@ pub fn newID(file: *File) u64 {
 // pub const StrokeToolOptions = struct {
 //     texture_position_offset: [2]f32 = .{ 0.0, 0.0 },
 // };
+
+// pub fn processStrokeTool(file: *File) !void {
+//     if (file.canvas.hovered()) |pixel| {
+//         const color = switch (pixi.editor.tools.current) {
+//             .pencil => if (file.heightmap.visible) [_]u8{ pixi.editor.colors.height, 0, 0, 255 } else pixi.editor.colors.primary,
+//             .eraser => [_]u8{ 0, 0, 0, 0 },
+//             .heightmap => [_]u8{ pixi.editor.colors.height, 0, 0, 255 },
+//             else => unreachable,
+//         };
+//     }
+// }
 
 // pub fn processStrokeTool(file: *File, canvas: Canvas, options: StrokeToolOptions) !void {
 //     if (switch (pixi.editor.tools.current) {
@@ -1993,13 +2028,13 @@ pub fn newID(file: *File) u64 {
 //     }
 // }
 
-// pub fn undo(self: *File) !void {
-//     return self.history.undoRedo(self, .undo);
-// }
+pub fn undo(self: *File) !void {
+    return self.history.undoRedo(self, .undo);
+}
 
-// pub fn redo(self: *File) !void {
-//     return self.history.undoRedo(self, .redo);
-// }
+pub fn redo(self: *File) !void {
+    return self.history.undoRedo(self, .redo);
+}
 
 // pub fn cut(self: *File, append_history: bool) !void {
 //     if (self.transform_texture == null) {

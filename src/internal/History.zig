@@ -21,7 +21,7 @@ pub const ChangeType = enum {
 
 pub const Change = union(ChangeType) {
     pub const Pixels = struct {
-        layer: i32,
+        layer_id: u64,
         indices: []usize,
         values: [][4]u8,
         temporary: bool = false,
@@ -81,7 +81,7 @@ pub const Change = union(ChangeType) {
         return switch (field) {
             .pixels => .{
                 .pixels = .{
-                    .layer = 0,
+                    .layer_id = 0,
                     .indices = try allocator.alloc(usize, len),
                     .values = try allocator.alloc([4]u8, len),
                     .temporary = false,
@@ -172,9 +172,9 @@ pub fn append(self: *History, change: Change) !void {
                     }
                 },
                 .pixels => |pixels| {
-                    equal = std.mem.eql(usize, pixels.indices, change.pixels.indices);
+                    equal = pixels.layer_id == change.pixels.layer_id;
                     if (equal) {
-                        equal = pixels.layer == change.pixels.layer;
+                        equal = std.mem.eql(usize, pixels.indices, change.pixels.indices);
                     }
                     if (equal) {
                         for (pixels.values, 0..) |value, i| {
@@ -250,33 +250,21 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
         .pixels => |*pixels| {
             if (pixels.temporary) temporary = true;
 
-            const layer = if (pixels.layer < 0) file.heightmap.layer.? else file.layers.slice().get(@as(usize, @intCast(pixels.layer)));
+            const layer_index = for (file.layers.slice().items(.id), 0..) |layer_id, i| {
+                if (layer_id == pixels.layer_id) break i;
+            } else 0;
+            var layer = file.layers.slice().get(layer_index);
+
             for (pixels.indices, 0..) |pixel_index, i| {
                 const color: [4]u8 = pixels.values[i];
-                var current_pixels = @as([*][4]u8, @ptrCast(layer.texture.pixels.ptr))[0 .. layer.texture.pixels.len / 4];
+                var current_pixels = layer.pixels();
                 pixels.values[i] = current_pixels[pixel_index];
                 current_pixels[pixel_index] = color;
-                if (color[3] == 0 and pixels.layer >= 0) {
-                    // TODO: This does all kinds of damage to a heightmap, fix later
-                    // Erasing a pixel on a layer, we also need to erase the heightmap
-                    // if (file.heightmap.layer) |heightmap_layer| {
-                    //     var heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.image.data.ptr))[0 .. heightmap_layer.texture.image.data.len / 4];
-                    //     heightmap_pixels[pixel_index] = color;
-                    // }
-                }
             }
 
-            if (pixels.layer < 0) {
-                pixi.editor.tools.set(.heightmap);
-            } else {
-                pixi.editor.tools.set(.pencil);
-            }
+            pixi.editor.tools.set(.pencil);
 
-            var texture: *pixi.gfx.Texture = &file.layers.items(.texture)[@as(usize, @intCast(pixels.layer))];
-            texture.update(pixi.core.windows.get(pixi.app.window, .device));
-
-            if (pixi.editor.explorer.pane == .sprites)
-                pixi.editor.explorer.pane = .tools;
+            layer.invalidateCache();
         },
         .origins => |*origins| {
             file.selected_sprites.clearAndFree();
@@ -392,8 +380,8 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     try file.deleted_animations.append(pixi.app.allocator, animation);
                     animation_restore_delete.action = .restore;
 
-                    if (file.selected_animation_index == animation_restore_delete.index)
-                        file.selected_animation_index = 0;
+                    // if (file.sele == animation_restore_delete.index)
+                    //     file.selected_animation_index = 0;
                 },
             }
             pixi.editor.explorer.pane = .animations;

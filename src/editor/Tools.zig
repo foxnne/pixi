@@ -22,29 +22,34 @@ current: Tool = .pointer,
 previous: Tool = .pointer,
 stroke_size: u8 = 1,
 stroke_shape: Shape = .circle,
+previous_drawing_tool: Tool = .pencil,
 
 pub fn set(self: *Self, tool: Tool) void {
     if (self.current != tool) {
-        if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
-            if (file.transform_texture != null and tool != .pointer)
-                return;
+        // if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+        //     // if (file.transform_texture != null and tool != .pointer)
+        //     //     return;
 
-            switch (tool) {
-                .heightmap => {
-                    file.heightmap.enable();
-                    if (file.heightmap.layer == null)
-                        return;
-                },
-                .pointer => {
-                    file.heightmap.disable();
+        //     switch (tool) {
+        //         .heightmap => {
+        //             file.heightmap.enable();
+        //             if (file.heightmap.layer == null)
+        //                 return;
+        //         },
+        //         .pointer => {
+        //             file.heightmap.disable();
 
-                    if (self.current == .selection)
-                        file.selection_layer.clear(true);
-                },
-                else => {},
-            }
-        }
+        //             // if (self.current == .selection)
+        //             //     file.selection_layer.clear(true);
+        //         },
+        //         else => {},
+        //     }
+        // }
         self.previous = self.current;
+        switch (self.previous) {
+            .pencil, .bucket => |t| self.previous_drawing_tool = t,
+            else => {},
+        }
         self.current = tool;
     }
 }

@@ -19,21 +19,21 @@ pub const Stroke = struct {
         };
     }
 
-    pub fn append(stroke: *Stroke, index: usize, value: [4]u8, canvas: pixi.Internal.File.Canvas) !void {
+    pub fn append(stroke: *Stroke, index: usize, value: [4]u8) !void {
         try stroke.indices.append(index);
         try stroke.values.append(value);
-        stroke.canvas = canvas;
+        //stroke.canvas = canvas;
     }
 
-    pub fn appendSlice(stroke: *Stroke, indices: []usize, values: [][4]u8, canvas: pixi.Internal.File.Canvas) !void {
+    pub fn appendSlice(stroke: *Stroke, indices: []usize, values: [][4]u8) !void {
         try stroke.indices.appendSlice(indices);
         try stroke.values.appendSlice(values);
-        stroke.canvas = canvas;
+        //stroke.canvas = canvas;
     }
 
-    pub fn toChange(stroke: *Stroke, layer: i32) !History.Change {
+    pub fn toChange(stroke: *Stroke, layer_id: u64) !History.Change {
         return .{ .pixels = .{
-            .layer = layer,
+            .layer_id = layer_id,
             .indices = try stroke.indices.toOwnedSlice(),
             .values = try stroke.values.toOwnedSlice(),
         } };
