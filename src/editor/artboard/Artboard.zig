@@ -27,12 +27,10 @@ pub const Artboard = @This();
 //pub const flipbook = @import("flipbook/flipbook.zig");
 //pub const infobar = @import("infobar.zig");
 
-open_file_ids: std.ArrayList(u64),
+grouping: u64 = 0,
 
-pub fn init(allocator: std.mem.Allocator) Artboard {
-    return .{
-        .open_file_ids = .init(allocator),
-    };
+pub fn init(grouping: u64) Artboard {
+    return .{ .grouping = grouping };
 }
 
 const handle_size = 10;
@@ -177,6 +175,7 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
 
         // Draw layers first, so that the scrolling bounding box is updated
         file_widget.drawLayers();
+        file_widget.drawSample();
 
         // Then process the scroll and zoom events last
         file_widget.scrollAndZoom();

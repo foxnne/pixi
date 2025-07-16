@@ -108,7 +108,7 @@ pub fn init(
     };
 
     editor.explorer.* = .init();
-    editor.artboard.* = .init(editor.allocator);
+    editor.artboard.* = .init(0);
     editor.open_files = .init(editor.allocator);
     //editor.open_references = std.ArrayList(pixi.Internal.Reference).init(editor.allocator);
 

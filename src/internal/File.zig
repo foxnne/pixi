@@ -14,6 +14,7 @@ const Sprite = @import("Sprite.zig");
 const Animation = @import("Animation.zig");
 
 pub const FileWidgetData = struct {
+    grouping: u64 = 0,
     rect: dvui.Rect.Physical = .{},
     scroll_container: *dvui.ScrollContainerWidget = undefined,
     scroll_rect_scale: dvui.RectScale = .{},
@@ -22,7 +23,7 @@ pub const FileWidgetData = struct {
     origin: dvui.Point = .{},
     scale: f32 = 1.0,
     prev_drag_point: ?dvui.Point = null,
-    sample_pixel: ?dvui.Point.Physical = null,
+    sample_data_point: ?dvui.Point = null,
 
     pub fn dataFromScreenPoint(self: *FileWidgetData, screen: dvui.Point.Physical) dvui.Point {
         return self.screen_rect_scale.pointFromPhysical(screen);
