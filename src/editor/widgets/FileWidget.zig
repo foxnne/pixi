@@ -7,9 +7,7 @@ scroll: *dvui.ScrollAreaWidget = undefined,
 scaler: *ScaleWidget = undefined,
 mbbox: ?dvui.Rect.Physical = null,
 
-pub const InitOptions = struct {
-    dir: dvui.enums.Direction = .horizontal,
-};
+pub const InitOptions = struct {};
 
 pub fn init(src: std.builtin.SourceLocation, file: *pixi.Internal.File, init_opts: InitOptions, opts: Options) FileWidget {
     var fw: FileWidget = .{
@@ -48,9 +46,6 @@ pub fn processSampleTool(self: *FileWidget) void {
                     dvui.dragPreStart(me.p, .{ .name = "sample_drag" });
                     file.canvas.prev_drag_point = current_point;
 
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.temporary_layer.invalidateCache();
-
                     sample(file, current_point);
                 } else if (me.action == .release and me.button == .right) {
                     if (dvui.captured(file.canvas.scroll_container.data().id)) {
@@ -73,8 +68,8 @@ pub fn processSampleTool(self: *FileWidget) void {
                                 const span_rect = dvui.Rect{
                                     .x = min_x,
                                     .y = min_y,
-                                    .w = max_x - min_x + 1,
-                                    .h = max_y - min_y + 1,
+                                    .w = max_x - min_x + 5,
+                                    .h = max_y - min_y + 5,
                                 };
 
                                 const screen_rect = file.canvas.screenFromDataRect(span_rect);
@@ -150,7 +145,8 @@ pub fn processStrokeTool(self: *FileWidget) void {
             if (e.evt == .mouse) {
                 if (file.temporary_layer.dirty) {
                     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.temporary_layer.invalidateCache();
+                    file.temporary_layer.invalidate();
+                    file.temporary_layer.dirty = false;
                 }
             }
             continue;
@@ -159,6 +155,20 @@ pub fn processStrokeTool(self: *FileWidget) void {
         switch (e.evt) {
             .mouse => |me| {
                 const current_point = file.canvas.dataFromScreenPoint(me.p);
+
+                if (file.canvas.rect.contains(me.p)) {
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    if (file.canvas.sample_data_point == null or color[3] == 0) {
+                        const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                        file.temporary_layer.setPixel(current_point, temp_color);
+                    }
+                    file.temporary_layer.invalidate();
+                    file.temporary_layer.dirty = true;
+                } else if (file.canvas.prev_drag_point == null) {
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.temporary_layer.invalidate();
+                    file.temporary_layer.dirty = true;
+                }
 
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), file.canvas.scroll_container.data());
@@ -179,7 +189,7 @@ pub fn processStrokeTool(self: *FileWidget) void {
                     }
 
                     file.canvas.prev_drag_point = current_point;
-                    active_layer.invalidateCache();
+                    active_layer.invalidate();
                 } else if (me.action == .release and me.button.pointer()) {
                     if (dvui.captured(file.canvas.scroll_container.data().id)) {
                         e.handle(@src(), file.canvas.scroll_container.data());
@@ -202,7 +212,7 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                             pixels[current_index] = color;
                                         }
                                     }
-                                    active_layer.invalidateCache();
+                                    active_layer.invalidate();
                                 }
                             }
                         }
@@ -246,9 +256,9 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                                         for (points) |pixel| {
                                             file.temporary_layer.setPixel(pixel, color);
-                                            file.temporary_layer.dirty = true;
                                         }
-                                        file.temporary_layer.invalidateCache();
+                                        file.temporary_layer.invalidate();
+                                        file.temporary_layer.dirty = true;
                                     }
                                 }
                             } else {
@@ -268,27 +278,27 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                         }
                                     }
                                 }
-                                active_layer.invalidateCache();
+                                active_layer.invalidate();
                                 file.canvas.prev_drag_point = current_point;
                             }
 
                             e.handle(@src(), file.canvas.scroll_container.data());
                         }
-                    } else {}
-                }
-
-                if (file.canvas.rect.contains(me.p)) {
-                    if (file.canvas.sample_data_point == null or color[3] == 0) {
-                        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                        const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                        file.temporary_layer.setPixel(current_point, temp_color);
-                        file.temporary_layer.invalidateCache();
-                        file.temporary_layer.dirty = true;
+                    } else {
+                        if (file.canvas.rect.contains(me.p)) {
+                            if (file.canvas.sample_data_point == null or color[3] == 0) {
+                                @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                                file.temporary_layer.setPixel(current_point, temp_color);
+                                file.temporary_layer.invalidate();
+                                file.temporary_layer.dirty = true;
+                            }
+                        } else {
+                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                            file.temporary_layer.dirty = true;
+                            file.temporary_layer.invalidate();
+                        }
                     }
-                } else {
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.temporary_layer.dirty = true;
-                    file.temporary_layer.invalidateCache();
                 }
             },
             else => {},
@@ -306,12 +316,7 @@ pub fn drawCursor(fw: *FileWidget) void {
     for (dvui.events()) |*e| {
         if (!file.canvas.scroll_container.matchEvent(e)) {
             if (e.evt == .mouse) {
-                if (file.temporary_layer.dirty) {
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.temporary_layer.invalidateCache();
-                    _ = dvui.cursorShow(true);
-                    file.temporary_layer.dirty = false;
-                }
+                _ = dvui.cursorShow(true);
             }
             continue;
         }
@@ -344,10 +349,10 @@ pub fn drawCursor(fw: *FileWidget) void {
             };
 
             const uv = dvui.Rect{
-                .x = @as(f32, @floatFromInt(sprite.source[0])) / atlas_size.w,
-                .y = @as(f32, @floatFromInt(sprite.source[1])) / atlas_size.h,
-                .w = @as(f32, @floatFromInt(sprite.source[2])) / atlas_size.w,
-                .h = @as(f32, @floatFromInt(sprite.source[3])) / atlas_size.h,
+                .x = (@as(f32, @floatFromInt(sprite.source[0])) / atlas_size.w),
+                .y = (@as(f32, @floatFromInt(sprite.source[1])) / atlas_size.h),
+                .w = (@as(f32, @floatFromInt(sprite.source[2])) / atlas_size.w),
+                .h = (@as(f32, @floatFromInt(sprite.source[3])) / atlas_size.h),
             };
 
             const origin = dvui.Point{
@@ -385,6 +390,31 @@ pub fn drawCursor(fw: *FileWidget) void {
 
             const rs = box.data().rectScale();
 
+            // squeeze texcoords in by 64th of a pixel to avoid bleed
+            // const w_tol = (1.0 / rs.r.w) / 32.0;
+            // const h_tol = (1.0 / rs.r.h) / 32.0;
+
+            // uv.x += w_tol;
+            // uv.y += h_tol;
+            // uv.w -= w_tol * 2;
+            // uv.h -= h_tol * 2;
+
+            // var y_pos = rs.r.y + rs.r.h;
+            // var overshoot = y_pos - @floor(y_pos);
+            // uv.h -= (overshoot / atlas_size.h) * 2; // fixme units
+
+            // var x_pos = rs.r.x + rs.r.w;
+            // overshoot = x_pos - @floor(x_pos);
+            // uv.w -= (overshoot / atlas_size.w) * 2; // fixme units
+
+            // x_pos = rs.r.x;
+            // overshoot = x_pos - @floor(x_pos);
+            // uv.x += overshoot / atlas_size.w; // fixme units
+
+            // y_pos = rs.r.y;
+            // overshoot = y_pos - @floor(y_pos);
+            // uv.y += overshoot / atlas_size.h; // fixme units
+
             dvui.renderImage(pixi.editor.atlas.source, rs, .{
                 .uv = uv,
             }) catch {
@@ -402,6 +432,25 @@ pub fn drawSample(fw: *FileWidget) void {
         const mouse_point = file.canvas.screenFromDataPoint(data_point);
         if (!file.canvas.rect.contains(mouse_point)) return;
 
+        { // Draw a box around the hovered pixel at the correct scale
+            const pixel_box_size = file.canvas.scale * 2;
+
+            const pixel_point: dvui.Point = .{
+                .x = @round(data_point.x - 0.5),
+                .y = @round(data_point.y - 0.5),
+            };
+
+            var pixel_box = dvui.Rect.Physical.fromPoint(file.canvas.screenFromDataPoint(pixel_point));
+            pixel_box.w = pixel_box_size;
+            pixel_box.h = pixel_box_size;
+            dvui.Path.stroke(.{ .points = &.{
+                pixel_box.topLeft(),
+                pixel_box.topRight(),
+                pixel_box.bottomRight(),
+                pixel_box.bottomLeft(),
+            } }, .{ .thickness = 2, .color = .white, .closed = true });
+        }
+
         // The scale of the enlarged view is always twice the scale of file.canvas
         const enlarged_scale: f32 = file.canvas.scale * 2.0;
 
@@ -418,18 +467,14 @@ pub fn drawSample(fw: *FileWidget) void {
         // This is how many data pixels are shown in the box, so that the box always shows the same number of data pixels at 2x the canvas scale
         const sample_region_size: f32 = sample_box_size / enlarged_scale;
 
-        // Center the sample region on the data_point
-        const region_x = data_point.x;
-        const region_y = data_point.y;
-
         const border_width = 1 / file.canvas.scale;
 
         // Position the sample box so that the data_point is at its center
         const box = dvui.box(@src(), .horizontal, .{
             .expand = .none,
             .rect = .{
-                .x = region_x,
-                .y = region_y,
+                .x = data_point.x,
+                .y = data_point.y,
                 .w = sample_box_size,
                 .h = sample_box_size,
             },
@@ -439,7 +484,7 @@ pub fn drawSample(fw: *FileWidget) void {
             .background = true,
             .color_fill = .fill_window,
             .box_shadow = .{
-                .blur = 10 * 1 / file.canvas.scale,
+                .fade = 10 * 1 / file.canvas.scale,
                 .corner_radius = .{
                     .x = sample_box_size / 12,
                     .y = sample_box_size / 2,
@@ -457,8 +502,8 @@ pub fn drawSample(fw: *FileWidget) void {
 
         // Compute UVs for the region to sample, normalized to [0,1]
         const uv_rect = dvui.Rect{
-            .x = (region_x - sample_region_size / 2) / @as(f32, @floatFromInt(file.width)),
-            .y = (region_y - sample_region_size / 2) / @as(f32, @floatFromInt(file.height)),
+            .x = (data_point.x - sample_region_size / 2) / @as(f32, @floatFromInt(file.width)),
+            .y = (data_point.y - sample_region_size / 2) / @as(f32, @floatFromInt(file.height)),
             .w = sample_region_size / @as(f32, @floatFromInt(file.width)),
             .h = sample_region_size / @as(f32, @floatFromInt(file.height)),
         };
@@ -480,7 +525,7 @@ pub fn drawSample(fw: *FileWidget) void {
             }) catch continue;
         }
 
-        // Draw a cross at the center of the box
+        // Draw a cross at the center of the rounded sample box
         const center_x = rs.r.x + rs.r.w / 2;
         const center_y = rs.r.y + rs.r.h / 2;
         const cross_size = @min(rs.r.w, rs.r.h) * 0.2;

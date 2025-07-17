@@ -97,7 +97,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
             .color = .{ .color = .black },
             .offset = .{ .x = -5, .y = 5 },
             .shrink = 5,
-            .blur = 10,
+            .fade = 10,
             .alpha = 0.15,
         },
         .expand = .both,
@@ -252,7 +252,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             .color = .{ .color = .black },
                             .offset = .{ .x = 0, .y = 0 },
                             .shrink = 0,
-                            .blur = 10,
+                            .fade = 10,
                             .alpha = 0.15,
                         } });
                         defer fw2.deinit();
@@ -428,7 +428,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                 .color = .{ .color = .black },
                                 .offset = .{ .x = -5, .y = 5 },
                                 .shrink = 5,
-                                .blur = 10,
+                                .fade = 10,
                                 .alpha = 0.15,
                             },
                         })) {

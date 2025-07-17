@@ -264,7 +264,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
 
             pixi.editor.tools.set(.pencil);
 
-            layer.invalidateCache();
+            layer.invalidate();
         },
         .origins => |*origins| {
             file.selected_sprites.clearAndFree();

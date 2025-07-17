@@ -136,7 +136,7 @@ pub const ShapeOffsetResult = struct {
     color: [4]u8,
 };
 
-pub fn invalidateCache(self: *Layer) void {
+pub fn invalidate(self: *Layer) void {
     dvui.textureInvalidateCache(self.source.hash());
 }
 

@@ -110,6 +110,53 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         path.deinit();
     }
 
+    if (scroll.hbar != null) {
+        var rs = pane_vbox.data().contentRectScale();
+        rs.r.x += rs.r.w - 20;
+        rs.r.w = 20.0;
+
+        var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        path.addRect(rs.r, dvui.Rect.Physical.all(5));
+
+        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+
+        const black: dvui.Color = .black;
+        const ca0 = black.opacity(0.0);
+        const ca1 = black.opacity(0.2);
+
+        for (triangles.vertexes) |*v| {
+            const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
+            v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+        }
+        try dvui.renderTriangles(triangles, null);
+
+        triangles.deinit(dvui.currentWindow().arena());
+        path.deinit();
+    }
+
+    if (scroll.si.offset(.horizontal) > 0.0) {
+        var rs = pane_vbox.data().contentRectScale();
+        rs.r.w = 20.0;
+
+        var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        path.addRect(rs.r, dvui.Rect.Physical.all(5));
+
+        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+
+        const black: dvui.Color = .black;
+        const ca0 = black.opacity(0.1);
+        const ca1 = black.opacity(0);
+
+        for (triangles.vertexes) |*v| {
+            const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
+            v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+        }
+        try dvui.renderTriangles(triangles, null);
+
+        triangles.deinit(dvui.currentWindow().arena());
+        path.deinit();
+    }
+
     return .ok;
 }
 

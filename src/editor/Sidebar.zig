@@ -85,7 +85,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !void {
             .shrink = 0,
             .corner_radius = dvui.Rect.all(8),
             .offset = .{ .x = 0, .y = 2 },
-            .blur = 8,
+            .fade = 8,
             .alpha = 0.2,
         },
     });
