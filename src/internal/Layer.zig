@@ -2,7 +2,6 @@ const std = @import("std");
 const dvui = @import("dvui");
 const pixi = @import("../pixi.zig");
 
-const Texture = @import("Texture.zig");
 const Layer = @This();
 
 id: u64,
@@ -36,26 +35,10 @@ pub fn init(id: u64, name: []const u8, s: [2]u32, default_color: dvui.Color.PMA,
 }
 
 pub fn fromImageFile(id: u64, name: []const u8, bytes: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
-    var w: c_int = undefined;
-    var h: c_int = undefined;
-    var channels_in_file: c_int = undefined;
-    const data = dvui.c.stbi_load_from_memory(bytes.ptr, @as(c_int, @intCast(bytes.len)), &w, &h, &channels_in_file, 4);
-    if (data == null) {
-        dvui.log.warn("imageTexture stbi_load error on image \"{s}\": {s}\n", .{ name, dvui.c.stbi_failure_reason() });
-        return dvui.StbImageError.stbImageError;
-    }
-    defer dvui.c.stbi_image_free(data);
-
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = .{ .pixelsPMA = .{
-            .rgba = dvui.Color.PMA.sliceFromRGBA(pixi.app.allocator.dupe(u8, data[0..@intCast(w * h * @sizeOf(dvui.Color.PMA))]) catch return error.MemoryAllocationFailed),
-            .width = @as(u32, @intCast(w)),
-            .height = @as(u32, @intCast(h)),
-            .interpolation = .nearest,
-            .invalidation = invalidation,
-        } },
+        .source = pixi.fs.fromImageFileBytes(name, bytes, invalidation) catch return error.ErrorCreatingImageSource,
     };
 }
 
@@ -63,22 +46,14 @@ pub fn fromPixelsPMA(id: u64, name: []const u8, p: []dvui.Color.PMA, invalidatio
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = .{ .pixelsPMA = .{
-            .rgba = p,
-            .interpolation = .nearest,
-            .invalidation = invalidation,
-        } }, // TODO: Check if this is correct
+        .source = pixi.fs.fromPixelsPMA(name, p, invalidation) catch return error.ErrorCreatingImageSource,
     };
 }
 
 pub fn fromPixels(name: [:0]const u8, p: []u8, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
     return .{
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = .{ .pixels = .{
-            .rgba = p,
-            .interpolation = .nearest,
-            .invalidation = invalidation,
-        } }, // TODO: Check if this is correct
+        .source = pixi.fs.fromPixels(name, p, invalidation) catch return error.ErrorCreatingImageSource,
     };
 }
 
@@ -86,7 +61,7 @@ pub fn fromTexture(id: u64, name: []const u8, texture: dvui.Texture, invalidatio
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = .{ .texture = texture, .invalidation = invalidation, .interpolation = .nearest },
+        .source = pixi.fs.fromTexture(name, texture, invalidation) catch return error.ErrorCreatingImageSource,
     };
 }
 

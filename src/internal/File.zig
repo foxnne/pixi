@@ -463,9 +463,9 @@ pub fn deinit(file: *File) void {
     //     if (bindgroup) |b|
     //         b.release();
     // }
-    for (file.animations.items(.name), 0..) |_, index| {
-        pixi.app.allocator.free(file.animations.items(.name)[index]);
-    }
+    // for (file.animations.items(.name), 0..) |_, index| {
+    //     pixi.app.allocator.free(file.animations.items(.name)[index]);
+    // }
     // for (file.deleted_animations.items(.name), 0..) |_, index| {
     //     pixi.app.allocator.free(file.deleted_animations.items(.name)[index]);
     // }

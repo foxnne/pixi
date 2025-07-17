@@ -63,33 +63,31 @@ pub fn processSampleTool(self: *FileWidget) void {
                     }
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(file.canvas.scroll_container.data().id)) {
-                        if (std.mem.eql(u8, dvui.currentWindow().drag_name, "sample_drag")) {
-                            if (dvui.dragging(me.p)) |_| {
-                                if (file.canvas.prev_drag_point) |previous_point| {
-                                    // Construct a rect spanning between current_point and previous_point
-                                    const min_x = @min(previous_point.x, current_point.x);
-                                    const min_y = @min(previous_point.y, current_point.y);
-                                    const max_x = @max(previous_point.x, current_point.x);
-                                    const max_y = @max(previous_point.y, current_point.y);
-                                    const span_rect = dvui.Rect{
-                                        .x = min_x,
-                                        .y = min_y,
-                                        .w = max_x - min_x + 1,
-                                        .h = max_y - min_y + 1,
-                                    };
+                        if (dvui.dragging(me.p, "sample_drag")) |_| {
+                            if (file.canvas.prev_drag_point) |previous_point| {
+                                // Construct a rect spanning between current_point and previous_point
+                                const min_x = @min(previous_point.x, current_point.x);
+                                const min_y = @min(previous_point.y, current_point.y);
+                                const max_x = @max(previous_point.x, current_point.x);
+                                const max_y = @max(previous_point.y, current_point.y);
+                                const span_rect = dvui.Rect{
+                                    .x = min_x,
+                                    .y = min_y,
+                                    .w = max_x - min_x + 1,
+                                    .h = max_y - min_y + 1,
+                                };
 
-                                    const screen_rect = file.canvas.screenFromDataRect(span_rect);
+                                const screen_rect = file.canvas.screenFromDataRect(span_rect);
 
-                                    dvui.scrollDrag(.{
-                                        .mouse_pt = me.p,
-                                        .screen_rect = screen_rect,
-                                        .capture_id = file.canvas.scroll_container.data().id,
-                                    });
-                                }
-
-                                sample(file, current_point);
-                                e.handle(@src(), file.canvas.scroll_container.data());
+                                dvui.scrollDrag(.{
+                                    .mouse_pt = me.p,
+                                    .screen_rect = screen_rect,
+                                    .capture_id = file.canvas.scroll_container.data().id,
+                                });
                             }
+
+                            sample(file, current_point);
+                            e.handle(@src(), file.canvas.scroll_container.data());
                         }
                     }
                 }
@@ -119,8 +117,10 @@ fn sample(file: *pixi.Internal.File, point: dvui.Point) void {
 
     file.canvas.sample_data_point = point;
 
-    if (color[3] == 0 and pixi.editor.tools.current != .eraser) {
-        pixi.editor.tools.set(.eraser);
+    if (color[3] == 0) {
+        if (pixi.editor.tools.current != .eraser) {
+            pixi.editor.tools.set(.eraser);
+        }
     } else {
         pixi.editor.tools.set(pixi.editor.tools.previous_drawing_tool);
     }
@@ -151,7 +151,6 @@ pub fn processStrokeTool(self: *FileWidget) void {
                 if (file.temporary_layer.dirty) {
                     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                     file.temporary_layer.invalidateCache();
-                    _ = dvui.cursorShow(true);
                 }
             }
             continue;
@@ -159,12 +158,6 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
         switch (e.evt) {
             .mouse => |me| {
-                if (file.canvas.rect.contains(me.p)) {
-                    _ = dvui.cursorShow(false);
-                } else {
-                    _ = dvui.cursorShow(true);
-                }
-
                 const current_point = file.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button.pointer()) {
@@ -224,87 +217,179 @@ pub fn processStrokeTool(self: *FileWidget) void {
                     }
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(file.canvas.scroll_container.data().id)) {
-                        if (std.mem.eql(u8, dvui.currentWindow().drag_name, "stroke_drag")) {
-                            if (dvui.dragging(me.p)) |_| {
-                                if (file.canvas.prev_drag_point) |previous_point| {
-                                    // Construct a rect spanning between current_point and previous_point
-                                    const min_x = @min(previous_point.x, current_point.x);
-                                    const min_y = @min(previous_point.y, current_point.y);
-                                    const max_x = @max(previous_point.x, current_point.x);
-                                    const max_y = @max(previous_point.y, current_point.y);
-                                    const span_rect = dvui.Rect{
-                                        .x = min_x,
-                                        .y = min_y,
-                                        .w = max_x - min_x + 1,
-                                        .h = max_y - min_y + 1,
-                                    };
+                        if (dvui.dragging(me.p, "stroke_drag")) |_| {
+                            if (file.canvas.prev_drag_point) |previous_point| {
+                                // Construct a rect spanning between current_point and previous_point
+                                const min_x = @min(previous_point.x, current_point.x);
+                                const min_y = @min(previous_point.y, current_point.y);
+                                const max_x = @max(previous_point.x, current_point.x);
+                                const max_y = @max(previous_point.y, current_point.y);
+                                const span_rect = dvui.Rect{
+                                    .x = min_x,
+                                    .y = min_y,
+                                    .w = max_x - min_x + 1,
+                                    .h = max_y - min_y + 1,
+                                };
 
-                                    const screen_rect = file.canvas.screenFromDataRect(span_rect);
+                                const screen_rect = file.canvas.screenFromDataRect(span_rect);
 
-                                    dvui.scrollDrag(.{
-                                        .mouse_pt = me.p,
-                                        .screen_rect = screen_rect,
-                                        .capture_id = file.canvas.scroll_container.data().id,
-                                    });
-                                }
-
-                                if (me.mod.matchBind("shift")) {
-                                    if (file.canvas.prev_drag_point) |previous_point| {
-                                        if (pixi.algorithms.brezenham.process(previous_point, current_point) catch null) |points| {
-                                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                                            for (points) |pixel| {
-                                                file.temporary_layer.setPixel(pixel, color);
-                                                file.temporary_layer.dirty = true;
-                                            }
-                                            file.temporary_layer.invalidateCache();
-                                        }
-                                    }
-                                } else {
-                                    if (file.canvas.prev_drag_point) |previous_point| {
-                                        if (pixi.algorithms.brezenham.process(previous_point, current_point) catch null) |points| {
-                                            for (points) |pixel| {
-                                                if (active_layer.getPixelIndex(pixel)) |current_index| {
-                                                    var pixels = active_layer.pixels();
-                                                    const current_value: [4]u8 = pixels[current_index];
-                                                    if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
-                                                        file.buffers.stroke.append(current_index, current_value) catch {
-                                                            std.log.err("Failed to append to stroke buffer", .{});
-                                                        };
-
-                                                    pixels[current_index] = color;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    active_layer.invalidateCache();
-                                    file.canvas.prev_drag_point = current_point;
-                                }
-
-                                e.handle(@src(), file.canvas.scroll_container.data());
+                                dvui.scrollDrag(.{
+                                    .mouse_pt = me.p,
+                                    .screen_rect = screen_rect,
+                                    .capture_id = file.canvas.scroll_container.data().id,
+                                });
                             }
+
+                            if (me.mod.matchBind("shift")) {
+                                if (file.canvas.prev_drag_point) |previous_point| {
+                                    if (pixi.algorithms.brezenham.process(previous_point, current_point) catch null) |points| {
+                                        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                        for (points) |pixel| {
+                                            file.temporary_layer.setPixel(pixel, color);
+                                            file.temporary_layer.dirty = true;
+                                        }
+                                        file.temporary_layer.invalidateCache();
+                                    }
+                                }
+                            } else {
+                                if (file.canvas.prev_drag_point) |previous_point| {
+                                    if (pixi.algorithms.brezenham.process(previous_point, current_point) catch null) |points| {
+                                        for (points) |pixel| {
+                                            if (active_layer.getPixelIndex(pixel)) |current_index| {
+                                                var pixels = active_layer.pixels();
+                                                const current_value: [4]u8 = pixels[current_index];
+                                                if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
+                                                    file.buffers.stroke.append(current_index, current_value) catch {
+                                                        std.log.err("Failed to append to stroke buffer", .{});
+                                                    };
+
+                                                pixels[current_index] = color;
+                                            }
+                                        }
+                                    }
+                                }
+                                active_layer.invalidateCache();
+                                file.canvas.prev_drag_point = current_point;
+                            }
+
+                            e.handle(@src(), file.canvas.scroll_container.data());
                         }
-                    } else {
-                        if (file.canvas.rect.contains(me.p)) {
-                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                            file.temporary_layer.setPixel(current_point, color);
-                            file.temporary_layer.invalidateCache();
-                            file.temporary_layer.dirty = true;
-                        } else {
-                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                            file.temporary_layer.dirty = true;
-                            file.temporary_layer.invalidateCache();
-                        }
-                    }
+                    } else {}
                 }
 
-                // if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
-                //     if (file.canvas.rect.contains(me.p)) {
-                //         file.temporary_layer.setPixel(current_point, color);
-                //         file.temporary_layer.invalidateCache();
-                //     }
-                // }
+                if (file.canvas.rect.contains(me.p)) {
+                    if (file.canvas.sample_data_point == null or color[3] == 0) {
+                        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                        const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                        file.temporary_layer.setPixel(current_point, temp_color);
+                        file.temporary_layer.invalidateCache();
+                        file.temporary_layer.dirty = true;
+                    }
+                } else {
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.temporary_layer.dirty = true;
+                    file.temporary_layer.invalidateCache();
+                }
             },
             else => {},
+        }
+    }
+}
+
+pub fn drawCursor(fw: *FileWidget) void {
+    const file = fw.file;
+
+    if (pixi.editor.tools.current == .pointer) return;
+
+    var cursor_data_point: ?dvui.Point = null;
+
+    for (dvui.events()) |*e| {
+        if (!file.canvas.scroll_container.matchEvent(e)) {
+            if (e.evt == .mouse) {
+                if (file.temporary_layer.dirty) {
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.temporary_layer.invalidateCache();
+                    _ = dvui.cursorShow(true);
+                    file.temporary_layer.dirty = false;
+                }
+            }
+            continue;
+        }
+        switch (e.evt) {
+            .mouse => |me| {
+                cursor_data_point = file.canvas.dataFromScreenPoint(me.p);
+                if (file.canvas.rect.contains(me.p)) {
+                    _ = dvui.cursorShow(false);
+                } else {
+                    _ = dvui.cursorShow(true);
+                }
+            },
+            else => {},
+        }
+    }
+
+    if (cursor_data_point) |data_point| {
+        const mouse_point = file.canvas.screenFromDataPoint(data_point);
+        if (!file.canvas.rect.contains(mouse_point)) return;
+        if (file.canvas.sample_data_point != null) return;
+
+        if (switch (pixi.editor.tools.current) {
+            .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
+            .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
+            else => null,
+        }) |sprite| {
+            const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
+                std.log.err("Failed to get atlas size", .{});
+                return;
+            };
+
+            const uv = dvui.Rect{
+                .x = @as(f32, @floatFromInt(sprite.source[0])) / atlas_size.w,
+                .y = @as(f32, @floatFromInt(sprite.source[1])) / atlas_size.h,
+                .w = @as(f32, @floatFromInt(sprite.source[2])) / atlas_size.w,
+                .h = @as(f32, @floatFromInt(sprite.source[3])) / atlas_size.h,
+            };
+
+            const origin = dvui.Point{
+                .x = @as(f32, @floatFromInt(sprite.origin[0])) * 1 / file.canvas.scale,
+                .y = @as(f32, @floatFromInt(sprite.origin[1])) * 1 / file.canvas.scale,
+            };
+
+            const position = data_point.diff(origin);
+
+            const box = dvui.box(@src(), .horizontal, .{
+                .expand = .none,
+                .rect = .{
+                    .x = position.x,
+                    .y = position.y,
+                    .w = @as(f32, @floatFromInt(sprite.source[2])) * 1 / file.canvas.scale,
+                    .h = @as(f32, @floatFromInt(sprite.source[3])) * 1 / file.canvas.scale,
+                },
+                .border = dvui.Rect.all(0),
+                .corner_radius = .{
+                    .x = 0,
+                    .y = 0,
+                },
+                .padding = .{
+                    .x = 0,
+                    .y = 0,
+                },
+                .margin = .{
+                    .x = 0,
+                    .y = 0,
+                },
+                .background = false,
+                .color_fill = .err,
+            });
+            defer box.deinit();
+
+            const rs = box.data().rectScale();
+
+            dvui.renderImage(pixi.editor.atlas.source, rs, .{
+                .uv = uv,
+            }) catch {
+                std.log.err("Failed to render cursor image", .{});
+            };
         }
     }
 }
@@ -314,11 +399,14 @@ pub fn drawSample(fw: *FileWidget) void {
     const point = file.canvas.sample_data_point;
 
     if (point) |data_point| {
+        const mouse_point = file.canvas.screenFromDataPoint(data_point);
+        if (!file.canvas.rect.contains(mouse_point)) return;
+
         // The scale of the enlarged view is always twice the scale of file.canvas
         const enlarged_scale: f32 = file.canvas.scale * 2.0;
 
         // The size of the sample box in screen space (constant size)
-        const sample_box_size: f32 = 80.0 * 1 / file.canvas.scale; // e.g. 80x80 pixels on screen
+        const sample_box_size: f32 = 100.0 * 1 / file.canvas.scale; // e.g. 100x80 pixels on screen
 
         const corner_radius = dvui.Rect{
             .y = sample_box_size / 2,
@@ -334,6 +422,8 @@ pub fn drawSample(fw: *FileWidget) void {
         const region_x = data_point.x;
         const region_y = data_point.y;
 
+        const border_width = 1 / file.canvas.scale;
+
         // Position the sample box so that the data_point is at its center
         const box = dvui.box(@src(), .horizontal, .{
             .expand = .none,
@@ -343,17 +433,23 @@ pub fn drawSample(fw: *FileWidget) void {
                 .w = sample_box_size,
                 .h = sample_box_size,
             },
-            .border = dvui.Rect.all(1 / file.canvas.scale),
+            .border = dvui.Rect.all(border_width),
+            .color_border = .fill_hover,
             .corner_radius = corner_radius,
             .background = true,
             .color_fill = .fill_window,
             .box_shadow = .{
-                .blur = 6 * 1 / file.canvas.scale,
+                .blur = 10 * 1 / file.canvas.scale,
                 .corner_radius = .{
-                    .x = sample_box_size / 2,
+                    .x = sample_box_size / 12,
                     .y = sample_box_size / 2,
                     .w = sample_box_size / 2,
                     .h = sample_box_size / 2,
+                },
+                .alpha = 0.5,
+                .offset = .{
+                    .x = 2 * 1 / file.canvas.scale,
+                    .y = 2 * 1 / file.canvas.scale,
                 },
             },
         });
@@ -369,38 +465,19 @@ pub fn drawSample(fw: *FileWidget) void {
 
         const rs = box.data().rectScale();
 
-        var path: dvui.Path.Builder = .init(dvui.currentWindow().lifo());
-        defer path.deinit();
-
-        path.addRect(rs.r, .{
-            .x = corner_radius.x * rs.s,
-            .y = corner_radius.y * rs.s,
-            .w = corner_radius.w * rs.s,
-            .h = corner_radius.h * rs.s,
-        });
-
-        var triangles = path.build().fillConvexTriangles(dvui.currentWindow().lifo(), .{ .color = .white }) catch return;
-        defer triangles.deinit(dvui.currentWindow().lifo());
-
-        // Map the sample region (uv_rect) to the full box
-        for (triangles.vertexes) |*v| {
-            const xfrac = (v.pos.x - rs.r.x) / rs.r.w;
-            v.uv[0] = std.math.clamp(uv_rect.x + xfrac * uv_rect.w, 0, 1);
-
-            const yfrac = (v.pos.y - rs.r.y) / rs.r.h;
-            v.uv[1] = std.math.clamp(uv_rect.y + yfrac * uv_rect.h, 0, 1);
-        }
-
         var i: usize = file.layers.len;
         while (i > 0) {
             i -= 1;
             const source = file.layers.items(.source)[i];
-            if (source.getTexture() catch null) |tex| {
-                dvui.renderTriangles(
-                    triangles,
-                    tex,
-                ) catch return;
-            }
+            dvui.renderImage(source, rs, .{
+                .uv = uv_rect,
+                .corner_radius = .{
+                    .x = corner_radius.x * rs.s,
+                    .y = corner_radius.y * rs.s,
+                    .w = corner_radius.w * rs.s,
+                    .h = corner_radius.h * rs.s,
+                },
+            }) catch continue;
         }
 
         // Draw a cross at the center of the box
@@ -411,12 +488,22 @@ pub fn drawSample(fw: *FileWidget) void {
         dvui.Path.stroke(.{ .points = &.{
             .{ .x = center_x - cross_size / 2, .y = center_y },
             .{ .x = center_x + cross_size / 2, .y = center_y },
-        } }, .{ .thickness = 2, .color = dvui.Color.fromTheme(.text) });
+        } }, .{ .thickness = 4, .color = .white });
 
         dvui.Path.stroke(.{ .points = &.{
             .{ .x = center_x, .y = center_y - cross_size / 2 },
             .{ .x = center_x, .y = center_y + cross_size / 2 },
-        } }, .{ .thickness = 2, .color = dvui.Color.fromTheme(.text) });
+        } }, .{ .thickness = 4, .color = .white });
+
+        dvui.Path.stroke(.{ .points = &.{
+            .{ .x = center_x - cross_size / 2 + 4, .y = center_y },
+            .{ .x = center_x + cross_size / 2 - 4, .y = center_y },
+        } }, .{ .thickness = 2, .color = .black });
+
+        dvui.Path.stroke(.{ .points = &.{
+            .{ .x = center_x, .y = center_y - cross_size / 2 + 4 },
+            .{ .x = center_x, .y = center_y + cross_size / 2 - 4 },
+        } }, .{ .thickness = 2, .color = .black });
     }
 }
 
@@ -501,21 +588,19 @@ pub fn scrollAndZoom(self: *FileWidget) void {
                     }
                 } else if (me.action == .motion) {
                     if (dvui.captured(file.canvas.scroll_container.data().id)) {
-                        if (std.mem.eql(u8, dvui.currentWindow().drag_name, "scroll_drag")) {
-                            if (dvui.dragging(me.p)) |dps| {
-                                const rs = file.canvas.scroll_rect_scale;
-                                file.canvas.scroll_info.viewport.x -= dps.x / rs.s;
-                                file.canvas.scroll_info.viewport.y -= dps.y / rs.s;
-                                dvui.refresh(null, @src(), file.canvas.scroll_container.data().id);
-                            }
+                        if (dvui.dragging(me.p, "scroll_drag")) |dps| {
+                            const rs = file.canvas.scroll_rect_scale;
+                            file.canvas.scroll_info.viewport.x -= dps.x / rs.s;
+                            file.canvas.scroll_info.viewport.y -= dps.y / rs.s;
+                            dvui.refresh(null, @src(), file.canvas.scroll_container.data().id);
                         }
                     }
                 } else if (me.action == .wheel_y or me.action == .wheel_x) {
                     switch (pixi.editor.settings.input_scheme) {
                         .mouse => {
+                            const base: f32 = if (me.mod.matchBind("shift")) 1.005 else 1.001;
                             e.handle(@src(), file.canvas.scroll_container.data());
                             if (me.action == .wheel_y) {
-                                const base: f32 = 1.001;
                                 const zs = @exp(@log(base) * me.action.wheel_y);
                                 if (zs != 1.0) {
                                     zoom *= zs;
@@ -527,7 +612,7 @@ pub fn scrollAndZoom(self: *FileWidget) void {
                             if (me.mod.matchBind("zoom")) {
                                 e.handle(@src(), file.canvas.scroll_container.data());
                                 if (me.action == .wheel_y) {
-                                    const base: f32 = 1.001;
+                                    const base: f32 = if (me.mod.matchBind("shift")) 1.005 else 1.001;
                                     const zs = @exp(@log(base) * me.action.wheel_y);
                                     if (zs != 1.0) {
                                         zoom *= zs;
@@ -537,27 +622,6 @@ pub fn scrollAndZoom(self: *FileWidget) void {
                             }
                         },
                     }
-                    // if (me.mod.matchBind("fast_zoom")) {
-                    //     e.handle(@src(), file.canvas.scroll_container.data());
-                    //     if (me.action == .wheel_y) {
-                    //         const base: f32 = 1.01;
-                    //         const zs = @exp(@log(base) * me.action.wheel_y);
-                    //         if (zs != 1.0) {
-                    //             zoom *= zs;
-                    //             zoomP = me.p;
-                    //         }
-                    //     }
-                    // } else if (me.mod.matchBind("zoom")) {
-                    //     e.handle(@src(), file.canvas.scroll_container.data());
-                    //     if (me.action == .wheel_y) {
-                    //         const base: f32 = 1.001;
-                    //         const zs = @exp(@log(base) * me.action.wheel_y);
-                    //         if (zs != 1.0) {
-                    //             zoom *= zs;
-                    //             zoomP = me.p;
-                    //         }
-                    //     }
-                    // }
                 }
             },
             else => {},

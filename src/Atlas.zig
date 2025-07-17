@@ -10,7 +10,7 @@ const Animation = @import("internal/Animation.zig");
 sprites: []Sprite,
 animations: []Animation,
 
-pub fn loadFromFile(allocator: std.mem.Allocator, file: [:0]const u8) !Atlas {
+pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
     const read = try fs.read(allocator, file);
     defer allocator.free(read);
 
@@ -21,7 +21,7 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: [:0]const u8) !Atlas {
     const animations = try allocator.dupe(Animation, parsed.value.animations);
 
     for (animations) |*animation| {
-        animation.name = try allocator.dupeZ(u8, animation.name);
+        animation.name = try allocator.dupe(u8, animation.name);
     }
 
     return .{

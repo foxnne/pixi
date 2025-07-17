@@ -45,6 +45,8 @@ pub const Menu = @import("Menu.zig");
 arena: std.heap.ArenaAllocator,
 allocator: std.mem.Allocator,
 
+atlas: pixi.Internal.Atlas,
+
 //theme: Theme,
 settings: Settings,
 //hotkeys: pixi.input.Hotkeys,
@@ -104,6 +106,10 @@ pub fn init(
         //.mouse = try pixi.input.Mouse.initDefault(app.allocator),
         .recents = try Recents.load(app.allocator),
         .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
+        .atlas = .{
+            .data = try .loadFromFile(app.allocator, pixi.paths.@"pixi.atlas"),
+            .source = try pixi.fs.fromImageFilePath(pixi.paths.@"pixi.png", pixi.paths.@"pixi.png", .ptr),
+        },
         .allocator = app.allocator,
     };
 

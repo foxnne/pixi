@@ -175,6 +175,7 @@ pub fn draw(_: *Artboard) !dvui.App.Result {
 
         // Draw layers first, so that the scrolling bounding box is updated
         file_widget.drawLayers();
+        file_widget.drawCursor();
         file_widget.drawSample();
 
         // Then process the scroll and zoom events last
