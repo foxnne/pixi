@@ -123,7 +123,6 @@ fn sample(file: *pixi.Internal.File, point: dvui.Point) void {
 
 pub fn processStrokeTool(self: *FileWidget) void {
     if (switch (pixi.editor.tools.current) {
-        .pointer,
         .pencil,
         .eraser,
         => false,
@@ -132,7 +131,7 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
     const file = self.file;
     const color = switch (pixi.editor.tools.current) {
-        .pointer, .pencil => pixi.editor.colors.primary,
+        .pencil => pixi.editor.colors.primary,
         .eraser => [_]u8{ 0, 0, 0, 0 },
         //.heightmap => [_]u8{ pixi.editor.colors.height, 0, 0, 255 },
         else => unreachable,
@@ -156,19 +155,21 @@ pub fn processStrokeTool(self: *FileWidget) void {
             .mouse => |me| {
                 const current_point = file.canvas.dataFromScreenPoint(me.p);
 
-                if (file.canvas.rect.contains(me.p)) {
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    if (file.canvas.sample_data_point == null or color[3] == 0) {
-                        const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                        file.temporary_layer.setPixel(current_point, temp_color);
-                    }
-                    file.temporary_layer.invalidate();
-                    file.temporary_layer.dirty = true;
-                } else if (file.canvas.prev_drag_point == null) {
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.temporary_layer.invalidate();
-                    file.temporary_layer.dirty = true;
-                }
+                // if (file.canvas.prev_drag_point == null) {
+                //     if (file.canvas.rect.contains(me.p) and file.canvas.prev_drag_point == null) {
+                //         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                //         if (file.canvas.sample_data_point == null or color[3] == 0) {
+                //             const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                //             file.temporary_layer.setPixel(current_point, temp_color);
+                //         }
+                //         file.temporary_layer.invalidate();
+                //         file.temporary_layer.dirty = true;
+                //     } else {
+                //         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                //         file.temporary_layer.invalidate();
+                //         file.temporary_layer.dirty = true;
+                //     }
+                // }
 
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), file.canvas.scroll_container.data());
@@ -284,19 +285,22 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
                             e.handle(@src(), file.canvas.scroll_container.data());
                         }
-                    } else {
-                        if (file.canvas.rect.contains(me.p)) {
-                            if (file.canvas.sample_data_point == null or color[3] == 0) {
+                    }
+                    {
+                        if (!me.mod.matchBind("shift")) {
+                            if (file.canvas.rect.contains(me.p)) {
+                                if (file.canvas.sample_data_point == null or color[3] == 0) {
+                                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                    const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                                    file.temporary_layer.setPixel(current_point, temp_color);
+                                    file.temporary_layer.invalidate();
+                                    file.temporary_layer.dirty = true;
+                                }
+                            } else {
                                 @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                                const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                                file.temporary_layer.setPixel(current_point, temp_color);
-                                file.temporary_layer.invalidate();
                                 file.temporary_layer.dirty = true;
+                                file.temporary_layer.invalidate();
                             }
-                        } else {
-                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                            file.temporary_layer.dirty = true;
-                            file.temporary_layer.invalidate();
                         }
                     }
                 }

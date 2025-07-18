@@ -23,6 +23,9 @@ pub const files = @import("files.zig");
 pub const settings = @import("settings.zig");
 
 pane: Pane = .files,
+scroll_info: dvui.ScrollInfo = .{
+    .horizontal = .auto,
+},
 
 pub const Pane = enum(u32) {
     files,
@@ -65,7 +68,8 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
 
     try drawHeader(explorer);
 
-    _ = dvui.separator(@src(), .{ .expand = .horizontal });
+    //_ = dvui.separator(@src(), .{ .expand = .horizontal });
+    _ = dvui.spacer(@src(), .{});
 
     const pane_vbox = dvui.box(@src(), .vertical, .{
         .expand = .both,
@@ -73,7 +77,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     });
     defer pane_vbox.deinit();
 
-    var scroll = dvui.scrollArea(@src(), .{ .horizontal = .auto }, .{
+    var scroll = dvui.scrollArea(@src(), .{ .scroll_info = &explorer.scroll_info }, .{
         .expand = .both,
         .background = false,
         .color_fill = .fill,
@@ -88,7 +92,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
 
     // Only draw shadow if the scroll bar has been scrolled some
     if (scroll.si.offset(.vertical) > 0.0) {
-        var rs = pane_vbox.data().contentRectScale();
+        var rs = scroll.data().contentRectScale();
         rs.r.h = 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
@@ -97,7 +101,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
 
         const black: dvui.Color = .black;
-        const ca0 = black.opacity(0.1);
+        const ca0 = black.opacity(0.2);
         const ca1 = black.opacity(0);
 
         for (triangles.vertexes) |*v| {
@@ -110,9 +114,14 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         path.deinit();
     }
 
-    if (scroll.hbar != null) {
-        var rs = pane_vbox.data().contentRectScale();
+    if (explorer.scroll_info.virtual_size.w > explorer.scroll_info.viewport.w) {
+        var rs = scroll.data().contentRectScale();
         rs.r.x += rs.r.w - 20;
+
+        if (explorer.scroll_info.virtual_size.h > explorer.scroll_info.viewport.h) {
+            rs.r.x -= 20;
+        }
+
         rs.r.w = 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
@@ -135,7 +144,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     }
 
     if (scroll.si.offset(.horizontal) > 0.0) {
-        var rs = pane_vbox.data().contentRectScale();
+        var rs = scroll.data().contentRectScale();
         rs.r.w = 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
@@ -144,7 +153,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
 
         const black: dvui.Color = .black;
-        const ca0 = black.opacity(0.1);
+        const ca0 = black.opacity(0.2);
         const ca1 = black.opacity(0);
 
         for (triangles.vertexes) |*v| {

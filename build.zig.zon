@@ -26,7 +26,7 @@
             .lazy = true,
         },
         .dvui = .{
-            // .path = "../dvui-dev/",
+            //.path = "../dvui-dev/",
             .url = "git+https://github.com/foxnne/dvui-dev#4e65f2b3b2fa5a2e65220857709c6b41d371b3ce",
             .hash = "dvui-0.2.0-AQFJmVMs0gALelB8KXBr5CjDc6cr69p9BXysvP5v5X3D",
         },
