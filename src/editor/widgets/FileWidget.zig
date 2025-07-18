@@ -375,49 +375,15 @@ pub fn drawCursor(fw: *FileWidget) void {
                     .h = @as(f32, @floatFromInt(sprite.source[3])) * 1 / file.canvas.scale,
                 },
                 .border = dvui.Rect.all(0),
-                .corner_radius = .{
-                    .x = 0,
-                    .y = 0,
-                },
-                .padding = .{
-                    .x = 0,
-                    .y = 0,
-                },
-                .margin = .{
-                    .x = 0,
-                    .y = 0,
-                },
+                .corner_radius = .{ .x = 0, .y = 0 },
+                .padding = .{ .x = 0, .y = 0 },
+                .margin = .{ .x = 0, .y = 0 },
                 .background = false,
                 .color_fill = .err,
             });
             defer box.deinit();
 
             const rs = box.data().rectScale();
-
-            // squeeze texcoords in by 64th of a pixel to avoid bleed
-            // const w_tol = (1.0 / rs.r.w) / 32.0;
-            // const h_tol = (1.0 / rs.r.h) / 32.0;
-
-            // uv.x += w_tol;
-            // uv.y += h_tol;
-            // uv.w -= w_tol * 2;
-            // uv.h -= h_tol * 2;
-
-            // var y_pos = rs.r.y + rs.r.h;
-            // var overshoot = y_pos - @floor(y_pos);
-            // uv.h -= (overshoot / atlas_size.h) * 2; // fixme units
-
-            // var x_pos = rs.r.x + rs.r.w;
-            // overshoot = x_pos - @floor(x_pos);
-            // uv.w -= (overshoot / atlas_size.w) * 2; // fixme units
-
-            // x_pos = rs.r.x;
-            // overshoot = x_pos - @floor(x_pos);
-            // uv.x += overshoot / atlas_size.w; // fixme units
-
-            // y_pos = rs.r.y;
-            // overshoot = y_pos - @floor(y_pos);
-            // uv.y += overshoot / atlas_size.h; // fixme units
 
             dvui.renderImage(pixi.editor.atlas.source, rs, .{
                 .uv = uv,
@@ -471,7 +437,7 @@ pub fn drawSample(fw: *FileWidget) void {
         // This is how many data pixels are shown in the box, so that the box always shows the same number of data pixels at 2x the canvas scale
         const sample_region_size: f32 = sample_box_size / enlarged_scale;
 
-        const border_width = 1 / file.canvas.scale;
+        const border_width = 2 / file.canvas.scale;
 
         // Position the sample box so that the data_point is at its center
         const box = dvui.box(@src(), .horizontal, .{
@@ -512,7 +478,8 @@ pub fn drawSample(fw: *FileWidget) void {
             .h = sample_region_size / @as(f32, @floatFromInt(file.height)),
         };
 
-        const rs = box.data().rectScale();
+        var rs = box.data().borderRectScale();
+        rs.r = rs.r.inset(dvui.Rect.Physical.all(border_width * file.canvas.scale * 2));
 
         var i: usize = file.layers.len;
         while (i > 0) {
