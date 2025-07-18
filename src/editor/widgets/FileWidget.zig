@@ -162,12 +162,12 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
         switch (e.evt) {
             .key => |ke| {
-                if (ke.matchBind("increase_stroke_size") and ke.action == .down) {
+                if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
                     if (pixi.editor.tools.stroke_size < std.math.maxInt(u8))
                         pixi.editor.tools.stroke_size += 1;
                 }
 
-                if (ke.matchBind("decrease_stroke_size") and ke.action == .down) {
+                if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
                     if (pixi.editor.tools.stroke_size > 1)
                         pixi.editor.tools.stroke_size -= 1;
                 }
@@ -307,6 +307,10 @@ pub fn processStrokeTool(self: *FileWidget) void {
                             }
                         }
                     }
+                } else if (me.action == .press and me.button == .right) {
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.temporary_layer.dirty = true;
+                    file.temporary_layer.invalidate();
                 }
             },
             else => {},
