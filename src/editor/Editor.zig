@@ -30,16 +30,6 @@ pub const Explorer = @import("explorer/Explorer.zig");
 pub const Sidebar = @import("Sidebar.zig");
 pub const Menu = @import("Menu.zig");
 
-// pub const mach_module = .editor;
-// pub const mach_systems = .{
-//     .init,
-//     .loadTheme,
-//     .processDialogRequest,
-//     .tick,
-//     .close,
-//     .deinit,
-// };
-
 /// This arena is for small per-frame editor allocations, such as path joins, null terminations and labels.
 /// Do not free these allocations, instead, this allocator will be .reset(.retain_capacity) each frame
 arena: std.heap.ArenaAllocator,
@@ -96,13 +86,10 @@ pub fn init(
 ) !Editor {
     var editor: Editor = .{
         //.theme = undefined, // Leave theme undefined for now since settings need to load first
-        //.popups = try Popups.init(),
         .explorer = try app.allocator.create(Explorer),
         .artboard = try app.allocator.create(Artboard),
         .sidebar = try .init(),
         .settings = try .load(app.allocator),
-        //.hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
-        //.mouse = try pixi.input.Mouse.initDefault(app.allocator),
         .recents = try .load(app.allocator),
         .arena = .init(std.heap.page_allocator),
         .atlas = .{
