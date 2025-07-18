@@ -194,6 +194,38 @@ pub fn getIndexShapeOffset(self: *Layer, origin: dvui.Point, current_index: usiz
     return null;
 }
 
+pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: [4]u32, transparent: bool) void {
+    const x = @as(usize, @intCast(dst_rect[0]));
+    const y = @as(usize, @intCast(dst_rect[1]));
+    const width = @as(usize, @intCast(dst_rect[2]));
+    const height = @as(usize, @intCast(dst_rect[3]));
+
+    const tex_width = @as(usize, @intCast(self.size().w));
+
+    var yy = y;
+    var h = height;
+
+    var d = self.pixels()[x + yy * tex_width .. x + yy * tex_width + width];
+    var src_y: usize = 0;
+    while (h > 0) : (h -= 1) {
+        const src_row = src_pixels[src_y * width .. (src_y * width) + width];
+        if (!transparent) {
+            @memcpy(d, src_row);
+        } else {
+            for (src_row, d) |src, dst| {
+                if (src[3] > 0) {
+                    dst = src;
+                }
+            }
+        }
+
+        // next row and move our slice to it as well
+        src_y += 1;
+        yy += 1;
+        d = self.pixels()[x + yy * tex_width .. x + yy * tex_width + width];
+    }
+}
+
 pub fn clear(self: *Layer) void {
     const p = self.pixels();
     @memset(p, .{ 0, 0, 0, 0 });

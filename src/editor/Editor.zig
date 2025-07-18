@@ -15,7 +15,6 @@ pub const Recents = @import("Recents.zig");
 pub const Settings = @import("Settings.zig");
 //pub const Theme = @import("Theme.zig");
 pub const Tools = @import("Tools.zig");
-pub const Brushes = @import("Brushes.zig");
 
 pub const Constants = @import("Constants.zig");
 pub const Hotkeys = @import("Hotkeys.zig");
@@ -75,8 +74,7 @@ open_file_index: usize = 0,
 open_reference_index: usize = 0,
 
 //atlas: pixi.Internal.Atlas = .{},
-tools: Tools = .{},
-brushes: Brushes,
+tools: Tools,
 colors: Colors = .{},
 
 selection_time: f32 = 0.0,
@@ -101,17 +99,17 @@ pub fn init(
         //.popups = try Popups.init(),
         .explorer = try app.allocator.create(Explorer),
         .artboard = try app.allocator.create(Artboard),
-        .sidebar = try Sidebar.init(),
-        .settings = try Settings.load(app.allocator),
-        .brushes = try Brushes.init(),
+        .sidebar = try .init(),
+        .settings = try .load(app.allocator),
         //.hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
         //.mouse = try pixi.input.Mouse.initDefault(app.allocator),
-        .recents = try Recents.load(app.allocator),
-        .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
+        .recents = try .load(app.allocator),
+        .arena = .init(std.heap.page_allocator),
         .atlas = .{
             .data = try .loadFromFile(app.allocator, pixi.paths.@"pixi.atlas"),
             .source = try pixi.fs.fromImageFilePath(pixi.paths.@"pixi.png", pixi.paths.@"pixi.png", .ptr),
         },
+        .tools = try .init(),
         .allocator = app.allocator,
     };
 

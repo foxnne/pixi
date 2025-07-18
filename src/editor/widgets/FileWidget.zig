@@ -241,7 +241,7 @@ pub fn processStrokeTool(self: *FileWidget) void {
                             }
                         }
 
-                        if (file.buffers.stroke.indices.items.len > 0) {
+                        if (file.buffers.stroke.pixels.count() > 0) {
                             if (file.buffers.stroke.toChange(file.selected_layer_index) catch null) |change| {
                                 file.history.append(change) catch {
                                     std.log.err("Failed to append to history", .{});

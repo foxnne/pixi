@@ -532,10 +532,12 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
 
     for (0..(size * size)) |stroke_index| {
         if (active_layer.getIndexShapeOffset(point, stroke_index)) |result| {
-            if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{result.index}) and layer == .selected)
+            //if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{result.index}) and layer == .selected)
+            if (layer == .selected) {
                 file.buffers.stroke.append(result.index, result.color) catch {
                     std.log.err("Failed to append to stroke buffer", .{});
                 };
+            }
             active_layer.setPixelIndex(result.index, color);
 
             if (invalidate) {
