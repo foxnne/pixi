@@ -12,10 +12,7 @@
 #### Check out the [user guide](https://github.com/foxnne/pixi/wiki/User-Guide)!
 
 ![pixi_explanatory_workflow](https://github.com/foxnne/pixi/assets/49629865/51e16f4d-634e-461d-ba5e-41cc4fa8229e)
-
-<img width="1468" alt="Screenshot 2023-08-09 at 1 15 03 AM" src="https://github.com/foxnne/pixi/assets/49629865/eaee91b2-5844-4e2e-a776-867a307cde7f">
-
-<img width="1468" alt="Screenshot 2023-08-09 at 1 12 48 AM" src="https://github.com/foxnne/pixi/assets/49629865/ed106b13-7a63-4538-b0a3-60daba0a8093">
+<img width="1312" height="940" alt="Screenshot 2025-07-18 at 8 42 28 AM" src="https://github.com/user-attachments/assets/6381e7ca-d826-4c49-92ce-881698f05e11" />
 
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R5R4LL2PJ)
