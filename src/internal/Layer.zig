@@ -142,50 +142,57 @@ pub fn invalidate(self: *Layer) void {
 
 /// Only used for handling getting the pixels surrounding the origin
 /// for stroke sizes larger than 1
-// pub fn getIndexShapeOffset(self: Layer, origin: [2]usize, current_index: usize) ?ShapeOffsetResult {
-//     const shape = pixi.editor.tools.stroke_shape;
-//     const size: i32 = @intCast(pixi.editor.tools.stroke_size);
+pub fn getIndexShapeOffset(self: *Layer, origin: dvui.Point, current_index: usize) ?ShapeOffsetResult {
+    const shape = pixi.editor.tools.stroke_shape;
+    const s: i32 = @intCast(pixi.editor.tools.stroke_size);
 
-//     if (size == 1) {
-//         if (current_index != 0)
-//             return null;
+    if (s == 1) {
+        if (current_index != 0)
+            return null;
 
-//         return .{
-//             .index = self.getPixelIndex(origin),
-//             .color = self.getPixel(origin),
-//         };
-//     }
+        if (self.getPixelIndex(origin)) |index| {
+            return .{
+                .index = index,
+                .color = self.pixels()[index],
+            };
+        }
+    }
 
-//     const size_center_offset: i32 = -@divFloor(@as(i32, @intCast(size)), 2);
-//     const index_i32: i32 = @as(i32, @intCast(current_index));
-//     const pixel_offset: [2]i32 = .{ @mod(index_i32, size) + size_center_offset, @divFloor(index_i32, size) + size_center_offset };
+    const size_center_offset: i32 = -@divFloor(@as(i32, @intCast(s)), 2);
+    const index_i32: i32 = @as(i32, @intCast(current_index));
+    const pixel_offset: [2]i32 = .{ @mod(index_i32, s) + size_center_offset, @divFloor(index_i32, s) + size_center_offset };
 
-//     if (shape == .circle) {
-//         const extra_pixel_offset_circle: [2]i32 = if (@mod(size, 2) == 0) .{ 1, 1 } else .{ 0, 0 };
-//         const pixel_offset_circle: [2]i32 = .{ pixel_offset[0] * 2 + extra_pixel_offset_circle[0], pixel_offset[1] * 2 + extra_pixel_offset_circle[1] };
-//         const sqr_magnitude = pixel_offset_circle[0] * pixel_offset_circle[0] + pixel_offset_circle[1] * pixel_offset_circle[1];
+    if (shape == .circle) {
+        const extra_pixel_offset_circle: [2]i32 = if (@mod(s, 2) == 0) .{ 1, 1 } else .{ 0, 0 };
+        const pixel_offset_circle: [2]i32 = .{ pixel_offset[0] * 2 + extra_pixel_offset_circle[0], pixel_offset[1] * 2 + extra_pixel_offset_circle[1] };
+        const sqr_magnitude = pixel_offset_circle[0] * pixel_offset_circle[0] + pixel_offset_circle[1] * pixel_offset_circle[1];
 
-//         // adjust radius check for nicer looking circles
-//         const radius_check_mult: f32 = (if (size == 3 or size > 10) 0.7 else 0.8);
+        // adjust radius check for nicer looking circles
+        const radius_check_mult: f32 = (if (s == 3 or s > 10) 0.7 else 0.8);
 
-//         if (@as(f32, @floatFromInt(sqr_magnitude)) > @as(f32, @floatFromInt(size * size)) * radius_check_mult) {
-//             return null;
-//         }
-//     }
+        if (@as(f32, @floatFromInt(sqr_magnitude)) > @as(f32, @floatFromInt(s * s)) * radius_check_mult) {
+            return null;
+        }
+    }
 
-//     const pixel_i32: [2]i32 = .{ @as(i32, @intCast(origin[0])) + pixel_offset[0], @as(i32, @intCast(origin[1])) + pixel_offset[1] };
+    const pixel_i32: [2]i32 = .{ @as(i32, @intFromFloat(origin.x)) + pixel_offset[0], @as(i32, @intFromFloat(origin.y)) + pixel_offset[1] };
+    const size_i32: [2]i32 = .{ @as(i32, @intFromFloat(self.size().w)), @as(i32, @intFromFloat(self.size().h)) };
 
-//     if (pixel_i32[0] < 0 or pixel_i32[1] < 0 or pixel_i32[0] >= self.texture.width or pixel_i32[1] >= self.texture.height) {
-//         return null;
-//     }
+    if (pixel_i32[0] < 0 or pixel_i32[1] < 0 or pixel_i32[0] >= size_i32[0] or pixel_i32[1] >= size_i32[1]) {
+        return null;
+    }
 
-//     const pixel: [2]usize = .{ @intCast(pixel_i32[0]), @intCast(pixel_i32[1]) };
+    const pixel: dvui.Point = .{ .x = @floatFromInt(pixel_i32[0]), .y = @floatFromInt(pixel_i32[1]) };
 
-//     return .{
-//         .index = getPixelIndex(self, pixel),
-//         .color = getPixel(self, pixel),
-//     };
-// }
+    if (self.getPixelIndex(pixel)) |index| {
+        return .{
+            .index = index,
+            .color = self.pixels()[index],
+        };
+    }
+
+    return null;
+}
 
 pub fn clear(self: *Layer) void {
     const p = self.pixels();

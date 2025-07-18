@@ -15,6 +15,7 @@ pub const Recents = @import("Recents.zig");
 pub const Settings = @import("Settings.zig");
 //pub const Theme = @import("Theme.zig");
 pub const Tools = @import("Tools.zig");
+pub const Brushes = @import("Brushes.zig");
 
 pub const Constants = @import("Constants.zig");
 pub const Hotkeys = @import("Hotkeys.zig");
@@ -75,7 +76,7 @@ open_reference_index: usize = 0,
 
 //atlas: pixi.Internal.Atlas = .{},
 tools: Tools = .{},
-
+brushes: Brushes,
 colors: Colors = .{},
 
 selection_time: f32 = 0.0,
@@ -102,6 +103,7 @@ pub fn init(
         .artboard = try app.allocator.create(Artboard),
         .sidebar = try Sidebar.init(),
         .settings = try Settings.load(app.allocator),
+        .brushes = try Brushes.init(),
         //.hotkeys = try pixi.input.Hotkeys.initDefault(app.allocator),
         //.mouse = try pixi.input.Mouse.initDefault(app.allocator),
         .recents = try Recents.load(app.allocator),

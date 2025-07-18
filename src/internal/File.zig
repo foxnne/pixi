@@ -514,6 +514,58 @@ pub fn newID(file: *File) u64 {
     return file.counter;
 }
 
+pub const DrawLayer = enum {
+    temporary,
+    selected,
+};
+
+/// Draws a point on the selected (the point will be added to the stroke buffer) or temporary layer
+/// If to_change is true, the point will be added to the stroke buffer and then the history will be appended
+/// If invalidate is true, the layer will be invalidated
+pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer, invalidate: bool, to_change: bool) void {
+    var active_layer: Layer = switch (layer) {
+        .temporary => file.temporary_layer,
+        .selected => file.layers.get(file.selected_layer_index),
+    };
+
+    const size: u32 = @intCast(pixi.editor.tools.stroke_size);
+
+    for (0..(size * size)) |stroke_index| {
+        if (active_layer.getIndexShapeOffset(point, stroke_index)) |result| {
+            if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{result.index}) and layer == .selected)
+                file.buffers.stroke.append(result.index, result.color) catch {
+                    std.log.err("Failed to append to stroke buffer", .{});
+                };
+            active_layer.setPixelIndex(result.index, color);
+
+            if (invalidate) {
+                active_layer.invalidate();
+            }
+        }
+    }
+
+    if (to_change and layer == .selected) {
+        const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
+        if (change_opt) |change| {
+            file.history.append(change) catch {
+                std.log.err("Failed to append to history", .{});
+            };
+        }
+    }
+}
+
+pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u8, layer: DrawLayer, invalidate: bool, to_change: bool) void {
+    if (pixi.algorithms.brezenham.process(point1, point2) catch null) |points| {
+        for (points, 0..) |point, index| {
+            if (index == points.len - 1) {
+                drawPoint(file, point, color, layer, invalidate, to_change);
+            } else {
+                drawPoint(file, point, color, layer, false, false);
+            }
+        }
+    }
+}
+
 // pub fn newId(file: *File) u32 {
 //     file.counter += 1;
 //     return file.counter;
