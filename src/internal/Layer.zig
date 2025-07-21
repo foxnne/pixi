@@ -109,6 +109,13 @@ pub fn getPixelIndex(self: *Layer, pixel: dvui.Point) ?usize {
     return index;
 }
 
+pub fn getPointFromIndex(self: *Layer, index: usize) ?dvui.Point {
+    if (index >= self.pixels().len) {
+        return null;
+    }
+    return .{ .x = @floatFromInt(index % @as(i32, @intFromFloat(self.size().w))), .y = @floatFromInt(index / @as(i32, @intFromFloat(self.size().w))) };
+}
+
 pub fn getPixel(self: *Layer, pixel: dvui.Point) ?[4]u8 {
     if (self.getPixelIndex(pixel)) |index| {
         return self.pixels()[index];

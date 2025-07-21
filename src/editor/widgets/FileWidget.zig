@@ -141,11 +141,8 @@ pub fn processStrokeTool(self: *FileWidget) void {
     const color: [4]u8 = switch (pixi.editor.tools.current) {
         .pencil => pixi.editor.colors.primary,
         .eraser => [_]u8{ 0, 0, 0, 0 },
-        //.heightmap => [_]u8{ pixi.editor.colors.height, 0, 0, 255 },
         else => unreachable,
     };
-
-    // var active_layer = file.layers.get(file.selected_layer_index);
 
     for (dvui.events()) |*e| {
         if (!file.canvas.scroll_container.matchEvent(e)) {
@@ -163,7 +160,7 @@ pub fn processStrokeTool(self: *FileWidget) void {
         switch (e.evt) {
             .key => |ke| {
                 if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.tools.stroke_size < std.math.maxInt(u8))
+                    if (pixi.editor.tools.stroke_size < std.math.maxInt(u6))
                         pixi.editor.tools.stroke_size += 1;
                 }
 
@@ -187,25 +184,8 @@ pub fn processStrokeTool(self: *FileWidget) void {
                 const current_point = file.canvas.dataFromScreenPoint(me.p);
                 self.last_mouse_event = e.*;
 
-                if (file.canvas.rect.contains(me.p)) {
+                if (file.canvas.rect.contains(me.p))
                     dvui.focusWidget(file.canvas.scroll_container.data().id, null, e.num);
-                }
-
-                // if (file.canvas.prev_drag_point == null) {
-                //     if (file.canvas.rect.contains(me.p) and file.canvas.prev_drag_point == null) {
-                //         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                //         if (file.canvas.sample_data_point == null or color[3] == 0) {
-                //             const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                //             file.temporary_layer.setPixel(current_point, temp_color);
-                //         }
-                //         file.temporary_layer.invalidate();
-                //         file.temporary_layer.dirty = true;
-                //     } else {
-                //         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                //         file.temporary_layer.invalidate();
-                //         file.temporary_layer.dirty = true;
-                //     }
-                // }
 
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), file.canvas.scroll_container.data());
@@ -214,17 +194,6 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
                     if (!me.mod.matchBind("shift")) {
                         file.drawPoint(current_point, color, .selected, true, false);
-                        // if (active_layer.getPixelIndex(current_point)) |current_index| {
-                        //     var pixels = active_layer.pixels();
-
-                        //     const current_value: [4]u8 = pixels[current_index];
-                        //     if (!std.mem.containsAtLeast(usize, file.buffers.stroke.indices.items, 1, &.{current_index}))
-                        //         file.buffers.stroke.append(current_index, current_value) catch {
-                        //             std.log.err("Failed to append to stroke buffer", .{});
-                        //         };
-
-                        //     pixels[current_index] = color;
-                        // }
                     }
 
                     file.canvas.prev_drag_point = current_point;
@@ -282,10 +251,9 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                     file.drawLine(previous_point, current_point, color, .temporary, true, false);
                                 }
                             } else {
-                                if (file.canvas.prev_drag_point) |previous_point| {
+                                if (file.canvas.prev_drag_point) |previous_point|
                                     file.drawLine(previous_point, current_point, color, .selected, true, false);
-                                }
-                                //active_layer.invalidate();
+
                                 file.canvas.prev_drag_point = current_point;
                             }
 
@@ -462,14 +430,14 @@ pub fn drawSample(fw: *FileWidget) void {
             .background = true,
             .color_fill = .fill_window,
             .box_shadow = .{
-                .fade = 10 * 1 / file.canvas.scale,
+                .fade = 15 * 1 / file.canvas.scale,
                 .corner_radius = .{
                     .x = sample_box_size / 12,
                     .y = sample_box_size / 2,
                     .w = sample_box_size / 2,
                     .h = sample_box_size / 2,
                 },
-                .alpha = 0.5,
+                .alpha = 0.2,
                 .offset = .{
                     .x = 2 * 1 / file.canvas.scale,
                     .y = 2 * 1 / file.canvas.scale,
@@ -536,6 +504,23 @@ pub fn drawLayers(fw: *FileWidget) void {
     var layer_index: usize = file.layers.len;
     const tiles_wide: usize = @intCast(@divExact(file.width, file.tile_width));
     const tiles_high: usize = @intCast(@divExact(file.height, file.tile_height));
+
+    const shadow_box = dvui.box(@src(), .horizontal, .{
+        .expand = .none,
+        .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
+        .border = dvui.Rect.all(0),
+        .background = true,
+        .box_shadow = .{
+            .fade = 20 * 1 / file.canvas.scale,
+            .corner_radius = dvui.Rect.all(2 * 1 / file.canvas.scale),
+            .alpha = 0.2,
+            .offset = .{
+                .x = 2 * 1 / file.canvas.scale,
+                .y = 2 * 1 / file.canvas.scale,
+            },
+        },
+    });
+    shadow_box.deinit();
 
     for (0..tiles_wide) |x| {
         dvui.Path.stroke(.{ .points = &.{

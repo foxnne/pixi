@@ -23,8 +23,9 @@ pub const Stroke = struct {
     }
 
     pub fn append(stroke: *Stroke, index: usize, value: [4]u8) !void {
-        if (!stroke.pixels.contains(index))
-            try stroke.pixels.put(index, value);
+        const ptr = try stroke.pixels.getOrPut(index);
+        if (!ptr.found_existing)
+            ptr.value_ptr.* = value;
 
         // try stroke.indices.append(index);
 

@@ -1,6 +1,6 @@
 const std = @import("std");
 const pixi = @import("../pixi.zig");
-const dvui = @import("dvui");
+const dvui = @import("dvui"); 
 
 pub fn process(start: dvui.Point, end: dvui.Point) ![]dvui.Point {
     const x0 = start.x;
@@ -26,7 +26,7 @@ pub fn process(start: dvui.Point, end: dvui.Point) ![]dvui.Point {
 }
 
 fn plotLineLow(p1: dvui.Point, p2: dvui.Point) ![]dvui.Point {
-    var output = std.ArrayList(dvui.Point).init(pixi.app.allocator);
+    var output = std.ArrayList(dvui.Point).init(pixi.editor.arena.allocator());
 
     const x0 = p1.x;
     const y0 = p1.y;
@@ -56,11 +56,11 @@ fn plotLineLow(p1: dvui.Point, p2: dvui.Point) ![]dvui.Point {
         }
     }
 
-    return output.toOwnedSlice();
+    return output.items;
 }
 
 fn plotLineHigh(p1: dvui.Point, p2: dvui.Point) ![]dvui.Point {
-    var output = std.ArrayList(dvui.Point).init(pixi.app.allocator);
+    var output = std.ArrayList(dvui.Point).init(pixi.editor.arena.allocator());
 
     const x0 = p1.x;
     const y0 = p1.y;
@@ -90,5 +90,5 @@ fn plotLineHigh(p1: dvui.Point, p2: dvui.Point) ![]dvui.Point {
         }
     }
 
-    return output.toOwnedSlice();
+    return output.items;
 }
