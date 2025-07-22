@@ -64,6 +64,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         .id_extra = 0,
         .expand = .horizontal,
         .color_fill_hover = .fill,
+        .color_fill = .fill_window,
     });
     defer branch.deinit();
 
@@ -220,6 +221,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
                     .color_fill_hover = .fill,
+                    .color_fill = .fill_window,
                     .padding = dvui.Rect.all(1),
                 });
                 defer branch.deinit();

@@ -128,8 +128,9 @@ pub fn AppInit(win: *dvui.Window) !void {
     theme.color_fill_window = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
     theme.color_text = .{ .r = 206, .g = 163, .b = 127, .a = 255 };
     theme.color_text_press = .{ .r = 104, .g = 108, .b = 118, .a = 255 };
-    theme.color_fill_control = theme.color_fill_window;
+
     theme.color_fill_hover = .{ .r = 64, .g = 68, .b = 78, .a = 255 };
+    theme.color_fill_control = theme.color_fill;
     theme.color_border = .{ .r = 48, .g = 52, .b = 62, .a = 255 };
     theme.color_fill_press = theme.color_fill_window;
     theme.color_accent = .{ .r = 47, .g = 179, .b = 135, .a = 255 };
