@@ -4,8 +4,6 @@ const builtin = @import("builtin");
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
 
-pub const Widgets = @import("widgets/Widgets.zig");
-
 const App = pixi.App;
 const Editor = @This();
 

@@ -4,8 +4,9 @@ const dvui = @import("dvui");
 
 const Tools = @This();
 
-pub const max_brush_size: u32 = 255;
+pub const max_brush_size: u32 = 256;
 pub const max_brush_size_float: f32 = @as(f32, @floatFromInt(max_brush_size));
+pub const min_full_stroke_size: u32 = 10;
 
 pub const Tool = enum(u32) {
     pointer,
@@ -40,7 +41,7 @@ pub fn init(allocator: std.mem.Allocator) !Tools {
         const center: dvui.Point = .{ .x = @floor(max_brush_size_float / 2), .y = @floor(max_brush_size_float / 2) };
         const x: f32 = @as(f32, @floatFromInt(@mod(index, max_brush_size)));
         const y: f32 = @as(f32, @floatFromInt(index)) / max_brush_size_float;
-        tools.offset_table[index] = .{ @floor(x - center.x) + 0.5, @floor(y - center.y) + 0.5 };
+        tools.offset_table[index] = .{ @floor(x - center.x), @floor(y - center.y) };
     }
 
     tools.setStrokeSize(1);
@@ -56,7 +57,7 @@ pub fn setStrokeSize(self: *Tools, size: u8) void {
 
     self.stroke.setRangeValue(.{ .start = 0, .end = max_brush_size * max_brush_size }, false);
 
-    const center: dvui.Point = .{ .x = @floor(max_brush_size_float / 2), .y = @floor(max_brush_size_float / 2) + 0.5 };
+    const center: dvui.Point = .{ .x = @floor(max_brush_size_float / 2), .y = @floor(max_brush_size_float / 2) };
 
     for (0..(stroke_size * stroke_size)) |index| {
         if (self.getIndexShapeOffset(center, index)) |i| {

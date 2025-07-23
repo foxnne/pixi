@@ -4,6 +4,8 @@ const dvui = @import("dvui");
 const Editor = pixi.Editor;
 const settings = pixi.settings;
 const zstbi = @import("zstbi");
+const builtin = @import("builtin");
+const icons = @import("icons");
 
 pub var mouse_distance: f32 = std.math.floatMax(f32);
 
@@ -55,12 +57,40 @@ pub fn draw() !dvui.App.Result {
 
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
         defer fw.deinit();
-        _ = menuItem(@src(), "Dummy", .{}, .{ .expand = .horizontal, .color_accent = .fill });
-        _ = menuItem(@src(), "Dummy Long", .{}, .{ .expand = .horizontal, .color_accent = .fill });
-        _ = menuItem(@src(), "Dummy Super Long", .{}, .{ .expand = .horizontal, .color_accent = .fill });
+
+        if (menuItemWithHotkey(@src(), "Undo", dvui.currentWindow().keybinds.get("undo") orelse .{}, .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+            if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+                file.history.undoRedo(file, .undo) catch {
+                    std.log.err("Failed to undo", .{});
+                };
+            }
+        }
+
+        if (menuItemWithHotkey(@src(), "Redo", dvui.currentWindow().keybinds.get("redo") orelse .{}, .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+            if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+                file.history.undoRedo(file, .redo) catch {
+                    std.log.err("Failed to redo", .{});
+                };
+            }
+        }
     }
 
     return .ok;
+}
+
+pub fn menuItemWithHotkey(src: std.builtin.SourceLocation, label_str: []const u8, hotkey: dvui.enums.Keybind, init_opts: dvui.MenuItemWidget.InitOptions, opts: dvui.Options) ?dvui.Rect.Natural {
+    var mi = dvui.menuItem(src, init_opts, opts);
+
+    var ret: ?dvui.Rect.Natural = null;
+    if (mi.activeRect()) |r| {
+        ret = r;
+    }
+
+    pixi.dvui.labelWithKeybind(label_str, hotkey, opts);
+
+    mi.deinit();
+
+    return ret;
 }
 
 pub fn menuItem(src: std.builtin.SourceLocation, label_str: []const u8, init_opts: dvui.MenuItemWidget.InitOptions, opts: dvui.Options) ?dvui.Rect.Natural {

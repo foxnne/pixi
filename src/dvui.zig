@@ -1,0 +1,77 @@
+const dvui = @import("dvui");
+const builtin = @import("builtin");
+const icons = @import("icons");
+const Widgets = @import("editor/Widgets.zig");
+
+pub const FileWidget = Widgets.FileWidget;
+pub const TabsWidget = Widgets.TabsWidget;
+
+pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, opts: dvui.Options) void {
+    const box = dvui.box(@src(), .horizontal, opts);
+    defer box.deinit();
+
+    dvui.labelNoFmt(@src(), label_str, .{}, opts.strip());
+    _ = dvui.spacer(@src(), .{ .min_size_content = .width(4) });
+
+    var second_opts = opts.strip();
+    second_opts.color_text = .text_press;
+    second_opts.gravity_y = 0.5;
+
+    keybindLabels(&hotkey, second_opts);
+}
+
+pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
+    var needs_space = false;
+    var needs_plus = false;
+    if (self.control) |ctrl| {
+        if (ctrl) {
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
+            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
+
+            dvui.labelNoFmt(@src(), "ctrl", .{}, opts);
+        }
+    }
+
+    if (self.command) |cmd| {
+        if (cmd) {
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
+            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
+            if (builtin.os.tag == .macos) {
+                dvui.icon(@src(), "cmd", icons.tvg.lucide.command, .{ .fill_color = .fromTheme(.text_press) }, .{ .gravity_y = 0.5 });
+            } else {
+                dvui.labelNoFmt(@src(), "cmd", .{}, opts);
+            }
+        }
+    }
+
+    if (self.alt) |alt| {
+        if (alt) {
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
+            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
+            if (builtin.os.tag == .macos) {
+                dvui.icon(@src(), "option", icons.tvg.lucide.option, .{ .fill_color = .fromTheme(.text_press) }, .{ .gravity_y = 0.5 });
+            } else {
+                dvui.labelNoFmt(@src(), "alt", .{}, opts);
+            }
+        }
+    }
+
+    if (self.shift) |shift| {
+        if (shift) {
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
+            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
+            dvui.labelNoFmt(@src(), "shift", .{}, opts);
+        }
+    }
+
+    if (self.key) |key| {
+        if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
+        if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
+        if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
+        dvui.labelNoFmt(@src(), @tagName(key), .{}, opts);
+    }
+}

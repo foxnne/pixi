@@ -71,3 +71,6 @@ pub const Layer = @import("Layer.zig");
 
 /// Source location within the atlas texture and origin location
 pub const Sprite = @import("Sprite.zig");
+
+/// Custom dvui stuff
+pub const dvui = @import("dvui.zig");

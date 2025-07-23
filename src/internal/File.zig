@@ -19,7 +19,7 @@ width: u32,
 height: u32,
 tile_width: u32,
 tile_height: u32,
-canvas: Editor.Widgets.FileWidget.FileWidgetData = .{},
+canvas: pixi.dvui.FileWidget.FileWidgetData = .{},
 layers: std.MultiArrayList(Layer),
 sprites: std.MultiArrayList(Sprite),
 animations: std.MultiArrayList(Animation),
@@ -36,6 +36,7 @@ history: History,
 buffers: Buffers,
 counter: u64 = 0,
 saving: bool = false,
+grouping: u8 = 0,
 
 pub const ScrollRequest = struct {
     from: f32,
@@ -303,36 +304,36 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
     const diff = point2.diff(point1).normalize().scale(4, dvui.Point);
     const stroke_size: usize = @intCast(pixi.Editor.Tools.max_brush_size);
 
-    const center: dvui.Point = .{ .x = @floor(pixi.Editor.Tools.max_brush_size_float / 2), .y = @floor(pixi.Editor.Tools.max_brush_size_float / 2) + 0.5 };
+    const center: dvui.Point = .{ .x = @floor(pixi.Editor.Tools.max_brush_size_float / 2), .y = @floor(pixi.Editor.Tools.max_brush_size_float / 2) };
     var mask = pixi.editor.tools.stroke;
 
-    for (0..(stroke_size * stroke_size)) |index| {
-        if (pixi.editor.tools.getIndexShapeOffset(center.diff(diff), index)) |i| {
-            mask.unset(i);
+    if (pixi.editor.tools.stroke_size > pixi.Editor.Tools.min_full_stroke_size) {
+        for (0..(stroke_size * stroke_size)) |index| {
+            if (pixi.editor.tools.getIndexShapeOffset(center.diff(diff), index)) |i| {
+                mask.unset(i);
+            }
         }
     }
 
-    const new_screen = mask;
-
     if (pixi.algorithms.brezenham.process(point1, point2) catch null) |points| {
         for (points, 0..) |point, point_i| {
-            if (pixi.editor.tools.stroke_size < 10) {
+            if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.min_full_stroke_size) {
                 drawPoint(file, point, color, layer, false, false);
             } else {
-                if (point_i == 0) {
-                    drawPoint(file, point, color, layer, false, false);
-                } else {
-                    var iter = new_screen.iterator(.{ .kind = .set, .direction = .forward });
-                    while (iter.next()) |i| {
-                        const offset = pixi.editor.tools.offset_table[i];
-                        const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
-                        if (active_layer.getPixelIndex(new_point)) |index| {
+                var stroke = if (point_i == 0) pixi.editor.tools.stroke else mask;
+
+                var iter = stroke.iterator(.{ .kind = .set, .direction = .forward });
+                while (iter.next()) |i| {
+                    const offset = pixi.editor.tools.offset_table[i];
+                    const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
+                    if (active_layer.getPixelIndex(new_point)) |index| {
+                        if (layer == .selected) {
                             file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
                                 std.log.err("Failed to append to stroke buffer", .{});
                             };
-
-                            active_layer.pixels()[index] = color;
                         }
+
+                        active_layer.pixels()[index] = color;
                     }
                 }
             }

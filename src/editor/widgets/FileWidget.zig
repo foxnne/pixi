@@ -222,13 +222,13 @@ pub fn processStrokeTool(self: *FileWidget) void {
                             if (file.canvas.prev_drag_point) |previous_point| {
                                 file.drawLine(previous_point, current_point, color, .selected, true, true);
                             }
-                        }
-
-                        if (file.buffers.stroke.pixels.count() > 0) {
-                            if (file.buffers.stroke.toChange(file.selected_layer_index) catch null) |change| {
-                                file.history.append(change) catch {
-                                    std.log.err("Failed to append to history", .{});
-                                };
+                        } else {
+                            if (file.buffers.stroke.pixels.count() > 0) {
+                                if (file.buffers.stroke.toChange(file.selected_layer_index) catch null) |change| {
+                                    file.history.append(change) catch {
+                                        std.log.err("Failed to append to history", .{});
+                                    };
+                                }
                             }
                         }
 
