@@ -96,7 +96,7 @@ pub fn init(
             .data = try .loadFromFile(app.allocator, pixi.paths.@"pixi.atlas"),
             .source = try pixi.fs.fromImageFilePath(pixi.paths.@"pixi.png", pixi.paths.@"pixi.png", .ptr),
         },
-        .tools = try .init(),
+        .tools = try .init(app.allocator),
         .allocator = app.allocator,
     };
 

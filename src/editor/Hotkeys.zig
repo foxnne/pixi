@@ -38,7 +38,7 @@ pub fn tick() !void {
                     }
                 }
 
-                if (ke.matchBind("undo") and ke.action == .down) {
+                if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
                     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
                         file.history.undoRedo(file, .undo) catch {
                             std.log.err("Failed to undo", .{});
@@ -46,15 +46,13 @@ pub fn tick() !void {
                     }
                 }
 
-                if (ke.matchBind("redo") and ke.action == .down) {
+                if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
                     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
                         file.history.undoRedo(file, .redo) catch {
                             std.log.err("Failed to undo", .{});
                         };
                     }
                 }
-
-                
             },
             else => {},
         }

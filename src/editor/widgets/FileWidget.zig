@@ -162,11 +162,15 @@ pub fn processStrokeTool(self: *FileWidget) void {
                 if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
                     if (pixi.editor.tools.stroke_size < std.math.maxInt(u6))
                         pixi.editor.tools.stroke_size += 1;
+
+                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
                 }
 
                 if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
                     if (pixi.editor.tools.stroke_size > 1)
                         pixi.editor.tools.stroke_size -= 1;
+
+                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
                 }
 
                 if (self.last_mouse_event) |last_mouse_event| {
@@ -186,6 +190,16 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
                 if (file.canvas.rect.contains(me.p))
                     dvui.focusWidget(file.canvas.scroll_container.data().id, null, e.num);
+
+                if (me.action == .press and me.button == .right) {
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.temporary_layer.dirty = true;
+                    file.temporary_layer.invalidate();
+                } else if (me.action == .release and me.button == .right) {
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                    file.drawPoint(current_point, temp_color, .temporary, true, false);
+                }
 
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), file.canvas.scroll_container.data());
@@ -257,28 +271,31 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                 file.canvas.prev_drag_point = current_point;
                             }
 
+                            if (!me.mod.matchBind("shift")) {
+                                if (file.canvas.rect.contains(me.p) and file.canvas.sample_data_point == null) {
+                                    if (file.canvas.sample_data_point == null or color[3] == 0) {
+                                        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                        const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                                        file.drawPoint(current_point, temp_color, .temporary, true, false);
+                                    }
+                                }
+                            }
+
                             e.handle(@src(), file.canvas.scroll_container.data());
                         }
-                    }
-                    {
-                        if (!me.mod.matchBind("shift")) {
-                            if (file.canvas.rect.contains(me.p) and file.canvas.sample_data_point == null) {
-                                if (file.canvas.sample_data_point == null or color[3] == 0) {
-                                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                                    const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                                    file.drawPoint(current_point, temp_color, .temporary, true, false);
-                                }
-                            } else {
+                    } else {
+                        if (file.canvas.rect.contains(me.p) and file.canvas.sample_data_point == null) {
+                            if (file.canvas.sample_data_point == null or color[3] == 0) {
                                 @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                                file.temporary_layer.dirty = true;
-                                file.temporary_layer.invalidate();
+                                const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                                file.drawPoint(current_point, temp_color, .temporary, true, false);
                             }
+                        } else {
+                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                            file.temporary_layer.dirty = true;
+                            file.temporary_layer.invalidate();
                         }
                     }
-                } else if (me.action == .press and me.button == .right) {
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.temporary_layer.dirty = true;
-                    file.temporary_layer.invalidate();
                 }
             },
             else => {},
@@ -719,6 +736,92 @@ pub fn deinit(self: *FileWidget) void {
 pub fn hovered(self: *FileWidget) ?dvui.Point {
     return self.file.canvas.hovered();
 }
+
+pub const FileWidgetData = struct {
+    grouping: u64 = 0,
+    rect: dvui.Rect.Physical = .{},
+    scroll_container: *dvui.ScrollContainerWidget = undefined,
+    scroll_rect_scale: dvui.RectScale = .{},
+    screen_rect_scale: dvui.RectScale = .{},
+    scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
+    origin: dvui.Point = .{},
+    scale: f32 = 1.0,
+    prev_drag_point: ?dvui.Point = null,
+    sample_data_point: ?dvui.Point = null,
+
+    pub fn dataFromScreenPoint(self: *FileWidgetData, screen: dvui.Point.Physical) dvui.Point {
+        return self.screen_rect_scale.pointFromPhysical(screen);
+    }
+
+    pub fn screenFromDataPoint(self: *FileWidgetData, data: dvui.Point) dvui.Point.Physical {
+        return self.screen_rect_scale.pointToPhysical(data);
+    }
+
+    pub fn viewportFromScreenPoint(self: *FileWidgetData, screen: dvui.Point.Physical) dvui.Point {
+        return self.scroll_rect_scale.pointFromPhysical(screen);
+    }
+
+    pub fn screenFromViewportPoint(self: *FileWidgetData, viewport: dvui.Point) dvui.Point.Physical {
+        return self.scroll_rect_scale.pointToPhysical(viewport);
+    }
+
+    pub fn dataFromScreenRect(self: *FileWidgetData, screen: dvui.Rect.Physical) dvui.Rect {
+        return self.screen_rect_scale.rectFromPhysical(screen);
+    }
+
+    pub fn screenFromDataRect(self: *FileWidgetData, data: dvui.Rect) dvui.Rect.Physical {
+        return self.screen_rect_scale.rectToPhysical(data);
+    }
+
+    pub fn viewportFromScreenRect(self: *FileWidgetData, screen: dvui.Rect.Physical) dvui.Rect {
+        return self.scroll_rect_scale.rectFromPhysical(screen);
+    }
+
+    pub fn screenFromViewportRect(self: *FileWidgetData, viewport: dvui.Rect) dvui.Rect.Physical {
+        return self.scroll_rect_scale.rectToPhysical(viewport);
+    }
+
+    /// If the mouse position is currently contained within the canvas rect,
+    /// Returns the data/world point of the mouse, which corresponds to the pixel input of
+    /// Layer functions
+    pub fn hovered(self: *FileWidgetData) ?dvui.Point {
+        if (self.mouse()) |m| {
+            if (self.rect.contains(m.p)) {
+                return self.dataFromScreenPoint(m.p);
+            }
+        }
+
+        return null;
+    }
+
+    pub fn clicked(self: *FileWidgetData) ?dvui.Point {
+        if (self.hovered()) |p| {
+            if (dvui.clicked(
+                self.scroll_container.data().id,
+                .{ .rect = self.rect },
+            )) {
+                return p;
+            }
+        }
+    }
+
+    /// Returns the mouse screen position if an event occured this frame
+    pub fn mouse(self: *FileWidgetData) ?dvui.Event.Mouse {
+        for (dvui.events()) |*e| {
+            if (!self.scroll_container.matchEvent(e))
+                continue;
+
+            switch (e.evt) {
+                .mouse => |me| {
+                    return me;
+                },
+                else => {},
+            }
+        }
+
+        return null;
+    }
+};
 
 const Options = dvui.Options;
 const Rect = dvui.Rect;

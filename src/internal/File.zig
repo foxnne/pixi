@@ -13,99 +13,13 @@ const Layer = @import("Layer.zig");
 const Sprite = @import("Sprite.zig");
 const Animation = @import("Animation.zig");
 
-pub const FileWidgetData = struct {
-    grouping: u64 = 0,
-    rect: dvui.Rect.Physical = .{},
-    scroll_container: *dvui.ScrollContainerWidget = undefined,
-    scroll_rect_scale: dvui.RectScale = .{},
-    screen_rect_scale: dvui.RectScale = .{},
-    scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
-    origin: dvui.Point = .{},
-    scale: f32 = 1.0,
-    prev_drag_point: ?dvui.Point = null,
-    sample_data_point: ?dvui.Point = null,
-
-    pub fn dataFromScreenPoint(self: *FileWidgetData, screen: dvui.Point.Physical) dvui.Point {
-        return self.screen_rect_scale.pointFromPhysical(screen);
-    }
-
-    pub fn screenFromDataPoint(self: *FileWidgetData, data: dvui.Point) dvui.Point.Physical {
-        return self.screen_rect_scale.pointToPhysical(data);
-    }
-
-    pub fn viewportFromScreenPoint(self: *FileWidgetData, screen: dvui.Point.Physical) dvui.Point {
-        return self.scroll_rect_scale.pointFromPhysical(screen);
-    }
-
-    pub fn screenFromViewportPoint(self: *FileWidgetData, viewport: dvui.Point) dvui.Point.Physical {
-        return self.scroll_rect_scale.pointToPhysical(viewport);
-    }
-
-    pub fn dataFromScreenRect(self: *FileWidgetData, screen: dvui.Rect.Physical) dvui.Rect {
-        return self.screen_rect_scale.rectFromPhysical(screen);
-    }
-
-    pub fn screenFromDataRect(self: *FileWidgetData, data: dvui.Rect) dvui.Rect.Physical {
-        return self.screen_rect_scale.rectToPhysical(data);
-    }
-
-    pub fn viewportFromScreenRect(self: *FileWidgetData, screen: dvui.Rect.Physical) dvui.Rect {
-        return self.scroll_rect_scale.rectFromPhysical(screen);
-    }
-
-    pub fn screenFromViewportRect(self: *FileWidgetData, viewport: dvui.Rect) dvui.Rect.Physical {
-        return self.scroll_rect_scale.rectToPhysical(viewport);
-    }
-
-    /// If the mouse position is currently contained within the canvas rect,
-    /// Returns the data/world point of the mouse, which corresponds to the pixel input of
-    /// Layer functions
-    pub fn hovered(self: *FileWidgetData) ?dvui.Point {
-        if (self.mouse()) |m| {
-            if (self.rect.contains(m.p)) {
-                return self.dataFromScreenPoint(m.p);
-            }
-        }
-
-        return null;
-    }
-
-    pub fn clicked(self: *FileWidgetData) ?dvui.Point {
-        if (self.hovered()) |p| {
-            if (dvui.clicked(
-                self.scroll_container.data().id,
-                .{ .rect = self.rect },
-            )) {
-                return p;
-            }
-        }
-    }
-
-    /// Returns the mouse screen position if an event occured this frame
-    pub fn mouse(self: *FileWidgetData) ?dvui.Event.Mouse {
-        for (dvui.events()) |*e| {
-            if (!self.scroll_container.matchEvent(e))
-                continue;
-
-            switch (e.evt) {
-                .mouse => |me| {
-                    return me;
-                },
-                else => {},
-            }
-        }
-
-        return null;
-    }
-};
-
 id: u64,
 path: []const u8,
 width: u32,
 height: u32,
 tile_width: u32,
 tile_height: u32,
-canvas: FileWidgetData = .{},
+canvas: Editor.Widgets.FileWidget.FileWidgetData = .{},
 layers: std.MultiArrayList(Layer),
 sprites: std.MultiArrayList(Sprite),
 animations: std.MultiArrayList(Animation),
@@ -248,7 +162,6 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
             .selection_layer = undefined,
         };
 
-
         internal.temporary_layer = try .init(internal.newID(), "Temporary", .{ internal.width, internal.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
 
         for (ext.layers) |l| {
@@ -336,21 +249,39 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
         .selected => file.layers.get(file.selected_layer_index),
     };
 
-    const size: u32 = @intCast(pixi.editor.tools.stroke_size);
+    if (pixi.editor.tools.stroke_size < 10) {
+        const size: usize = @intCast(pixi.editor.tools.stroke_size);
 
-    for (0..(size * size)) |stroke_index| {
-        if (active_layer.getIndexShapeOffset(point, stroke_index)) |result| {
-            if (layer == .selected) {
-                file.buffers.stroke.append(result.index, result.color) catch {
-                    std.log.err("Failed to append to stroke buffer", .{});
-                };
-            }
-            active_layer.setPixelIndex(result.index, color);
-
-            if (invalidate) {
-                active_layer.invalidate();
+        for (0..(size * size)) |index| {
+            if (active_layer.getIndexShapeOffset(point, index)) |result| {
+                if (layer == .selected) {
+                    file.buffers.stroke.append(result.index, result.color) catch {
+                        std.log.err("Failed to append to stroke buffer", .{});
+                    };
+                }
+                active_layer.pixels()[result.index] = color;
             }
         }
+    } else {
+        var iter = pixi.editor.tools.stroke.iterator(.{ .kind = .set, .direction = .forward });
+        while (iter.next()) |i| {
+            const offset = pixi.editor.tools.offset_table[i];
+            const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
+
+            if (active_layer.getPixelIndex(new_point)) |index| {
+                if (layer == .selected) {
+                    file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
+                        std.log.err("Failed to append to stroke buffer", .{});
+                    };
+                }
+
+                active_layer.pixels()[index] = color;
+            }
+        }
+    }
+
+    if (invalidate) {
+        active_layer.invalidate();
     }
 
     if (to_change and layer == .selected) {
@@ -364,12 +295,59 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
 }
 
 pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u8, layer: DrawLayer, invalidate: bool, to_change: bool) void {
+    var active_layer: Layer = switch (layer) {
+        .temporary => file.temporary_layer,
+        .selected => file.layers.get(file.selected_layer_index),
+    };
+
+    const diff = point2.diff(point1).normalize().scale(4, dvui.Point);
+    const stroke_size: usize = @intCast(pixi.Editor.Tools.max_brush_size);
+
+    const center: dvui.Point = .{ .x = @floor(pixi.Editor.Tools.max_brush_size_float / 2), .y = @floor(pixi.Editor.Tools.max_brush_size_float / 2) + 0.5 };
+    var mask = pixi.editor.tools.stroke;
+
+    for (0..(stroke_size * stroke_size)) |index| {
+        if (pixi.editor.tools.getIndexShapeOffset(center.diff(diff), index)) |i| {
+            mask.unset(i);
+        }
+    }
+
+    const new_screen = mask;
+
     if (pixi.algorithms.brezenham.process(point1, point2) catch null) |points| {
-        for (points, 0..) |point, index| {
-            if (index == points.len - 1) {
-                drawPoint(file, point, color, layer, invalidate, to_change);
-            } else {
+        for (points, 0..) |point, point_i| {
+            if (pixi.editor.tools.stroke_size < 10) {
                 drawPoint(file, point, color, layer, false, false);
+            } else {
+                if (point_i == 0) {
+                    drawPoint(file, point, color, layer, false, false);
+                } else {
+                    var iter = new_screen.iterator(.{ .kind = .set, .direction = .forward });
+                    while (iter.next()) |i| {
+                        const offset = pixi.editor.tools.offset_table[i];
+                        const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
+                        if (active_layer.getPixelIndex(new_point)) |index| {
+                            file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
+                                std.log.err("Failed to append to stroke buffer", .{});
+                            };
+
+                            active_layer.pixels()[index] = color;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (invalidate) {
+            active_layer.invalidate();
+        }
+
+        if (to_change and layer == .selected) {
+            const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
+            if (change_opt) |change| {
+                file.history.append(change) catch {
+                    std.log.err("Failed to append to history", .{});
+                };
             }
         }
     }
