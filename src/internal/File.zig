@@ -361,3 +361,127 @@ pub fn undo(self: *File) !void {
 pub fn redo(self: *File) !void {
     return self.history.undoRedo(self, .redo);
 }
+
+pub fn save(self: *File, window: *dvui.Window) !void {
+    if (self.saving) return;
+    self.saving = true;
+    self.history.bookmark = 0;
+    var ext = try self.external(pixi.app.allocator);
+    defer ext.deinit(pixi.app.allocator);
+    const null_terminated_path = try pixi.editor.arena.allocator().dupeZ(u8, self.path);
+
+    const zip_file = zip.zip_open(null_terminated_path.ptr, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
+
+    if (zip_file) |z| {
+        var json = std.ArrayList(u8).init(pixi.app.allocator);
+        const out_stream = json.writer();
+        const options = std.json.StringifyOptions{};
+
+        try std.json.stringify(ext, options, out_stream);
+
+        const json_output = try json.toOwnedSlice();
+        defer pixi.app.allocator.free(json_output);
+
+        _ = zip.zip_entry_open(z, "pixidata.json");
+        _ = zip.zip_entry_write(z, json_output.ptr, json_output.len);
+        _ = zip.zip_entry_close(z);
+
+        var index: usize = 0;
+        while (index < self.layers.slice().len) : (index += 1) {
+            const layer = self.layers.slice().get(index);
+
+            const image_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{layer.name});
+            _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(image_name)));
+
+            try layer.writePngToFn(z);
+
+            //try self.layers.items(.texture)[index].stbi_image().writeToFn(write, z, .png);
+            _ = zip.zip_entry_close(z);
+        }
+
+        const id_mutex = dvui.toastAdd(window, @src(), 0, null, toastDisplay, 1_500_000);
+        const id = id_mutex.id;
+        const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
+        dvui.dataSetSlice(window, id, "_message", message);
+        id_mutex.mutex.unlock();
+
+        // if (self.heightmap.layer) |*working_layer| {
+        //     const layer_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{working_layer.name});
+        //     _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
+        //     try working_layer.texture.stbi_image().writeToFn(write, z, .png);
+        //     _ = zip.zip_entry_close(z);
+        // }
+
+        zip.zip_close(z);
+    }
+
+    //dvui.toast(@src(), .{ .message = "Saved file", .window = window });
+
+    self.saving = false;
+}
+
+pub fn toastDisplay(id: dvui.WidgetId) !void {
+    const message = dvui.dataGetSlice(null, id, "_message", []u8) orelse {
+        dvui.log.err("toastDisplay lost data for toast {x}\n", .{id});
+        return;
+    };
+
+    var animator = dvui.animate(@src(), .{ .kind = .alpha, .duration = 300_000 }, .{ .id_extra = id.asUsize() });
+    defer animator.deinit();
+
+    dvui.labelNoFmt(@src(), message, .{}, .{
+        .background = true,
+        .corner_radius = dvui.Rect.all(1000),
+        .padding = .{ .x = 16, .y = 8, .w = 16, .h = 8 },
+        .color_fill = .fill_window,
+        .border = dvui.Rect.all(2),
+    });
+
+    if (dvui.timerDone(id)) {
+        animator.startEnd();
+    }
+
+    if (animator.end()) {
+        dvui.toastRemove(id);
+    }
+}
+
+pub fn saveAsync(self: *File) !void {
+    //if (!self.dirty()) return;
+    const thread = try std.Thread.spawn(.{}, save, .{ self, dvui.currentWindow() });
+    thread.detach();
+}
+
+pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
+    const layers = try allocator.alloc(pixi.Layer, self.layers.slice().len);
+    const sprites = try allocator.alloc(pixi.Sprite, self.sprites.slice().len);
+    const animations = try allocator.alloc(pixi.Animation, self.animations.slice().len);
+
+    for (layers, 0..) |*working_layer, i| {
+        working_layer.name = try allocator.dupeZ(u8, self.layers.items(.name)[i]);
+        working_layer.visible = self.layers.items(.visible)[i];
+        working_layer.collapse = self.layers.items(.collapse)[i];
+    }
+
+    for (sprites, 0..) |*sprite, i| {
+        sprite.origin = .{ @intFromFloat(@round(self.sprites.items(.origin)[i][0])), @intFromFloat(@round(self.sprites.items(.origin)[i][1])) };
+    }
+
+    for (animations, 0..) |*animation, i| {
+        animation.name = try allocator.dupeZ(u8, self.animations.items(.name)[i]);
+        animation.fps = self.animations.items(.fps)[i];
+        animation.start = self.animations.items(.start)[i];
+        animation.length = self.animations.items(.length)[i];
+    }
+
+    return .{
+        .version = pixi.version,
+        .width = self.width,
+        .height = self.height,
+        .tile_width = self.tile_width,
+        .tile_height = self.tile_height,
+        .layers = layers,
+        .sprites = sprites,
+        .animations = animations,
+    };
+}

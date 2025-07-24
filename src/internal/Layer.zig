@@ -1,6 +1,7 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const pixi = @import("../pixi.zig");
+const zip = @import("zip");
 
 const Layer = @This();
 
@@ -236,4 +237,36 @@ pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: [4]u32, transparent: bo
 pub fn clear(self: *Layer) void {
     const p = self.pixels();
     @memset(p, .{ 0, 0, 0, 0 });
+}
+
+fn write(context: ?*anyopaque, data: ?*anyopaque, size_in_bytes: c_int) callconv(.C) void {
+    const zip_file = @as(?*zip.struct_zip_t, @ptrCast(context));
+
+    if (zip_file) |z| {
+        _ = zip.zip_entry_write(z, data, @as(usize, @intCast(size_in_bytes)));
+    }
+}
+
+pub fn writePngToFn(
+    layer: *const Layer,
+    // image_source: dvui.ImageSource,
+    // write_fn: *const fn (ctx: ?*anyopaque, data: ?*anyopaque, size: c_int) callconv(.C) void,
+    context: ?*anyopaque,
+) !void {
+    const s = layer.size();
+
+    const w = @as(c_int, @intFromFloat(s.w));
+    const h = @as(c_int, @intFromFloat(s.h));
+    const comp = @as(c_int, @intCast(4));
+    const data: *anyopaque = switch (layer.source) {
+        .pixels => |p| @constCast(@ptrCast(p.rgba.ptr)),
+        .pixelsPMA => |p| @constCast(@ptrCast(p.rgba.ptr)),
+        else => return error.InvalidImageSource,
+    };
+    const result = dvui.c.stbi_write_png_to_func(write, context, w, h, comp, data, 0);
+
+    // if the result is 0 then it means an error occured (per stb image write docs)
+    if (result == 0) {
+        return error.CouldNotWriteImage;
+    }
 }

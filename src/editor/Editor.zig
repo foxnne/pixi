@@ -672,18 +672,18 @@ pub fn forceCloseAllFiles(editor: *Editor) !void {
 /// Performs a save operation on the currently open file.
 /// Also will perform a full project pack and export if project.pack_on_save is true
 pub fn save(editor: *Editor) !void {
-    if (editor.folder) |project_folder| {
-        if (editor.project) |*project| {
-            if (project.pack_on_save) {
-                try pixi.packer.appendProject();
-                try pixi.packer.packAndClear();
-                try project.exportAssets(project_folder);
-            }
-        }
-    }
+    // if (editor.folder) |project_folder| {
+    //     if (editor.project) |*project| {
+    //         if (project.pack_on_save) {
+    //             try pixi.packer.appendProject();
+    //             try pixi.packer.packAndClear();
+    //             try project.exportAssets(project_folder);
+    //         }
+    //     }
+    // }
 
-    if (editor.open_files.items.len == 0) return;
-    var file = &editor.open_files.items[editor.open_file_index];
+    if (editor.open_files.values().len == 0) return;
+    var file = &editor.open_files.values()[editor.open_file_index];
     try file.saveAsync();
 }
 

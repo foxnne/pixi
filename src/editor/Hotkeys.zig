@@ -14,11 +14,13 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "undo", .{ .key = .z, .command = true, .shift = false });
         try window.keybinds.putNoClobber(window.gpa, "redo", .{ .key = .z, .command = true, .shift = true });
         try window.keybinds.putNoClobber(window.gpa, "zoom", .{ .command = true });
+        try window.keybinds.putNoClobber(window.gpa, "save", .{ .command = true, .key = .s });
     } else {
         try window.keybinds.putNoClobber(window.gpa, "open_folder", .{ .key = .f, .control = true });
         try window.keybinds.putNoClobber(window.gpa, "undo", .{ .key = .z, .control = true, .shift = false });
         try window.keybinds.putNoClobber(window.gpa, "redo", .{ .key = .z, .control = true, .shift = true });
         try window.keybinds.putNoClobber(window.gpa, "zoom", .{ .control = true });
+        try window.keybinds.putNoClobber(window.gpa, "save", .{ .control = true, .key = .s });
     }
 
     try window.keybinds.putNoClobber(window.gpa, "shift", .{ .shift = true });
@@ -52,6 +54,12 @@ pub fn tick() !void {
                             std.log.err("Failed to undo", .{});
                         };
                     }
+                }
+
+                if (ke.matchBind("save") and ke.action == .down) {
+                    pixi.editor.save() catch {
+                        std.log.err("Failed to save", .{});
+                    };
                 }
             },
             else => {},

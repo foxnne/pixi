@@ -36,9 +36,16 @@ pub fn draw() !void {
     var tree = dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{ .background = false, .expand = .both });
     defer tree.deinit();
 
-    if (pixi.editor.folder) |path|
+    if (pixi.editor.folder) |path| {
         try drawFiles(path, tree);
-    // else
+    } else {
+        dvui.labelNoFmt(
+            @src(),
+            "Choose a folder to get started.",
+            .{},
+            .{ .color_text = .text_press },
+        );
+    }
     //     try drawRecents(editor);
 }
 

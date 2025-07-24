@@ -160,7 +160,7 @@ pub fn processStrokeTool(self: *FileWidget) void {
         switch (e.evt) {
             .key => |ke| {
                 if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.tools.stroke_size < std.math.maxInt(u6))
+                    if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.max_brush_size - 1)
                         pixi.editor.tools.stroke_size += 1;
 
                     pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
@@ -178,7 +178,7 @@ pub fn processStrokeTool(self: *FileWidget) void {
                         .mouse => |me| {
                             @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                             const current_point = file.canvas.dataFromScreenPoint(me.p);
-                            file.drawPoint(current_point, color, .temporary, true, false);
+                            file.drawPoint(current_point, if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 }, .temporary, true, false);
                         },
                         else => {},
                     }
