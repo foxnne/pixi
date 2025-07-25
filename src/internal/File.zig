@@ -14,6 +14,7 @@ const Sprite = @import("Sprite.zig");
 const Animation = @import("Animation.zig");
 
 id: u64,
+canvas_id: dvui.WidgetId = undefined,
 path: []const u8,
 width: u32,
 height: u32,
@@ -244,17 +245,32 @@ pub const DrawLayer = enum {
 /// Draws a point on the selected (the point will be added to the stroke buffer) or temporary layer
 /// If to_change is true, the point will be added to the stroke buffer and then the history will be appended
 /// If invalidate is true, the layer will be invalidated
-pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer, invalidate: bool, to_change: bool) void {
+pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer, draw_options: DrawOptions) void {
     var active_layer: Layer = switch (layer) {
         .temporary => file.temporary_layer,
         .selected => file.layers.get(file.selected_layer_index),
     };
+
+    const column = @as(u32, @intFromFloat(point.x)) / file.tile_width;
+    const row = @as(u32, @intFromFloat(point.y)) / file.tile_height;
+
+    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width));
+    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height));
+
+    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.tile_width));
+    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.tile_height));
 
     if (pixi.editor.tools.stroke_size < 10) {
         const size: usize = @intCast(pixi.editor.tools.stroke_size);
 
         for (0..(size * size)) |index| {
             if (active_layer.getIndexShapeOffset(point, index)) |result| {
+                if (draw_options.constrain_to_tile) {
+                    if (result.point.x < min_x or result.point.x >= max_x or result.point.y < min_y or result.point.y >= max_y) {
+                        continue;
+                    }
+                }
+
                 if (layer == .selected) {
                     file.buffers.stroke.append(result.index, result.color) catch {
                         std.log.err("Failed to append to stroke buffer", .{});
@@ -269,6 +285,12 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
             const offset = pixi.editor.tools.offset_table[i];
             const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
 
+            if (draw_options.constrain_to_tile) {
+                if (new_point.x < min_x or new_point.x >= max_x or new_point.y < min_y or new_point.y >= max_y) {
+                    continue;
+                }
+            }
+
             if (active_layer.getPixelIndex(new_point)) |index| {
                 if (layer == .selected) {
                     file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
@@ -281,11 +303,11 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
         }
     }
 
-    if (invalidate) {
+    if (draw_options.invalidate) {
         active_layer.invalidate();
     }
 
-    if (to_change and layer == .selected) {
+    if (draw_options.to_change and layer == .selected) {
         const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
         if (change_opt) |change| {
             file.history.append(change) catch {
@@ -295,11 +317,26 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
     }
 }
 
-pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u8, layer: DrawLayer, invalidate: bool, to_change: bool) void {
+pub const DrawOptions = struct {
+    invalidate: bool = false,
+    to_change: bool = false,
+    constrain_to_tile: bool = false,
+};
+
+pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u8, layer: DrawLayer, draw_options: DrawOptions) void {
     var active_layer: Layer = switch (layer) {
         .temporary => file.temporary_layer,
         .selected => file.layers.get(file.selected_layer_index),
     };
+
+    const column = @as(u32, @intFromFloat(point2.x)) / file.tile_width;
+    const row = @as(u32, @intFromFloat(point2.y)) / file.tile_height;
+
+    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width));
+    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height));
+
+    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.tile_width));
+    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.tile_height));
 
     const diff = point2.diff(point1).normalize().scale(4, dvui.Point);
     const stroke_size: usize = @intCast(pixi.Editor.Tools.max_brush_size);
@@ -318,7 +355,7 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
     if (pixi.algorithms.brezenham.process(point1, point2) catch null) |points| {
         for (points, 0..) |point, point_i| {
             if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.min_full_stroke_size) {
-                drawPoint(file, point, color, layer, false, false);
+                drawPoint(file, point, color, layer, .{});
             } else {
                 var stroke = if (point_i == 0) pixi.editor.tools.stroke else mask;
 
@@ -326,6 +363,13 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
                 while (iter.next()) |i| {
                     const offset = pixi.editor.tools.offset_table[i];
                     const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
+
+                    if (draw_options.constrain_to_tile) {
+                        if (new_point.x < min_x or new_point.x >= max_x or new_point.y < min_y or new_point.y >= max_y) {
+                            continue;
+                        }
+                    }
+
                     if (active_layer.getPixelIndex(new_point)) |index| {
                         if (layer == .selected) {
                             file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
@@ -339,11 +383,11 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
             }
         }
 
-        if (invalidate) {
+        if (draw_options.invalidate) {
             active_layer.invalidate();
         }
 
-        if (to_change and layer == .selected) {
+        if (draw_options.to_change and layer == .selected) {
             const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
             if (change_opt) |change| {
                 file.history.append(change) catch {
@@ -399,7 +443,7 @@ pub fn save(self: *File, window: *dvui.Window) !void {
             _ = zip.zip_entry_close(z);
         }
 
-        const id_mutex = dvui.toastAdd(window, @src(), 0, null, toastDisplay, 1_500_000);
+        const id_mutex = dvui.toastAdd(window, @src(), 0, self.canvas_id, pixi.dvui.toastDisplay, 2_000_000);
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
@@ -415,35 +459,7 @@ pub fn save(self: *File, window: *dvui.Window) !void {
         zip.zip_close(z);
     }
 
-    //dvui.toast(@src(), .{ .message = "Saved file", .window = window });
-
     self.saving = false;
-}
-
-pub fn toastDisplay(id: dvui.WidgetId) !void {
-    const message = dvui.dataGetSlice(null, id, "_message", []u8) orelse {
-        dvui.log.err("toastDisplay lost data for toast {x}\n", .{id});
-        return;
-    };
-
-    var animator = dvui.animate(@src(), .{ .kind = .alpha, .duration = 300_000 }, .{ .id_extra = id.asUsize() });
-    defer animator.deinit();
-
-    dvui.labelNoFmt(@src(), message, .{}, .{
-        .background = true,
-        .corner_radius = dvui.Rect.all(1000),
-        .padding = .{ .x = 16, .y = 8, .w = 16, .h = 8 },
-        .color_fill = .fill_window,
-        .border = dvui.Rect.all(2),
-    });
-
-    if (dvui.timerDone(id)) {
-        animator.startEnd();
-    }
-
-    if (animator.end()) {
-        dvui.toastRemove(id);
-    }
 }
 
 pub fn saveAsync(self: *File) !void {
@@ -458,7 +474,7 @@ pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
     const animations = try allocator.alloc(pixi.Animation, self.animations.slice().len);
 
     for (layers, 0..) |*working_layer, i| {
-        working_layer.name = try allocator.dupeZ(u8, self.layers.items(.name)[i]);
+        working_layer.name = try allocator.dupe(u8, self.layers.items(.name)[i]);
         working_layer.visible = self.layers.items(.visible)[i];
         working_layer.collapse = self.layers.items(.collapse)[i];
     }
@@ -468,7 +484,7 @@ pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
     }
 
     for (animations, 0..) |*animation, i| {
-        animation.name = try allocator.dupeZ(u8, self.animations.items(.name)[i]);
+        animation.name = try allocator.dupe(u8, self.animations.items(.name)[i]);
         animation.fps = self.animations.items(.fps)[i];
         animation.start = self.animations.items(.start)[i];
         animation.length = self.animations.items(.length)[i];

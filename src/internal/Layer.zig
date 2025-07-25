@@ -142,6 +142,7 @@ pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8) void {
 pub const ShapeOffsetResult = struct {
     index: usize,
     color: [4]u8,
+    point: dvui.Point,
 };
 
 pub fn invalidate(self: *Layer) void {
@@ -162,6 +163,7 @@ pub fn getIndexShapeOffset(self: *Layer, origin: dvui.Point, current_index: usiz
             return .{
                 .index = index,
                 .color = self.pixels()[index],
+                .point = origin,
             };
         }
     }
@@ -196,6 +198,7 @@ pub fn getIndexShapeOffset(self: *Layer, origin: dvui.Point, current_index: usiz
         return .{
             .index = index,
             .color = self.pixels()[index],
+            .point = pixel,
         };
     }
 

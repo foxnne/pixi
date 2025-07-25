@@ -67,11 +67,13 @@ const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
 pub fn draw(self: *Artboard) !dvui.App.Result {
 
     // Canvas Area
-    const vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+    var vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
     defer vbox.deinit();
 
     self.drawTabs();
-    try self.drawCanvas();
+    try self.drawCanvas(vbox.data());
+
+    dvui.toastsShow(vbox.data().id, vbox.data().contentRectScale().r.toNatural());
 
     return .ok;
 }
@@ -166,29 +168,32 @@ fn drawTabs(_: *Artboard) void {
     }
 }
 
-pub fn drawCanvas(self: *Artboard) !void {
+pub fn drawCanvas(self: *Artboard, data: *dvui.WidgetData) !void {
     var canvas_vbox = dvui.box(@src(), .vertical, .{ .expand = .both });
     defer canvas_vbox.deinit();
 
     if (pixi.editor.open_files.values().len > 0) {
         const file = &pixi.editor.open_files.values()[pixi.editor.open_file_index];
+        file.canvas_id = data.id;
 
         var file_widget = pixi.dvui.FileWidget.init(@src(), file, .{}, .{
             .expand = .both,
             .background = true,
         });
-        defer file_widget.deinit();
+        {
+            defer file_widget.deinit();
 
-        file_widget.processStrokeTool();
-        file_widget.processSampleTool();
+            file_widget.processStrokeTool();
+            file_widget.processSampleTool();
 
-        // Draw layers first, so that the scrolling bounding box is updated
-        file_widget.drawLayers();
-        file_widget.drawCursor();
-        file_widget.drawSample();
+            // Draw layers first, so that the scrolling bounding box is updated
+            file_widget.drawLayers();
+            file_widget.drawCursor();
+            file_widget.drawSample();
 
-        // Then process the scroll and zoom events last
-        file_widget.scrollAndZoom();
+            // Then process the scroll and zoom events last
+            file_widget.scrollAndZoom();
+        }
     } else {
         try self.drawLogo();
     }

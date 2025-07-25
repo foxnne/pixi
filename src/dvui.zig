@@ -6,6 +6,32 @@ const Widgets = @import("editor/Widgets.zig");
 pub const FileWidget = Widgets.FileWidget;
 pub const TabsWidget = Widgets.TabsWidget;
 
+pub fn toastDisplay(id: dvui.WidgetId) !void {
+    const message = dvui.dataGetSlice(null, id, "_message", []u8) orelse {
+        dvui.log.err("toastDisplay lost data for toast {x}\n", .{id});
+        return;
+    };
+
+    var animator = dvui.animate(@src(), .{ .kind = .alpha, .duration = 300_000 }, .{ .id_extra = id.asUsize() });
+    defer animator.deinit();
+
+    dvui.labelNoFmt(@src(), message, .{}, .{
+        .background = true,
+        .corner_radius = dvui.Rect.all(1000),
+        .padding = .{ .x = 16, .y = 8, .w = 16, .h = 8 },
+        .color_fill = .fill_window,
+        .border = dvui.Rect.all(2),
+    });
+
+    if (dvui.timerDone(id)) {
+        animator.startEnd();
+    }
+
+    if (animator.end()) {
+        dvui.toastRemove(id);
+    }
+}
+
 pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, opts: dvui.Options) void {
     const box = dvui.box(@src(), .horizontal, opts);
     defer box.deinit();

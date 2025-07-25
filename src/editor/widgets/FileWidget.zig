@@ -178,7 +178,12 @@ pub fn processStrokeTool(self: *FileWidget) void {
                         .mouse => |me| {
                             @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                             const current_point = file.canvas.dataFromScreenPoint(me.p);
-                            file.drawPoint(current_point, if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 }, .temporary, true, false);
+                            file.drawPoint(
+                                current_point,
+                                if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 },
+                                .temporary,
+                                .{ .invalidate = true, .to_change = false },
+                            );
                         },
                         else => {},
                     }
@@ -198,7 +203,12 @@ pub fn processStrokeTool(self: *FileWidget) void {
                 } else if (me.action == .release and me.button == .right) {
                     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                     const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                    file.drawPoint(current_point, temp_color, .temporary, true, false);
+                    file.drawPoint(
+                        current_point,
+                        temp_color,
+                        .temporary,
+                        .{ .invalidate = true, .to_change = false },
+                    );
                 }
 
                 if (me.action == .press and me.button.pointer()) {
@@ -207,7 +217,12 @@ pub fn processStrokeTool(self: *FileWidget) void {
                     dvui.dragPreStart(me.p, .{ .name = "stroke_drag" });
 
                     if (!me.mod.matchBind("shift")) {
-                        file.drawPoint(current_point, color, .selected, true, false);
+                        file.drawPoint(
+                            current_point,
+                            color,
+                            .selected,
+                            .{ .invalidate = true, .to_change = false },
+                        );
                     }
 
                     file.canvas.prev_drag_point = current_point;
@@ -220,7 +235,13 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
                         if (me.mod.matchBind("shift")) {
                             if (file.canvas.prev_drag_point) |previous_point| {
-                                file.drawLine(previous_point, current_point, color, .selected, true, true);
+                                file.drawLine(
+                                    previous_point,
+                                    current_point,
+                                    color,
+                                    .selected,
+                                    .{ .invalidate = true, .to_change = true },
+                                );
                             }
                         } else {
                             if (file.buffers.stroke.pixels.count() > 0) {
@@ -262,21 +283,36 @@ pub fn processStrokeTool(self: *FileWidget) void {
                             if (me.mod.matchBind("shift")) {
                                 if (file.canvas.prev_drag_point) |previous_point| {
                                     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                                    file.drawLine(previous_point, current_point, color, .temporary, true, false);
+                                    file.drawLine(
+                                        previous_point,
+                                        current_point,
+                                        color,
+                                        .temporary,
+                                        .{ .invalidate = true, .to_change = false },
+                                    );
                                 }
                             } else {
                                 if (file.canvas.prev_drag_point) |previous_point|
-                                    file.drawLine(previous_point, current_point, color, .selected, true, false);
+                                    file.drawLine(
+                                        previous_point,
+                                        current_point,
+                                        color,
+                                        .selected,
+                                        .{ .invalidate = true, .to_change = false },
+                                    );
 
                                 file.canvas.prev_drag_point = current_point;
-                            }
 
-                            if (!me.mod.matchBind("shift")) {
                                 if (file.canvas.rect.contains(me.p) and file.canvas.sample_data_point == null) {
                                     if (file.canvas.sample_data_point == null or color[3] == 0) {
                                         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                                         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                                        file.drawPoint(current_point, temp_color, .temporary, true, false);
+                                        file.drawPoint(
+                                            current_point,
+                                            temp_color,
+                                            .temporary,
+                                            .{ .invalidate = true, .to_change = false },
+                                        );
                                     }
                                 }
                             }
@@ -288,7 +324,12 @@ pub fn processStrokeTool(self: *FileWidget) void {
                             if (file.canvas.sample_data_point == null or color[3] == 0) {
                                 @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                                 const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                                file.drawPoint(current_point, temp_color, .temporary, true, false);
+                                file.drawPoint(
+                                    current_point,
+                                    temp_color,
+                                    .temporary,
+                                    .{ .invalidate = true, .to_change = false },
+                                );
                             }
                         } else {
                             @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
