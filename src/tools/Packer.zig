@@ -2,15 +2,14 @@ const std = @import("std");
 const zstbi = @import("zstbi");
 
 const pixi = @import("../pixi.zig");
-const Core = @import("mach").Core;
 
 pub const LDTKTileset = @import("LDTKTileset.zig");
 
 const Packer = @This();
 
-// Mach module, systems, and main
-pub const mach_module = .packer;
-pub const mach_systems = .{ .init, .deinit };
+// // Mach module, systems, and main
+// pub const mach_module = .packer;
+// pub const mach_systems = .{ .init, .deinit };
 
 pub const Image = struct {
     width: usize,
@@ -45,7 +44,8 @@ placeholder: Image,
 contains_height: bool = false,
 open_files: std.ArrayList(pixi.Internal.File),
 target: PackTarget = .project,
-camera: pixi.gfx.Camera = .{},
+canvas: pixi.dvui.FileWidget.FileWidgetData = .{},
+//camera: pixi.gfx.Camera = .{},
 
 ldtk: bool = false,
 ldtk_tilesets: std.ArrayList(LDTKTileset),

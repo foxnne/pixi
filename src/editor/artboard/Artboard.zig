@@ -71,9 +71,7 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
     defer vbox.deinit();
 
     self.drawTabs();
-    try self.drawCanvas(vbox.data());
-
-    dvui.toastsShow(vbox.data().id, vbox.data().contentRectScale().r.toNatural());
+    try self.drawCanvas();
 
     return .ok;
 }
@@ -168,13 +166,16 @@ fn drawTabs(_: *Artboard) void {
     }
 }
 
-pub fn drawCanvas(self: *Artboard, data: *dvui.WidgetData) !void {
+pub fn drawCanvas(self: *Artboard) !void {
     var canvas_vbox = dvui.box(@src(), .vertical, .{ .expand = .both });
-    defer canvas_vbox.deinit();
+    defer {
+        dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
+        canvas_vbox.deinit();
+    }
 
     if (pixi.editor.open_files.values().len > 0) {
         const file = &pixi.editor.open_files.values()[pixi.editor.open_file_index];
-        file.canvas_id = data.id;
+        file.canvas_id = canvas_vbox.data().id;
 
         var file_widget = pixi.dvui.FileWidget.init(@src(), file, .{}, .{
             .expand = .both,
@@ -291,56 +292,60 @@ pub fn drawLogo(_: *Artboard) !void {
 
                     const color = pixi_color.bytes();
 
-                    if (i == 0) {
-                        if (j == 0) {
-                            const pixel = dvui.box(@src(), .horizontal, .{
-                                .expand = .none,
-                                .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
-                                .id_extra = j,
-                                .background = true,
-                                .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                                .margin = dvui.Rect.all(0),
-                                .padding = dvui.Rect.all(0),
-                            });
-                            defer pixel.deinit();
-                        } else if (j == 1) {
-                            const pixel = dvui.box(@src(), .horizontal, .{
-                                .expand = .none,
-                                .min_size_content = .{ .w = logo_pixel_size * 2, .h = logo_pixel_size },
-                                .id_extra = j,
-                                .background = true,
-                                .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                                .margin = dvui.Rect.all(0),
-                                .padding = dvui.Rect.all(0),
-                            });
-                            defer pixel.deinit();
-                        }
-                    } else if (i == 2) {
-                        if (j == 0) {
-                            const pixel = dvui.box(@src(), .horizontal, .{
-                                .expand = .none,
-                                .min_size_content = .{ .w = logo_pixel_size * 3, .h = logo_pixel_size },
-                                .id_extra = j,
-                                .background = true,
-                                .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                                .margin = dvui.Rect.all(0),
-                                .padding = dvui.Rect.all(0),
-                            });
-                            defer pixel.deinit();
-                        }
-                    } else if (i > 0) {
-                        const pixel = dvui.box(@src(), .horizontal, .{
-                            .expand = .none,
-                            .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
-                            .id_extra = j,
-                            .background = true,
-                            .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                            .margin = dvui.Rect.all(0),
-                            .padding = dvui.Rect.all(0),
-                        });
-                        //try drawBubble(pixel.data().rectScale().r, color);
-                        defer pixel.deinit();
-                    }
+                    // if (i == 0) {
+                    //     if (j == 0) {
+                    //         const pixel = dvui.box(@src(), .horizontal, .{
+                    //             .expand = .none,
+                    //             .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
+                    //             .id_extra = j,
+                    //             .background = true,
+                    //             .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+                    //             .margin = dvui.Rect.all(0),
+                    //             .padding = dvui.Rect.all(0),
+                    //         });
+                    //         defer pixel.deinit();
+                    //     } else if (j == 1) {
+                    //         const pixel = dvui.box(@src(), .horizontal, .{
+                    //             .expand = .none,
+                    //             .min_size_content = .{ .w = logo_pixel_size * 2, .h = logo_pixel_size },
+                    //             .id_extra = j,
+                    //             .background = true,
+                    //             .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+                    //             .margin = dvui.Rect.all(0),
+                    //             .padding = dvui.Rect.all(0),
+                    //         });
+                    //         defer pixel.deinit();
+                    //     }
+                    // } else if (i == 2) {
+                    //     if (j == 0) {
+                    //         const pixel = dvui.box(@src(), .horizontal, .{
+                    //             .expand = .none,
+                    //             .min_size_content = .{ .w = logo_pixel_size * 3, .h = logo_pixel_size },
+                    //             .id_extra = j,
+                    //             .background = true,
+                    //             .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+                    //             .margin = dvui.Rect.all(0),
+                    //             .padding = dvui.Rect.all(0),
+                    //         });
+                    //         defer pixel.deinit();
+                    //     }
+                    // } else if (i > 0) {
+                    const pixel = dvui.box(@src(), .horizontal, .{
+                        .expand = .none,
+                        .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
+                        .id_extra = index,
+                        .background = true,
+                        .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+                        .margin = dvui.Rect.all(0),
+                        .padding = dvui.Rect.all(0),
+                    });
+                    const rect = pixel.data().rect;
+                    const rs = pixel.data().rectScale();
+                    pixel.deinit();
+
+                    try drawBubble(rect, rs, color, index);
+
+                    //}
                 }
             }
         }
@@ -366,4 +371,65 @@ pub fn drawLogo(_: *Artboard) !void {
             }
         }
     }
+}
+
+var mouse_dist: f32 = 1000;
+
+pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: usize) !void {
+    var new_rect = dvui.Rect{
+        .x = rect.x,
+        .y = rect.y - rect.h,
+        .w = rect.w,
+        .h = rect.h,
+    };
+
+    for (dvui.events()) |evt| {
+        switch (evt.evt) {
+            .mouse => |me| {
+                const dx = @abs(me.p.x - (rs.r.x + rs.r.w * 0.5)) / rs.s;
+                const dy = @abs(me.p.y - (rs.r.y - rs.r.h * 0.5)) / rs.s;
+                const distance = @sqrt(dx * dx + dy * dy);
+
+                const min_h: f32 = 0;
+                const max_h: f32 = rect.h;
+
+                const max_distance: f32 = rect.h * 2.0;
+
+                var t = distance / max_distance;
+                if (t > 1.0) t = 1.0;
+                if (t < 0.0) t = 0.0;
+                const scaled_h = max_h - (max_h - min_h) * t;
+
+                new_rect.h = scaled_h;
+                new_rect.y = rect.y - new_rect.h;
+            },
+            else => {},
+        }
+    }
+    if (new_rect.h <= 0) return;
+
+    const corner_radius: dvui.Rect = .{ .x = 32, .y = 32 };
+
+    var box = dvui.box(@src(), .horizontal, .{
+        .rect = new_rect,
+        .id_extra = id_extra,
+        .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+    });
+
+    var path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
+    defer path.deinit();
+
+    const rad = corner_radius;
+    const r = box.data().contentRectScale().r;
+    box.deinit();
+    const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + rad.x };
+    const bl = dvui.Point.Physical{ .x = r.x + rad.h, .y = r.y + r.h - rad.h };
+    const br = dvui.Point.Physical{ .x = r.x + r.w - rad.w, .y = r.y + r.h - rad.w };
+    const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + rad.y };
+    path.addArc(tl, rad.x, dvui.math.pi * 1.5, dvui.math.pi, @abs(tl.y - bl.y) < 0.5);
+    path.addArc(bl, rad.h, dvui.math.pi, dvui.math.pi * 0.5, @abs(bl.x - br.x) < 0.5);
+    path.addArc(br, rad.w, dvui.math.pi * 0.5, 0, @abs(br.y - tr.y) < 0.5);
+    path.addArc(tr, rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, @abs(tr.x - tl.x) < 0.5);
+
+    path.build().fillConvex(.{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } });
 }

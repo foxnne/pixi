@@ -442,16 +442,17 @@ pub fn drawSample(fw: *FileWidget) void {
         if (!file.canvas.rect.contains(mouse_point)) return;
 
         { // Draw a box around the hovered pixel at the correct scale
-            const pixel_box_size = file.canvas.scale;
+            const pixel_box_size = file.canvas.scale * dvui.currentWindow().rectScale().s;
 
             const pixel_point: dvui.Point = .{
                 .x = @round(data_point.x - 0.5),
                 .y = @round(data_point.y - 0.5),
             };
 
-            var pixel_box = dvui.Rect.Physical.fromPoint(file.canvas.screenFromDataPoint(pixel_point));
-            pixel_box.w = pixel_box_size;
-            pixel_box.h = pixel_box_size;
+            const pixel_box_point = file.canvas.screenFromDataPoint(pixel_point);
+            var pixel_box = dvui.Rect.Physical.fromSize(.{ .w = pixel_box_size, .h = pixel_box_size });
+            pixel_box.x = pixel_box_point.x;
+            pixel_box.y = pixel_box_point.y;
             dvui.Path.stroke(.{ .points = &.{
                 pixel_box.topLeft(),
                 pixel_box.topRight(),
