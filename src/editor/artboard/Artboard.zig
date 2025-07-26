@@ -408,7 +408,7 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     }
     if (new_rect.h <= 0) return;
 
-    const corner_radius: dvui.Rect = .{ .x = 32, .y = 32 };
+    const corner_radius: dvui.Rect = .{ .x = rs.r.w / 2.0, .y = rs.r.h / 2.0 };
 
     var box = dvui.box(@src(), .horizontal, .{
         .rect = new_rect,
