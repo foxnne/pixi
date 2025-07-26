@@ -159,11 +159,13 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
         switch (e.evt) {
             .key => |ke| {
+                var update: bool = false;
                 if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
                     if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.max_brush_size - 1)
                         pixi.editor.tools.stroke_size += 1;
 
                     pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                    update = true;
                 }
 
                 if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
@@ -171,21 +173,24 @@ pub fn processStrokeTool(self: *FileWidget) void {
                         pixi.editor.tools.stroke_size -= 1;
 
                     pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                    update = true;
                 }
 
-                if (self.last_mouse_event) |last_mouse_event| {
-                    switch (last_mouse_event.evt) {
-                        .mouse => |me| {
-                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                            const current_point = file.canvas.dataFromScreenPoint(me.p);
-                            file.drawPoint(
-                                current_point,
-                                if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 },
-                                .temporary,
-                                .{ .invalidate = true, .to_change = false },
-                            );
-                        },
-                        else => {},
+                if (update) {
+                    if (self.last_mouse_event) |last_mouse_event| {
+                        switch (last_mouse_event.evt) {
+                            .mouse => |me| {
+                                @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                const current_point = file.canvas.dataFromScreenPoint(me.p);
+                                file.drawPoint(
+                                    current_point,
+                                    if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 },
+                                    .temporary,
+                                    .{ .invalidate = true, .to_change = false },
+                                );
+                            },
+                            else => {},
+                        }
                     }
                 }
             },
@@ -437,7 +442,7 @@ pub fn drawSample(fw: *FileWidget) void {
         if (!file.canvas.rect.contains(mouse_point)) return;
 
         { // Draw a box around the hovered pixel at the correct scale
-            const pixel_box_size = file.canvas.scale * 2;
+            const pixel_box_size = file.canvas.scale;
 
             const pixel_point: dvui.Point = .{
                 .x = @round(data_point.x - 0.5),
