@@ -386,9 +386,9 @@ var mouse_dist: f32 = 1000;
 
 pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: usize) !void {
     var new_rect = dvui.Rect{
-        .x = rect.x,
+        .x = rect.x - (1 / dvui.currentWindow().rectScale().s),
         .y = rect.y - rect.h,
-        .w = rect.w,
+        .w = rect.w + (1 / dvui.currentWindow().rectScale().s),
         .h = rect.h,
     };
 
