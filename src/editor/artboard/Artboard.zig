@@ -334,12 +334,21 @@ pub fn drawLogo(_: *Artboard) !void {
                         .expand = .none,
                         .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
                         .id_extra = index,
-                        .background = true,
+                        .background = false,
                         .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
                         .margin = dvui.Rect.all(0),
                         .padding = dvui.Rect.all(0),
                     });
-                    const rect = pixel.data().rect;
+
+                    const outset_rect = pixel.data().rectScale().r.outset(.{ .x = 1, .y = 1 });
+                    outset_rect.fill(dvui.Rect.Physical.all(0), .{ .color = .{
+                        .r = color[0],
+                        .g = color[1],
+                        .b = color[2],
+                        .a = color[3],
+                    } });
+
+                    const rect = pixel.data().rect.outset(.{ .x = 1, .y = 1 });
                     const rs = pixel.data().rectScale();
                     pixel.deinit();
 
@@ -378,7 +387,7 @@ var mouse_dist: f32 = 1000;
 pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: usize) !void {
     var new_rect = dvui.Rect{
         .x = rect.x,
-        .y = rect.y - rect.h,
+        .y = rect.y - rect.h + 1,
         .w = rect.w,
         .h = rect.h,
     };
@@ -400,8 +409,8 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
                 if (t < 0.0) t = 0.0;
                 const scaled_h = max_h - (max_h - min_h) * t;
 
-                new_rect.h = scaled_h;
-                new_rect.y = rect.y - new_rect.h;
+                new_rect.h = @ceil(scaled_h);
+                new_rect.y = @ceil(rect.y - new_rect.h) + 1;
             },
             else => {},
         }
