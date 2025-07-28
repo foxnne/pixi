@@ -14,13 +14,12 @@ const Sprite = @import("Sprite.zig");
 const Animation = @import("Animation.zig");
 
 id: u64,
-canvas_id: dvui.WidgetId = undefined,
 path: []const u8,
 width: u32,
 height: u32,
 tile_width: u32,
 tile_height: u32,
-canvas: pixi.dvui.FileWidget.FileWidgetData = .{},
+canvas: pixi.dvui.CanvasWidget = .{}, // Contains all the data for the canvas widget
 layers: std.MultiArrayList(Layer),
 sprites: std.MultiArrayList(Sprite),
 animations: std.MultiArrayList(Animation),
@@ -437,13 +436,13 @@ pub fn save(self: *File, window: *dvui.Window) !void {
             const image_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{layer.name});
             _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(image_name)));
 
-            try layer.writePngToFn(z);
+            try layer.writeSourceToZip(z);
 
             //try self.layers.items(.texture)[index].stbi_image().writeToFn(write, z, .png);
             _ = zip.zip_entry_close(z);
         }
 
-        const id_mutex = dvui.toastAdd(window, @src(), 0, self.canvas_id, pixi.dvui.toastDisplay, 2_000_000);
+        const id_mutex = dvui.toastAdd(window, @src(), 0, self.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);

@@ -39,7 +39,7 @@ pub fn fromImageFile(id: u64, name: []const u8, bytes: []const u8, invalidation:
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = pixi.fs.fromImageFileBytes(name, bytes, invalidation) catch return error.ErrorCreatingImageSource,
+        .source = pixi.fs.sourceFromImageFileBytes(name, bytes, invalidation) catch return error.ErrorCreatingImageSource,
     };
 }
 
@@ -47,14 +47,14 @@ pub fn fromPixelsPMA(id: u64, name: []const u8, p: []dvui.Color.PMA, invalidatio
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = pixi.fs.fromPixelsPMA(name, p, invalidation) catch return error.ErrorCreatingImageSource,
+        .source = pixi.fs.sourceFromPixelsPMA(name, p, invalidation) catch return error.ErrorCreatingImageSource,
     };
 }
 
 pub fn fromPixels(name: [:0]const u8, p: []u8, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
     return .{
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = pixi.fs.fromPixels(name, p, invalidation) catch return error.ErrorCreatingImageSource,
+        .source = pixi.fs.sourceFromPixels(name, p, invalidation) catch return error.ErrorCreatingImageSource,
     };
 }
 
@@ -62,7 +62,7 @@ pub fn fromTexture(id: u64, name: []const u8, texture: dvui.Texture, invalidatio
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = pixi.fs.fromTexture(name, texture, invalidation) catch return error.ErrorCreatingImageSource,
+        .source = pixi.fs.sourceFromTexture(name, texture, invalidation) catch return error.ErrorCreatingImageSource,
     };
 }
 
@@ -83,60 +83,29 @@ pub fn deinit(self: *Layer) void {
 }
 
 pub fn pixels(self: *Layer) [][4]u8 {
-    switch (self.source) {
-        .pixels => |p| return @as([*][4]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height)],
-        .pixelsPMA => |p| return @as([*][4]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height)],
-        .texture => |t| return @as([*][4]u8, @ptrCast(t.ptr))[0..(t.width * t.height)],
-        else => {},
-    }
-    return &.{};
+    return pixi.image.pixels(self.source);
 }
 
 pub fn getPixelIndex(self: *Layer, pixel: dvui.Point) ?usize {
-    if (pixel.x < 0 or pixel.y < 0) {
-        return null;
-    }
-
-    if (pixel.x >= self.size().w or pixel.y >= self.size().h) {
-        return null;
-    }
-
-    const p: [2]usize = .{ @intFromFloat(pixel.x), @intFromFloat(pixel.y) };
-
-    const index = p[0] + p[1] * @as(usize, @intFromFloat(self.size().w));
-    if (index >= self.pixels().len) {
-        return 0;
-    }
-    return index;
+    return pixi.image.getPixelIndex(self.source, pixel);
 }
 
 pub fn getPointFromIndex(self: *Layer, index: usize) ?dvui.Point {
-    if (index >= self.pixels().len) {
-        return null;
-    }
-    return .{ .x = @floatFromInt(index % @as(i32, @intFromFloat(self.size().w))), .y = @floatFromInt(index / @as(i32, @intFromFloat(self.size().w))) };
+    return pixi.image.getPointFromIndex(self.source, index);
 }
 
 pub fn getPixel(self: *Layer, pixel: dvui.Point) ?[4]u8 {
-    if (self.getPixelIndex(pixel)) |index| {
-        return self.pixels()[index];
-    }
-    return null;
+    return pixi.image.getPixel(self.source, pixel);
 }
 
 pub fn setPixel(self: *Layer, pixel: dvui.Point, color: [4]u8) void {
-    if (self.getPixelIndex(pixel)) |index| {
-        self.pixels()[index] = color;
-    }
+    pixi.image.setPixel(self.source, pixel, color);
     //if (update)
     //self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }
 
 pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8) void {
-    if (index >= self.pixels().len) {
-        return;
-    }
-    self.pixels()[index] = color;
+    pixi.image.setPixelIndex(self.source, index, color);
 }
 
 pub const ShapeOffsetResult = struct {
@@ -206,35 +175,7 @@ pub fn getIndexShapeOffset(self: *Layer, origin: dvui.Point, current_index: usiz
 }
 
 pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: [4]u32, transparent: bool) void {
-    const x = @as(usize, @intCast(dst_rect[0]));
-    const y = @as(usize, @intCast(dst_rect[1]));
-    const width = @as(usize, @intCast(dst_rect[2]));
-    const height = @as(usize, @intCast(dst_rect[3]));
-
-    const tex_width = @as(usize, @intCast(self.size().w));
-
-    var yy = y;
-    var h = height;
-
-    var d = self.pixels()[x + yy * tex_width .. x + yy * tex_width + width];
-    var src_y: usize = 0;
-    while (h > 0) : (h -= 1) {
-        const src_row = src_pixels[src_y * width .. (src_y * width) + width];
-        if (!transparent) {
-            @memcpy(d, src_row);
-        } else {
-            for (src_row, d) |src, dst| {
-                if (src[3] > 0) {
-                    dst = src;
-                }
-            }
-        }
-
-        // next row and move our slice to it as well
-        src_y += 1;
-        yy += 1;
-        d = self.pixels()[x + yy * tex_width .. x + yy * tex_width + width];
-    }
+    pixi.image.blit(self.source, src_pixels, dst_rect, transparent);
 }
 
 pub fn clear(self: *Layer) void {
@@ -242,34 +183,105 @@ pub fn clear(self: *Layer) void {
     @memset(p, .{ 0, 0, 0, 0 });
 }
 
-fn write(context: ?*anyopaque, data: ?*anyopaque, size_in_bytes: c_int) callconv(.C) void {
-    const zip_file = @as(?*zip.struct_zip_t, @ptrCast(context));
-
-    if (zip_file) |z| {
-        _ = zip.zip_entry_write(z, data, @as(usize, @intCast(size_in_bytes)));
-    }
+pub fn writeSourceToZip(
+    layer: *const Layer,
+    zip_file: ?*anyopaque,
+) !void {
+    return pixi.fs.writeSourceToZip(layer.source, zip_file);
 }
 
-pub fn writePngToFn(
-    layer: *const Layer,
-    // image_source: dvui.ImageSource,
-    // write_fn: *const fn (ctx: ?*anyopaque, data: ?*anyopaque, size: c_int) callconv(.C) void,
-    context: ?*anyopaque,
-) !void {
-    const s = layer.size();
+pub fn writeSourceToPng(layer: *const Layer, path: []const u8) !void {
+    return pixi.fs.writeSourceToPng(layer.source, path);
+}
 
-    const w = @as(c_int, @intFromFloat(s.w));
-    const h = @as(c_int, @intFromFloat(s.h));
-    const comp = @as(c_int, @intCast(4));
-    const data: *anyopaque = switch (layer.source) {
-        .pixels => |p| @constCast(@ptrCast(p.rgba.ptr)),
-        .pixelsPMA => |p| @constCast(@ptrCast(p.rgba.ptr)),
-        else => return error.InvalidImageSource,
-    };
-    const result = dvui.c.stbi_write_png_to_func(write, context, w, h, comp, data, 0);
+/// Takes a texture and a src rect and reduces the rect removing all fully transparent pixels
+/// If the src rect doesn't contain any opaque pixels, returns null
+pub fn reduce(layer: *Layer, src: [4]usize) ?[4]usize {
+    const layer_width = @as(usize, @intCast(layer.size().w));
+    const read_pixels = layer.pixels();
 
-    // if the result is 0 then it means an error occured (per stb image write docs)
-    if (result == 0) {
-        return error.CouldNotWriteImage;
+    const src_x = src[0];
+    const src_y = src[1];
+    const src_width = src[2];
+    const src_height = src[3];
+
+    var top = src_y;
+    var bottom = src_y + src_height - 1;
+    var left = src_x;
+    var right = src_x + src_width - 1;
+
+    top: {
+        while (top < bottom) : (top += 1) {
+            const start = left + top * layer_width;
+            const row = read_pixels[start .. start + src_width];
+            for (row) |pixel| {
+                if (pixel[3] != 0) {
+                    break :top;
+                }
+            }
+        }
     }
+    if (top == bottom) return null;
+
+    bottom: {
+        while (bottom > top) : (bottom -= 1) {
+            const start = left + bottom * layer_width;
+            const row = read_pixels[start .. start + src_width];
+            for (row) |pixel| {
+                if (pixel[3] != 0) {
+                    if (bottom < src_y + src_height)
+                        bottom += 0; // Replace with 1 if needed
+                    break :bottom;
+                }
+            }
+        }
+    }
+
+    const height = bottom - top + 1;
+    if (height == 0)
+        return null;
+
+    const new_top: usize = if (top > 0) top - 1 else 0;
+
+    left: {
+        while (left < right) : (left += 1) {
+            var y = bottom + 1;
+            while (y > new_top) {
+                y -= 1;
+                if (read_pixels[left + y * layer_width][3] != 0) {
+                    break :left;
+                }
+            }
+        }
+    }
+
+    right: {
+        while (right > left) : (right -= 1) {
+            var y = bottom + 1;
+            while (y > new_top) {
+                y -= 1;
+                if (read_pixels[right + y * layer_width][3] != 0) {
+                    if (right < src_x + src_width)
+                        right += 1;
+                    break :right;
+                }
+            }
+        }
+    }
+
+    const width = right - left;
+    if (width == 0)
+        return null;
+
+    // // If we are packing a tileset, we want a uniform / non-tightly-packed grid. We remove all
+    // // completely empty sprite cells (the return null cases above), but do not trim transparent
+    // // regions during packing.
+    // if (pixi.app.pack_tileset) return src;
+
+    return .{
+        left,
+        top,
+        width,
+        height,
+    };
 }

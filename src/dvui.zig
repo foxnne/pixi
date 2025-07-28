@@ -5,6 +5,8 @@ const Widgets = @import("editor/Widgets.zig");
 
 pub const FileWidget = Widgets.FileWidget;
 pub const TabsWidget = Widgets.TabsWidget;
+pub const ImageWidget = Widgets.ImageWidget;
+pub const CanvasWidget = Widgets.CanvasWidget;
 
 pub fn toastDisplay(id: dvui.WidgetId) !void {
     const message = dvui.dataGetSlice(null, id, "_message", []u8) orelse {

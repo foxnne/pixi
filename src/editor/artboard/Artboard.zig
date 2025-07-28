@@ -70,10 +70,32 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
     var vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
     defer vbox.deinit();
 
-    self.drawTabs();
-    try self.drawCanvas();
+    if (pixi.editor.explorer.pane == .project) {
+        self.drawProject();
+    } else {
+        self.drawTabs();
+        try self.drawCanvas();
+    }
 
     return .ok;
+}
+
+fn drawProject(self: *Artboard) void {
+    var canvas_vbox = dvui.box(@src(), .vertical, .{ .expand = .both });
+    defer {
+        self.drawShadows(canvas_vbox.data().rectScale());
+        canvas_vbox.deinit();
+    }
+
+    var image_widget = pixi.dvui.ImageWidget.init(@src(), .{
+        .source = pixi.editor.atlas.source,
+        .canvas = &pixi.editor.atlas.canvas,
+    }, .{
+        .expand = .both,
+    });
+    defer image_widget.deinit();
+
+    image_widget.processEvents();
 }
 
 fn drawTabs(_: *Artboard) void {
@@ -170,43 +192,37 @@ pub fn drawCanvas(self: *Artboard) !void {
     var canvas_vbox = dvui.box(@src(), .vertical, .{ .expand = .both });
     defer {
         dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
+        self.drawShadows(canvas_vbox.data().rectScale());
         canvas_vbox.deinit();
     }
 
     if (pixi.editor.open_files.values().len > 0) {
         const file = &pixi.editor.open_files.values()[pixi.editor.open_file_index];
-        file.canvas_id = canvas_vbox.data().id;
 
-        var file_widget = pixi.dvui.FileWidget.init(@src(), file, .{}, .{
+        var file_widget = pixi.dvui.FileWidget.init(@src(), .{
+            .canvas = &file.canvas,
+            .file = file,
+        }, .{
             .expand = .both,
             .background = true,
         });
-        {
-            defer file_widget.deinit();
 
-            file_widget.processStrokeTool();
-            file_widget.processSampleTool();
-
-            // Draw layers first, so that the scrolling bounding box is updated
-            file_widget.drawLayers();
-            file_widget.drawCursor();
-            file_widget.drawSample();
-
-            // Then process the scroll and zoom events last
-            file_widget.scrollAndZoom();
-        }
+        defer file_widget.deinit();
+        file_widget.processEvents();
     } else {
         try self.drawLogo();
     }
+}
 
+pub fn drawShadows(_: *Artboard, container: dvui.RectScale) void {
     {
-        var rs = canvas_vbox.data().contentRectScale();
+        var rs = container;
         rs.r.w = 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+        var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() }) catch return;
 
         const black: dvui.Color = .black;
         const ca0 = black.opacity(0.1);
@@ -216,20 +232,22 @@ pub fn drawCanvas(self: *Artboard) !void {
             const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
             v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
         }
-        try dvui.renderTriangles(triangles, null);
+        dvui.renderTriangles(triangles, null) catch {
+            std.log.err("Failed to render triangles", .{});
+        };
 
         triangles.deinit(dvui.currentWindow().arena());
         path.deinit();
     }
 
     {
-        var rs = canvas_vbox.data().contentRectScale();
+        var rs = container;
         rs.r.h = 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+        var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() }) catch return;
 
         const black: dvui.Color = .black;
         const ca0 = black.opacity(0.1);
@@ -239,7 +257,9 @@ pub fn drawCanvas(self: *Artboard) !void {
             const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
             v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
         }
-        try dvui.renderTriangles(triangles, null);
+        dvui.renderTriangles(triangles, null) catch {
+            std.log.err("Failed to render triangles", .{});
+        };
 
         triangles.deinit(dvui.currentWindow().arena());
         path.deinit();
@@ -381,8 +401,6 @@ pub fn drawLogo(_: *Artboard) !void {
         }
     }
 }
-
-var mouse_dist: f32 = 1000;
 
 pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: usize) !void {
     var new_rect = dvui.Rect{

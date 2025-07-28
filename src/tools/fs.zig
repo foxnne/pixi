@@ -1,5 +1,6 @@
 const std = @import("std");
 const dvui = @import("dvui");
+const zip = @import("zip");
 const pixi = @import("../pixi.zig");
 
 /// reads the contents of a file. Returned value is owned by the caller and must be freed!
@@ -29,7 +30,7 @@ pub fn readZ(allocator: std.mem.Allocator, filename: []const u8) ![:0]u8 {
     return buffer[0..file_size :0];
 }
 
-pub fn fromImageFileBytes(name: []const u8, bytes: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
+pub fn sourceFromImageFileBytes(name: []const u8, bytes: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
     var w: c_int = undefined;
     var h: c_int = undefined;
     var channels_in_file: c_int = undefined;
@@ -51,13 +52,13 @@ pub fn fromImageFileBytes(name: []const u8, bytes: []const u8, invalidation: dvu
     };
 }
 
-pub fn fromImageFilePath(name: []const u8, path: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
+pub fn sourceFromImageFilePath(name: []const u8, path: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
     const bytes = try read(pixi.app.allocator, path);
     defer pixi.app.allocator.free(bytes);
-    return fromImageFileBytes(name, bytes, invalidation);
+    return sourceFromImageFileBytes(name, bytes, invalidation);
 }
 
-pub fn fromPixelsPMA(name: []const u8, p: []dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
+pub fn sourceFromPixelsPMA(name: []const u8, p: []dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
     return .{
         .pixelsPMA = .{
             .name = pixi.app.allocator.dupe(u8, name) catch name,
@@ -68,7 +69,7 @@ pub fn fromPixelsPMA(name: []const u8, p: []dvui.Color.PMA, invalidation: dvui.I
     };
 }
 
-pub fn fromPixels(name: [:0]const u8, p: []u8, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
+pub fn sourceFromPixels(name: [:0]const u8, p: []u8, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
     return .{
         .pixels = .{
             .name = pixi.app.allocator.dupe(u8, name) catch name,
@@ -79,11 +80,58 @@ pub fn fromPixels(name: [:0]const u8, p: []u8, invalidation: dvui.ImageSource.In
     };
 }
 
-pub fn fromTexture(name: []const u8, texture: dvui.Texture, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
+pub fn sourceFromTexture(name: []const u8, texture: dvui.Texture, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
     return .{
         .name = pixi.app.allocator.dupe(u8, name) catch name,
         .texture = texture,
         .invalidation = invalidation,
         .interpolation = .nearest,
     };
+}
+
+fn write(zip_file: ?*anyopaque, data: ?*anyopaque, size_in_bytes: c_int) callconv(.C) void {
+    if (@as(?*zip.struct_zip_t, @ptrCast(zip_file))) |z| {
+        _ = zip.zip_entry_write(z, data, @as(usize, @intCast(size_in_bytes)));
+    }
+}
+
+pub fn writeSourceToZip(
+    source: dvui.ImageSource,
+    zip_file: ?*anyopaque,
+) !void {
+    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
+
+    const w = @as(c_int, @intFromFloat(s.w));
+    const h = @as(c_int, @intFromFloat(s.h));
+    const comp = @as(c_int, @intCast(4));
+    const data: *anyopaque = switch (source) {
+        .pixels => |p| @constCast(@ptrCast(p.rgba.ptr)),
+        .pixelsPMA => |p| @constCast(@ptrCast(p.rgba.ptr)),
+        else => return error.InvalidImageSource,
+    };
+    const result = dvui.c.stbi_write_png_to_func(write, zip_file, w, h, comp, data, 0);
+
+    // if the result is 0 then it means an error occured (per stb image write docs)
+    if (result == 0) {
+        return error.CouldNotWriteImage;
+    }
+}
+
+pub fn writeSourceToPng(source: dvui.ImageSource, path: []const u8) !void {
+    const s = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
+
+    const w = @as(c_int, @intFromFloat(s.w));
+    const h = @as(c_int, @intFromFloat(s.h));
+    const comp = @as(c_int, @intCast(4));
+    const data: *anyopaque = switch (source) {
+        .pixels => |p| @constCast(@ptrCast(p.rgba.ptr)),
+        .pixelsPMA => |p| @constCast(@ptrCast(p.rgba.ptr)),
+        else => return error.InvalidImageSource,
+    };
+    const result = dvui.c.stbi_write_png(path, w, h, comp, data, 0);
+
+    // if the result is 0 then it means an error occured (per stb image write docs)
+    if (result == 0) {
+        return error.CouldNotWriteImage;
+    }
 }

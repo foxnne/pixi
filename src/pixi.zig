@@ -18,6 +18,7 @@ pub const algorithms = @import("algorithms/algorithms.zig");
 pub const fa = @import("tools/font_awesome.zig");
 pub const fs = @import("tools/fs.zig");
 pub const gfx = @import("gfx/gfx.zig");
+pub const image = @import("gfx/image.zig");
 pub const input = @import("input/input.zig");
 pub const math = @import("math/math.zig");
 pub const shaders = @import("shaders/shaders.zig");

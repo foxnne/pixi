@@ -92,7 +92,7 @@ pub fn init(
         .arena = .init(std.heap.page_allocator),
         .atlas = .{
             .data = try .loadFromFile(app.allocator, pixi.paths.@"pixi.atlas"),
-            .source = try pixi.fs.fromImageFilePath(pixi.paths.@"pixi.png", pixi.paths.@"pixi.png", .ptr),
+            .source = try pixi.fs.sourceFromImageFilePath(pixi.paths.@"pixi.png", pixi.paths.@"pixi.png", .ptr),
         },
         .tools = try .init(app.allocator),
         .allocator = app.allocator,
@@ -237,6 +237,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
         if (canvas_flipbook.showFirst()) {
             // Artboard Area
+
             const result = try editor.artboard.draw();
             if (result != .ok) {
                 return result;
