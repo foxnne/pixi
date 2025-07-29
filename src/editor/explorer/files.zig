@@ -101,13 +101,13 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         .color_border = .{ .color = color },
         .color_fill = .fill_window,
         .corner_radius = branch.button.wd.options.corner_radius,
-        .box_shadow = .{
-            .color = .{ .color = .black },
-            .offset = .{ .x = -5, .y = 5 },
-            .shrink = 5,
-            .fade = 10,
-            .alpha = 0.15,
-        },
+        // .box_shadow = .{
+        //     .color = .{ .color = .black },
+        //     .offset = .{ .x = -5, .y = 5 },
+        //     .shrink = 5,
+        //     .fade = 10,
+        //     .alpha = 0.15,
+        // },
         .expand = .both,
         .margin = .{ .x = 10, .w = 5 },
         .background = true,
@@ -318,7 +318,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         const icon_color = color;
 
-                        const text_color = dvui.themeGet().color_text;
+                        //const text_color = dvui.themeGet().color_text_press;
 
                         _ = dvui.icon(
                             @src(),
@@ -331,50 +331,27 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             },
                         );
 
-                        if (edit_path) |path| {
-                            if (std.mem.eql(u8, path, abs_path)) {
-                                const te = dvui.textEntry(@src(), .{ .placeholder = entry.name }, .{ .expand = .horizontal });
+                        dvui.label(
+                            @src(),
+                            "{s}",
+                            .{if (filter_text.len > 0) std.fs.path.relative(dvui.currentWindow().arena(), pixi.editor.folder.?, abs_path) catch entry.name else entry.name},
+                            .{
+                                .color_text = .{ .color = if (pixi.editor.getFileFromPath(abs_path) != null) dvui.themeGet().color_text else dvui.themeGet().color_text_press },
+                                .font_style = .body,
+                                .padding = padding,
+                            },
+                        );
 
-                                if (dvui.firstFrame(te.data().id)) {
-                                    dvui.focusWidget(te.data().id, null, null);
-                                }
-
-                                if (dvui.focusedWidgetId() != te.data().id) {
-                                    edit_path = null;
-                                }
-
-                                // if (te.text.len > 0) {
-                                //     const new_path = try std.fs.path.join(alloc, &.{ directory, te.text });
-                                //     defer alloc.free(new_path);
-
-                                //     // if (!std.mem.eql(u8, path, new_path)) {
-                                //     //     try std.fs.renameAbsolute(path, new_path);
-                                //     // }
-                                // }
-                                te.deinit();
-                            } else {
-                                dvui.label(
+                        if (pixi.editor.getFileFromPath(abs_path)) |file| {
+                            if (file.dirty()) {
+                                _ = dvui.icon(
                                     @src(),
-                                    "{s}",
-                                    .{entry.name},
-                                    .{
-                                        .color_text = .{ .color = text_color },
-                                        .font_style = .body,
-                                        .padding = padding,
-                                    },
+                                    "DirtyIcon",
+                                    icons.tvg.lucide.@"circle-small",
+                                    .{ .fill_color = dvui.themeGet().color_text },
+                                    .{ .gravity_y = 0.5 },
                                 );
                             }
-                        } else {
-                            dvui.label(
-                                @src(),
-                                "{s}",
-                                .{if (filter_text.len > 0) std.fs.path.relative(dvui.currentWindow().arena(), pixi.editor.folder.?, abs_path) catch entry.name else entry.name},
-                                .{
-                                    .color_text = .{ .color = text_color },
-                                    .font_style = .body,
-                                    .padding = padding,
-                                },
-                            );
                         }
 
                         if (branch.button.clicked()) {
@@ -410,7 +387,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             },
                         );
                         dvui.label(@src(), "{s}", .{folder_name}, .{
-                            .color_text = .{ .color = dvui.themeGet().color_text },
+                            .color_text = .{ .color = dvui.themeGet().color_text_press },
                             .font_style = .body,
                             .padding = padding,
                         });

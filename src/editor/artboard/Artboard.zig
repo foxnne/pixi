@@ -422,5 +422,23 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     path.addArc(br, rad.w, dvui.math.pi * 0.5, 0, @abs(br.y - tr.y) < 0.5);
     path.addArc(tr, rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, @abs(tr.x - tl.x) < 0.5);
 
-    path.build().fillConvex(.{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } });
+    { // Bubble shadows
+        // const triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = r.center(), .fade = 10 }) catch return;
+
+        // const black: dvui.Color = .black;
+        // const ca0 = black.opacity(0.1);
+        // const ca1 = black.opacity(0);
+
+        // for (triangles.vertexes) |*v| {
+        //     const t = std.math.clamp((v.pos.y - r.y) / r.h, 0.0, 1.0);
+        //     v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+        //     v.pos.y -= 3;
+        // }
+
+        // dvui.renderTriangles(triangles, null) catch {
+        //     std.log.err("Failed to render triangles", .{});
+        // };
+    }
+
+    path.build().fillConvex(.{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] }, .fade = 0.5 });
 }

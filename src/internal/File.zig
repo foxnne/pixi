@@ -250,6 +250,10 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
         .selected => file.layers.get(file.selected_layer_index),
     };
 
+    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
+        return;
+    }
+
     const column = @as(u32, @intFromFloat(point.x)) / file.tile_width;
     const row = @as(u32, @intFromFloat(point.y)) / file.tile_height;
 
