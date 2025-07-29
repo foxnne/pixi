@@ -52,7 +52,7 @@ pub fn draw() !void {
 pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     const unique_id = dvui.parentGet().extendId(@src(), 0);
 
-    var filter_hbox = dvui.box(@src(), .horizontal, .{ .expand = .horizontal });
+    var filter_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
     dvui.icon(
         @src(),
         "FilterIcon",

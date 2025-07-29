@@ -76,13 +76,12 @@ pub fn deinit(self: *Layer) void {
         .pixels => |p| pixi.app.allocator.free(p.rgba),
         .pixelsPMA => |p| pixi.app.allocator.free(p.rgba),
         .texture => |t| dvui.textureDestroyLater(t),
-        else => {},
     }
 
     pixi.app.allocator.free(self.name);
 }
 
-pub fn pixels(self: *Layer) [][4]u8 {
+pub fn pixels(self: *const Layer) [][4]u8 {
     return pixi.image.pixels(self.source);
 }
 
@@ -197,7 +196,7 @@ pub fn writeSourceToPng(layer: *const Layer, path: []const u8) !void {
 /// Takes a texture and a src rect and reduces the rect removing all fully transparent pixels
 /// If the src rect doesn't contain any opaque pixels, returns null
 pub fn reduce(layer: *Layer, src: [4]usize) ?[4]usize {
-    const layer_width = @as(usize, @intCast(layer.size().w));
+    const layer_width = @as(usize, @intFromFloat(layer.size().w));
     const read_pixels = layer.pixels();
 
     const src_x = src[0];

@@ -35,7 +35,7 @@ pub fn toastDisplay(id: dvui.WidgetId) !void {
 }
 
 pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, opts: dvui.Options) void {
-    const box = dvui.box(@src(), .horizontal, opts);
+    const box = dvui.box(@src(), .{ .dir = .horizontal }, opts);
     defer box.deinit();
 
     dvui.labelNoFmt(@src(), label_str, .{}, opts.strip());

@@ -10,7 +10,7 @@ const nfd = @import("nfd");
 // const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
-    var vbox = dvui.box(@src(), .vertical, .{});
+    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{});
     defer vbox.deinit();
 
     dvui.label(@src(), "{d:0>3.0} fps", .{dvui.FPS()}, .{});

@@ -19,7 +19,7 @@ const pixi = @import("pixi.zig");
 //const Core = mach.Core;
 const App = @This();
 const Editor = pixi.Editor;
-//const Packer = pixi.Packer;
+const Packer = pixi.Packer;
 //const Assets = pixi.Assets;
 
 // Mach module, systems, and main
@@ -117,6 +117,9 @@ pub fn AppInit(win: *dvui.Window) !void {
     pixi.editor = try allocator.create(Editor);
     pixi.editor.* = Editor.init(pixi.app) catch unreachable;
 
+    pixi.packer = try allocator.create(Packer);
+    pixi.packer.* = Packer.init(allocator) catch unreachable;
+
     setTitlebarColor(win, .{ 0.1647, 0.17254, 0.21176, 1.0 });
 
     dvui.addFont("CozetteVector", cozette_ttf, null) catch {};
@@ -136,14 +139,14 @@ pub fn AppInit(win: *dvui.Window) !void {
     theme.color_accent = .{ .r = 47, .g = 179, .b = 135, .a = 255 };
     theme.dark = true;
     theme.name = "Pixi Dark";
-    theme.font_body = .{ .name = "Vera", .size = 13 };
-    theme.font_caption = .{ .name = "CozetteVector", .size = 12 };
-    theme.font_title = .{ .name = "VeraBd", .size = 12 };
-    theme.font_title_1 = .{ .name = "Vera", .size = 14 };
-    theme.font_title_2 = .{ .name = "VeraBd", .size = 14 };
-    theme.font_title_3 = .{ .name = "VeraBd", .size = 15 };
-    theme.font_title_4 = .{ .name = "VeraBd", .size = 16 };
-    theme.font_heading = .{ .name = "Vera", .size = 14 };
+    theme.font_body = .{ .id = .fromName("Vera"), .size = 13 };
+    theme.font_caption = .{ .id = .fromName("CozetteVector"), .size = 12 };
+    theme.font_title = .{ .id = .fromName("VeraBd"), .size = 12 };
+    theme.font_title_1 = .{ .id = .fromName("Vera"), .size = 14 };
+    theme.font_title_2 = .{ .id = .fromName("VeraBd"), .size = 14 };
+    theme.font_title_3 = .{ .id = .fromName("VeraBd"), .size = 15 };
+    theme.font_title_4 = .{ .id = .fromName("VeraBd"), .size = 16 };
+    theme.font_heading = .{ .id = .fromName("Vera"), .size = 14 };
 
     dvui.themeSet(theme);
 }

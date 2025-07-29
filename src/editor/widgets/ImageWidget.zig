@@ -130,9 +130,9 @@ pub fn drawCursor(self: *ImageWidget) void {
         switch (e.evt) {
             .mouse => |me| {
                 if (me.action == .press and me.button == .right) {
-                    _ = dvui.cursorShow(true);
-                } else if (me.action == .release and me.button == .right) {
                     _ = dvui.cursorShow(false);
+                } else if (me.action == .release and me.button == .right) {
+                    _ = dvui.cursorShow(true);
                 }
             },
             else => {},
@@ -186,7 +186,7 @@ pub fn drawSample(self: *ImageWidget) void {
         const border_width = 2 / self.init_options.canvas.scale;
 
         // Position the sample box so that the data_point is at its center
-        const box = dvui.box(@src(), .horizontal, .{
+        const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
             .rect = .{
                 .x = data_point.x,
@@ -271,7 +271,7 @@ pub fn drawSample(self: *ImageWidget) void {
 pub fn drawImage(self: *ImageWidget) void {
     const size: dvui.Size = dvui.imageSize(self.init_options.source) catch .{ .w = 0, .h = 0 };
 
-    const shadow_box = dvui.box(@src(), .horizontal, .{
+    const shadow_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
         .rect = .{ .x = 0, .y = 0, .w = size.w, .h = size.h },
         .border = dvui.Rect.all(0),
@@ -329,7 +329,6 @@ pub fn processEvents(self: *ImageWidget) void {
 
     self.processSampleTool();
 
-    // Draw layers first, so that the scrolling bounding box is updated
     self.drawImage();
     self.drawCursor();
     self.drawSample();

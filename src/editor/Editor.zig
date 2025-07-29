@@ -52,7 +52,7 @@ folder: ?[:0]const u8 = null,
 /// The current project which, if present, handles export paths
 project: ?Project = null,
 /// Backing allocations for the project paths
-buffers: Buffers = .{},
+//buffers: Buffers = .{},
 
 previous_atlas_export: ?[:0]const u8 = null,
 //open_files: std.ArrayList(pixi.Internal.File) = undefined,
@@ -61,23 +61,22 @@ open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 open_file_index: usize = 0,
 open_reference_index: usize = 0,
 
-//atlas: pixi.Internal.Atlas = .{},
 tools: Tools,
 colors: Colors = .{},
 
 selection_time: f32 = 0.0,
 selection_invert: bool = false,
 
-clipboard_image: ?zstbi.Image = null,
-clipboard_position: [2]u32 = .{ 0, 0 },
+//clipboard_image: ?zstbi.Image = null,
+//clipboard_position: [2]u32 = .{ 0, 0 },
 
 counter: u64 = 0,
 
-pub const Buffers = struct {
-    atlas_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
-    texture_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
-    heightmap_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
-};
+// pub const Buffers = struct {
+//     atlas_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
+//     texture_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
+//     heightmap_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
+// };
 
 pub fn init(
     app: *App,
@@ -177,7 +176,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     if (explorer_artboard.showFirst()) {
         const hbox = dvui.box(
             @src(),
-            .horizontal,
+            .{ .dir = .horizontal },
             .{
                 .expand = .both,
                 .background = false,
@@ -203,7 +202,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     }
 
     if (explorer_artboard.showSecond()) {
-        const artboard_vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = false });
+        const artboard_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = false });
         defer artboard_vbox.deinit();
 
         {
@@ -245,7 +244,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
 
         if (canvas_flipbook.showSecond()) {
-            const vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+            const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
             defer vbox.deinit();
 
             {
@@ -467,7 +466,7 @@ pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
     try editor.recents.appendFolder(try pixi.app.allocator.dupeZ(u8, path));
     editor.explorer.pane = .files;
 
-    editor.project = Project.load() catch null;
+    editor.project = Project.load(pixi.app.allocator) catch null;
 }
 
 pub fn saving(editor: *Editor) bool {
@@ -648,6 +647,18 @@ pub fn getFile(editor: *Editor, index: usize) ?*pixi.Internal.File {
     return &editor.open_files.values()[index];
 }
 
+pub fn getFileFromPath(editor: *Editor, path: []const u8) ?*pixi.Internal.File {
+    if (editor.open_files.values().len == 0) return null;
+
+    for (editor.open_files.values()) |*file| {
+        if (std.mem.eql(u8, file.path, path)) {
+            return file;
+        }
+    }
+
+    return null;
+}
+
 pub fn getReference(editor: *Editor, index: usize) ?*pixi.Internal.Reference {
     if (editor.open_references.items.len == 0) return null;
     if (index >= editor.open_references.items.len) return null;
@@ -759,7 +770,7 @@ pub fn deinit(editor: *Editor) !void {
     // editor.allocator.free(editor.hotkeys.hotkeys);
     // editor.allocator.free(editor.mouse.buttons);
 
-    if (editor.clipboard_image) |*image| image.deinit();
+    //if (editor.clipboard_image) |*image| image.deinit();
 
     try editor.recents.save();
     editor.recents.deinit();
@@ -767,8 +778,13 @@ pub fn deinit(editor: *Editor) !void {
     try editor.settings.save(editor.allocator);
     editor.settings.deinit(editor.allocator);
 
-    if (editor.folder) |folder| editor.allocator.free(folder);
-    if (editor.project) |*project| project.deinit();
+    if (editor.project) |*project| {
+        project.save() catch {
+            dvui.log.err("Failed to save project file", .{});
+        };
+        project.deinit(editor.allocator);
+    }
 
+    if (editor.folder) |folder| editor.allocator.free(folder);
     editor.arena.deinit();
 }

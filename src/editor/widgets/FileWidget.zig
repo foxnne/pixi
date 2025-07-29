@@ -398,7 +398,7 @@ pub fn drawCursor(self: *FileWidget) void {
 
             const position = data_point.diff(origin);
 
-            const box = dvui.box(@src(), .horizontal, .{
+            const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
                 .rect = .{
                     .x = position.x,
@@ -473,7 +473,7 @@ pub fn drawSample(self: *FileWidget) void {
         const border_width = 2 / self.init_options.canvas.scale;
 
         // Position the sample box so that the data_point is at its center
-        const box = dvui.box(@src(), .horizontal, .{
+        const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
             .rect = .{
                 .x = data_point.x,
@@ -562,7 +562,7 @@ pub fn drawLayers(self: *FileWidget) void {
     const tiles_wide: usize = @intCast(@divExact(file.width, file.tile_width));
     const tiles_high: usize = @intCast(@divExact(file.height, file.tile_height));
 
-    const shadow_box = dvui.box(@src(), .horizontal, .{
+    const shadow_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
         .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
         .border = dvui.Rect.all(0),

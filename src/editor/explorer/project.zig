@@ -1,287 +1,329 @@
 const std = @import("std");
+const icons = @import("icons");
 
 const pixi = @import("../../pixi.zig");
+const dvui = @import("dvui");
 
-const Core = @import("mach").Core;
-const App = pixi.App;
-const Editor = pixi.Editor;
-const Packer = pixi.Packer;
-
-const nfd = @import("nfd");
-const imgui = @import("zig-imgui");
-
-pub fn draw(app: *App, editor: *Editor, packer: *Packer) !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 5.0 });
-    defer imgui.popStyleVar();
-    imgui.pushStyleColorImVec4(imgui.Col_Button, editor.theme.highlight_secondary.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonActive, editor.theme.highlight_secondary.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_ButtonHovered, editor.theme.hover_secondary.toImguiVec4());
-    defer imgui.popStyleColorEx(3);
-
-    const window_size = imgui.getContentRegionAvail();
-
-    if (editor.project) |*project| {
-        if (editor.folder) |project_folder| {
-            const project_path = try std.fs.path.joinZ(
-                editor.arena.allocator(),
-                &.{ project_folder, ".pixiproject" },
-            );
-
-            imgui.pushStyleColorImVec4(imgui.Col_Text, pixi.editor.theme.text_background.toImguiVec4());
-            imgui.text("Paths are relative to:");
-            imgui.textWrapped(project_folder);
-            imgui.text("Settings are being saved to:");
-            imgui.textWrapped(project_path);
-            imgui.popStyleColor();
-        } else {
-            editor.project.?.deinit();
-            editor.project = null;
-        }
-
-        var disable_hotkeys = false;
-        {
-            if (imgui.inputText(
-                "Atlas Output",
-                editor.buffers.atlas_path[0..],
-                editor.buffers.atlas_path.len,
-                imgui.InputTextFlags_AutoSelectAll,
-            )) {
-                const trimmed_text = std.mem.trim(u8, &editor.buffers.atlas_path, "\u{0}");
-                project.packed_atlas_output = trimmed_text;
-                try project.save();
-            }
-            if (imgui.isItemFocused()) disable_hotkeys = true;
-
-            if (project.packed_atlas_output) |packed_atlas_output| {
-                if (!std.mem.eql(u8, ".atlas", std.fs.path.extension(packed_atlas_output))) {
-                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Atlas file path must end with .atlas extension!");
-                }
-                if (std.mem.eql(u8, packed_atlas_output, "")) {
-                    project.packed_heightmap_output = null;
-                    try project.save();
-                }
-            }
-        }
-
-        {
-            if (imgui.inputText(
-                "Texture Output",
-                editor.buffers.texture_path[0..],
-                editor.buffers.texture_path.len,
-                imgui.InputTextFlags_AutoSelectAll,
-            )) {
-                const trimmed_text = std.mem.trim(u8, &editor.buffers.texture_path, "\u{0}");
-                project.packed_texture_output = trimmed_text;
-                try project.save();
-            }
-            if (imgui.isItemFocused()) disable_hotkeys = true;
-            if (project.packed_texture_output) |packed_texture_output| {
-                if (!std.mem.eql(u8, ".png", std.fs.path.extension(packed_texture_output)))
-                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Texture file path must end with .png extension!");
-
-                if (std.mem.eql(u8, packed_texture_output, "")) {
-                    project.packed_heightmap_output = null;
-                    try project.save();
-                }
-            }
-        }
-
-        {
-            if (imgui.inputText(
-                "Heightmap Output",
-                editor.buffers.heightmap_path[0..],
-                editor.buffers.heightmap_path.len,
-                imgui.InputTextFlags_AutoSelectAll,
-            )) {
-                const trimmed_text = std.mem.trim(u8, &editor.buffers.heightmap_path, "\u{0}");
-                project.packed_heightmap_output = trimmed_text;
-                try project.save();
-            }
-            if (imgui.isItemFocused()) disable_hotkeys = true;
-            if (project.packed_heightmap_output) |packed_heightmap_output| {
-                if (!std.mem.eql(u8, ".png", std.fs.path.extension(packed_heightmap_output))) {
-                    imgui.textColored(pixi.editor.theme.text_red.toImguiVec4(), "Heightmap file path must end with .png extension!");
-                }
-                if (std.mem.eql(u8, packed_heightmap_output, "")) {
-                    project.packed_heightmap_output = null;
-                    try project.save();
-                }
-            }
-        }
-
-        {
-            if (imgui.checkbox("Pack and Export on save", &project.pack_on_save)) {
-                try project.save();
-            }
-        }
-
-        if (imgui.buttonEx("Pack and Export", .{ .x = window_size.x, .y = 0.0 })) {
-            if (editor.folder) |project_folder| {
-                packer.target = .project;
-                try packer.appendProject();
-                try packer.packAndClear();
-                try project.exportAssets(project_folder);
-            }
-        }
-
-        editor.hotkeys.disable = disable_hotkeys;
-    } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-        imgui.textWrapped("No .pixiproject file found at project folder, would you like to create a project file to specify constant output paths and other project-specific behaviors?");
-        imgui.popStyleColor();
-
-        if (imgui.buttonEx("Create Project", .{ .x = window_size.x, .y = 0.0 })) {
-            if (editor.folder != null) {
-                editor.project = .{};
-            }
-
-            if (editor.project) |*project| try project.save();
-        }
-
-        {
-            const preview_text = switch (packer.target) {
-                .project => "Full Project",
-                .all_open => "All Open Files",
-                .single_open => "Current Open File",
+pub fn draw() !void {
+    if (pixi.editor.folder) |_| {
+        if (dvui.button(@src(), "Pack Project", .{ .draw_focus = false }, .{ .expand = .horizontal, .color_fill = .accent, .color_fill_press = .fill, .color_text = .fill })) {
+            pixi.packer.appendProject() catch {
+                dvui.log.err("Failed to append project", .{});
             };
 
-            if (imgui.beginCombo("Files", preview_text.ptr, imgui.ComboFlags_None)) {
-                defer imgui.endCombo();
-                if (imgui.menuItem("Full Project")) {
-                    packer.target = .project;
-                }
+            pixi.packer.packAndClear() catch {
+                dvui.log.err("Failed to pack project", .{});
+            };
+        }
+    }
 
-                {
-                    const enabled = if (editor.getFile(editor.open_file_index)) |_| true else false;
-                    if (imgui.menuItemEx("Current Open File", null, false, enabled)) {
-                        packer.target = .single_open;
+    if (pixi.editor.project) |_| {
+        if (pixi.editor.folder) |folder| {
+            const tl = dvui.textLayout(@src(), .{}, .{
+                .expand = .none,
+                .margin = dvui.Rect.all(0),
+                .background = false,
+            });
+            defer tl.deinit();
+
+            const project_path = std.fs.path.join(dvui.currentWindow().lifo(), &.{ folder, ".pixiproject" }) catch {
+                dvui.log.err("Failed to join project path", .{});
+                return;
+            };
+            defer dvui.currentWindow().lifo().free(project_path);
+
+            tl.addText(project_path, .{ .color_text = .text_press });
+        }
+    } else {
+        var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .horizontal,
+            .max_size_content = .{ .w = pixi.editor.explorer.scroll_info.virtual_size.w, .h = std.math.floatMax(f32) },
+        });
+        defer box.deinit();
+
+        const tl = dvui.textLayout(@src(), .{}, .{ .expand = .horizontal, .background = false });
+        tl.addText("No project file found!\n\n", .{});
+        tl.addText("Would you like to create a project file to specify constant output paths and other project-specific behaviors?\n", .{ .color_text = .text_press });
+        tl.deinit();
+
+        if (dvui.button(@src(), "Create Project", .{}, .{ .expand = .horizontal })) {
+            pixi.editor.project = .{};
+        }
+        return;
+    }
+
+    pathTextEntry(.atlas) catch {
+        dvui.log.err("Failed to draw path text entry", .{});
+    };
+    pathTextEntry(.image) catch {
+        dvui.log.err("Failed to draw path text entry", .{});
+    };
+
+    // {
+    //     var set_text: bool = false;
+    //     dvui.labelNoFmt(@src(), "Atlas Data Output:", .{}, .{});
+
+    //     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
+    //     defer box.deinit();
+
+    //     if (dvui.buttonIcon(@src(), "example.atlas", icons.tvg.lucide.@"folder-open", .{}, .{
+    //         .fill_color = .fromTheme(.text_press),
+    //     }, .{
+    //         .gravity_y = 0.5,
+    //         .padding = dvui.Rect.all(4),
+    //         .border = dvui.Rect.all(1),
+    //         .margin = .{ .x = 1, .w = 1 },
+    //     })) {
+    //         const valid_path: bool = blk: {
+    //             if (project.packed_atlas_output) |output| {
+    //                 const base_name = std.fs.path.basename(output);
+    //                 if (std.mem.indexOf(u8, output, base_name)) |i| {
+    //                     if (!std.fs.path.isAbsolute(output[0..i])) {
+    //                         break :blk false;
+    //                     }
+
+    //                     std.fs.accessAbsolute(output[0..i], .{}) catch {
+    //                         break :blk false;
+    //                     };
+    //                 } else {
+    //                     if (!std.fs.path.isAbsolute(output)) {
+    //                         break :blk false;
+    //                     }
+    //                     std.fs.accessAbsolute(output, .{}) catch {
+    //                         break :blk false;
+    //                     };
+    //                 }
+    //             }
+
+    //             break :blk true;
+    //         };
+
+    //         if (dvui.dialogNativeFileSave(pixi.app.allocator, .{
+    //             .title = "Select Atlas Data Output",
+    //             .filters = &.{".atlas"},
+    //             .filter_description = "Atlas file",
+    //             .path = if (valid_path) project.packed_atlas_output else null,
+    //         }) catch null) |path| {
+    //             project.packed_atlas_output = pixi.app.allocator.dupe(u8, path[0..]) catch null;
+    //             set_text = true;
+    //         } else {
+    //             dvui.log.err("Project failed to copy new path", .{});
+    //         }
+    //     }
+
+    //     const te = dvui.textEntry(@src(), .{
+    //         .placeholder = "example.atlas",
+    //     }, .{
+    //         .padding = dvui.Rect.all(5),
+    //         .expand = .horizontal,
+    //         .margin = dvui.Rect.all(0),
+    //         .color_text = if (project.packed_atlas_output) |_| .text else .text_press,
+    //     });
+
+    //     defer te.deinit();
+
+    //     if (project.packed_atlas_output) |packed_atlas_output| {
+    //         if (dvui.firstFrame(te.data().id) or set_text) {
+    //             te.textSet(packed_atlas_output, false);
+    //         }
+    //     }
+
+    //     if (te.text_changed) {
+    //         const t = te.getText();
+    //         if (t.len > 0) {
+    //             project.packed_atlas_output = pixi.app.allocator.dupe(u8, t) catch null;
+    //         } else {
+    //             project.packed_atlas_output = null;
+    //         }
+    //     }
+    // }
+
+    // _ = dvui.spacer(@src(), .{ .expand = .horizontal, .min_size_content = .{ .h = 10 } });
+
+    // {
+    //     var set_text: bool = false;
+    //     dvui.labelNoFmt(@src(), "Atlas Image Output:", .{}, .{});
+
+    //     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
+    //     defer box.deinit();
+
+    //     if (dvui.buttonIcon(@src(), "example.atlas", icons.tvg.lucide.@"folder-open", .{}, .{
+    //         .fill_color = .fromTheme(.text_press),
+    //     }, .{
+    //         .gravity_y = 0.5,
+    //         .padding = dvui.Rect.all(4),
+    //         .border = dvui.Rect.all(1),
+    //         .margin = .{ .x = 1, .w = 1 },
+    //     })) {
+    //         const valid_path: bool = blk: {
+    //             if (project.packed_image_output) |output| {
+    //                 const base_name = std.fs.path.basename(output);
+    //                 if (std.mem.indexOf(u8, output, base_name)) |i| {
+    //                     if (!std.fs.path.isAbsolute(output[0..i])) {
+    //                         break :blk false;
+    //                     }
+
+    //                     std.fs.accessAbsolute(output[0..i], .{}) catch {
+    //                         break :blk false;
+    //                     };
+    //                 } else {
+    //                     if (!std.fs.path.isAbsolute(output)) {
+    //                         break :blk false;
+    //                     }
+    //                     std.fs.accessAbsolute(output, .{}) catch {
+    //                         break :blk false;
+    //                     };
+    //                 }
+    //             }
+
+    //             break :blk true;
+    //         };
+
+    //         if (dvui.dialogNativeFileSave(pixi.app.allocator, .{
+    //             .title = "Select Atlas Image Output",
+    //             .filters = &.{".png"},
+    //             .filter_description = "Image file",
+    //             .path = if (valid_path) project.packed_image_output else null,
+    //         }) catch null) |path| {
+    //             project.packed_image_output = pixi.app.allocator.dupe(u8, path[0..]) catch null;
+    //             set_text = true;
+    //         } else {
+    //             dvui.log.err("Project failed to copy new path", .{});
+    //         }
+    //     }
+
+    //     const te = dvui.textEntry(@src(), .{
+    //         .placeholder = "example.png",
+    //     }, .{
+    //         .padding = dvui.Rect.all(5),
+    //         .expand = .horizontal,
+    //         .margin = dvui.Rect.all(0),
+    //         .color_text = if (project.packed_image_output) |_| .text else .text_press,
+    //     });
+
+    //     defer te.deinit();
+
+    //     if (project.packed_image_output) |packed_image_output| {
+    //         if (dvui.firstFrame(te.data().id) or set_text) {
+    //             te.textSet(packed_image_output, false);
+    //         }
+    //     }
+
+    //     if (te.text_changed) {
+    //         const t = te.getText();
+    //         if (t.len > 0) {
+    //             project.packed_image_output = pixi.app.allocator.dupe(u8, t) catch null;
+    //         } else {
+    //             project.packed_image_output = null;
+    //         }
+    //     }
+    // }
+
+    if (pixi.editor.folder != null) {}
+}
+
+const PathType = enum {
+    atlas,
+    image,
+};
+
+fn pathTextEntry(path_type: PathType) !void {
+    if (pixi.editor.project) |*project| {
+        const output_path = switch (path_type) {
+            .atlas => &project.packed_atlas_output,
+            .image => &project.packed_image_output,
+        };
+
+        const index: usize = switch (path_type) {
+            .atlas => 0,
+            .image => 1,
+        };
+
+        defer _ = dvui.spacer(@src(), .{ .id_extra = index });
+
+        const label_text = switch (path_type) {
+            .atlas => "Atlas Data Output:",
+            .image => "Image Data Output:",
+        };
+
+        var set_text: bool = false;
+        dvui.labelNoFmt(@src(), label_text, .{}, .{
+            .id_extra = index,
+        });
+
+        var box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = index });
+        defer box.deinit();
+
+        if (dvui.buttonIcon(@src(), "example.atlas", icons.tvg.lucide.@"folder-open", .{}, .{
+            .fill_color = .fromTheme(.text_press),
+        }, .{
+            .gravity_y = 0.5,
+            .padding = dvui.Rect.all(4),
+            .border = dvui.Rect.all(1),
+            .margin = .{ .x = 1, .w = 1 },
+            .id_extra = index,
+        })) {
+            const valid_path: bool = blk: {
+                if (output_path.*) |output| {
+                    const base_name = std.fs.path.basename(output);
+                    if (std.mem.indexOf(u8, output, base_name)) |i| {
+                        if (!std.fs.path.isAbsolute(output[0..i])) {
+                            break :blk false;
+                        }
+
+                        std.fs.accessAbsolute(output[0..i], .{}) catch {
+                            break :blk false;
+                        };
+                    } else {
+                        if (!std.fs.path.isAbsolute(output)) {
+                            break :blk false;
+                        }
+                        std.fs.accessAbsolute(output, .{}) catch {
+                            break :blk false;
+                        };
                     }
                 }
 
-                {
-                    const enabled = if (editor.open_files.items.len > 1) true else false;
-                    if (imgui.menuItemEx("All Open Files", null, false, enabled)) {
-                        packer.target = .all_open;
-                    }
-                }
-            }
+                break :blk true;
+            };
 
-            var packable: bool = true;
-            if (packer.target == .project and editor.folder == null) packable = false;
-            if (packer.target == .all_open and editor.open_files.items.len <= 1) packable = false;
-            if (editor.saving()) {
-                imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-                defer imgui.popStyleColor();
-                imgui.textWrapped("Please wait until all files are done saving.");
-                packable = false;
-            }
-
-            if (!packable)
-                imgui.beginDisabled(true);
-            if (imgui.buttonEx("Pack", .{ .x = window_size.x, .y = 0.0 })) {
-                switch (packer.target) {
-                    .project => {
-                        try packer.appendProject();
-                        try packer.packAndClear();
-                    },
-                    .all_open => {
-                        for (editor.open_files.items) |*file| {
-                            try packer.append(file);
-                        }
-                        try packer.packAndClear();
-                    },
-                    .single_open => {
-                        if (editor.getFile(editor.open_file_index)) |file| {
-                            try packer.append(file);
-                            try packer.packAndClear();
-                        }
-                    },
-                }
-            }
-            if (!packable)
-                imgui.endDisabled();
-
-            if (packer.target == .project and editor.folder == null) {
-                imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-                defer imgui.popStyleColor();
-                imgui.textWrapped("Select a project folder to pack.");
+            if (dvui.dialogNativeFileSave(pixi.app.allocator, .{
+                .title = "Select Atlas Data Output",
+                .filters = &.{".atlas"},
+                .filter_description = "Atlas file",
+                .path = if (valid_path) output_path.* else null,
+            }) catch null) |new_path| {
+                output_path.* = pixi.app.allocator.dupe(u8, new_path[0..]) catch null;
+                set_text = true;
+            } else {
+                dvui.log.err("Project failed to copy new path", .{});
             }
         }
 
-        if (editor.atlas.data) |data| {
-            imgui.text("Atlas Details");
-            imgui.text("Sprites: %d", data.sprites.len);
-            imgui.text("Animations: %d", data.animations.len);
-            if (editor.atlas.texture) |texture| {
-                imgui.text("Atlas size: %dx%d", texture.width, texture.height);
+        const te = dvui.textEntry(@src(), .{
+            .placeholder = "example.atlas",
+        }, .{
+            .padding = dvui.Rect.all(5),
+            .expand = .horizontal,
+            .margin = dvui.Rect.all(0),
+            .color_text = if (output_path.*) |_| .text else .text_press,
+            .id_extra = index,
+        });
+
+        defer te.deinit();
+
+        if (output_path.*) |packed_atlas_output| {
+            if (dvui.firstFrame(te.data().id) or set_text) {
+                te.textSet(packed_atlas_output, false);
             }
+        }
 
-            if (imgui.buttonEx("Export", .{ .x = window_size.x, .y = 0.0 })) {
-                editor.popups.file_dialog_request = .{
-                    .state = .save,
-                    .type = .export_atlas,
-                };
-            }
-
-            if (editor.popups.file_dialog_response) |response| {
-                if (response.type == .export_atlas) {
-                    try editor.recents.appendExport(try app.allocator.dupeZ(u8, response.path));
-
-                    const atlas_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}.atlas", .{response.path});
-                    const texture_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}.png", .{response.path});
-                    const heightmap_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}_h.png", .{response.path});
-
-                    try editor.atlas.save(atlas_path, .data);
-                    try editor.atlas.save(texture_path, .texture);
-                    try editor.atlas.save(heightmap_path, .heightmap);
-
-                    nfd.freePath(response.path);
-                    editor.popups.file_dialog_response = null;
-                }
-            }
-
-            if (editor.recents.exports.items.len > 0) {
-                if (imgui.buttonEx("Repeat Last Export", .{ .x = window_size.x, .y = 0.0 })) {
-                    const atlas_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}.atlas", .{editor.recents.exports.getLast()});
-                    const texture_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}.png", .{editor.recents.exports.getLast()});
-                    const heightmap_path = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s}_h.png", .{editor.recents.exports.getLast()});
-
-                    try editor.atlas.save(atlas_path, .data);
-                    try editor.atlas.save(texture_path, .texture);
-                    try editor.atlas.save(heightmap_path, .heightmap);
-                }
-                imgui.textWrapped(editor.recents.exports.getLast());
-
-                imgui.spacing();
-                imgui.separatorText("Recents");
-                imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
-                defer imgui.popStyleColor();
-                if (imgui.beginChild("Recents", .{
-                    .x = imgui.getWindowWidth() - editor.settings.explorer_grip,
-                    .y = 0.0,
-                }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-                    defer imgui.endChild();
-
-                    var i: usize = editor.recents.exports.items.len;
-                    while (i > 0) {
-                        i -= 1;
-                        const exp = editor.recents.exports.items[i];
-                        const label = try std.fmt.allocPrintZ(
-                            editor.arena.allocator(),
-                            "{s} {s}",
-                            .{ pixi.fa.file_download, std.fs.path.basename(exp) },
-                        );
-
-                        if (imgui.selectable(label)) {
-                            const exp_out = editor.recents.exports.swapRemove(i);
-                            try editor.recents.appendExport(exp_out);
-                        }
-                        imgui.sameLineEx(0.0, 5.0);
-                        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-                        imgui.text(exp);
-                        imgui.popStyleColor();
-                    }
-                }
+        if (te.text_changed) {
+            const t = te.getText();
+            if (t.len > 0) {
+                output_path.* = pixi.app.allocator.dupe(u8, t) catch null;
+            } else {
+                output_path.* = null;
             }
         }
     }

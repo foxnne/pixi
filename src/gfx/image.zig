@@ -73,7 +73,7 @@ pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: [4]u32, tra
 
     const s = size(source);
 
-    const tex_width = @as(usize, @intCast(s.w));
+    const tex_width = @as(usize, @intFromFloat(s.w));
 
     var yy = y;
     var h = height;
@@ -85,9 +85,9 @@ pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: [4]u32, tra
         if (!transparent) {
             @memcpy(d, src_row);
         } else {
-            for (src_row, d) |src, dst| {
+            for (src_row, d) |src, *dst| {
                 if (src[3] > 0) {
-                    dst = src;
+                    dst.* = src;
                 }
             }
         }

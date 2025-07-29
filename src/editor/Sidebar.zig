@@ -17,7 +17,7 @@ pub fn deinit() void {
 }
 
 pub fn draw(_: Sidebar) !dvui.App.Result {
-    const vbox = dvui.box(@src(), .vertical, .{
+    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .vertical,
         .background = false,
         .min_size_content = .{ .w = 40, .h = 100 },
@@ -100,7 +100,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !void {
         });
         defer animator.deinit();
 
-        var vbox2 = dvui.box(@src(), .vertical, dvui.FloatingTooltipWidget.defaults.override(.{
+        var vbox2 = dvui.box(@src(), .{ .dir = .vertical }, dvui.FloatingTooltipWidget.defaults.override(.{
             .background = false,
             .expand = .both,
             .border = dvui.Rect.all(0),

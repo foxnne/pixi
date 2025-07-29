@@ -12,11 +12,11 @@ const update = @import("update.zig");
 const GitDependency = update.GitDependency;
 fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
     const deps = &.{
-        GitDependency{
-            // zstbi
-            .url = "https://github.com/foxnne/zstbi",
-            .branch = "main",
-        },
+        // GitDependency{
+        //     // zstbi
+        //     .url = "https://github.com/foxnne/zstbi",
+        //     .branch = "main",
+        // },
         GitDependency{
             // mach_objc
             .url = "https://github.com/foxnne/mach-objc",
@@ -44,35 +44,45 @@ pub fn build(b: *std.Build) !void {
     step.makeFn = update_step;
     // if true return
 
-    const zstbi = b.dependency("zstbi", .{ .target = target, .optimize = optimize });
+    //const zstbi = b.dependency("zstbi", .{ .target = target, .optimize = optimize });
 
     const zip_pkg = zip.package(b, .{});
 
     const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl3 });
 
-    const timerModule = b.addModule("timer", .{ .root_source_file = .{ .cwd_relative = "src/tools/timer.zig" } });
+    //const timerModule = b.addModule("timer", .{ .root_source_file = .{ .cwd_relative = "src/tools/timer.zig" } });
+
+    const zstbi_lib = b.addStaticLibrary(.{
+        .name = "zstbi",
+        .root_source_file = .{ .cwd_relative = "src/deps/stbi/zstbi.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    const zstbi_module = zstbi_lib.root_module;
+
+    zstbi_lib.addCSourceFile(.{ .file = std.Build.path(b, "src/deps/stbi/zstbi.c") });
 
     // quantization library
-    const quantizeLib = b.addStaticLibrary(.{
-        .name = "quantize",
-        .root_source_file = .{ .cwd_relative = "src/tools/quantize/quantize.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    addImport(quantizeLib, "timer", timerModule);
-    const quantizeModule = quantizeLib.root_module;
+    // const quantizeLib = b.addStaticLibrary(.{
+    //     .name = "quantize",
+    //     .root_source_file = .{ .cwd_relative = "src/tools/quantize/quantize.zig" },
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    // addImport(quantizeLib, "timer", timerModule);
+    // const quantizeModule = quantizeLib.root_module;
 
     // zgif library
-    const zgifLibrary = b.addStaticLibrary(.{
-        .name = "zgif",
-        .root_source_file = .{ .cwd_relative = "src/tools/gif.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    addCGif(b, zgifLibrary);
-    addImport(zgifLibrary, "quantize", quantizeModule);
-    const zgif_module = zgifLibrary.root_module;
-    zgif_module.addImport("zstbi", zstbi.module("root"));
+    // const zgifLibrary = b.addStaticLibrary(.{
+    //     .name = "zgif",
+    //     .root_source_file = .{ .cwd_relative = "src/tools/gif.zig" },
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    // addCGif(b, zgifLibrary);
+    // addImport(zgifLibrary, "quantize", quantizeModule);
+    // const zgif_module = zgifLibrary.root_module;
+    //zgif_module.addImport("zstbi",);
 
     const exe = b.addExecutable(.{
         .name = "Pixi",
@@ -92,7 +102,7 @@ pub fn build(b: *std.Build) !void {
     const run_cmd = b.addRunArtifact(exe);
     const run_step = b.step("run", "Run the example");
 
-    exe.root_module.addImport("zstbi", zstbi.module("root"));
+    exe.root_module.addImport("zstbi", zstbi_module);
     exe.root_module.addImport("nfd", nfd.getModule(b));
     exe.root_module.addImport("zip", zip_pkg.module);
     exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl3"));
@@ -100,7 +110,7 @@ pub fn build(b: *std.Build) !void {
         exe.root_module.addImport("icons", dep.module("icons"));
     }
 
-    exe.root_module.addImport("zgif", zgif_module);
+    //exe.root_module.addImport("zgif", zgif_module);
     const nfd_lib = nfd.makeLib(b, target, optimize);
     exe.root_module.addImport("nfd", nfd_lib);
 
@@ -117,7 +127,7 @@ pub fn build(b: *std.Build) !void {
     }
 
     exe.linkLibCpp();
-    exe.linkLibrary(zstbi.artifact("zstbi"));
+    //exe.linkLibrary(zstbi.artifact("zstbi"));
     zip.link(exe);
 
     // const assets = try ProcessAssetsStep.init(b, "assets", "src/generated/");

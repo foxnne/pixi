@@ -67,7 +67,7 @@ const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
 pub fn draw(self: *Artboard) !dvui.App.Result {
 
     // Canvas Area
-    var vbox = dvui.box(@src(), .vertical, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
     defer vbox.deinit();
 
     if (pixi.editor.explorer.pane == .project) {
@@ -81,21 +81,23 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
 }
 
 fn drawProject(self: *Artboard) void {
-    var canvas_vbox = dvui.box(@src(), .vertical, .{ .expand = .both });
+    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
     defer {
         self.drawShadows(canvas_vbox.data().rectScale());
         canvas_vbox.deinit();
     }
 
-    var image_widget = pixi.dvui.ImageWidget.init(@src(), .{
-        .source = pixi.editor.atlas.source,
-        .canvas = &pixi.editor.atlas.canvas,
-    }, .{
-        .expand = .both,
-    });
-    defer image_widget.deinit();
+    if (pixi.packer.atlas) |*atlas| {
+        var image_widget = pixi.dvui.ImageWidget.init(@src(), .{
+            .source = atlas.source,
+            .canvas = &atlas.canvas,
+        }, .{
+            .expand = .both,
+        });
+        defer image_widget.deinit();
 
-    image_widget.processEvents();
+        image_widget.processEvents();
+    }
 }
 
 fn drawTabs(_: *Artboard) void {
@@ -137,7 +139,7 @@ fn drawTabs(_: *Artboard) void {
                     pixi.editor.open_file_index = i;
                 }
 
-                const hbox = dvui.box(@src(), .horizontal, .{
+                const hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .background = true,
                     .color_fill = if (hovered) .fill else .fill_window,
                 });
@@ -189,7 +191,7 @@ fn drawTabs(_: *Artboard) void {
 }
 
 pub fn drawCanvas(self: *Artboard) !void {
-    var canvas_vbox = dvui.box(@src(), .vertical, .{ .expand = .both });
+    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
     defer {
         dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
         self.drawShadows(canvas_vbox.data().rectScale());
@@ -272,7 +274,7 @@ pub fn drawLogo(_: *Artboard) !void {
         const logo_width = 3;
         const logo_height = 5;
 
-        const logo_vbox = dvui.box(@src(), .vertical, .{
+        const logo_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
             .expand = .none,
             .gravity_x = 0.5,
             .gravity_y = 0.5,
@@ -282,7 +284,7 @@ pub fn drawLogo(_: *Artboard) !void {
 
         { // Logo
 
-            const vbox2 = dvui.box(@src(), .vertical, .{
+            const vbox2 = dvui.box(@src(), .{ .dir = .vertical }, .{
                 .expand = .none,
                 .gravity_x = 0.5,
                 .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size * logo_height },
@@ -291,7 +293,7 @@ pub fn drawLogo(_: *Artboard) !void {
             defer vbox2.deinit();
 
             for (0..5) |i| {
-                const hbox = dvui.box(@src(), .horizontal, .{
+                const hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .none,
                     .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size },
                     .margin = dvui.Rect.all(0),
@@ -312,45 +314,7 @@ pub fn drawLogo(_: *Artboard) !void {
 
                     const color = pixi_color.bytes();
 
-                    // if (i == 0) {
-                    //     if (j == 0) {
-                    //         const pixel = dvui.box(@src(), .horizontal, .{
-                    //             .expand = .none,
-                    //             .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
-                    //             .id_extra = j,
-                    //             .background = true,
-                    //             .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                    //             .margin = dvui.Rect.all(0),
-                    //             .padding = dvui.Rect.all(0),
-                    //         });
-                    //         defer pixel.deinit();
-                    //     } else if (j == 1) {
-                    //         const pixel = dvui.box(@src(), .horizontal, .{
-                    //             .expand = .none,
-                    //             .min_size_content = .{ .w = logo_pixel_size * 2, .h = logo_pixel_size },
-                    //             .id_extra = j,
-                    //             .background = true,
-                    //             .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                    //             .margin = dvui.Rect.all(0),
-                    //             .padding = dvui.Rect.all(0),
-                    //         });
-                    //         defer pixel.deinit();
-                    //     }
-                    // } else if (i == 2) {
-                    //     if (j == 0) {
-                    //         const pixel = dvui.box(@src(), .horizontal, .{
-                    //             .expand = .none,
-                    //             .min_size_content = .{ .w = logo_pixel_size * 3, .h = logo_pixel_size },
-                    //             .id_extra = j,
-                    //             .background = true,
-                    //             .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
-                    //             .margin = dvui.Rect.all(0),
-                    //             .padding = dvui.Rect.all(0),
-                    //         });
-                    //         defer pixel.deinit();
-                    //     }
-                    // } else if (i > 0) {
-                    const pixel = dvui.box(@src(), .horizontal, .{
+                    const pixel = dvui.box(@src(), .{ .dir = .horizontal }, .{
                         .expand = .none,
                         .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
                         .id_extra = index,
@@ -372,9 +336,9 @@ pub fn drawLogo(_: *Artboard) !void {
                     const rs = pixel.data().rectScale();
                     pixel.deinit();
 
-                    try drawBubble(rect, rs, color, index);
+                    if (pixi_color.value[3] <= 0.0) continue;
 
-                    //}
+                    try drawBubble(rect, rs, color, index);
                 }
             }
         }
@@ -437,7 +401,7 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
 
     const corner_radius: dvui.Rect = .{ .x = rs.r.w / 2.0, .y = rs.r.h / 2.0 };
 
-    var box = dvui.box(@src(), .horizontal, .{
+    var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .rect = new_rect,
         .id_extra = id_extra,
         .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
