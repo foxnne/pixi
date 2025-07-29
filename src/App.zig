@@ -141,12 +141,12 @@ pub fn AppInit(win: *dvui.Window) !void {
     theme.name = "Pixi Dark";
     theme.font_body = .{ .id = .fromName("Vera"), .size = 13 };
     theme.font_caption = .{ .id = .fromName("CozetteVector"), .size = 12 };
-    theme.font_title = .{ .id = .fromName("VeraBd"), .size = 12 };
+    theme.font_title = .{ .id = .fromName("VeraBd"), .size = 11 };
     theme.font_title_1 = .{ .id = .fromName("Vera"), .size = 14 };
     theme.font_title_2 = .{ .id = .fromName("VeraBd"), .size = 14 };
     theme.font_title_3 = .{ .id = .fromName("VeraBd"), .size = 15 };
     theme.font_title_4 = .{ .id = .fromName("VeraBd"), .size = 16 };
-    theme.font_heading = .{ .id = .fromName("Vera"), .size = 14 };
+    theme.font_heading = .{ .id = .fromName("VeraBd"), .size = 13 };
 
     dvui.themeSet(theme);
 }

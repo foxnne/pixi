@@ -370,7 +370,7 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     var new_rect = dvui.Rect{
         .x = rect.x - (1 / dvui.currentWindow().rectScale().s),
         .y = rect.y - rect.h,
-        .w = rect.w + (1 / dvui.currentWindow().rectScale().s),
+        .w = rect.w + (1 / dvui.currentWindow().rectScale().s) / 2,
         .h = rect.h,
     };
 
@@ -417,10 +417,10 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     const bl = dvui.Point.Physical{ .x = r.x + rad.h, .y = r.y + r.h - rad.h };
     const br = dvui.Point.Physical{ .x = r.x + r.w - rad.w, .y = r.y + r.h - rad.w };
     const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + rad.y };
-    path.addArc(tl, rad.x, dvui.math.pi * 1.5, dvui.math.pi, @abs(tl.y - bl.y) < 0.5);
-    path.addArc(bl, rad.h, dvui.math.pi, dvui.math.pi * 0.5, @abs(bl.x - br.x) < 0.5);
-    path.addArc(br, rad.w, dvui.math.pi * 0.5, 0, @abs(br.y - tr.y) < 0.5);
-    path.addArc(tr, rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, @abs(tr.x - tl.x) < 0.5);
+    path.addArc(tl, rad.x, dvui.math.pi * 1.5, dvui.math.pi, true);
+    path.addArc(bl, rad.h, dvui.math.pi, dvui.math.pi * 0.5, true);
+    path.addArc(br, rad.w, dvui.math.pi * 0.5, 0, true);
+    path.addArc(tr, rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
 
     { // Bubble shadows
         // const triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = r.center(), .fade = 10 }) catch return;

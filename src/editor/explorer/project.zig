@@ -6,7 +6,13 @@ const dvui = @import("dvui");
 
 pub fn draw() !void {
     if (pixi.editor.folder) |_| {
-        if (dvui.button(@src(), "Pack Project", .{ .draw_focus = false }, .{ .expand = .horizontal, .color_fill = .accent, .color_fill_press = .fill, .color_text = .fill })) {
+        if (dvui.button(@src(), "Pack Project", .{ .draw_focus = false }, .{
+            .expand = .horizontal,
+            .color_fill = .accent,
+            .color_fill_press = .fill,
+            .color_fill_hover = .accent,
+            .color_text = .fill,
+        })) {
             pixi.packer.appendProject() catch {
                 dvui.log.err("Failed to append project", .{});
             };

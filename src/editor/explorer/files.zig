@@ -84,9 +84,17 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         .{ .fill_color = color },
         .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
     );
-    dvui.label(@src(), "{s}", .{folder}, .{
+
+    var fmt_string = std.fmt.allocPrint(dvui.currentWindow().lifo(), comptime "{s}", .{folder}) catch unreachable;
+    defer dvui.currentWindow().lifo().free(fmt_string);
+
+    for (fmt_string, 0..) |c, i| {
+        fmt_string[i] = std.ascii.toUpper(c);
+    }
+
+    dvui.labelNoFmt(@src(), fmt_string, .{}, .{
         .color_fill = .{ .color = color },
-        .font_style = .heading,
+        .font_style = .title,
         .gravity_y = 0.5,
     });
     _ = dvui.icon(
