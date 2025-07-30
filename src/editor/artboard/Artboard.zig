@@ -370,7 +370,7 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     var new_rect = dvui.Rect{
         .x = rect.x - (1 / dvui.currentWindow().rectScale().s),
         .y = rect.y - rect.h,
-        .w = rect.w + (1 / dvui.currentWindow().rectScale().s) / 2,
+        .w = rect.w + (1 / dvui.currentWindow().rectScale().s),
         .h = rect.h,
     };
 
@@ -413,7 +413,7 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     const rad = corner_radius;
     const r = box.data().contentRectScale().r;
     box.deinit();
-    const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + rad.x };
+    const tl = dvui.Point.Physical{ .x = r.x + rad.x + 2, .y = r.y + rad.x };
     const bl = dvui.Point.Physical{ .x = r.x + rad.h, .y = r.y + r.h - rad.h };
     const br = dvui.Point.Physical{ .x = r.x + r.w - rad.w, .y = r.y + r.h - rad.w };
     const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + rad.y };
