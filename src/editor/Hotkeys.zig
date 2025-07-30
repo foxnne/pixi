@@ -26,6 +26,7 @@ pub fn register() !void {
     try window.keybinds.putNoClobber(window.gpa, "shift", .{ .shift = true });
     try window.keybinds.putNoClobber(window.gpa, "increase_stroke_size", .{ .key = .right_bracket });
     try window.keybinds.putNoClobber(window.gpa, "decrease_stroke_size", .{ .key = .left_bracket });
+    try window.keybinds.putNoClobber(window.gpa, "quick_tools", .{ .key = .space });
 }
 
 pub fn tick() !void {

@@ -413,7 +413,7 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     const rad = corner_radius;
     const r = box.data().contentRectScale().r;
     box.deinit();
-    const tl = dvui.Point.Physical{ .x = r.x + rad.x + 2, .y = r.y + rad.x };
+    const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + rad.x };
     const bl = dvui.Point.Physical{ .x = r.x + rad.h, .y = r.y + r.h - rad.h };
     const br = dvui.Point.Physical{ .x = r.x + r.w - rad.w, .y = r.y + r.h - rad.w };
     const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + rad.y };
@@ -440,5 +440,5 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
         // };
     }
 
-    path.build().fillConvex(.{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] }, .fade = 0.5 });
+    path.build().fillConvex(.{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] }, .fade = 1.0 });
 }

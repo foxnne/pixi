@@ -14,7 +14,7 @@ const nfd = @import("nfd");
 pub const Explorer = @This();
 
 pub const files = @import("files.zig");
-// pub const tools = @import("tools.zig");
+pub const tools = @import("tools.zig");
 // pub const layers = @import("layers.zig");
 // pub const sprites = @import("sprites.zig");
 // pub const animations = @import("animations.zig");
@@ -75,25 +75,30 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         .expand = .both,
         .background = false,
     });
-    defer pane_vbox.deinit();
 
     var scroll = dvui.scrollArea(@src(), .{ .scroll_info = &explorer.scroll_info }, .{
         .expand = .both,
         .background = false,
         .color_fill = .fill,
     });
-    defer scroll.deinit();
 
     switch (explorer.pane) {
         .files => try files.draw(),
         .settings => try settings.draw(),
         .project => try project.draw(),
+        .tools => try tools.draw(),
         else => {},
     }
 
+    const vertical_scroll = scroll.si.offset(.vertical);
+    const horizontal_scroll = scroll.si.offset(.horizontal);
+
+    scroll.deinit();
+    pane_vbox.deinit();
+
     // Only draw shadow if the scroll bar has been scrolled some
-    if (scroll.si.offset(.vertical) > 0.0) {
-        var rs = scroll.data().contentRectScale();
+    if (vertical_scroll > 0.0) {
+        var rs = vbox.data().contentRectScale();
         rs.r.h = 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
@@ -116,7 +121,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     }
 
     if (explorer.scroll_info.virtual_size.w > explorer.scroll_info.viewport.w) {
-        var rs = scroll.data().contentRectScale();
+        var rs = vbox.data().contentRectScale();
         rs.r.x += rs.r.w - 20;
 
         if (explorer.scroll_info.virtual_size.h > explorer.scroll_info.viewport.h) {
@@ -144,8 +149,8 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         path.deinit();
     }
 
-    if (scroll.si.offset(.horizontal) > 0.0) {
-        var rs = scroll.data().contentRectScale();
+    if (horizontal_scroll > 0.0) {
+        var rs = vbox.data().contentRectScale();
         rs.r.w = 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
