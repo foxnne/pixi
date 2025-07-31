@@ -12,8 +12,8 @@ pub const Tool = enum(u32) {
     pointer,
     pencil,
     eraser,
-    animation,
-    heightmap,
+    //animation,
+    //heightmap,
     bucket,
     selection,
 };
@@ -23,11 +23,18 @@ pub const Shape = enum(u32) {
     square,
 };
 
+pub const RadialMenu = struct {
+    mouse_position: dvui.Point.Physical = .{ .x = 0.0, .y = 0.0 },
+    center: dvui.Point.Physical = .{ .x = 0.0, .y = 0.0 },
+    visible: bool = false,
+};
+
 current: Tool = .pointer,
 previous: Tool = .pointer,
 stroke_size: u8 = 1,
 stroke_shape: Shape = .circle,
 previous_drawing_tool: Tool = .pencil,
+radial_menu: RadialMenu = .{},
 
 stroke: std.StaticBitSet(max_brush_size * max_brush_size) = .initEmpty(),
 offset_table: [][2]f32 = undefined,

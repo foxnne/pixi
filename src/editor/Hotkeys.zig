@@ -41,6 +41,15 @@ pub fn tick() !void {
                     }
                 }
 
+                if (ke.matchBind("quick_tools")) {
+                    pixi.editor.tools.radial_menu.visible = switch (ke.action) {
+                        .down, .repeat => true,
+                        .up => false,
+                    };
+                }
+
+                // TODO: Move these to the file widget and make them consume the event there
+
                 if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
                     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
                         file.history.undoRedo(file, .undo) catch {

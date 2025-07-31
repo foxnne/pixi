@@ -386,24 +386,24 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             }
             pixi.editor.explorer.pane = .animations;
         },
-        .heightmap_restore_delete => |*heightmap_restore_delete| {
-            const a = heightmap_restore_delete.action;
-            switch (a) {
-                .restore => {
-                    file.heightmap.layer = file.deleted_heightmap_layers.pop();
-                    heightmap_restore_delete.action = .delete;
-                },
-                .delete => {
-                    try file.deleted_heightmap_layers.append(pixi.app.allocator, file.heightmap.layer.?);
-                    file.heightmap.layer = null;
-                    heightmap_restore_delete.action = .restore;
-                    if (pixi.editor.tools.current == .heightmap) {
-                        pixi.editor.tools.set(.pointer);
-                    }
-                },
-            }
-        },
-        //else => {},
+        // .heightmap_restore_delete => |*heightmap_restore_delete| {
+        //     const a = heightmap_restore_delete.action;
+        //     switch (a) {
+        //         .restore => {
+        //             file.heightmap.layer = file.deleted_heightmap_layers.pop();
+        //             heightmap_restore_delete.action = .delete;
+        //         },
+        //         .delete => {
+        //             try file.deleted_heightmap_layers.append(pixi.app.allocator, file.heightmap.layer.?);
+        //             file.heightmap.layer = null;
+        //             heightmap_restore_delete.action = .restore;
+        //             if (pixi.editor.tools.current == .heightmap) {
+        //                 pixi.editor.tools.set(.pointer);
+        //             }
+        //         },
+        //     }
+        // },
+        else => {},
     }
 
     if (!temporary) {
