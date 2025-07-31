@@ -202,11 +202,13 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 rect.x -= rect.w / 2.0;
                 rect.y -= rect.h / 2.0;
 
+                const tool = @as(Editor.Tools.Tool, @enumFromInt(i));
+
                 var button = dvui.ButtonWidget.init(@src(), .{}, .{
                     .rect = rect,
                     .id_extra = i,
                     .corner_radius = dvui.Rect.all(1000.0),
-                    .color_fill = .fill_window,
+                    .color_fill = if (tool == editor.tools.current) .fill_hover else .fill_window,
                     .box_shadow = .{
                         .color = .black,
                         .offset = .{ .x = -1.0, .y = 1.0 },
@@ -253,6 +255,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     std.log.err("Failed to render image", .{});
                 };
                 angle += step;
+
+                if (button.clicked()) {
+                    editor.tools.set(tool);
+                }
 
                 button.deinit();
             }

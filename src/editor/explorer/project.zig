@@ -5,7 +5,7 @@ const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 
 pub fn draw() !void {
-    if (pixi.editor.folder) |_| {
+    if (pixi.editor.folder) |folder| {
         if (dvui.button(@src(), "Pack Project", .{ .draw_focus = false }, .{
             .expand = .horizontal,
             .color_fill = .accent,
@@ -21,10 +21,30 @@ pub fn draw() !void {
                 dvui.log.err("Failed to pack project", .{});
             };
         }
-    }
 
-    if (pixi.editor.project) |_| {
-        if (pixi.editor.folder) |folder| {
+        if (pixi.editor.project) |project| {
+            if (pixi.packer.atlas) |atlas| {
+                if (dvui.button(@src(), "Export Project", .{ .draw_focus = false }, .{
+                    .expand = .horizontal,
+                    .color_fill = .accent,
+                    .color_fill_press = .fill,
+                    .color_fill_hover = .accent,
+                    .color_text = .fill,
+                })) {
+                    if (project.packed_atlas_output) |output| {
+                        atlas.save(output, .data) catch {
+                            dvui.log.err("Failed to save atlas data", .{});
+                        };
+                    }
+
+                    if (project.packed_image_output) |image_output| {
+                        atlas.save(image_output, .source) catch {
+                            dvui.log.err("Failed to save atlas image", .{});
+                        };
+                    }
+                }
+            }
+
             const tl = dvui.textLayout(@src(), .{}, .{
                 .expand = .none,
                 .margin = dvui.Rect.all(0),
@@ -39,31 +59,31 @@ pub fn draw() !void {
             defer dvui.currentWindow().lifo().free(project_path);
 
             tl.addText(project_path, .{ .color_text = .text_press });
-        }
-    } else {
-        var box = dvui.box(@src(), .{ .dir = .vertical }, .{
-            .expand = .horizontal,
-            .max_size_content = .{ .w = pixi.editor.explorer.scroll_info.virtual_size.w, .h = std.math.floatMax(f32) },
-        });
-        defer box.deinit();
+        } else {
+            var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+                .expand = .horizontal,
+                .max_size_content = .{ .w = pixi.editor.explorer.scroll_info.virtual_size.w, .h = std.math.floatMax(f32) },
+            });
+            defer box.deinit();
 
-        const tl = dvui.textLayout(@src(), .{}, .{ .expand = .horizontal, .background = false });
-        tl.addText("No project file found!\n\n", .{});
-        tl.addText("Would you like to create a project file to specify constant output paths and other project-specific behaviors?\n", .{ .color_text = .text_press });
-        tl.deinit();
+            const tl = dvui.textLayout(@src(), .{}, .{ .expand = .horizontal, .background = false });
+            tl.addText("No project file found!\n\n", .{});
+            tl.addText("Would you like to create a project file to specify constant output paths and other project-specific behaviors?\n", .{ .color_text = .text_press });
+            tl.deinit();
 
-        if (dvui.button(@src(), "Create Project", .{}, .{ .expand = .horizontal })) {
-            pixi.editor.project = .{};
+            if (dvui.button(@src(), "Create Project", .{}, .{ .expand = .horizontal })) {
+                pixi.editor.project = .{};
+            }
+            return;
         }
-        return;
+
+        pathTextEntry(.atlas) catch {
+            dvui.log.err("Failed to draw path text entry", .{});
+        };
+        pathTextEntry(.image) catch {
+            dvui.log.err("Failed to draw path text entry", .{});
+        };
     }
-
-    pathTextEntry(.atlas) catch {
-        dvui.log.err("Failed to draw path text entry", .{});
-    };
-    pathTextEntry(.image) catch {
-        dvui.log.err("Failed to draw path text entry", .{});
-    };
 
     // {
     //     var set_text: bool = false;
@@ -225,7 +245,6 @@ pub fn draw() !void {
     //     }
     // }
 
-    if (pixi.editor.folder != null) {}
 }
 
 const PathType = enum {
@@ -249,7 +268,7 @@ fn pathTextEntry(path_type: PathType) !void {
 
         const label_text = switch (path_type) {
             .atlas => "Atlas Data Output:",
-            .image => "Image Data Output:",
+            .image => "Atlas Image Output:",
         };
 
         var set_text: bool = false;

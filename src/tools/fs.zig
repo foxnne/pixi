@@ -118,20 +118,22 @@ pub fn writeSourceToZip(
 }
 
 pub fn writeSourceToPng(source: dvui.ImageSource, path: []const u8) !void {
-    const s = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
+    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
 
-    const w = @as(c_int, @intFromFloat(s.w));
-    const h = @as(c_int, @intFromFloat(s.h));
-    const comp = @as(c_int, @intCast(4));
-    const data: *anyopaque = switch (source) {
-        .pixels => |p| @constCast(@ptrCast(p.rgba.ptr)),
-        .pixelsPMA => |p| @constCast(@ptrCast(p.rgba.ptr)),
+    const w: u32 = @intFromFloat(s.w);
+    const h: u32 = @intFromFloat(s.h);
+    const data: []u8 = switch (source) {
+        .pixels => |p| @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
+        .pixelsPMA => |p| @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
         else => return error.InvalidImageSource,
     };
-    const result = dvui.c.stbi_write_png(path, w, h, comp, data, 0);
 
-    // if the result is 0 then it means an error occured (per stb image write docs)
-    if (result == 0) {
-        return error.CouldNotWriteImage;
-    }
+    var handle = try std.fs.cwd().createFile(path, .{});
+    defer handle.close();
+
+    const out_stream = handle.writer();
+
+    const png_encoded = dvui.pngEncode(dvui.currentWindow().arena(), data, w, h, .{}) catch return error.CouldNotWriteImage;
+
+    out_stream.writeAll(png_encoded) catch return error.CouldNotWriteImage;
 }
