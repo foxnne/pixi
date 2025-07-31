@@ -183,6 +183,11 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     angle += ((1 - val) * 100.0) * 0.015;
                 }
 
+                var color = dvui.themeGet().color_fill_hover;
+                if (pixi.editor.colors.file_tree_palette) |*palette| {
+                    color = palette.getDVUIColor(i);
+                }
+
                 const x: f32 = std.math.round(width / 2.0 + radius * std.math.cos(angle) - width / 2.0);
                 const y: f32 = std.math.round(height / 2.0 + radius * std.math.sin(angle) - height / 2.0);
 
@@ -208,10 +213,12 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                         .fade = 8.0,
                         .alpha = 0.3,
                     },
+                    .border = dvui.Rect.all(1.0),
+                    .color_border = .{ .color = color },
                 });
 
                 const sprite = switch (@as(Editor.Tools.Tool, @enumFromInt(i))) {
-                    .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
+                    .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.dropper_default],
                     .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
                     .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
                     .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],

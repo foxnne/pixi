@@ -18,8 +18,13 @@ pub fn drawTools() !void {
         const tool: pixi.Editor.Tools.Tool = @enumFromInt(i);
         const id_extra = i;
 
+        var color = dvui.themeGet().color_fill_hover;
+        if (pixi.editor.colors.file_tree_palette) |*palette| {
+            color = palette.getDVUIColor(i);
+        }
+
         const sprite = switch (tool) {
-            .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
+            .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.dropper_default],
             .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
             .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
             .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
@@ -27,11 +32,21 @@ pub fn drawTools() !void {
         };
         var button = dvui.ButtonWidget.init(@src(), .{}, .{
             .expand = .none,
-            .min_size_content = .{ .w = 24, .h = 24 },
+            .min_size_content = .{ .w = 32, .h = 32 },
             .id_extra = id_extra,
             .background = true,
             .corner_radius = dvui.Rect.all(1000),
-            .color_fill = if (pixi.editor.tools.current == tool) .fill else .fill_window,
+            .color_fill = if (pixi.editor.tools.current == tool) .fill_hover else .fill_window,
+            .color_fill_hover = .fill,
+            .color_fill_press = .fill_hover,
+            .box_shadow = if (pixi.editor.tools.current == tool) null else .{
+                .color = .black,
+                .offset = .{ .x = 0, .y = 0 },
+                .fade = 8.0,
+                .alpha = 0.15,
+            },
+            .border = dvui.Rect.all(1.0),
+            .color_border = .{ .color = color },
         });
         defer button.deinit();
 
