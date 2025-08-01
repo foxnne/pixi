@@ -176,7 +176,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             var angle: f32 = 180.0;
 
             for (0..tool_count) |i| {
-                var anim = dvui.animate(@src(), .{ .duration = 100_000 + 50_000 * @as(i32, @intCast(i)), .kind = .horizontal, .easing = dvui.easing.linear }, .{
+                var anim = dvui.animate(@src(), .{ .duration = 100_000 + 50_000 * @as(i32, @intCast(i)), .kind = .alpha, .easing = dvui.easing.linear }, .{
                     .id_extra = i,
                 });
                 defer anim.deinit();

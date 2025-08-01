@@ -1,3 +1,4 @@
+const std = @import("std");
 const dvui = @import("dvui");
 const builtin = @import("builtin");
 const icons = @import("icons");
@@ -7,6 +8,15 @@ pub const FileWidget = Widgets.FileWidget;
 pub const TabsWidget = Widgets.TabsWidget;
 pub const ImageWidget = Widgets.ImageWidget;
 pub const CanvasWidget = Widgets.CanvasWidget;
+pub const ReorderWidget = Widgets.ReorderWidget;
+
+pub fn reorder(src: std.builtin.SourceLocation, opts: dvui.Options) *ReorderWidget {
+    var ret = dvui.widgetAlloc(ReorderWidget);
+    ret.* = ReorderWidget.init(src, opts);
+    ret.install();
+    ret.processEvents();
+    return ret;
+}
 
 pub fn toastDisplay(id: dvui.WidgetId) !void {
     const message = dvui.dataGetSlice(null, id, "_message", []u8) orelse {

@@ -595,6 +595,9 @@ pub fn drawLayers(self: *FileWidget) void {
 
     while (layer_index > 0) {
         layer_index -= 1;
+
+        if (!file.layers.items(.visible)[layer_index]) continue;
+
         const image = dvui.image(@src(), .{ .source = file.layers.items(.source)[layer_index] }, .{
             .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
             .border = dvui.Rect.all(0),
