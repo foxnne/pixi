@@ -164,14 +164,16 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 editor.tools.radial_menu.center = editor.tools.radial_menu.mouse_position;
             }
 
+            const center = fw.data().rectScale().pointFromPhysical(editor.tools.radial_menu.center);
+
             const tool_count: usize = std.meta.fields(Editor.Tools.Tool).len;
 
-            const radius: f32 = 75.0;
+            const radius: f32 = 50.0;
             const width: f32 = radius * 2.0;
             const height: f32 = radius * 2.0;
             const step: f32 = (2.0 * std.math.pi) / @as(f32, @floatFromInt(tool_count));
 
-            var angle: f32 = step;
+            var angle: f32 = 180.0;
 
             for (0..tool_count) |i| {
                 var anim = dvui.animate(@src(), .{ .duration = 100_000 + 50_000 * @as(i32, @intCast(i)), .kind = .horizontal, .easing = dvui.easing.linear }, .{
@@ -191,14 +193,12 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 const x: f32 = std.math.round(width / 2.0 + radius * std.math.cos(angle) - width / 2.0);
                 const y: f32 = std.math.round(height / 2.0 + radius * std.math.sin(angle) - height / 2.0);
 
-                const center = fw.data().rectScale().pointFromPhysical(editor.tools.radial_menu.center);
-
                 const new_center = center.plus(.{ .x = x, .y = y });
 
                 var rect = dvui.Rect.fromPoint(new_center);
 
-                rect.w = 64.0;
-                rect.h = 64.0;
+                rect.w = 48.0;
+                rect.h = 48.0;
                 rect.x -= rect.w / 2.0;
                 rect.y -= rect.h / 2.0;
 
@@ -211,9 +211,9 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     .color_fill = if (tool == editor.tools.current) .fill_hover else .fill_window,
                     .box_shadow = .{
                         .color = .black,
-                        .offset = .{ .x = -1.0, .y = 1.0 },
+                        .offset = .{ .x = -4.0, .y = 4.0 },
                         .fade = 8.0,
-                        .alpha = 0.3,
+                        .alpha = 0.25,
                     },
                     .border = dvui.Rect.all(1.0),
                     .color_border = .{ .color = color },
@@ -251,12 +251,13 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
                 dvui.renderImage(pixi.editor.atlas.source, rs, .{
                     .uv = uv,
+                    .fade = 0.0,
                 }) catch {
                     std.log.err("Failed to render image", .{});
                 };
                 angle += step;
 
-                if (button.clicked()) {
+                if (button.clicked() or button.hovered()) {
                     editor.tools.set(tool);
                 }
 

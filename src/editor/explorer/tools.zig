@@ -32,21 +32,20 @@ pub fn drawTools() !void {
         };
         var button = dvui.ButtonWidget.init(@src(), .{}, .{
             .expand = .none,
-            .min_size_content = .{ .w = 32, .h = 32 },
+            .min_size_content = .{ .w = 24, .h = 24 },
             .id_extra = id_extra,
             .background = true,
             .corner_radius = dvui.Rect.all(1000),
             .color_fill = if (pixi.editor.tools.current == tool) .fill_hover else .fill_window,
-            .color_fill_hover = .fill,
-            .color_fill_press = .fill_hover,
-            .box_shadow = if (pixi.editor.tools.current == tool) null else .{
+            .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = 0, .y = 0 },
+                .offset = .{ .x = -4.0, .y = 4.0 },
                 .fade = 8.0,
-                .alpha = 0.15,
+                .alpha = 0.25,
             },
             .border = dvui.Rect.all(1.0),
             .color_border = .{ .color = color },
+            .margin = .{ .h = 10.0, .w = 4, .x = 4, .y = 4 },
         });
         defer button.deinit();
 
@@ -75,6 +74,7 @@ pub fn drawTools() !void {
 
         dvui.renderImage(pixi.editor.atlas.source, rs, .{
             .uv = uv,
+            .fade = 0.0,
         }) catch {
             std.log.err("Failed to render image", .{});
         };
