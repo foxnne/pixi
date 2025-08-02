@@ -3,12 +3,27 @@ const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 const icons = @import("icons");
 
+var scroll_info: dvui.ScrollInfo = .{};
 var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
 
 pub fn draw() !void {
     drawTools() catch {};
-    drawLayers() catch {};
+    var paned = dvui.paned(@src(), .{
+        .direction = .vertical,
+        .collapsed_size = 300,
+        .handle_size = 2,
+        .handle_dynamic = .{},
+    }, .{ .expand = .both, .background = true });
+    defer paned.deinit();
+
+    if (paned.showFirst()) {
+        drawLayers() catch {};
+    }
+
+    if (paned.showSecond()) {
+        dvui.labelNoFmt(@src(), "COLORS", .{}, .{ .font_style = .title });
+    }
 }
 
 pub fn drawTools() !void {
@@ -93,13 +108,15 @@ pub fn drawLayers() !void {
     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
         dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title });
 
-        var scroll_area = dvui.scrollArea(@src(), .{}, .{
-            .expand = .horizontal,
+        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &scroll_info }, .{
+            .expand = .both,
             .background = false,
+
             .corner_radius = dvui.Rect.all(1000),
-            .max_size_content = .{ .h = 300, .w = std.math.floatMax(f32) },
         });
         defer scroll_area.deinit();
+
+        const vertical_scroll = scroll_info.offset(.vertical);
 
         var reorderable = pixi.dvui.reorder(@src(), .{
             .expand = .horizontal,
@@ -200,6 +217,54 @@ pub fn drawLayers() !void {
 
         if (reorderable.finalSlot()) {
             insert_before_index = file.layers.len;
+        }
+
+        // Only draw shadow if the scroll bar has been scrolled some
+        if (vertical_scroll > 0.0) {
+            var rs = scroll_area.data().contentRectScale();
+            rs.r.h = 20.0;
+
+            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+            path.addRect(rs.r, dvui.Rect.Physical.all(5));
+
+            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+
+            const black: dvui.Color = .black;
+            const ca0 = black.opacity(0.2);
+            const ca1 = black.opacity(0);
+
+            for (triangles.vertexes) |*v| {
+                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
+                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+            }
+            try dvui.renderTriangles(triangles, null);
+
+            triangles.deinit(dvui.currentWindow().arena());
+            path.deinit();
+        }
+
+        if (scroll_info.virtual_size.h > scroll_info.viewport.h and vertical_scroll < scroll_info.scrollMax(.vertical)) {
+            var rs = scroll_area.data().contentRectScale();
+            rs.r.y += rs.r.h - 20;
+            rs.r.h = 20;
+
+            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+            path.addRect(rs.r, dvui.Rect.Physical.all(5));
+
+            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+
+            const black: dvui.Color = .black;
+            const ca0 = black.opacity(0.0);
+            const ca1 = black.opacity(0.2);
+
+            for (triangles.vertexes) |*v| {
+                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
+                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+            }
+            try dvui.renderTriangles(triangles, null);
+
+            triangles.deinit(dvui.currentWindow().arena());
+            path.deinit();
         }
     }
 }

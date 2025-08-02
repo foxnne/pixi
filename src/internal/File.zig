@@ -332,6 +332,14 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
         .selected => file.layers.get(file.selected_layer_index),
     };
 
+    if (point1.x < 0 or point1.x >= @as(f32, @floatFromInt(file.width)) or point1.y < 0 or point1.y >= @as(f32, @floatFromInt(file.height))) {
+        return;
+    }
+
+    if (point2.x < 0 or point2.x >= @as(f32, @floatFromInt(file.width)) or point2.y < 0 or point2.y >= @as(f32, @floatFromInt(file.height))) {
+        return;
+    }
+
     const column = @as(u32, @intFromFloat(point2.x)) / file.tile_width;
     const row = @as(u32, @intFromFloat(point2.y)) / file.tile_height;
 
