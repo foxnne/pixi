@@ -10,6 +10,23 @@ pub const ImageWidget = Widgets.ImageWidget;
 pub const CanvasWidget = Widgets.CanvasWidget;
 pub const ReorderWidget = Widgets.ReorderWidget;
 
+pub fn hovered(wd: *dvui.WidgetData) bool {
+    for (dvui.events()) |*event| {
+        if (!dvui.eventMatchSimple(event, wd)) {
+            continue;
+        }
+
+        switch (event.evt) {
+            .mouse => |mouse| {
+                return wd.borderRectScale().r.contains(mouse.p);
+            },
+            else => {},
+        }
+    }
+
+    return false;
+}
+
 pub fn reorder(src: std.builtin.SourceLocation, opts: dvui.Options) *ReorderWidget {
     var ret = dvui.widgetAlloc(ReorderWidget);
     ret.* = ReorderWidget.init(src, opts);

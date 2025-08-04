@@ -6,6 +6,7 @@ const icons = @import("icons");
 var scroll_info: dvui.ScrollInfo = .{};
 var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
+var edit_layer_id: ?u64 = null;
 
 pub fn draw() !void {
     drawTools() catch {};
@@ -136,6 +137,20 @@ pub fn drawLayers() !void {
 
         if (insert_before_index) |insert_before| {
             if (removed_index) |removed| {
+                const order = try pixi.app.allocator.alloc(u64, file.layers.len);
+
+                for (file.layers.items(.id), 0..) |id, i| {
+                    order[i] = id;
+                }
+                file.history.append(.{
+                    .layers_order = .{
+                        .order = order,
+                        .selected = file.layers.items(.id)[file.selected_layer_index],
+                    },
+                }) catch {
+                    std.log.err("Failed to append history", .{});
+                };
+
                 const layer = file.layers.get(removed);
                 file.layers.orderedRemove(removed);
 
@@ -207,61 +222,102 @@ pub fn drawLayers() !void {
 
             _ = pixi.dvui.ReorderWidget.draggable(@src(), .{ .reorderable = r, .tvg_bytes = icons.tvg.lucide.@"grip-horizontal", .color = .fromTheme(.text_press) }, .{ .expand = .none, .gravity_y = 0.5, .margin = .{ .x = 4, .w = 4 } });
 
-            dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{ .gravity_y = 0.5 });
+            //dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{ .gravity_y = 0.5 });
 
-            var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .expand = .none,
-                .background = false,
-                .gravity_x = 1.0,
-            });
-            defer button_box.deinit();
-
-            if (dvui.buttonIcon(
-                @src(),
-                "collapse_button",
-                if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-up-from-line" else icons.tvg.lucide.@"arrow-down-to-line",
-                .{ .draw_focus = false },
-                .{},
-                .{
-                    .expand = .none,
-                    .id_extra = layer_index,
+            if (edit_layer_id != file.layers.items(.id)[layer_index]) {
+                if (dvui.labelClick(@src(), "{s}", .{file.layers.items(.name)[layer_index]}, .{}, .{
                     .gravity_y = 0.5,
-                    .corner_radius = dvui.Rect.all(1000),
-                },
-            )) {
-                file.layers.items(.collapse)[layer_index] = !file.layers.items(.collapse)[layer_index];
+                    .margin = dvui.Rect.all(0),
+                    .padding = dvui.Rect.all(0),
+                })) {
+                    edit_layer_id = file.layers.items(.id)[layer_index];
+                }
+            } else {
+                var te = dvui.textEntry(@src(), .{}, .{
+                    .expand = .horizontal,
+                    .background = false,
+                    .padding = dvui.Rect.all(0),
+                    .margin = dvui.Rect.all(0),
+                    .gravity_y = 0.5,
+                });
+                defer te.deinit();
+
+                if (dvui.firstFrame(te.data().id)) {
+                    te.textSet(file.layers.items(.name)[layer_index], true);
+                    dvui.focusWidget(te.data().id, null, null);
+                }
+
+                if (te.enter_pressed or dvui.focusedWidgetId() != te.data().id) {
+                    if (!std.mem.eql(u8, file.layers.items(.name)[layer_index], te.getText()) and te.getText().len > 0) {
+                        file.history.append(.{
+                            .layer_name = .{
+                                .index = layer_index,
+                                .name = try pixi.app.allocator.dupe(u8, file.layers.items(.name)[layer_index]),
+                            },
+                        }) catch {
+                            std.log.err("Failed to append history", .{});
+                        };
+                        pixi.app.allocator.free(file.layers.items(.name)[layer_index]);
+                        file.layers.items(.name)[layer_index] = try pixi.app.allocator.dupe(u8, te.getText());
+                    }
+                    edit_layer_id = null;
+                }
             }
 
-            if (dvui.buttonIcon(
-                @src(),
-                "hide_button",
-                if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed",
-                .{ .draw_focus = false },
-                .{},
-                .{
-                    .expand = .none,
-                    .id_extra = layer_index,
-                    .gravity_y = 0.5,
-                    .corner_radius = dvui.Rect.all(1000),
-                },
-            )) {
-                file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
-            }
+            if (reorderable.drag_point == null) {
+                var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .none, .background = false, .gravity_x = 1.0, .min_size_content = .{ .w = 20.0, .h = 20.0 } });
+                defer button_box.deinit();
 
-            if (dvui.buttonIcon(
-                @src(),
-                "delete_button",
-                icons.tvg.lucide.trash,
-                .{ .draw_focus = false },
-                .{},
-                .{
-                    .expand = .none,
-                    .id_extra = layer_index,
-                    .gravity_y = 0.5,
-                    .corner_radius = dvui.Rect.all(1000),
-                },
-            )) {
-                std.log.info("delete layer {d}", .{layer_index});
+                if (dvui.buttonIcon(
+                    @src(),
+                    "collapse_button",
+                    if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-up-from-line" else icons.tvg.lucide.@"arrow-down-to-line",
+                    .{ .draw_focus = false },
+                    .{ .fill_color = .fromTheme(.text_press) },
+                    .{
+                        .expand = .none,
+                        .id_extra = layer_index,
+                        .gravity_y = 0.5,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .margin = dvui.Rect.all(1),
+                    },
+                )) {
+                    file.layers.items(.collapse)[layer_index] = !file.layers.items(.collapse)[layer_index];
+                }
+
+                if (dvui.buttonIcon(
+                    @src(),
+                    "hide_button",
+                    if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed",
+                    .{ .draw_focus = false },
+                    .{ .fill_color = .fromTheme(.text_press) },
+                    .{
+                        .expand = .none,
+                        .id_extra = layer_index,
+                        .gravity_y = 0.5,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .margin = dvui.Rect.all(1),
+                    },
+                )) {
+                    file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+                }
+
+                if (dvui.buttonIcon(
+                    @src(),
+                    "delete_button",
+                    icons.tvg.lucide.trash,
+                    .{ .draw_focus = false },
+                    .{ .fill_color = .fromTheme(.err) },
+                    .{
+                        .expand = .none,
+                        .id_extra = layer_index,
+                        .gravity_y = 0.5,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .margin = dvui.Rect.all(1),
+                    },
+                )) {
+                    std.log.info("delete layer {d}", .{layer_index});
+                }
             }
         }
 

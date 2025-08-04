@@ -56,7 +56,7 @@ pub const Change = union(ChangeType) {
     };
     pub const LayerName = struct {
         index: usize,
-        name: [Editor.Constants.max_name_len:0]u8,
+        name: []u8,
     };
     pub const LayerSettings = struct {
         index: usize,
@@ -286,7 +286,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             }
 
             for (layers_order.order, 0..) |id, i| {
-                if (file.layers.slice().get(i).id == id) continue;
+                if (file.layers.items(.id)[i] == id) continue;
 
                 // Save current layer
                 const current_layer = file.layers.slice().get(i);
@@ -326,12 +326,10 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             pixi.editor.explorer.pane = .tools;
         },
         .layer_name => |*layer_name| {
-            var name = [_:0]u8{0} ** Editor.Constants.max_name_len;
-            @memcpy(name[0..layer_name.name.len], &layer_name.name);
-            layer_name.name = [_:0]u8{0} ** Editor.Constants.max_name_len;
-            @memcpy(layer_name.name[0..file.layers.items(.name)[layer_name.index].len], file.layers.items(.name)[layer_name.index]);
+            const name = try pixi.app.allocator.dupe(u8, file.layers.items(.name)[layer_name.index]);
             pixi.app.allocator.free(file.layers.items(.name)[layer_name.index]);
-            file.layers.items(.name)[layer_name.index] = try pixi.app.allocator.dupeZ(u8, &name);
+            file.layers.items(.name)[layer_name.index] = try pixi.app.allocator.dupe(u8, layer_name.name);
+            layer_name.name = name;
             pixi.editor.explorer.pane = .tools;
         },
         .layer_settings => |*layer_settings| {
