@@ -112,7 +112,6 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point) void 
         }
     }
 
-    pixi.editor.colors.secondary = pixi.editor.colors.primary;
     pixi.editor.colors.primary = color;
 
     self.sample_data_point = point;

@@ -102,7 +102,6 @@ pub fn init(
     editor.open_files = .init(editor.allocator);
     //editor.open_references = std.ArrayList(pixi.Internal.Reference).init(editor.allocator);
 
-    editor.colors.keyframe_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
     editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
 
     try Hotkeys.register();
@@ -889,7 +888,7 @@ pub fn deinit(editor: *Editor) !void {
     //if (editor.atlas.texture) |*texture| texture.deinit();
     //if (editor.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (editor.colors.palette) |*palette| palette.deinit();
-    if (editor.colors.keyframe_palette) |*keyframe_palette| keyframe_palette.deinit();
+    if (editor.colors.file_tree_palette) |*palette| palette.deinit();
 
     // editor.allocator.free(editor.hotkeys.hotkeys);
     // editor.allocator.free(editor.mouse.buttons);

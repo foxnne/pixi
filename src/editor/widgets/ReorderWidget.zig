@@ -332,7 +332,7 @@ pub const Reorderable = struct {
 
     pub fn reinstall2(self: *Reorderable) void {
         // reinstall ourselves getting the next rect from parent
-        self.wd = WidgetData.init(self.wd.src, .{}, self.options);
+        self.wd = WidgetData.init(self.wd.src, .{}, self.options.override(.{ .min_size_content = self.reorder.reorderable_size }));
         self.wd.register();
         dvui.parentSet(self.widget());
     }

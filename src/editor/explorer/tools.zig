@@ -29,7 +29,7 @@ pub fn draw() !void {
     }
 
     if (paned.showSecond()) {
-        dvui.labelNoFmt(@src(), "COLORS", .{}, .{ .font_style = .title });
+        drawColors() catch {};
     }
 }
 
@@ -112,11 +112,16 @@ pub fn drawTools() !void {
 }
 
 pub fn drawLayers() !void {
+    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+        .background = false,
+    });
+    defer vbox.deinit();
+
     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &scroll_info }, .{
             .expand = .both,
             .background = false,
-
             .corner_radius = dvui.Rect.all(1000),
         });
         defer scroll_area.deinit();
@@ -153,7 +158,7 @@ pub fn drawLayers() !void {
             .expand = .horizontal,
             .background = false,
             .corner_radius = dvui.Rect.all(1000),
-            .margin = .{ .h = 4, .w = 4, .x = 4, .y = 4 },
+            .margin = dvui.Rect.all(4),
         });
         defer box.deinit();
 
@@ -171,6 +176,7 @@ pub fn drawLayers() !void {
                 .id_extra = layer_index,
                 .expand = .horizontal,
                 .corner_radius = dvui.Rect.all(1000),
+                .min_size_content = .{ .w = 0.0, .h = reorderable.reorderable_size.h },
             });
             defer r.deinit();
 
@@ -181,7 +187,7 @@ pub fn drawLayers() !void {
             }
 
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .expand = .horizontal,
+                .expand = .both,
                 .background = true,
                 .color_fill = .fill_window,
                 .corner_radius = dvui.Rect.all(1000),
@@ -196,7 +202,6 @@ pub fn drawLayers() !void {
                     .alpha = 0.15,
                     .corner_radius = dvui.Rect.all(1000),
                 },
-                .min_size_content = .{ .w = 28.0, .h = 28.0 },
             });
             defer hbox.deinit();
 
@@ -211,13 +216,52 @@ pub fn drawLayers() !void {
             });
             defer button_box.deinit();
 
-            if (dvui.buttonIcon(@src(), "hide_button", if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed", .{}, .{}, .{
-                .expand = .none,
-                .id_extra = layer_index,
-                .gravity_y = 0.5,
-                .corner_radius = dvui.Rect.all(1000),
-            })) {
+            if (dvui.buttonIcon(
+                @src(),
+                "collapse_button",
+                if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-up-from-line" else icons.tvg.lucide.@"arrow-down-to-line",
+                .{ .draw_focus = false },
+                .{},
+                .{
+                    .expand = .none,
+                    .id_extra = layer_index,
+                    .gravity_y = 0.5,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+            )) {
+                file.layers.items(.collapse)[layer_index] = !file.layers.items(.collapse)[layer_index];
+            }
+
+            if (dvui.buttonIcon(
+                @src(),
+                "hide_button",
+                if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed",
+                .{ .draw_focus = false },
+                .{},
+                .{
+                    .expand = .none,
+                    .id_extra = layer_index,
+                    .gravity_y = 0.5,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+            )) {
                 file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+            }
+
+            if (dvui.buttonIcon(
+                @src(),
+                "delete_button",
+                icons.tvg.lucide.trash,
+                .{ .draw_focus = false },
+                .{},
+                .{
+                    .expand = .none,
+                    .id_extra = layer_index,
+                    .gravity_y = 0.5,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+            )) {
+                std.log.info("delete layer {d}", .{layer_index});
             }
         }
 
@@ -271,6 +315,120 @@ pub fn drawLayers() !void {
 
             triangles.deinit(dvui.currentWindow().arena());
             path.deinit();
+        }
+    }
+}
+
+pub fn drawColors() !void {
+    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+        .background = false,
+    });
+    defer vbox.deinit();
+
+    dvui.labelNoFmt(@src(), "COLORS", .{}, .{ .font_style = .title });
+
+    var hbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
+        .expand = .horizontal,
+        .background = false,
+        .min_size_content = .{ .w = 64.0, .h = 64.0 },
+    });
+    defer hbox.deinit();
+
+    const primary: dvui.Color = .{ .r = pixi.editor.colors.primary[0], .g = pixi.editor.colors.primary[1], .b = pixi.editor.colors.primary[2], .a = pixi.editor.colors.primary[3] };
+    const secondary: dvui.Color = .{ .r = pixi.editor.colors.secondary[0], .g = pixi.editor.colors.secondary[1], .b = pixi.editor.colors.secondary[2], .a = pixi.editor.colors.secondary[3] };
+
+    const button_opts: dvui.Options = .{
+        .expand = .both,
+        .background = true,
+        .corner_radius = dvui.Rect.all(8.0),
+        .color_fill = .fromColor(primary),
+        .color_fill_hover = .fromColor(primary),
+        .color_fill_press = .fromColor(primary),
+        .margin = dvui.Rect.all(1),
+        .padding = dvui.Rect.all(0),
+        .border = dvui.Rect.all(1.0),
+        .color_border = .fill,
+        .box_shadow = .{
+            .color = .black,
+            .offset = .{ .x = -2.0, .y = 2.0 },
+            .fade = 6.0,
+            .alpha = 0.15,
+            .corner_radius = dvui.Rect.all(8.0),
+        },
+    };
+
+    const secondary_overrider: dvui.Options = .{
+        .color_fill = .fromColor(secondary),
+        .color_fill_hover = .fromColor(secondary),
+        .color_fill_press = .fromColor(secondary),
+    };
+
+    var clicked: bool = false;
+    {
+        var primary_button = dvui.ButtonWidget.init(@src(), .{}, button_opts);
+        defer primary_button.deinit();
+
+        primary_button.install();
+        primary_button.processEvents();
+        primary_button.drawBackground();
+
+        drawColorPicker(primary_button.data().rectScale().r, &pixi.editor.colors.primary) catch {};
+
+        if (primary_button.clicked()) clicked = true;
+    }
+
+    {
+        var secondary_button = dvui.ButtonWidget.init(@src(), .{}, button_opts.override(secondary_overrider));
+        defer secondary_button.deinit();
+
+        secondary_button.install();
+        secondary_button.processEvents();
+        secondary_button.drawBackground();
+
+        drawColorPicker(secondary_button.data().rectScale().r, &pixi.editor.colors.secondary) catch {};
+
+        if (secondary_button.clicked()) clicked = true;
+    }
+
+    if (clicked) {
+        std.mem.swap([4]u8, &pixi.editor.colors.primary, &pixi.editor.colors.secondary);
+    }
+}
+
+fn drawColorPicker(rect: dvui.Rect.Physical, backing_color: *[4]u8) !void {
+    var context = dvui.context(@src(), .{ .rect = rect }, .{});
+    defer context.deinit();
+
+    if (context.activePoint()) |point| {
+        var fw2 = dvui.floatingMenu(@src(), .{ .from = dvui.Rect.Natural.fromPoint(point) }, .{ .box_shadow = .{
+            .color = .{ .color = .black },
+            .offset = .{ .x = 0, .y = 0 },
+            .shrink = 0,
+            .fade = 10,
+            .alpha = 0.15,
+        } });
+        defer fw2.deinit();
+
+        var color: dvui.Color.HSV = .fromColor(.{
+            .r = backing_color.*[0],
+            .g = backing_color.*[1],
+            .b = backing_color.*[2],
+            .a = backing_color.*[3],
+        });
+
+        if (dvui.colorPicker(@src(), .{ .alpha = true, .hsv = &color }, .{
+            .expand = .horizontal,
+            .background = false,
+            .corner_radius = dvui.Rect.all(1000),
+        })) {
+            const c = color.toColor();
+            backing_color.* = .{
+                c.r,
+                c.g,
+                c.b,
+                c.a,
+            };
         }
     }
 }

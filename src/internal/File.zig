@@ -175,12 +175,15 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
                 const data = img_buf orelse continue;
 
-                const new_layer: pixi.Internal.Layer = try .fromImageFile(
+                var new_layer: pixi.Internal.Layer = try .fromImageFile(
                     internal.newID(),
                     l.name,
                     @as([*]u8, @ptrCast(data))[0..img_len],
                     .ptr,
                 );
+
+                new_layer.visible = l.visible;
+                new_layer.collapse = l.collapse;
                 internal.layers.append(pixi.app.allocator, new_layer) catch return error.FileLoadError;
             }
 
@@ -441,17 +444,19 @@ pub fn save(self: *File, window: *dvui.Window) !void {
         _ = zip.zip_entry_write(z, json_output.ptr, json_output.len);
         _ = zip.zip_entry_close(z);
 
-        var index: usize = 0;
-        while (index < self.layers.slice().len) : (index += 1) {
-            const layer = self.layers.slice().get(index);
+        if (self.layers.slice().len > 0) {
+            var index: usize = 0;
+            while (index < self.layers.slice().len) : (index += 1) {
+                const layer = self.layers.slice().get(index);
 
-            const image_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{layer.name});
-            _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(image_name)));
+                const image_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{layer.name});
+                _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(image_name)));
 
-            try layer.writeSourceToZip(z);
+                try layer.writeSourceToZip(z);
 
-            //try self.layers.items(.texture)[index].stbi_image().writeToFn(write, z, .png);
-            _ = zip.zip_entry_close(z);
+                //try self.layers.items(.texture)[index].stbi_image().writeToFn(write, z, .png);
+                _ = zip.zip_entry_close(z);
+            }
         }
 
         const id_mutex = dvui.toastAdd(window, @src(), 0, self.canvas.id, pixi.dvui.toastDisplay, 2_000_000);

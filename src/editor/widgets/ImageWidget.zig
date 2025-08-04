@@ -105,7 +105,6 @@ fn sample(self: *ImageWidget, point: dvui.Point) void {
         }
     }
 
-    pixi.editor.colors.secondary = pixi.editor.colors.primary;
     pixi.editor.colors.primary = color;
 
     self.sample_data_point = point;
