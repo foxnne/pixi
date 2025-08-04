@@ -136,7 +136,7 @@ fn drawTabs(_: *Artboard) void {
                 hovered = tab_button.hovered();
 
                 if (tab_button.clicked()) {
-                    pixi.editor.open_file_index = i;
+                    pixi.editor.setActiveFile(i);
                 }
 
                 const hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{

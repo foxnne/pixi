@@ -135,6 +135,7 @@ pub fn drawLayers() !void {
         });
         defer reorderable.deinit();
 
+        // Drag and drop is completing
         if (insert_before_index) |insert_before| {
             if (removed_index) |removed| {
                 const order = try pixi.app.allocator.alloc(u64, file.layers.len);
@@ -162,6 +163,14 @@ pub fn drawLayers() !void {
                     file.layers.insert(pixi.app.allocator, if (removed > insert_before) file.layers.len else 0, layer) catch {
                         std.log.err("Failed to insert layer", .{});
                     };
+                }
+
+                if (removed == file.selected_layer_index) {
+                    if (insert_before < file.layers.len) {
+                        file.selected_layer_index = insert_before;
+                    } else {
+                        file.selected_layer_index = 0;
+                    }
                 }
 
                 insert_before_index = null;
@@ -220,15 +229,22 @@ pub fn drawLayers() !void {
             });
             defer hbox.deinit();
 
-            _ = pixi.dvui.ReorderWidget.draggable(@src(), .{ .reorderable = r, .tvg_bytes = icons.tvg.lucide.@"grip-horizontal", .color = .fromTheme(.text_press) }, .{ .expand = .none, .gravity_y = 0.5, .margin = .{ .x = 4, .w = 4 } });
-
-            //dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{ .gravity_y = 0.5 });
+            _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
+                .reorderable = r,
+                .tvg_bytes = icons.tvg.lucide.@"grip-horizontal",
+                .color = if (file.selected_layer_index != layer_index) .fromTheme(.text_press) else .fromTheme(.text),
+            }, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .margin = .{ .x = 4, .w = 4 },
+            });
 
             if (edit_layer_id != file.layers.items(.id)[layer_index]) {
                 if (dvui.labelClick(@src(), "{s}", .{file.layers.items(.name)[layer_index]}, .{}, .{
                     .gravity_y = 0.5,
                     .margin = dvui.Rect.all(0),
                     .padding = dvui.Rect.all(0),
+                    .color_text = if (file.selected_layer_index != layer_index) .text_press else .text,
                 })) {
                     edit_layer_id = file.layers.items(.id)[layer_index];
                 }
@@ -317,6 +333,10 @@ pub fn drawLayers() !void {
                     },
                 )) {
                     std.log.info("delete layer {d}", .{layer_index});
+                }
+
+                if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
+                    file.selected_layer_index = layer_index;
                 }
             }
         }
