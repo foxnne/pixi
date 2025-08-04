@@ -605,14 +605,14 @@ pub fn drawLayers(self: *FileWidget) void {
         });
 
         const boxRect = image.rectScale().r;
-        if (self.init_options.canvas.mbbox) |b| {
-            self.init_options.canvas.mbbox = b.unionWith(boxRect);
+        if (self.init_options.canvas.bounding_box) |b| {
+            self.init_options.canvas.bounding_box = b.unionWith(boxRect);
         } else {
-            self.init_options.canvas.mbbox = boxRect;
+            self.init_options.canvas.bounding_box = boxRect;
         }
     }
 
-    _ = dvui.image(@src(), .{
+    const image = dvui.image(@src(), .{
         .source = file.temporary_layer.source,
     }, .{
         .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
@@ -620,6 +620,8 @@ pub fn drawLayers(self: *FileWidget) void {
         .id_extra = file.layers.len + 1,
         .background = false,
     });
+
+    self.init_options.canvas.bounding_box = image.rectScale().r;
 
     // Outline the image with a rectangle
     dvui.Path.stroke(.{ .points = &.{

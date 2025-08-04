@@ -293,12 +293,7 @@ pub fn drawImage(self: *ImageWidget) void {
         .background = false,
     });
 
-    const boxRect = image.rectScale().r;
-    if (self.init_options.canvas.mbbox) |b| {
-        self.init_options.canvas.mbbox = b.unionWith(boxRect);
-    } else {
-        self.init_options.canvas.mbbox = boxRect;
-    }
+    self.init_options.canvas.bounding_box = image.rectScale().r;
 
     // Outline the image with a rectangle
     dvui.Path.stroke(.{ .points = &.{

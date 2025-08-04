@@ -13,8 +13,8 @@ scroll_rect_scale: dvui.RectScale = .{},
 screen_rect_scale: dvui.RectScale = .{},
 scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
 origin: dvui.Point = .{},
-mbbox: ?dvui.Rect.Physical = null,
 scale: f32 = 1.0,
+bounding_box: ?dvui.Rect.Physical = null,
 
 pub const InitOptions = struct {
     id: dvui.WidgetId,
@@ -226,7 +226,7 @@ pub fn processEvents(self: *CanvasWidget) void {
         // add current viewport plus padding
         const pad = 10;
         var bbox = self.scroll_info.viewport.outsetAll(pad);
-        if (self.mbbox) |bb| {
+        if (self.bounding_box) |bb| {
             // convert bb from screen space to viewport space
             const scrollbbox = self.viewportFromScreenRect(bb);
             bbox = bbox.unionWith(scrollbbox);
