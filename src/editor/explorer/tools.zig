@@ -9,13 +9,20 @@ var insert_before_index: ?usize = null;
 
 pub fn draw() !void {
     drawTools() catch {};
+
+    dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title });
+
     var paned = dvui.paned(@src(), .{
         .direction = .vertical,
         .collapsed_size = 300,
-        .handle_size = 2,
+        .handle_size = 10,
         .handle_dynamic = .{},
-    }, .{ .expand = .both, .background = true });
+    }, .{ .expand = .both, .background = false });
     defer paned.deinit();
+
+    if (dvui.firstFrame(paned.data().id)) {
+        paned.split_ratio.* = 0.2;
+    }
 
     if (paned.showFirst()) {
         drawLayers() catch {};
@@ -106,8 +113,6 @@ pub fn drawTools() !void {
 
 pub fn drawLayers() !void {
     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
-        dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title });
-
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &scroll_info }, .{
             .expand = .both,
             .background = false,
@@ -134,7 +139,6 @@ pub fn drawLayers() !void {
                         std.log.err("Failed to insert layer", .{});
                     };
                 } else {
-                    std.log.info("Inserting layer at end", .{});
                     file.layers.insert(pixi.app.allocator, if (removed > insert_before) file.layers.len else 0, layer) catch {
                         std.log.err("Failed to insert layer", .{});
                     };
@@ -166,6 +170,7 @@ pub fn drawLayers() !void {
             var r = reorderable.reorderable(@src(), .{}, .{
                 .id_extra = layer_index,
                 .expand = .horizontal,
+                .corner_radius = dvui.Rect.all(1000),
             });
             defer r.deinit();
 
@@ -191,6 +196,7 @@ pub fn drawLayers() !void {
                     .alpha = 0.15,
                     .corner_radius = dvui.Rect.all(1000),
                 },
+                .min_size_content = .{ .w = 28.0, .h = 28.0 },
             });
             defer hbox.deinit();
 

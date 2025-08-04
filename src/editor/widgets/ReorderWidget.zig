@@ -41,7 +41,7 @@ pub fn needFinalSlot(self: *ReorderWidget) bool {
 
 pub fn finalSlot(self: *ReorderWidget) bool {
     if (self.needFinalSlot()) {
-        var r = self.reorderable(@src(), .{ .last_slot = true }, .{});
+        var r = self.reorderable(@src(), .{ .last_slot = true }, .{ .corner_radius = dvui.Rect.all(1000.0) });
         defer r.deinit();
 
         if (r.insertBefore()) {
@@ -268,7 +268,9 @@ pub const Reorderable = struct {
                     self.reorder.found_slot = true;
 
                     if (self.init_options.draw_target) {
-                        rs.r.fill(.{}, .{ .color = dvui.themeGet().color_accent, .fade = 1.0 });
+                        var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+                        path.addRect(rs.r, if (self.options.corner_radius) |cr| rs.rectToPhysical(cr) else dvui.Rect.Physical.all(0.0));
+                        path.build().fillConvex(.{ .color = dvui.themeGet().color_fill, .fade = 1.0 });
                     }
 
                     if (self.init_options.reinstall and !self.init_options.last_slot) {

@@ -276,7 +276,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     var explorer_artboard = dvui.paned(@src(), .{
         .direction = .horizontal,
         .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
-        .handle_size = 2,
+        .handle_size = handle_size,
         .handle_dynamic = .{
             .handle_size_max = handle_size,
             .distance_max = handle_dist,
@@ -339,7 +339,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         var canvas_flipbook = dvui.paned(@src(), .{
             .direction = .vertical,
             .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
-            .handle_size = 2,
+            .handle_size = handle_size,
             .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
             .uncollapse_ratio = pixi.editor.settings.flipbook_ratio,
         }, .{
