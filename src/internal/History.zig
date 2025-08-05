@@ -253,18 +253,17 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             const layer_index = for (file.layers.slice().items(.id), 0..) |layer_id, i| {
                 if (layer_id == pixels.layer_id) break i;
             } else 0;
+
             var layer = file.layers.slice().get(layer_index);
 
             for (pixels.indices, 0..) |pixel_index, i| {
-                const color: [4]u8 = pixels.values[i];
-                var current_pixels = layer.pixels();
-                pixels.values[i] = current_pixels[pixel_index];
-                current_pixels[pixel_index] = color;
+                std.mem.swap([4]u8, &pixels.values[i], &layer.pixels()[pixel_index]);
             }
 
             pixi.editor.tools.set(.pencil);
 
             layer.invalidate();
+            file.selected_layer_index = layer_index;
         },
         .origins => |*origins| {
             file.selected_sprites.clearAndFree();
