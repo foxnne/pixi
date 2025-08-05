@@ -9,6 +9,15 @@ pub const TabsWidget = Widgets.TabsWidget;
 pub const ImageWidget = Widgets.ImageWidget;
 pub const CanvasWidget = Widgets.CanvasWidget;
 pub const ReorderWidget = Widgets.ReorderWidget;
+pub const PanedWidget = Widgets.PanedWidget;
+
+pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions, opts: dvui.Options) *PanedWidget {
+    var ret = dvui.widgetAlloc(PanedWidget);
+    ret.* = PanedWidget.init(src, init_opts, opts);
+    ret.install();
+    ret.processEvents();
+    return ret;
+}
 
 pub fn hovered(wd: *dvui.WidgetData) bool {
     for (dvui.events()) |*event| {
@@ -35,7 +44,7 @@ pub fn reorder(src: std.builtin.SourceLocation, opts: dvui.Options) *ReorderWidg
     return ret;
 }
 
-pub fn toastDisplay(id: dvui.WidgetId) !void {
+pub fn toastDisplay(id: dvui.Id) !void {
     const message = dvui.dataGetSlice(null, id, "_message", []u8) orelse {
         dvui.log.err("toastDisplay lost data for toast {x}\n", .{id});
         return;

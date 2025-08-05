@@ -7,13 +7,47 @@ var scroll_info: dvui.ScrollInfo = .{};
 var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
 var edit_layer_id: ?u64 = null;
+var prev_file_id: ?u64 = null;
 
 pub fn draw() !void {
     drawTools() catch {};
 
-    dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title });
+    {
+        if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+            var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+                .expand = .horizontal,
+                .background = false,
+            });
+            defer box.deinit();
+            dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title, .gravity_y = 0.5 });
+            if (dvui.buttonIcon(@src(), "AddLayer", icons.tvg.lucide.plus, .{}, .{}, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .gravity_x = 1.0,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .color_fill = .fill_window,
+            })) {
+                if (pixi.Internal.Layer.init(file.newID(), "New Layer", .{ file.width, file.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
+                    file.layers.append(pixi.app.allocator, layer) catch {
+                        std.log.err("Failed to append layer", .{});
+                    };
+                    file.selected_layer_index = file.layers.len - 1;
+                    edit_layer_id = layer.id;
+                    prev_file_id = file.id;
+                }
+                prev_file_id = null;
+            }
+        }
+    }
 
-    var paned = dvui.paned(@src(), .{
+    var paned = pixi.dvui.paned(@src(), .{
         .direction = .vertical,
         .collapsed_size = 300,
         .handle_size = 10,
@@ -21,12 +55,22 @@ pub fn draw() !void {
     }, .{ .expand = .both, .background = false });
     defer paned.deinit();
 
-    if (dvui.firstFrame(paned.data().id)) {
-        paned.split_ratio.* = 0.2;
+    const file_changed: bool = if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| prev_file_id != file.id else false;
+
+    // Scroll areas do not calculate their size until the following frame,
+    // so we need to set a timer and refresh a single frame, and then calculate our size
+    // so we can set the initial split ratio.
+    if (dvui.timerDone(paned.data().id)) {
+        dvui.dataSet(null, paned.data().id, "calculate_ratio", true);
+    }
+
+    if (dvui.firstFrame(paned.data().id) or file_changed) {
+        dvui.refresh(null, @src(), paned.data().id);
+        dvui.timer(paned.data().id, 1);
     }
 
     if (paned.showFirst()) {
-        drawLayers() catch {};
+        drawLayers(paned) catch {};
     }
 
     if (paned.showSecond()) {
@@ -112,7 +156,7 @@ pub fn drawTools() !void {
     }
 }
 
-pub fn drawLayers() !void {
+pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
     const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = false,
@@ -120,12 +164,29 @@ pub fn drawLayers() !void {
     defer vbox.deinit();
 
     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+        defer prev_file_id = file.id;
+
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &scroll_info }, .{
             .expand = .both,
             .background = false,
             .corner_radius = dvui.Rect.all(1000),
         });
+
         defer scroll_area.deinit();
+
+        // Seems like we still cant set the scroll offset here until the next frame,
+        // so we need to set a timer and refresh a single frame, and then calculate our scroll
+        if (dvui.timerDone(scroll_area.data().id)) {
+            dvui.dataSet(null, scroll_area.data().id, "calculate_scroll", true);
+            dvui.refresh(null, @src(), scroll_area.data().id);
+        }
+
+        if (dvui.dataGet(null, paned.data().id, "calculate_ratio", bool) == true) {
+            paned.split_ratio.* = @min(0.2, (scroll_info.virtual_size.h + 10.0) / paned.data().contentRect().h);
+            dvui.dataRemove(null, paned.data().id, "calculate_ratio");
+
+            dvui.timer(scroll_area.data().id, 1);
+        }
 
         const vertical_scroll = scroll_info.offset(.vertical);
 
@@ -191,6 +252,8 @@ pub fn drawLayers() !void {
         while (layer_index > 0) {
             layer_index -= 1;
 
+            const selected = file.selected_layer_index == layer_index;
+
             var color = dvui.themeGet().color_fill_hover;
             if (pixi.editor.colors.file_tree_palette) |*palette| {
                 color = palette.getDVUIColor(file.layers.items(.id)[layer_index]);
@@ -204,6 +267,26 @@ pub fn drawLayers() !void {
             });
             defer r.deinit();
 
+            if (dvui.firstFrame(r.data().id) or prev_file_id != file.id) {
+                dvui.animation(r.data().id, "expand", .{
+                    .start_val = 0.0,
+                    .end_val = 1.0,
+                    .end_time = 250_000 + (10_000 * @as(i32, @intCast(layer_index))),
+                    .easing = dvui.easing.linear,
+                });
+            }
+
+            if (dvui.animationGet(r.data().id, "expand")) |a| {
+                if (dvui.minSizeGet(r.data().id)) |ms| {
+                    if (r.data().rect.w > ms.w + 0.001) {
+                        // we are bigger than our min size (maybe expanded) - account for floating point
+                        const w = r.data().rect.w;
+                        r.data().rect.w *= @max(a.value(), 0);
+                        r.data().rect.x += r.data().options.gravityGet().x * (w - r.data().rect.w);
+                    }
+                }
+            }
+
             if (r.removed()) {
                 removed_index = layer_index;
             } else if (r.insertBefore()) {
@@ -213,7 +296,7 @@ pub fn drawLayers() !void {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (file.selected_layer_index == layer_index) .fill else .fill_window,
+                .color_fill = if (selected) .fill else .fill_window,
                 .corner_radius = dvui.Rect.all(1000),
                 .margin = dvui.Rect.all(2),
                 .padding = dvui.Rect.all(1),
@@ -229,10 +312,21 @@ pub fn drawLayers() !void {
             });
             defer hbox.deinit();
 
+            // We are selected, so we need to scroll to the this layer
+            if (selected) {
+                if (dvui.dataGet(null, scroll_area.data().id, "calculate_scroll", bool) == true) {
+                    dvui.scrollTo(.{
+                        .screen_rect = r.data().rectScale().r,
+                        .over_scroll = true,
+                    });
+                    dvui.dataRemove(null, scroll_area.data().id, "calculate_scroll");
+                }
+            }
+
             _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
                 .reorderable = r,
                 .tvg_bytes = icons.tvg.lucide.@"grip-horizontal",
-                .color = if (file.selected_layer_index != layer_index) .fromTheme(.text_press) else .fromTheme(.text),
+                .color = if (!selected) .fromTheme(.text_press) else .fromTheme(.text),
             }, .{
                 .expand = .none,
                 .gravity_y = 0.5,
@@ -245,7 +339,7 @@ pub fn drawLayers() !void {
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(0),
                         .padding = dvui.Rect.all(0),
-                        .color_text = if (file.selected_layer_index != layer_index) .text_press else .text,
+                        .color_text = if (!selected) .text_press else .text,
                     })) {
                         edit_layer_id = file.layers.items(.id)[layer_index];
                     }
@@ -254,7 +348,7 @@ pub fn drawLayers() !void {
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(0),
                         .padding = dvui.Rect.all(0),
-                        .color_text = if (file.selected_layer_index != layer_index) .text_press else .text,
+                        .color_text = if (!selected) .text_press else .text,
                     });
                 }
             } else {

@@ -10,3 +10,4 @@ pub const FileWidget = @import("widgets/FileWidget.zig");
 pub const ImageWidget = @import("widgets/ImageWidget.zig");
 pub const CanvasWidget = @import("widgets/CanvasWidget.zig");
 pub const ReorderWidget = @import("widgets/ReorderWidget.zig");
+pub const PanedWidget = @import("widgets/PanedWidget.zig");

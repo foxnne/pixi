@@ -179,12 +179,12 @@ fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
     return std.mem.order(u8, lhs.name, rhs.name) == .lt;
 }
 
-pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, unique_id: dvui.WidgetId, outer_filter_text: []const u8) !void {
+pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, unique_id: dvui.Id, outer_filter_text: []const u8) !void {
     var color_i: usize = 0;
     var id_extra: usize = 0;
 
     const recursor = struct {
-        fn search(directory: []const u8, tree: *dvui.TreeWidget, inner_unique_id: dvui.WidgetId, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8) !void {
+        fn search(directory: []const u8, tree: *dvui.TreeWidget, inner_unique_id: dvui.Id, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8) !void {
             var dir = std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true }) catch return;
             defer dir.close();
 
@@ -221,7 +221,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                     continue;
                 }
 
-                inner_id_extra.* = dvui.hashIdKey(tree.data().id, abs_path);
+                inner_id_extra.* = dvui.Id.update(tree.data().id, abs_path).asUsize();
 
                 var color = dvui.themeGet().color_fill_hover;
                 if (pixi.editor.colors.file_tree_palette) |*palette| {

@@ -4,7 +4,7 @@ const pixi = @import("../../pixi.zig");
 
 pub const CanvasWidget = @This();
 
-id: dvui.WidgetId = undefined,
+id: dvui.Id = undefined,
 scroll: *dvui.ScrollAreaWidget = undefined,
 scaler: *dvui.ScaleWidget = undefined,
 rect: dvui.Rect.Physical = .{},
@@ -17,7 +17,7 @@ scale: f32 = 1.0,
 bounding_box: ?dvui.Rect.Physical = null,
 
 pub const InitOptions = struct {
-    id: dvui.WidgetId,
+    id: dvui.Id,
     data_size: dvui.Size,
 };
 
