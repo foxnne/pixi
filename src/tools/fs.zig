@@ -109,8 +109,7 @@ pub fn writeSourceToZip(
         .pixelsPMA => |p| @constCast(@ptrCast(p.rgba.ptr)),
         else => return error.InvalidImageSource,
     };
-    const result = dvui.c.stbi_write_png_to_func(write, zip_file, w, h, comp, data, 0);
-
+    const result = dvui.c.stbi_write_png_to_func(write, zip_file, w, h, comp, data, comp * w);
     // if the result is 0 then it means an error occured (per stb image write docs)
     if (result == 0) {
         return error.CouldNotWriteImage;

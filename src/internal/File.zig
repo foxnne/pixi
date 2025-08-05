@@ -423,7 +423,6 @@ pub fn redo(self: *File) !void {
 pub fn save(self: *File, window: *dvui.Window) !void {
     if (self.saving) return;
     self.saving = true;
-    self.history.bookmark = 0;
     var ext = try self.external(pixi.app.allocator);
     defer ext.deinit(pixi.app.allocator);
     const null_terminated_path = try pixi.editor.arena.allocator().dupeZ(u8, self.path);
@@ -444,10 +443,11 @@ pub fn save(self: *File, window: *dvui.Window) !void {
         _ = zip.zip_entry_write(z, json_output.ptr, json_output.len);
         _ = zip.zip_entry_close(z);
 
-        if (self.layers.slice().len > 0) {
+        if (self.layers.len > 0) {
+            const slice = self.layers.slice();
             var index: usize = 0;
-            while (index < self.layers.slice().len) : (index += 1) {
-                const layer = self.layers.slice().get(index);
+            while (index < self.layers.len) : (index += 1) {
+                const layer = slice.get(index);
 
                 const image_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{layer.name});
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(image_name)));
@@ -459,12 +459,6 @@ pub fn save(self: *File, window: *dvui.Window) !void {
             }
         }
 
-        const id_mutex = dvui.toastAdd(window, @src(), 0, self.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
-        const id = id_mutex.id;
-        const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
-        dvui.dataSetSlice(window, id, "_message", message);
-        id_mutex.mutex.unlock();
-
         // if (self.heightmap.layer) |*working_layer| {
         //     const layer_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{working_layer.name});
         //     _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
@@ -473,13 +467,22 @@ pub fn save(self: *File, window: *dvui.Window) !void {
         // }
 
         zip.zip_close(z);
+
+        {
+            const id_mutex = dvui.toastAdd(window, @src(), 0, self.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+            const id = id_mutex.id;
+            const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
+            dvui.dataSetSlice(window, id, "_message", message);
+            id_mutex.mutex.unlock();
+        }
     }
 
     self.saving = false;
+    self.history.bookmark = 0;
 }
 
 pub fn saveAsync(self: *File) !void {
-    //if (!self.dirty()) return;
+    if (!self.dirty()) return;
     const thread = try std.Thread.spawn(.{}, save, .{ self, dvui.currentWindow() });
     thread.detach();
 }

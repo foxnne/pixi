@@ -200,6 +200,7 @@ pub fn drawCanvas(self: *Artboard) !void {
 
     if (pixi.editor.open_files.values().len > 0) {
         const file = &pixi.editor.open_files.values()[pixi.editor.open_file_index];
+        file.canvas.id = canvas_vbox.data().id;
 
         var file_widget = pixi.dvui.FileWidget.init(@src(), .{
             .canvas = &file.canvas,
