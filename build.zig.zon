@@ -10,10 +10,6 @@
     .version = "0.0.3",
     .minimum_zig_version = "0.14.0",
     .dependencies = .{
-        // .zstbi = .{
-        //     .url = "git+https://github.com/foxnne/zstbi#431fd93a7c7a5a58f151e6ed96667e342bda06e4",
-        //     .hash = "zstbi-0.10.0-moJi2dXnBwBOVDSKDDWl32Q40b1OApiJQtAh0azLfiR_",
-        // },
         .mach_objc = .{
             //.path = "src/.temp/mach-objc-dev",
             .url = "git+https://github.com/foxnne/mach-objc#c2b1de1b24ce10e2eec1f2387b0a589f1f645bf3",

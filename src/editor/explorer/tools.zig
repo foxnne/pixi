@@ -8,8 +8,13 @@ var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
 var edit_layer_id: ?u64 = null;
 var prev_file_id: ?u64 = null;
+var num_layers: usize = 0;
 
 pub fn draw() !void {
+    //var refit_pane: bool = if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| prev_file_id != file.id else false;
+    var layer_len: usize = 0;
+    defer num_layers = layer_len;
+
     drawTools() catch {};
 
     {
@@ -21,6 +26,9 @@ pub fn draw() !void {
         dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title, .gravity_y = 0.5 });
 
         if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+            // Collect layers length to trigger a refit of the pane
+            layer_len = file.layers.len;
+
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
                 .background = false,
@@ -43,6 +51,7 @@ pub fn draw() !void {
             })) {
                 if (file.createLayer() catch null) |id| {
                     edit_layer_id = id;
+                    //refit_pane = true;
                     // reset prev_file_id to trigger a refresh of the scroll area
                     //prev_file_id = null;
                 }
@@ -63,27 +72,31 @@ pub fn draw() !void {
             })) {
                 if (file.duplicateLayer(file.selected_layer_index) catch null) |id| {
                     edit_layer_id = id;
+                    //refit_pane = true;
                     // reset prev_file_id to trigger a refresh of the scroll area
                     //prev_file_id = null;
                 }
             }
 
-            if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .fill_color = .fromTheme(.err) }, .{
-                .expand = .none,
-                .gravity_y = 0.5,
-                .corner_radius = dvui.Rect.all(1000),
-                .box_shadow = .{
-                    .color = .black,
-                    .offset = .{ .x = -2.0, .y = 2.0 },
-                    .fade = 6.0,
-                    .alpha = 0.15,
+            if (file.layers.len > 1) {
+                if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .fill_color = .fromTheme(.err) }, .{
+                    .expand = .none,
+                    .gravity_y = 0.5,
                     .corner_radius = dvui.Rect.all(1000),
-                },
-                .color_fill = .fill_window,
-            })) {
-                file.deleteLayer(file.selected_layer_index) catch {
-                    dvui.log.err("Failed to delete layer", .{});
-                };
+                    .box_shadow = .{
+                        .color = .black,
+                        .offset = .{ .x = -2.0, .y = 2.0 },
+                        .fade = 6.0,
+                        .alpha = 0.15,
+                        .corner_radius = dvui.Rect.all(1000),
+                    },
+                    .color_fill = .fill_window,
+                })) {
+                    file.deleteLayer(file.selected_layer_index) catch {
+                        dvui.log.err("Failed to delete layer", .{});
+                    };
+                    //refit_pane = true;
+                }
             }
         }
     }
@@ -101,7 +114,6 @@ pub fn draw() !void {
     }, .{ .expand = .both, .background = false });
     defer paned.deinit();
 
-    const file_changed: bool = if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| prev_file_id != file.id else false;
     //const file_changed: bool = false;
 
     // Scroll areas do not calculate their size until the following frame,
@@ -120,14 +132,14 @@ pub fn draw() !void {
         drawLayers() catch {};
     }
 
-    if (file_changed) {
-        paned.animateSplit(@min(0.5, paned.getFirstFittedRatio(
+    if (dvui.firstFrame(paned.data().id) or num_layers != layer_len) {
+        paned.animateSplit(paned.getFirstFittedRatio(
             .{
                 .min_split = 0,
                 .max_split = 0.5,
                 .min_size = 0,
             },
-        )));
+        ));
     }
 
     if (paned.showSecond()) {
@@ -326,7 +338,7 @@ pub fn drawLayers() !void {
 
             if (dvui.firstFrame(r.data().id) or prev_file_id != file.id) {
                 dvui.animation(r.data().id, "expand", .{
-                    .start_val = 0.0,
+                    .start_val = 0.2,
                     .end_val = 1.0,
                     .end_time = 150_000 + (20_000 * @as(i32, @intCast(layer_index))),
                     .easing = dvui.easing.inOutQuad,
