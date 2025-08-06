@@ -7,13 +7,12 @@ const icons = @import("icons");
 var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
 var edit_layer_id: ?u64 = null;
-var prev_file_id: ?u64 = null;
-var num_layers: usize = 0;
+var prev_layer_count: usize = 0;
 
 pub fn draw() !void {
     //var refit_pane: bool = if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| prev_file_id != file.id else false;
-    var layer_len: usize = 0;
-    defer num_layers = layer_len;
+    var layer_count: usize = 0;
+    defer prev_layer_count = layer_count;
 
     drawTools() catch {};
 
@@ -27,7 +26,7 @@ pub fn draw() !void {
 
         if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
             // Collect layers length to trigger a refit of the pane
-            layer_len = file.layers.len;
+            layer_count = file.layers.len;
 
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
@@ -51,9 +50,6 @@ pub fn draw() !void {
             })) {
                 if (file.createLayer() catch null) |id| {
                     edit_layer_id = id;
-                    //refit_pane = true;
-                    // reset prev_file_id to trigger a refresh of the scroll area
-                    //prev_file_id = null;
                 }
             }
 
@@ -72,9 +68,6 @@ pub fn draw() !void {
             })) {
                 if (file.duplicateLayer(file.selected_layer_index) catch null) |id| {
                     edit_layer_id = id;
-                    //refit_pane = true;
-                    // reset prev_file_id to trigger a refresh of the scroll area
-                    //prev_file_id = null;
                 }
             }
 
@@ -95,7 +88,6 @@ pub fn draw() !void {
                     file.deleteLayer(file.selected_layer_index) catch {
                         dvui.log.err("Failed to delete layer", .{});
                     };
-                    //refit_pane = true;
                 }
             }
         }
@@ -106,33 +98,15 @@ pub fn draw() !void {
         .collapsed_size = 300,
         .handle_size = 10,
         .handle_dynamic = .{},
-        // .autofit_first = .{
-        //     .min_split = 0,
-        //     .max_split = 0.5,
-        //     .min_size = 0,
-        // },
     }, .{ .expand = .both, .background = false });
     defer paned.deinit();
-
-    //const file_changed: bool = false;
-
-    // Scroll areas do not calculate their size until the following frame,
-    // so we need to set a timer and refresh a single frame, and then calculate our size
-    // so we can set the initial split ratio.
-    // if (dvui.timerDone(paned.data().id)) {
-    //     dvui.dataSet(null, paned.data().id, "calculate_ratio", true);
-    // }
-
-    // if (dvui.firstFrame(paned.data().id) or file_changed) {
-    //     dvui.refresh(null, @src(), paned.data().id);
-    //     dvui.timer(paned.data().id, 1);
-    // }
 
     if (paned.showFirst()) {
         drawLayers() catch {};
     }
 
-    if (dvui.firstFrame(paned.data().id) or num_layers != layer_len) {
+    // Refit must be done between showFirst and showSecond
+    if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count) {
         if (dvui.firstFrame(paned.data().id))
             paned.split_ratio.* = 0.0;
 
@@ -236,8 +210,6 @@ pub fn drawLayers() !void {
     defer vbox.deinit();
 
     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
-        defer prev_file_id = file.id;
-
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.layers_scroll_info }, .{
             .expand = .both,
             .background = false,
@@ -339,11 +311,11 @@ pub fn drawLayers() !void {
             });
             defer r.deinit();
 
-            if (dvui.firstFrame(r.data().id) or prev_file_id != file.id) {
+            if (dvui.firstFrame(r.data().id) or prev_layer_count != file.layers.len) {
                 dvui.animation(r.data().id, "expand", .{
                     .start_val = 0.2,
                     .end_val = 1.0,
-                    .end_time = 150_000 + (20_000 * @as(i32, @intCast(layer_index))),
+                    .end_time = 150_000 + (50_000 * @as(i32, @intCast(layer_index))),
                     .easing = dvui.easing.inOutQuad,
                 });
             }

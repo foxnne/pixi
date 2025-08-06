@@ -370,7 +370,8 @@ pub fn screenRectScale(self: *PanedWidget, rect: Rect) RectScale {
 }
 
 pub fn minSizeForChild(self: *PanedWidget, s: dvui.Size) void {
-    const ms = self.layout.minSizeForChild(s);
+    var ms = self.layout.minSizeForChild(s);
+    ms.h += 5;
     self.data().minSizeMax(self.data().options.padSize(ms));
 }
 
