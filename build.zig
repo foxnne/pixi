@@ -30,7 +30,8 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
-            .branch = "main",
+            .branch = "paned_changes",
+            //.branch = "main",
         },
     };
     try update.update_dependency(step.owner.allocator, deps);

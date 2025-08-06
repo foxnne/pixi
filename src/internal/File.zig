@@ -37,6 +37,7 @@ buffers: Buffers,
 counter: u64 = 0,
 saving: bool = false,
 grouping: u8 = 0,
+layers_scroll_info: dvui.ScrollInfo = .{},
 
 pub const ScrollRequest = struct {
     from: f32,

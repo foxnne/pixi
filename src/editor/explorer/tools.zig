@@ -3,7 +3,7 @@ const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 const icons = @import("icons");
 
-var scroll_info: dvui.ScrollInfo = .{};
+//var scroll_info: dvui.ScrollInfo = .{};
 var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
 var edit_layer_id: ?u64 = null;
@@ -44,7 +44,7 @@ pub fn draw() !void {
                 if (file.createLayer() catch null) |id| {
                     edit_layer_id = id;
                     // reset prev_file_id to trigger a refresh of the scroll area
-                    prev_file_id = null;
+                    //prev_file_id = null;
                 }
             }
 
@@ -64,7 +64,7 @@ pub fn draw() !void {
                 if (file.duplicateLayer(file.selected_layer_index) catch null) |id| {
                     edit_layer_id = id;
                     // reset prev_file_id to trigger a refresh of the scroll area
-                    prev_file_id = null;
+                    //prev_file_id = null;
                 }
             }
 
@@ -93,25 +93,41 @@ pub fn draw() !void {
         .collapsed_size = 300,
         .handle_size = 10,
         .handle_dynamic = .{},
+        // .autofit_first = .{
+        //     .min_split = 0,
+        //     .max_split = 0.5,
+        //     .min_size = 0,
+        // },
     }, .{ .expand = .both, .background = false });
     defer paned.deinit();
 
     const file_changed: bool = if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| prev_file_id != file.id else false;
+    //const file_changed: bool = false;
 
     // Scroll areas do not calculate their size until the following frame,
     // so we need to set a timer and refresh a single frame, and then calculate our size
     // so we can set the initial split ratio.
-    if (dvui.timerDone(paned.data().id)) {
-        dvui.dataSet(null, paned.data().id, "calculate_ratio", true);
-    }
+    // if (dvui.timerDone(paned.data().id)) {
+    //     dvui.dataSet(null, paned.data().id, "calculate_ratio", true);
+    // }
 
-    if (dvui.firstFrame(paned.data().id) or file_changed) {
-        dvui.refresh(null, @src(), paned.data().id);
-        dvui.timer(paned.data().id, 1);
-    }
+    // if (dvui.firstFrame(paned.data().id) or file_changed) {
+    //     dvui.refresh(null, @src(), paned.data().id);
+    //     dvui.timer(paned.data().id, 1);
+    // }
 
     if (paned.showFirst()) {
-        drawLayers(paned) catch {};
+        drawLayers() catch {};
+    }
+
+    if (file_changed) {
+        paned.animateSplit(@min(0.5, paned.getFirstFittedRatio(
+            .{
+                .min_split = 0,
+                .max_split = 0.5,
+                .min_size = 0,
+            },
+        )));
     }
 
     if (paned.showSecond()) {
@@ -197,7 +213,7 @@ pub fn drawTools() !void {
     }
 }
 
-pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
+pub fn drawLayers() !void {
     const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = false,
@@ -207,7 +223,7 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
         defer prev_file_id = file.id;
 
-        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &scroll_info }, .{
+        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.layers_scroll_info }, .{
             .expand = .both,
             .background = false,
             .corner_radius = dvui.Rect.all(1000),
@@ -217,19 +233,19 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
 
         // Seems like we still cant set the scroll offset here until the next frame,
         // so we need to set a timer and refresh a single frame, and then calculate our scroll
-        if (dvui.timerDone(scroll_area.data().id)) {
-            dvui.dataSet(null, scroll_area.data().id, "calculate_scroll", true);
-            dvui.refresh(null, @src(), scroll_area.data().id);
-        }
+        // if (dvui.timerDone(scroll_area.data().id)) {
+        //     dvui.dataSet(null, scroll_area.data().id, "calculate_scroll", true);
+        //     dvui.refresh(null, @src(), scroll_area.data().id);
+        // }
 
-        if (dvui.dataGet(null, paned.data().id, "calculate_ratio", bool) == true) {
-            paned.split_ratio.* = @min(0.2, (scroll_info.virtual_size.h + 10.0) / paned.data().contentRect().h);
-            dvui.dataRemove(null, paned.data().id, "calculate_ratio");
+        // if (dvui.dataGet(null, paned.data().id, "calculate_ratio", bool) == true) {
+        //     paned.split_ratio.* = @min(0.2, (file.layers_scroll_info.virtual_size.h + 10.0) / paned.data().contentRect().h);
+        //     dvui.dataRemove(null, paned.data().id, "calculate_ratio");
 
-            dvui.timer(scroll_area.data().id, 1);
-        }
+        //     dvui.timer(scroll_area.data().id, 1);
+        // }
 
-        const vertical_scroll = scroll_info.offset(.vertical);
+        const vertical_scroll = file.layers_scroll_info.offset(.vertical);
 
         var reorderable = pixi.dvui.reorder(@src(), .{
             .expand = .horizontal,
@@ -292,16 +308,12 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
         });
         defer box.deinit();
 
-        var layer_index: usize = file.layers.len;
-
-        while (layer_index > 0) {
-            layer_index -= 1;
-
-            const selected = if (edit_layer_id) |id| id == file.layers.items(.id)[layer_index] else file.selected_layer_index == layer_index;
+        for (file.layers.items(.id), 0..) |layer_id, layer_index| {
+            const selected = if (edit_layer_id) |id| id == layer_id else file.selected_layer_index == layer_index;
 
             var color = dvui.themeGet().color_fill_hover;
             if (pixi.editor.colors.file_tree_palette) |*palette| {
-                color = palette.getDVUIColor(file.layers.items(.id)[layer_index]);
+                color = palette.getDVUIColor(layer_id);
             }
 
             var r = reorderable.reorderable(@src(), .{}, .{
@@ -358,15 +370,15 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
             defer hbox.deinit();
 
             // We are selected, so we need to scroll to the this layer
-            if (selected) {
-                if (dvui.dataGet(null, scroll_area.data().id, "calculate_scroll", bool) == true) {
-                    dvui.scrollTo(.{
-                        .screen_rect = r.data().rectScale().r,
-                        .over_scroll = true,
-                    });
-                    dvui.dataRemove(null, scroll_area.data().id, "calculate_scroll");
-                }
-            }
+            // if (selected) {
+            //     if (dvui.dataGet(null, scroll_area.data().id, "calculate_scroll", bool) == true) {
+            //         dvui.scrollTo(.{
+            //             .screen_rect = r.data().rectScale().r,
+            //             .over_scroll = true,
+            //         });
+            //         dvui.dataRemove(null, scroll_area.data().id, "calculate_scroll");
+            //     }
+            // }
 
             _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
                 .reorderable = r,
@@ -378,7 +390,7 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
                 .margin = .{ .x = 4, .w = 4 },
             });
 
-            if (edit_layer_id != file.layers.items(.id)[layer_index]) {
+            if (edit_layer_id != layer_id) {
                 if (file.selected_layer_index == layer_index) {
                     if (dvui.labelClick(@src(), "{s}", .{file.layers.items(.name)[layer_index]}, .{}, .{
                         .gravity_y = 0.5,
@@ -386,7 +398,7 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) .text_press else .text,
                     })) {
-                        edit_layer_id = file.layers.items(.id)[layer_index];
+                        edit_layer_id = layer_id;
                     }
                 } else {
                     dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
@@ -500,7 +512,7 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
             path.deinit();
         }
 
-        if (scroll_info.virtual_size.h > scroll_info.viewport.h and vertical_scroll < scroll_info.scrollMax(.vertical)) {
+        if (file.layers_scroll_info.virtual_size.h > file.layers_scroll_info.viewport.h and vertical_scroll < file.layers_scroll_info.scrollMax(.vertical)) {
             var rs = scroll_area.data().contentRectScale();
             rs.r.y += rs.r.h - 20;
             rs.r.h = 20;
@@ -523,8 +535,6 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
             triangles.deinit(dvui.currentWindow().arena());
             path.deinit();
         }
-    } else {
-        paned.split_ratio.* = 0.0;
     }
 }
 
