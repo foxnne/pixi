@@ -8,6 +8,7 @@ var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
 var edit_layer_id: ?u64 = null;
 var prev_layer_count: usize = 0;
+var max_split_ratio: f32 = 0.4;
 
 pub fn draw() !void {
     //var refit_pane: bool = if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| prev_file_id != file.id else false;
@@ -105,6 +106,10 @@ pub fn draw() !void {
         drawLayers() catch {};
     }
 
+    if (paned.dragging) {
+        max_split_ratio = paned.split_ratio.*;
+    }
+
     // Refit must be done between showFirst and showSecond
     if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count) {
         if (dvui.firstFrame(paned.data().id))
@@ -113,7 +118,7 @@ pub fn draw() !void {
         paned.animateSplit(paned.getFirstFittedRatio(
             .{
                 .min_split = 0,
-                .max_split = 0.4,
+                .max_split = max_split_ratio,
                 .min_size = 0,
             },
         ));

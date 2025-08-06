@@ -69,6 +69,7 @@ active_side: enum { none, first, second } = .none,
 layout: dvui.BasicLayout = .{},
 should_autofit: bool = false,
 drawn: bool = false,
+dragging: bool = false,
 
 pub const AutoFitOptions = struct {
     /// The minimum split percentage [0-1] for the first side
@@ -421,6 +422,7 @@ pub fn processEvent(self: *PanedWidget, e: *Event) void {
                     }
 
                     self.split_ratio.* = @max(0.0, @min(1.0, self.split_ratio.*));
+                    self.dragging = true;
                 }
             } else if (e.evt.mouse.action == .position) {
                 dvui.cursorSet(cursor);
