@@ -100,8 +100,9 @@ pub fn processSampleTool(self: *FileWidget) void {
 fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, change_layer: bool) void {
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 
-    var layer_index: usize = 0;
-    while (layer_index > file.layers.len) : (layer_index += 1) {
+    var layer_index: usize = file.layers.len;
+    while (layer_index > 0) {
+        layer_index -= 1;
         var layer = file.layers.get(layer_index);
         if (layer.getPixelIndex(point)) |index| {
             const c = layer.pixels()[index];

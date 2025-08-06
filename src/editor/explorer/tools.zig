@@ -136,7 +136,7 @@ pub fn draw() !void {
         paned.animateSplit(paned.getFirstFittedRatio(
             .{
                 .min_split = 0,
-                .max_split = 0.5,
+                .max_split = 0.4,
                 .min_size = 0,
             },
         ));
@@ -277,18 +277,18 @@ pub fn drawLayers() !void {
                 file.layers.orderedRemove(removed);
 
                 if (insert_before <= file.layers.len) {
-                    file.layers.insert(pixi.app.allocator, if (removed > insert_before) insert_before + 1 else insert_before, layer) catch {
+                    file.layers.insert(pixi.app.allocator, if (removed < insert_before) insert_before - 1 else insert_before, layer) catch {
                         dvui.log.err("Failed to insert layer", .{});
                     };
                 } else {
-                    file.layers.insert(pixi.app.allocator, if (removed > insert_before) file.layers.len else 0, layer) catch {
+                    file.layers.insert(pixi.app.allocator, if (removed < insert_before) file.layers.len else 0, layer) catch {
                         dvui.log.err("Failed to insert layer", .{});
                     };
                 }
 
                 if (removed == file.selected_layer_index) {
                     if (insert_before < file.layers.len) {
-                        file.selected_layer_index = insert_before;
+                        file.selected_layer_index = if (removed < insert_before) insert_before - 1 else insert_before;
                     } else {
                         file.selected_layer_index = 0;
                     }
