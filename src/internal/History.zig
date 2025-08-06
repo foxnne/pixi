@@ -201,7 +201,9 @@ pub fn append(self: *History, change: Change) !void {
                 .animation_restore_delete => {
                     equal = false;
                 },
-                .layers_order => {},
+                .layers_order => {
+                    equal = false;
+                },
                 .layer_restore_delete => {
                     equal = false;
                 },
@@ -278,23 +280,23 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
         },
         .layers_order => |*layers_order| {
             var new_order = try pixi.app.allocator.alloc(usize, layers_order.order.len);
-            var layer_index: usize = 0;
-            while (layer_index < file.layers.slice().len) : (layer_index += 1) {
-                const layer = file.layers.slice().get(layer_index);
-                new_order[layer_index] = layer.id;
+            for (0..file.layers.len) |layer_index| {
+                new_order[layer_index] = file.layers.items(.id)[layer_index];
             }
 
+            const slice = file.layers.slice();
+
             for (layers_order.order, 0..) |id, i| {
-                if (file.layers.items(.id)[i] == id) continue;
+                if (slice.items(.id)[i] == id) continue;
 
                 // Save current layer
-                const current_layer = file.layers.slice().get(i);
+                const current_layer = slice.get(i);
                 layers_order.order[i] = current_layer.id;
 
                 // Make changes to the layers
                 var other_layer_index: usize = 0;
-                while (other_layer_index < file.layers.slice().len) : (other_layer_index += 1) {
-                    const layer = file.layers.slice().get(other_layer_index);
+                while (other_layer_index < file.layers.len) : (other_layer_index += 1) {
+                    const layer = slice.get(other_layer_index);
                     if (layer.id == layers_order.selected) {
                         file.selected_layer_index = other_layer_index;
                     }

@@ -107,7 +107,7 @@ pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Op
 
     if (self.init_opts.autofit_first != null and self.should_autofit) {
         // Make the first side take the full space to begin with
-        self.split_ratio.* = 1.0;
+        self.split_ratio.* = 0.0;
 
         if (self.init_opts.direction != .vertical) {
             dvui.log.warn("{s}:{d}: .autofit_first only works on vertical panes", .{ src.file, src.line });

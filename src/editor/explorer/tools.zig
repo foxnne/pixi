@@ -133,6 +133,9 @@ pub fn draw() !void {
     }
 
     if (dvui.firstFrame(paned.data().id) or num_layers != layer_len) {
+        if (dvui.firstFrame(paned.data().id))
+            paned.split_ratio.* = 0.0;
+
         paned.animateSplit(paned.getFirstFittedRatio(
             .{
                 .min_split = 0,
