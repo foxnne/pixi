@@ -423,17 +423,21 @@ pub fn deleteLayer(self: *File, index: usize) !void {
 
 pub fn duplicateLayer(self: *File, index: usize) !u64 {
     const layer = self.layers.slice().get(index);
-    var new_layer = Layer.init(self.newID(), layer.name, .{ self.width, self.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.FailedToDuplicateLayer;
+
+    const new_name = try std.fmt.allocPrint(dvui.currentWindow().lifo(), "{s}_copy", .{layer.name});
+    defer dvui.currentWindow().lifo().free(new_name);
+
+    var new_layer = Layer.init(self.newID(), new_name, .{ self.width, self.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.FailedToDuplicateLayer;
     new_layer.visible = layer.visible;
     new_layer.collapse = layer.collapse;
 
     @memcpy(new_layer.pixels(), layer.pixels());
 
-    self.layers.insert(pixi.app.allocator, index, new_layer) catch {
+    self.layers.insert(pixi.app.allocator, 0, new_layer) catch {
         dvui.log.err("Failed to append layer", .{});
     };
 
-    self.selected_layer_index = index;
+    self.selected_layer_index = 0;
 
     self.history.append(.{
         .layer_restore_delete = .{
