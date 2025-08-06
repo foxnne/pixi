@@ -193,19 +193,10 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
         // Drag and drop is completing
         if (insert_before_index) |insert_before| {
             if (removed_index) |removed| {
-                const order = try pixi.app.allocator.alloc(u64, file.layers.len);
-
+                const prev_order = try pixi.app.allocator.alloc(u64, file.layers.len);
                 for (file.layers.items(.id), 0..) |id, i| {
-                    order[i] = id;
+                    prev_order[i] = id;
                 }
-                file.history.append(.{
-                    .layers_order = .{
-                        .order = order,
-                        .selected = file.layers.items(.id)[file.selected_layer_index],
-                    },
-                }) catch {
-                    std.log.err("Failed to append history", .{});
-                };
 
                 const layer = file.layers.get(removed);
                 file.layers.orderedRemove(removed);
@@ -226,6 +217,19 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
                     } else {
                         file.selected_layer_index = 0;
                     }
+                }
+
+                if (!std.mem.eql(u64, file.layers.items(.id)[0..file.layers.len], prev_order)) {
+                    file.history.append(.{
+                        .layers_order = .{
+                            .order = prev_order,
+                            .selected = file.layers.items(.id)[file.selected_layer_index],
+                        },
+                    }) catch {
+                        std.log.err("Failed to append history", .{});
+                    };
+                } else {
+                    pixi.app.allocator.free(prev_order);
                 }
 
                 insert_before_index = null;
