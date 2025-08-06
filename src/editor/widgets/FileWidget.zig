@@ -50,7 +50,7 @@ pub fn processSampleTool(self: *FileWidget) void {
                     dvui.dragPreStart(me.p, .{ .name = "sample_drag" });
                     self.drag_data_point = current_point;
 
-                    self.sample(file, current_point);
+                    self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
                 } else if (me.action == .release and me.button == .right) {
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                         e.handle(@src(), self.init_options.canvas.scroll_container.data());
@@ -86,7 +86,7 @@ pub fn processSampleTool(self: *FileWidget) void {
                             });
                             //}
 
-                            self.sample(file, current_point);
+                            self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
                             e.handle(@src(), self.init_options.canvas.scroll_container.data());
                         }
                     }
@@ -97,7 +97,7 @@ pub fn processSampleTool(self: *FileWidget) void {
     }
 }
 
-fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point) void {
+fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, change_layer: bool) void {
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 
     var layer_index: usize = file.layers.len;
@@ -108,6 +108,9 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point) void 
             const c = layer.pixels()[index];
             if (c[3] > 0) {
                 color = c;
+                if (change_layer) {
+                    file.selected_layer_index = layer_index;
+                }
             }
         }
     }

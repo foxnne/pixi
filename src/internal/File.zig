@@ -279,7 +279,7 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
 
                 if (layer == .selected) {
                     file.buffers.stroke.append(result.index, result.color) catch {
-                        std.log.err("Failed to append to stroke buffer", .{});
+                        dvui.log.err("Failed to append to stroke buffer", .{});
                     };
                 }
                 active_layer.pixels()[result.index] = color;
@@ -300,7 +300,7 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
             if (active_layer.getPixelIndex(new_point)) |index| {
                 if (layer == .selected) {
                     file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
-                        std.log.err("Failed to append to stroke buffer", .{});
+                        dvui.log.err("Failed to append to stroke buffer", .{});
                     };
                 }
 
@@ -317,7 +317,7 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
         const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
         if (change_opt) |change| {
             file.history.append(change) catch {
-                std.log.err("Failed to append to history", .{});
+                dvui.log.err("Failed to append to history", .{});
             };
         }
     }
@@ -387,7 +387,7 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
                     if (active_layer.getPixelIndex(new_point)) |index| {
                         if (layer == .selected) {
                             file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
-                                std.log.err("Failed to append to stroke buffer", .{});
+                                dvui.log.err("Failed to append to stroke buffer", .{});
                             };
                         }
 
@@ -405,7 +405,7 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
             const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
             if (change_opt) |change| {
                 file.history.append(change) catch {
-                    std.log.err("Failed to append to history", .{});
+                    dvui.log.err("Failed to append to history", .{});
                 };
             }
         }
@@ -421,10 +421,36 @@ pub fn deleteLayer(self: *File, index: usize) !void {
     } });
 }
 
-pub fn createLayer(self: *File) ?u64 {
+pub fn duplicateLayer(self: *File, index: usize) !u64 {
+    const layer = self.layers.slice().get(index);
+    var new_layer = Layer.init(self.newID(), layer.name, .{ self.width, self.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.FailedToDuplicateLayer;
+    new_layer.visible = layer.visible;
+    new_layer.collapse = layer.collapse;
+
+    @memcpy(new_layer.pixels(), layer.pixels());
+
+    self.layers.insert(pixi.app.allocator, index, new_layer) catch {
+        dvui.log.err("Failed to append layer", .{});
+    };
+
+    self.selected_layer_index = index;
+
+    self.history.append(.{
+        .layer_restore_delete = .{
+            .index = 0,
+            .action = .delete,
+        },
+    }) catch {
+        dvui.log.err("Failed to append history", .{});
+    };
+
+    return new_layer.id;
+}
+
+pub fn createLayer(self: *File) !u64 {
     if (pixi.Internal.Layer.init(self.newID(), "New Layer", .{ self.width, self.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
         self.layers.insert(pixi.app.allocator, 0, layer) catch {
-            std.log.err("Failed to append layer", .{});
+            dvui.log.err("Failed to append layer", .{});
         };
         self.selected_layer_index = 0;
 
@@ -434,13 +460,13 @@ pub fn createLayer(self: *File) ?u64 {
                 .action = .delete,
             },
         }) catch {
-            std.log.err("Failed to append history", .{});
+            dvui.log.err("Failed to append history", .{});
         };
 
         return layer.id;
     }
 
-    return null;
+    return error.FailedToCreateLayer;
 }
 
 pub fn undo(self: *File) !void {

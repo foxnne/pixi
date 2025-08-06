@@ -181,7 +181,7 @@ fn drawTabs(_: *Artboard) void {
 
                 if (close_button.clicked()) {
                     pixi.editor.closeFileID(file.id) catch |err| {
-                        std.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
+                        dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
                     };
                     break;
                 }
@@ -236,7 +236,7 @@ pub fn drawShadows(_: *Artboard, container: dvui.RectScale) void {
             v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
         }
         dvui.renderTriangles(triangles, null) catch {
-            std.log.err("Failed to render triangles", .{});
+            dvui.log.err("Failed to render triangles", .{});
         };
 
         triangles.deinit(dvui.currentWindow().arena());
@@ -261,7 +261,7 @@ pub fn drawShadows(_: *Artboard, container: dvui.RectScale) void {
             v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
         }
         dvui.renderTriangles(triangles, null) catch {
-            std.log.err("Failed to render triangles", .{});
+            dvui.log.err("Failed to render triangles", .{});
         };
 
         triangles.deinit(dvui.currentWindow().arena());
@@ -437,7 +437,7 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
         // }
 
         // dvui.renderTriangles(triangles, null) catch {
-        //     std.log.err("Failed to render triangles", .{});
+        //     dvui.log.err("Failed to render triangles", .{});
         // };
     }
 

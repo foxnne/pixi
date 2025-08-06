@@ -19,11 +19,18 @@ pub fn draw() !void {
         });
         defer box.deinit();
         dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title, .gravity_y = 0.5 });
+
         if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+            var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .none,
+                .background = false,
+                .gravity_x = 1.0,
+            });
+            defer hbox.deinit();
+
             if (dvui.buttonIcon(@src(), "AddLayer", icons.tvg.lucide.plus, .{}, .{}, .{
                 .expand = .none,
                 .gravity_y = 0.5,
-                .gravity_x = 1.0,
                 .corner_radius = dvui.Rect.all(1000),
                 .box_shadow = .{
                     .color = .black,
@@ -34,9 +41,49 @@ pub fn draw() !void {
                 },
                 .color_fill = .fill_window,
             })) {
-                edit_layer_id = file.createLayer();
-                // reset prev_file_id to trigger a refresh of the scroll area
-                prev_file_id = null;
+                if (file.createLayer() catch null) |id| {
+                    edit_layer_id = id;
+                    // reset prev_file_id to trigger a refresh of the scroll area
+                    prev_file_id = null;
+                }
+            }
+
+            if (dvui.buttonIcon(@src(), "DuplicateLayer", icons.tvg.lucide.@"copy-plus", .{}, .{}, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .color_fill = .fill_window,
+            })) {
+                if (file.duplicateLayer(file.selected_layer_index) catch null) |id| {
+                    edit_layer_id = id;
+                    // reset prev_file_id to trigger a refresh of the scroll area
+                    prev_file_id = null;
+                }
+            }
+
+            if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .fill_color = .fromTheme(.err) }, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .color_fill = .fill_window,
+            })) {
+                file.deleteLayer(file.selected_layer_index) catch {
+                    dvui.log.err("Failed to delete layer", .{});
+                };
             }
         }
     }
@@ -141,7 +188,7 @@ pub fn drawTools() !void {
             .uv = uv,
             .fade = 0.0,
         }) catch {
-            std.log.err("Failed to render image", .{});
+            dvui.log.err("Failed to render image", .{});
         };
 
         if (button.clicked()) {
@@ -203,11 +250,11 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
 
                 if (insert_before <= file.layers.len) {
                     file.layers.insert(pixi.app.allocator, if (removed > insert_before) insert_before + 1 else insert_before, layer) catch {
-                        std.log.err("Failed to insert layer", .{});
+                        dvui.log.err("Failed to insert layer", .{});
                     };
                 } else {
                     file.layers.insert(pixi.app.allocator, if (removed > insert_before) file.layers.len else 0, layer) catch {
-                        std.log.err("Failed to insert layer", .{});
+                        dvui.log.err("Failed to insert layer", .{});
                     };
                 }
 
@@ -226,7 +273,7 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
                             .selected = file.layers.items(.id)[file.selected_layer_index],
                         },
                     }) catch {
-                        std.log.err("Failed to append history", .{});
+                        dvui.log.err("Failed to append history", .{});
                     };
                 } else {
                     pixi.app.allocator.free(prev_order);
@@ -372,7 +419,7 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
                                 .name = try pixi.app.allocator.dupe(u8, file.layers.items(.name)[layer_index]),
                             },
                         }) catch {
-                            std.log.err("Failed to append history", .{});
+                            dvui.log.err("Failed to append history", .{});
                         };
                         pixi.app.allocator.free(file.layers.items(.name)[layer_index]);
                         file.layers.items(.name)[layer_index] = try pixi.app.allocator.dupe(u8, te.getText());
@@ -417,25 +464,6 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
                     },
                 )) {
                     file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
-                }
-
-                if (dvui.buttonIcon(
-                    @src(),
-                    "delete_button",
-                    icons.tvg.lucide.trash,
-                    .{ .draw_focus = false },
-                    .{ .fill_color = .fromTheme(.err) },
-                    .{
-                        .expand = .none,
-                        .id_extra = layer_index,
-                        .gravity_y = 0.5,
-                        .corner_radius = dvui.Rect.all(1000),
-                        .margin = dvui.Rect.all(1),
-                    },
-                )) {
-                    file.deleteLayer(layer_index) catch {
-                        std.log.err("Failed to delete layer", .{});
-                    };
                 }
 
                 if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {

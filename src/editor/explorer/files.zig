@@ -253,7 +253,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         const new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ if (entry.kind == .directory) abs_path else directory, old_sub_path });
 
                         if (!std.mem.eql(u8, removed_path, new_path)) {
-                            std.fs.renameAbsolute(removed_path, new_path) catch std.log.err("Failed to move {s} to {s}", .{ removed_path, new_path });
+                            std.fs.renameAbsolute(removed_path, new_path) catch dvui.log.err("Failed to move {s} to {s}", .{ removed_path, new_path });
                         }
 
                         dvui.dataRemove(null, inner_unique_id, "removed_path");
@@ -282,11 +282,11 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             switch (entry.kind) {
                                 .directory => {
                                     const new_folder_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ abs_path, "New Folder" });
-                                    std.fs.makeDirAbsolute(new_folder_path) catch std.log.err("Failed to create folder: {s}", .{new_folder_path});
+                                    std.fs.makeDirAbsolute(new_folder_path) catch dvui.log.err("Failed to create folder: {s}", .{new_folder_path});
                                 },
                                 .file => {
                                     const new_folder_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ directory, "New Folder" });
-                                    std.fs.makeDirAbsolute(new_folder_path) catch std.log.err("Failed to create folder: {s}", .{new_folder_path});
+                                    std.fs.makeDirAbsolute(new_folder_path) catch dvui.log.err("Failed to create folder: {s}", .{new_folder_path});
                                 },
                                 else => {},
                             }
@@ -366,12 +366,12 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             switch (ext) {
                                 .pixi => {
                                     _ = pixi.editor.openFile(abs_path) catch {
-                                        std.log.debug("Failed to open file: {s}", .{abs_path});
+                                        dvui.log.err("Failed to open file: {s}", .{abs_path});
                                     };
                                 },
                                 .png, .jpg => {
                                     // _ = pixi.editor.openReference(abs_path) catch {
-                                    //     std.log.debug("Failed to open reference: {s}", .{abs_path});
+                                    //     dvui.log.err("Failed to open reference: {s}", .{abs_path});
                                     // };
                                 },
                                 else => {},
