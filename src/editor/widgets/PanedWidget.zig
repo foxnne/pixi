@@ -170,8 +170,8 @@ pub fn draw(self: *PanedWidget) void {
             },
         } }, .{
             .closed = false,
-            .color = self.data().options.color(.text_press),
-            .thickness = 4.0,
+            .color = self.data().options.color(.fill),
+            .thickness = 8.0,
         });
     }
 

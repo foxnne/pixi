@@ -412,6 +412,37 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
     }
 }
 
+pub fn deleteLayer(self: *File, index: usize) !void {
+    try self.deleted_layers.append(pixi.app.allocator, self.layers.slice().get(index));
+    self.layers.orderedRemove(index);
+    try self.history.append(.{ .layer_restore_delete = .{
+        .action = .restore,
+        .index = index,
+    } });
+}
+
+pub fn createLayer(self: *File) ?u64 {
+    if (pixi.Internal.Layer.init(self.newID(), "New Layer", .{ self.width, self.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
+        self.layers.insert(pixi.app.allocator, 0, layer) catch {
+            std.log.err("Failed to append layer", .{});
+        };
+        self.selected_layer_index = 0;
+
+        self.history.append(.{
+            .layer_restore_delete = .{
+                .index = 0,
+                .action = .delete,
+            },
+        }) catch {
+            std.log.err("Failed to append history", .{});
+        };
+
+        return layer.id;
+    }
+
+    return null;
+}
+
 pub fn undo(self: *File) !void {
     return self.history.undoRedo(self, .undo);
 }

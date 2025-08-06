@@ -13,13 +13,13 @@ pub fn draw() !void {
     drawTools() catch {};
 
     {
+        var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .horizontal,
+            .background = false,
+        });
+        defer box.deinit();
+        dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title, .gravity_y = 0.5 });
         if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
-            var box = dvui.box(@src(), .{ .dir = .vertical }, .{
-                .expand = .horizontal,
-                .background = false,
-            });
-            defer box.deinit();
-            dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title, .gravity_y = 0.5 });
             if (dvui.buttonIcon(@src(), "AddLayer", icons.tvg.lucide.plus, .{}, .{}, .{
                 .expand = .none,
                 .gravity_y = 0.5,
@@ -34,14 +34,8 @@ pub fn draw() !void {
                 },
                 .color_fill = .fill_window,
             })) {
-                if (pixi.Internal.Layer.init(file.newID(), "New Layer", .{ file.width, file.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
-                    file.layers.append(pixi.app.allocator, layer) catch {
-                        std.log.err("Failed to append layer", .{});
-                    };
-                    file.selected_layer_index = file.layers.len - 1;
-                    edit_layer_id = layer.id;
-                    prev_file_id = file.id;
-                }
+                edit_layer_id = file.createLayer();
+                // reset prev_file_id to trigger a refresh of the scroll area
                 prev_file_id = null;
             }
         }
@@ -252,7 +246,7 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
         while (layer_index > 0) {
             layer_index -= 1;
 
-            const selected = file.selected_layer_index == layer_index;
+            const selected = if (edit_layer_id) |id| id == file.layers.items(.id)[layer_index] else file.selected_layer_index == layer_index;
 
             var color = dvui.themeGet().color_fill_hover;
             if (pixi.editor.colors.file_tree_palette) |*palette| {
@@ -271,8 +265,8 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
                 dvui.animation(r.data().id, "expand", .{
                     .start_val = 0.0,
                     .end_val = 1.0,
-                    .end_time = 250_000 + (10_000 * @as(i32, @intCast(layer_index))),
-                    .easing = dvui.easing.linear,
+                    .end_time = 150_000 + (20_000 * @as(i32, @intCast(layer_index))),
+                    .easing = dvui.easing.inOutQuad,
                 });
             }
 
@@ -435,7 +429,9 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
                         .margin = dvui.Rect.all(1),
                     },
                 )) {
-                    std.log.info("delete layer {d}", .{layer_index});
+                    file.deleteLayer(layer_index) catch {
+                        std.log.err("Failed to delete layer", .{});
+                    };
                 }
 
                 if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
@@ -495,6 +491,8 @@ pub fn drawLayers(paned: *pixi.dvui.PanedWidget) !void {
             triangles.deinit(dvui.currentWindow().arena());
             path.deinit();
         }
+    } else {
+        paned.split_ratio.* = 0.0;
     }
 }
 
