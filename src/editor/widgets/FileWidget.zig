@@ -36,11 +36,22 @@ pub fn processSampleTool(self: *FileWidget) void {
     const file = self.init_options.file;
 
     for (dvui.events()) |*e| {
-        if (!self.init_options.canvas.scroll_container.matchEvent(e))
-            continue;
-
         switch (e.evt) {
+            .key => |ke| {
+                if (ke.action == .up) {
+                    self.sample_data_point = null;
+                } else if (ke.mod.matchBind("sample")) {
+                    if (self.last_mouse_event) |event| {
+                        const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
+
+                        self.sample(file, current_point, ke.mod.matchBind("ctrl/cmd"));
+                    }
+                }
+            },
             .mouse => |me| {
+                if (!self.init_options.canvas.scroll_container.matchEvent(e))
+                    continue;
+
                 self.last_mouse_event = e.*;
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
@@ -61,10 +72,17 @@ pub fn processSampleTool(self: *FileWidget) void {
                         self.sample_data_point = null;
                     }
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
+                    // if (dvui.dataGet(null, self.init_options.canvas.scroll_container.data().id, "sample", bool) == true) {
+                    //     self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
+                    // }
+
+                    if (me.mod.matchBind("sample")) {
+                        self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
+                    }
+
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sample_drag")) |diff| {
                             const previous_point = current_point.plus(self.init_options.canvas.dataFromScreenPoint(diff));
-                            //if (file.widget_data.drag_data_point) |previous_point| {
                             // Construct a rect spanning between current_point and previous_point
                             const min_x = @min(previous_point.x, current_point.x);
                             const min_y = @min(previous_point.y, current_point.y);
@@ -84,7 +102,6 @@ pub fn processSampleTool(self: *FileWidget) void {
                                 .screen_rect = screen_rect,
                                 .capture_id = self.init_options.canvas.scroll_container.data().id,
                             });
-                            //}
 
                             self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
                             e.handle(@src(), self.init_options.canvas.scroll_container.data());

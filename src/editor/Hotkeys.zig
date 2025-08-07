@@ -15,12 +15,14 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "redo", .{ .key = .z, .command = true, .shift = true });
         try window.keybinds.putNoClobber(window.gpa, "zoom", .{ .command = true });
         try window.keybinds.putNoClobber(window.gpa, "save", .{ .command = true, .key = .s });
+        try window.keybinds.putNoClobber(window.gpa, "sample", .{ .control = true });
     } else {
         try window.keybinds.putNoClobber(window.gpa, "open_folder", .{ .key = .f, .control = true });
         try window.keybinds.putNoClobber(window.gpa, "undo", .{ .key = .z, .control = true, .shift = false });
         try window.keybinds.putNoClobber(window.gpa, "redo", .{ .key = .z, .control = true, .shift = true });
         try window.keybinds.putNoClobber(window.gpa, "zoom", .{ .control = true });
         try window.keybinds.putNoClobber(window.gpa, "save", .{ .control = true, .key = .s });
+        try window.keybinds.putNoClobber(window.gpa, "sample", .{ .alt = true });
     }
 
     try window.keybinds.putNoClobber(window.gpa, "shift", .{ .shift = true });
