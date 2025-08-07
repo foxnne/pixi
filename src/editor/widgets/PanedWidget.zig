@@ -1,5 +1,6 @@
 const std = @import("std");
 const dvui = @import("dvui");
+const icons = @import("icons");
 
 const Event = dvui.Event;
 const Options = dvui.Options;
@@ -158,23 +159,6 @@ pub fn draw(self: *PanedWidget) void {
 
     const rs = self.data().contentRectScale();
 
-    if (self.split_ratio.* == 0.0) {
-        dvui.Path.stroke(.{ .points = switch (self.init_opts.direction) {
-            .vertical => &.{
-                .{ .x = rs.r.x, .y = rs.r.y + (self.split_ratio.* * rs.r.h) },
-                .{ .x = rs.r.x + rs.r.w, .y = rs.r.y + (self.split_ratio.* * rs.r.h) },
-            },
-            .horizontal => &.{
-                .{ .x = rs.r.x + (self.split_ratio.* * rs.r.w), .y = rs.r.y },
-                .{ .x = rs.r.x + (self.split_ratio.* * rs.r.w), .y = rs.r.y + rs.r.h },
-            },
-        } }, .{
-            .closed = false,
-            .color = self.data().options.color(.fill),
-            .thickness = 8.0,
-        });
-    }
-
     if (dvui.captured(self.data().id)) {
         // we are dragging it, draw it fully
         self.mouse_dist = 0;
@@ -211,6 +195,27 @@ pub fn draw(self: *PanedWidget) void {
         },
     }
     r.fill(.all(thick), .{ .color = self.data().options.color(.text).opacity(0.5), .fade = 1.0 });
+
+    switch (self.init_opts.direction) {
+        .vertical => {
+            r.w = dvui.iconWidth("grip", icons.tvg.lucide.@"grip-horizontal", r.h) catch r.h;
+            r.x = (rs.r.x + rs.r.w / 2) - r.w / 2;
+            r = r.outset(dvui.Rect.Physical.all(rs.s * 2));
+
+            dvui.icon(@src(), "grip", icons.tvg.lucide.@"grip-horizontal", .{ .fill_color = .fromTheme(.fill_window) }, .{
+                .rect = rs.rectFromPhysical(r),
+            });
+        },
+        .horizontal => {
+            r.h = dvui.iconWidth("grip", icons.tvg.lucide.@"grip-vertical", r.w) catch r.h;
+            r.y = (rs.r.y + rs.r.h / 2) - r.h / 2;
+            r = r.outset(dvui.Rect.Physical.all(2 * rs.s));
+
+            dvui.icon(@src(), "grip", icons.tvg.lucide.@"grip-vertical", .{ .fill_color = .fromTheme(.fill_window) }, .{
+                .rect = rs.rectFromPhysical(r),
+            });
+        },
+    }
 }
 
 pub fn collapsed(self: *PanedWidget) bool {

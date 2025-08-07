@@ -272,7 +272,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     );
     defer scaler.deinit();
 
-    var explorer_artboard = dvui.paned(@src(), .{
+    var explorer_artboard = pixi.dvui.paned(@src(), .{
         .direction = .horizontal,
         .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
         .handle_size = handle_size,
@@ -335,7 +335,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             }
         }
 
-        var canvas_flipbook = dvui.paned(@src(), .{
+        var canvas_flipbook = pixi.dvui.paned(@src(), .{
             .direction = .vertical,
             .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
             .handle_size = handle_size,

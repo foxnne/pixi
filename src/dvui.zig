@@ -10,11 +10,19 @@ pub const ImageWidget = Widgets.ImageWidget;
 pub const CanvasWidget = Widgets.CanvasWidget;
 pub const ReorderWidget = Widgets.ReorderWidget;
 pub const PanedWidget = Widgets.PanedWidget;
-pub const DynamicPanedWidget = Widgets.DynamicPanedWidget;
+pub const LayerPanedWidget = Widgets.LayerPanedWidget;
 
-pub fn paned(src: std.builtin.SourceLocation, init_opts: DynamicPanedWidget.InitOptions, opts: dvui.Options) *DynamicPanedWidget {
-    var ret = dvui.widgetAlloc(DynamicPanedWidget);
-    ret.* = DynamicPanedWidget.init(src, init_opts, opts);
+pub fn layersPaned(src: std.builtin.SourceLocation, init_opts: LayerPanedWidget.InitOptions, opts: dvui.Options) *LayerPanedWidget {
+    var ret = dvui.widgetAlloc(LayerPanedWidget);
+    ret.* = LayerPanedWidget.init(src, init_opts, opts);
+    ret.install();
+    ret.processEvents();
+    return ret;
+}
+
+pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions, opts: dvui.Options) *PanedWidget {
+    var ret = dvui.widgetAlloc(PanedWidget);
+    ret.* = PanedWidget.init(src, init_opts, opts);
     ret.install();
     ret.processEvents();
     return ret;

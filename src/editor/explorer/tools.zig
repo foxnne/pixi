@@ -94,7 +94,7 @@ pub fn draw() !void {
         }
     }
 
-    var paned = pixi.dvui.paned(@src(), .{
+    var paned = pixi.dvui.layersPaned(@src(), .{
         .direction = .vertical,
         .collapsed_size = 300,
         .handle_size = 10,

@@ -1,5 +1,6 @@
 const std = @import("std");
 const dvui = @import("dvui");
+const icons = @import("icons");
 
 const Event = dvui.Event;
 const Options = dvui.Options;
@@ -12,7 +13,7 @@ const WidgetData = dvui.WidgetData;
 
 const enums = dvui.enums;
 
-const PanedWidget = @This();
+const LayerPanedWidget = @This();
 
 pub const InitOptions = struct {
     /// How to split the two panes (.horizontal first pane on left).
@@ -80,7 +81,7 @@ pub const AutoFitOptions = struct {
     min_size: f32 = 0,
 };
 
-pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Options) PanedWidget {
+pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Options) LayerPanedWidget {
     const defaults = Options{ .name = "Paned" };
     const wd = WidgetData.init(src, .{}, defaults.override(opts));
 
@@ -90,7 +91,7 @@ pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Op
         .vertical => rect.h,
     };
 
-    var self = PanedWidget{
+    var self = LayerPanedWidget{
         .wd = wd,
         .init_opts = init_options,
         .collapsing = dvui.dataGet(null, wd.id, "_collapsing", bool) orelse false,
@@ -156,7 +157,7 @@ pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Op
     return self;
 }
 
-pub fn install(self: *PanedWidget) void {
+pub fn install(self: *LayerPanedWidget) void {
     self.data().register();
 
     self.data().borderAndBackground(.{});
@@ -165,11 +166,11 @@ pub fn install(self: *PanedWidget) void {
     dvui.parentSet(self.widget());
 }
 
-pub fn matchEvent(self: *PanedWidget, e: *Event) bool {
+pub fn matchEvent(self: *LayerPanedWidget, e: *Event) bool {
     return dvui.eventMatchSimple(e, self.data());
 }
 
-pub fn processEvents(self: *PanedWidget) void {
+pub fn processEvents(self: *LayerPanedWidget) void {
     const evts = dvui.events();
     for (evts) |*e| {
         if (!self.matchEvent(e))
@@ -179,7 +180,7 @@ pub fn processEvents(self: *PanedWidget) void {
     }
 }
 
-pub fn draw(self: *PanedWidget) void {
+pub fn draw(self: *LayerPanedWidget) void {
     if (self.drawn) return;
     self.drawn = true;
     if (self.collapsed()) return;
@@ -239,13 +240,21 @@ pub fn draw(self: *PanedWidget) void {
         },
     }
     r.fill(.all(thick), .{ .color = self.data().options.color(.text).opacity(0.5), .fade = 1.0 });
+
+    r.w = dvui.iconWidth("grip", icons.tvg.lucide.@"grip-horizontal", r.h) catch r.w;
+    r.x = (rs.r.x + rs.r.w / 2) - r.w / 2;
+    r = r.outset(dvui.Rect.Physical.all(2 * rs.s));
+
+    dvui.icon(@src(), "grip", icons.tvg.lucide.@"grip-horizontal", .{ .fill_color = .fromTheme(.fill_window) }, .{
+        .rect = rs.rectFromPhysical(r),
+    });
 }
 
-pub fn collapsed(self: *PanedWidget) bool {
+pub fn collapsed(self: *LayerPanedWidget) bool {
     return self.collapsed_state;
 }
 
-pub fn showFirst(self: *PanedWidget) bool {
+pub fn showFirst(self: *LayerPanedWidget) bool {
     const ret = self.split_ratio.* > 0;
 
     if (ret) {
@@ -256,7 +265,7 @@ pub fn showFirst(self: *PanedWidget) bool {
     return ret;
 }
 
-pub fn showSecond(self: *PanedWidget) bool {
+pub fn showSecond(self: *LayerPanedWidget) bool {
     if (self.should_autofit) {
         if (self.init_opts.autofit_first) |autofit| {
             self.split_ratio.* = self.getFirstFittedRatio(autofit);
@@ -273,22 +282,22 @@ pub fn showSecond(self: *PanedWidget) bool {
     return ret;
 }
 
-pub fn animateSplit(self: *PanedWidget, end_val: f32) void {
+pub fn animateSplit(self: *LayerPanedWidget, end_val: f32) void {
     dvui.animation(self.data().id, "_split_ratio", dvui.Animation{ .start_val = self.split_ratio.*, .end_val = end_val, .end_time = 250_000 });
 }
 
-pub fn widget(self: *PanedWidget) Widget {
+pub fn widget(self: *LayerPanedWidget) Widget {
     return Widget.init(self, data, rectFor, screenRectScale, minSizeForChild);
 }
 
-pub fn data(self: *PanedWidget) *WidgetData {
+pub fn data(self: *LayerPanedWidget) *WidgetData {
     return self.wd.validate();
 }
 
 /// Resets the autofit of the first pane
 ///
 /// Must be called before `showFirst`
-pub fn autoFit(self: *PanedWidget) void {
+pub fn autoFit(self: *LayerPanedWidget) void {
     self.should_autofit = true;
 }
 
@@ -296,7 +305,7 @@ pub fn autoFit(self: *PanedWidget) void {
 ///
 /// Must be called after all the children on `showFirst` have been called
 /// and before `showSecond` is called
-pub fn getFirstFittedRatio(self: *PanedWidget, autofit: AutoFitOptions) f32 {
+pub fn getFirstFittedRatio(self: *LayerPanedWidget, autofit: AutoFitOptions) f32 {
     const full_size = @max(1, self.data().contentRect().h - self.handleSize() * 2);
     const size_of_first = @max(autofit.min_size, self.layout.min_size_children.h + 5);
     return std.math.clamp(
@@ -306,11 +315,11 @@ pub fn getFirstFittedRatio(self: *PanedWidget, autofit: AutoFitOptions) f32 {
     );
 }
 
-pub fn handleSize(self: *const PanedWidget) f32 {
+pub fn handleSize(self: *const LayerPanedWidget) f32 {
     return self.handle_thick / 2 + self.init_opts.handle_margin;
 }
 
-pub fn rectFor(self: *PanedWidget, id: dvui.Id, min_size: Size, e: Options.Expand, g: Options.Gravity) dvui.Rect {
+pub fn rectFor(self: *LayerPanedWidget, id: dvui.Id, min_size: Size, e: Options.Expand, g: Options.Gravity) dvui.Rect {
     var r = self.data().contentRect().justSize();
     var margin = self.handleSize();
     const space = switch (self.init_opts.direction) {
@@ -366,17 +375,17 @@ pub fn rectFor(self: *PanedWidget, id: dvui.Id, min_size: Size, e: Options.Expan
     return self.layout.rectFor(r, id, min_size, e, g);
 }
 
-pub fn screenRectScale(self: *PanedWidget, rect: Rect) RectScale {
+pub fn screenRectScale(self: *LayerPanedWidget, rect: Rect) RectScale {
     return self.data().contentRectScale().rectToRectScale(rect);
 }
 
-pub fn minSizeForChild(self: *PanedWidget, s: dvui.Size) void {
+pub fn minSizeForChild(self: *LayerPanedWidget, s: dvui.Size) void {
     var ms = self.layout.minSizeForChild(s);
     ms.h += 5;
     self.data().minSizeMax(self.data().options.padSize(ms));
 }
 
-pub fn processEvent(self: *PanedWidget, e: *Event) void {
+pub fn processEvent(self: *LayerPanedWidget, e: *Event) void {
     if (e.evt == .mouse) {
         const rs = self.data().contentRectScale();
         const cursor: enums.Cursor = switch (self.init_opts.direction) {
@@ -431,7 +440,7 @@ pub fn processEvent(self: *PanedWidget, e: *Event) void {
     }
 }
 
-pub fn deinit(self: *PanedWidget) void {
+pub fn deinit(self: *LayerPanedWidget) void {
     if (self.init_opts.draw_in_deinit) self.draw();
     defer dvui.widgetFree(self);
     dvui.clipSet(self.prevClip);
