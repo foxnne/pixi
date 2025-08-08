@@ -11,88 +11,13 @@ var prev_layer_count: usize = 0;
 var max_split_ratio: f32 = 0.4;
 
 pub fn draw() !void {
-    //var refit_pane: bool = if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| prev_file_id != file.id else false;
-    var layer_count: usize = 0;
-    defer prev_layer_count = layer_count;
-
     drawTools() catch {};
+    drawColors() catch {};
+    drawLayerControls() catch {};
 
-    {
-        var box = dvui.box(@src(), .{ .dir = .vertical }, .{
-            .expand = .horizontal,
-            .background = false,
-        });
-        defer box.deinit();
-        dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title, .gravity_y = 0.5 });
-
-        if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
-            // Collect layers length to trigger a refit of the pane
-            layer_count = file.layers.len;
-
-            var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .expand = .none,
-                .background = false,
-                .gravity_x = 1.0,
-            });
-            defer hbox.deinit();
-
-            if (dvui.buttonIcon(@src(), "AddLayer", icons.tvg.lucide.plus, .{}, .{}, .{
-                .expand = .none,
-                .gravity_y = 0.5,
-                .corner_radius = dvui.Rect.all(1000),
-                .box_shadow = .{
-                    .color = .black,
-                    .offset = .{ .x = -2.0, .y = 2.0 },
-                    .fade = 6.0,
-                    .alpha = 0.15,
-                    .corner_radius = dvui.Rect.all(1000),
-                },
-                .color_fill = .fill_window,
-            })) {
-                if (file.createLayer() catch null) |id| {
-                    edit_layer_id = id;
-                }
-            }
-
-            if (dvui.buttonIcon(@src(), "DuplicateLayer", icons.tvg.lucide.@"copy-plus", .{}, .{}, .{
-                .expand = .none,
-                .gravity_y = 0.5,
-                .corner_radius = dvui.Rect.all(1000),
-                .box_shadow = .{
-                    .color = .black,
-                    .offset = .{ .x = -2.0, .y = 2.0 },
-                    .fade = 6.0,
-                    .alpha = 0.15,
-                    .corner_radius = dvui.Rect.all(1000),
-                },
-                .color_fill = .fill_window,
-            })) {
-                if (file.duplicateLayer(file.selected_layer_index) catch null) |id| {
-                    edit_layer_id = id;
-                }
-            }
-
-            if (file.layers.len > 1) {
-                if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .fill_color = .fromTheme(.err) }, .{
-                    .expand = .none,
-                    .gravity_y = 0.5,
-                    .corner_radius = dvui.Rect.all(1000),
-                    .box_shadow = .{
-                        .color = .black,
-                        .offset = .{ .x = -2.0, .y = 2.0 },
-                        .fade = 6.0,
-                        .alpha = 0.15,
-                        .corner_radius = dvui.Rect.all(1000),
-                    },
-                    .color_fill = .fill_window,
-                })) {
-                    file.deleteLayer(file.selected_layer_index) catch {
-                        dvui.log.err("Failed to delete layer", .{});
-                    };
-                }
-            }
-        }
-    }
+    // Collect layers length to trigger a refit of the pan
+    const layer_count: usize = if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| file.layers.len else 0;
+    defer prev_layer_count = layer_count;
 
     var paned = pixi.dvui.layersPaned(@src(), .{
         .direction = .vertical,
@@ -125,7 +50,8 @@ pub fn draw() !void {
     }
 
     if (paned.showSecond()) {
-        drawColors() catch {};
+        //drawColors() catch {};
+        drawPalettes() catch {};
     }
 }
 
@@ -203,6 +129,80 @@ pub fn drawTools() !void {
 
         if (button.clicked()) {
             pixi.editor.tools.set(tool);
+        }
+    }
+}
+
+pub fn drawLayerControls() !void {
+    var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .horizontal,
+        .background = false,
+    });
+    defer box.deinit();
+    dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title, .gravity_y = 0.5 });
+
+    if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .none,
+            .background = false,
+            .gravity_x = 1.0,
+        });
+        defer hbox.deinit();
+
+        if (dvui.buttonIcon(@src(), "AddLayer", icons.tvg.lucide.plus, .{}, .{}, .{
+            .expand = .none,
+            .gravity_y = 0.5,
+            .corner_radius = dvui.Rect.all(1000),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -2.0, .y = 2.0 },
+                .fade = 6.0,
+                .alpha = 0.15,
+                .corner_radius = dvui.Rect.all(1000),
+            },
+            .color_fill = .fill_window,
+        })) {
+            if (file.createLayer() catch null) |id| {
+                edit_layer_id = id;
+            }
+        }
+
+        if (dvui.buttonIcon(@src(), "DuplicateLayer", icons.tvg.lucide.@"copy-plus", .{}, .{}, .{
+            .expand = .none,
+            .gravity_y = 0.5,
+            .corner_radius = dvui.Rect.all(1000),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -2.0, .y = 2.0 },
+                .fade = 6.0,
+                .alpha = 0.15,
+                .corner_radius = dvui.Rect.all(1000),
+            },
+            .color_fill = .fill_window,
+        })) {
+            if (file.duplicateLayer(file.selected_layer_index) catch null) |id| {
+                edit_layer_id = id;
+            }
+        }
+
+        if (file.layers.len > 1) {
+            if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .fill_color = .fromTheme(.err) }, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .color_fill = .fill_window,
+            })) {
+                file.deleteLayer(file.selected_layer_index) catch {
+                    dvui.log.err("Failed to delete layer", .{});
+                };
+            }
         }
     }
 }
@@ -531,12 +531,6 @@ pub fn drawLayers() !void {
 }
 
 pub fn drawColors() !void {
-    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .both,
-        .background = false,
-    });
-    defer vbox.deinit();
-
     dvui.labelNoFmt(@src(), "COLORS", .{}, .{ .font_style = .title });
 
     var hbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
@@ -642,4 +636,8 @@ fn drawColorPicker(rect: dvui.Rect.Physical, backing_color: *[4]u8) !void {
             };
         }
     }
+}
+
+pub fn drawPalettes() !void {
+    dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font_style = .title });
 }

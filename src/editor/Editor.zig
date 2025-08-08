@@ -54,7 +54,7 @@ project: ?Project = null,
 /// Backing allocations for the project paths
 //buffers: Buffers = .{},
 
-previous_atlas_export: ?[:0]const u8 = null,
+//previous_atlas_export: ?[:0]const u8 = null,
 //open_files: std.ArrayList(pixi.Internal.File) = undefined,
 open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 //open_references: std.ArrayList(pixi.Internal.Reference) = undefined,
@@ -64,8 +64,8 @@ open_reference_index: usize = 0,
 tools: Tools,
 colors: Colors = .{},
 
-selection_time: f32 = 0.0,
-selection_invert: bool = false,
+//selection_time: f32 = 0.0,
+//selection_invert: bool = false,
 
 //clipboard_image: ?zstbi.Image = null,
 //clipboard_position: [2]u32 = .{ 0, 0 },

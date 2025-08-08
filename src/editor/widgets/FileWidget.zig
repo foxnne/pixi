@@ -6,6 +6,9 @@ options: Options,
 last_mouse_event: ?dvui.Event = null,
 drag_data_point: ?dvui.Point = null,
 sample_data_point: ?dvui.Point = null,
+previous_mods: dvui.enums.Mod = .none,
+right_mouse_down: bool = false,
+sample_key_down: bool = false,
 
 pub const InitOptions = struct {
     canvas: *CanvasWidget,
@@ -19,6 +22,8 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
         .last_mouse_event = if (dvui.dataGet(null, init_opts.canvas.id, "mouse_point", dvui.Event)) |event| event else null,
         .drag_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "drag_data_point", dvui.Point)) |point| point else null,
         .sample_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "sample_data_point", dvui.Point)) |point| point else null,
+        .sample_key_down = if (dvui.dataGet(null, init_opts.canvas.id, "sample_key_down", bool)) |key| key else false,
+        .right_mouse_down = if (dvui.dataGet(null, init_opts.canvas.id, "right_mouse_down", bool)) |key| key else false,
     };
 
     init_opts.canvas.install(src, .{
@@ -35,19 +40,30 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
 pub fn processSampleTool(self: *FileWidget) void {
     const file = self.init_options.file;
 
+    const current_mods = dvui.currentWindow().modifiers;
+    defer self.previous_mods = current_mods;
+
+    if (!current_mods.matchBind("sample") and !self.right_mouse_down) {
+        self.sample_key_down = false;
+        self.sample_data_point = null;
+    } else if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
+        self.sample_key_down = true;
+        if (self.last_mouse_event) |event| {
+            const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
+            self.sample(file, current_point, self.right_mouse_down);
+        }
+    }
+
     for (dvui.events()) |*e| {
         switch (e.evt) {
-            .key => |ke| {
-                if (ke.action == .up) {
-                    self.sample_data_point = null;
-                } else if (ke.mod.matchBind("sample")) {
-                    if (self.last_mouse_event) |event| {
-                        const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
-
-                        self.sample(file, current_point, ke.mod.matchBind("ctrl/cmd"));
-                    }
-                }
-            },
+            // .key => |ke| {
+            //     if (self.previous_mods.matchBind("sample") and !ke.mod.matchBind("sample")) {
+            //         self.sample_key_down = false;
+            //         self.sample_data_point = null;
+            //     } else if (ke.mod.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
+            //         self.sample_key_down = true;
+            //     }
+            // },
             .mouse => |me| {
                 if (!self.init_options.canvas.scroll_container.matchEvent(e))
                     continue;
@@ -56,30 +72,26 @@ pub fn processSampleTool(self: *FileWidget) void {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button == .right) {
+                    self.right_mouse_down = true;
                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
                     dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
                     dvui.dragPreStart(me.p, .{ .name = "sample_drag" });
                     self.drag_data_point = current_point;
 
-                    self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
+                    self.sample(file, current_point, self.sample_key_down);
                 } else if (me.action == .release and me.button == .right) {
+                    self.right_mouse_down = false;
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                         e.handle(@src(), self.init_options.canvas.scroll_container.data());
                         dvui.captureMouse(null, e.num);
                         dvui.dragEnd();
 
-                        self.drag_data_point = null;
-                        self.sample_data_point = null;
+                        if (!self.sample_key_down) {
+                            self.drag_data_point = null;
+                            self.sample_data_point = null;
+                        }
                     }
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
-                    // if (dvui.dataGet(null, self.init_options.canvas.scroll_container.data().id, "sample", bool) == true) {
-                    //     self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
-                    // }
-
-                    if (me.mod.matchBind("sample")) {
-                        self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
-                    }
-
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sample_drag")) |diff| {
                             const previous_point = current_point.plus(self.init_options.canvas.dataFromScreenPoint(diff));
@@ -106,6 +118,8 @@ pub fn processSampleTool(self: *FileWidget) void {
                             self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
                             e.handle(@src(), self.init_options.canvas.scroll_container.data());
                         }
+                    } else if (self.right_mouse_down or self.sample_key_down) {
+                        self.sample(file, current_point, self.right_mouse_down and self.sample_key_down);
                     }
                 }
             },
@@ -154,6 +168,14 @@ pub fn processStrokeTool(self: *FileWidget) void {
     }) return;
 
     const file = self.init_options.file;
+
+    if (self.sample_key_down or self.right_mouse_down) {
+        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        file.temporary_layer.invalidate();
+        file.temporary_layer.dirty = false;
+        return;
+    }
+
     const color: [4]u8 = switch (pixi.editor.tools.current) {
         .pencil => pixi.editor.colors.primary,
         .eraser => [_]u8{ 0, 0, 0, 0 },
@@ -652,6 +674,7 @@ pub fn drawLayers(self: *FileWidget) void {
 }
 
 pub fn processEvents(self: *FileWidget) void {
+    defer self.previous_mods = dvui.currentWindow().modifiers;
     defer if (self.last_mouse_event) |last_mouse_event| {
         dvui.dataSet(null, self.init_options.canvas.id, "mouse_point", last_mouse_event);
     } else {
@@ -666,6 +689,16 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataSet(null, self.init_options.canvas.id, "sample_data_point", sample_data_point);
     } else {
         dvui.dataRemove(null, self.init_options.canvas.id, "sample_data_point");
+    };
+    defer if (self.sample_key_down) {
+        dvui.dataSet(null, self.init_options.canvas.id, "sample_key_down", self.sample_key_down);
+    } else {
+        dvui.dataRemove(null, self.init_options.canvas.id, "sample_key_down");
+    };
+    defer if (self.right_mouse_down) {
+        dvui.dataSet(null, self.init_options.canvas.id, "right_mouse_down", self.right_mouse_down);
+    } else {
+        dvui.dataRemove(null, self.init_options.canvas.id, "right_mouse_down");
     };
 
     self.processStrokeTool();
