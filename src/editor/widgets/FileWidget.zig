@@ -43,9 +43,11 @@ pub fn processSampleTool(self: *FileWidget) void {
     const current_mods = dvui.currentWindow().modifiers;
     defer self.previous_mods = current_mods;
 
-    if (!current_mods.matchBind("sample") and !self.right_mouse_down) {
+    if (!current_mods.matchBind("sample")) {
         self.sample_key_down = false;
-        self.sample_data_point = null;
+        if (!self.right_mouse_down) {
+            self.sample_data_point = null;
+        }
     } else if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
         self.sample_key_down = true;
         if (self.last_mouse_event) |event| {
@@ -56,14 +58,6 @@ pub fn processSampleTool(self: *FileWidget) void {
 
     for (dvui.events()) |*e| {
         switch (e.evt) {
-            // .key => |ke| {
-            //     if (self.previous_mods.matchBind("sample") and !ke.mod.matchBind("sample")) {
-            //         self.sample_key_down = false;
-            //         self.sample_data_point = null;
-            //     } else if (ke.mod.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
-            //         self.sample_key_down = true;
-            //     }
-            // },
             .mouse => |me| {
                 if (!self.init_options.canvas.scroll_container.matchEvent(e))
                     continue;
@@ -115,7 +109,7 @@ pub fn processSampleTool(self: *FileWidget) void {
                                 .capture_id = self.init_options.canvas.scroll_container.data().id,
                             });
 
-                            self.sample(file, current_point, me.mod.matchBind("ctrl/cmd"));
+                            self.sample(file, current_point, self.sample_key_down);
                             e.handle(@src(), self.init_options.canvas.scroll_container.data());
                         }
                     } else if (self.right_mouse_down or self.sample_key_down) {
@@ -168,19 +162,31 @@ pub fn processStrokeTool(self: *FileWidget) void {
     }) return;
 
     const file = self.init_options.file;
-
-    if (self.sample_key_down or self.right_mouse_down) {
-        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-        file.temporary_layer.invalidate();
-        file.temporary_layer.dirty = false;
-        return;
-    }
-
     const color: [4]u8 = switch (pixi.editor.tools.current) {
         .pencil => pixi.editor.colors.primary,
         .eraser => [_]u8{ 0, 0, 0, 0 },
         else => unreachable,
     };
+
+    if (self.previous_mods.matchBind("sample") and !dvui.currentWindow().modifiers.matchBind("sample")) {
+        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        file.temporary_layer.invalidate();
+        file.temporary_layer.dirty = false;
+        return;
+    } else if (dvui.currentWindow().modifiers.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
+        if (self.last_mouse_event) |event| {
+            const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
+
+            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+            const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+            file.drawPoint(
+                current_point,
+                temp_color,
+                .temporary,
+                .{ .invalidate = true, .to_change = false },
+            );
+        }
+    }
 
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
