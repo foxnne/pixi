@@ -180,7 +180,7 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
     while (layer_index > 0) {
         layer_index -= 1;
         var layer = file.layers.get(layer_index);
-        if (layer.getPixelIndex(point)) |index| {
+        if (layer.pixelIndex(point)) |index| {
             const c = layer.pixels()[index];
             if (c[3] > 0) {
                 color = c;

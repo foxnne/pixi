@@ -298,7 +298,7 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
                 }
             }
 
-            if (active_layer.getPixelIndex(new_point)) |index| {
+            if (active_layer.pixelIndex(new_point)) |index| {
                 if (layer == .selected) {
                     file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
                         dvui.log.err("Failed to append to stroke buffer", .{});
@@ -342,7 +342,7 @@ pub fn fillPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
     }
 
     if (fill_options.replace) {
-        if (active_layer.getPixelIndex(point)) |index| {
+        if (active_layer.pixelIndex(point)) |index| {
             active_layer.setMaskFromColor(active_layer.pixels()[index]);
         }
     } else {
@@ -436,7 +436,7 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
                         }
                     }
 
-                    if (active_layer.getPixelIndex(new_point)) |index| {
+                    if (active_layer.pixelIndex(new_point)) |index| {
                         if (layer == .selected) {
                             file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
                                 dvui.log.err("Failed to append to stroke buffer", .{});

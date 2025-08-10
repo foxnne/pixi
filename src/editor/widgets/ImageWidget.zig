@@ -125,7 +125,7 @@ pub fn processSampleTool(self: *ImageWidget) void {
 fn sample(self: *ImageWidget, point: dvui.Point) void {
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 
-    if (pixi.image.getPixelIndex(self.init_options.source, point)) |index| {
+    if (pixi.image.pixelIndex(self.init_options.source, point)) |index| {
         const c = pixi.image.pixels(self.init_options.source)[index];
         if (c[3] > 0) {
             color = c;

@@ -16,18 +16,18 @@ pub fn pixels(source: dvui.ImageSource) [][4]u8 {
     return &.{};
 }
 
-pub fn getPixelIndex(source: dvui.ImageSource, pixel: dvui.Point) ?usize {
-    if (pixel.x < 0 or pixel.y < 0) {
+pub fn pixelIndex(source: dvui.ImageSource, px: dvui.Point) ?usize {
+    if (px.x < 0 or px.y < 0) {
         return null;
     }
 
     const s = size(source);
 
-    if (pixel.x > s.w or pixel.y > s.h) {
+    if (px.x > s.w or px.y > s.h) {
         return null;
     }
 
-    const p: [2]usize = .{ @intFromFloat(pixel.x), @intFromFloat(pixel.y) };
+    const p: [2]usize = .{ @intFromFloat(px.x), @intFromFloat(px.y) };
 
     const index = p[0] + p[1] * @as(usize, @intFromFloat(s.w));
     if (index >= pixels(source).len) {
@@ -36,7 +36,7 @@ pub fn getPixelIndex(source: dvui.ImageSource, pixel: dvui.Point) ?usize {
     return index;
 }
 
-pub fn getPointFromIndex(source: dvui.ImageSource, index: usize) ?dvui.Point {
+pub fn point(source: dvui.ImageSource, index: usize) ?dvui.Point {
     if (index >= pixels(source).len) {
         return null;
     }
@@ -45,15 +45,15 @@ pub fn getPointFromIndex(source: dvui.ImageSource, index: usize) ?dvui.Point {
     return .{ .x = @floatFromInt(index % @as(usize, @intFromFloat(s.w))), .y = @floatFromInt(index / @as(usize, @intFromFloat(s.w))) };
 }
 
-pub fn getPixel(source: dvui.ImageSource, pixel: dvui.Point) ?[4]u8 {
-    if (getPixelIndex(source, pixel)) |index| {
+pub fn pixel(source: dvui.ImageSource, p: dvui.Point) ?[4]u8 {
+    if (pixelIndex(source, p)) |index| {
         return pixels(source)[index];
     }
     return null;
 }
 
-pub fn setPixel(source: dvui.ImageSource, pixel: dvui.Point, color: [4]u8) void {
-    if (getPixelIndex(source, pixel)) |index| {
+pub fn setPixel(source: dvui.ImageSource, p: dvui.Point, color: [4]u8) void {
+    if (pixelIndex(source, p)) |index| {
         pixels(source)[index] = color;
     }
 }

@@ -108,20 +108,20 @@ pub fn pixels(self: *const Layer) [][4]u8 {
     return pixi.image.pixels(self.source);
 }
 
-pub fn getPixelIndex(self: *Layer, pixel: dvui.Point) ?usize {
-    return pixi.image.getPixelIndex(self.source, pixel);
+pub fn pixelIndex(self: *Layer, p: dvui.Point) ?usize {
+    return pixi.image.pixelIndex(self.source, p);
 }
 
-pub fn getPointFromIndex(self: *Layer, index: usize) ?dvui.Point {
+pub fn point(self: *Layer, index: usize) ?dvui.Point {
     return pixi.image.getPointFromIndex(self.source, index);
 }
 
-pub fn getPixel(self: *Layer, pixel: dvui.Point) ?[4]u8 {
-    return pixi.image.getPixel(self.source, pixel);
+pub fn pixel(self: *Layer, p: dvui.Point) ?[4]u8 {
+    return pixi.image.getPixel(self.source, p);
 }
 
-pub fn setPixel(self: *Layer, pixel: dvui.Point, color: [4]u8) void {
-    pixi.image.setPixel(self.source, pixel, color);
+pub fn setPixel(self: *Layer, p: dvui.Point, color: [4]u8) void {
+    pixi.image.setPixel(self.source, p, color);
     //if (update)
     //self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }
@@ -132,8 +132,8 @@ pub fn clearMask(self: *Layer) void {
 
 pub fn setMaskFromColor(self: *Layer, color: [4]u8) void {
     self.clearMask();
-    for (self.pixels(), 0..) |*pixel, index| {
-        if (std.meta.eql(color, pixel.*)) {
+    for (self.pixels(), 0..) |*p, index| {
+        if (std.meta.eql(color, p.*)) {
             self.mask.set(index);
         }
     }
@@ -147,14 +147,14 @@ pub fn setColorFromMask(self: *Layer, color: [4]u8) void {
 }
 
 /// Flood fill a pixel and mark the flood to the mask, so you can handle changes.
-pub fn floodMask(layer: *Layer, pixel: dvui.Point, bounds: dvui.Rect) !void {
-    if (!bounds.contains(pixel)) return;
+pub fn floodMask(layer: *Layer, p: dvui.Point, bounds: dvui.Rect) !void {
+    if (!bounds.contains(p)) return;
 
     layer.mask.setRangeValue(.{ .start = 0, .end = layer.mask.capacity() }, false);
 
     var queue = std.ArrayList(dvui.Point).init(pixi.app.allocator);
     defer queue.deinit();
-    queue.append(pixel) catch return error.MemoryAllocationFailed;
+    queue.append(p) catch return error.MemoryAllocationFailed;
 
     const directions: [4]dvui.Point = .{
         .{ .x = 0, .y = -1 },
@@ -163,14 +163,14 @@ pub fn floodMask(layer: *Layer, pixel: dvui.Point, bounds: dvui.Rect) !void {
         .{ .x = 1, .y = 0 },
     };
 
-    if (layer.getPixelIndex(pixel)) |index| {
+    if (layer.pixelIndex(p)) |index| {
         layer.mask.set(index);
         const original_color = layer.pixels()[index];
 
-        while (queue.pop()) |point| {
+        while (queue.pop()) |qp| {
             for (directions) |direction| {
-                const new_point = point.plus(direction);
-                if (layer.getPixelIndex(new_point)) |iter_index| {
+                const new_point = qp.plus(direction);
+                if (layer.pixelIndex(new_point)) |iter_index| {
                     if (layer.mask.isSet(iter_index)) continue;
                     if (!std.meta.eql(original_color, layer.pixels()[iter_index])) continue;
                     if (!bounds.contains(new_point)) continue;
@@ -208,7 +208,7 @@ pub fn getIndexShapeOffset(self: *Layer, origin: dvui.Point, current_index: usiz
         if (current_index != 0)
             return null;
 
-        if (self.getPixelIndex(origin)) |index| {
+        if (self.pixelIndex(origin)) |index| {
             return .{
                 .index = index,
                 .color = self.pixels()[index],
@@ -241,13 +241,13 @@ pub fn getIndexShapeOffset(self: *Layer, origin: dvui.Point, current_index: usiz
         return null;
     }
 
-    const pixel: dvui.Point = .{ .x = @floatFromInt(pixel_i32[0]), .y = @floatFromInt(pixel_i32[1]) };
+    const p: dvui.Point = .{ .x = @floatFromInt(pixel_i32[0]), .y = @floatFromInt(pixel_i32[1]) };
 
-    if (self.getPixelIndex(pixel)) |index| {
+    if (self.pixelIndex(p)) |index| {
         return .{
             .index = index,
             .color = self.pixels()[index],
-            .point = pixel,
+            .point = p,
         };
     }
 
@@ -259,8 +259,8 @@ pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: [4]u32, transparent: bo
 }
 
 pub fn clear(self: *Layer) void {
-    const p = self.pixels();
-    @memset(p, .{ 0, 0, 0, 0 });
+    @memset(self.pixels(), .{ 0, 0, 0, 0 });
+    self.invalidate();
 }
 
 pub fn writeSourceToZip(
@@ -294,8 +294,8 @@ pub fn reduce(layer: *Layer, src: [4]usize) ?[4]usize {
         while (top < bottom) : (top += 1) {
             const start = left + top * layer_width;
             const row = read_pixels[start .. start + src_width];
-            for (row) |pixel| {
-                if (pixel[3] != 0) {
+            for (row) |p| {
+                if (p[3] != 0) {
                     break :top;
                 }
             }
@@ -307,8 +307,8 @@ pub fn reduce(layer: *Layer, src: [4]usize) ?[4]usize {
         while (bottom > top) : (bottom -= 1) {
             const start = left + bottom * layer_width;
             const row = read_pixels[start .. start + src_width];
-            for (row) |pixel| {
-                if (pixel[3] != 0) {
+            for (row) |p| {
+                if (p[3] != 0) {
                     if (bottom < src_y + src_height)
                         bottom += 0; // Replace with 1 if needed
                     break :bottom;
