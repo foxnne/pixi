@@ -530,7 +530,11 @@ pub fn processFillTool(self: *FileWidget) void {
                     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                 if (me.action == .press and me.button.pointer()) {
-                    file.fillPoint(current_point, color, .selected, .{ .invalidate = true, .to_change = true });
+                    file.fillPoint(current_point, color, .selected, .{
+                        .invalidate = true,
+                        .to_change = true,
+                        .replace = me.mod.matchBind("ctrl/cmd"),
+                    });
                 }
 
                 if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {

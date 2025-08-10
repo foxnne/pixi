@@ -328,6 +328,7 @@ pub const FillOptions = struct {
     invalidate: bool = false,
     to_change: bool = false,
     constrain_to_tile: bool = false,
+    replace: bool = false,
 };
 
 pub fn fillPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer, fill_options: FillOptions) void {
@@ -340,9 +341,15 @@ pub fn fillPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
         return;
     }
 
-    active_layer.floodMask(point, .fromSize(.{ .w = @as(f32, @floatFromInt(file.width)), .h = @as(f32, @floatFromInt(file.height)) })) catch {
-        dvui.log.err("Failed to fill point", .{});
-    };
+    if (fill_options.replace) {
+        if (active_layer.getPixelIndex(point)) |index| {
+            active_layer.setMaskFromColor(active_layer.pixels()[index]);
+        }
+    } else {
+        active_layer.floodMask(point, .fromSize(.{ .w = @as(f32, @floatFromInt(file.width)), .h = @as(f32, @floatFromInt(file.height)) })) catch {
+            dvui.log.err("Failed to fill point", .{});
+        };
+    }
 
     var iter = active_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
     while (iter.next()) |index| {

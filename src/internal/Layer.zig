@@ -126,6 +126,26 @@ pub fn setPixel(self: *Layer, pixel: dvui.Point, color: [4]u8) void {
     //self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
 }
 
+pub fn clearMask(self: *Layer) void {
+    self.mask.setRangeValue(.{ .start = 0, .end = self.mask.capacity() }, false);
+}
+
+pub fn setMaskFromColor(self: *Layer, color: [4]u8) void {
+    self.clearMask();
+    for (self.pixels(), 0..) |*pixel, index| {
+        if (std.meta.eql(color, pixel.*)) {
+            self.mask.set(index);
+        }
+    }
+}
+
+pub fn setColorFromMask(self: *Layer, color: [4]u8) void {
+    const iter = self.mask.iterator(.{ .kind = .set, .direction = .forward });
+    while (iter.next()) |index| {
+        self.pixels()[index] = color;
+    }
+}
+
 /// Flood fill a pixel and mark the flood to the mask, so you can handle changes.
 pub fn floodMask(layer: *Layer, pixel: dvui.Point, bounds: dvui.Rect) !void {
     if (!bounds.contains(pixel)) return;
