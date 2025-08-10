@@ -267,8 +267,8 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
     const max_x: f32 = min_x + @as(f32, @floatFromInt(file.tile_width));
     const max_y: f32 = min_y + @as(f32, @floatFromInt(file.tile_height));
 
-    if (pixi.editor.tools.stroke_size < 10) {
-        const size: usize = @intCast(pixi.editor.tools.stroke_size);
+    if (draw_options.stroke_size < 10) {
+        const size: usize = @intCast(draw_options.stroke_size);
 
         for (0..(size * size)) |index| {
             if (active_layer.getIndexShapeOffset(point, index)) |result| {
@@ -324,7 +324,51 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
     }
 }
 
+pub const FillOptions = struct {
+    invalidate: bool = false,
+    to_change: bool = false,
+    constrain_to_tile: bool = false,
+};
+
+pub fn fillPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer, fill_options: FillOptions) void {
+    var active_layer: Layer = switch (layer) {
+        .temporary => file.temporary_layer,
+        .selected => file.layers.get(file.selected_layer_index),
+    };
+
+    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
+        return;
+    }
+
+    active_layer.floodMask(point, .fromSize(.{ .w = @as(f32, @floatFromInt(file.width)), .h = @as(f32, @floatFromInt(file.height)) })) catch {
+        dvui.log.err("Failed to fill point", .{});
+    };
+
+    var iter = active_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+    while (iter.next()) |index| {
+        file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
+            dvui.log.err("Failed to append to stroke buffer", .{});
+        };
+
+        active_layer.pixels()[index] = color;
+    }
+
+    if (fill_options.invalidate) {
+        active_layer.invalidate();
+    }
+
+    if (fill_options.to_change and layer == .selected) {
+        const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
+        if (change_opt) |change| {
+            file.history.append(change) catch {
+                dvui.log.err("Failed to append to history", .{});
+            };
+        }
+    }
+}
+
 pub const DrawOptions = struct {
+    stroke_size: usize,
     invalidate: bool = false,
     to_change: bool = false,
     constrain_to_tile: bool = false,
@@ -359,7 +403,7 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
     const center: dvui.Point = .{ .x = @floor(pixi.Editor.Tools.max_brush_size_float / 2), .y = @floor(pixi.Editor.Tools.max_brush_size_float / 2) };
     var mask = pixi.editor.tools.stroke;
 
-    if (pixi.editor.tools.stroke_size > pixi.Editor.Tools.min_full_stroke_size) {
+    if (draw_options.stroke_size > pixi.Editor.Tools.min_full_stroke_size) {
         for (0..(stroke_size * stroke_size)) |index| {
             if (pixi.editor.tools.getIndexShapeOffset(center.diff(diff), index)) |i| {
                 mask.unset(i);
@@ -369,8 +413,8 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
 
     if (pixi.algorithms.brezenham.process(point1, point2) catch null) |points| {
         for (points, 0..) |point, point_i| {
-            if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.min_full_stroke_size) {
-                drawPoint(file, point, color, layer, .{});
+            if (draw_options.stroke_size < pixi.Editor.Tools.min_full_stroke_size) {
+                drawPoint(file, point, color, layer, .{ .stroke_size = draw_options.stroke_size });
             } else {
                 var stroke = if (point_i == 0) pixi.editor.tools.stroke else mask;
 

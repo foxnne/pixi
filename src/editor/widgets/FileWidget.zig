@@ -41,26 +41,57 @@ pub fn processSampleTool(self: *FileWidget) void {
     const file = self.init_options.file;
 
     const current_mods = dvui.currentWindow().modifiers;
-    defer self.previous_mods = current_mods;
 
-    if (!current_mods.matchBind("sample")) {
+    if (!current_mods.matchBind("sample") and self.sample_key_down) {
         self.sample_key_down = false;
         if (!self.right_mouse_down) {
             self.sample_data_point = null;
+        }
+
+        if (self.last_mouse_event) |event| {
+            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+            const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
+            file.drawPoint(
+                current_point,
+                if (pixi.editor.tools.current != .eraser) pixi.editor.colors.primary else [_]u8{ 255, 255, 255, 255 },
+                .temporary,
+                .{
+                    .invalidate = true,
+                    .to_change = false,
+                    .stroke_size = switch (pixi.editor.tools.current) {
+                        .pencil, .eraser => pixi.editor.tools.stroke_size,
+                        else => 1,
+                    },
+                },
+            );
+            file.temporary_layer.dirty = true;
         }
     } else if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
         self.sample_key_down = true;
         if (self.last_mouse_event) |event| {
             const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
             self.sample(file, current_point, self.right_mouse_down);
+
+            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+            file.temporary_layer.invalidate();
+            file.temporary_layer.dirty = false;
         }
     }
 
     for (dvui.events()) |*e| {
         switch (e.evt) {
             .mouse => |me| {
-                if (!self.init_options.canvas.scroll_container.matchEvent(e))
+                if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+                    if (e.evt == .mouse) {
+                        if (file.temporary_layer.dirty) {
+                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                            file.temporary_layer.invalidate();
+                            file.temporary_layer.dirty = false;
+                        }
+                        self.last_mouse_event = null;
+                    }
                     continue;
+                }
 
                 self.last_mouse_event = e.*;
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
@@ -73,6 +104,10 @@ pub fn processSampleTool(self: *FileWidget) void {
                     self.drag_data_point = current_point;
 
                     self.sample(file, current_point, self.sample_key_down);
+
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.temporary_layer.invalidate();
+                    file.temporary_layer.dirty = false;
                 } else if (me.action == .release and me.button == .right) {
                     self.right_mouse_down = false;
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
@@ -85,6 +120,22 @@ pub fn processSampleTool(self: *FileWidget) void {
                             self.sample_data_point = null;
                         }
                     }
+
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.drawPoint(
+                        current_point,
+                        if (pixi.editor.tools.current != .eraser) pixi.editor.colors.primary else [_]u8{ 255, 255, 255, 255 },
+                        .temporary,
+                        .{
+                            .invalidate = true,
+                            .to_change = false,
+                            .stroke_size = switch (pixi.editor.tools.current) {
+                                .pencil, .eraser => pixi.editor.tools.stroke_size,
+                                else => 1,
+                            },
+                        },
+                    );
+                    file.temporary_layer.dirty = true;
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sample_drag")) |diff| {
@@ -161,6 +212,8 @@ pub fn processStrokeTool(self: *FileWidget) void {
         else => true,
     }) return;
 
+    if (self.sample_key_down or self.right_mouse_down) return;
+
     const file = self.init_options.file;
     const color: [4]u8 = switch (pixi.editor.tools.current) {
         .pencil => pixi.editor.colors.primary,
@@ -168,25 +221,25 @@ pub fn processStrokeTool(self: *FileWidget) void {
         else => unreachable,
     };
 
-    if (self.previous_mods.matchBind("sample") and !dvui.currentWindow().modifiers.matchBind("sample")) {
-        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-        file.temporary_layer.invalidate();
-        file.temporary_layer.dirty = false;
-        return;
-    } else if (dvui.currentWindow().modifiers.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
-        if (self.last_mouse_event) |event| {
-            const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
+    // if (self.previous_mods.matchBind("sample") and !dvui.currentWindow().modifiers.matchBind("sample")) {
+    //     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+    //     file.temporary_layer.invalidate();
+    //     file.temporary_layer.dirty = false;
+    //     return;
+    // } else if (dvui.currentWindow().modifiers.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
+    //     if (self.last_mouse_event) |event| {
+    //         const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
 
-            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-            const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-            file.drawPoint(
-                current_point,
-                temp_color,
-                .temporary,
-                .{ .invalidate = true, .to_change = false },
-            );
-        }
-    }
+    //         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+    //         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+    //         file.drawPoint(
+    //             current_point,
+    //             temp_color,
+    //             .temporary,
+    //             .{ .invalidate = true, .to_change = false, .stroke_size = 1 },
+    //         );
+    //     }
+    // }
 
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
@@ -230,7 +283,11 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                     current_point,
                                     if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 },
                                     .temporary,
-                                    .{ .invalidate = true, .to_change = false },
+                                    .{
+                                        .invalidate = true,
+                                        .to_change = false,
+                                        .stroke_size = pixi.editor.tools.stroke_size,
+                                    },
                                 );
                             },
                             else => {},
@@ -245,20 +302,24 @@ pub fn processStrokeTool(self: *FileWidget) void {
                 if (self.init_options.canvas.rect.contains(me.p))
                     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
-                if (me.action == .press and me.button == .right) {
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.temporary_layer.dirty = true;
-                    file.temporary_layer.invalidate();
-                } else if (me.action == .release and me.button == .right) {
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                    file.drawPoint(
-                        current_point,
-                        temp_color,
-                        .temporary,
-                        .{ .invalidate = true, .to_change = false },
-                    );
-                }
+                // if (me.action == .press and me.button == .right) {
+                //     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                //     file.temporary_layer.dirty = true;
+                //     file.temporary_layer.invalidate();
+                // } else if (me.action == .release and me.button == .right) {
+                //     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                //     const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                //     file.drawPoint(
+                //         current_point,
+                //         temp_color,
+                //         .temporary,
+                //         .{
+                //             .invalidate = true,
+                //             .to_change = false,
+                //             .stroke_size = pixi.editor.tools.stroke_size,
+                //         },
+                //     );
+                // }
 
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
@@ -270,7 +331,11 @@ pub fn processStrokeTool(self: *FileWidget) void {
                             current_point,
                             color,
                             .selected,
-                            .{ .invalidate = true, .to_change = false },
+                            .{
+                                .invalidate = true,
+                                .to_change = false,
+                                .stroke_size = pixi.editor.tools.stroke_size,
+                            },
                         );
                     }
 
@@ -289,7 +354,11 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                     current_point,
                                     color,
                                     .selected,
-                                    .{ .invalidate = true, .to_change = true },
+                                    .{
+                                        .invalidate = true,
+                                        .to_change = true,
+                                        .stroke_size = pixi.editor.tools.stroke_size,
+                                    },
                                 );
                             }
                         } else {
@@ -297,7 +366,11 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                 current_point,
                                 color,
                                 .selected,
-                                .{ .invalidate = true, .to_change = true },
+                                .{
+                                    .invalidate = true,
+                                    .to_change = true,
+                                    .stroke_size = pixi.editor.tools.stroke_size,
+                                },
                             );
                         }
 
@@ -336,7 +409,11 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                         current_point,
                                         color,
                                         .temporary,
-                                        .{ .invalidate = true, .to_change = false },
+                                        .{
+                                            .invalidate = true,
+                                            .to_change = false,
+                                            .stroke_size = pixi.editor.tools.stroke_size,
+                                        },
                                     );
                                 }
                             } else {
@@ -346,7 +423,11 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                         current_point,
                                         color,
                                         .selected,
-                                        .{ .invalidate = true, .to_change = false },
+                                        .{
+                                            .invalidate = true,
+                                            .to_change = false,
+                                            .stroke_size = pixi.editor.tools.stroke_size,
+                                        },
                                     );
 
                                 self.drag_data_point = current_point;
@@ -359,7 +440,11 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                             current_point,
                                             temp_color,
                                             .temporary,
-                                            .{ .invalidate = true, .to_change = false },
+                                            .{
+                                                .invalidate = true,
+                                                .to_change = false,
+                                                .stroke_size = pixi.editor.tools.stroke_size,
+                                            },
                                         );
                                     }
                                 }
@@ -375,11 +460,94 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                 current_point,
                                 temp_color,
                                 .temporary,
-                                .{ .invalidate = true, .to_change = false },
+                                .{ .invalidate = true, .to_change = false, .stroke_size = pixi.editor.tools.stroke_size },
                             );
                         } else {
                             @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                             file.temporary_layer.dirty = true;
+                            file.temporary_layer.invalidate();
+                        }
+                    }
+                }
+            },
+            else => {},
+        }
+    }
+}
+
+pub fn processFillTool(self: *FileWidget) void {
+    if (pixi.editor.tools.current != .bucket) return;
+    const file = self.init_options.file;
+    const color = pixi.editor.colors.primary;
+
+    if (self.previous_mods.matchBind("sample") and !dvui.currentWindow().modifiers.matchBind("sample")) {
+        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        file.temporary_layer.invalidate();
+        file.temporary_layer.dirty = false;
+        self.sample_key_down = false;
+        return;
+    } else if (dvui.currentWindow().modifiers.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
+        if (self.last_mouse_event) |event| {
+            self.sample_key_down = true;
+            const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
+
+            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+            const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+            file.drawPoint(
+                current_point,
+                temp_color,
+                .temporary,
+                .{ .invalidate = true, .to_change = false, .stroke_size = 1 },
+            );
+        }
+    }
+
+    for (dvui.events()) |*e| {
+        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+            if (e.evt == .mouse) {
+                if (file.temporary_layer.dirty) {
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.temporary_layer.invalidate();
+                    file.temporary_layer.dirty = false;
+                }
+            }
+            continue;
+        }
+
+        switch (e.evt) {
+            .mouse => |me| {
+                const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+                self.last_mouse_event = e.*;
+
+                if (self.sample_key_down) {
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.temporary_layer.dirty = true;
+                    file.temporary_layer.invalidate();
+                    return;
+                }
+
+                if (self.init_options.canvas.rect.contains(me.p))
+                    dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+
+                if (me.action == .press and me.button.pointer()) {
+                    file.fillPoint(current_point, color, .selected, .{ .invalidate = true, .to_change = true });
+                }
+
+                if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
+                    if (self.init_options.canvas.rect.contains(me.p) and self.sample_data_point == null) {
+                        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                        const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+                        file.drawPoint(
+                            current_point,
+                            temp_color,
+                            .temporary,
+                            .{ .invalidate = true, .to_change = false, .stroke_size = 1 },
+                        );
+                        file.temporary_layer.dirty = true;
+                    } else {
+                        if (file.temporary_layer.dirty) {
+                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                            file.temporary_layer.dirty = false;
                             file.temporary_layer.invalidate();
                         }
                     }
@@ -411,6 +579,16 @@ pub fn drawCursor(self: *FileWidget) void {
                     _ = dvui.cursorShow(true);
                 }
             },
+            .key => |_| {
+                if (self.last_mouse_event) |event| {
+                    cursor_data_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
+                    if (self.init_options.canvas.rect.contains(event.evt.mouse.p)) {
+                        _ = dvui.cursorShow(false);
+                    } else {
+                        _ = dvui.cursorShow(true);
+                    }
+                }
+            },
             else => {},
         }
     }
@@ -423,6 +601,8 @@ pub fn drawCursor(self: *FileWidget) void {
         if (switch (pixi.editor.tools.current) {
             .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
             .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
+            .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
+            .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
             else => null,
         }) |sprite| {
             const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
@@ -707,6 +887,7 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataRemove(null, self.init_options.canvas.id, "right_mouse_down");
     };
 
+    self.processFillTool();
     self.processStrokeTool();
     self.processSampleTool();
 

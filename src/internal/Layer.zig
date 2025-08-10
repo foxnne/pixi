@@ -8,6 +8,7 @@ const Layer = @This();
 id: u64,
 name: []const u8,
 source: dvui.ImageSource,
+mask: std.DynamicBitSet,
 visible: bool = true,
 collapse: bool = false,
 dirty: bool = false,
@@ -32,37 +33,58 @@ pub fn init(id: u64, name: []const u8, s: [2]u32, default_color: dvui.Color.PMA,
                 .invalidation = invalidation,
             },
         },
+        .mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, s[0] * s[1]) catch return error.MemoryAllocationFailed,
     };
 }
 
 pub fn fromImageFile(id: u64, name: []const u8, bytes: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
+    const source = pixi.fs.sourceFromImageFileBytes(name, bytes, invalidation) catch return error.ErrorCreatingImageSource;
+    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
+    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intFromFloat(s.w * s.h))) catch return error.MemoryAllocationFailed;
+
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = pixi.fs.sourceFromImageFileBytes(name, bytes, invalidation) catch return error.ErrorCreatingImageSource,
+        .source = source,
+        .mask = mask,
     };
 }
 
 pub fn fromPixelsPMA(id: u64, name: []const u8, p: []dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
+    const source = pixi.fs.sourceFromPixelsPMA(name, p, invalidation) catch return error.ErrorCreatingImageSource;
+    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
+    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intFromFloat(s.w * s.h))) catch return error.MemoryAllocationFailed;
+
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = pixi.fs.sourceFromPixelsPMA(name, p, invalidation) catch return error.ErrorCreatingImageSource,
+        .source = source,
+        .mask = mask,
     };
 }
 
 pub fn fromPixels(name: [:0]const u8, p: []u8, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
+    const source = pixi.fs.sourceFromPixels(name, p, invalidation) catch return error.ErrorCreatingImageSource;
+    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
+    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intFromFloat(s.w * s.h))) catch return error.MemoryAllocationFailed;
+
     return .{
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = pixi.fs.sourceFromPixels(name, p, invalidation) catch return error.ErrorCreatingImageSource,
+        .source = source,
+        .mask = mask,
     };
 }
 
 pub fn fromTexture(id: u64, name: []const u8, texture: dvui.Texture, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
+    const source = pixi.fs.sourceFromTexture(name, texture, invalidation) catch return error.ErrorCreatingImageSource;
+    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
+    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intFromFloat(s.w * s.h))) catch return error.MemoryAllocationFailed;
+
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
-        .source = pixi.fs.sourceFromTexture(name, texture, invalidation) catch return error.ErrorCreatingImageSource,
+        .source = source,
+        .mask = mask,
     };
 }
 
@@ -79,6 +101,7 @@ pub fn deinit(self: *Layer) void {
     }
 
     pixi.app.allocator.free(self.name);
+    self.mask.deinit();
 }
 
 pub fn pixels(self: *const Layer) [][4]u8 {
@@ -101,6 +124,44 @@ pub fn setPixel(self: *Layer, pixel: dvui.Point, color: [4]u8) void {
     pixi.image.setPixel(self.source, pixel, color);
     //if (update)
     //self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+}
+
+/// Flood fill a pixel and mark the flood to the mask, so you can handle changes.
+pub fn floodMask(layer: *Layer, pixel: dvui.Point, bounds: dvui.Rect) !void {
+    if (!bounds.contains(pixel)) return;
+
+    layer.mask.setRangeValue(.{ .start = 0, .end = layer.mask.capacity() }, false);
+
+    var queue = std.ArrayList(dvui.Point).init(pixi.app.allocator);
+    defer queue.deinit();
+    queue.append(pixel) catch return error.MemoryAllocationFailed;
+
+    const directions: [4]dvui.Point = .{
+        .{ .x = 0, .y = -1 },
+        .{ .x = 0, .y = 1 },
+        .{ .x = -1, .y = 0 },
+        .{ .x = 1, .y = 0 },
+    };
+
+    if (layer.getPixelIndex(pixel)) |index| {
+        layer.mask.set(index);
+        const original_color = layer.pixels()[index];
+
+        while (queue.pop()) |point| {
+            for (directions) |direction| {
+                const new_point = point.plus(direction);
+                if (layer.getPixelIndex(new_point)) |iter_index| {
+                    if (layer.mask.isSet(iter_index)) continue;
+                    if (!std.meta.eql(original_color, layer.pixels()[iter_index])) continue;
+                    if (!bounds.contains(new_point)) continue;
+
+                    //layer.pixels()[index] = color;
+                    queue.append(new_point) catch return error.MemoryAllocationFailed;
+                    layer.mask.set(iter_index);
+                }
+            }
+        }
+    }
 }
 
 pub fn setPixelIndex(self: *Layer, index: usize, color: [4]u8) void {

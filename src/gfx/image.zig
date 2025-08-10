@@ -23,7 +23,7 @@ pub fn getPixelIndex(source: dvui.ImageSource, pixel: dvui.Point) ?usize {
 
     const s = size(source);
 
-    if (pixel.x >= s.w or pixel.y >= s.h) {
+    if (pixel.x > s.w or pixel.y > s.h) {
         return null;
     }
 
@@ -42,7 +42,7 @@ pub fn getPointFromIndex(source: dvui.ImageSource, index: usize) ?dvui.Point {
     }
     const s = size(source);
 
-    return .{ .x = @floatFromInt(index % @as(i32, @intFromFloat(s.w))), .y = @floatFromInt(index / @as(i32, @intFromFloat(s.w))) };
+    return .{ .x = @floatFromInt(index % @as(usize, @intFromFloat(s.w))), .y = @floatFromInt(index / @as(usize, @intFromFloat(s.w))) };
 }
 
 pub fn getPixel(source: dvui.ImageSource, pixel: dvui.Point) ?[4]u8 {
