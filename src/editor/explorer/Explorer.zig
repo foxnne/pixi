@@ -94,11 +94,10 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     const horizontal_scroll = scroll.si.offset(.horizontal);
 
     scroll.deinit();
-    pane_vbox.deinit();
 
     // Only draw shadow if the scroll bar has been scrolled some
     if (vertical_scroll > 0.0) {
-        var rs = vbox.data().contentRectScale();
+        var rs = pane_vbox.data().contentRectScale();
         rs.r.h = 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
@@ -119,6 +118,8 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         triangles.deinit(dvui.currentWindow().arena());
         path.deinit();
     }
+
+    pane_vbox.deinit();
 
     if (explorer.scroll_info.virtual_size.w > explorer.scroll_info.viewport.w) {
         var rs = vbox.data().contentRectScale();

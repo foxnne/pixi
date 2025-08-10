@@ -262,8 +262,6 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 std.mem.swap([4]u8, &pixels.values[i], &layer.pixels()[pixel_index]);
             }
 
-            pixi.editor.tools.set(.pencil);
-
             layer.invalidate();
             file.selected_layer_index = layer_index;
         },

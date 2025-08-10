@@ -223,20 +223,6 @@ pub fn drawLayers() !void {
 
         defer scroll_area.deinit();
 
-        // Seems like we still cant set the scroll offset here until the next frame,
-        // so we need to set a timer and refresh a single frame, and then calculate our scroll
-        // if (dvui.timerDone(scroll_area.data().id)) {
-        //     dvui.dataSet(null, scroll_area.data().id, "calculate_scroll", true);
-        //     dvui.refresh(null, @src(), scroll_area.data().id);
-        // }
-
-        // if (dvui.dataGet(null, paned.data().id, "calculate_ratio", bool) == true) {
-        //     paned.split_ratio.* = @min(0.2, (file.layers_scroll_info.virtual_size.h + 10.0) / paned.data().contentRect().h);
-        //     dvui.dataRemove(null, paned.data().id, "calculate_ratio");
-
-        //     dvui.timer(scroll_area.data().id, 1);
-        // }
-
         const vertical_scroll = file.layers_scroll_info.offset(.vertical);
 
         var reorderable = pixi.dvui.reorder(@src(), .{
@@ -361,17 +347,6 @@ pub fn drawLayers() !void {
             });
             defer hbox.deinit();
 
-            // We are selected, so we need to scroll to the this layer
-            // if (selected) {
-            //     if (dvui.dataGet(null, scroll_area.data().id, "calculate_scroll", bool) == true) {
-            //         dvui.scrollTo(.{
-            //             .screen_rect = r.data().rectScale().r,
-            //             .over_scroll = true,
-            //         });
-            //         dvui.dataRemove(null, scroll_area.data().id, "calculate_scroll");
-            //     }
-            // }
-
             _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
                 .reorderable = r,
                 .tvg_bytes = icons.tvg.lucide.@"grip-horizontal",
@@ -439,7 +414,7 @@ pub fn drawLayers() !void {
                 if (dvui.buttonIcon(
                     @src(),
                     "collapse_button",
-                    if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-up-from-line" else icons.tvg.lucide.@"arrow-down-to-line",
+                    if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-down-to-line" else icons.tvg.lucide.package,
                     .{ .draw_focus = false },
                     .{ .fill_color = if (file.selected_layer_index == layer_index) .fromTheme(.text) else .fromTheme(.text_press) },
                     .{
