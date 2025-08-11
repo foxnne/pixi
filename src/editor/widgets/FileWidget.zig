@@ -201,7 +201,11 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
             pixi.editor.tools.set(.eraser);
         }
     } else {
-        pixi.editor.tools.set(pixi.editor.tools.previous_drawing_tool);
+        if (switch (pixi.editor.tools.current) {
+            .pencil, .bucket => false,
+            else => true,
+        })
+            pixi.editor.tools.set(pixi.editor.tools.previous_drawing_tool);
     }
 }
 
@@ -441,28 +445,6 @@ pub fn processFillTool(self: *FileWidget) void {
     if (pixi.editor.tools.current != .bucket) return;
     const file = self.init_options.file;
     const color = pixi.editor.colors.primary;
-
-    // if (self.previous_mods.matchBind("sample") and !dvui.currentWindow().modifiers.matchBind("sample")) {
-    //     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-    //     file.temporary_layer.invalidate();
-    //     file.temporary_layer.dirty = false;
-    //     self.sample_key_down = false;
-    //     return;
-    // } else if (dvui.currentWindow().modifiers.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
-    //     if (self.last_mouse_event) |event| {
-    //         self.sample_key_down = true;
-    //         const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
-
-    //         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-    //         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-    //         file.drawPoint(
-    //             current_point,
-    //             temp_color,
-    //             .temporary,
-    //             .{ .invalidate = true, .to_change = false, .stroke_size = 1 },
-    //         );
-    //     }
-    // }
 
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
