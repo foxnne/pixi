@@ -31,6 +31,8 @@ pub fn register() !void {
     try window.keybinds.putNoClobber(window.gpa, "quick_tools", .{ .key = .space });
 }
 
+// These keybinds are available regardless of the currently focused widget.
+// Any binds that need to be consumed by a specific widget do not need to trigger here.
 pub fn tick() !void {
     for (dvui.events()) |e| {
         switch (e.evt) {
@@ -47,30 +49,6 @@ pub fn tick() !void {
                     pixi.editor.tools.radial_menu.visible = switch (ke.action) {
                         .down, .repeat => true,
                         .up => false,
-                    };
-                }
-
-                // TODO: Move these to the file widget and make them consume the event there
-
-                if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
-                        file.history.undoRedo(file, .undo) catch {
-                            std.log.err("Failed to undo", .{});
-                        };
-                    }
-                }
-
-                if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
-                        file.history.undoRedo(file, .redo) catch {
-                            std.log.err("Failed to undo", .{});
-                        };
-                    }
-                }
-
-                if (ke.matchBind("save") and ke.action == .down) {
-                    pixi.editor.save() catch {
-                        std.log.err("Failed to save", .{});
                     };
                 }
             },

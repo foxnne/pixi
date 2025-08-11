@@ -37,6 +37,37 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
     return fw;
 }
 
+pub fn processKeybinds(self: *FileWidget) void {
+    for (dvui.events()) |*e| {
+        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+            continue;
+        }
+
+        switch (e.evt) {
+            .key => |ke| {
+                if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
+                    self.file.history.undoRedo(self.file, .undo) catch {
+                        std.log.err("Failed to undo", .{});
+                    };
+                }
+
+                if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
+                    self.file.history.undoRedo(self.file, .redo) catch {
+                        std.log.err("Failed to undo", .{});
+                    };
+                }
+
+                if (ke.matchBind("save") and ke.action == .down) {
+                    pixi.editor.save() catch {
+                        std.log.err("Failed to save", .{});
+                    };
+                }
+            },
+            else => {},
+        }
+    }
+}
+
 pub fn processSampleTool(self: *FileWidget) void {
     const file = self.init_options.file;
 
@@ -836,6 +867,7 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataRemove(null, self.init_options.canvas.id, "right_mouse_down");
     };
 
+    self.processKeybinds();
     self.processFillTool();
     self.processStrokeTool();
     self.processSampleTool();
