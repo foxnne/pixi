@@ -180,6 +180,7 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
     while (layer_index > 0) {
         layer_index -= 1;
         var layer = file.layers.get(layer_index);
+        if (!layer.visible) continue;
         if (layer.pixelIndex(point)) |index| {
             const c = layer.pixels()[index];
             if (c[3] > 0) {
@@ -708,6 +709,7 @@ pub fn drawSample(self: *FileWidget) void {
         var i: usize = file.layers.len;
         while (i > 0) {
             i -= 1;
+            if (!file.layers.items(.visible)[i]) continue;
             const source = file.layers.items(.source)[i];
             dvui.renderImage(source, rs, .{
                 .uv = uv_rect,
