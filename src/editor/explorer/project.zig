@@ -274,7 +274,7 @@ fn pathTextEntry(path_type: PathType) !void {
         defer box.deinit();
 
         if (dvui.buttonIcon(@src(), "example.atlas", icons.tvg.lucide.@"folder-open", .{}, .{
-            .fill_color = dvui.themeGet().color(.window, .text),
+            //.fill_color = dvui.themeGet().color(.window, .text),
         }, .{
             .gravity_y = 0.5,
             .padding = dvui.Rect.all(4),

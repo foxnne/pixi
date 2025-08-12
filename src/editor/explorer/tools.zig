@@ -49,7 +49,6 @@ pub fn draw() !void {
     }
 
     if (paned.showSecond()) {
-        //drawColors() catch {};
         drawPalettes() catch {};
     }
 }
@@ -330,7 +329,7 @@ pub fn drawLayers() !void {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
+                .color_fill = if (selected) dvui.themeGet().color(.control, .fill_press) else dvui.themeGet().color(.control, .fill),
                 .corner_radius = dvui.Rect.all(1000),
                 .margin = dvui.Rect.all(2),
                 .padding = dvui.Rect.all(1),
@@ -415,7 +414,8 @@ pub fn drawLayers() !void {
                     "collapse_button",
                     if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-down-to-line" else icons.tvg.lucide.package,
                     .{ .draw_focus = false },
-                    .{ .fill_color = if (file.selected_layer_index == layer_index) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text) },
+                    .{},
+                    //.{ .fill_color = if (file.selected_layer_index == layer_index) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text) },
                     .{
                         .expand = .none,
                         .id_extra = layer_index,
@@ -432,7 +432,8 @@ pub fn drawLayers() !void {
                     "hide_button",
                     if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed",
                     .{ .draw_focus = false },
-                    .{ .fill_color = if (file.selected_layer_index == layer_index) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text) },
+                    .{},
+                    //.{ .fill_color = if (file.selected_layer_index == layer_index) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text) },
                     .{
                         .expand = .none,
                         .id_extra = layer_index,

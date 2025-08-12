@@ -6,7 +6,7 @@ const PackedColor = packed struct(u32) { r: u8, g: u8, b: u8, a: u8 };
 
 pub const Palette = @This();
 
-name: [:0]const u8,
+name: []const u8,
 colors: [][4]u8,
 
 pub fn getDVUIColor(self: *Palette, id: usize) dvui.Color {
@@ -14,7 +14,7 @@ pub fn getDVUIColor(self: *Palette, id: usize) dvui.Color {
     return .{ .r = self.colors[new_id][0], .g = self.colors[new_id][1], .b = self.colors[new_id][2], .a = self.colors[new_id][3] };
 }
 
-pub fn loadFromFile(file: [:0]const u8) !Palette {
+pub fn loadFromFile(file: []const u8) !Palette {
     var colors = std.ArrayList([4]u8).init(pixi.app.allocator);
     const base_name = std.fs.path.basename(file);
     const ext = std.fs.path.extension(file);
@@ -33,7 +33,7 @@ pub fn loadFromFile(file: [:0]const u8) !Palette {
     }
 
     return .{
-        .name = try pixi.app.allocator.dupeZ(u8, base_name),
+        .name = try pixi.app.allocator.dupe(u8, base_name),
         .colors = try colors.toOwnedSlice(),
     };
 }
