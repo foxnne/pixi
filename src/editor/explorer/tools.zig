@@ -66,7 +66,7 @@ pub fn drawTools() !void {
         const tool: pixi.Editor.Tools.Tool = @enumFromInt(i);
         const id_extra = i;
 
-        var color = dvui.themeGet().color_fill_hover;
+        var color = dvui.themeGet().color(.control, .fill_hover);
         if (pixi.editor.colors.file_tree_palette) |*palette| {
             color = palette.getDVUIColor(i);
         }
@@ -84,7 +84,7 @@ pub fn drawTools() !void {
             .id_extra = id_extra,
             .background = true,
             .corner_radius = dvui.Rect.all(1000),
-            .color_fill = if (pixi.editor.tools.current == tool) .fill_hover else .fill_window,
+            .color_fill = if (pixi.editor.tools.current == tool) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
             .box_shadow = .{
                 .color = .black,
                 .offset = .{ .x = -4.0, .y = 4.0 },
@@ -92,7 +92,7 @@ pub fn drawTools() !void {
                 .alpha = 0.25,
             },
             .border = dvui.Rect.all(1.0),
-            .color_border = .{ .color = color },
+            .color_border = color,
             .margin = .{ .h = 10.0, .w = 4, .x = 4, .y = 4 },
         });
         defer button.deinit();
@@ -160,7 +160,7 @@ pub fn drawLayerControls() !void {
                 .alpha = 0.15,
                 .corner_radius = dvui.Rect.all(1000),
             },
-            .color_fill = .fill_window,
+            .color_fill = dvui.themeGet().color(.control, .fill),
         })) {
             if (file.createLayer() catch null) |id| {
                 edit_layer_id = id;
@@ -178,7 +178,7 @@ pub fn drawLayerControls() !void {
                 .alpha = 0.15,
                 .corner_radius = dvui.Rect.all(1000),
             },
-            .color_fill = .fill_window,
+            .color_fill = dvui.themeGet().color(.control, .fill),
         })) {
             if (file.duplicateLayer(file.selected_layer_index) catch null) |id| {
                 edit_layer_id = id;
@@ -186,7 +186,7 @@ pub fn drawLayerControls() !void {
         }
 
         if (file.layers.len > 1) {
-            if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .fill_color = .fromTheme(.err) }, .{
+            if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .fill_color = dvui.themeGet().color(.err, .fill) }, .{
                 .expand = .none,
                 .gravity_y = 0.5,
                 .corner_radius = dvui.Rect.all(1000),
@@ -197,7 +197,7 @@ pub fn drawLayerControls() !void {
                     .alpha = 0.15,
                     .corner_radius = dvui.Rect.all(1000),
                 },
-                .color_fill = .fill_window,
+                .color_fill = dvui.themeGet().color(.control, .fill),
             })) {
                 file.deleteLayer(file.selected_layer_index) catch {
                     dvui.log.err("Failed to delete layer", .{});
@@ -289,7 +289,7 @@ pub fn drawLayers() !void {
         for (file.layers.items(.id), 0..) |layer_id, layer_index| {
             const selected = if (edit_layer_id) |id| id == layer_id else file.selected_layer_index == layer_index;
 
-            var color = dvui.themeGet().color_fill_hover;
+            var color = dvui.themeGet().color(.control, .fill_hover);
             if (pixi.editor.colors.file_tree_palette) |*palette| {
                 color = palette.getDVUIColor(layer_id);
             }
@@ -331,12 +331,12 @@ pub fn drawLayers() !void {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected) .fill else .fill_window,
+                .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
                 .corner_radius = dvui.Rect.all(1000),
                 .margin = dvui.Rect.all(2),
                 .padding = dvui.Rect.all(1),
                 .border = dvui.Rect.all(1.0),
-                .color_border = .{ .color = color },
+                .color_border = color,
                 .box_shadow = .{
                     .color = .black,
                     .offset = .{ .x = -2.0, .y = 2.0 },
@@ -350,7 +350,7 @@ pub fn drawLayers() !void {
             _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
                 .reorderable = r,
                 .tvg_bytes = icons.tvg.lucide.@"grip-horizontal",
-                .color = if (!selected) .fromTheme(.text_press) else .fromTheme(.text),
+                .color = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
             }, .{
                 .expand = .none,
                 .gravity_y = 0.5,
@@ -363,7 +363,7 @@ pub fn drawLayers() !void {
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(0),
                         .padding = dvui.Rect.all(0),
-                        .color_text = if (!selected) .text_press else .text,
+                        .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     })) {
                         edit_layer_id = layer_id;
                     }
@@ -372,7 +372,7 @@ pub fn drawLayers() !void {
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(0),
                         .padding = dvui.Rect.all(0),
-                        .color_text = if (!selected) .text_press else .text,
+                        .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     });
                 }
             } else {
@@ -416,7 +416,7 @@ pub fn drawLayers() !void {
                     "collapse_button",
                     if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-down-to-line" else icons.tvg.lucide.package,
                     .{ .draw_focus = false },
-                    .{ .fill_color = if (file.selected_layer_index == layer_index) .fromTheme(.text) else .fromTheme(.text_press) },
+                    .{ .fill_color = if (file.selected_layer_index == layer_index) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text) },
                     .{
                         .expand = .none,
                         .id_extra = layer_index,
@@ -433,7 +433,7 @@ pub fn drawLayers() !void {
                     "hide_button",
                     if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed",
                     .{ .draw_focus = false },
-                    .{ .fill_color = if (file.selected_layer_index == layer_index) .fromTheme(.text) else .fromTheme(.text_press) },
+                    .{ .fill_color = if (file.selected_layer_index == layer_index) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text) },
                     .{
                         .expand = .none,
                         .id_extra = layer_index,
@@ -463,7 +463,7 @@ pub fn drawLayers() !void {
             var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
             path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
 
             const black: dvui.Color = .black;
             const ca0 = black.opacity(0.2);
@@ -487,7 +487,7 @@ pub fn drawLayers() !void {
             var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
             path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
 
             const black: dvui.Color = .black;
             const ca0 = black.opacity(0.0);
@@ -522,13 +522,13 @@ pub fn drawColors() !void {
         .expand = .both,
         .background = true,
         .corner_radius = dvui.Rect.all(8.0),
-        .color_fill = .fromColor(primary),
-        .color_fill_hover = .fromColor(primary),
-        .color_fill_press = .fromColor(primary),
+        .color_fill = primary,
+        //.color_fill_hover = primary,
+        //.color_fill_press = primary,
         .margin = dvui.Rect.all(1),
         .padding = dvui.Rect.all(0),
         .border = dvui.Rect.all(1.0),
-        .color_border = .fill,
+        .color_border = dvui.themeGet().color(.control, .fill),
         .box_shadow = .{
             .color = .black,
             .offset = .{ .x = -2.0, .y = 2.0 },
@@ -539,9 +539,9 @@ pub fn drawColors() !void {
     };
 
     const secondary_overrider: dvui.Options = .{
-        .color_fill = .fromColor(secondary),
-        .color_fill_hover = .fromColor(secondary),
-        .color_fill_press = .fromColor(secondary),
+        .color_fill = secondary,
+        //.color_fill_hover = secondary,
+        //.color_fill_press = secondary,
     };
 
     var clicked: bool = false;
@@ -582,7 +582,7 @@ fn drawColorPicker(rect: dvui.Rect.Physical, backing_color: *[4]u8) !void {
 
     if (context.activePoint()) |point| {
         var fw2 = dvui.floatingMenu(@src(), .{ .from = dvui.Rect.Natural.fromPoint(point) }, .{ .box_shadow = .{
-            .color = .{ .color = .black },
+            .color = .black,
             .offset = .{ .x = 0, .y = 0 },
             .shrink = 0,
             .fade = 10,

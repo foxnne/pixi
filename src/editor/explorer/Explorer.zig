@@ -79,7 +79,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     var scroll = dvui.scrollArea(@src(), .{ .scroll_info = &explorer.scroll_info }, .{
         .expand = .both,
         .background = false,
-        .color_fill = .fill,
+        .color_fill = dvui.themeGet().color(.window, .fill),
     });
 
     switch (explorer.pane) {
@@ -103,7 +103,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
 
         const black: dvui.Color = .black;
         const ca0 = black.opacity(0.2);
@@ -134,7 +134,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
 
         const black: dvui.Color = .black;
         const ca0 = black.opacity(0.0);
@@ -157,7 +157,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+        var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
 
         const black: dvui.Color = .black;
         const ca0 = black.opacity(0.2);

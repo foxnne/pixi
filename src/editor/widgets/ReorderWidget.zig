@@ -270,7 +270,7 @@ pub const Reorderable = struct {
                     if (self.init_options.draw_target) {
                         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
                         path.addRect(rs.r, if (self.options.corner_radius) |cr| rs.rectToPhysical(cr) else dvui.Rect.Physical.all(0.0));
-                        path.build().fillConvex(.{ .color = dvui.themeGet().color_fill, .fade = 1.0 });
+                        path.build().fillConvex(.{ .color = dvui.themeGet().color(.window, .fill), .fade = 1.0 });
                     }
 
                     if (self.init_options.reinstall and !self.init_options.last_slot) {

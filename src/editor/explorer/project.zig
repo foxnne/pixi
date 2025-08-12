@@ -8,10 +8,7 @@ pub fn draw() !void {
     if (pixi.editor.folder) |folder| {
         if (dvui.button(@src(), "Pack Project", .{ .draw_focus = false }, .{
             .expand = .horizontal,
-            .color_fill = .accent,
-            .color_fill_press = .fill,
-            .color_fill_hover = .accent,
-            .color_text = .fill,
+            .style = .highlight,
         })) {
             pixi.packer.appendProject() catch {
                 dvui.log.err("Failed to append project", .{});
@@ -26,10 +23,7 @@ pub fn draw() !void {
             if (pixi.packer.atlas) |atlas| {
                 if (dvui.button(@src(), "Export Project", .{ .draw_focus = false }, .{
                     .expand = .horizontal,
-                    .color_fill = .accent,
-                    .color_fill_press = .fill,
-                    .color_fill_hover = .accent,
-                    .color_text = .fill,
+                    .style = .highlight,
                 })) {
                     if (project.packed_atlas_output) |output| {
                         atlas.save(output, .data) catch {
@@ -58,7 +52,7 @@ pub fn draw() !void {
             };
             defer dvui.currentWindow().lifo().free(project_path);
 
-            tl.addText(project_path, .{ .color_text = .text_press });
+            tl.addText(project_path, .{ .color_text = dvui.themeGet().color(.control, .text) });
         } else {
             var box = dvui.box(@src(), .{ .dir = .vertical }, .{
                 .expand = .horizontal,
@@ -68,7 +62,7 @@ pub fn draw() !void {
 
             const tl = dvui.textLayout(@src(), .{}, .{ .expand = .horizontal, .background = false });
             tl.addText("No project file found!\n\n", .{});
-            tl.addText("Would you like to create a project file to specify constant output paths and other project-specific behaviors?\n", .{ .color_text = .text_press });
+            tl.addText("Would you like to create a project file to specify constant output paths and other project-specific behaviors?\n", .{ .color_text = dvui.themeGet().color(.control, .text) });
             tl.deinit();
 
             if (dvui.button(@src(), "Create Project", .{}, .{ .expand = .horizontal })) {
@@ -280,7 +274,7 @@ fn pathTextEntry(path_type: PathType) !void {
         defer box.deinit();
 
         if (dvui.buttonIcon(@src(), "example.atlas", icons.tvg.lucide.@"folder-open", .{}, .{
-            .fill_color = .fromTheme(.text_press),
+            .fill_color = dvui.themeGet().color(.window, .text),
         }, .{
             .gravity_y = 0.5,
             .padding = dvui.Rect.all(4),
@@ -331,7 +325,7 @@ fn pathTextEntry(path_type: PathType) !void {
             .padding = dvui.Rect.all(5),
             .expand = .horizontal,
             .margin = dvui.Rect.all(0),
-            .color_text = if (output_path.*) |_| .text else .text_press,
+            .color_text = if (output_path.*) |_| dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
             .id_extra = index,
         });
 

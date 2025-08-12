@@ -23,8 +23,8 @@
         },
         .dvui = .{
             //.path = "../dvui-dev/",
-            .url = "git+https://github.com/foxnne/dvui-dev#06a21e7018420b2f7ed021667f93f11a4b690238",
-            .hash = "dvui-0.2.0-AQFJmWuh0gBz_r79enBguOMcncxxT30XqgR-mJEkBfTz",
+            .url = "git+https://github.com/foxnne/dvui-dev#9b743164be117f83858319a60cde7b1693dfae5d",
+            .hash = "dvui-0.2.0-AQFJmU-g0gCKcmwCn_5-LBbUSzfMLkw5kx07y0tPr-yf",
         },
     },
 }

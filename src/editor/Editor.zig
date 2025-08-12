@@ -184,7 +184,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     angle += ((1 - val) * 100.0) * 0.015;
                 }
 
-                var color = dvui.themeGet().color_fill_hover;
+                var color = dvui.themeGet().color(.control, .fill_hover);
                 if (pixi.editor.colors.file_tree_palette) |*palette| {
                     color = palette.getDVUIColor(i);
                 }
@@ -207,7 +207,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     .rect = rect,
                     .id_extra = i,
                     .corner_radius = dvui.Rect.all(1000.0),
-                    .color_fill = if (tool == editor.tools.current) .fill_hover else .fill_window,
+                    .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
                     .box_shadow = .{
                         .color = .black,
                         .offset = .{ .x = -4.0, .y = 4.0 },
@@ -215,7 +215,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                         .alpha = 0.25,
                     },
                     .border = dvui.Rect.all(1.0),
-                    .color_border = .{ .color = color },
+                    .color_border = color,
                 });
 
                 const sprite = switch (@as(Editor.Tools.Tool, @enumFromInt(i))) {
@@ -285,7 +285,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         .expand = .both,
         .background = true,
         //.min_size_content = .{ .h = 100, .w = 100 },
-        .color_fill = .fill_window,
+        .color_fill = dvui.themeGet().color(.control, .fill),
     });
     defer explorer_artboard.deinit();
 
@@ -303,6 +303,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .{
                 .expand = .both,
                 .background = false,
+                //.color_fill = dvui.themeGet().color(.control, .fill),
             },
         );
         defer hbox.deinit();
@@ -377,7 +378,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
                 path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-                var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+                var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
 
                 const black: dvui.Color = .black;
                 const ca0 = black.opacity(0.1);
@@ -401,7 +402,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
                 path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-                var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() });
+                var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
 
                 const black: dvui.Color = .black;
                 const ca0 = black.opacity(0.1);

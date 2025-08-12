@@ -616,7 +616,7 @@ pub fn drawCursor(self: *FileWidget) void {
                 .padding = .{ .x = 0, .y = 0 },
                 .margin = .{ .x = 0, .y = 0 },
                 .background = false,
-                .color_fill = .err,
+                .color_fill = dvui.themeGet().color(.err, .fill),
             });
             defer box.deinit();
 
@@ -687,10 +687,10 @@ pub fn drawSample(self: *FileWidget) void {
                 .h = sample_box_size,
             },
             .border = dvui.Rect.all(border_width),
-            .color_border = .fill_hover,
+            .color_border = dvui.themeGet().color(.control, .text),
             .corner_radius = corner_radius,
             .background = true,
-            .color_fill = .fill_window,
+            .color_fill = dvui.themeGet().color(.window, .fill),
             .box_shadow = .{
                 .fade = 15 * 1 / self.init_options.canvas.scale,
                 .corner_radius = .{
@@ -789,14 +789,14 @@ pub fn drawLayers(self: *FileWidget) void {
         dvui.Path.stroke(.{ .points = &.{
             self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
             self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
-        } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover) });
+        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text) });
     }
 
     for (0..tiles_high) |y| {
         dvui.Path.stroke(.{ .points = &.{
             self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
             self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
-        } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover) });
+        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text) });
     }
 
     while (layer_index > 0) {
@@ -836,7 +836,7 @@ pub fn drawLayers(self: *FileWidget) void {
         self.init_options.canvas.rect.topRight(),
         self.init_options.canvas.rect.bottomRight(),
         self.init_options.canvas.rect.bottomLeft(),
-    } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover), .closed = true });
+    } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text), .closed = true });
 }
 
 pub fn processEvents(self: *FileWidget) void {

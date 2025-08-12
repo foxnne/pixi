@@ -43,7 +43,7 @@ pub fn draw() !void {
             @src(),
             "Choose a folder to get started.",
             .{},
-            .{ .color_text = .text_press },
+            .{ .color_text = dvui.themeGet().color(.control, .text) },
         );
     }
     //     try drawRecents(editor);
@@ -57,7 +57,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         @src(),
         "FilterIcon",
         icons.tvg.lucide.search,
-        .{ .fill_color = dvui.themeGet().color_text },
+        .{ .fill_color = dvui.themeGet().color(.window, .text) },
         .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
     );
     const filter_text_edit = dvui.textEntry(@src(), .{ .placeholder = "Filter..." }, .{ .expand = .horizontal });
@@ -70,12 +70,12 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     const branch = tree.branch(@src(), .{ .expanded = true }, .{
         .id_extra = 0,
         .expand = .horizontal,
-        .color_fill_hover = .fill,
-        .color_fill = .fill_window,
+        //.color_fill_hover = dvui.themeGet().color(.window, .fill),
+        .color_fill = dvui.themeGet().color(.control, .fill),
     });
     defer branch.deinit();
 
-    const color: dvui.Color = if (pixi.editor.colors.file_tree_palette) |*palette| palette.getDVUIColor(0) else dvui.themeGet().color_fill_hover;
+    const color: dvui.Color = if (pixi.editor.colors.file_tree_palette) |*palette| palette.getDVUIColor(0) else dvui.themeGet().color(.control, .fill_hover);
 
     _ = dvui.icon(
         @src(),
@@ -93,7 +93,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     }
 
     dvui.labelNoFmt(@src(), fmt_string, .{}, .{
-        .color_fill = .{ .color = color },
+        .color_fill = color,
         .font_style = .title,
         .gravity_y = 0.5,
     });
@@ -106,8 +106,8 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     );
 
     if (branch.expander(@src(), .{ .indent = 24 }, .{
-        .color_border = .{ .color = color },
-        .color_fill = .fill_window,
+        .color_border = color,
+        .color_fill = dvui.themeGet().color(.control, .fill),
         .corner_radius = branch.button.wd.options.corner_radius,
         // .box_shadow = .{
         //     .color = .{ .color = .black },
@@ -223,7 +223,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                 inner_id_extra.* = dvui.Id.update(tree.data().id, abs_path).asUsize();
 
-                var color = dvui.themeGet().color_fill_hover;
+                var color = dvui.themeGet().color(.control, .fill_hover);
                 if (pixi.editor.colors.file_tree_palette) |*palette| {
                     color = palette.getDVUIColor(color_id.*);
                 }
@@ -235,8 +235,8 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                 }, .{
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
-                    .color_fill_hover = .fill,
-                    .color_fill = .fill_window,
+                    //.color_fill_hover = .fill,
+                    .color_fill = dvui.themeGet().color(.control, .fill),
                     .padding = dvui.Rect.all(1),
                 });
                 defer branch.deinit();
@@ -266,7 +266,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                     if (context.activePoint()) |point| {
                         var fw2 = dvui.floatingMenu(@src(), .{ .from = dvui.Rect.Natural.fromPoint(point) }, .{ .box_shadow = .{
-                            .color = .{ .color = .black },
+                            .color = .black,
                             .offset = .{ .x = 0, .y = 0 },
                             .shrink = 0,
                             .fade = 10,
@@ -304,7 +304,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         if ((dvui.menuItemLabel(@src(), "Delete", .{}, .{
                             .expand = .horizontal,
-                            .color_accent = .err,
+                            .color_accent = dvui.themeGet().color(.err, .fill),
                         })) != null) {
                             fw2.close();
                         }
@@ -344,7 +344,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             "{s}",
                             .{if (filter_text.len > 0) std.fs.path.relative(dvui.currentWindow().arena(), pixi.editor.folder.?, abs_path) catch entry.name else entry.name},
                             .{
-                                .color_text = .{ .color = if (pixi.editor.getFileFromPath(abs_path) != null) dvui.themeGet().color_text else dvui.themeGet().color_text_press },
+                                .color_text = if (pixi.editor.getFileFromPath(abs_path) != null) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
                                 .font_style = .body,
                                 .padding = padding,
                             },
@@ -356,7 +356,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                     @src(),
                                     "DirtyIcon",
                                     icons.tvg.lucide.@"circle-small",
-                                    .{ .fill_color = dvui.themeGet().color_text },
+                                    .{ .fill_color = dvui.themeGet().color(.window, .text) },
                                     .{ .gravity_y = 0.5 },
                                 );
                             }
@@ -395,7 +395,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             },
                         );
                         dvui.label(@src(), "{s}", .{folder_name}, .{
-                            .color_text = .{ .color = dvui.themeGet().color_text_press },
+                            .color_text = dvui.themeGet().color(.control, .text),
                             .font_style = .body,
                             .padding = padding,
                         });
@@ -412,14 +412,14 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         );
 
                         if (branch.expander(@src(), .{ .indent = 14 }, .{
-                            .color_fill = .fill_window,
-                            .color_border = .{ .color = color },
+                            .color_fill = dvui.themeGet().color(.control, .fill),
+                            .color_border = color,
                             .background = true,
                             .border = .{ .x = 1, .w = 1 },
                             .expand = .horizontal,
                             .corner_radius = branch.button.wd.options.corner_radius,
                             .box_shadow = .{
-                                .color = .{ .color = .black },
+                                .color = .black,
                                 .offset = .{ .x = -5, .y = 5 },
                                 .shrink = 5,
                                 .fade = 10,

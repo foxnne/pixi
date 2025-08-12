@@ -105,6 +105,7 @@ fn drawTabs(_: *Artboard) void {
 
     var tabs = pixi.dvui.TabsWidget.init(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
+        .color_fill = dvui.themeGet().color(.control, .fill),
     });
     {
         tabs.install();
@@ -115,8 +116,8 @@ fn drawTabs(_: *Artboard) void {
             var tab_box = tabs.addTab(selected, .{
                 .id_extra = i,
                 .corner_radius = dvui.Rect.all(0),
-                .color_fill_hover = .fill,
-                .color_fill = .fill_window,
+                //.color_fill_hover = dvui.themeGet().color(.control, .fill_hover),
+                .color_fill = dvui.themeGet().color(.control, .fill),
                 .padding = dvui.Rect.all(0),
                 .margin = dvui.Rect.all(0),
                 .background = true,
@@ -141,7 +142,7 @@ fn drawTabs(_: *Artboard) void {
 
                 const hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .background = true,
-                    .color_fill = if (hovered) .fill else .fill_window,
+                    .color_fill = if (hovered) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
                 });
                 defer hbox.deinit();
 
@@ -150,15 +151,15 @@ fn drawTabs(_: *Artboard) void {
                     .padding = dvui.Rect.all(2),
                 });
                 dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
-                    .color_text = if (selected) .text else .text_press,
+                    .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
                     .padding = dvui.Rect.all(2),
                     .gravity_y = 0.5,
                 });
             }
 
             var close_button = dvui.ButtonWidget.init(@src(), .{}, .{
-                .color_fill_hover = .err,
-                .color_fill = .fill_window,
+                //.color_fill_hover = dvui.themeGet().color(.err, .fill),
+                .color_fill = dvui.themeGet().color(.control, .fill),
                 .gravity_y = 0.5,
                 .padding = dvui.Rect.all(1),
                 .margin = .{ .w = 4 },
@@ -167,11 +168,11 @@ fn drawTabs(_: *Artboard) void {
                 defer close_button.deinit();
                 close_button.install();
                 close_button.processEvents();
-                var color = dvui.Color.fromTheme(.text);
+                var color = dvui.themeGet().color(.control, .text);
 
                 if (hovered or close_button.hovered()) {
                     close_button.drawBackground();
-                } else color = if (file.dirty()) .fromTheme(.text) else color.opacity(0.0);
+                } else color = if (file.dirty()) dvui.themeGet().color(.window, .text) else color.opacity(0.0);
 
                 dvui.icon(@src(), "close", if (file.dirty() and !(hovered or close_button.hovered())) icons.tvg.lucide.@"circle-small" else icons.tvg.lucide.x, .{
                     .fill_color = color,
@@ -208,6 +209,7 @@ pub fn drawCanvas(self: *Artboard) !void {
         }, .{
             .expand = .both,
             .background = true,
+            .color_fill = dvui.themeGet().color(.window, .fill),
         });
 
         defer file_widget.deinit();
@@ -225,7 +227,7 @@ pub fn drawShadows(_: *Artboard, container: dvui.RectScale) void {
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-        var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() }) catch return;
+        var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
         const black: dvui.Color = .black;
         const ca0 = black.opacity(0.1);
@@ -250,7 +252,7 @@ pub fn drawShadows(_: *Artboard, container: dvui.RectScale) void {
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-        var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center() }) catch return;
+        var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
         const black: dvui.Color = .black;
         const ca0 = black.opacity(0.1);
@@ -308,7 +310,7 @@ pub fn drawLogo(_: *Artboard) !void {
                     var pixi_color = logo_colors[index];
 
                     if (pixi_color.value[3] < 1.0 and pixi_color.value[3] > 0.0) {
-                        const theme_bg = dvui.themeGet().color_fill;
+                        const theme_bg = dvui.themeGet().color(.window, .fill);
                         pixi_color = pixi_color.lerp(pixi.math.Color.initBytes(theme_bg.r, theme_bg.g, theme_bg.b, 255), pixi_color.value[3]);
                         pixi_color.value[3] = 1.0;
                     }
@@ -320,7 +322,7 @@ pub fn drawLogo(_: *Artboard) !void {
                         .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
                         .id_extra = index,
                         .background = false,
-                        .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+                        .color_fill = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                         .margin = dvui.Rect.all(0),
                         .padding = dvui.Rect.all(0),
                     });
@@ -348,7 +350,7 @@ pub fn drawLogo(_: *Artboard) !void {
             var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
                 .gravity_x = 0.5,
                 .padding = dvui.Rect.all(2),
-                .color_fill = .fill_window,
+                .color_fill = dvui.themeGet().color(.control, .fill),
             });
             defer button.deinit();
 
@@ -405,7 +407,7 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .rect = new_rect,
         .id_extra = id_extra,
-        .color_fill = .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } },
+        .color_fill = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
     });
 
     var path = dvui.Path.Builder.init(dvui.currentWindow().lifo());

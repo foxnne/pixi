@@ -89,7 +89,7 @@ pub fn addTab(self: *TabsWidget, selected: bool, opts: Options) *dvui.BoxWidget 
 
                 path.addPoint(r.topRight());
                 path.addPoint(r.topLeft());
-                path.build().stroke(.{ .thickness = 2 * rs.s, .color = dvui.themeGet().color_text, .after = true });
+                path.build().stroke(.{ .thickness = 2 * rs.s, .color = dvui.themeGet().color(.window, .text), .after = true });
             },
             .vertical => {
                 var path: dvui.Path.Builder = .init(dvui.currentWindow().lifo());
@@ -97,7 +97,7 @@ pub fn addTab(self: *TabsWidget, selected: bool, opts: Options) *dvui.BoxWidget 
 
                 path.addPoint(r.topRight());
                 path.addPoint(r.bottomRight());
-                path.build().stroke(.{ .thickness = 2 * rs.s, .color = dvui.themeGet().color_accent, .after = true });
+                path.build().stroke(.{ .thickness = 2 * rs.s, .color = dvui.themeGet().color(.window, .text), .after = true });
             },
         }
     }

@@ -127,16 +127,55 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     var theme = dvui.themeGet();
 
-    theme.color_fill = .{ .r = 34, .g = 35, .b = 42, .a = 255 };
-    theme.color_fill_window = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
-    theme.color_text = .{ .r = 206, .g = 163, .b = 127, .a = 255 };
-    theme.color_text_press = .{ .r = 124, .g = 128, .b = 138, .a = 255 };
+    theme.window = .{
+        .fill = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
+        .fill_hover = .{ .r = 64, .g = 68, .b = 78, .a = 255 },
+        .fill_press = theme.window.fill,
+        .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
+        .text = .{ .r = 206, .g = 163, .b = 127, .a = 255 },
+        .text_hover = theme.window.text,
+        .text_press = theme.window.text,
+    };
 
-    theme.color_fill_hover = .{ .r = 64, .g = 68, .b = 78, .a = 255 };
-    theme.color_fill_control = theme.color_fill;
-    theme.color_border = .{ .r = 48, .g = 52, .b = 62, .a = 255 };
-    theme.color_fill_press = theme.color_fill_window;
-    theme.color_accent = .{ .r = 47, .g = 179, .b = 135, .a = 255 };
+    theme.control = .{
+        .fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 },
+        .fill_hover = .{ .r = 64, .g = 68, .b = 78, .a = 255 },
+        .fill_press = theme.window.fill,
+        .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
+        .text = .{ .r = 134, .g = 138, .b = 148, .a = 255 },
+        .text_hover = .{ .r = 124, .g = 128, .b = 138, .a = 255 },
+        .text_press = .{ .r = 124, .g = 128, .b = 138, .a = 255 },
+    };
+
+    theme.highlight = .{
+        .fill = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
+        .fill_hover = theme.highlight.fill.?.average(theme.control.fill_hover.?),
+        .fill_press = theme.highlight.fill.?.average(theme.control.fill_press.?),
+        .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
+        .text = theme.window.fill,
+        .text_hover = theme.window.fill,
+        .text_press = theme.window.fill,
+    };
+
+    theme.fill = theme.window.fill.?;
+    theme.fill_hover = theme.window.fill_hover.?;
+    theme.fill_press = theme.window.fill_press.?;
+    theme.border = theme.window.border.?;
+    theme.text = theme.window.text.?;
+    theme.text_hover = theme.window.text_hover.?;
+    theme.text_press = theme.window.text_press.?;
+    theme.focus = theme.highlight.fill.?;
+
+    // theme.color_fill = .{ .r = 34, .g = 35, .b = 42, .a = 255 };
+    // theme.color_fill_window = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
+    // theme.color_text = .{ .r = 206, .g = 163, .b = 127, .a = 255 };
+    // theme.color_text_press = .{ .r = 124, .g = 128, .b = 138, .a = 255 };
+
+    // theme.color_fill_hover = .{ .r = 64, .g = 68, .b = 78, .a = 255 };
+    // theme.color_fill_control = theme.color_fill;
+    // theme.color_border = .{ .r = 48, .g = 52, .b = 62, .a = 255 };
+    // theme.color_fill_press = theme.color_fill_window;
+    // theme.color_accent = .{ .r = 47, .g = 179, .b = 135, .a = 255 };
     theme.dark = true;
     theme.name = "Pixi Dark";
     theme.font_body = .{ .id = .fromName("Vera"), .size = 13 };

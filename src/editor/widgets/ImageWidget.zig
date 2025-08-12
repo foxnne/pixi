@@ -221,10 +221,10 @@ pub fn drawSample(self: *ImageWidget) void {
                 .h = sample_box_size,
             },
             .border = dvui.Rect.all(border_width),
-            .color_border = .fill_hover,
+            .color_border = dvui.themeGet().color(.control, .text),
             .corner_radius = corner_radius,
             .background = true,
-            .color_fill = .fill_window,
+            .color_fill = dvui.themeGet().color(.window, .fill),
             .box_shadow = .{
                 .fade = 15 * 1 / self.init_options.canvas.scale,
                 .corner_radius = .{
@@ -328,7 +328,7 @@ pub fn drawImage(self: *ImageWidget) void {
         self.init_options.canvas.rect.topRight(),
         self.init_options.canvas.rect.bottomRight(),
         self.init_options.canvas.rect.bottomLeft(),
-    } }, .{ .thickness = 1, .color = dvui.Color.fromTheme(.fill_hover), .closed = true });
+    } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill_hover), .closed = true });
 }
 
 pub fn processEvents(self: *ImageWidget) void {

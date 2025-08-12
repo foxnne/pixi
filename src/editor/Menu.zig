@@ -13,9 +13,19 @@ pub fn draw() !dvui.App.Result {
     var m = dvui.menu(@src(), .horizontal, .{});
     defer m.deinit();
 
+    const current_highlight_style = dvui.themeGet().highlight;
+    var theme = dvui.themeGet();
+    theme.highlight.fill = theme.color(.control, .fill_hover);
+    dvui.themeSet(theme);
+    defer {
+        theme.highlight = current_highlight_style;
+        dvui.themeSet(theme);
+    }
+
     if (menuItem(@src(), "File", .{ .submenu = true }, .{
         .expand = .horizontal,
-        .color_accent = .fill,
+        //.color_accent = dvui.themeGet().color(.window, .fill),
+
     })) |r| {
         var animator = dvui.animate(@src(), .{
             .kind = .alpha,
@@ -28,12 +38,12 @@ pub fn draw() !dvui.App.Result {
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
         defer fw.deinit();
 
-        if (menuItem(@src(), "Show Demo", .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+        if (menuItem(@src(), "Show Demo", .{}, .{ .expand = .horizontal, .color_accent = dvui.themeGet().color(.window, .fill) }) != null) {
             dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
             fw.close();
         }
 
-        if (menuItem(@src(), "Close Menu", .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+        if (menuItem(@src(), "Close Menu", .{}, .{ .expand = .horizontal, .color_accent = dvui.themeGet().color(.window, .fill) }) != null) {
             fw.close();
         }
     }
@@ -44,7 +54,7 @@ pub fn draw() !dvui.App.Result {
         .{ .submenu = true },
         .{
             .expand = .horizontal,
-            .color_accent = .fill,
+            //.style = .control,
         },
     )) |r| {
         var animator = dvui.animate(@src(), .{
@@ -58,7 +68,10 @@ pub fn draw() !dvui.App.Result {
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
         defer fw.deinit();
 
-        if (menuItemWithHotkey(@src(), "Undo", dvui.currentWindow().keybinds.get("undo") orelse .{}, .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+        if (menuItemWithHotkey(@src(), "Undo", dvui.currentWindow().keybinds.get("undo") orelse .{}, .{}, .{
+            .expand = .horizontal,
+            //.style = .control,
+        }) != null) {
             if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
                 file.history.undoRedo(file, .undo) catch {
                     std.log.err("Failed to undo", .{});
@@ -66,7 +79,10 @@ pub fn draw() !dvui.App.Result {
             }
         }
 
-        if (menuItemWithHotkey(@src(), "Redo", dvui.currentWindow().keybinds.get("redo") orelse .{}, .{}, .{ .expand = .horizontal, .color_accent = .fill }) != null) {
+        if (menuItemWithHotkey(@src(), "Redo", dvui.currentWindow().keybinds.get("redo") orelse .{}, .{}, .{
+            .expand = .horizontal,
+            //.style = .control,
+        }) != null) {
             if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
                 file.history.undoRedo(file, .redo) catch {
                     std.log.err("Failed to redo", .{});

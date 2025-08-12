@@ -66,7 +66,7 @@ pub fn toastDisplay(id: dvui.Id) !void {
         .background = true,
         .corner_radius = dvui.Rect.all(1000),
         .padding = .{ .x = 16, .y = 8, .w = 16, .h = 8 },
-        .color_fill = .fill_window,
+        .color_fill = dvui.themeGet().color(.control, .fill),
         .border = dvui.Rect.all(2),
     });
 
@@ -87,7 +87,7 @@ pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, opts:
     _ = dvui.spacer(@src(), .{ .min_size_content = .width(4) });
 
     var second_opts = opts.strip();
-    second_opts.color_text = .text_press;
+    second_opts.color_text = dvui.themeGet().color(.control, .text);
     second_opts.gravity_y = 0.5;
 
     keybindLabels(&hotkey, second_opts);
@@ -112,7 +112,7 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
             if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
             if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
             if (builtin.os.tag == .macos) {
-                dvui.icon(@src(), "cmd", icons.tvg.lucide.command, .{ .fill_color = .fromTheme(.text_press) }, .{ .gravity_y = 0.5 });
+                dvui.icon(@src(), "cmd", icons.tvg.lucide.command, .{ .fill_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
             } else {
                 dvui.labelNoFmt(@src(), "cmd", .{}, opts);
             }
@@ -125,7 +125,7 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
             if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
             if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
             if (builtin.os.tag == .macos) {
-                dvui.icon(@src(), "option", icons.tvg.lucide.option, .{ .fill_color = .fromTheme(.text_press) }, .{ .gravity_y = 0.5 });
+                dvui.icon(@src(), "option", icons.tvg.lucide.option, .{ .fill_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
             } else {
                 dvui.labelNoFmt(@src(), "alt", .{}, opts);
             }

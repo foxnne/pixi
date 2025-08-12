@@ -49,14 +49,13 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !void {
     var bw = dvui.ButtonWidget.init(@src(), .{}, .{
         .id_extra = @intFromEnum(option),
         .min_size_content = .{ .h = size },
-        .color_fill_hover = .fill_window,
     });
     defer bw.deinit();
     bw.install();
     bw.processEvents();
     //try bw.drawBackground();
 
-    const color: dvui.Color = if (selected) theme.color_accent else if (bw.hovered()) theme.color_text else theme.color_fill_hover;
+    const color: dvui.Color = if (selected) theme.color(.highlight, .fill) else if (bw.hovered()) theme.color(.window, .text) else theme.color(.control, .text);
 
     dvui.icon(
         @src(),
@@ -78,10 +77,10 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !void {
         .active_rect = bw.data().rectScale().r,
     }, .{
         .id_extra = @intFromEnum(option),
-        .color_fill = .fill_window,
+        .color_fill = dvui.themeGet().color(.window, .fill),
         .border = dvui.Rect.all(0),
         .box_shadow = .{
-            .color = .{ .color = .black },
+            .color = .black,
             .shrink = 0,
             .corner_radius = dvui.Rect.all(8),
             .offset = .{ .x = 0, .y = 2 },
