@@ -46,13 +46,13 @@ pub fn processKeybinds(self: *FileWidget) void {
         switch (e.evt) {
             .key => |ke| {
                 if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
-                    self.file.history.undoRedo(self.file, .undo) catch {
+                    self.init_options.file.history.undoRedo(self.init_options.file, .undo) catch {
                         std.log.err("Failed to undo", .{});
                     };
                 }
 
                 if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
-                    self.file.history.undoRedo(self.file, .redo) catch {
+                    self.init_options.file.history.undoRedo(self.init_options.file, .redo) catch {
                         std.log.err("Failed to undo", .{});
                     };
                 }

@@ -58,24 +58,26 @@ pub fn sourceFromImageFilePath(name: []const u8, path: []const u8, invalidation:
     return sourceFromImageFileBytes(name, bytes, invalidation);
 }
 
-pub fn sourceFromPixelsPMA(name: []const u8, p: []dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
+pub fn sourceFromPixelsPMA(p: []dvui.Color.PMA, w: u32, h: u32, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
     return .{
         .pixelsPMA = .{
-            .name = pixi.app.allocator.dupe(u8, name) catch name,
-            .rgba = p,
+            .rgba = pixi.app.allocator.dupe(u8, p) catch return error.MemoryAllocationFailed,
             .interpolation = .nearest,
             .invalidation = invalidation,
+            .width = w,
+            .height = h,
         }, // TODO: Check if this is correct
     };
 }
 
-pub fn sourceFromPixels(name: [:0]const u8, p: []u8, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
+pub fn sourceFromPixels(p: []u8, w: u32, h: u32, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
     return .{
         .pixels = .{
-            .name = pixi.app.allocator.dupe(u8, name) catch name,
             .rgba = p,
             .interpolation = .nearest,
             .invalidation = invalidation,
+            .width = w,
+            .height = h,
         }, // TODO: Check if this is correct
     };
 }
@@ -89,11 +91,11 @@ pub fn sourceFromTexture(name: []const u8, texture: dvui.Texture, invalidation: 
     };
 }
 
-fn write(zip_file: ?*anyopaque, data: ?*anyopaque, size_in_bytes: c_int) callconv(.C) void {
-    if (@as(?*zip.struct_zip_t, @ptrCast(zip_file))) |z| {
-        _ = zip.zip_entry_write(z, data, @as(usize, @intCast(size_in_bytes)));
-    }
-}
+// fn writeToZip(zip_file: ?*anyopaque, data: ?*anyopaque, size_in_bytes: c_int) callconv(.C) void {
+//     if (@as(?*zip.struct_zip_t, @ptrCast(zip_file))) |z| {
+//         _ = zip.zip_entry_write(z, data, @as(usize, @intCast(size_in_bytes)));
+//     }
+// }
 
 pub fn writeSourceToZip(
     source: dvui.ImageSource,
@@ -103,16 +105,10 @@ pub fn writeSourceToZip(
 
     const w = @as(c_int, @intFromFloat(s.w));
     const h = @as(c_int, @intFromFloat(s.h));
-    const comp = @as(c_int, @intCast(4));
-    const data: *anyopaque = switch (source) {
-        .pixels => |p| @constCast(@ptrCast(p.rgba.ptr)),
-        .pixelsPMA => |p| @constCast(@ptrCast(p.rgba.ptr)),
-        else => return error.InvalidImageSource,
-    };
-    const result = dvui.c.stbi_write_png_to_func(write, zip_file, w, h, comp, data, comp * w);
-    // if the result is 0 then it means an error occured (per stb image write docs)
-    if (result == 0) {
-        return error.CouldNotWriteImage;
+    const png_encoded = dvui.pngEncode(pixi.editor.arena.allocator(), pixi.image.bytes(source), @intCast(w), @intCast(h), .{ .resolution = 0 }) catch return error.CouldNotWriteImage;
+
+    if (@as(?*zip.struct_zip_t, @ptrCast(zip_file))) |z| {
+        _ = zip.zip_entry_write(z, png_encoded.ptr, @as(usize, @intCast(png_encoded.len)));
     }
 }
 

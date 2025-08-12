@@ -16,6 +16,16 @@ pub fn pixels(source: dvui.ImageSource) [][4]u8 {
     return &.{};
 }
 
+pub fn bytes(source: dvui.ImageSource) []u8 {
+    switch (source) {
+        .pixels => |p| return @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
+        .pixelsPMA => |p| return @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
+        .texture => |t| return @as([*]u8, @ptrCast(t.ptr))[0..(t.width * t.height * 4)],
+        else => {},
+    }
+    return &.{};
+}
+
 pub fn pixelIndex(source: dvui.ImageSource, px: dvui.Point) ?usize {
     if (px.x < 0 or px.y < 0) {
         return null;

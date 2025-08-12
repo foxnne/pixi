@@ -120,10 +120,10 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return null;
 
-    blk_open: {
-        const null_terminated_path = try dvui.currentWindow().arena().dupeZ(u8, path);
+    const null_terminated_path = try dvui.currentWindow().arena().dupeZ(u8, path);
 
-        const pixi_file = zip.zip_open(null_terminated_path.ptr, 0, 'r') orelse break :blk_open;
+    zip_open: {
+        const pixi_file = zip.zip_open(null_terminated_path.ptr, 0, 'r') orelse break :zip_open;
         defer zip.zip_close(pixi_file);
 
         var buf: ?*anyopaque = null;
@@ -167,12 +167,31 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
         internal.temporary_layer = try .init(internal.newID(), "Temporary", .{ internal.width, internal.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
 
         for (ext.layers) |l| {
-            const layer_image_name = std.fmt.allocPrintZ(dvui.currentWindow().arena(), "{s}.png", .{l.name}) catch "Memory Allocation Failed";
+            const layer_image_name = std.fmt.allocPrintZ(dvui.currentWindow().arena(), "{s}.layer", .{l.name}) catch "Memory Allocation Failed";
+            const png_image_name = std.fmt.allocPrintZ(dvui.currentWindow().arena(), "{s}.png", .{l.name}) catch "Memory Allocation Failed";
 
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;
 
-            if (zip.zip_entry_open(pixi_file, layer_image_name.ptr) == 0) {
+            if (zip.zip_entry_open(pixi_file, layer_image_name.ptr) == 0) { // Read layer file as directly pixels
+                _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
+                const data = img_buf orelse continue;
+
+                var new_layer: pixi.Internal.Layer = try .fromPixels(
+                    internal.newID(),
+                    l.name,
+                    @as([*]u8, @ptrCast(data))[0..img_len],
+                    internal.width,
+                    internal.height,
+                    .ptr,
+                );
+
+                new_layer.visible = l.visible;
+                new_layer.collapse = l.collapse;
+                internal.layers.append(pixi.app.allocator, new_layer) catch return error.FileLoadError;
+            }
+
+            if (zip.zip_entry_open(pixi_file, png_image_name.ptr) == 0) { // Read the layer file as PNG file
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
                 const data = img_buf orelse continue;
 
@@ -209,6 +228,96 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
         pixi.editor.counter += 1;
         return internal;
     }
+    // { // Loading TAR experiment
+    //     var file_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
+    //     var link_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
+
+    //     if (pixi.fs.read(pixi.app.allocator, path) catch null) |file_bytes| {
+    //         std.log.debug("Read file bytes!", .{});
+    //         var input = std.io.fixedBufferStream(file_bytes);
+    //         var iter = std.tar.iterator(input.reader(), .{
+    //             .file_name_buffer = &file_name_buffer,
+    //             .link_name_buffer = &link_name_buffer,
+    //         });
+
+    //         var json_content = std.ArrayList(u8).init(pixi.app.allocator);
+    //         defer json_content.deinit();
+
+    //         while (try iter.next()) |entry| {
+    //             const ext = std.fs.path.extension(entry.name);
+    //             if (std.mem.eql(u8, ext, ".json")) {
+    //                 entry.writeAll(json_content.writer()) catch return error.FileLoadError;
+    //             }
+    //         }
+
+    //         const options = std.json.ParseOptions{
+    //             .duplicate_field_behavior = .use_first,
+    //             .ignore_unknown_fields = true,
+    //         };
+
+    //         if (std.json.parseFromSlice(pixi.File, pixi.app.allocator, json_content.items, options) catch null) |parsed| {
+    //             defer parsed.deinit();
+
+    //             std.log.debug("Parsed pixidata.json!", .{});
+
+    //             const ext = parsed.value;
+
+    //             var internal: pixi.Internal.File = .{
+    //                 .id = pixi.editor.counter,
+    //                 .path = try pixi.app.allocator.dupe(u8, path),
+    //                 .width = ext.width,
+    //                 .height = ext.height,
+    //                 .tile_width = ext.tile_width,
+    //                 .tile_height = ext.tile_height,
+    //                 .layers = .{},
+    //                 .deleted_layers = .{},
+    //                 .deleted_heightmap_layers = .{},
+    //                 .sprites = .{},
+    //                 .selected_sprites = .init(pixi.app.allocator),
+    //                 .animations = .{},
+    //                 .deleted_animations = .{},
+    //                 .history = pixi.Internal.File.History.init(pixi.app.allocator),
+    //                 .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
+    //                 .temporary_layer = undefined,
+    //                 .selection_layer = undefined,
+    //             };
+
+    //             internal.temporary_layer = try .init(internal.newID(), "Temporary", .{ internal.width, internal.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+
+    //             for (ext.layers) |ext_layer| {
+    //                 const layer_image_name = std.fmt.allocPrintZ(dvui.currentWindow().arena(), "{s}.layer", .{ext_layer.name}) catch "Memory Allocation Failed";
+    //                 std.log.debug("Layer image file name: {s}", .{layer_image_name});
+
+    //                 iter = std.tar.iterator(input.reader(), .{
+    //                     .file_name_buffer = &file_name_buffer,
+    //                     .link_name_buffer = &link_name_buffer,
+    //                 });
+
+    //                 while (iter.next() catch null) |entry| {
+    //                     std.log.debug("Entry name: {s}", .{entry.name});
+
+    //                     if (std.mem.eql(u8, entry.name, layer_image_name)) {
+    //                         var layer_content = std.ArrayList(u8).init(pixi.app.allocator);
+    //                         try entry.writeAll(layer_content.writer());
+
+    //                         var cond: ?pixi.Internal.Layer = pixi.Internal.Layer.fromPixels(internal.newID(), pixi.app.allocator.dupe(u8, ext_layer.name) catch ext_layer.name, layer_content.items, ext.width, ext.height, .ptr) catch null;
+
+    //                         if (cond) |*new_layer| {
+    //                             new_layer.visible = ext_layer.visible;
+    //                             new_layer.collapse = ext_layer.collapse;
+    //                             internal.layers.append(pixi.app.allocator, new_layer.*) catch return error.FileLoadError;
+    //                         } else {
+    //                             std.log.err("Failed to create layer from pixels", .{});
+    //                         }
+    //                     }
+    //                 }
+    //             }
+
+    //             pixi.editor.counter += 1;
+    //             return internal;
+    //         }
+    //     }
+    // }
 
     return error.FileLoadError;
 }
@@ -538,6 +647,71 @@ pub fn save(self: *File, window: *dvui.Window) !void {
     self.saving = true;
     var ext = try self.external(pixi.app.allocator);
     defer ext.deinit(pixi.app.allocator);
+
+    const output_path = try pixi.editor.arena.allocator().dupeZ(u8, self.path);
+
+    // var file_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
+    // var link_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
+
+    var handle = try std.fs.cwd().createFile(output_path, .{});
+    defer handle.close();
+    var wrt = std.tar.writer(handle.writer());
+
+    // var input = std.io.fixedBufferStream(output.items);
+    // var iter = std.tar.iterator(
+    //     input.reader(),
+    //     .{ .file_name_buffer = &file_name_buffer, .link_name_buffer = &link_name_buffer },
+    // );
+
+    var json = std.ArrayList(u8).init(pixi.app.allocator);
+    const out_stream = json.writer();
+    const options = std.json.StringifyOptions{};
+
+    try std.json.stringify(ext, options, out_stream);
+
+    const json_output = try json.toOwnedSlice();
+
+    try wrt.writeFileBytes("pixidata.json", json_output, .{});
+
+    if (self.layers.len > 0) {
+        const slice = self.layers.slice();
+        var index: usize = 0;
+        while (index < self.layers.len) : (index += 1) {
+            const layer = slice.get(index);
+
+            //const size = layer.size();
+
+            const data: []u8 = switch (layer.source) {
+                .pixels => |p| @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
+                .pixelsPMA => |p| @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
+                else => return error.InvalidImageSource,
+            };
+
+            //const png_encoded = dvui.pngEncode(pixi.editor.arena.allocator(), data, @intFromFloat(size.w), @intFromFloat(size.h), .{ .resolution = 0 }) catch return error.CouldNotWriteImage;
+
+            try wrt.writeFileBytes(try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.layer", .{layer.name}), data, .{});
+        }
+    }
+
+    try wrt.finish();
+
+    {
+        const id_mutex = dvui.toastAdd(window, @src(), 0, self.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+        const id = id_mutex.id;
+        const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
+        dvui.dataSetSlice(window, id, "_message", message);
+        id_mutex.mutex.unlock();
+    }
+
+    self.saving = false;
+    self.history.bookmark = 0;
+}
+
+pub fn saveZip(self: *File, window: *dvui.Window) !void {
+    if (self.saving) return;
+    self.saving = true;
+    var ext = try self.external(pixi.app.allocator);
+    defer ext.deinit(pixi.app.allocator);
     const null_terminated_path = try pixi.editor.arena.allocator().dupeZ(u8, self.path);
 
     const zip_file = zip.zip_open(null_terminated_path.ptr, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
@@ -562,22 +736,14 @@ pub fn save(self: *File, window: *dvui.Window) !void {
             while (index < self.layers.len) : (index += 1) {
                 const layer = slice.get(index);
 
-                const image_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{layer.name});
+                const image_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.layer", .{layer.name});
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(image_name)));
+                _ = zip.zip_entry_write(z, @as([*]u8, @ptrCast(layer.bytes().ptr)), layer.bytes().len);
 
-                try layer.writeSourceToZip(z);
-
-                //try self.layers.items(.texture)[index].stbi_image().writeToFn(write, z, .png);
+                //try layer.writeSourceToZip(z);
                 _ = zip.zip_entry_close(z);
             }
         }
-
-        // if (self.heightmap.layer) |*working_layer| {
-        //     const layer_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.png", .{working_layer.name});
-        //     _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(layer_name)));
-        //     try working_layer.texture.stbi_image().writeToFn(write, z, .png);
-        //     _ = zip.zip_entry_close(z);
-        // }
 
         zip.zip_close(z);
 
@@ -596,7 +762,7 @@ pub fn save(self: *File, window: *dvui.Window) !void {
 
 pub fn saveAsync(self: *File) !void {
     if (!self.dirty()) return;
-    const thread = try std.Thread.spawn(.{}, save, .{ self, dvui.currentWindow() });
+    const thread = try std.Thread.spawn(.{}, saveZip, .{ self, dvui.currentWindow() });
     thread.detach();
 }
 
