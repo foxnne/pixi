@@ -180,7 +180,8 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
             const current_layer = if (layer_opt) |carry_over_layer| carry_over_layer else try pixi.Internal.Layer.init(
                 0,
                 "",
-                .{ file.width, file.height },
+                file.width,
+                file.height,
                 .{ .r = 0, .g = 0, .b = 0, .a = 0 },
                 .ptr,
             );
@@ -380,7 +381,8 @@ pub fn packAndClear(packer: *Packer) !void {
         var atlas_layer = try pixi.Internal.Layer.init(
             0,
             "",
-            .{ size[0], size[1] },
+            size[0],
+            size[1],
             .{ .r = 0, .g = 0, .b = 0, .a = 0 },
             .ptr,
         );

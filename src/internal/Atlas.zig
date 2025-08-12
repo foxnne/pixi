@@ -29,7 +29,7 @@ pub fn save(atlas: Atlas, path: []const u8, selector: Selector) !void {
             }
             const write_path = std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}", .{path}) catch unreachable;
 
-            try pixi.fs.writeSourceToPng(atlas.source, write_path);
+            try pixi.image.writeToPng(atlas.source, write_path);
         },
         .data => {
             if (!std.mem.eql(u8, ".atlas", std.fs.path.extension(path))) {

@@ -15,8 +15,8 @@ dirty: bool = false,
 
 //transform_bindgroup: ?*gpu.BindGroup = null,
 
-pub fn init(id: u64, name: []const u8, s: [2]u32, default_color: dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
-    const num_pixels = s[0] * s[1];
+pub fn init(id: u64, name: []const u8, width: u32, height: u32, default_color: dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
+    const num_pixels = width * height;
     const p = pixi.app.allocator.alloc(dvui.Color.PMA, num_pixels) catch return error.MemoryAllocationFailed;
 
     @memset(p, default_color);
@@ -27,18 +27,18 @@ pub fn init(id: u64, name: []const u8, s: [2]u32, default_color: dvui.Color.PMA,
         .source = .{
             .pixelsPMA = .{
                 .rgba = p,
-                .width = s[0],
-                .height = s[1],
+                .width = width,
+                .height = height,
                 .interpolation = .nearest,
                 .invalidation = invalidation,
             },
         },
-        .mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, s[0] * s[1]) catch return error.MemoryAllocationFailed,
+        .mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, num_pixels) catch return error.MemoryAllocationFailed,
     };
 }
 
 pub fn fromImageFile(id: u64, name: []const u8, image_bytes: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
-    const source = pixi.fs.sourceFromImageFileBytes(name, image_bytes, invalidation) catch return error.ErrorCreatingImageSource;
+    const source = pixi.image.fromImageFileBytes(name, image_bytes, invalidation) catch return error.ErrorCreatingImageSource;
     const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
     const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intFromFloat(s.w * s.h))) catch return error.MemoryAllocationFailed;
 
@@ -50,9 +50,9 @@ pub fn fromImageFile(id: u64, name: []const u8, image_bytes: []const u8, invalid
     };
 }
 
-pub fn fromPixelsPMA(id: u64, name: []const u8, p: []dvui.Color.PMA, w: u32, h: u32, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
-    const source = pixi.fs.sourceFromPixelsPMA(p, w, h, invalidation) catch return error.ErrorCreatingImageSource;
-    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intCast(w * h))) catch return error.MemoryAllocationFailed;
+pub fn fromPixelsPMA(id: u64, name: []const u8, pixel_data: []dvui.Color.PMA, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
+    const source = pixi.image.fromPixelsPMA(pixel_data, width, height, invalidation) catch return error.ErrorCreatingImageSource;
+    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intCast(width * height))) catch return error.MemoryAllocationFailed;
 
     return .{
         .id = id,
@@ -62,9 +62,9 @@ pub fn fromPixelsPMA(id: u64, name: []const u8, p: []dvui.Color.PMA, w: u32, h: 
     };
 }
 
-pub fn fromPixels(id: u64, name: []const u8, p: []u8, w: u32, h: u32, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
-    const source = pixi.fs.sourceFromPixels(p, w, h, invalidation);
-    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intCast(w * h))) catch return error.MemoryAllocationFailed;
+pub fn fromPixels(id: u64, name: []const u8, pixel_data: []u8, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
+    const source = pixi.image.fromPixels(pixel_data, width, height, invalidation);
+    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intCast(width * height))) catch return error.MemoryAllocationFailed;
 
     return .{
         .id = id,

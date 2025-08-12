@@ -17,27 +17,42 @@ id: u64,
 path: []const u8,
 width: u32,
 height: u32,
-tile_width: u32,
-tile_height: u32,
-canvas: pixi.dvui.CanvasWidget = .{}, // Contains all the data for the canvas widget
-layers: std.MultiArrayList(Layer),
-sprites: std.MultiArrayList(Sprite),
-animations: std.MultiArrayList(Animation),
-deleted_layers: std.MultiArrayList(Layer),
-deleted_heightmap_layers: std.MultiArrayList(Layer),
-deleted_animations: std.MultiArrayList(Animation),
+tile_width: u32 = 0,
+tile_height: u32 = 0,
+
+layers: std.MultiArrayList(Layer) = .{},
+deleted_layers: std.MultiArrayList(Layer) = .{},
+
+sprites: std.MultiArrayList(Sprite) = .{},
+
+animations: std.MultiArrayList(Animation) = .{},
+deleted_animations: std.MultiArrayList(Animation) = .{},
+
+//deleted_heightmap_layers: std.MultiArrayList(Layer),
+
 selected_layer_index: usize = 0,
-selected_sprite_index: usize = 0,
-selected_sprites: std.ArrayList(usize),
+// selected_sprite_index: usize = 0,
+// selected_sprites: std.ArrayList(usize),
+
 temporary_layer: Layer,
 selection_layer: Layer,
-heightmap: Heightmap = .{},
+checkerboard: dvui.ImageSource,
+
+//heightmap: Heightmap = .{},
 history: History,
 buffers: Buffers,
 counter: u64 = 0,
 saving: bool = false,
 grouping: u8 = 0,
-layers_scroll_info: dvui.ScrollInfo = .{},
+
+/// Dvui elements
+gui: GUI = .{},
+
+/// Contains all the file-specific UI data
+pub const GUI = struct {
+    canvas: pixi.dvui.CanvasWidget = .{},
+    layers_scroll_info: dvui.ScrollInfo = .{},
+};
 
 pub const ScrollRequest = struct {
     from: f32,
@@ -151,20 +166,14 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
             .height = ext.height,
             .tile_width = ext.tile_width,
             .tile_height = ext.tile_height,
-            .layers = .{},
-            .deleted_layers = .{},
-            .deleted_heightmap_layers = .{},
-            .sprites = .{},
-            .selected_sprites = .init(pixi.app.allocator),
-            .animations = .{},
-            .deleted_animations = .{},
             .history = pixi.Internal.File.History.init(pixi.app.allocator),
             .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
+            .checkerboard = pixi.image.init(ext.width, ext.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.LayerCreateError,
             .temporary_layer = undefined,
             .selection_layer = undefined,
         };
 
-        internal.temporary_layer = try .init(internal.newID(), "Temporary", .{ internal.width, internal.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
 
         for (ext.layers) |l| {
             const layer_image_name = std.fmt.allocPrintZ(dvui.currentWindow().arena(), "{s}.layer", .{l.name}) catch "Memory Allocation Failed";
@@ -332,9 +341,9 @@ pub fn deinit(file: *File) void {
 
     file.layers.deinit(pixi.app.allocator);
     file.deleted_layers.deinit(pixi.app.allocator);
-    file.deleted_heightmap_layers.deinit(pixi.app.allocator);
+    //file.deleted_heightmap_layers.deinit(pixi.app.allocator);
     file.sprites.deinit(pixi.app.allocator);
-    file.selected_sprites.deinit();
+    //file.selected_sprites.deinit();
     file.animations.deinit(pixi.app.allocator);
     file.deleted_animations.deinit(pixi.app.allocator);
     pixi.app.allocator.free(file.path);
@@ -588,7 +597,7 @@ pub fn duplicateLayer(self: *File, index: usize) !u64 {
     const new_name = try std.fmt.allocPrint(dvui.currentWindow().lifo(), "{s}_copy", .{layer.name});
     defer dvui.currentWindow().lifo().free(new_name);
 
-    var new_layer = Layer.init(self.newID(), new_name, .{ self.width, self.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.FailedToDuplicateLayer;
+    var new_layer = Layer.init(self.newID(), new_name, self.width, self.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.FailedToDuplicateLayer;
     new_layer.visible = layer.visible;
     new_layer.collapse = layer.collapse;
 
@@ -613,7 +622,7 @@ pub fn duplicateLayer(self: *File, index: usize) !u64 {
 }
 
 pub fn createLayer(self: *File) !u64 {
-    if (pixi.Internal.Layer.init(self.newID(), "New Layer", .{ self.width, self.height }, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
+    if (pixi.Internal.Layer.init(self.newID(), "New Layer", self.width, self.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
         self.layers.insert(pixi.app.allocator, 0, layer) catch {
             dvui.log.err("Failed to append layer", .{});
         };
@@ -642,7 +651,7 @@ pub fn redo(self: *File) !void {
     return self.history.undoRedo(self, .redo);
 }
 
-pub fn save(self: *File, window: *dvui.Window) !void {
+pub fn saveTar(self: *File, window: *dvui.Window) !void {
     if (self.saving) return;
     self.saving = true;
     var ext = try self.external(pixi.app.allocator);
@@ -650,18 +659,9 @@ pub fn save(self: *File, window: *dvui.Window) !void {
 
     const output_path = try pixi.editor.arena.allocator().dupeZ(u8, self.path);
 
-    // var file_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
-    // var link_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
-
     var handle = try std.fs.cwd().createFile(output_path, .{});
     defer handle.close();
     var wrt = std.tar.writer(handle.writer());
-
-    // var input = std.io.fixedBufferStream(output.items);
-    // var iter = std.tar.iterator(
-    //     input.reader(),
-    //     .{ .file_name_buffer = &file_name_buffer, .link_name_buffer = &link_name_buffer },
-    // );
 
     var json = std.ArrayList(u8).init(pixi.app.allocator);
     const out_stream = json.writer();
@@ -679,15 +679,11 @@ pub fn save(self: *File, window: *dvui.Window) !void {
         while (index < self.layers.len) : (index += 1) {
             const layer = slice.get(index);
 
-            //const size = layer.size();
-
             const data: []u8 = switch (layer.source) {
                 .pixels => |p| @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
                 .pixelsPMA => |p| @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
                 else => return error.InvalidImageSource,
             };
-
-            //const png_encoded = dvui.pngEncode(pixi.editor.arena.allocator(), data, @intFromFloat(size.w), @intFromFloat(size.h), .{ .resolution = 0 }) catch return error.CouldNotWriteImage;
 
             try wrt.writeFileBytes(try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.layer", .{layer.name}), data, .{});
         }
@@ -696,7 +692,7 @@ pub fn save(self: *File, window: *dvui.Window) !void {
     try wrt.finish();
 
     {
-        const id_mutex = dvui.toastAdd(window, @src(), 0, self.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+        const id_mutex = dvui.toastAdd(window, @src(), 0, self.gui.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
@@ -748,7 +744,7 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
         zip.zip_close(z);
 
         {
-            const id_mutex = dvui.toastAdd(window, @src(), 0, self.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+            const id_mutex = dvui.toastAdd(window, @src(), 0, self.gui.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
             const id = id_mutex.id;
             const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
             dvui.dataSetSlice(window, id, "_message", message);

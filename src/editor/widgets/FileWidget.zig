@@ -259,7 +259,7 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
-            if (e.evt == .mouse) {
+            if (e.evt == .mouse and e.evt.mouse.action == .motion) {
                 if (file.temporary_layer.dirty) {
                     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                     file.temporary_layer.invalidate();
@@ -369,6 +369,11 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                     .stroke_size = pixi.editor.tools.stroke_size,
                                 },
                             );
+
+                            // We need one extra frame to go ahead and set the dirty flag and update the ui to show
+                            // the dirty flag, since the mouse hasn't moved and we will stop processing events the moment the
+                            // mouse is released.
+                            dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                         }
 
                         self.drag_data_point = null;

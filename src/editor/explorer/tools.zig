@@ -3,7 +3,6 @@ const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 const icons = @import("icons");
 
-//var scroll_info: dvui.ScrollInfo = .{};
 var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
 var edit_layer_id: ?u64 = null;
@@ -215,7 +214,7 @@ pub fn drawLayers() !void {
     defer vbox.deinit();
 
     if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
-        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.layers_scroll_info }, .{
+        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.gui.layers_scroll_info }, .{
             .expand = .both,
             .background = false,
             .corner_radius = dvui.Rect.all(1000),
@@ -223,7 +222,7 @@ pub fn drawLayers() !void {
 
         defer scroll_area.deinit();
 
-        const vertical_scroll = file.layers_scroll_info.offset(.vertical);
+        const vertical_scroll = file.gui.layers_scroll_info.offset(.vertical);
 
         var reorderable = pixi.dvui.reorder(@src(), .{
             .expand = .horizontal,
@@ -479,7 +478,7 @@ pub fn drawLayers() !void {
             path.deinit();
         }
 
-        if (file.layers_scroll_info.virtual_size.h > file.layers_scroll_info.viewport.h and vertical_scroll < file.layers_scroll_info.scrollMax(.vertical)) {
+        if (file.gui.layers_scroll_info.virtual_size.h > file.gui.layers_scroll_info.viewport.h and vertical_scroll < file.gui.layers_scroll_info.scrollMax(.vertical)) {
             var rs = scroll_area.data().contentRectScale();
             rs.r.y += rs.r.h - 20;
             rs.r.h = 20;

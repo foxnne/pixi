@@ -12,7 +12,7 @@ pub const Stroke = struct {
     //values: std.ArrayList([4]u8),
 
     pixels: std.AutoHashMap(usize, [4]u8),
-    //canvas: pixi.Internal.File.Canvas = .primary,
+    //canvas: pixi.Internal.file.gui.canvas = .primary,
 
     pub fn init(allocator: std.mem.Allocator) Stroke {
         return .{

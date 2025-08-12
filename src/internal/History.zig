@@ -266,13 +266,13 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             file.selected_layer_index = layer_index;
         },
         .origins => |*origins| {
-            file.selected_sprites.clearAndFree();
+            //file.selected_sprites.clearAndFree();
             for (origins.indices, 0..) |sprite_index, i| {
                 const origin = origins.values[i];
                 origins.values[i] = file.sprites.items(.origin)[sprite_index];
                 file.sprites.items(.origin)[sprite_index] = origin;
 
-                try file.selected_sprites.append(sprite_index);
+                //try file.selected_sprites.append(sprite_index);
             }
             pixi.editor.explorer.pane = .sprites;
         },
