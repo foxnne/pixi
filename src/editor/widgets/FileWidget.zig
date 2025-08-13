@@ -19,7 +19,7 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
     const fw: FileWidget = .{
         .init_options = init_opts,
         .options = opts,
-        .last_mouse_event = if (dvui.dataGet(null, init_opts.canvas.id, "mouse_point", dvui.Event)) |event| event else null,
+        .last_mouse_event = if (dvui.dataGet(null, init_opts.canvas.id, "last_mouse_event", dvui.Event)) |event| event else null,
         .drag_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "drag_data_point", dvui.Point)) |point| point else null,
         .sample_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "sample_data_point", dvui.Point)) |point| point else null,
         .sample_key_down = if (dvui.dataGet(null, init_opts.canvas.id, "sample_key_down", bool)) |key| key else false,
@@ -223,8 +223,6 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
         }
     }
 
-    pixi.editor.colors.primary = color;
-
     self.sample_data_point = point;
 
     if (color[3] == 0) {
@@ -232,6 +230,7 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
             pixi.editor.tools.set(.eraser);
         }
     } else {
+        pixi.editor.colors.primary = color;
         if (switch (pixi.editor.tools.current) {
             .pencil, .bucket => false,
             else => true,
@@ -790,6 +789,44 @@ pub fn drawLayers(self: *FileWidget) void {
     });
     shadow_box.deinit();
 
+    // Draw checkerbaord
+    if (self.last_mouse_event) |last_mouse_event| {
+        switch (last_mouse_event.evt) {
+            .mouse => |me| {
+                const data_point = self.init_options.file.gui.canvas.dataFromScreenPoint(me.p);
+                // Draw the checkerboard texture at the hovered sprite position
+                const bounds = dvui.Rect.fromSize(.{ .w = @floatFromInt(self.init_options.file.width), .h = @floatFromInt(self.init_options.file.height) });
+                if (bounds.contains(data_point)) {
+                    const tile_width = @as(f32, @floatFromInt(self.init_options.file.tile_width));
+                    const tile_height = @as(f32, @floatFromInt(self.init_options.file.tile_height));
+
+                    const tile_column = @divTrunc(data_point.x, tile_width);
+                    const tile_row = @divTrunc(data_point.y, tile_height);
+
+                    const x = tile_column * tile_width;
+                    const y = tile_row * tile_height;
+
+                    const image_rect: dvui.Rect = .{
+                        .x = x,
+                        .y = y,
+                        .w = @as(f32, @floatFromInt(file.tile_width)),
+                        .h = @as(f32, @floatFromInt(file.tile_height)),
+                    };
+
+                    _ = dvui.image(@src(), .{
+                        .source = file.checkerboard,
+                        .shrink = .both,
+                    }, .{
+                        .rect = image_rect,
+                        .border = dvui.Rect.all(0),
+                        .background = false,
+                    });
+                }
+            },
+            else => {},
+        }
+    }
+
     for (0..tiles_wide) |x| {
         dvui.Path.stroke(.{ .points = &.{
             self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
@@ -847,25 +884,29 @@ pub fn drawLayers(self: *FileWidget) void {
 pub fn processEvents(self: *FileWidget) void {
     defer self.previous_mods = dvui.currentWindow().modifiers;
     defer if (self.last_mouse_event) |last_mouse_event| {
-        dvui.dataSet(null, self.init_options.canvas.id, "mouse_point", last_mouse_event);
+        dvui.dataSet(null, self.init_options.canvas.id, "last_mouse_event", last_mouse_event);
     } else {
-        dvui.dataRemove(null, self.init_options.canvas.id, "mouse_point");
+        dvui.dataRemove(null, self.init_options.canvas.id, "last_mouse_event");
     };
+
     defer if (self.drag_data_point) |drag_data_point| {
         dvui.dataSet(null, self.init_options.canvas.id, "drag_data_point", drag_data_point);
     } else {
         dvui.dataRemove(null, self.init_options.canvas.id, "drag_data_point");
     };
+
     defer if (self.sample_data_point) |sample_data_point| {
         dvui.dataSet(null, self.init_options.canvas.id, "sample_data_point", sample_data_point);
     } else {
         dvui.dataRemove(null, self.init_options.canvas.id, "sample_data_point");
     };
+
     defer if (self.sample_key_down) {
         dvui.dataSet(null, self.init_options.canvas.id, "sample_key_down", self.sample_key_down);
     } else {
         dvui.dataRemove(null, self.init_options.canvas.id, "sample_key_down");
     };
+
     defer if (self.right_mouse_down) {
         dvui.dataSet(null, self.init_options.canvas.id, "right_mouse_down", self.right_mouse_down);
     } else {

@@ -168,10 +168,47 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
             .tile_height = ext.tile_height,
             .history = pixi.Internal.File.History.init(pixi.app.allocator),
             .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
-            .checkerboard = pixi.image.init(ext.width, ext.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.LayerCreateError,
+            .checkerboard = pixi.image.init(ext.tile_width * 2, ext.tile_height * 2, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.LayerCreateError,
             .temporary_layer = undefined,
             .selection_layer = undefined,
         };
+
+        const checker_color_1: [4]u8 = .{ 100, 100, 100, 255 };
+        const checker_color_2: [4]u8 = .{ 50, 50, 50, 255 };
+
+        if (@mod(internal.width, 2) == 0) {
+            // width is even
+            for (pixi.image.pixels(internal.checkerboard), 0..) |*pixel, i| {
+                const checkerboard_width = internal.tile_width * 2;
+                // Calculate which pixel row we are on
+                const row = @divTrunc(i, checkerboard_width);
+
+                if (@mod(row, 2) == 0) {
+                    if (@mod(i, 2) == 0) {
+                        pixel.* = checker_color_1;
+                    } else {
+                        pixel.* = checker_color_2;
+                    }
+                } else {
+                    if (@mod(i, 2) != 0) {
+                        pixel.* = checker_color_1;
+                    } else {
+                        pixel.* = checker_color_2;
+                    }
+                }
+            }
+        } else {
+            // width is odd
+            for (pixi.image.pixels(internal.checkerboard), 0..) |*pixel, i| {
+                if (@mod(i, 2) == 0) {
+                    pixel.* = checker_color_1;
+                } else {
+                    pixel.* = checker_color_2;
+                }
+            }
+        }
+
+        dvui.textureInvalidateCache(internal.checkerboard.hash());
 
         internal.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
 
@@ -795,3 +832,19 @@ pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
         .animations = animations,
     };
 }
+
+// pub fn spriteIndex(self: *File, point: dvui.Point) ?usize {
+//     const bounds = dvui.Rect.fromSize(.{ .w = @floatFromInt(self.width), .h = @floatFromInt(self.height) });
+//     if (!bounds.contains(point)) return null;
+
+//     const tile_width = @as(f32, @floatFromInt(self.tile_width));
+//     const tile_height = @as(f32, @floatFromInt(self.tile_height));
+
+//     const tile_column = @divTrunc(@as(usize, @intFromFloat(point.x)), @as(usize, @intCast(self.tile_width)));
+//     const tile_row = @divTrunc(@as(usize, @intFromFloat(point.y)), @as(usize, @intCast(self.tile_height)));
+
+//     const x = @as(f32, @floatFromInt(tile_column)) * tile_width;
+//     const y = @as(f32, @floatFromInt(tile_row)) * tile_height;
+
+//     return tile_column + tile_row * @divExact(self.width, self.tile_width);
+// }

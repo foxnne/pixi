@@ -448,6 +448,7 @@ pub fn drawLayers() !void {
                     file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
                 }
 
+                // This consumes the click event, so we need to do this last
                 if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
                     file.selected_layer_index = layer_index;
                 }
