@@ -99,6 +99,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     if (vertical_scroll > 0.0) {
         var rs = pane_vbox.data().contentRectScale();
         rs.r.h = 20.0;
+        rs.r.w -= 20.0;
 
         var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         path.addRect(rs.r, dvui.Rect.Physical.all(5));
@@ -182,7 +183,7 @@ pub fn drawHeader(explorer: *Explorer) !void {
     // const text_layout = dvui.textLayout(@src(), .{}, .{ .background = false, .max_size_content = .{ .h = dvui.themeGet().font_heading.lineHeight() * 2.0, .w = std.math.floatMax(f32) } });
     // defer text_layout.deinit();
 
-    dvui.labelNoFmt(@src(), header_title, .{}, .{ .font_style = .title });
+    dvui.labelNoFmt(@src(), header_title, .{}, .{ .font_style = .title_4 });
 }
 
 // pub fn draw(core: *Core, app: *App, editor: *Editor, explorer: *Explorer, packer: *Packer) !void {

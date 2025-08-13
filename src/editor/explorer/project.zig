@@ -273,9 +273,7 @@ fn pathTextEntry(path_type: PathType) !void {
         var box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .id_extra = index });
         defer box.deinit();
 
-        if (dvui.buttonIcon(@src(), "example.atlas", icons.tvg.lucide.@"folder-open", .{}, .{
-            //.fill_color = dvui.themeGet().color(.window, .text),
-        }, .{
+        if (dvui.buttonIcon(@src(), "example.atlas", icons.tvg.lucide.@"folder-open", .{}, .{}, .{
             .gravity_y = 0.5,
             .padding = dvui.Rect.all(4),
             .border = dvui.Rect.all(1),
