@@ -205,6 +205,7 @@ pub fn processSampleTool(self: *FileWidget) void {
 }
 
 fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, change_layer: bool) void {
+    self.sample_data_point = point;
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 
     var layer_index: usize = file.layers.len;
@@ -222,8 +223,6 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
             }
         }
     }
-
-    self.sample_data_point = point;
 
     if (color[3] == 0) {
         if (pixi.editor.tools.current != .eraser) {
@@ -813,32 +812,20 @@ pub fn drawLayers(self: *FileWidget) void {
                         .h = @as(f32, @floatFromInt(file.tile_height)),
                     };
 
-                    _ = dvui.image(@src(), .{
-                        .source = file.checkerboard,
-                        .shrink = .both,
-                    }, .{
-                        .rect = image_rect,
-                        .border = dvui.Rect.all(0),
-                        .background = false,
-                    });
+                    const image_rect_scale: dvui.RectScale = .{
+                        .r = self.init_options.canvas.screenFromDataRect(image_rect),
+                        .s = self.init_options.canvas.scale,
+                    };
+
+                    dvui.renderImage(file.checkerboard, image_rect_scale, .{
+                        .colormod = dvui.themeGet().color(.content, .fill).lighten(8.0),
+                    }) catch {
+                        std.log.err("Failed to render checkerboard", .{});
+                    };
                 }
             },
             else => {},
         }
-    }
-
-    for (0..tiles_wide) |x| {
-        dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
-        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text) });
-    }
-
-    for (0..tiles_high) |y| {
-        dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
-        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text) });
     }
 
     while (layer_index > 0) {
@@ -869,6 +856,20 @@ pub fn drawLayers(self: *FileWidget) void {
         .id_extra = file.layers.len + 1,
         .background = false,
     });
+
+    for (0..tiles_wide) |x| {
+        dvui.Path.stroke(.{ .points = &.{
+            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
+        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text) });
+    }
+
+    for (0..tiles_high) |y| {
+        dvui.Path.stroke(.{ .points = &.{
+            self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
+        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text) });
+    }
 
     self.init_options.canvas.bounding_box = image.rectScale().r;
 

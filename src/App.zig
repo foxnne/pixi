@@ -182,7 +182,8 @@ pub fn AppInit(win: *dvui.Window) !void {
     theme.dark = true;
     theme.name = "Pixi Dark";
     theme.font_body = .{ .id = .fromName("Vera"), .size = 13 };
-    theme.font_caption = .{ .id = .fromName("CozetteVector"), .size = 12 };
+    theme.font_caption = .{ .id = .fromName("VeraMono"), .size = 12 };
+    theme.font_caption_heading = .{ .id = .fromName("CozetteVectorBold"), .size = 13 };
     theme.font_title = .{ .id = .fromName("Vera"), .size = 14 };
     theme.font_title_1 = .{ .id = .fromName("VeraBd"), .size = 14 };
     theme.font_title_2 = .{ .id = .fromName("VeraBd"), .size = 13 };

@@ -329,7 +329,7 @@ pub fn drawLayers() !void {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected) dvui.themeGet().color(.control, .fill_press) else dvui.themeGet().color(.control, .fill),
+                .color_fill = if (selected) dvui.themeGet().color(.content, .fill_press) else dvui.themeGet().color(.control, .fill),
                 .corner_radius = dvui.Rect.all(1000),
                 .margin = dvui.Rect.all(2),
                 .padding = dvui.Rect.all(1),
@@ -359,8 +359,8 @@ pub fn drawLayers() !void {
                 if (file.selected_layer_index == layer_index) {
                     if (dvui.labelClick(@src(), "{s}", .{file.layers.items(.name)[layer_index]}, .{}, .{
                         .gravity_y = 0.5,
-                        .font_style = .heading,
-                        .margin = dvui.Rect.all(0),
+                        .font_style = .caption,
+                        .margin = dvui.Rect.all(2),
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     })) {
@@ -369,8 +369,8 @@ pub fn drawLayers() !void {
                 } else {
                     dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
                         .gravity_y = 0.5,
-                        .margin = dvui.Rect.all(0),
-                        .font_style = .heading,
+                        .margin = dvui.Rect.all(2),
+                        .font_style = .caption,
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     });
@@ -381,7 +381,7 @@ pub fn drawLayers() !void {
                     .background = false,
                     .padding = dvui.Rect.all(0),
                     .margin = dvui.Rect.all(0),
-                    .font_style = .heading,
+                    .font_style = .caption,
                     .gravity_y = 0.5,
                 });
                 defer te.deinit();

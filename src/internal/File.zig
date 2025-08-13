@@ -173,8 +173,8 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
             .selection_layer = undefined,
         };
 
-        const checker_color_1: [4]u8 = .{ 100, 100, 100, 255 };
-        const checker_color_2: [4]u8 = .{ 50, 50, 50, 255 };
+        const checker_color_1: [4]u8 = .{ 255, 255, 255, 255 };
+        const checker_color_2: [4]u8 = .{ 175, 175, 175, 255 };
 
         if (@mod(internal.width, 2) == 0) {
             // width is even
@@ -832,19 +832,3 @@ pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
         .animations = animations,
     };
 }
-
-// pub fn spriteIndex(self: *File, point: dvui.Point) ?usize {
-//     const bounds = dvui.Rect.fromSize(.{ .w = @floatFromInt(self.width), .h = @floatFromInt(self.height) });
-//     if (!bounds.contains(point)) return null;
-
-//     const tile_width = @as(f32, @floatFromInt(self.tile_width));
-//     const tile_height = @as(f32, @floatFromInt(self.tile_height));
-
-//     const tile_column = @divTrunc(@as(usize, @intFromFloat(point.x)), @as(usize, @intCast(self.tile_width)));
-//     const tile_row = @divTrunc(@as(usize, @intFromFloat(point.y)), @as(usize, @intCast(self.tile_height)));
-
-//     const x = @as(f32, @floatFromInt(tile_column)) * tile_width;
-//     const y = @as(f32, @floatFromInt(tile_row)) * tile_height;
-
-//     return tile_column + tile_row * @divExact(self.width, self.tile_width);
-// }
