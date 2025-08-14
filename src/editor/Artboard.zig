@@ -67,10 +67,22 @@ const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
 // }
 
 pub fn draw(self: *Artboard) !dvui.App.Result {
-
     // Canvas Area
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0, .id_extra = self.grouping });
     defer vbox.deinit();
+
+    // Set the active artboard grouping when the user clicks on the artboard rect
+    for (dvui.events()) |*e| {
+        if (!vbox.matchEvent(e)) {
+            continue;
+        }
+
+        if (e.evt == .mouse) {
+            if (e.evt.mouse.action == .press) {
+                pixi.editor.open_artboard_grouping = self.grouping;
+            }
+        }
+    }
 
     if (pixi.editor.explorer.pane == .project) {
         self.drawProject();
@@ -170,7 +182,7 @@ fn drawTabs(self: *Artboard) void {
             });
             defer reorderable.deinit();
 
-            const selected = self.open_file_index == i;
+            const selected = self.open_file_index == i and pixi.editor.open_artboard_grouping == self.grouping;
 
             var hbox = dvui.BoxWidget.init(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
@@ -264,7 +276,6 @@ fn drawTabs(self: *Artboard) void {
                                     e.handle(@src(), hbox.data());
                                     if (dvui.dragging(me.p, null)) |_| {
                                         reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, e.num); // reorder grabs capture
-
                                         break :loop;
                                     }
                                 }
@@ -292,7 +303,11 @@ pub fn drawCanvas(self: *Artboard) !void {
     }
 
     if (pixi.editor.open_files.values().len > 0) {
-        const file = &pixi.editor.open_files.values()[pixi.editor.open_file_index];
+        if (self.open_file_index >= pixi.editor.open_files.values().len) {
+            self.open_file_index = pixi.editor.open_files.values().len - 1;
+        }
+
+        const file = &pixi.editor.open_files.values()[self.open_file_index];
         file.gui.canvas.id = canvas_vbox.data().id;
 
         var file_widget = pixi.dvui.FileWidget.init(@src(), .{

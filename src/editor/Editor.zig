@@ -61,11 +61,17 @@ project: ?Project = null,
 //open_files: std.ArrayList(pixi.Internal.File) = undefined,
 open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 //open_references: std.ArrayList(pixi.Internal.Reference) = undefined,
+
+open_artboard_grouping: u64 = 0,
+
 open_file_index: usize = 0,
 open_reference_index: usize = 0,
 
 tools: Tools,
 colors: Colors = .{},
+
+grouping_id_counter: u64 = 0,
+file_id_counter: u64 = 0,
 
 //selection_time: f32 = 0.0,
 //selection_invert: bool = false,
@@ -73,7 +79,7 @@ colors: Colors = .{},
 //clipboard_image: ?zstbi.Image = null,
 //clipboard_position: [2]u32 = .{ 0, 0 },
 
-counter: u64 = 0,
+//counter: u64 = 0,
 
 // pub const Buffers = struct {
 //     atlas_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
@@ -117,6 +123,20 @@ pub fn init(
     return editor;
 }
 
+pub fn currentGroupingID(editor: *Editor) u64 {
+    return editor.open_artboard_grouping;
+}
+
+pub fn newGroupingID(editor: *Editor) u64 {
+    editor.grouping_id_counter += 1;
+    return editor.grouping_id_counter;
+}
+
+pub fn newFileID(editor: *Editor) u64 {
+    editor.file_id_counter += 1;
+    return editor.file_id_counter;
+}
+
 // pub fn loadTheme(editor: *Editor) !void {
 //     _ = editor; // autofix
 //     //const theme_path = try std.fs.path.joinZ(editor.arena, &.{ pixi.paths.themes, editor.settings.theme });
@@ -149,34 +169,9 @@ const handle_dist = 60;
 pub fn tick(editor: *Editor) !dvui.App.Result {
     try Hotkeys.tick();
 
-    {
-        // Create artboards for each grouping ID
-        for (editor.open_files.values()) |*file| {
-            if (!editor.artboards.contains(file.grouping)) {
-                editor.artboards.put(file.grouping, .init(file.grouping)) catch |err| {
-                    std.log.err("Failed to create artboard: {s}", .{@errorName(err)});
-                    return err;
-                };
-            }
-        }
-
-        // Remove artboards that are no longer needed
-        for (editor.artboards.values()) |*artboard| {
-            if (artboard.grouping == 0) continue;
-
-            var contains: bool = false;
-            for (editor.open_files.values()) |*file| {
-                if (file.grouping == artboard.grouping) {
-                    contains = true;
-                    break;
-                }
-            }
-
-            if (!contains) {
-                _ = editor.artboards.orderedRemove(artboard.grouping);
-            }
-        }
-    }
+    editor.rebuildArtboards() catch {
+        dvui.log.err("Failed to rebuild artboards", .{});
+    };
 
     { // Radial Menu
         for (dvui.events()) |*e| {
@@ -398,104 +393,108 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         if (canvas_flipbook.showFirst()) {
             // Artboard Area
 
-            const artboard_count = editor.artboards.count();
+            const result = try editor.drawArtboards(0);
+            if (result != .ok) {
+                return result;
+            }
+
+            //                     if (result != .ok) {
+            //                         return result;
+            //                     }
+
+            //const artboard_count = editor.artboards.count();
             //var iterator = editor.artboards.iterator();
 
-            var previous_split: ?*pixi.dvui.PanedWidget = null;
+            //var previous_split: ?*pixi.dvui.PanedWidget = null;
 
-            var i: usize = artboard_count;
-            while (i > 0) {
-                i -= 1;
-                const grouping = editor.artboards.values()[i].grouping;
-                if (editor.artboards.getPtr(grouping)) |artboard| {
-                    if (artboard_count > 1) {
-                        if (i != 0) {
-                            if (previous_split) |split| {
-                                defer split.deinit();
+            // var splits: std.ArrayList(*pixi.dvui.PanedWidget) = std.ArrayList(*pixi.dvui.PanedWidget).init(pixi.app.allocator);
+            // defer splits.deinit();
 
-                                if (split.showSecond()) {
-                                    var artboard_split = pixi.dvui.paned(@src(), .{
-                                        .direction = .horizontal,
-                                        .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
-                                        .handle_size = handle_size,
-                                        .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-                                    }, .{
-                                        .expand = .both,
-                                        .id_extra = grouping,
-                                    });
-                                    previous_split = artboard_split;
+            // for (editor.artboards.values(), 0..) |*artboard, i| {
+            //     if (artboard_count > 1) {
+            //         if (splits.pop()) |split| {
+            //             defer split.deinit();
 
-                                    if (artboard_split.showFirst()) {
-                                        const result = try artboard.draw();
-                                        if (result != .ok) {
-                                            return result;
-                                        }
-                                    }
-                                }
-                            } else {
-                                var artboard_split = pixi.dvui.paned(@src(), .{
-                                    .direction = .horizontal,
-                                    .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
-                                    .handle_size = handle_size,
-                                    .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-                                }, .{
-                                    .expand = .both,
-                                    .id_extra = grouping,
-                                });
-                                previous_split = artboard_split;
-                                //defer artboard_split.deinit();
+            //             if (split.showSecond()) {
+            //                 if (i < artboard_count - 1) {
+            //                     var artboard_split = pixi.dvui.paned(@src(), .{
+            //                         .direction = .horizontal,
+            //                         .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
+            //                         .handle_size = handle_size,
+            //                         .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
+            //                     }, .{
+            //                         .expand = .both,
+            //                         .id_extra = artboard.grouping,
+            //                     });
+            //                     splits.append(artboard_split) catch {
+            //                         return error.OutOfMemory;
+            //                     };
 
-                                if (artboard_split.showFirst()) {
-                                    const result = try artboard.draw();
-                                    if (result != .ok) {
-                                        return result;
-                                    }
-                                }
-                            }
-                        } else {
-                            if (previous_split) |split| {
-                                defer split.deinit();
+            //                     if (artboard_split.showFirst()) {
+            //                         const result = try artboard.draw();
+            //                         if (result != .ok) {
+            //                             return result;
+            //                         }
+            //                     }
+            //                 } else {
+            //                     const result = try artboard.draw();
+            //                     if (result != .ok) {
+            //                         return result;
+            //                     }
+            //                 }
+            //             }
+            //         } else {
+            //             var artboard_split = pixi.dvui.paned(@src(), .{
+            //                 .direction = .horizontal,
+            //                 .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
+            //                 .handle_size = handle_size,
+            //                 .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
+            //             }, .{
+            //                 .expand = .both,
+            //                 .id_extra = artboard.grouping,
+            //             });
+            //             splits.append(artboard_split) catch {
+            //                 return error.OutOfMemory;
+            //             };
 
-                                if (split.showSecond()) {
-                                    const result = try artboard.draw();
-                                    if (result != .ok) {
-                                        return result;
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        const result = try artboard.draw();
-                        if (result != .ok) {
-                            return result;
-                        }
-                    }
+            //             if (artboard_split.showFirst()) {
+            //                 const result = try artboard.draw();
+            //                 if (result != .ok) {
+            //                     return result;
+            //                 }
+            //             }
+            //         }
+            //     } else {
+            //         const result = try artboard.draw();
+            //         if (result != .ok) {
+            //             return result;
+            //         }
+            //     }
 
-                    //for (editor.artboards.(), 0..) |grouping_id, i| {
+            //for (editor.artboards.(), 0..) |grouping_id, i| {
 
-                    // if (artboard_count > 1) {
-                    //     if (i > 0) {
-                    //         var artboard_split = pixi.dvui.paned(@src(), .{
-                    //             .direction = .vertical,
-                    //             .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
-                    //             .handle_size = handle_size,
-                    //             .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-                    //         }, .{
-                    //             .expand = .both,
-                    //             .background = false,
-                    //             //.min_size_content = .{ .h = 100, .w = 100 },
-                    //         });
-                    //         defer artboard_split.deinit();
+            // if (artboard_count > 1) {
+            //     if (i > 0) {
+            //         var artboard_split = pixi.dvui.paned(@src(), .{
+            //             .direction = .vertical,
+            //             .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
+            //             .handle_size = handle_size,
+            //             .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
+            //         }, .{
+            //             .expand = .both,
+            //             .background = false,
+            //             //.min_size_content = .{ .h = 100, .w = 100 },
+            //         });
+            //         defer artboard_split.deinit();
 
-                    //     }
-                    // } else {
-                    //     const result = try artboard.draw();
-                    //     if (result != .ok) {
-                    //         return result;
-                    //     }
-                    // }
-                }
-            }
+            //     }
+            // } else {
+            //     const result = try artboard.draw();
+            //     if (result != .ok) {
+            //         return result;
+            //     }
+            // }
+
         }
 
         if (canvas_flipbook.showSecond()) {
@@ -676,25 +675,93 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
 }
 
-pub fn anyAnimationPlaying(editor: *Editor) bool {
-    if (editor.settings.split_artboard) {
-        if (editor.getFile(editor.artboard.open_file_index_0)) |file| {
-            if (file.selected_animation_state == .play) return true;
+// pub fn anyAnimationPlaying(editor: *Editor) bool {
+//     if (editor.settings.split_artboard) {
+//         if (editor.getFile(editor.artboard.open_file_index_0)) |file| {
+//             if (file.selected_animation_state == .play) return true;
+//         }
+//         if (editor.getFile(editor.artboard.open_file_index_1)) |file| {
+//             if (file.selected_animation_state == .play) return true;
+//         }
+//     } else {
+//         if (editor.getFile(editor.open_file_index)) |file| {
+//             if (file.selected_animation_state == .play) return true;
+//         }
+//     }
+
+//     return false;
+// }
+
+// pub fn newFrame(editor: *Editor) bool {
+//     return if (editor.getFile(editor.open_file_index)) |file| file.flipbook_scroll_request != null or file.selected_animation_state == .play else false;
+// }
+
+pub fn rebuildArtboards(editor: *Editor) !void {
+    {
+        // Create artboards for each grouping ID
+        for (editor.open_files.values()) |*file| {
+            if (!editor.artboards.contains(file.grouping)) {
+                editor.artboards.put(file.grouping, .init(file.grouping)) catch |err| {
+                    std.log.err("Failed to create artboard: {s}", .{@errorName(err)});
+                    return err;
+                };
+            }
         }
-        if (editor.getFile(editor.artboard.open_file_index_1)) |file| {
-            if (file.selected_animation_state == .play) return true;
+
+        // Remove artboards that are no longer needed
+        for (editor.artboards.values()) |*artboard| {
+            if (artboard.grouping == 0) continue;
+
+            var contains: bool = false;
+            for (editor.open_files.values()) |*file| {
+                if (file.grouping == artboard.grouping) {
+                    contains = true;
+                    break;
+                }
+            }
+
+            if (!contains) {
+                _ = editor.artboards.orderedRemove(artboard.grouping);
+            }
+        }
+    }
+}
+
+pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
+    if (index < editor.artboards.count() - 1) {
+        var s = pixi.dvui.paned(@src(), .{
+            .direction = .horizontal,
+            .collapsed_size = 0,
+            .handle_size = handle_size,
+            .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
+        }, .{
+            .expand = .both,
+        });
+        defer s.deinit(); // Always deinit the one we create in this frame
+
+        if (s.showFirst()) {
+            const result = try editor.artboards.values()[index].draw();
+            if (result != .ok) {
+                return result;
+            }
+        }
+
+        if (s.showSecond()) {
+            const result = try drawArtboards(editor, index + 1);
+            if (result != .ok) {
+                return result;
+            }
         }
     } else {
-        if (editor.getFile(editor.open_file_index)) |file| {
-            if (file.selected_animation_state == .play) return true;
+        {
+            const result = try editor.artboards.values()[index].draw();
+            if (result != .ok) {
+                return result;
+            }
         }
     }
 
-    return false;
-}
-
-pub fn newFrame(editor: *Editor) bool {
-    return if (editor.getFile(editor.open_file_index)) |file| file.flipbook_scroll_request != null or file.selected_animation_state == .play else false;
+    return .ok;
 }
 
 pub fn close(app: *App, editor: *Editor) void {
@@ -830,51 +897,65 @@ pub fn openFile(editor: *Editor, path: []const u8, grouping: u64) !bool {
 
     for (editor.open_files.values(), 0..) |*file, i| {
         if (std.mem.eql(u8, file.path, path)) {
-            file.grouping = grouping;
             editor.setActiveFile(i);
             return false;
         }
     }
 
+    if (editor.artboards.contains(grouping)) {
+        editor.open_artboard_grouping = grouping;
+    }
+
     if (try pixi.Internal.File.load(path)) |file| {
         try editor.open_files.put(file.id, file);
-        editor.setActiveFile(0);
-
-        if (editor.getFile(editor.open_file_index)) |f| {
+        if (editor.open_files.getPtr(file.id)) |f| {
             f.grouping = grouping;
         }
+
+        editor.rebuildArtboards() catch {
+            dvui.log.err("Failed to rebuild artboards", .{});
+        };
+
+        editor.setActiveFile(editor.open_files.count() - 1);
 
         return true;
     }
     return error.FailedToOpenFile;
 }
 
-pub fn openReference(editor: *Editor, path: [:0]const u8) !bool {
-    for (editor.open_references.items, 0..) |reference, i| {
-        if (std.mem.eql(u8, reference.path, path)) {
-            editor.setActiveReference(i);
-            return false;
-        }
-    }
+// pub fn openReference(editor: *Editor, path: [:0]const u8) !bool {
+//     for (editor.open_references.items, 0..) |reference, i| {
+//         if (std.mem.eql(u8, reference.path, path)) {
+//             editor.setActiveReference(i);
+//             return false;
+//         }
+//     }
 
-    const texture = try pixi.gfx.Texture.loadFromFile(path, .{});
+//     const texture = try pixi.gfx.Texture.loadFromFile(path, .{});
 
-    const reference: pixi.Internal.Reference = .{
-        .path = try pixi.app.allocator.dupeZ(u8, path),
-        .texture = texture,
-    };
+//     const reference: pixi.Internal.Reference = .{
+//         .path = try pixi.app.allocator.dupeZ(u8, path),
+//         .texture = texture,
+//     };
 
-    try editor.open_references.insert(0, reference);
-    editor.setActiveReference(0);
+//     try editor.open_references.insert(0, reference);
+//     editor.setActiveReference(0);
 
-    if (!editor.popups.references)
-        editor.popups.references = true;
+//     if (!editor.popups.references)
+//         editor.popups.references = true;
 
-    return true;
-}
+//     return true;
+// }
 
 pub fn setActiveFile(editor: *Editor, index: usize) void {
     if (index >= editor.open_files.values().len) return;
+    const grouping = editor.open_files.values()[index].grouping;
+
+    if (editor.artboards.getPtr(grouping)) |artboard| {
+        editor.open_artboard_grouping = grouping;
+        artboard.open_file_index = index;
+    }
+
     //const file = &editor.open_files.values()[index];
     // if (file.heightmap.layer == null) {
     //     if (editor.tools.current == .heightmap)
@@ -883,7 +964,7 @@ pub fn setActiveFile(editor: *Editor, index: usize) void {
     // if (file.transform_texture != null and editor.tools.current != .pointer) {
     //     editor.tools.set(.pointer);
     // }
-    editor.open_file_index = index;
+    //editor.open_file_index = index;
 }
 
 pub fn setCopyFile(editor: *Editor, index: usize) void {
@@ -993,17 +1074,35 @@ pub fn closeFile(editor: *Editor, index: usize) !void {
 }
 
 pub fn rawCloseFile(editor: *Editor, index: usize) !void {
-    editor.open_file_index = 0;
+    //editor.open_file_index = 0;
     var file = editor.open_files.values()[index];
+
+    if (editor.artboards.getPtr(file.grouping)) |artboard| {
+        artboard.open_file_index = 0;
+    }
+
     file.deinit();
     editor.open_files.orderedRemoveAt(index);
+
+    editor.rebuildArtboards() catch {
+        dvui.log.err("Failed to rebuild artboards", .{});
+    };
 }
 
 pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
     if (editor.open_files.getPtr(id)) |file| {
-        editor.open_file_index = 0;
+        //editor.open_file_index = 0;
+        if (editor.artboards.getPtr(file.grouping)) |artboard| {
+            artboard.open_file_index = 0;
+        }
         file.deinit();
         _ = editor.open_files.orderedRemove(id);
+
+        if (!editor.open_files.contains(file.grouping)) {
+            editor.rebuildArtboards() catch {
+                dvui.log.err("Failed to rebuild artboards", .{});
+            };
+        }
     }
 }
 

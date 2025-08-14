@@ -160,7 +160,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
         const ext = parsed.value;
 
         var internal: pixi.Internal.File = .{
-            .id = pixi.editor.counter,
+            .id = pixi.editor.newFileID(),
             .path = try pixi.app.allocator.dupe(u8, path),
             .width = ext.width,
             .height = ext.height,
@@ -271,7 +271,6 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
                 .fps = animation.fps,
             }) catch return error.FileLoadError;
         }
-        pixi.editor.counter += 1;
         return internal;
     }
     // { // Loading TAR experiment
