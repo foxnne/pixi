@@ -710,7 +710,9 @@ pub fn rebuildArtboards(editor: *Editor) !void {
 
         // Remove artboards that are no longer needed
         for (editor.artboards.values()) |*artboard| {
-            if (artboard.grouping == 0) continue;
+            if (editor.artboards.count() == 1) {
+                break;
+            }
 
             var contains: bool = false;
             for (editor.open_files.values()) |*file| {
@@ -723,6 +725,8 @@ pub fn rebuildArtboards(editor: *Editor) !void {
             if (!contains) {
                 _ = editor.artboards.orderedRemove(artboard.grouping);
             }
+
+            if (!editor.artboards.contains(artboard.grouping)) editor.open_artboard_grouping = 0;
         }
     }
 }
@@ -752,12 +756,10 @@ pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
                 return result;
             }
         }
-    } else {
-        {
-            const result = try editor.artboards.values()[index].draw();
-            if (result != .ok) {
-                return result;
-            }
+    } else if (index == editor.artboards.count() - 1) {
+        const result = try editor.artboards.values()[index].draw();
+        if (result != .ok) {
+            return result;
         }
     }
 
@@ -1098,11 +1100,9 @@ pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
         file.deinit();
         _ = editor.open_files.orderedRemove(id);
 
-        if (!editor.open_files.contains(file.grouping)) {
-            editor.rebuildArtboards() catch {
-                dvui.log.err("Failed to rebuild artboards", .{});
-            };
-        }
+        editor.rebuildArtboards() catch {
+            dvui.log.err("Failed to rebuild artboards", .{});
+        };
     }
 }
 
