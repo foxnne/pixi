@@ -302,6 +302,16 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             fw2.close();
                         }
 
+                        if ((dvui.menuItemLabel(@src(), "Open right", .{}, .{
+                            .expand = .horizontal,
+                        })) != null) {
+                            _ = pixi.editor.openFile(abs_path, 1) catch {
+                                dvui.log.err("Failed to open file: {s}", .{abs_path});
+                            };
+
+                            fw2.close();
+                        }
+
                         if ((dvui.menuItemLabel(@src(), "Delete", .{}, .{
                             .expand = .horizontal,
                             .color_accent = dvui.themeGet().color(.err, .fill),
@@ -366,7 +376,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         if (branch.button.clicked()) {
                             switch (ext) {
                                 .pixi => {
-                                    _ = pixi.editor.openFile(abs_path) catch {
+                                    _ = pixi.editor.openFile(abs_path, 0) catch {
                                         dvui.log.err("Failed to open file: {s}", .{abs_path});
                                     };
                                 },

@@ -11,6 +11,7 @@ pub const CanvasWidget = Widgets.CanvasWidget;
 pub const ReorderWidget = Widgets.ReorderWidget;
 pub const PanedWidget = Widgets.PanedWidget;
 pub const LayerPanedWidget = Widgets.LayerPanedWidget;
+pub const ReorderTabsWidget = Widgets.ReorderTabsWidget;
 
 pub fn layersPaned(src: std.builtin.SourceLocation, init_opts: LayerPanedWidget.InitOptions, opts: dvui.Options) *LayerPanedWidget {
     var ret = dvui.widgetAlloc(LayerPanedWidget);

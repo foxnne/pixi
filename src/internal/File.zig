@@ -43,7 +43,7 @@ history: History,
 buffers: Buffers,
 counter: u64 = 0,
 saving: bool = false,
-grouping: u8 = 0,
+grouping: u64 = 0,
 
 /// Dvui elements
 gui: GUI = .{},

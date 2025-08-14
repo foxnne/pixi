@@ -1,17 +1,11 @@
 const std = @import("std");
 
 const dvui = @import("dvui");
-const pixi = @import("../../pixi.zig");
+const pixi = @import("../pixi.zig");
 const icons = @import("icons");
 
-//const Core = @import("mach").Core;
 const App = pixi.App;
 const Editor = pixi.Editor;
-//const Packer = pixi.Packer;
-//const Assets = pixi.Assets;
-
-// const nfd = @import("nfd");
-// const imgui = @import("zig-imgui");
 
 pub const Artboard = @This();
 
@@ -26,11 +20,16 @@ pub const Artboard = @This();
 //pub const flipbook = @import("flipbook/flipbook.zig");
 //pub const infobar = @import("infobar.zig");
 
-grouping: u8 = 0,
+open_file_index: usize = 0,
 
-split: bool = false,
+grouping: u64 = 0,
 
-pub fn init(grouping: u8) Artboard {
+//split: bool = false,
+
+removed_index: ?usize = null,
+insert_before_index: ?usize = null,
+
+pub fn init(grouping: u64) Artboard {
     return .{ .grouping = grouping };
 }
 
@@ -47,27 +46,30 @@ const color_4 = pixi.math.Color.initBytes(194, 109, 92, opacity);
 const color_5 = pixi.math.Color.initBytes(180, 89, 76, opacity);
 
 const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
-    color_0,
-    color_1,
-    color_1,
-    color_2,
-    color_3,
-    color_2,
-    color_4,
-    color_4,
-    color_4,
-    color_5,
-    color_3,
-    color_3,
-    color_3,
-    color_0,
-    color_0,
+    color_0, color_1, color_1,
+    color_2, color_3, color_2,
+    color_4, color_4, color_4,
+    color_5, color_3, color_3,
+    color_3, color_0, color_0,
 };
+
+// pub fn split(self: *Artboard) pixi.dvui.PanedWidget {
+//     return pixi.dvui.paned(@src(), .{
+//         .direction = .horizontal,
+//         .collapsed_size = std.math.floatMax(f32),
+//         .handle_size = handle_size,
+//         .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
+//     }, .{
+//         .expand = .both,
+//         .background = false,
+//     });
+//     //defer artboard_split.deinit();
+// }
 
 pub fn draw(self: *Artboard) !dvui.App.Result {
 
     // Canvas Area
-    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0, .id_extra = self.grouping });
     defer vbox.deinit();
 
     if (pixi.editor.explorer.pane == .project) {
@@ -81,7 +83,7 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
 }
 
 fn drawProject(self: *Artboard) void {
-    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
+    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .id_extra = self.grouping });
     defer {
         self.drawShadows(canvas_vbox.data().rectScale());
         canvas_vbox.deinit();
@@ -92,6 +94,7 @@ fn drawProject(self: *Artboard) void {
             .source = atlas.source,
             .canvas = &atlas.canvas,
         }, .{
+            .id_extra = self.grouping,
             .expand = .both,
         });
         defer image_widget.deinit();
@@ -100,93 +103,182 @@ fn drawProject(self: *Artboard) void {
     }
 }
 
-fn drawTabs(_: *Artboard) void {
+fn drawTabs(self: *Artboard) void {
     if (pixi.editor.open_files.values().len == 0) return;
 
-    var tabs = pixi.dvui.TabsWidget.init(@src(), .{ .dir = .horizontal }, .{
+    if (self.removed_index) |removed| {
+        if (self.insert_before_index) |insert_before| {
+            if (removed > insert_before) {
+                std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                pixi.editor.setActiveFile(insert_before);
+            } else {
+                if (insert_before > 0) {
+                    std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before - 1]);
+                    pixi.editor.setActiveFile(insert_before - 1);
+                } else {
+                    std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                    pixi.editor.setActiveFile(insert_before);
+                }
+            }
+
+            self.removed_index = null;
+            self.insert_before_index = null;
+        }
+    }
+
+    var tabs_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
-        .color_fill = dvui.themeGet().color(.control, .fill),
+        .color_fill = dvui.themeGet().color(.window, .fill),
+        .corner_radius = dvui.Rect.all(0),
+        .margin = dvui.Rect.all(0),
+        .padding = dvui.Rect.all(0),
+        .id_extra = self.grouping,
     });
+    defer tabs_box.deinit();
+
+    var scroll_area = dvui.scrollArea(@src(), .{ .horizontal = .auto, .horizontal_bar = .hide }, .{
+        .expand = .horizontal,
+        .background = false,
+        .corner_radius = dvui.Rect.all(0),
+        .id_extra = self.grouping,
+    });
+    defer scroll_area.deinit();
+
+    var tabs = dvui.reorder(@src(), .{});
     {
         tabs.install();
         defer tabs.deinit();
 
+        var tabs_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .horizontal,
+            .background = false,
+            .corner_radius = dvui.Rect.all(0),
+            .margin = dvui.Rect.all(0),
+            .padding = dvui.Rect.all(0),
+            .id_extra = self.grouping,
+        });
+        defer tabs_hbox.deinit();
+
         for (pixi.editor.open_files.values(), 0..) |file, i| {
-            const selected = pixi.editor.open_file_index == i;
-            var tab_box = tabs.addTab(selected, .{
+            if (file.grouping != self.grouping) continue;
+
+            var reorderable = tabs.reorderable(@src(), .{}, .{
+                .expand = .vertical,
                 .id_extra = i,
-                .corner_radius = dvui.Rect.all(0),
-                //.color_fill_hover = dvui.themeGet().color(.control, .fill_hover),
-                .color_fill = dvui.themeGet().color(.control, .fill),
                 .padding = dvui.Rect.all(0),
                 .margin = dvui.Rect.all(0),
+            });
+            defer reorderable.deinit();
+
+            const selected = self.open_file_index == i;
+
+            var hbox = dvui.BoxWidget.init(@src(), .{ .dir = .horizontal }, .{
+                .expand = .none,
+                .border = .{ .y = 1 },
+                .color_border = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .fill),
+                .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
                 .background = true,
-            });
-            defer tab_box.deinit();
-
-            var tab_button = dvui.ButtonWidget.init(@src(), .{}, .{
-                .margin = dvui.Rect.all(0),
                 .id_extra = i,
-                .padding = .{ .x = 2, .y = 6, .h = 6, .w = 2 },
+                .padding = dvui.Rect.all(2),
+                .margin = dvui.Rect.all(0),
             });
+            defer hbox.deinit();
+            hbox.install();
+
             var hovered = false;
-            {
-                defer tab_button.deinit();
-                tab_button.install();
-                tab_button.processEvents();
-                hovered = tab_button.hovered();
+            if (pixi.dvui.hovered(hbox.data())) {
+                hovered = true;
+                hbox.data().options.color_fill = dvui.themeGet().color(.window, .fill);
+                hbox.data().options.color_border = dvui.themeGet().color(.window, .fill);
+            }
+            hbox.drawBackground();
 
-                if (tab_button.clicked()) {
-                    pixi.editor.setActiveFile(i);
-                }
-
-                const hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                    .background = true,
-                    .color_fill = if (hovered) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
-                });
-                defer hbox.deinit();
-
-                dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{}, .{
-                    .gravity_y = 0.5,
-                    .padding = dvui.Rect.all(2),
-                });
-                dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
-                    .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
-                    .padding = dvui.Rect.all(2),
-                    .gravity_y = 0.5,
-                });
+            if (reorderable.removed()) {
+                self.removed_index = i;
+            } else if (reorderable.insertBefore()) {
+                self.insert_before_index = i;
             }
 
-            var close_button = dvui.ButtonWidget.init(@src(), .{}, .{
-                //.color_fill_hover = dvui.themeGet().color(.err, .fill),
-                .color_fill = dvui.themeGet().color(.control, .fill),
+            dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{}, .{
                 .gravity_y = 0.5,
-                .padding = dvui.Rect.all(1),
-                .margin = .{ .w = 4 },
+                .padding = dvui.Rect.all(4),
             });
-            {
-                defer close_button.deinit();
-                close_button.install();
-                close_button.processEvents();
-                var color = dvui.themeGet().color(.control, .text);
+            dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
+                .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
+                .padding = dvui.Rect.all(4),
+                .gravity_y = 0.5,
+            });
 
-                if (hovered or close_button.hovered()) {
-                    close_button.drawBackground();
-                } else color = if (file.dirty()) dvui.themeGet().color(.window, .text) else color.opacity(0.0);
+            const status_close_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .min_size_content = .{ .w = 18, .h = 18 },
+                .max_size_content = .{ .w = 18, .h = 18 },
+                .expand = .none,
+                .padding = dvui.Rect.all(2),
+            });
+            defer status_close_box.deinit();
 
-                dvui.icon(@src(), "close", if (file.dirty() and !(hovered or close_button.hovered())) icons.tvg.lucide.@"circle-small" else icons.tvg.lucide.x, .{
-                    .fill_color = color,
-                }, .{
+            if (hovered) {
+                if (dvui.buttonIcon(@src(), "close", icons.tvg.lucide.x, .{ .draw_focus = false }, .{}, .{
                     .gravity_y = 0.5,
-                });
-
-                if (close_button.clicked()) {
+                    .padding = dvui.Rect.all(0),
+                    .corner_radius = dvui.Rect.all(1000),
+                    .style = .err,
+                    .expand = .both,
+                    //.color_fill = dvui.themeGet().color(.control, .fill),
+                })) {
                     pixi.editor.closeFileID(file.id) catch |err| {
                         dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
                     };
                     break;
                 }
+            } else if (file.dirty()) {
+                dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
+                    .fill_color = dvui.themeGet().color(.window, .text),
+                }, .{
+                    .expand = .both,
+                    .gravity_y = 0.5,
+                    .padding = dvui.Rect.all(2),
+                });
             }
+
+            loop: for (dvui.events()) |*e| {
+                if (!hbox.matchEvent(e)) {
+                    continue;
+                }
+
+                switch (e.evt) {
+                    .mouse => |me| {
+                        if (me.action == .press and me.button.pointer()) {
+                            pixi.editor.setActiveFile(i);
+
+                            e.handle(@src(), hbox.data());
+                            dvui.captureMouse(hbox.data(), e.num);
+                            //const reo_top_left: dvui.Point.Physical = hbox.data().rectScale().r.topLeft();
+                            dvui.dragPreStart(me.p, .{ .offset = .{}, .name = "tab_drag" });
+                        } else if (me.action == .release and me.button.pointer()) {
+                            dvui.captureMouse(null, e.num);
+                            dvui.dragEnd();
+                        } else if (me.action == .motion) {
+                            if (dvui.captured(hbox.data().id)) {
+                                if (dvui.dragging(me.p, "tab_drag")) |_| {
+                                    e.handle(@src(), hbox.data());
+                                    if (dvui.dragging(me.p, null)) |_| {
+                                        reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, e.num); // reorder grabs capture
+
+                                        break :loop;
+                                    }
+                                }
+                            }
+                        }
+                    },
+
+                    else => {},
+                }
+            }
+        }
+
+        if (tabs.finalSlot()) {
+            self.insert_before_index = pixi.editor.open_files.values().len;
         }
     }
 }
