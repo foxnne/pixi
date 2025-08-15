@@ -72,7 +72,7 @@ pub fn draw() !dvui.App.Result {
             .expand = .horizontal,
             //.style = .control,
         }) != null) {
-            if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+            if (pixi.editor.activeFile()) |file| {
                 file.history.undoRedo(file, .undo) catch {
                     std.log.err("Failed to undo", .{});
                 };
@@ -83,7 +83,7 @@ pub fn draw() !dvui.App.Result {
             .expand = .horizontal,
             //.style = .control,
         }) != null) {
-            if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+            if (pixi.editor.activeFile()) |file| {
                 file.history.undoRedo(file, .redo) catch {
                     std.log.err("Failed to redo", .{});
                 };

@@ -15,7 +15,7 @@ pub fn draw() !void {
     drawLayerControls() catch {};
 
     // Collect layers length to trigger a refit of the pan
-    const layer_count: usize = if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| file.layers.len else 0;
+    const layer_count: usize = if (pixi.editor.activeFile()) |file| file.layers.len else 0;
     defer prev_layer_count = layer_count;
 
     var paned = pixi.dvui.layersPaned(@src(), .{
@@ -139,7 +139,7 @@ pub fn drawLayerControls() !void {
     defer box.deinit();
     dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title_4, .gravity_y = 0.5 });
 
-    if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+    if (pixi.editor.activeFile()) |file| {
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
             .background = false,
@@ -212,7 +212,7 @@ pub fn drawLayers() !void {
     });
     defer vbox.deinit();
 
-    if (pixi.editor.getFile(pixi.editor.open_file_index)) |file| {
+    if (pixi.editor.activeFile()) |file| {
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.gui.layers_scroll_info }, .{
             .expand = .both,
             .background = false,

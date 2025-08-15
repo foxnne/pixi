@@ -63,7 +63,7 @@ open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 
 open_artboard_grouping: u64 = 0,
 
-open_file_index: usize = 0,
+//open_file_index: usize = 0,
 open_reference_index: usize = 0,
 
 tools: Tools,
@@ -772,6 +772,15 @@ pub fn setActiveReference(editor: *Editor, index: usize) void {
     editor.open_reference_index = index;
 }
 
+/// Returns the actively focused file, through artboard grouping.
+pub fn activeFile(editor: *Editor) ?*pixi.Internal.File {
+    if (editor.artboards.get(editor.open_artboard_grouping)) |artboard| {
+        return editor.getFile(artboard.open_file_index);
+    }
+
+    return null;
+}
+
 pub fn getFile(editor: *Editor, index: usize) ?*pixi.Internal.File {
     if (editor.open_files.values().len == 0) return null;
     if (index >= editor.open_files.values().len) return null;
@@ -827,8 +836,9 @@ pub fn save(editor: *Editor) !void {
     // }
 
     if (editor.open_files.values().len == 0) return;
-    var file = &editor.open_files.values()[editor.open_file_index];
-    try file.saveAsync();
+    if (editor.activeFile()) |file| {
+        try file.saveAsync();
+    }
 }
 
 pub fn saveAllFiles(editor: *Editor) !void {
