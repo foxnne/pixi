@@ -235,9 +235,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
                 new_layer.visible = l.visible;
                 new_layer.collapse = l.collapse;
                 internal.layers.append(pixi.app.allocator, new_layer) catch return error.FileLoadError;
-            }
-
-            if (zip.zip_entry_open(pixi_file, png_image_name.ptr) == 0) { // Read the layer file as PNG file
+            } else if (zip.zip_entry_open(pixi_file, png_image_name.ptr) == 0) { // Read the layer file as PNG file
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
                 const data = img_buf orelse continue;
 
@@ -265,7 +263,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
 
         for (ext.animations) |animation| {
             internal.animations.append(pixi.app.allocator, .{
-                .name = try pixi.app.allocator.dupeZ(u8, animation.name),
+                .name = try pixi.app.allocator.dupe(u8, animation.name),
                 .start = animation.start,
                 .length = animation.length,
                 .fps = animation.fps,

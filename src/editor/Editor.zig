@@ -554,147 +554,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     // look at demo() for examples of dvui widgets, shows in a floating window
     dvui.Examples.demo();
 
-    //_ = editor.arena.reset(.retain_capacity);
+    _ = editor.arena.reset(.retain_capacity);
 
     return .ok;
-    // imgui.pushStyleVarImVec2(imgui.StyleVar_SeparatorTextAlign, .{ .x = pixi.editor.settings.explorer_title_align, .y = 0.5 });
-    // defer imgui.popStyleVar();
-
-    // editor.theme.push();
-    // defer editor.theme.pop();
-
-    // Clear temp layer either piecemeal or all at once if there is a transform texture present
-    // if (editor.getFile(editor.open_file_index)) |file| {
-    //     if (file.buffers.temporary_stroke.indices.items.len > 0) {
-    //         for (file.buffers.temporary_stroke.indices.items) |index| {
-    //             file.temporary_layer.setPixelIndex(index, .{ 0, 0, 0, 0 }, false);
-    //         }
-    //         file.temporary_layer.texture.update(core.windows.get(app.window, .device));
-    //         file.buffers.temporary_stroke.clearAndFree();
-    //     } else if (file.transform_texture != null) {
-    //         @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-    //         file.temporary_layer.texture.update(core.windows.get(app.window, .device));
-    //     }
-    // }
-
-    //editor.popups.draw();
-
-    //editor.explorer.draw();
-    //editor.artboard.draw();
-
-    // popups_mod.call(.draw);
-    // sidebar_mod.call(.draw);
-    // explorer_mod.call(.draw);
-    // artboard_mod.call(.draw);
-
-    // Accept transformations and clear temporary layer
-    // {
-    //     const window = core.windows.getValue(app.window);
-    //     for (editor.open_files.items) |*file| {
-    //         const transform_texture = if (file.transform_texture) |*tt| tt else continue;
-    //         const staging_buffer = file.transform_staging_buffer orelse continue;
-
-    //         if (!transform_texture.confirm) continue;
-
-    //         // Blit temp layer to selected layer
-
-    //         const buffer_size: usize = @as(usize, @intCast(file.width * file.height));
-
-    //         var response: mach.gpu.Buffer.MapAsyncStatus = undefined;
-    //         const callback = (struct {
-    //             pub inline fn callback(ctx: *mach.gpu.Buffer.MapAsyncStatus, status: mach.gpu.Buffer.MapAsyncStatus) void {
-    //                 ctx.* = status;
-    //             }
-    //         }).callback;
-
-    //         staging_buffer.mapAsync(.{ .read = true }, 0, buffer_size * @sizeOf([4]f32), &response, callback);
-    //         while (true) {
-    //             if (response == mach.gpu.Buffer.MapAsyncStatus.success) {
-    //                 break;
-    //             } else {
-    //                 window.device.tick();
-    //             }
-    //         }
-
-    //         const layer_index = file.selected_layer_index;
-    //         const write_layer = file.layers.get(file.selected_layer_index);
-
-    //         const buffer_mapped = staging_buffer.getConstMappedRange([4]f32, 0, buffer_size) orelse continue;
-
-    //         for (write_layer.pixels(), buffer_mapped, 0..) |*p, b, i| {
-    //             if (b[3] != 0.0) {
-    //                 // At this point, if we are using a transform hotkey, stroke will contain
-    //                 // the state before the cut, so we dont want to overwrite any of the existing
-    //                 // values, only add new ones.
-    //                 var contains: bool = false;
-    //                 for (file.buffers.stroke.indices.items) |ind| {
-    //                     if (ind == i) {
-    //                         contains = true;
-    //                     }
-    //                 }
-
-    //                 if (!contains)
-    //                     try file.buffers.stroke.append(i, p.*, .primary);
-
-    //                 const out: [4]u8 = .{
-    //                     @as(u8, @intFromFloat(b[0] * 255.0)),
-    //                     @as(u8, @intFromFloat(b[1] * 255.0)),
-    //                     @as(u8, @intFromFloat(b[2] * 255.0)),
-    //                     @as(u8, @intFromFloat(b[3] * 255.0)),
-    //                 };
-    //                 p.* = out;
-    //             }
-    //         }
-
-    //         // Submit the stroke change buffer
-    //         if (file.buffers.stroke.indices.items.len > 0) {
-    //             const change = try file.buffers.stroke.toChange(@intCast(layer_index));
-    //             try file.history.append(change);
-    //         }
-
-    //         staging_buffer.unmap();
-
-    //         var texture: *pixi.gfx.Texture = &file.layers.items(.texture)[file.selected_layer_index];
-    //         texture.update(window.device);
-
-    //         transform_texture.texture.deinit();
-    //         file.transform_texture = null;
-    //     }
-    // }
-
-    // for (editor.hotkeys.hotkeys) |*hotkey| {
-    //     hotkey.previous_state = hotkey.state;
-    // }
-
-    // for (editor.mouse.buttons) |*bt| {
-    //     bt.previous_state = bt.state;
-    // }
-
-    // editor.mouse.previous_position = editor.mouse.position;
-    // Reset the arena but keep the memory from the last frame available
-
 }
-
-// pub fn anyAnimationPlaying(editor: *Editor) bool {
-//     if (editor.settings.split_artboard) {
-//         if (editor.getFile(editor.artboard.open_file_index_0)) |file| {
-//             if (file.selected_animation_state == .play) return true;
-//         }
-//         if (editor.getFile(editor.artboard.open_file_index_1)) |file| {
-//             if (file.selected_animation_state == .play) return true;
-//         }
-//     } else {
-//         if (editor.getFile(editor.open_file_index)) |file| {
-//             if (file.selected_animation_state == .play) return true;
-//         }
-//     }
-
-//     return false;
-// }
-
-// pub fn newFrame(editor: *Editor) bool {
-//     return if (editor.getFile(editor.open_file_index)) |file| file.flipbook_scroll_request != null or file.selected_animation_state == .play else false;
-// }
 
 pub fn rebuildArtboards(editor: *Editor) !void {
     {
@@ -723,25 +586,31 @@ pub fn rebuildArtboards(editor: *Editor) !void {
             }
 
             if (!contains) {
-                _ = editor.artboards.orderedRemove(artboard.grouping);
-            }
+                if (editor.open_artboard_grouping == artboard.grouping) {
+                    const new_index: usize = if (editor.artboards.getIndex(artboard.grouping)) |index| if (index > 0) index - 1 else 0 else 0;
+                    editor.open_artboard_grouping = new_index;
+                }
 
-            if (!editor.artboards.contains(artboard.grouping)) editor.open_artboard_grouping = 0;
+                _ = editor.artboards.orderedRemove(artboard.grouping);
+                break;
+            }
         }
     }
 }
 
 pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
-    if (index < editor.artboards.count() - 1) {
+    if (index >= editor.artboards.count()) return .ok;
+
+    if (index <= editor.artboards.count() - 1) {
         var s = pixi.dvui.paned(@src(), .{
             .direction = .horizontal,
-            .collapsed_size = 0,
+            .collapsed_size = if (index == editor.artboards.count() - 1) std.math.floatMax(f32) else 0,
             .handle_size = handle_size,
             .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
         }, .{
             .expand = .both,
         });
-        defer s.deinit(); // Always deinit the one we create in this frame
+        defer s.deinit();
 
         if (s.showFirst()) {
             const result = try editor.artboards.values()[index].draw();
@@ -756,7 +625,7 @@ pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
                 return result;
             }
         }
-    } else if (index == editor.artboards.count() - 1) {
+    } else {
         const result = try editor.artboards.values()[index].draw();
         if (result != .ok) {
             return result;
