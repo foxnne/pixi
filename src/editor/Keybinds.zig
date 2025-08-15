@@ -4,7 +4,7 @@ const builtin = @import("builtin");
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
 
-pub const Hotkeys = @This();
+pub const Keybinds = @This();
 
 pub fn register() !void {
     const window = dvui.currentWindow();
@@ -29,6 +29,10 @@ pub fn register() !void {
     try window.keybinds.putNoClobber(window.gpa, "increase_stroke_size", .{ .key = .right_bracket });
     try window.keybinds.putNoClobber(window.gpa, "decrease_stroke_size", .{ .key = .left_bracket });
     try window.keybinds.putNoClobber(window.gpa, "quick_tools", .{ .key = .space });
+
+    try window.keybinds.putNoClobber(window.gpa, "pencil", .{ .key = .d });
+    try window.keybinds.putNoClobber(window.gpa, "eraser", .{ .key = .e });
+    try window.keybinds.putNoClobber(window.gpa, "bucket", .{ .key = .b });
 }
 
 // These keybinds are available regardless of the currently focused widget.
@@ -51,6 +55,10 @@ pub fn tick() !void {
                         .up => false,
                     };
                 }
+
+                // if (ke.matchBind("pencil") and ke.action == .down) pixi.editor.tools.set(.pencil);
+                // if (ke.matchBind("eraser") and ke.action == .down) pixi.editor.tools.set(.eraser);
+                // if (ke.matchBind("bucket") and ke.action == .down) pixi.editor.tools.set(.bucket);
             },
             else => {},
         }

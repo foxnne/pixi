@@ -14,7 +14,7 @@ pub const Settings = @import("Settings.zig");
 //pub const Theme = @import("Theme.zig");
 pub const Tools = @import("Tools.zig");
 
-pub const Hotkeys = @import("Hotkeys.zig");
+pub const Keybinds = @import("Keybinds.zig");
 
 const zstbi = @import("zstbi");
 const nfd = @import("nfd");
@@ -117,7 +117,7 @@ pub fn init(
 
     editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
 
-    try Hotkeys.register();
+    try Keybinds.register();
 
     return editor;
 }
@@ -166,7 +166,11 @@ const handle_size = 10;
 const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
-    try Hotkeys.tick();
+    defer {
+        Keybinds.tick() catch {
+            dvui.log.err("Failed to tick hotkeys", .{});
+        };
+    }
 
     editor.rebuildArtboards() catch {
         dvui.log.err("Failed to rebuild artboards", .{});
@@ -390,110 +394,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
 
         if (canvas_flipbook.showFirst()) {
-            // Artboard Area
-
             const result = try editor.drawArtboards(0);
             if (result != .ok) {
                 return result;
             }
-
-            //                     if (result != .ok) {
-            //                         return result;
-            //                     }
-
-            //const artboard_count = editor.artboards.count();
-            //var iterator = editor.artboards.iterator();
-
-            //var previous_split: ?*pixi.dvui.PanedWidget = null;
-
-            // var splits: std.ArrayList(*pixi.dvui.PanedWidget) = std.ArrayList(*pixi.dvui.PanedWidget).init(pixi.app.allocator);
-            // defer splits.deinit();
-
-            // for (editor.artboards.values(), 0..) |*artboard, i| {
-            //     if (artboard_count > 1) {
-            //         if (splits.pop()) |split| {
-            //             defer split.deinit();
-
-            //             if (split.showSecond()) {
-            //                 if (i < artboard_count - 1) {
-            //                     var artboard_split = pixi.dvui.paned(@src(), .{
-            //                         .direction = .horizontal,
-            //                         .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
-            //                         .handle_size = handle_size,
-            //                         .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-            //                     }, .{
-            //                         .expand = .both,
-            //                         .id_extra = artboard.grouping,
-            //                     });
-            //                     splits.append(artboard_split) catch {
-            //                         return error.OutOfMemory;
-            //                     };
-
-            //                     if (artboard_split.showFirst()) {
-            //                         const result = try artboard.draw();
-            //                         if (result != .ok) {
-            //                             return result;
-            //                         }
-            //                     }
-            //                 } else {
-            //                     const result = try artboard.draw();
-            //                     if (result != .ok) {
-            //                         return result;
-            //                     }
-            //                 }
-            //             }
-            //         } else {
-            //             var artboard_split = pixi.dvui.paned(@src(), .{
-            //                 .direction = .horizontal,
-            //                 .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
-            //                 .handle_size = handle_size,
-            //                 .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-            //             }, .{
-            //                 .expand = .both,
-            //                 .id_extra = artboard.grouping,
-            //             });
-            //             splits.append(artboard_split) catch {
-            //                 return error.OutOfMemory;
-            //             };
-
-            //             if (artboard_split.showFirst()) {
-            //                 const result = try artboard.draw();
-            //                 if (result != .ok) {
-            //                     return result;
-            //                 }
-            //             }
-            //         }
-            //     } else {
-            //         const result = try artboard.draw();
-            //         if (result != .ok) {
-            //             return result;
-            //         }
-            //     }
-
-            //for (editor.artboards.(), 0..) |grouping_id, i| {
-
-            // if (artboard_count > 1) {
-            //     if (i > 0) {
-            //         var artboard_split = pixi.dvui.paned(@src(), .{
-            //             .direction = .vertical,
-            //             .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
-            //             .handle_size = handle_size,
-            //             .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-            //         }, .{
-            //             .expand = .both,
-            //             .background = false,
-            //             //.min_size_content = .{ .h = 100, .w = 100 },
-            //         });
-            //         defer artboard_split.deinit();
-
-            //     }
-            // } else {
-            //     const result = try artboard.draw();
-            //     if (result != .ok) {
-            //         return result;
-            //     }
-            // }
-
         }
 
         if (canvas_flipbook.showSecond()) {
@@ -563,7 +467,14 @@ pub fn rebuildArtboards(editor: *Editor) !void {
         // Create artboards for each grouping ID
         for (editor.open_files.values()) |*file| {
             if (!editor.artboards.contains(file.grouping)) {
-                editor.artboards.put(file.grouping, .init(file.grouping)) catch |err| {
+                var artboard: pixi.Editor.Artboard = .init(file.grouping);
+                for (editor.open_files.values()) |*f| {
+                    if (f.grouping == file.grouping) {
+                        artboard.open_file_index = editor.open_files.getIndex(f.id) orelse 0;
+                    }
+                }
+
+                editor.artboards.put(file.grouping, artboard) catch |err| {
                     std.log.err("Failed to create artboard: {s}", .{@errorName(err)});
                     return err;
                 };
@@ -613,6 +524,11 @@ pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
 
         if (index == editor.artboards.count() - 1) {
             s.split_ratio.* = 1.0;
+        } else {
+            if (dvui.firstFrame(s.wd.id)) {
+                s.split_ratio.* = 1.0;
+                s.animateSplit(0.5);
+            }
         }
 
         if (s.showFirst()) {
