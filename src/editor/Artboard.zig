@@ -80,12 +80,12 @@ pub fn processTabDrag(self: *Artboard, data: *dvui.WidgetData) void {
 
                     if (right_side.contains(e.evt.mouse.p) and pixi.editor.artboards.keys()[pixi.editor.artboards.keys().len - 1] == self.grouping) {
                         right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
-                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.3),
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
                             //.thickness = 5,
                         });
                     } else {
                         data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
-                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.3),
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
                             //.thickness = 5,
                         });
                     }
