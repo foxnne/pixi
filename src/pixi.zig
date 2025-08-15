@@ -17,11 +17,8 @@ pub const atlas = @import("generated/atlas.zig");
 pub const algorithms = @import("algorithms/algorithms.zig");
 pub const fa = @import("tools/font_awesome.zig");
 pub const fs = @import("tools/fs.zig");
-pub const gfx = @import("gfx/gfx.zig");
 pub const image = @import("gfx/image.zig");
-pub const input = @import("input/input.zig");
 pub const math = @import("math/math.zig");
-pub const shaders = @import("shaders/shaders.zig");
 
 pub const App = @import("App.zig");
 //pub const Artboard = @import("editor/artboard/Artboard.zig");
@@ -47,13 +44,9 @@ pub const Internal = struct {
     pub const Atlas = @import("internal/Atlas.zig");
     pub const Buffers = @import("internal/Buffers.zig");
     pub const File = @import("internal/File.zig");
-    pub const Frame = @import("internal/Frame.zig");
     pub const History = @import("internal/History.zig");
-    pub const Keyframe = @import("internal/Keyframe.zig");
-    pub const KeyframeAnimation = @import("internal/KeyframeAnimation.zig");
     pub const Layer = @import("internal/Layer.zig");
     pub const Palette = @import("internal/Palette.zig");
-    pub const Reference = @import("internal/Reference.zig");
     pub const Sprite = @import("internal/Sprite.zig");
     pub const Texture = @import("internal/Texture.zig");
 };

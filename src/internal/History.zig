@@ -34,7 +34,7 @@ pub const Change = union(ChangeType) {
 
     pub const Animation = struct {
         index: usize,
-        name: [Editor.Constants.max_name_len:0]u8,
+        name: [128]u8,
         fps: usize,
         start: usize,
         length: usize,
@@ -342,12 +342,12 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
         },
         .animation => |*animation| {
             // Name
-            var name = [_:0]u8{0} ** Editor.Constants.max_name_len;
+            var name = [_:0]u8{0} ** 128;
             @memcpy(name[0..animation.name.len], &animation.name);
-            animation.name = [_:0]u8{0} ** Editor.Constants.max_name_len;
+            animation.name = [_:0]u8{0} ** 128;
             @memcpy(animation.name[0..file.animations.items(.name)[animation.index].len], file.animations.items(.name)[animation.index]);
             pixi.app.allocator.free(file.animations.items(.name)[animation.index]);
-            file.animations.items(.name)[animation.index] = try pixi.app.allocator.dupeZ(u8, std.mem.trimRight(u8, &name, "\u{0}"));
+            file.animations.items(.name)[animation.index] = try pixi.app.allocator.dupe(u8, std.mem.trimRight(u8, &name, "\u{0}"));
             // FPS
             const fps = animation.fps;
             animation.fps = file.animations.items(.fps)[animation.index];

@@ -14,7 +14,6 @@ pub const Settings = @import("Settings.zig");
 //pub const Theme = @import("Theme.zig");
 pub const Tools = @import("Tools.zig");
 
-pub const Constants = @import("Constants.zig");
 pub const Hotkeys = @import("Hotkeys.zig");
 
 const zstbi = @import("zstbi");
