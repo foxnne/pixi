@@ -612,6 +612,10 @@ pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
         });
         defer s.deinit();
 
+        if (index == editor.artboards.count() - 1) {
+            s.split_ratio.* = 1.0;
+        }
+
         if (s.showFirst()) {
             const result = try editor.artboards.values()[index].draw();
             if (result != .ok) {
