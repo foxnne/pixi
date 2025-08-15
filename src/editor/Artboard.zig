@@ -66,28 +66,36 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
         try self.drawCanvas();
     }
 
+    return .ok;
+}
+
+pub fn processTabDrag(self: *Artboard, data: *dvui.WidgetData) void {
     for (dvui.events()) |*e| {
         if (e.evt == .mouse) {
-            if (vbox.data().rectScale().r.contains(e.evt.mouse.p)) {
-                //if (e.evt.mouse.action == .motion) {
+            if (data.rectScale().r.contains(e.evt.mouse.p)) {
                 if (dvui.dragging(e.evt.mouse.p, "tab_drag")) |_| {
-                    var right_side = vbox.data().rectScale().r;
+                    var right_side = data.rectScale().r;
                     right_side.w /= 2;
                     right_side.x += right_side.w;
 
                     if (right_side.contains(e.evt.mouse.p) and pixi.editor.artboards.keys()[pixi.editor.artboards.keys().len - 1] == self.grouping) {
-                        right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.3) });
+                        right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.3),
+                            //.thickness = 5,
+                        });
                     } else {
-                        vbox.data().rectScale().r.fill(dvui.Rect.Physical.all(vbox.data().rectScale().r.w / 8), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.3) });
+                        data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.3),
+                            //.thickness = 5,
+                        });
                     }
                     dragging = true;
                 } else if (dragging) {
-                    defer dvui.refresh(null, @src(), vbox.data().id);
                     dragging = false;
 
                     if (pixi.editor.artboards.getPtr(pixi.editor.open_artboard_grouping)) |artboard| {
                         if (artboard.removed_index) |removed| {
-                            var right_side = vbox.data().rectScale().r;
+                            var right_side = data.rectScale().r;
                             right_side.w /= 2;
                             right_side.x += right_side.w;
 
@@ -121,13 +129,10 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
                             }
                         }
                     }
-                    //}
                 }
             }
         }
     }
-
-    return .ok;
 }
 
 fn drawProject(self: *Artboard) void {
@@ -336,6 +341,7 @@ pub fn drawCanvas(self: *Artboard) !void {
         self.drawShadows(canvas_vbox.data().rectScale());
         canvas_vbox.deinit();
     }
+    defer self.processTabDrag(canvas_vbox.data());
 
     if (pixi.editor.open_files.values().len > 0) {
         if (self.open_file_index >= pixi.editor.open_files.values().len) {
