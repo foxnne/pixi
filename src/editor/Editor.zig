@@ -166,11 +166,13 @@ const handle_size = 10;
 const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
-    defer {
+    {
         Keybinds.tick() catch {
             dvui.log.err("Failed to tick hotkeys", .{});
         };
     }
+
+    _ = dvui.cursorShow(true);
 
     editor.rebuildArtboards() catch {
         dvui.log.err("Failed to rebuild artboards", .{});

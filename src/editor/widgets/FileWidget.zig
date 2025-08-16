@@ -540,6 +540,15 @@ pub fn processFillTool(self: *FileWidget) void {
     }
 }
 
+pub fn active(self: *FileWidget) bool {
+    if (pixi.editor.activeFile()) |file| {
+        if (file.id == self.init_options.file.id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 pub fn drawCursor(self: *FileWidget) void {
     if (pixi.editor.tools.current == .pointer) return;
 
@@ -548,26 +557,24 @@ pub fn drawCursor(self: *FileWidget) void {
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
             if (e.evt == .mouse) {
-                _ = dvui.cursorShow(true);
+                //if (self.active()) _ = dvui.cursorShow(true);
             }
             continue;
         }
         switch (e.evt) {
             .mouse => |me| {
                 cursor_data_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+
                 if (self.init_options.canvas.rect.contains(me.p)) {
                     _ = dvui.cursorShow(false);
-                } else {
-                    _ = dvui.cursorShow(true);
                 }
             },
             .key => |_| {
                 if (self.last_mouse_event) |event| {
                     cursor_data_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
+
                     if (self.init_options.canvas.rect.contains(event.evt.mouse.p)) {
                         _ = dvui.cursorShow(false);
-                    } else {
-                        _ = dvui.cursorShow(true);
                     }
                 }
             },
@@ -914,15 +921,22 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataRemove(null, self.init_options.canvas.id, "right_mouse_down");
     };
 
-    self.processKeybinds();
-    self.processFillTool();
-    self.processStrokeTool();
-    self.processSampleTool();
+    if (self.hovered() != null) {
+        self.processKeybinds();
+        self.processFillTool();
+        self.processStrokeTool();
+        self.processSampleTool();
+    }
 
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
-    self.drawCursor();
-    self.drawSample();
+
+    // Only process draw cursor on the hovered widget
+    if (self.hovered() != null) {
+        self.drawCursor();
+
+        self.drawSample();
+    }
 
     // Then process the scroll and zoom events last
     self.init_options.canvas.processEvents();
