@@ -106,7 +106,6 @@ pub fn processSampleTool(self: *ImageWidget) void {
                             dvui.scrollDrag(.{
                                 .mouse_pt = me.p,
                                 .screen_rect = screen_rect,
-                                .capture_id = self.init_options.canvas.scroll_container.data().id,
                             });
 
                             self.sample(current_point);

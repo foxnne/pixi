@@ -223,7 +223,7 @@ pub fn drawLayers() !void {
 
         const vertical_scroll = file.gui.layers_scroll_info.offset(.vertical);
 
-        var reorderable = pixi.dvui.reorder(@src(), .{
+        var reorderable = pixi.dvui.reorder(@src(), .{ .drag_name = "layer_drag" }, .{
             .expand = .horizontal,
             .background = false,
         });

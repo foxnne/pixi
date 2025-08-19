@@ -12,6 +12,7 @@ pub const Artboard = @This();
 open_file_index: usize = 0,
 grouping: u64 = 0,
 
+drag_index: ?usize = null,
 removed_index: ?usize = null,
 insert_before_index: ?usize = null,
 
@@ -69,72 +70,6 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
     return .ok;
 }
 
-pub fn processTabDrag(self: *Artboard, data: *dvui.WidgetData) void {
-    for (dvui.events()) |*e| {
-        if (e.evt == .mouse) {
-            if (data.rectScale().r.contains(e.evt.mouse.p)) {
-                if (dvui.dragging(e.evt.mouse.p, "tab_drag")) |_| {
-                    var right_side = data.rectScale().r;
-                    right_side.w /= 2;
-                    right_side.x += right_side.w;
-
-                    if (right_side.contains(e.evt.mouse.p) and pixi.editor.artboards.keys()[pixi.editor.artboards.keys().len - 1] == self.grouping) {
-                        right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
-                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                            //.thickness = 5,
-                        });
-                    } else {
-                        data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
-                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                            //.thickness = 5,
-                        });
-                    }
-                    dragging = true;
-                } else if (dragging) {
-                    dragging = false;
-
-                    if (pixi.editor.artboards.getPtr(pixi.editor.open_artboard_grouping)) |artboard| {
-                        if (artboard.removed_index) |removed| {
-                            var right_side = data.rectScale().r;
-                            right_side.w /= 2;
-                            right_side.x += right_side.w;
-
-                            if (right_side.contains(e.evt.mouse.p) and pixi.editor.artboards.keys()[pixi.editor.artboards.keys().len - 1] == self.grouping) {
-                                if (pixi.editor.open_files.getPtr(pixi.editor.open_files.values()[removed].id)) |file| {
-                                    if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
-                                        for (pixi.editor.open_files.values()) |f| {
-                                            if (f.grouping == artboard.grouping and f.id != file.id) {
-                                                artboard.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    file.grouping = pixi.editor.newGroupingID();
-                                    pixi.editor.open_artboard_grouping = file.grouping;
-                                }
-                            } else {
-                                if (pixi.editor.open_files.getPtr(pixi.editor.open_files.values()[removed].id)) |file| {
-                                    if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
-                                        for (pixi.editor.open_files.values()) |f| {
-                                            if (f.grouping == artboard.grouping and f.id != file.id) {
-                                                artboard.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    file.grouping = self.grouping;
-                                    pixi.editor.open_artboard_grouping = file.grouping;
-                                    self.open_file_index = pixi.editor.open_files.getIndex(file.id) orelse 0;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 fn drawProject(self: *Artboard) void {
     var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .id_extra = self.grouping });
     defer {
@@ -159,23 +94,56 @@ fn drawProject(self: *Artboard) void {
 fn drawTabs(self: *Artboard) void {
     if (pixi.editor.open_files.values().len == 0) return;
 
-    if (self.removed_index) |removed| {
-        if (self.insert_before_index) |insert_before| {
+    if (self.insert_before_index) |insert_before| {
+        if (self.removed_index) |removed| { // Dragging from this artboard
             if (removed > insert_before) {
                 std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
                 pixi.editor.setActiveFile(insert_before);
             } else {
                 if (insert_before > 0) {
                     std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before - 1]);
+                    std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before - 1]);
                     pixi.editor.setActiveFile(insert_before - 1);
                 } else {
                     std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                    std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
                     pixi.editor.setActiveFile(insert_before);
                 }
             }
 
             self.removed_index = null;
             self.insert_before_index = null;
+        } else { // Dragging from another artboard
+            for (pixi.editor.artboards.values()) |*artboard| {
+                if (artboard.removed_index) |removed| {
+                    if (removed > insert_before) {
+                        std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                        std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
+
+                        pixi.editor.open_files.values()[insert_before].grouping = self.grouping;
+                        pixi.editor.setActiveFile(insert_before);
+                    } else {
+                        if (insert_before > 0) {
+                            std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before - 1]);
+                            std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before - 1]);
+                            pixi.editor.open_files.values()[insert_before - 1].grouping = self.grouping;
+                            pixi.editor.setActiveFile(insert_before - 1);
+                        } else {
+                            std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                            std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
+                            pixi.editor.open_files.values()[insert_before].grouping = self.grouping;
+                            pixi.editor.setActiveFile(insert_before);
+                        }
+                    }
+
+                    self.removed_index = null;
+                    self.insert_before_index = null;
+
+                    artboard.removed_index = null;
+                    artboard.insert_before_index = null;
+                }
+            }
         }
     }
 
@@ -197,139 +165,209 @@ fn drawTabs(self: *Artboard) void {
     });
     defer scroll_area.deinit();
 
-    var tabs = dvui.reorder(@src(), .{});
-    {
-        tabs.install();
-        defer tabs.deinit();
+    var tabs = dvui.reorder(@src(), .{ .drag_name = "tab_drag" }, .{});
+    defer tabs.deinit();
 
-        var tabs_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .horizontal,
-            .background = false,
-            .corner_radius = dvui.Rect.all(0),
-            .margin = dvui.Rect.all(0),
+    var tabs_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .horizontal,
+        .background = false,
+        .corner_radius = dvui.Rect.all(0),
+        .margin = dvui.Rect.all(0),
+        .padding = dvui.Rect.all(0),
+        .id_extra = self.grouping,
+    });
+    defer tabs_hbox.deinit();
+
+    for (pixi.editor.open_files.values(), 0..) |file, i| {
+        if (file.grouping != self.grouping) continue;
+
+        var reorderable = tabs.reorderable(@src(), .{}, .{
+            .expand = .vertical,
+            .id_extra = i,
             .padding = dvui.Rect.all(0),
-            .id_extra = self.grouping,
+            .margin = dvui.Rect.all(0),
         });
-        defer tabs_hbox.deinit();
+        defer reorderable.deinit();
 
-        for (pixi.editor.open_files.values(), 0..) |file, i| {
-            if (file.grouping != self.grouping) continue;
+        const selected = self.open_file_index == i and pixi.editor.open_artboard_grouping == self.grouping;
 
-            var reorderable = tabs.reorderable(@src(), .{}, .{
-                .expand = .vertical,
-                .id_extra = i,
+        var hbox = dvui.BoxWidget.init(@src(), .{ .dir = .horizontal }, .{
+            .expand = .none,
+            .border = .{ .y = 1 },
+            .color_border = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .fill),
+            .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
+            .background = true,
+            .id_extra = i,
+            .padding = dvui.Rect.all(2),
+            .margin = dvui.Rect.all(0),
+        });
+        defer hbox.deinit();
+        hbox.install();
+
+        var hovered = false;
+        if (pixi.dvui.hovered(hbox.data())) {
+            hovered = true;
+            hbox.data().options.color_fill = dvui.themeGet().color(.window, .fill);
+            hbox.data().options.color_border = dvui.themeGet().color(.window, .fill);
+        }
+        hbox.drawBackground();
+
+        if (reorderable.floating()) {
+            self.drag_index = i;
+        }
+
+        if (reorderable.removed()) {
+            self.removed_index = i;
+        } else if (reorderable.insertBefore()) {
+            self.insert_before_index = i;
+        }
+
+        dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{}, .{
+            .gravity_y = 0.5,
+            .padding = dvui.Rect.all(4),
+        });
+        dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
+            .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
+            .padding = dvui.Rect.all(4),
+            .gravity_y = 0.5,
+        });
+
+        const status_close_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .min_size_content = .{ .w = 18, .h = 18 },
+            .max_size_content = .{ .w = 18, .h = 18 },
+            .expand = .none,
+            .padding = dvui.Rect.all(2),
+        });
+        defer status_close_box.deinit();
+
+        if (hovered) {
+            if (dvui.buttonIcon(@src(), "close", icons.tvg.lucide.x, .{ .draw_focus = false }, .{}, .{
+                .gravity_y = 0.5,
                 .padding = dvui.Rect.all(0),
-                .margin = dvui.Rect.all(0),
-            });
-            defer reorderable.deinit();
-
-            const selected = self.open_file_index == i and pixi.editor.open_artboard_grouping == self.grouping;
-
-            var hbox = dvui.BoxWidget.init(@src(), .{ .dir = .horizontal }, .{
-                .expand = .none,
-                .border = .{ .y = 1 },
-                .color_border = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .fill),
-                .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
-                .background = true,
-                .id_extra = i,
-                .padding = dvui.Rect.all(2),
-                .margin = dvui.Rect.all(0),
-            });
-            defer hbox.deinit();
-            hbox.install();
-
-            var hovered = false;
-            if (pixi.dvui.hovered(hbox.data())) {
-                hovered = true;
-                hbox.data().options.color_fill = dvui.themeGet().color(.window, .fill);
-                hbox.data().options.color_border = dvui.themeGet().color(.window, .fill);
+                .corner_radius = dvui.Rect.all(1000),
+                .style = .err,
+                .expand = .both,
+            })) {
+                pixi.editor.closeFileID(file.id) catch |err| {
+                    dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
+                };
+                break;
             }
-            hbox.drawBackground();
-
-            if (reorderable.removed()) {
-                self.removed_index = i;
-            } else if (reorderable.insertBefore()) {
-                self.insert_before_index = i;
-            }
-
-            dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{}, .{
+        } else if (file.dirty()) {
+            dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
+                .fill_color = dvui.themeGet().color(.window, .text),
+            }, .{
+                .expand = .both,
                 .gravity_y = 0.5,
-                .padding = dvui.Rect.all(4),
-            });
-            dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
-                .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
-                .padding = dvui.Rect.all(4),
-                .gravity_y = 0.5,
-            });
-
-            const status_close_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .min_size_content = .{ .w = 18, .h = 18 },
-                .max_size_content = .{ .w = 18, .h = 18 },
-                .expand = .none,
                 .padding = dvui.Rect.all(2),
             });
-            defer status_close_box.deinit();
+        }
 
-            if (hovered) {
-                if (dvui.buttonIcon(@src(), "close", icons.tvg.lucide.x, .{ .draw_focus = false }, .{}, .{
-                    .gravity_y = 0.5,
-                    .padding = dvui.Rect.all(0),
-                    .corner_radius = dvui.Rect.all(1000),
-                    .style = .err,
-                    .expand = .both,
-                    //.color_fill = dvui.themeGet().color(.control, .fill),
-                })) {
-                    pixi.editor.closeFileID(file.id) catch |err| {
-                        dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
-                    };
-                    break;
-                }
-            } else if (file.dirty()) {
-                dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
-                    .fill_color = dvui.themeGet().color(.window, .text),
-                }, .{
-                    .expand = .both,
-                    .gravity_y = 0.5,
-                    .padding = dvui.Rect.all(2),
-                });
+        loop: for (dvui.events()) |*e| {
+            if (!hbox.matchEvent(e)) {
+                continue;
             }
 
-            loop: for (dvui.events()) |*e| {
-                if (!hbox.matchEvent(e)) {
-                    continue;
-                }
+            switch (e.evt) {
+                .mouse => |me| {
+                    if (me.action == .press and me.button.pointer()) {
+                        pixi.editor.setActiveFile(i);
 
-                switch (e.evt) {
-                    .mouse => |me| {
-                        if (me.action == .press and me.button.pointer()) {
-                            pixi.editor.setActiveFile(i);
-
+                        e.handle(@src(), hbox.data());
+                        dvui.captureMouse(hbox.data(), e.num);
+                        dvui.dragPreStart(me.p, .{ .size = reorderable.data().rectScale().r.size(), .offset = reorderable.data().rectScale().r.topLeft().diff(me.p) });
+                    } else if (me.action == .release and me.button.pointer()) {
+                        dvui.captureMouse(null, e.num);
+                        dvui.dragEnd();
+                    } else if (me.action == .motion) {
+                        if (dvui.captured(hbox.data().id)) {
                             e.handle(@src(), hbox.data());
-                            dvui.captureMouse(hbox.data(), e.num);
-                            dvui.dragPreStart(me.p, .{ .offset = .{}, .name = "tab_drag" });
-                        } else if (me.action == .release and me.button.pointer()) {
-                            dvui.captureMouse(null, e.num);
+                            if (dvui.dragging(me.p, null)) |_| {
+                                reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0); // reorder grabs capture
+                                break :loop;
+                            }
+                        }
+                    }
+                },
+
+                else => {},
+            }
+        }
+    }
+    if (tabs.finalSlot()) {
+        self.insert_before_index = pixi.editor.open_files.values().len;
+    }
+}
+
+/// Responsible for handling the cross-widget drag of tabs between multiple artboards or between tabs and artboards
+pub fn processTabDrag(self: *Artboard, data: *dvui.WidgetData) void {
+    if (dvui.dragName("tab_drag")) {
+        for (dvui.events()) |*e| {
+            if (!dvui.eventMatch(e, .{ .id = data.id, .r = data.rectScale().r, .drag_name = "tab_drag" })) continue;
+
+            for (pixi.editor.artboards.values()) |*artboard| {
+                if (artboard.drag_index) |drag_index| {
+                    defer artboard.drag_index = null;
+
+                    var right_side = data.rectScale().r;
+                    right_side.w /= 2;
+                    right_side.x += right_side.w;
+
+                    if (right_side.contains(e.evt.mouse.p) and pixi.editor.artboards.keys()[pixi.editor.artboards.keys().len - 1] == self.grouping) {
+                        right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                            //.thickness = 5,
+                        });
+
+                        if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                            // We dropped on the right side of the artboard, so we need to create a new artboard
+                            e.handle(@src(), data);
                             dvui.dragEnd();
-                        } else if (me.action == .motion) {
-                            if (dvui.captured(hbox.data().id)) {
-                                if (dvui.dragging(me.p, "tab_drag")) |_| {
-                                    e.handle(@src(), hbox.data());
-                                    if (dvui.dragging(me.p, null)) |_| {
-                                        reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, e.num); // reorder grabs capture
-                                        break :loop;
+                            dvui.refresh(null, @src(), data.id);
+
+                            var dragged_file = &pixi.editor.open_files.values()[drag_index];
+
+                            if (artboard.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
+                                for (pixi.editor.open_files.values()) |f| {
+                                    if (f.grouping == artboard.grouping and f.id != dragged_file.id) {
+                                        artboard.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
+                                        break;
                                     }
                                 }
                             }
+                            dragged_file.grouping = pixi.editor.newGroupingID();
+                            pixi.editor.open_artboard_grouping = dragged_file.grouping;
                         }
-                    },
+                    } else if (data.rectScale().r.contains(e.evt.mouse.p)) {
+                        data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                            //.thickness = 5,
+                        });
 
-                    else => {},
+                        if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                            // We dropped on the left side of the artboard, so we need to move the file to this artboard
+                            e.handle(@src(), data);
+                            dvui.dragEnd();
+                            dvui.refresh(null, @src(), data.id);
+
+                            var dragged_file = &pixi.editor.open_files.values()[drag_index];
+
+                            if (artboard.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
+                                for (pixi.editor.open_files.values()) |f| {
+                                    if (f.grouping == artboard.grouping and f.id != dragged_file.id) {
+                                        artboard.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
+                                        break;
+                                    }
+                                }
+                            }
+                            dragged_file.grouping = self.grouping;
+                            pixi.editor.open_artboard_grouping = dragged_file.grouping;
+                            self.open_file_index = pixi.editor.open_files.getIndex(dragged_file.id) orelse 0;
+                        }
+                    }
+                    break;
                 }
             }
-        }
-
-        if (tabs.finalSlot()) {
-            self.insert_before_index = pixi.editor.open_files.values().len;
         }
     }
 }

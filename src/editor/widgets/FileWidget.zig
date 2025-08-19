@@ -188,7 +188,6 @@ pub fn processSampleTool(self: *FileWidget) void {
                             dvui.scrollDrag(.{
                                 .mouse_pt = me.p,
                                 .screen_rect = screen_rect,
-                                .capture_id = self.init_options.canvas.scroll_container.data().id,
                             });
 
                             self.sample(file, current_point, self.sample_key_down);
@@ -397,7 +396,6 @@ pub fn processStrokeTool(self: *FileWidget) void {
                                 dvui.scrollDrag(.{
                                     .mouse_pt = me.p,
                                     .screen_rect = screen_rect,
-                                    .capture_id = self.init_options.canvas.scroll_container.data().id,
                                 });
                             }
 

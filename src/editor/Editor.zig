@@ -189,116 +189,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
 
         if (editor.tools.radial_menu.visible) {
-            var fw = dvui.FloatingWidget.init(@src(), .{
-                .rect = .cast(dvui.windowRect()),
-                .background = false,
-            });
-            defer fw.deinit();
-            fw.install();
-
-            if (dvui.firstFrame(fw.data().id)) {
-                editor.tools.radial_menu.center = editor.tools.radial_menu.mouse_position;
-            }
-
-            const center = fw.data().rectScale().pointFromPhysical(editor.tools.radial_menu.center);
-
-            const tool_count: usize = std.meta.fields(Editor.Tools.Tool).len;
-
-            const radius: f32 = 50.0;
-            const width: f32 = radius * 2.0;
-            const height: f32 = radius * 2.0;
-            const step: f32 = (2.0 * std.math.pi) / @as(f32, @floatFromInt(tool_count));
-
-            var angle: f32 = 180.0;
-
-            for (0..tool_count) |i| {
-                var anim = dvui.animate(@src(), .{ .duration = 100_000 + 50_000 * @as(i32, @intCast(i)), .kind = .alpha, .easing = dvui.easing.linear }, .{
-                    .id_extra = i,
-                });
-                defer anim.deinit();
-
-                if (anim.val) |val| {
-                    angle += ((1 - val) * 100.0) * 0.015;
-                }
-
-                var color = dvui.themeGet().color(.control, .fill_hover);
-                if (pixi.editor.colors.file_tree_palette) |*palette| {
-                    color = palette.getDVUIColor(i);
-                }
-
-                const x: f32 = std.math.round(width / 2.0 + radius * std.math.cos(angle) - width / 2.0);
-                const y: f32 = std.math.round(height / 2.0 + radius * std.math.sin(angle) - height / 2.0);
-
-                const new_center = center.plus(.{ .x = x, .y = y });
-
-                var rect = dvui.Rect.fromPoint(new_center);
-
-                rect.w = 48.0;
-                rect.h = 48.0;
-                rect.x -= rect.w / 2.0;
-                rect.y -= rect.h / 2.0;
-
-                const tool = @as(Editor.Tools.Tool, @enumFromInt(i));
-
-                var button = dvui.ButtonWidget.init(@src(), .{}, .{
-                    .rect = rect,
-                    .id_extra = i,
-                    .corner_radius = dvui.Rect.all(1000.0),
-                    .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
-                    .box_shadow = .{
-                        .color = .black,
-                        .offset = .{ .x = -4.0, .y = 4.0 },
-                        .fade = 8.0,
-                        .alpha = 0.25,
-                    },
-                    .border = dvui.Rect.all(1.0),
-                    .color_border = color,
-                });
-
-                const sprite = switch (@as(Editor.Tools.Tool, @enumFromInt(i))) {
-                    .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.dropper_default],
-                    .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
-                    .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
-                    .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
-                    .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
-                };
-                const size: dvui.Size = dvui.imageSize(pixi.editor.atlas.source) catch .{ .w = 0, .h = 0 };
-
-                const uv = dvui.Rect{
-                    .x = @as(f32, @floatFromInt(sprite.source[0])) / size.w,
-                    .y = @as(f32, @floatFromInt(sprite.source[1])) / size.h,
-                    .w = @as(f32, @floatFromInt(sprite.source[2])) / size.w,
-                    .h = @as(f32, @floatFromInt(sprite.source[3])) / size.h,
-                };
-
-                button.install();
-                button.processEvents();
-                button.drawBackground();
-
-                var rs = button.data().contentRectScale();
-
-                const w = @as(f32, @floatFromInt(sprite.source[2])) * rs.s;
-                const h = @as(f32, @floatFromInt(sprite.source[3])) * rs.s;
-
-                rs.r.x += (rs.r.w - w) / 2.0;
-                rs.r.y += (rs.r.h - h) / 2.0;
-                rs.r.w = w;
-                rs.r.h = h;
-
-                dvui.renderImage(pixi.editor.atlas.source, rs, .{
-                    .uv = uv,
-                    .fade = 0.0,
-                }) catch {
-                    std.log.err("Failed to render image", .{});
-                };
-                angle += step;
-
-                if (button.clicked() or button.hovered()) {
-                    editor.tools.set(tool);
-                }
-
-                button.deinit();
-            }
+            try editor.drawRadialMenu();
         }
     }
 
@@ -462,6 +353,119 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     _ = editor.arena.reset(.retain_capacity);
 
     return .ok;
+}
+
+pub fn drawRadialMenu(editor: *Editor) !void {
+    var fw = dvui.FloatingWidget.init(@src(), .{}, .{
+        .rect = .cast(dvui.windowRect()),
+        .background = false,
+    });
+    defer fw.deinit();
+    fw.install();
+
+    if (dvui.firstFrame(fw.data().id)) {
+        editor.tools.radial_menu.center = editor.tools.radial_menu.mouse_position;
+    }
+
+    const center = fw.data().rectScale().pointFromPhysical(editor.tools.radial_menu.center);
+
+    const tool_count: usize = std.meta.fields(Editor.Tools.Tool).len;
+
+    const radius: f32 = 50.0;
+    const width: f32 = radius * 2.0;
+    const height: f32 = radius * 2.0;
+    const step: f32 = (2.0 * std.math.pi) / @as(f32, @floatFromInt(tool_count));
+
+    var angle: f32 = 180.0;
+
+    for (0..tool_count) |i| {
+        var anim = dvui.animate(@src(), .{ .duration = 100_000 + 50_000 * @as(i32, @intCast(i)), .kind = .alpha, .easing = dvui.easing.linear }, .{
+            .id_extra = i,
+        });
+        defer anim.deinit();
+
+        if (anim.val) |val| {
+            angle += ((1 - val) * 100.0) * 0.015;
+        }
+
+        var color = dvui.themeGet().color(.control, .fill_hover);
+        if (pixi.editor.colors.file_tree_palette) |*palette| {
+            color = palette.getDVUIColor(i);
+        }
+
+        const x: f32 = std.math.round(width / 2.0 + radius * std.math.cos(angle) - width / 2.0);
+        const y: f32 = std.math.round(height / 2.0 + radius * std.math.sin(angle) - height / 2.0);
+
+        const new_center = center.plus(.{ .x = x, .y = y });
+
+        var rect = dvui.Rect.fromPoint(new_center);
+
+        rect.w = 48.0;
+        rect.h = 48.0;
+        rect.x -= rect.w / 2.0;
+        rect.y -= rect.h / 2.0;
+
+        const tool = @as(Editor.Tools.Tool, @enumFromInt(i));
+
+        var button = dvui.ButtonWidget.init(@src(), .{}, .{
+            .rect = rect,
+            .id_extra = i,
+            .corner_radius = dvui.Rect.all(1000.0),
+            .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -4.0, .y = 4.0 },
+                .fade = 8.0,
+                .alpha = 0.25,
+            },
+            .border = dvui.Rect.all(1.0),
+            .color_border = color,
+        });
+
+        const sprite = switch (@as(Editor.Tools.Tool, @enumFromInt(i))) {
+            .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.dropper_default],
+            .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
+            .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
+            .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
+            .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
+        };
+        const size: dvui.Size = dvui.imageSize(pixi.editor.atlas.source) catch .{ .w = 0, .h = 0 };
+
+        const uv = dvui.Rect{
+            .x = @as(f32, @floatFromInt(sprite.source[0])) / size.w,
+            .y = @as(f32, @floatFromInt(sprite.source[1])) / size.h,
+            .w = @as(f32, @floatFromInt(sprite.source[2])) / size.w,
+            .h = @as(f32, @floatFromInt(sprite.source[3])) / size.h,
+        };
+
+        button.install();
+        button.processEvents();
+        button.drawBackground();
+
+        var rs = button.data().contentRectScale();
+
+        const w = @as(f32, @floatFromInt(sprite.source[2])) * rs.s;
+        const h = @as(f32, @floatFromInt(sprite.source[3])) * rs.s;
+
+        rs.r.x += (rs.r.w - w) / 2.0;
+        rs.r.y += (rs.r.h - h) / 2.0;
+        rs.r.w = w;
+        rs.r.h = h;
+
+        dvui.renderImage(pixi.editor.atlas.source, rs, .{
+            .uv = uv,
+            .fade = 0.0,
+        }) catch {
+            std.log.err("Failed to render image", .{});
+        };
+        angle += step;
+
+        if (button.clicked() or button.hovered()) {
+            editor.tools.set(tool);
+        }
+
+        button.deinit();
+    }
 }
 
 pub fn rebuildArtboards(editor: *Editor) !void {
@@ -741,7 +745,8 @@ pub fn openFile(editor: *Editor, path: []const u8, grouping: u64) !bool {
 
 pub fn setActiveFile(editor: *Editor, index: usize) void {
     if (index >= editor.open_files.values().len) return;
-    const grouping = editor.open_files.values()[index].grouping;
+    const file = editor.open_files.values()[index];
+    const grouping = file.grouping;
 
     if (editor.artboards.getPtr(grouping)) |artboard| {
         editor.open_artboard_grouping = grouping;
@@ -880,7 +885,14 @@ pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     var file = editor.open_files.values()[index];
 
     if (editor.artboards.getPtr(file.grouping)) |artboard| {
-        artboard.open_file_index = 0;
+        if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
+            for (pixi.editor.open_files.values(), 0..) |f, i| {
+                if (f.grouping == artboard.grouping and f.id != file.id) {
+                    artboard.open_file_index = i;
+                    break;
+                }
+            }
+        }
     }
 
     file.deinit();
@@ -893,9 +905,17 @@ pub fn rawCloseFile(editor: *Editor, index: usize) !void {
 
 pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
     if (editor.open_files.getPtr(id)) |file| {
+
         //editor.open_file_index = 0;
         if (editor.artboards.getPtr(file.grouping)) |artboard| {
-            artboard.open_file_index = 0;
+            if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
+                for (pixi.editor.open_files.values(), 0..) |f, i| {
+                    if (f.grouping == artboard.grouping and f.id != file.id) {
+                        artboard.open_file_index = i;
+                        break;
+                    }
+                }
+            }
         }
         file.deinit();
         _ = editor.open_files.orderedRemove(id);

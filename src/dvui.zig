@@ -11,7 +11,6 @@ pub const CanvasWidget = Widgets.CanvasWidget;
 pub const ReorderWidget = Widgets.ReorderWidget;
 pub const PanedWidget = Widgets.PanedWidget;
 pub const LayerPanedWidget = Widgets.LayerPanedWidget;
-pub const ReorderTabsWidget = Widgets.ReorderTabsWidget;
 
 pub fn layersPaned(src: std.builtin.SourceLocation, init_opts: LayerPanedWidget.InitOptions, opts: dvui.Options) *LayerPanedWidget {
     var ret = dvui.widgetAlloc(LayerPanedWidget);
@@ -46,9 +45,9 @@ pub fn hovered(wd: *dvui.WidgetData) bool {
     return false;
 }
 
-pub fn reorder(src: std.builtin.SourceLocation, opts: dvui.Options) *ReorderWidget {
+pub fn reorder(src: std.builtin.SourceLocation, init_opts: ReorderWidget.InitOptions, opts: dvui.Options) *ReorderWidget {
     var ret = dvui.widgetAlloc(ReorderWidget);
-    ret.* = ReorderWidget.init(src, opts);
+    ret.* = ReorderWidget.init(src, init_opts, opts);
     ret.install();
     ret.processEvents();
     return ret;
