@@ -94,58 +94,8 @@ fn drawProject(self: *Artboard) void {
 fn drawTabs(self: *Artboard) void {
     if (pixi.editor.open_files.values().len == 0) return;
 
-    if (self.insert_before_index) |insert_before| {
-        if (self.removed_index) |removed| { // Dragging from this artboard
-            if (removed > insert_before) {
-                std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
-                std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
-                pixi.editor.setActiveFile(insert_before);
-            } else {
-                if (insert_before > 0) {
-                    std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before - 1]);
-                    std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before - 1]);
-                    pixi.editor.setActiveFile(insert_before - 1);
-                } else {
-                    std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
-                    std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
-                    pixi.editor.setActiveFile(insert_before);
-                }
-            }
-
-            self.removed_index = null;
-            self.insert_before_index = null;
-        } else { // Dragging from another artboard
-            for (pixi.editor.artboards.values()) |*artboard| {
-                if (artboard.removed_index) |removed| {
-                    if (removed > insert_before) {
-                        std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
-                        std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
-
-                        pixi.editor.open_files.values()[insert_before].grouping = self.grouping;
-                        pixi.editor.setActiveFile(insert_before);
-                    } else {
-                        if (insert_before > 0) {
-                            std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before - 1]);
-                            std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before - 1]);
-                            pixi.editor.open_files.values()[insert_before - 1].grouping = self.grouping;
-                            pixi.editor.setActiveFile(insert_before - 1);
-                        } else {
-                            std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
-                            std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
-                            pixi.editor.open_files.values()[insert_before].grouping = self.grouping;
-                            pixi.editor.setActiveFile(insert_before);
-                        }
-                    }
-
-                    self.removed_index = null;
-                    self.insert_before_index = null;
-
-                    artboard.removed_index = null;
-                    artboard.insert_before_index = null;
-                }
-            }
-        }
-    }
+    // Handle dragging of tabs between artboard reorderables (tab bars)
+    defer self.processTabsDrag();
 
     var tabs_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
@@ -165,7 +115,9 @@ fn drawTabs(self: *Artboard) void {
     });
     defer scroll_area.deinit();
 
-    var tabs = dvui.reorder(@src(), .{ .drag_name = "tab_drag" }, .{});
+    var tabs = dvui.reorder(@src(), .{ .drag_name = "tab_drag" }, .{
+        .expand = .horizontal,
+    });
     defer tabs.deinit();
 
     var tabs_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -299,8 +251,65 @@ fn drawTabs(self: *Artboard) void {
     }
 }
 
+pub fn processTabsDrag(self: *Artboard) void {
+    if (self.insert_before_index) |insert_before| {
+        if (self.removed_index) |removed| { // Dragging from this artboard
+
+            if (removed > pixi.editor.open_files.count()) return;
+            if (removed > insert_before) {
+                std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
+                pixi.editor.setActiveFile(insert_before);
+            } else {
+                if (insert_before > 0) {
+                    std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before - 1]);
+                    std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before - 1]);
+                    pixi.editor.setActiveFile(insert_before - 1);
+                } else {
+                    std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                    std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
+                    pixi.editor.setActiveFile(insert_before);
+                }
+            }
+
+            self.removed_index = null;
+            self.insert_before_index = null;
+        } else { // Dragging from another artboard
+            for (pixi.editor.artboards.values()) |*artboard| {
+                if (artboard.removed_index) |removed| {
+                    if (removed > insert_before) {
+                        std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                        std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
+
+                        pixi.editor.open_files.values()[insert_before].grouping = self.grouping;
+                        pixi.editor.setActiveFile(insert_before);
+                    } else {
+                        if (insert_before > 0) {
+                            std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before - 1]);
+                            std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before - 1]);
+                            pixi.editor.open_files.values()[insert_before - 1].grouping = self.grouping;
+                            pixi.editor.setActiveFile(insert_before - 1);
+                        } else {
+                            std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
+                            std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
+                            pixi.editor.open_files.values()[insert_before].grouping = self.grouping;
+                            pixi.editor.setActiveFile(insert_before);
+                        }
+                    }
+
+                    self.removed_index = null;
+                    self.insert_before_index = null;
+
+                    artboard.removed_index = null;
+                    artboard.insert_before_index = null;
+                }
+            }
+        }
+    }
+}
+
 /// Responsible for handling the cross-widget drag of tabs between multiple artboards or between tabs and artboards
-pub fn processTabDrag(self: *Artboard, data: *dvui.WidgetData) void {
+pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
     if (dvui.dragName("tab_drag")) {
         for (dvui.events()) |*e| {
             if (!dvui.eventMatch(e, .{ .id = data.id, .r = data.rectScale().r, .drag_name = "tab_drag" })) continue;
@@ -379,7 +388,7 @@ pub fn drawCanvas(self: *Artboard) !void {
         self.drawShadows(canvas_vbox.data().rectScale());
         canvas_vbox.deinit();
     }
-    defer self.processTabDrag(canvas_vbox.data());
+    defer self.processCanvasDrag(canvas_vbox.data());
 
     if (pixi.editor.open_files.values().len > 0) {
         if (self.open_file_index >= pixi.editor.open_files.values().len) {
