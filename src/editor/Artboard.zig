@@ -325,7 +325,6 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
                     if (right_side.contains(e.evt.mouse.p) and pixi.editor.artboards.keys()[pixi.editor.artboards.keys().len - 1] == self.grouping) {
                         right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
                             .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                            //.thickness = 5,
                         });
 
                         if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
@@ -350,11 +349,10 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
                     } else if (data.rectScale().r.contains(e.evt.mouse.p)) {
                         data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
                             .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                            //.thickness = 5,
                         });
 
                         if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
-                            // We dropped on the left side of the artboard, so we need to move the file to this artboard
+                            // We dropped on the full artboard, so we need to move the file to this artboard
                             e.handle(@src(), data);
                             dvui.dragEnd();
                             dvui.refresh(null, @src(), data.id);
@@ -374,7 +372,7 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
                             self.open_file_index = pixi.editor.open_files.getIndex(dragged_file.id) orelse 0;
                         }
                     }
-                    break;
+                    //break;
                 }
             }
         }
