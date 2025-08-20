@@ -460,52 +460,11 @@ pub fn drawLayers() !void {
         }
 
         // Only draw shadow if the scroll bar has been scrolled some
-        if (vertical_scroll > 0.0) {
-            var rs = scroll_area.data().contentRectScale();
-            rs.r.h = 20.0;
+        if (vertical_scroll > 0.0)
+            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{}, 20.0);
 
-            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-            path.addRect(rs.r, dvui.Rect.Physical.all(5));
-
-            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
-
-            const black: dvui.Color = .black;
-            const ca0 = black.opacity(0.2);
-            const ca1 = black.opacity(0);
-
-            for (triangles.vertexes) |*v| {
-                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
-                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-            }
-            try dvui.renderTriangles(triangles, null);
-
-            triangles.deinit(dvui.currentWindow().arena());
-            path.deinit();
-        }
-
-        if (file.gui.layers_scroll_info.virtual_size.h > file.gui.layers_scroll_info.viewport.h and vertical_scroll < file.gui.layers_scroll_info.scrollMax(.vertical)) {
-            var rs = scroll_area.data().contentRectScale();
-            rs.r.y += rs.r.h - 20;
-            rs.r.h = 20;
-
-            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-            path.addRect(rs.r, dvui.Rect.Physical.all(5));
-
-            var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
-
-            const black: dvui.Color = .black;
-            const ca0 = black.opacity(0.0);
-            const ca1 = black.opacity(0.2);
-
-            for (triangles.vertexes) |*v| {
-                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
-                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-            }
-            try dvui.renderTriangles(triangles, null);
-
-            triangles.deinit(dvui.currentWindow().arena());
-            path.deinit();
-        }
+        if (file.gui.layers_scroll_info.virtual_size.h > file.gui.layers_scroll_info.viewport.h and vertical_scroll < file.gui.layers_scroll_info.scrollMax(.vertical))
+            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{}, 20.0);
     }
 }
 

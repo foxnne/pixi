@@ -93,15 +93,15 @@ pub fn screenFromViewportRect(self: *CanvasWidget, viewport: dvui.Rect) dvui.Rec
 /// Returns the data/world point of the mouse, which corresponds to the pixel input of
 /// Layer functions
 pub fn hovered(self: *CanvasWidget) ?dvui.Point {
-    if (self.mouse()) |m| {
-        if (self.rect.contains(m.p)) {
-            return self.dataFromScreenPoint(m.p);
-        }
+    if (self.rect.contains(dvui.currentWindow().mouse_pt)) {
+        return self.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
     }
 
     return null;
 }
 
+/// Returns the data/world point of the mouse if it was clicked on the canvas
+/// Be aware that this consumes the mouse click event
 pub fn clicked(self: *CanvasWidget) ?dvui.Point {
     if (self.hovered()) |p| {
         if (dvui.clicked(
@@ -113,7 +113,7 @@ pub fn clicked(self: *CanvasWidget) ?dvui.Point {
     }
 }
 
-/// Returns the mouse screen position if an event occured this frame
+/// Returns the mouse event if one occured this frame
 pub fn mouse(self: *CanvasWidget) ?dvui.Event.Mouse {
     for (dvui.events()) |*e| {
         if (!self.scroll_container.matchEvent(e))

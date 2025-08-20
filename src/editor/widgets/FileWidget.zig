@@ -929,6 +929,11 @@ pub fn processEvents(self: *FileWidget) void {
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
 
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .top, .{}, 20.0);
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .bottom, .{}, 20.0);
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .left, .{}, 20.0);
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .right, .{}, 20.0);
+
     // Only process draw cursor on the hovered widget
     if (self.hovered() != null) {
         self.drawCursor();

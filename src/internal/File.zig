@@ -98,38 +98,11 @@ pub const TransformMode = enum {
     free,
 };
 
-//pub const FlipbookView = enum { canvas, timeline };
-
 pub const AnimationState = enum { pause, play };
 pub const Canvas = enum { primary, flipbook };
 
 pub const History = @import("History.zig");
 pub const Buffers = @import("Buffers.zig");
-
-pub const Heightmap = struct {
-    visible: bool = false,
-    layer: ?Layer = null,
-
-    pub fn enable(self: *Heightmap) void {
-        if (self.layer != null) {
-            self.visible = true;
-        }
-        // } else {
-        //     pixi.editor.popups.heightmap = true;
-        // }
-    }
-
-    pub fn disable(self: *Heightmap) void {
-        self.visible = false;
-        if (pixi.editor.tools.current == .heightmap) {
-            pixi.editor.tools.swap();
-        }
-    }
-
-    pub fn toggle(self: *Heightmap) void {
-        if (self.visible) self.disable() else self.enable();
-    }
-};
 
 pub fn load(path: []const u8) !?pixi.Internal.File {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))

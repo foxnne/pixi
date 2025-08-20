@@ -297,53 +297,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
             defer vbox.deinit();
 
-            {
-                var rs = vbox.data().contentRectScale();
-                rs.r.w = 20.0;
-
-                var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-                path.addRect(rs.r, dvui.Rect.Physical.all(5));
-
-                var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
-
-                const black: dvui.Color = .black;
-                const ca0 = black.opacity(0.1);
-                const ca1 = black.opacity(0);
-
-                for (triangles.vertexes) |*v| {
-                    const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
-                    v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-                }
-                try dvui.renderTriangles(triangles, null);
-
-                triangles.deinit(dvui.currentWindow().arena());
-                path.deinit();
-            }
-
-            // Flipbook area
-            {
-                var rs = vbox.data().contentRectScale();
-                rs.r.h = 20.0;
-
-                var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-                path.addRect(rs.r, dvui.Rect.Physical.all(5));
-
-                var triangles = try path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white });
-
-                const black: dvui.Color = .black;
-                const ca0 = black.opacity(0.1);
-                const ca1 = black.opacity(0);
-
-                for (triangles.vertexes) |*v| {
-                    const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
-                    v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-                }
-
-                try dvui.renderTriangles(triangles, null);
-
-                triangles.deinit(dvui.currentWindow().arena());
-                path.deinit();
-            }
+            pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .top, .{}, 20.0);
+            pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .bottom, .{}, 20.0);
+            pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{}, 20.0);
+            pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{}, 20.0);
         }
     }
 
