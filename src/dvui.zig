@@ -158,22 +158,28 @@ const Shadow = enum {
     left,
 };
 
-pub fn drawEdgeShadow(container: dvui.RectScale, shadow: Shadow, offset: dvui.Rect, thickness: f32) void {
+const ShadowOptions = struct {
+    color: dvui.Color = .black,
+    opacity: f32 = 0.1,
+    offset: dvui.Rect = .{},
+    thickness: f32 = 20.0,
+};
+
+pub fn drawEdgeShadow(container: dvui.RectScale, shadow: Shadow, opts: ShadowOptions) void {
     switch (shadow) {
         .top => {
             var rs = container;
-            rs.r.h = thickness;
+            rs.r.h = opts.thickness;
 
-            rs.r = rs.r.plus(.cast(offset));
+            rs.r = rs.r.plus(.cast(opts.offset));
 
             var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
             path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
             var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
-            const black: dvui.Color = .black;
-            const ca0 = black.opacity(0.1);
-            const ca1 = black.opacity(0);
+            const ca0 = opts.color.opacity(opts.opacity);
+            const ca1 = opts.color.opacity(0);
 
             for (triangles.vertexes) |*v| {
                 const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
@@ -189,19 +195,18 @@ pub fn drawEdgeShadow(container: dvui.RectScale, shadow: Shadow, offset: dvui.Re
 
         .bottom => {
             var rs = container;
-            rs.r.y += rs.r.h - thickness;
-            rs.r.h = thickness;
+            rs.r.y += rs.r.h - opts.thickness;
+            rs.r.h = opts.thickness;
 
-            rs.r = rs.r.plus(.cast(offset));
+            rs.r = rs.r.plus(.cast(opts.offset));
 
             var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
             path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
             var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
-            const black: dvui.Color = .black;
-            const ca0 = black.opacity(0.0);
-            const ca1 = black.opacity(0.1);
+            const ca0 = opts.color.opacity(0.0);
+            const ca1 = opts.color.opacity(opts.opacity);
 
             for (triangles.vertexes) |*v| {
                 const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
@@ -217,19 +222,18 @@ pub fn drawEdgeShadow(container: dvui.RectScale, shadow: Shadow, offset: dvui.Re
 
         .right => {
             var rs = container;
-            rs.r.x += rs.r.w - thickness;
-            rs.r.w = thickness;
+            rs.r.x += rs.r.w - opts.thickness;
+            rs.r.w = opts.thickness;
 
-            rs.r = rs.r.plus(.cast(offset));
+            rs.r = rs.r.plus(.cast(opts.offset));
 
             var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
             path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
             var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
-            const black: dvui.Color = .black;
-            const ca0 = black.opacity(0.0);
-            const ca1 = black.opacity(0.1);
+            const ca0 = opts.color.opacity(0.0);
+            const ca1 = opts.color.opacity(opts.opacity);
 
             for (triangles.vertexes) |*v| {
                 const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
@@ -244,18 +248,17 @@ pub fn drawEdgeShadow(container: dvui.RectScale, shadow: Shadow, offset: dvui.Re
         },
         .left => {
             var rs = container;
-            rs.r.w = thickness;
+            rs.r.w = opts.thickness;
 
-            rs.r = rs.r.plus(.cast(offset));
+            rs.r = rs.r.plus(.cast(opts.offset));
 
             var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
             path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
             var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
-            const black: dvui.Color = .black;
-            const ca0 = black.opacity(0.1);
-            const ca1 = black.opacity(0);
+            const ca0 = opts.color.opacity(opts.opacity);
+            const ca1 = opts.color.opacity(0.0);
 
             for (triangles.vertexes) |*v| {
                 const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);

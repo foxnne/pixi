@@ -461,10 +461,10 @@ pub fn drawLayers() !void {
 
         // Only draw shadow if the scroll bar has been scrolled some
         if (vertical_scroll > 0.0)
-            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{}, 20.0);
+            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{});
 
         if (file.gui.layers_scroll_info.virtual_size.h > file.gui.layers_scroll_info.viewport.h and vertical_scroll < file.gui.layers_scroll_info.scrollMax(.vertical))
-            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{}, 20.0);
+            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
     }
 }
 

@@ -94,7 +94,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     scroll.deinit();
 
     // Only draw shadow if the scroll bar has been scrolled some
-    if (vertical_scroll > 0.0) pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .top, .{ .w = -20.0 }, 20.0);
+    if (vertical_scroll > 0.0) pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .top, .{ .offset = .{ .w = -20.0 } });
 
     pane_vbox.deinit();
 
@@ -105,11 +105,11 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
             offset.x -= 20;
         }
 
-        pixi.dvui.drawEdgeShadow(vbox.data().contentRectScale(), .right, offset, 20.0);
+        pixi.dvui.drawEdgeShadow(vbox.data().contentRectScale(), .right, .{ .offset = offset });
     }
 
     if (horizontal_scroll > 0.0) {
-        pixi.dvui.drawEdgeShadow(vbox.data().contentRectScale(), .left, .{}, 20.0);
+        pixi.dvui.drawEdgeShadow(vbox.data().contentRectScale(), .left, .{});
     }
 
     return .ok;
