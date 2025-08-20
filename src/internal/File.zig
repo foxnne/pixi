@@ -183,7 +183,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
 
         dvui.textureInvalidateCache(internal.checkerboard.hash());
 
-        internal.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
 
         for (ext.layers) |l| {
             const layer_image_name = std.fmt.allocPrintZ(dvui.currentWindow().arena(), "{s}.layer", .{l.name}) catch "Memory Allocation Failed";
@@ -379,6 +379,8 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
         .selected => file.layers.get(file.selected_layer_index),
     };
 
+    defer active_layer.dirty = true;
+
     if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
         return;
     }
@@ -462,16 +464,18 @@ pub fn fillPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
         .selected => file.layers.get(file.selected_layer_index),
     };
 
+    defer active_layer.dirty = true;
+
     if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
         return;
     }
 
     if (fill_options.replace) {
-        if (active_layer.pixelIndex(point)) |index| {
-            active_layer.setMaskFromColor(active_layer.pixels()[index]);
+        if (active_layer.pixel(point)) |c| {
+            active_layer.setMaskFromColor(c);
         }
     } else {
-        active_layer.floodMask(point, .fromSize(.{ .w = @as(f32, @floatFromInt(file.width)), .h = @as(f32, @floatFromInt(file.height)) })) catch {
+        active_layer.setMaskFloodPoint(point, .fromSize(.{ .w = @as(f32, @floatFromInt(file.width)), .h = @as(f32, @floatFromInt(file.height)) })) catch {
             dvui.log.err("Failed to fill point", .{});
         };
     }
@@ -511,6 +515,8 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
         .temporary => file.temporary_layer,
         .selected => file.layers.get(file.selected_layer_index),
     };
+
+    defer active_layer.dirty = true;
 
     if (point1.x < 0 or point1.x >= @as(f32, @floatFromInt(file.width)) or point1.y < 0 or point1.y >= @as(f32, @floatFromInt(file.height))) {
         return;

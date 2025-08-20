@@ -39,7 +39,7 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
     return iw;
 }
 
-pub fn processSampleTool(self: *ImageWidget) void {
+pub fn processSample(self: *ImageWidget) void {
     const current_mods = dvui.currentWindow().modifiers;
     defer self.previous_mods = current_mods;
 
@@ -357,14 +357,14 @@ pub fn processEvents(self: *ImageWidget) void {
         dvui.dataRemove(null, self.init_options.canvas.id, "right_mouse_down");
     };
 
-    self.processSampleTool();
+    self.processSample();
 
     self.drawImage();
 
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .top, .{});
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .bottom, .{});
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .bottom, .{ .opacity = 0.2 });
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .left, .{});
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .right, .{});
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .right, .{ .opacity = 0.2 });
 
     self.drawCursor();
     self.drawSample();

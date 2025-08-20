@@ -825,6 +825,18 @@ pub fn save(editor: *Editor) !void {
     }
 }
 
+pub fn undo(editor: *Editor) !void {
+    if (editor.activeFile()) |file| {
+        try file.history.undoRedo(file, .undo);
+    }
+}
+
+pub fn redo(editor: *Editor) !void {
+    if (editor.activeFile()) |file| {
+        try file.history.undoRedo(file, .redo);
+    }
+}
+
 pub fn saveAllFiles(editor: *Editor) !void {
     for (editor.open_files.items) |*file| {
         _ = try file.save();

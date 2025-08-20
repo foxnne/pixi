@@ -116,17 +116,21 @@ pub fn pixelIndex(self: *Layer, p: dvui.Point) ?usize {
 }
 
 pub fn point(self: *Layer, index: usize) ?dvui.Point {
-    return pixi.image.getPointFromIndex(self.source, index);
+    return pixi.image.point(self.source, index);
 }
 
 pub fn pixel(self: *Layer, p: dvui.Point) ?[4]u8 {
-    return pixi.image.getPixel(self.source, p);
+    return pixi.image.pixel(self.source, p);
 }
 
 pub fn setPixel(self: *Layer, p: dvui.Point, color: [4]u8) void {
     pixi.image.setPixel(self.source, p, color);
-    //if (update)
-    //self.texture.update(pixi.core.windows.get(pixi.app.window, .device));
+}
+
+pub fn setMaskPoint(self: *Layer, p: dvui.Point) void {
+    if (self.pixelIndex(p)) |index| {
+        self.mask.set(index);
+    }
 }
 
 pub fn clearMask(self: *Layer) void {
@@ -150,10 +154,10 @@ pub fn setColorFromMask(self: *Layer, color: [4]u8) void {
 }
 
 /// Flood fill a pixel and mark the flood to the mask, so you can handle changes.
-pub fn floodMask(layer: *Layer, p: dvui.Point, bounds: dvui.Rect) !void {
+pub fn setMaskFloodPoint(layer: *Layer, p: dvui.Point, bounds: dvui.Rect) !void {
     if (!bounds.contains(p)) return;
 
-    layer.mask.setRangeValue(.{ .start = 0, .end = layer.mask.capacity() }, false);
+    layer.clearMask();
 
     var queue = std.ArrayList(dvui.Point).init(pixi.app.allocator);
     defer queue.deinit();
@@ -178,7 +182,6 @@ pub fn floodMask(layer: *Layer, p: dvui.Point, bounds: dvui.Rect) !void {
                     if (!std.meta.eql(original_color, layer.pixels()[iter_index])) continue;
                     if (!bounds.contains(new_point)) continue;
 
-                    //layer.pixels()[index] = color;
                     queue.append(new_point) catch return error.MemoryAllocationFailed;
                     layer.mask.set(iter_index);
                 }
@@ -199,6 +202,7 @@ pub const ShapeOffsetResult = struct {
 
 pub fn invalidate(self: *Layer) void {
     dvui.textureInvalidateCache(self.source.hash());
+    self.dirty = false;
 }
 
 /// Only used for handling getting the pixels surrounding the origin
@@ -264,6 +268,7 @@ pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: [4]u32, transparent: bo
 pub fn clear(self: *Layer) void {
     @memset(self.pixels(), .{ 0, 0, 0, 0 });
     self.invalidate();
+    self.dirty = false;
 }
 
 pub fn writeSourceToZip(
