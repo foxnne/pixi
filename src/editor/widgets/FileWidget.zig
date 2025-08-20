@@ -3,7 +3,6 @@ const CanvasWidget = @import("CanvasWidget.zig");
 
 init_options: InitOptions,
 options: Options,
-last_mouse_event: ?dvui.Event = null,
 drag_data_point: ?dvui.Point = null,
 sample_data_point: ?dvui.Point = null,
 previous_mods: dvui.enums.Mod = .none,
@@ -19,7 +18,6 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
     const fw: FileWidget = .{
         .init_options = init_opts,
         .options = opts,
-        .last_mouse_event = if (dvui.dataGet(null, init_opts.canvas.id, "last_mouse_event", dvui.Event)) |event| event else null,
         .drag_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "drag_data_point", dvui.Point)) |point| point else null,
         .sample_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "sample_data_point", dvui.Point)) |point| point else null,
         .sample_key_down = if (dvui.dataGet(null, init_opts.canvas.id, "sample_key_down", bool)) |key| key else false,
@@ -79,34 +77,30 @@ pub fn processSampleTool(self: *FileWidget) void {
             self.sample_data_point = null;
         }
 
-        if (self.last_mouse_event) |event| {
-            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-            const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
-            file.drawPoint(
-                current_point,
-                if (pixi.editor.tools.current != .eraser) pixi.editor.colors.primary else [_]u8{ 255, 255, 255, 255 },
-                .temporary,
-                .{
-                    .invalidate = true,
-                    .to_change = false,
-                    .stroke_size = switch (pixi.editor.tools.current) {
-                        .pencil, .eraser => pixi.editor.tools.stroke_size,
-                        else => 1,
-                    },
+        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+        file.drawPoint(
+            current_point,
+            if (pixi.editor.tools.current != .eraser) pixi.editor.colors.primary else [_]u8{ 255, 255, 255, 255 },
+            .temporary,
+            .{
+                .invalidate = true,
+                .to_change = false,
+                .stroke_size = switch (pixi.editor.tools.current) {
+                    .pencil, .eraser => pixi.editor.tools.stroke_size,
+                    else => 1,
                 },
-            );
-            file.temporary_layer.dirty = true;
-        }
+            },
+        );
+        file.temporary_layer.dirty = true;
     } else if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
         self.sample_key_down = true;
-        if (self.last_mouse_event) |event| {
-            const current_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
-            self.sample(file, current_point, self.right_mouse_down);
+        const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+        self.sample(file, current_point, self.right_mouse_down);
 
-            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-            file.temporary_layer.invalidate();
-            file.temporary_layer.dirty = false;
-        }
+        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        file.temporary_layer.invalidate();
+        file.temporary_layer.dirty = false;
     }
 
     for (dvui.events()) |*e| {
@@ -119,12 +113,10 @@ pub fn processSampleTool(self: *FileWidget) void {
                             file.temporary_layer.invalidate();
                             file.temporary_layer.dirty = false;
                         }
-                        self.last_mouse_event = null;
                     }
                     continue;
                 }
 
-                self.last_mouse_event = e.*;
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button == .right) {
@@ -256,13 +248,12 @@ pub fn processStrokeTool(self: *FileWidget) void {
 
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
-            if (e.evt == .mouse and e.evt.mouse.action == .motion) {
+            if (e.evt == .mouse and e.evt.mouse.action == .position) {
                 if (file.temporary_layer.dirty) {
                     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                     file.temporary_layer.invalidate();
                     file.temporary_layer.dirty = false;
                 }
-                self.last_mouse_event = null;
             }
             continue;
         }
@@ -287,30 +278,22 @@ pub fn processStrokeTool(self: *FileWidget) void {
                 }
 
                 if (update) {
-                    if (self.last_mouse_event) |last_mouse_event| {
-                        switch (last_mouse_event.evt) {
-                            .mouse => |me| {
-                                @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                                const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
-                                file.drawPoint(
-                                    current_point,
-                                    if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 },
-                                    .temporary,
-                                    .{
-                                        .invalidate = true,
-                                        .to_change = false,
-                                        .stroke_size = pixi.editor.tools.stroke_size,
-                                    },
-                                );
-                            },
-                            else => {},
-                        }
-                    }
+                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                    file.drawPoint(
+                        current_point,
+                        if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 },
+                        .temporary,
+                        .{
+                            .invalidate = true,
+                            .to_change = false,
+                            .stroke_size = pixi.editor.tools.stroke_size,
+                        },
+                    );
                 }
             },
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
-                self.last_mouse_event = e.*;
 
                 if (self.init_options.canvas.rect.contains(me.p))
                     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
@@ -334,7 +317,6 @@ pub fn processStrokeTool(self: *FileWidget) void {
                     }
 
                     self.drag_data_point = current_point;
-                    //active_layer.invalidate();
                 } else if (me.action == .release and me.button.pointer()) {
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                         e.handle(@src(), self.init_options.canvas.scroll_container.data());
@@ -493,7 +475,6 @@ pub fn processFillTool(self: *FileWidget) void {
         switch (e.evt) {
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
-                self.last_mouse_event = e.*;
 
                 if (self.sample_key_down) {
                     @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
@@ -554,9 +535,6 @@ pub fn drawCursor(self: *FileWidget) void {
 
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
-            if (e.evt == .mouse) {
-                //if (self.active()) _ = dvui.cursorShow(true);
-            }
             continue;
         }
         switch (e.evt) {
@@ -568,12 +546,10 @@ pub fn drawCursor(self: *FileWidget) void {
                 }
             },
             .key => |_| {
-                if (self.last_mouse_event) |event| {
-                    cursor_data_point = self.init_options.canvas.dataFromScreenPoint(event.evt.mouse.p);
+                cursor_data_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-                    if (self.init_options.canvas.rect.contains(event.evt.mouse.p)) {
-                        _ = dvui.cursorShow(false);
-                    }
+                if (self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
+                    _ = dvui.cursorShow(false);
                 }
             },
             else => {},
@@ -793,44 +769,36 @@ pub fn drawLayers(self: *FileWidget) void {
     });
     shadow_box.deinit();
 
-    // Draw checkerbaord
-    if (self.last_mouse_event) |last_mouse_event| {
-        switch (last_mouse_event.evt) {
-            .mouse => |me| {
-                const data_point = self.init_options.file.gui.canvas.dataFromScreenPoint(me.p);
-                // Draw the checkerboard texture at the hovered sprite position
-                const bounds = dvui.Rect.fromSize(.{ .w = @floatFromInt(self.init_options.file.width), .h = @floatFromInt(self.init_options.file.height) });
-                if (bounds.contains(data_point)) {
-                    const tile_width = @as(f32, @floatFromInt(self.init_options.file.tile_width));
-                    const tile_height = @as(f32, @floatFromInt(self.init_options.file.tile_height));
+    const mouse_data_point = self.init_options.file.gui.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+    // Draw the checkerboard texture at the hovered sprite position
+    const bounds = dvui.Rect.fromSize(.{ .w = @floatFromInt(self.init_options.file.width), .h = @floatFromInt(self.init_options.file.height) });
+    if (bounds.contains(mouse_data_point)) {
+        const tile_width = @as(f32, @floatFromInt(self.init_options.file.tile_width));
+        const tile_height = @as(f32, @floatFromInt(self.init_options.file.tile_height));
 
-                    const tile_column = @divTrunc(data_point.x, tile_width);
-                    const tile_row = @divTrunc(data_point.y, tile_height);
+        const tile_column = @divTrunc(mouse_data_point.x, tile_width);
+        const tile_row = @divTrunc(mouse_data_point.y, tile_height);
 
-                    const x = tile_column * tile_width;
-                    const y = tile_row * tile_height;
+        const x = tile_column * tile_width;
+        const y = tile_row * tile_height;
 
-                    const image_rect: dvui.Rect = .{
-                        .x = x,
-                        .y = y,
-                        .w = @as(f32, @floatFromInt(file.tile_width)),
-                        .h = @as(f32, @floatFromInt(file.tile_height)),
-                    };
+        const image_rect: dvui.Rect = .{
+            .x = x,
+            .y = y,
+            .w = @as(f32, @floatFromInt(file.tile_width)),
+            .h = @as(f32, @floatFromInt(file.tile_height)),
+        };
 
-                    const image_rect_scale: dvui.RectScale = .{
-                        .r = self.init_options.canvas.screenFromDataRect(image_rect),
-                        .s = self.init_options.canvas.scale,
-                    };
+        const image_rect_scale: dvui.RectScale = .{
+            .r = self.init_options.canvas.screenFromDataRect(image_rect),
+            .s = self.init_options.canvas.scale,
+        };
 
-                    dvui.renderImage(file.checkerboard, image_rect_scale, .{
-                        .colormod = dvui.themeGet().color(.content, .fill).lighten(8.0),
-                    }) catch {
-                        std.log.err("Failed to render checkerboard", .{});
-                    };
-                }
-            },
-            else => {},
-        }
+        dvui.renderImage(file.checkerboard, image_rect_scale, .{
+            .colormod = dvui.themeGet().color(.content, .fill).lighten(8.0),
+        }) catch {
+            std.log.err("Failed to render checkerboard", .{});
+        };
     }
 
     while (layer_index > 0) {
@@ -889,11 +857,6 @@ pub fn drawLayers(self: *FileWidget) void {
 
 pub fn processEvents(self: *FileWidget) void {
     defer self.previous_mods = dvui.currentWindow().modifiers;
-    defer if (self.last_mouse_event) |last_mouse_event| {
-        dvui.dataSet(null, self.init_options.canvas.id, "last_mouse_event", last_mouse_event);
-    } else {
-        dvui.dataRemove(null, self.init_options.canvas.id, "last_mouse_event");
-    };
 
     defer if (self.drag_data_point) |drag_data_point| {
         dvui.dataSet(null, self.init_options.canvas.id, "drag_data_point", drag_data_point);

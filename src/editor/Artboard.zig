@@ -162,7 +162,8 @@ fn drawTabs(self: *Artboard) void {
         if (pixi.dvui.hovered(hbox.data())) {
             hovered = true;
             hbox.data().options.color_fill = dvui.themeGet().color(.window, .fill);
-            hbox.data().options.color_border = dvui.themeGet().color(.window, .fill);
+            if (!selected)
+                hbox.data().options.color_border = dvui.themeGet().color(.window, .fill);
         }
         hbox.drawBackground();
 

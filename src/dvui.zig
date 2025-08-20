@@ -12,6 +12,7 @@ pub const ReorderWidget = Widgets.ReorderWidget;
 pub const PanedWidget = Widgets.PanedWidget;
 pub const LayerPanedWidget = Widgets.LayerPanedWidget;
 
+/// Currently this is specialized for the layers paned widget, just includes icon and dragging flag so we know when the pane is dragging
 pub fn layersPaned(src: std.builtin.SourceLocation, init_opts: LayerPanedWidget.InitOptions, opts: dvui.Options) *LayerPanedWidget {
     var ret = dvui.widgetAlloc(LayerPanedWidget);
     ret.* = LayerPanedWidget.init(src, init_opts, opts);
@@ -20,6 +21,7 @@ pub fn layersPaned(src: std.builtin.SourceLocation, init_opts: LayerPanedWidget.
     return ret;
 }
 
+/// Currently this is specialized, just includes icon in the handle
 pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions, opts: dvui.Options) *PanedWidget {
     var ret = dvui.widgetAlloc(PanedWidget);
     ret.* = PanedWidget.init(src, init_opts, opts);
@@ -159,120 +161,112 @@ const Shadow = enum {
 pub fn drawEdgeShadow(container: dvui.RectScale, shadow: Shadow, offset: dvui.Rect, thickness: f32) void {
     switch (shadow) {
         .top => {
-            {
-                var rs = container;
-                rs.r.h = thickness;
+            var rs = container;
+            rs.r.h = thickness;
 
-                rs.r = rs.r.plus(.cast(offset));
+            rs.r = rs.r.plus(.cast(offset));
 
-                var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-                path.addRect(rs.r, dvui.Rect.Physical.all(5));
+            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+            path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-                var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
+            var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
-                const black: dvui.Color = .black;
-                const ca0 = black.opacity(0.1);
-                const ca1 = black.opacity(0);
+            const black: dvui.Color = .black;
+            const ca0 = black.opacity(0.1);
+            const ca1 = black.opacity(0);
 
-                for (triangles.vertexes) |*v| {
-                    const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
-                    v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-                }
-                dvui.renderTriangles(triangles, null) catch {
-                    dvui.log.err("Failed to render triangles", .{});
-                };
-
-                triangles.deinit(dvui.currentWindow().arena());
-                path.deinit();
+            for (triangles.vertexes) |*v| {
+                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
+                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
             }
+            dvui.renderTriangles(triangles, null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
+
+            triangles.deinit(dvui.currentWindow().arena());
+            path.deinit();
         },
 
         .bottom => {
-            {
-                var rs = container;
-                rs.r.y += rs.r.h - thickness;
-                rs.r.h = thickness;
+            var rs = container;
+            rs.r.y += rs.r.h - thickness;
+            rs.r.h = thickness;
 
-                rs.r = rs.r.plus(.cast(offset));
+            rs.r = rs.r.plus(.cast(offset));
 
-                var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-                path.addRect(rs.r, dvui.Rect.Physical.all(5));
+            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+            path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-                var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
+            var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
-                const black: dvui.Color = .black;
-                const ca0 = black.opacity(0.0);
-                const ca1 = black.opacity(0.1);
+            const black: dvui.Color = .black;
+            const ca0 = black.opacity(0.0);
+            const ca1 = black.opacity(0.1);
 
-                for (triangles.vertexes) |*v| {
-                    const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
-                    v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-                }
-                dvui.renderTriangles(triangles, null) catch {
-                    dvui.log.err("Failed to render triangles", .{});
-                };
-
-                triangles.deinit(dvui.currentWindow().arena());
-                path.deinit();
+            for (triangles.vertexes) |*v| {
+                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
+                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
             }
+            dvui.renderTriangles(triangles, null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
+
+            triangles.deinit(dvui.currentWindow().arena());
+            path.deinit();
         },
 
         .right => {
-            {
-                var rs = container;
-                rs.r.x += rs.r.w - thickness;
-                rs.r.w = thickness;
+            var rs = container;
+            rs.r.x += rs.r.w - thickness;
+            rs.r.w = thickness;
 
-                rs.r = rs.r.plus(.cast(offset));
+            rs.r = rs.r.plus(.cast(offset));
 
-                var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-                path.addRect(rs.r, dvui.Rect.Physical.all(5));
+            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+            path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-                var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
+            var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
-                const black: dvui.Color = .black;
-                const ca0 = black.opacity(0.0);
-                const ca1 = black.opacity(0.1);
+            const black: dvui.Color = .black;
+            const ca0 = black.opacity(0.0);
+            const ca1 = black.opacity(0.1);
 
-                for (triangles.vertexes) |*v| {
-                    const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
-                    v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-                }
-                dvui.renderTriangles(triangles, null) catch {
-                    dvui.log.err("Failed to render triangles", .{});
-                };
-
-                triangles.deinit(dvui.currentWindow().arena());
-                path.deinit();
+            for (triangles.vertexes) |*v| {
+                const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
+                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
             }
+            dvui.renderTriangles(triangles, null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
+
+            triangles.deinit(dvui.currentWindow().arena());
+            path.deinit();
         },
         .left => {
-            {
-                var rs = container;
-                rs.r.w = thickness;
+            var rs = container;
+            rs.r.w = thickness;
 
-                rs.r = rs.r.plus(.cast(offset));
+            rs.r = rs.r.plus(.cast(offset));
 
-                var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-                path.addRect(rs.r, dvui.Rect.Physical.all(5));
+            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+            path.addRect(rs.r, dvui.Rect.Physical.all(5));
 
-                var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
+            var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
 
-                const black: dvui.Color = .black;
-                const ca0 = black.opacity(0.1);
-                const ca1 = black.opacity(0);
+            const black: dvui.Color = .black;
+            const ca0 = black.opacity(0.1);
+            const ca1 = black.opacity(0);
 
-                for (triangles.vertexes) |*v| {
-                    const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
-                    v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-                }
-                dvui.renderTriangles(triangles, null) catch {
-                    dvui.log.err("Failed to render triangles", .{});
-                };
-
-                triangles.deinit(dvui.currentWindow().arena());
-                path.deinit();
+            for (triangles.vertexes) |*v| {
+                const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
+                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
             }
+            dvui.renderTriangles(triangles, null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
+
+            triangles.deinit(dvui.currentWindow().arena());
+            path.deinit();
         },
     }
 }
