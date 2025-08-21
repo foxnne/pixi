@@ -8,10 +8,6 @@ pub const LDTKTileset = @import("LDTKTileset.zig");
 
 const Packer = @This();
 
-// // Mach module, systems, and main
-// pub const mach_module = .packer;
-// pub const mach_systems = .{ .init, .deinit };
-
 pub const Image = struct {
     width: usize,
     height: usize,
@@ -31,9 +27,6 @@ pub const Sprite = struct {
         if (self.image) |*image| {
             image.deinit(allocator);
         }
-        // if (self.heightmap_image) |*image| {
-        //     image.deinit(allocator);
-        // }
     }
 };
 
@@ -115,58 +108,6 @@ pub fn clearAndFree(self: *Packer) void {
 }
 
 pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
-    // if (self.ldtk) {
-    //     if (pixi.editor.folder) |project_folder_path| {
-    //         const ldtk_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ project_folder_path, "pixi-ldtk" });
-    //         defer pixi.app.allocator.free(ldtk_path);
-
-    //         const base_name_w_ext = std.fs.path.basename(file.path);
-    //         const ext = std.fs.path.extension(base_name_w_ext);
-
-    //         const base_name = base_name_w_ext[0 .. base_name_w_ext.len - ext.len];
-
-    //         if (std.fs.path.dirname(file.path)) |file_dir_path| {
-    //             const relative_path = file_dir_path[project_folder_path.len..];
-
-    //             var layer_names = std.ArrayList([:0]const u8).init(pixi.app.allocator);
-    //             var sprites = std.ArrayList(LDTKTileset.LDTKSprite).init(pixi.app.allocator);
-
-    //             var index: usize = 0;
-    //             while (index < file.layers.slice().len) : (index += 1) {
-    //                 const layer = file.layers.slice().get(index);
-    //                 const layer_name = try std.fmt.allocPrintZ(
-    //                     pixi.app.allocator,
-    //                     "pixi-ldtk{s}{c}{s}__{s}.png",
-    //                     .{ relative_path, std.fs.path.sep, base_name, layer.name },
-    //                 );
-    //                 try layer_names.append(layer_name);
-    //             }
-
-    //             var sprite_index: usize = 0;
-    //             while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
-    //                 const tiles_wide = @divExact(file.width, file.tile_width);
-
-    //                 const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
-    //                 const row = @divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide);
-
-    //                 const src_x = column * file.tile_width;
-    //                 const src_y = row * file.tile_height;
-
-    //                 try sprites.append(.{
-    //                     .src = .{ src_x, src_y },
-    //                 });
-    //             }
-
-    //             try self.ldtk_tilesets.append(.{
-    //                 .layer_paths = try layer_names.toOwnedSlice(),
-    //                 .sprite_size = .{ file.tile_width, file.tile_height },
-    //                 .sprites = try sprites.toOwnedSlice(),
-    //             });
-    //         }
-    //     }
-    //     return;
-    // }
-
     var layer_opt: ?pixi.Internal.Layer = null;
     var index: usize = 0;
     while (index < file.layers.slice().len) : (index += 1) {
@@ -214,16 +155,16 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
             const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
             const row = @divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide);
 
-            const src_x = column * file.tile_width;
-            const src_y = row * file.tile_height;
+            const src_x = std.math.clamp(column * file.tile_width, 0, file.width);
+            const src_y = std.math.clamp(row * file.tile_height, 0, file.height);
 
-            const src_rect: [4]usize = .{ @as(usize, @intCast(src_x)), @as(usize, @intCast(src_y)), @as(usize, @intCast(file.tile_width)), @as(usize, @intCast(file.tile_height)) };
+            const src_rect: dvui.Rect = .{ .x = @floatFromInt(src_x), .y = @floatFromInt(src_y), .w = @floatFromInt(file.tile_width), .h = @floatFromInt(file.tile_height) };
 
             if (current_layer.reduce(src_rect)) |reduced_rect| {
-                const reduced_src_x = reduced_rect[0];
-                const reduced_src_y = reduced_rect[1];
-                const reduced_src_width = reduced_rect[2];
-                const reduced_src_height = reduced_rect[3];
+                const reduced_src_x: usize = @intFromFloat(reduced_rect.x);
+                const reduced_src_y: usize = @intFromFloat(reduced_rect.y);
+                const reduced_src_width: usize = @intFromFloat(reduced_rect.w);
+                const reduced_src_height: usize = @intFromFloat(reduced_rect.h);
 
                 const offset = .{ reduced_src_x - src_x, reduced_src_y - src_y };
                 const src_pixels = current_layer.pixels();
@@ -235,17 +176,7 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                     .pixels = try pixi.app.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
                 };
 
-                // var contains_height: bool = false;
-                // var heightmap_image: ?Image = if (file.heightmap.layer != null) .{
-                //     .width = reduced_src_width,
-                //     .height = reduced_src_height,
-                //     .pixels = try pixi.app.allocator.alloc([4]u8, reduced_src_width * reduced_src_height),
-                // } else null;
-
                 @memset(image.pixels, .{ 0, 0, 0, 0 });
-                // if (heightmap_image) |*img| {
-                //     @memset(img.pixels, .{ 0, 0, 0, 0 });
-                // }
 
                 // Copy pixels to image
                 {
@@ -255,33 +186,8 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                         const src = src_pixels[start .. start + reduced_src_width];
                         const dst = image.pixels[(y - reduced_src_y) * image.width .. (y - reduced_src_y) * image.width + image.width];
                         @memcpy(dst, src);
-
-                        // if (heightmap_image) |heightmap_out| {
-                        //     if (file.heightmap.layer) |heightmap_layer| {
-                        //         const heightmap_pixels = @as([*][4]u8, @ptrCast(heightmap_layer.texture.pixels.ptr))[0 .. heightmap_layer.texture.pixels.len / 4];
-                        //         const heightmap_src = heightmap_pixels[start .. start + reduced_src_width];
-                        //         const heightmap_dst = heightmap_out.pixels[(y - reduced_src_y) * heightmap_out.width .. (y - reduced_src_y) * heightmap_out.width + heightmap_out.width];
-                        //         for (src, heightmap_src, heightmap_dst) |src_pixel, heightmap_src_pixel, *dst_pixel| {
-                        //             if (src_pixel[3] != 0 and heightmap_src_pixel[3] != 0) {
-                        //                 dst_pixel[0] = heightmap_src_pixel[0];
-                        //                 dst_pixel[1] = heightmap_src_pixel[1];
-                        //                 dst_pixel[2] = heightmap_src_pixel[2];
-                        //                 dst_pixel[3] = heightmap_src_pixel[3];
-                        //                 self.contains_height = true;
-                        //                 contains_height = true;
-                        //             }
-                        //         }
-                        //     }
-                        // }
                     }
                 }
-
-                // if (!contains_height) {
-                //     if (heightmap_image) |img| {
-                //         pixi.app.allocator.free(img.pixels);
-                //         heightmap_image = null;
-                //     }
-                // }
 
                 try self.sprites.append(.{
                     .image = image,
@@ -393,27 +299,6 @@ pub fn packAndClear(packer: *Packer) !void {
         }
         atlas_layer.invalidate();
 
-        // if (packer.contains_height) {
-        //     var atlas_texture_h = try pixi.gfx.Texture.createEmpty(size[0], size[1], .{});
-
-        //     for (packer.frames.items, packer.sprites.items) |frame, sprite| {
-        //         if (sprite.heightmap_image) |image|
-        //             atlas_texture_h.blit(image.pixels, frame.slice());
-        //     }
-        //     atlas_texture_h.update(pixi.core.windows.get(pixi.app.window, .device));
-
-        //     if (pixi.editor.atlas.heightmap) |*heightmap| {
-        //         heightmap.deinit();
-        //         pixi.editor.atlas.heightmap = atlas_texture_h;
-        //     } else {
-        //         pixi.editor.atlas.heightmap = atlas_texture_h;
-        //     }
-        // } else {
-        //     if (pixi.editor.atlas.heightmap) |*heightmap| {
-        //         heightmap.deinit();
-        //     }
-        // }
-
         const atlas: pixi.Atlas = .{
             .sprites = try pixi.app.allocator.alloc(pixi.Sprite, packer.sprites.items.len),
             .animations = try pixi.app.allocator.alloc(pixi.Animation, packer.animations.items.len),
@@ -450,98 +335,6 @@ pub fn packAndClear(packer: *Packer) !void {
         packer.clearAndFree();
     }
 }
-
-// /// Takes a texture and a src rect and reduces the rect removing all fully transparent pixels
-// /// If the src rect doesn't contain any opaque pixels, returns null
-// pub fn reduce(texture: *pixi.gfx.Texture, src: [4]usize) ?[4]usize {
-//     const pixels = @as([*][4]u8, @ptrCast(texture.pixels.ptr))[0 .. texture.pixels.len / 4];
-//     const layer_width = @as(usize, @intCast(texture.width));
-
-//     const src_x = src[0];
-//     const src_y = src[1];
-//     const src_width = src[2];
-//     const src_height = src[3];
-
-//     var top = src_y;
-//     var bottom = src_y + src_height - 1;
-//     var left = src_x;
-//     var right = src_x + src_width - 1;
-
-//     top: {
-//         while (top < bottom) : (top += 1) {
-//             const start = left + top * layer_width;
-//             const row = pixels[start .. start + src_width];
-//             for (row) |pixel| {
-//                 if (pixel[3] != 0) {
-//                     break :top;
-//                 }
-//             }
-//         }
-//     }
-//     if (top == bottom) return null;
-
-//     bottom: {
-//         while (bottom > top) : (bottom -= 1) {
-//             const start = left + bottom * layer_width;
-//             const row = pixels[start .. start + src_width];
-//             for (row) |pixel| {
-//                 if (pixel[3] != 0) {
-//                     if (bottom < src_y + src_height)
-//                         bottom += 0; // Replace with 1 if needed
-//                     break :bottom;
-//                 }
-//             }
-//         }
-//     }
-
-//     const height = bottom - top + 1;
-//     if (height == 0)
-//         return null;
-
-//     const new_top: usize = if (top > 0) top - 1 else 0;
-
-//     left: {
-//         while (left < right) : (left += 1) {
-//             var y = bottom + 1;
-//             while (y > new_top) {
-//                 y -= 1;
-//                 if (pixels[left + y * layer_width][3] != 0) {
-//                     break :left;
-//                 }
-//             }
-//         }
-//     }
-
-//     right: {
-//         while (right > left) : (right -= 1) {
-//             var y = bottom + 1;
-//             while (y > new_top) {
-//                 y -= 1;
-//                 if (pixels[right + y * layer_width][3] != 0) {
-//                     if (right < src_x + src_width)
-//                         right += 1;
-//                     break :right;
-//                 }
-//             }
-//         }
-//     }
-
-//     const width = right - left;
-//     if (width == 0)
-//         return null;
-
-//     // // If we are packing a tileset, we want a uniform / non-tightly-packed grid. We remove all
-//     // // completely empty sprite cells (the return null cases above), but do not trim transparent
-//     // // regions during packing.
-//     // if (pixi.app.pack_tileset) return src;
-
-//     return .{
-//         left,
-//         top,
-//         width,
-//         height,
-//     };
-// }
 
 pub fn packRects(self: *Packer) !?[2]u16 {
     if (self.frames.items.len == 0) return null;

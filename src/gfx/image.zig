@@ -48,10 +48,10 @@ pub fn fromImageFilePath(name: []const u8, path: []const u8, invalidation: dvui.
     return fromImageFileBytes(name, file_byes, invalidation);
 }
 
-pub fn fromPixelsPMA(p: []dvui.Color.PMA, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
+pub fn fromPixelsPMA(pixel_data: []dvui.Color.PMA, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
     return .{
         .pixelsPMA = .{
-            .rgba = pixi.app.allocator.dupe(u8, p) catch return error.MemoryAllocationFailed,
+            .rgba = pixi.app.allocator.dupe(u8, pixel_data) catch return error.MemoryAllocationFailed,
             .interpolation = .nearest,
             .invalidation = invalidation,
             .width = width,
@@ -60,10 +60,10 @@ pub fn fromPixelsPMA(p: []dvui.Color.PMA, width: u32, height: u32, invalidation:
     };
 }
 
-pub fn fromPixels(pixel_data: []u8, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) dvui.ImageSource {
+pub fn fromPixels(pixel_data: []u8, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
     return .{
         .pixels = .{
-            .rgba = pixel_data,
+            .rgba = pixi.app.allocator.dupe(u8, pixel_data) catch return error.MemoryAllocationFailed,
             .interpolation = .nearest,
             .invalidation = invalidation,
             .width = width,

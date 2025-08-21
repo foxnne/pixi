@@ -63,7 +63,7 @@ pub fn fromPixelsPMA(id: u64, name: []const u8, pixel_data: []dvui.Color.PMA, wi
 }
 
 pub fn fromPixels(id: u64, name: []const u8, pixel_data: []u8, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
-    const source = pixi.image.fromPixels(pixel_data, width, height, invalidation);
+    const source = pixi.image.fromPixels(pixel_data, width, height, invalidation) catch return error.ErrorCreatingImageSource;
     const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intCast(width * height))) catch return error.MemoryAllocationFailed;
 
     return .{
@@ -284,14 +284,14 @@ pub fn writeSourceToPng(layer: *const Layer, path: []const u8) !void {
 
 /// Takes a texture and a src rect and reduces the rect removing all fully transparent pixels
 /// If the src rect doesn't contain any opaque pixels, returns null
-pub fn reduce(layer: *Layer, src: [4]usize) ?[4]usize {
+pub fn reduce(layer: *Layer, src: dvui.Rect) ?dvui.Rect {
     const layer_width = @as(usize, @intFromFloat(layer.size().w));
     const read_pixels = layer.pixels();
 
-    const src_x = src[0];
-    const src_y = src[1];
-    const src_width = src[2];
-    const src_height = src[3];
+    const src_x: usize = @as(usize, @intFromFloat(src.x));
+    const src_y: usize = @as(usize, @intFromFloat(src.y));
+    const src_width: usize = @as(usize, @intFromFloat(src.w));
+    const src_height: usize = @as(usize, @intFromFloat(src.h));
 
     var top = src_y;
     var bottom = src_y + src_height - 1;
@@ -367,9 +367,9 @@ pub fn reduce(layer: *Layer, src: [4]usize) ?[4]usize {
     // if (pixi.app.pack_tileset) return src;
 
     return .{
-        left,
-        top,
-        width,
-        height,
+        .x = @floatFromInt(left),
+        .y = @floatFromInt(top),
+        .w = @floatFromInt(width),
+        .h = @floatFromInt(height),
     };
 }

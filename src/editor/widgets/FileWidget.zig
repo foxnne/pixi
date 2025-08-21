@@ -60,6 +60,12 @@ pub fn processKeybinds(self: *FileWidget) void {
                         std.log.err("Failed to save", .{});
                     };
                 }
+
+                if (ke.matchBind("transform") and ke.action == .down) {
+                    self.init_options.file.transform() catch {
+                        std.log.err("Failed to transform", .{});
+                    };
+                }
             },
             else => {},
         }
@@ -738,7 +744,7 @@ pub fn drawLayers(self: *FileWidget) void {
     });
     shadow_box.deinit();
 
-    const mouse_data_point = self.init_options.file.gui.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+    const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
     // Draw the checkerboard texture at the hovered sprite position
     const bounds = dvui.Rect.fromSize(.{ .w = @floatFromInt(self.init_options.file.width), .h = @floatFromInt(self.init_options.file.height) });
     if (bounds.contains(mouse_data_point)) {

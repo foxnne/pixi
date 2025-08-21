@@ -206,6 +206,7 @@ fn drawTabs(self: *Artboard) void {
                 pixi.editor.closeFileID(file.id) catch |err| {
                     dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
                 };
+                break;
             }
         } else if (file.dirty()) {
             dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
@@ -385,7 +386,6 @@ pub fn drawCanvas(self: *Artboard) !void {
     defer {
         dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
         pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{});
-
         canvas_vbox.deinit();
     }
     defer self.processCanvasDrag(canvas_vbox.data());
@@ -396,10 +396,10 @@ pub fn drawCanvas(self: *Artboard) !void {
         }
 
         const file = &pixi.editor.open_files.values()[self.open_file_index];
-        file.gui.canvas.id = canvas_vbox.data().id;
+        file.editor.canvas.id = canvas_vbox.data().id;
 
         var file_widget = pixi.dvui.FileWidget.init(@src(), .{
-            .canvas = &file.gui.canvas,
+            .canvas = &file.editor.canvas,
             .file = file,
         }, .{
             .expand = .both,

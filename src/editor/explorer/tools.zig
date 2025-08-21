@@ -213,7 +213,7 @@ pub fn drawLayers() !void {
     defer vbox.deinit();
 
     if (pixi.editor.activeFile()) |file| {
-        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.gui.layers_scroll_info }, .{
+        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.layers_scroll_info }, .{
             .expand = .both,
             .background = false,
             .corner_radius = dvui.Rect.all(1000),
@@ -221,7 +221,7 @@ pub fn drawLayers() !void {
 
         defer scroll_area.deinit();
 
-        const vertical_scroll = file.gui.layers_scroll_info.offset(.vertical);
+        const vertical_scroll = file.editor.layers_scroll_info.offset(.vertical);
 
         var reorderable = pixi.dvui.reorder(@src(), .{ .drag_name = "layer_drag" }, .{
             .expand = .horizontal,
@@ -463,7 +463,7 @@ pub fn drawLayers() !void {
         if (vertical_scroll > 0.0)
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{});
 
-        if (file.gui.layers_scroll_info.virtual_size.h > file.gui.layers_scroll_info.viewport.h and vertical_scroll < file.gui.layers_scroll_info.scrollMax(.vertical))
+        if (file.editor.layers_scroll_info.virtual_size.h > file.editor.layers_scroll_info.viewport.h and vertical_scroll < file.editor.layers_scroll_info.scrollMax(.vertical))
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
     }
 }
