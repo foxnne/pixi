@@ -218,7 +218,8 @@ pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: dvui.Rect, 
 
     var d = pixels(source)[x + yy * tex_width .. x + yy * tex_width + width];
     var src_y: usize = 0;
-    while (h > 0) : (h -= 1) {
+    while (h > 0) {
+        h -= 1;
         const src_row = src_pixels[src_y * width .. (src_y * width) + width];
         if (!transparent) {
             @memcpy(d, src_row);
@@ -233,7 +234,12 @@ pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: dvui.Rect, 
         // next row and move our slice to it as well
         src_y += 1;
         yy += 1;
-        d = pixels(source)[x + yy * tex_width .. x + yy * tex_width + width];
+
+        const next_row_start = x + yy * tex_width;
+        const next_row_end = next_row_start + width;
+        if (next_row_start < pixels(source).len and next_row_end < pixels(source).len) {
+            d = pixels(source)[next_row_start..next_row_end];
+        }
     }
 }
 

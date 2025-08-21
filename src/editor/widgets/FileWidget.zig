@@ -939,8 +939,8 @@ pub fn drawLayers(self: *FileWidget) void {
             .background = false,
         });
 
-        transform_image.rectScale().r.stroke(dvui.Rect.Physical.all(transform_image.rectScale().r.w / 8), .{
-            .thickness = 6,
+        transform_image.rectScale().r.stroke(dvui.Rect.Physical.all(0), .{
+            .thickness = 2,
             .color = dvui.themeGet().color(.err, .fill),
             .closed = true,
         });

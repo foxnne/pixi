@@ -650,18 +650,17 @@ pub fn transform(self: *File) !void {
     //if (self.editor.transform != null) return;
 
     //const active_layer = self.layers.get(self.selected_layer_index);
-    var selection_layer = self.selection_layer;
-
-    selection_layer.clear();
+    self.selection_layer.clear();
 
     for (0..self.spriteCount()) |index| {
         if (self.selected_sprites.isSet(index)) {
             const source_rect = self.spriteRect(index);
+            std.log.debug("Source rect: {any}", .{source_rect});
             if (self.layers.get(self.selected_layer_index).pixelsFromRect(
                 dvui.currentWindow().arena(),
                 source_rect,
             )) |source_pixels| {
-                selection_layer.blit(source_pixels, source_rect, true);
+                self.selection_layer.blit(source_pixels, source_rect, true);
             }
         }
     }
@@ -669,10 +668,9 @@ pub fn transform(self: *File) !void {
     // At this point, we will assume that the selection layer has a copy of the active layer pixels,
     // and we can use this to reduce and create a new image source
 
-    const source_rect = dvui.Rect.fromSize(selection_layer.size());
+    const source_rect = dvui.Rect.fromSize(self.selection_layer.size());
 
-    if (selection_layer.reduce(source_rect)) |reduced_data_rect| {
-        std.log.debug("Reduced data rect: {any}", .{reduced_data_rect});
+    if (self.selection_layer.reduce(source_rect)) |reduced_data_rect| {
         self.editor.transform = .{
             .data_points = .{
                 reduced_data_rect.topLeft(),
@@ -682,7 +680,7 @@ pub fn transform(self: *File) !void {
                 reduced_data_rect.center(),
             },
             .source = pixi.image.fromPixels(
-                @ptrCast(selection_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
+                @ptrCast(self.selection_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
                 @intFromFloat(reduced_data_rect.w),
                 @intFromFloat(reduced_data_rect.h),
                 .ptr,
