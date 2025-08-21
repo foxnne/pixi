@@ -266,8 +266,19 @@ pub fn getIndexShapeOffset(self: *Layer, origin: dvui.Point, current_index: usiz
     return null;
 }
 
+pub fn clearRect(self: *Layer, rect: dvui.Rect) void {
+    pixi.image.clearRect(self.source, rect);
+    self.invalidate();
+}
+
+pub fn setRect(self: *Layer, rect: dvui.Rect, color: [4]u8) void {
+    pixi.image.setRect(self.source, rect, color);
+    self.invalidate();
+}
+
 pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
     pixi.image.blit(self.source, src_pixels, dst_rect, transparent);
+    self.invalidate();
 }
 
 pub fn clear(self: *Layer) void {

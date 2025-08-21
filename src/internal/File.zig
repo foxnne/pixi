@@ -649,6 +649,8 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
 pub fn transform(self: *File) !void {
     //if (self.editor.transform != null) return;
 
+    var selected_layer = self.layers.get(self.selected_layer_index);
+
     //const active_layer = self.layers.get(self.selected_layer_index);
     self.selection_layer.clear();
 
@@ -656,11 +658,12 @@ pub fn transform(self: *File) !void {
         if (self.selected_sprites.isSet(index)) {
             const source_rect = self.spriteRect(index);
             std.log.debug("Source rect: {any}", .{source_rect});
-            if (self.layers.get(self.selected_layer_index).pixelsFromRect(
+            if (selected_layer.pixelsFromRect(
                 dvui.currentWindow().arena(),
                 source_rect,
             )) |source_pixels| {
                 self.selection_layer.blit(source_pixels, source_rect, true);
+                selected_layer.clearRect(source_rect);
             }
         }
     }

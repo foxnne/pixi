@@ -923,27 +923,153 @@ pub fn drawLayers(self: *FileWidget) void {
         }
     }
 
-    if (file.editor.transform) |transform| {
-        const top_left = transform.data_points[0];
+    if (file.editor.transform) |*transform| {
+        //const top_left = transform.data_points[0];
 
-        var transform_rect = dvui.Rect.fromPoint(top_left);
-        transform_rect.w = pixi.image.size(transform.source).w;
-        transform_rect.h = pixi.image.size(transform.source).h;
+        var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        for (transform.data_points[0..5], 0..) |*point, point_index| {
+            point.x = @round(point.x);
+            point.y = @round(point.y);
 
-        const transform_image = dvui.image(@src(), .{
-            .source = transform.source,
-        }, .{
-            .rect = transform_rect,
-            .border = dvui.Rect.all(0),
-            .id_extra = file.layers.len + 2,
-            .background = false,
-        });
+            const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
 
-        transform_image.rectScale().r.stroke(dvui.Rect.Physical.all(0), .{
+            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
+            screen_rect.w = 30;
+            screen_rect.h = 30;
+            screen_rect.x -= screen_rect.w / 2;
+            screen_rect.y -= screen_rect.h / 2;
+
+            {
+                for (dvui.events()) |*e| {
+                    if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+                        continue;
+                    }
+
+                    switch (e.evt) {
+                        .mouse => |me| {
+                            const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+
+                            if (self.init_options.canvas.rect.contains(me.p))
+                                dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+
+                            if (me.action == .press and me.button.pointer()) {
+                                if (screen_rect.contains(me.p)) {
+                                    transform.active_data_point = point_index;
+                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                                    dvui.dragPreStart(me.p, .{ .name = "transform_vertex_drag" });
+
+                                    self.drag_data_point = current_point;
+                                }
+                            } else if (me.action == .release and me.button.pointer()) {
+                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                    dvui.captureMouse(null, e.num);
+                                    dvui.dragEnd();
+                                }
+                                self.drag_data_point = null;
+                            } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
+                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                                    if (dvui.dragging(me.p, "transform_vertex_drag")) |_| {
+                                        if (transform.active_data_point) |active_data_point| {
+                                            if (active_data_point == point_index) {
+                                                point.* = file.editor.canvas.dataFromScreenPoint(me.p);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        else => {},
+                    }
+                }
+            }
+            if (point_index < 4)
+                path.addPoint(screen_point);
+        }
+
+        path.build().stroke(.{
             .thickness = 2,
             .color = dvui.themeGet().color(.err, .fill),
             .closed = true,
         });
+
+        var centroid = transform.data_points[0];
+        for (transform.data_points[1..4]) |*point| {
+            centroid.x += point.x;
+            centroid.y += point.y;
+        }
+        centroid.x /= 4;
+        centroid.y /= 4;
+
+        const triangle_opts: ?dvui.Triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
+            .center = file.editor.canvas.screenFromDataPoint(centroid),
+            .color = .white,
+        }) catch null;
+
+        if (triangle_opts) |triangles| {
+            triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
+            triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
+            triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
+            triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
+            triangles.vertexes[4].uv = .{ 0.5, 0.5 }; // C
+
+            dvui.renderTriangles(triangles, transform.source.getTexture() catch null) catch {
+                std.log.err("Failed to render triangles", .{});
+            };
+        } else {
+            std.log.err("Failed to fill triangles", .{});
+        }
+
+        for (transform.data_points[0..4]) |*point| {
+            const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
+
+            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
+            screen_rect.w = 30;
+            screen_rect.h = 30;
+            screen_rect.x -= screen_rect.w / 2;
+            screen_rect.y -= screen_rect.h / 2;
+
+            screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+                .color = .green,
+            });
+        }
+
+        const screen_point = file.editor.canvas.screenFromDataPoint(centroid);
+
+        var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
+        screen_rect.w = 30;
+        screen_rect.h = 30;
+        screen_rect.x -= screen_rect.w / 2;
+        screen_rect.y -= screen_rect.h / 2;
+
+        screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+            .color = .green,
+        });
+
+        // var triangles = dvui.Path.fillConvexTriangles(transform.data_points[0..4], pixi.app.allocator, .{}) catch {
+        //     std.log.err("Failed to fill triangles", .{});
+        //     return;
+        // };
+
+        // var transform_rect = dvui.Rect.fromPoint(top_left);
+        // transform_rect.w = pixi.image.size(transform.source).w;
+        // transform_rect.h = pixi.image.size(transform.source).h;
+
+        // const transform_image = dvui.image(@src(), .{
+        //     .source = transform.source,
+        // }, .{
+        //     .rect = transform_rect,
+        //     .border = dvui.Rect.all(0),
+        //     .id_extra = file.layers.len + 2,
+        //     .background = false,
+        // });
+
+        // transform_image.rectScale().r.stroke(dvui.Rect.Physical.all(0), .{
+        //     .thickness = 2,
+        //     .color = dvui.themeGet().color(.err, .fill),
+        //     .closed = true,
+        // });
     }
 }
 

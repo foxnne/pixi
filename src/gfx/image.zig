@@ -203,15 +203,50 @@ pub fn setPixelIndex(source: dvui.ImageSource, index: usize, color: [4]u8) void 
     pixels(source)[index] = color;
 }
 
+pub fn clearRect(source: dvui.ImageSource, rect: dvui.Rect) void {
+    setRect(source, rect, .{ 0, 0, 0, 0 });
+}
+
+pub fn setRect(source: dvui.ImageSource, rect: dvui.Rect, color: [4]u8) void {
+    const x = @as(usize, @intFromFloat(rect.x));
+    const y = @as(usize, @intFromFloat(rect.y));
+    const width = @as(usize, @intFromFloat(rect.w));
+    const height = @as(usize, @intFromFloat(rect.h));
+
+    const image_size = size(source);
+
+    const tex_width = @as(usize, @intFromFloat(image_size.w));
+
+    var yy = y;
+    var h = height;
+
+    var d = pixels(source)[x + yy * tex_width .. x + yy * tex_width + width];
+    var src_y: usize = 0;
+    while (h > 0) {
+        h -= 1;
+        @memset(d, color);
+
+        // next row and move our slice to it as well
+        src_y += 1;
+        yy += 1;
+
+        const next_row_start = x + yy * tex_width;
+        const next_row_end = next_row_start + width;
+        if (next_row_start < pixels(source).len and next_row_end < pixels(source).len) {
+            d = pixels(source)[next_row_start..next_row_end];
+        }
+    }
+}
+
 pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
     const x = @as(usize, @intFromFloat(dst_rect.x));
     const y = @as(usize, @intFromFloat(dst_rect.y));
     const width = @as(usize, @intFromFloat(dst_rect.w));
     const height = @as(usize, @intFromFloat(dst_rect.h));
 
-    const s = size(source);
+    const image_size = size(source);
 
-    const tex_width = @as(usize, @intFromFloat(s.w));
+    const tex_width = @as(usize, @intFromFloat(image_size.w));
 
     var yy = y;
     var h = height;
