@@ -107,6 +107,11 @@ pub fn pixels(self: *const Layer) [][4]u8 {
     return pixi.image.pixels(self.source);
 }
 
+/// Caller owns memory that must be freed!
+pub fn pixelsFromRect(self: *const Layer, allocator: std.mem.Allocator, rect: dvui.Rect) ?[][4]u8 {
+    return pixi.image.pixelsFromRect(allocator, self.source, rect);
+}
+
 pub fn bytes(self: *const Layer) []u8 {
     return pixi.image.bytes(self.source);
 }
@@ -261,7 +266,7 @@ pub fn getIndexShapeOffset(self: *Layer, origin: dvui.Point, current_index: usiz
     return null;
 }
 
-pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: [4]u32, transparent: bool) void {
+pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
     pixi.image.blit(self.source, src_pixels, dst_rect, transparent);
 }
 

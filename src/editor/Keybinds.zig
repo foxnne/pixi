@@ -35,6 +35,7 @@ pub fn register() !void {
     try window.keybinds.putNoClobber(window.gpa, "pencil", .{ .key = .d });
     try window.keybinds.putNoClobber(window.gpa, "eraser", .{ .key = .e });
     try window.keybinds.putNoClobber(window.gpa, "bucket", .{ .key = .b });
+    try window.keybinds.putNoClobber(window.gpa, "pointer", .{ .key = .escape });
 }
 
 // These keybinds are available regardless of the currently focused widget.
@@ -69,6 +70,10 @@ pub fn tick() !void {
                 if (ke.matchBind("bucket") and ke.action == .down) {
                     std.log.debug("bucket tool selected", .{});
                     pixi.editor.tools.set(.bucket);
+                }
+                if (ke.matchBind("pointer") and ke.action == .down) {
+                    std.log.debug("pointer tool selected", .{});
+                    pixi.editor.tools.set(.pointer);
                 }
             },
             else => {},

@@ -95,6 +95,55 @@ pub fn pixels(source: dvui.ImageSource) [][4]u8 {
     return &.{};
 }
 
+/// Returns a slice of pixels from the image source that fit within the specified rect
+/// Caller owns the memory returned
+pub fn pixelsFromRect(allocator: std.mem.Allocator, source: dvui.ImageSource, rect: dvui.Rect) ?[][4]u8 {
+    if (rect.w <= 0 or rect.h <= 0) {
+        return null;
+    }
+
+    // Allocate output array for the rect
+    const width: usize = @intFromFloat(rect.w);
+    const height: usize = @intFromFloat(rect.h);
+    var output_pixels = allocator.alloc([4]u8, width * height) catch return null;
+
+    const all_pixels = pixels(source);
+    const s = size(source);
+
+    // Clamp rect to image bounds
+    const start_x: usize = @max(0, @as(usize, @intFromFloat(rect.x)));
+    const start_y: usize = @max(0, @as(usize, @intFromFloat(rect.y)));
+    const end_x: usize = @min(@as(usize, @intFromFloat(rect.x + rect.w)), @as(usize, @intFromFloat(s.w)));
+    const end_y: usize = @min(@as(usize, @intFromFloat(rect.y + rect.h)), @as(usize, @intFromFloat(s.h)));
+
+    var out_i: usize = 0;
+    for (start_y..end_y) |y| {
+        for (start_x..end_x) |x| {
+            const src_index = x + y * @as(usize, @intFromFloat(s.w));
+            if (src_index < all_pixels.len and out_i < output_pixels.len) {
+                output_pixels[out_i] = all_pixels[src_index];
+            } else if (out_i < output_pixels.len) {
+                output_pixels[out_i] = .{ 0, 0, 0, 0 };
+            }
+            out_i += 1;
+        }
+        // If the rect extends beyond the image width, fill with transparent
+        for (end_x..start_x + width) |_| {
+            if (out_i < output_pixels.len) {
+                output_pixels[out_i] = .{ 0, 0, 0, 0 };
+                out_i += 1;
+            }
+        }
+    }
+    // If the rect extends beyond the image height, fill with transparent
+    while (out_i < output_pixels.len) {
+        output_pixels[out_i] = .{ 0, 0, 0, 0 };
+        out_i += 1;
+    }
+
+    return output_pixels;
+}
+
 pub fn bytes(source: dvui.ImageSource) []u8 {
     switch (source) {
         .pixels => |p| return @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
@@ -154,11 +203,11 @@ pub fn setPixelIndex(source: dvui.ImageSource, index: usize, color: [4]u8) void 
     pixels(source)[index] = color;
 }
 
-pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: [4]u32, transparent: bool) void {
-    const x = @as(usize, @intCast(dst_rect[0]));
-    const y = @as(usize, @intCast(dst_rect[1]));
-    const width = @as(usize, @intCast(dst_rect[2]));
-    const height = @as(usize, @intCast(dst_rect[3]));
+pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
+    const x = @as(usize, @intFromFloat(dst_rect.x));
+    const y = @as(usize, @intFromFloat(dst_rect.y));
+    const width = @as(usize, @intFromFloat(dst_rect.w));
+    const height = @as(usize, @intFromFloat(dst_rect.h));
 
     const s = size(source);
 

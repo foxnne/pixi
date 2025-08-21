@@ -294,8 +294,16 @@ pub fn packAndClear(packer: *Packer) !void {
         );
 
         for (packer.frames.items, packer.sprites.items) |frame, sprite| {
-            if (sprite.image) |image|
-                atlas_layer.blit(image.pixels, frame.slice(), true);
+            if (sprite.image) |image| {
+                const slice = frame.slice();
+
+                atlas_layer.blit(image.pixels, .{
+                    .x = @floatFromInt(slice[0]),
+                    .y = @floatFromInt(slice[1]),
+                    .w = @floatFromInt(slice[2]),
+                    .h = @floatFromInt(slice[3]),
+                }, true);
+            }
         }
         atlas_layer.invalidate();
 

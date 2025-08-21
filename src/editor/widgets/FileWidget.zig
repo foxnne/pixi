@@ -235,6 +235,101 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
     }
 }
 
+pub fn processSpriteSelection(self: *FileWidget) void {
+    if (pixi.editor.tools.current != .pointer) return;
+    const file = self.init_options.file;
+
+    for (dvui.events()) |*e| {
+        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+            continue;
+        }
+
+        switch (e.evt) {
+            .mouse => |me| {
+                const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+
+                if (self.init_options.canvas.rect.contains(me.p))
+                    dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+
+                if (me.action == .press and me.button.pointer()) {
+                    if (me.mod.matchBind("shift")) {
+                        if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
+                            file.selected_sprites.unset(sprite_index);
+                        }
+                    } else if (me.mod.matchBind("ctrl/cmd")) {
+                        if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
+                            file.selected_sprites.set(sprite_index);
+                        }
+                    } else {
+                        file.clearSelectedSprites();
+                        if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
+                            file.selected_sprites.set(sprite_index);
+                        }
+                    }
+
+                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                    dvui.dragPreStart(me.p, .{ .name = "sprite_selection_drag" });
+
+                    self.drag_data_point = current_point;
+                } else if (me.action == .release and me.button.pointer()) {
+                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                        dvui.captureMouse(null, e.num);
+                        dvui.dragEnd();
+                    }
+                    self.drag_data_point = null;
+                } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
+                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                        if (dvui.dragging(me.p, "sprite_selection_drag")) |_| {
+                            if (self.drag_data_point) |previous_point| {
+                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                const min_x = @min(previous_point.x, current_point.x);
+                                const min_y = @min(previous_point.y, current_point.y);
+                                const max_x = @max(previous_point.x, current_point.x);
+                                const max_y = @max(previous_point.y, current_point.y);
+                                const span_rect = dvui.Rect{
+                                    .x = min_x,
+                                    .y = min_y,
+                                    .w = max_x - min_x,
+                                    .h = max_y - min_y,
+                                };
+
+                                var screen_selection_rect = self.init_options.canvas.screenFromDataRect(span_rect);
+
+                                dvui.scrollDrag(.{
+                                    .mouse_pt = me.p,
+                                    .screen_rect = screen_selection_rect,
+                                });
+
+                                var selection_color = dvui.themeGet().color(.highlight, .fill).opacity(0.5);
+
+                                if (me.mod.matchBind("shift")) {
+                                    file.setSpriteSelection(span_rect, false);
+                                    selection_color = dvui.themeGet().color(.err, .fill).opacity(0.5);
+                                } else if (me.mod.matchBind("ctrl/cmd")) {
+                                    file.setSpriteSelection(span_rect, true);
+                                } else {
+                                    file.clearSelectedSprites();
+                                    file.setSpriteSelection(span_rect, true);
+                                }
+
+                                screen_selection_rect.fill(
+                                    dvui.Rect.Physical.all(screen_selection_rect.w / 12),
+                                    .{
+                                        .color = selection_color,
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+            },
+            else => {},
+        }
+    }
+}
+
 pub fn processStroke(self: *FileWidget) void {
     const file = self.init_options.file;
 
@@ -746,23 +841,8 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
     // Draw the checkerboard texture at the hovered sprite position
-    const bounds = dvui.Rect.fromSize(.{ .w = @floatFromInt(self.init_options.file.width), .h = @floatFromInt(self.init_options.file.height) });
-    if (bounds.contains(mouse_data_point)) {
-        const tile_width = @as(f32, @floatFromInt(self.init_options.file.tile_width));
-        const tile_height = @as(f32, @floatFromInt(self.init_options.file.tile_height));
-
-        const tile_column = @divTrunc(mouse_data_point.x, tile_width);
-        const tile_row = @divTrunc(mouse_data_point.y, tile_height);
-
-        const x = tile_column * tile_width;
-        const y = tile_row * tile_height;
-
-        const image_rect: dvui.Rect = .{
-            .x = x,
-            .y = y,
-            .w = @as(f32, @floatFromInt(file.tile_width)),
-            .h = @as(f32, @floatFromInt(file.tile_height)),
-        };
+    if (file.spriteIndex(mouse_data_point)) |sprite_index| {
+        const image_rect = file.spriteRect(sprite_index);
 
         const image_rect_scale: dvui.RectScale = .{
             .r = self.init_options.canvas.screenFromDataRect(image_rect),
@@ -828,6 +908,43 @@ pub fn drawLayers(self: *FileWidget) void {
         self.init_options.canvas.rect.bottomRight(),
         self.init_options.canvas.rect.bottomLeft(),
     } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text), .closed = true });
+
+    // Draw the selection box for the selected sprites
+    if (pixi.editor.tools.current == .pointer) {
+        var iter = file.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+        while (iter.next()) |i| {
+            const sprite_rect = file.spriteRect(i);
+            const sprite_rect_physical = self.init_options.canvas.screenFromDataRect(sprite_rect);
+            sprite_rect_physical.stroke(dvui.Rect.Physical.all(sprite_rect_physical.w / 8), .{
+                .thickness = 6,
+                .color = dvui.themeGet().color(.highlight, .fill),
+                .closed = true,
+            });
+        }
+    }
+
+    if (file.editor.transform) |transform| {
+        const top_left = transform.data_points[0];
+
+        var transform_rect = dvui.Rect.fromPoint(top_left);
+        transform_rect.w = pixi.image.size(transform.source).w;
+        transform_rect.h = pixi.image.size(transform.source).h;
+
+        const transform_image = dvui.image(@src(), .{
+            .source = transform.source,
+        }, .{
+            .rect = transform_rect,
+            .border = dvui.Rect.all(0),
+            .id_extra = file.layers.len + 2,
+            .background = false,
+        });
+
+        transform_image.rectScale().r.stroke(dvui.Rect.Physical.all(transform_image.rectScale().r.w / 8), .{
+            .thickness = 6,
+            .color = dvui.themeGet().color(.err, .fill),
+            .closed = true,
+        });
+    }
 }
 
 pub fn processEvents(self: *FileWidget) void {
@@ -869,6 +986,8 @@ pub fn processEvents(self: *FileWidget) void {
 
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
+
+    self.processSpriteSelection();
 
     // Draw shadows for the scroll container
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .top, .{});
