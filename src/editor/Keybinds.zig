@@ -36,6 +36,8 @@ pub fn register() !void {
     try window.keybinds.putNoClobber(window.gpa, "eraser", .{ .key = .e });
     try window.keybinds.putNoClobber(window.gpa, "bucket", .{ .key = .b });
     try window.keybinds.putNoClobber(window.gpa, "pointer", .{ .key = .escape });
+
+    try window.keybinds.putNoClobber(window.gpa, "cancel", .{ .key = .escape });
 }
 
 // These keybinds are available regardless of the currently focused widget.

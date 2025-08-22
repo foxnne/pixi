@@ -66,6 +66,12 @@ pub fn processKeybinds(self: *FileWidget) void {
                         std.log.err("Failed to transform", .{});
                     };
                 }
+
+                if (ke.matchBind("cancel") and ke.action == .down) {
+                    if (self.init_options.file.editor.transform) |*transform| {
+                        transform.cancel();
+                    }
+                }
             },
             else => {},
         }
@@ -1101,12 +1107,12 @@ pub fn drawLayers(self: *FileWidget) void {
     } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text), .closed = true });
 
     // Draw the selection box for the selected sprites
-    if (pixi.editor.tools.current == .pointer) {
+    if (pixi.editor.tools.current == .pointer and file.editor.transform == null) {
         var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
         while (iter.next()) |i| {
             const sprite_rect = file.spriteRect(i);
             const sprite_rect_physical = self.init_options.canvas.screenFromDataRect(sprite_rect);
-            sprite_rect_physical.stroke(dvui.Rect.Physical.all(sprite_rect_physical.w / 8), .{
+            sprite_rect_physical.stroke(dvui.Rect.Physical.all(@min(sprite_rect_physical.w, sprite_rect_physical.h) / 8), .{
                 .thickness = 6,
                 .color = dvui.themeGet().color(.highlight, .fill),
                 .closed = true,
