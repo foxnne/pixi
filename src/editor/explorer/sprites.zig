@@ -17,7 +17,7 @@ pub fn draw(editor: *Editor) !void {
         imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 6.0 });
         defer imgui.popStyleVarEx(3);
 
-        const selection = file.selected_sprites.items.len > 0;
+        const selection = file.editor.selected_sprites.items.len > 0;
 
         if (imgui.collapsingHeader(pixi.fa.wrench ++ "  Tools", imgui.TreeNodeFlags_DefaultOpen)) {
             imgui.indent();
@@ -40,13 +40,13 @@ pub fn draw(editor: *Editor) !void {
                     defer imgui.popStyleColorEx(3);
                     var x_same: bool = true;
                     var y_same: bool = true;
-                    const first_sprite = file.sprites.slice().get(file.selected_sprites.items[0]);
+                    const first_sprite = file.sprites.slice().get(file.editor.selected_sprites.items[0]);
                     var origin_x: f32 = first_sprite.origin[0];
                     var origin_y: f32 = first_sprite.origin[1];
                     const tile_width = @as(f32, @floatFromInt(file.tile_width));
                     const tile_height = @as(f32, @floatFromInt(file.tile_height));
 
-                    for (file.selected_sprites.items) |selected_index| {
+                    for (file.editor.selected_sprites.items) |selected_index| {
                         const sprite = file.sprites.slice().get(selected_index);
                         if (origin_x != sprite.origin[0]) {
                             x_same = false;

@@ -133,7 +133,7 @@ fn drawTabs(self: *Artboard) void {
     defer tabs_hbox.deinit();
 
     for (pixi.editor.open_files.values(), 0..) |file, i| {
-        if (file.grouping != self.grouping) continue;
+        if (file.editor.grouping != self.grouping) continue;
 
         var reorderable = tabs.reorderable(@src(), .{}, .{
             .expand = .vertical,
@@ -284,18 +284,18 @@ pub fn processTabsDrag(self: *Artboard) void {
                         std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
                         std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
 
-                        pixi.editor.open_files.values()[insert_before].grouping = self.grouping;
+                        pixi.editor.open_files.values()[insert_before].editor.grouping = self.grouping;
                         pixi.editor.setActiveFile(insert_before);
                     } else {
                         if (insert_before > 0) {
                             std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before - 1]);
                             std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before - 1]);
-                            pixi.editor.open_files.values()[insert_before - 1].grouping = self.grouping;
+                            pixi.editor.open_files.values()[insert_before - 1].editor.grouping = self.grouping;
                             pixi.editor.setActiveFile(insert_before - 1);
                         } else {
                             std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
                             std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
-                            pixi.editor.open_files.values()[insert_before].grouping = self.grouping;
+                            pixi.editor.open_files.values()[insert_before].editor.grouping = self.grouping;
                             pixi.editor.setActiveFile(insert_before);
                         }
                     }
@@ -340,14 +340,14 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
 
                             if (artboard.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
                                 for (pixi.editor.open_files.values()) |f| {
-                                    if (f.grouping == artboard.grouping and f.id != dragged_file.id) {
+                                    if (f.editor.grouping == artboard.grouping and f.id != dragged_file.id) {
                                         artboard.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
                                         break;
                                     }
                                 }
                             }
-                            dragged_file.grouping = pixi.editor.newGroupingID();
-                            pixi.editor.open_artboard_grouping = dragged_file.grouping;
+                            dragged_file.editor.grouping = pixi.editor.newGroupingID();
+                            pixi.editor.open_artboard_grouping = dragged_file.editor.grouping;
                         }
                     } else if (data.rectScale().r.contains(e.evt.mouse.p)) {
                         data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
@@ -364,14 +364,14 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
 
                             if (artboard.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
                                 for (pixi.editor.open_files.values()) |f| {
-                                    if (f.grouping == artboard.grouping and f.id != dragged_file.id) {
+                                    if (f.editor.grouping == artboard.grouping and f.id != dragged_file.id) {
                                         artboard.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
                                         break;
                                     }
                                 }
                             }
-                            dragged_file.grouping = self.grouping;
-                            pixi.editor.open_artboard_grouping = dragged_file.grouping;
+                            dragged_file.editor.grouping = self.grouping;
+                            pixi.editor.open_artboard_grouping = dragged_file.editor.grouping;
                             self.open_file_index = pixi.editor.open_files.getIndex(dragged_file.id) orelse 0;
                         }
                     }

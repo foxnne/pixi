@@ -430,15 +430,15 @@ pub fn rebuildArtboards(editor: *Editor) !void {
 
     // Create artboards for each grouping ID
     for (editor.open_files.values()) |*file| {
-        if (!editor.artboards.contains(file.grouping)) {
-            var artboard: pixi.Editor.Artboard = .init(file.grouping);
+        if (!editor.artboards.contains(file.editor.grouping)) {
+            var artboard: pixi.Editor.Artboard = .init(file.editor.grouping);
             for (editor.open_files.values()) |*f| {
-                if (f.grouping == file.grouping) {
+                if (f.editor.grouping == file.editor.grouping) {
                     artboard.open_file_index = editor.open_files.getIndex(f.id) orelse 0;
                 }
             }
 
-            editor.artboards.put(file.grouping, artboard) catch |err| {
+            editor.artboards.put(file.editor.grouping, artboard) catch |err| {
                 std.log.err("Failed to create artboard: {s}", .{@errorName(err)});
                 return err;
             };
@@ -453,7 +453,7 @@ pub fn rebuildArtboards(editor: *Editor) !void {
 
         var contains: bool = false;
         for (editor.open_files.values()) |*file| {
-            if (file.grouping == artboard.grouping) {
+            if (file.editor.grouping == artboard.grouping) {
                 contains = true;
                 break;
             }
@@ -473,7 +473,7 @@ pub fn rebuildArtboards(editor: *Editor) !void {
     // Ensure the selected file for each artboard is still valid
     for (editor.artboards.values()) |*artboard| {
         if (editor.getFile(artboard.open_file_index)) |file| {
-            if (file.grouping == artboard.grouping) {
+            if (file.editor.grouping == artboard.grouping) {
                 continue;
             }
         }
@@ -483,7 +483,7 @@ pub fn rebuildArtboards(editor: *Editor) !void {
             i -= 1;
 
             if (editor.getFile(i)) |file| {
-                if (file.grouping == artboard.grouping) {
+                if (file.editor.grouping == artboard.grouping) {
                     artboard.open_file_index = i;
                     break;
                 }
@@ -683,7 +683,7 @@ pub fn openFile(editor: *Editor, path: []const u8, grouping: u64) !bool {
     if (try pixi.Internal.File.load(path)) |file| {
         try editor.open_files.put(file.id, file);
         if (editor.open_files.getPtr(file.id)) |f| {
-            f.grouping = grouping;
+            f.editor.grouping = grouping;
         }
 
         editor.rebuildArtboards() catch {
@@ -724,7 +724,7 @@ pub fn openFile(editor: *Editor, path: []const u8, grouping: u64) !bool {
 pub fn setActiveFile(editor: *Editor, index: usize) void {
     if (index >= editor.open_files.values().len) return;
     const file = editor.open_files.values()[index];
-    const grouping = file.grouping;
+    const grouping = file.editor.grouping;
 
     if (editor.artboards.getPtr(grouping)) |artboard| {
         editor.open_artboard_grouping = grouping;
@@ -807,6 +807,7 @@ pub fn forceCloseAllFiles(editor: *Editor) !void {
     }
 }
 
+/// Begins a transform operation on the currently active file.
 pub fn transform(editor: *Editor) !void {
     if (switch (editor.tools.current) {
         .selection, .pointer => false,
@@ -821,15 +822,15 @@ pub fn transform(editor: *Editor) !void {
         if (editor.tools.current == .pointer) {
             // Current tool is the pointer, so we potentially have a sprite selection in
             // selected sprites that we need to copy to the selection layer.
-            file.selection_layer.clear();
+            file.editor.transform_layer.clear();
             for (0..file.spriteCount()) |index| {
-                if (file.selected_sprites.isSet(index)) {
+                if (file.editor.selected_sprites.isSet(index)) {
                     const source_rect = file.spriteRect(index);
                     if (selected_layer.pixelsFromRect(
                         dvui.currentWindow().arena(),
                         source_rect,
                     )) |source_pixels| {
-                        file.selection_layer.blit(
+                        file.editor.transform_layer.blit(
                             source_pixels,
                             source_rect,
                             .{ .transparent = true, .mask = true },
@@ -840,19 +841,20 @@ pub fn transform(editor: *Editor) !void {
             }
         } else if (editor.tools.current == .selection) {
             // We are in the selection tool, so we should assume that the user has painted a selection
-            // into the selection layer mask, we need to copy the pixels into the selection layer itself for reducing
-            var iterator = file.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+            // into the selection layer mask, we need to copy the pixels into the transform layer itself for reducing
+            var iterator = file.editor.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
             while (iterator.next()) |pixel_index| {
-                file.selection_layer.pixels()[pixel_index] = selected_layer.pixels()[pixel_index];
+                file.editor.transform_layer.pixels()[pixel_index] = selected_layer.pixels()[pixel_index];
                 selected_layer.pixels()[pixel_index] = .{ 0, 0, 0, 0 };
+                file.editor.transform_layer.mask.set(pixel_index);
             }
         }
 
-        // We now have a selection layer that contains:
-        // 1. the unaltered colored pixels of the active selection
-        // 2. the mask of the selection layer, which is the pixels that the user has painted
-        const source_rect = dvui.Rect.fromSize(file.selection_layer.size());
-        if (file.selection_layer.reduce(source_rect)) |reduced_data_rect| {
+        // We now have a transform layer that contains:
+        // 1. the unaltered colored pixels of the active transform
+        // 2. a mask containing bits for the pixels of the selection being transformed
+        const source_rect = dvui.Rect.fromSize(file.editor.transform_layer.size());
+        if (file.editor.transform_layer.reduce(source_rect)) |reduced_data_rect| {
             file.editor.transform = .{
                 .file_id = file.id,
                 .layer_id = selected_layer.id,
@@ -865,7 +867,7 @@ pub fn transform(editor: *Editor) !void {
                     reduced_data_rect.center().plus(.{ .y = -20 }),
                 },
                 .source = pixi.image.fromPixels(
-                    @ptrCast(file.selection_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
+                    @ptrCast(file.editor.transform_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
                     @intFromFloat(reduced_data_rect.w),
                     @intFromFloat(reduced_data_rect.h),
                     .ptr,
@@ -942,7 +944,7 @@ pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     //editor.open_file_index = 0;
     var file = editor.open_files.values()[index];
 
-    if (editor.artboards.getPtr(file.grouping)) |artboard| {
+    if (editor.artboards.getPtr(file.editor.grouping)) |artboard| {
         if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
             for (pixi.editor.open_files.values(), 0..) |f, i| {
                 if (f.grouping == artboard.grouping and f.id != file.id) {
@@ -965,10 +967,10 @@ pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
     if (editor.open_files.getPtr(id)) |file| {
 
         //editor.open_file_index = 0;
-        if (editor.artboards.getPtr(file.grouping)) |artboard| {
+        if (editor.artboards.getPtr(file.editor.grouping)) |artboard| {
             if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
                 for (pixi.editor.open_files.values(), 0..) |f, i| {
-                    if (f.grouping == artboard.grouping and f.id != file.id) {
+                    if (f.editor.grouping == artboard.grouping and f.id != file.id) {
                         artboard.open_file_index = i;
                         break;
                     }

@@ -128,10 +128,10 @@ pub fn draw(editor: *Editor) !void {
                                     imgui.sameLine();
 
                                     if (imgui.selectable(sprite_name)) {
-                                        for (file.selected_sprites.items, 0..) |selected_sprite, sprite_index| {
-                                            if (selected_sprite != sprite_index or file.selected_sprites.items.len > 1) {
-                                                file.selected_sprites.clearAndFree();
-                                                try file.selected_sprites.append(sprite_index);
+                                        for (file.editor.selected_sprites.items, 0..) |selected_sprite, sprite_index| {
+                                            if (selected_sprite != sprite_index or file.editor.selected_sprites.items.len > 1) {
+                                                file.editor.selected_sprites.clearAndFree();
+                                                try file.editor.selected_sprites.append(sprite_index);
                                             }
                                         }
                                         file.selected_keyframe_animation_index = animation_index;

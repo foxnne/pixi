@@ -22,14 +22,14 @@ pub fn point(self: *Transform, transform_point: TransformPoint) *dvui.Point {
 pub fn cancel(self: *Transform) void {
     if (pixi.editor.open_files.getPtr(self.file_id)) |file| {
         var layer = file.getLayer(self.layer_id) orelse return;
-        var iterator = file.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+        var iterator = file.editor.transform_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
         while (iterator.next()) |pixel_index| {
-            layer.pixels()[pixel_index] = file.selection_layer.pixels()[pixel_index];
+            layer.pixels()[pixel_index] = file.editor.transform_layer.pixels()[pixel_index];
         }
         layer.invalidate();
-        file.selection_layer.clear();
-        file.selection_layer.clearMask();
-        file.selection_layer.invalidate();
+        file.editor.transform_layer.clear();
+        file.editor.transform_layer.clearMask();
+        file.editor.transform_layer.invalidate();
         file.editor.transform = null;
         pixi.app.allocator.free(pixi.image.bytes(self.source));
         self.* = undefined;

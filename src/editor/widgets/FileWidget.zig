@@ -83,7 +83,7 @@ pub fn processSample(self: *FileWidget) void {
             self.sample_data_point = null;
         }
 
-        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
         file.drawPoint(
             current_point,
@@ -98,15 +98,15 @@ pub fn processSample(self: *FileWidget) void {
                 },
             },
         );
-        file.temporary_layer.dirty = true;
+        file.editor.temporary_layer.dirty = true;
     } else if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
         self.sample_key_down = true;
         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
         self.sample(file, current_point, self.right_mouse_down);
 
-        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-        file.temporary_layer.invalidate();
-        file.temporary_layer.dirty = false;
+        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        file.editor.temporary_layer.invalidate();
+        file.editor.temporary_layer.dirty = false;
     }
 
     for (dvui.events()) |*e| {
@@ -114,10 +114,10 @@ pub fn processSample(self: *FileWidget) void {
             .mouse => |me| {
                 if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
                     if (e.evt == .mouse) {
-                        if (file.temporary_layer.dirty) {
-                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                            file.temporary_layer.invalidate();
-                            file.temporary_layer.dirty = false;
+                        if (file.editor.temporary_layer.dirty) {
+                            @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                            file.editor.temporary_layer.invalidate();
+                            file.editor.temporary_layer.dirty = false;
                         }
                     }
                     continue;
@@ -134,9 +134,9 @@ pub fn processSample(self: *FileWidget) void {
 
                     self.sample(file, current_point, self.sample_key_down);
 
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.temporary_layer.invalidate();
-                    file.temporary_layer.dirty = false;
+                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.editor.temporary_layer.invalidate();
+                    file.editor.temporary_layer.dirty = false;
                 } else if (me.action == .release and me.button == .right) {
                     self.right_mouse_down = false;
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
@@ -150,7 +150,7 @@ pub fn processSample(self: *FileWidget) void {
                         }
                     }
 
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                     file.drawPoint(
                         current_point,
                         if (pixi.editor.tools.current != .eraser) pixi.editor.colors.primary else [_]u8{ 255, 255, 255, 255 },
@@ -164,7 +164,7 @@ pub fn processSample(self: *FileWidget) void {
                             },
                         },
                     );
-                    file.temporary_layer.dirty = true;
+                    file.editor.temporary_layer.dirty = true;
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sample_drag")) |diff| {
@@ -254,16 +254,16 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                 if (me.action == .press and me.button.pointer()) {
                     if (me.mod.matchBind("shift")) {
                         if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
-                            file.selected_sprites.unset(sprite_index);
+                            file.editor.selected_sprites.unset(sprite_index);
                         }
                     } else if (me.mod.matchBind("ctrl/cmd")) {
                         if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
-                            file.selected_sprites.set(sprite_index);
+                            file.editor.selected_sprites.set(sprite_index);
                         }
                     } else {
                         file.clearSelectedSprites();
                         if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
-                            file.selected_sprites.set(sprite_index);
+                            file.editor.selected_sprites.set(sprite_index);
                         }
                     }
 
@@ -373,7 +373,7 @@ pub fn processStroke(self: *FileWidget) void {
                 }
 
                 if (update) {
-                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                     const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
                     file.drawPoint(
                         current_point,
@@ -478,7 +478,7 @@ pub fn processStroke(self: *FileWidget) void {
 
                             if (me.mod.matchBind("shift")) {
                                 if (self.drag_data_point) |previous_point| {
-                                    @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                                     file.drawLine(
                                         previous_point,
                                         current_point,
@@ -509,7 +509,7 @@ pub fn processStroke(self: *FileWidget) void {
 
                                 if (self.init_options.canvas.rect.contains(me.p) and self.sample_data_point == null) {
                                     if (self.sample_data_point == null or color[3] == 0) {
-                                        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                                         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
                                         file.drawPoint(
                                             current_point,
@@ -529,7 +529,7 @@ pub fn processStroke(self: *FileWidget) void {
                         }
                     } else {
                         if (self.init_options.canvas.rect.contains(me.p) and self.sample_data_point == null) {
-                            @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                            @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                             const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
                             file.drawPoint(
                                 current_point,
@@ -573,7 +573,7 @@ pub fn processFill(self: *FileWidget) void {
 
                 if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                     if (self.init_options.canvas.rect.contains(me.p) and self.sample_data_point == null) {
-                        @memset(file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
                         file.drawPoint(
                             current_point,
@@ -725,8 +725,8 @@ pub fn processTransform(self: *FileWidget) void {
 
         // Read the target texture and copy it to the selection layer
         if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
-            @memcpy(file.temporary_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
-            file.temporary_layer.invalidate();
+            @memcpy(file.editor.temporary_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
+            file.editor.temporary_layer.invalidate();
         } else {
             std.log.err("Failed to read target", .{});
         }
@@ -784,25 +784,20 @@ pub fn active(self: *FileWidget) bool {
 
 pub fn drawCursor(self: *FileWidget) void {
     if (pixi.editor.tools.current == .pointer) return;
-
-    var cursor_data_point: ?dvui.Point = null;
+    if (pixi.editor.tools.radial_menu.visible) return;
 
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
             continue;
         }
         switch (e.evt) {
-            .mouse => |me| {
-                cursor_data_point = self.init_options.canvas.dataFromScreenPoint(me.p);
-
-                if (self.init_options.canvas.rect.contains(me.p)) {
+            .key => |_| {
+                if (self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
                     _ = dvui.cursorShow(false);
                 }
             },
-            .key => |_| {
-                cursor_data_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-
-                if (self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
+            .mouse => |me| {
+                if (self.init_options.canvas.rect.contains(me.p)) {
                     _ = dvui.cursorShow(false);
                 }
             },
@@ -810,62 +805,61 @@ pub fn drawCursor(self: *FileWidget) void {
         }
     }
 
-    if (cursor_data_point) |data_point| {
-        const mouse_point = self.init_options.canvas.screenFromDataPoint(data_point);
-        if (!self.init_options.canvas.rect.contains(mouse_point)) return;
-        if (self.sample_data_point != null) return;
+    const data_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+    const mouse_point = dvui.currentWindow().mouse_pt;
+    if (!self.init_options.canvas.rect.contains(mouse_point)) return;
+    if (self.sample_data_point != null) return;
 
-        if (switch (pixi.editor.tools.current) {
-            .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
-            .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
-            .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
-            .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
-            else => null,
-        }) |sprite| {
-            const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
-                std.log.err("Failed to get atlas size", .{});
-                return;
-            };
+    if (switch (pixi.editor.tools.current) {
+        .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
+        .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
+        .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
+        .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
+        else => null,
+    }) |sprite| {
+        const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
+            std.log.err("Failed to get atlas size", .{});
+            return;
+        };
 
-            const uv = dvui.Rect{
-                .x = (@as(f32, @floatFromInt(sprite.source[0])) / atlas_size.w),
-                .y = (@as(f32, @floatFromInt(sprite.source[1])) / atlas_size.h),
-                .w = (@as(f32, @floatFromInt(sprite.source[2])) / atlas_size.w),
-                .h = (@as(f32, @floatFromInt(sprite.source[3])) / atlas_size.h),
-            };
+        const uv = dvui.Rect{
+            .x = (@as(f32, @floatFromInt(sprite.source[0])) / atlas_size.w),
+            .y = (@as(f32, @floatFromInt(sprite.source[1])) / atlas_size.h),
+            .w = (@as(f32, @floatFromInt(sprite.source[2])) / atlas_size.w),
+            .h = (@as(f32, @floatFromInt(sprite.source[3])) / atlas_size.h),
+        };
 
-            const origin = dvui.Point{
-                .x = @as(f32, @floatFromInt(sprite.origin[0])) * 1 / self.init_options.canvas.scale,
-                .y = @as(f32, @floatFromInt(sprite.origin[1])) * 1 / self.init_options.canvas.scale,
-            };
+        const origin = dvui.Point{
+            .x = @as(f32, @floatFromInt(sprite.origin[0])) * 1 / self.init_options.canvas.scale,
+            .y = @as(f32, @floatFromInt(sprite.origin[1])) * 1 / self.init_options.canvas.scale,
+        };
 
-            const position = data_point.diff(origin);
+        const position = data_point.diff(origin);
 
-            const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .expand = .none,
-                .rect = .{
-                    .x = position.x,
-                    .y = position.y,
-                    .w = @as(f32, @floatFromInt(sprite.source[2])) * 1 / self.init_options.canvas.scale,
-                    .h = @as(f32, @floatFromInt(sprite.source[3])) * 1 / self.init_options.canvas.scale,
-                },
-                .border = dvui.Rect.all(0),
-                .corner_radius = .{ .x = 0, .y = 0 },
-                .padding = .{ .x = 0, .y = 0 },
-                .margin = .{ .x = 0, .y = 0 },
-                .background = false,
-                .color_fill = dvui.themeGet().color(.err, .fill),
-            });
-            defer box.deinit();
+        const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .none,
+            .rect = .{
+                .x = position.x,
+                .y = position.y,
+                .w = @as(f32, @floatFromInt(sprite.source[2])) * 1 / self.init_options.canvas.scale,
+                .h = @as(f32, @floatFromInt(sprite.source[3])) * 1 / self.init_options.canvas.scale,
+            },
+            .border = dvui.Rect.all(0),
+            .corner_radius = .{ .x = 0, .y = 0 },
+            .padding = .{ .x = 0, .y = 0 },
+            .margin = .{ .x = 0, .y = 0 },
+            .background = false,
+            .color_fill = dvui.themeGet().color(.err, .fill),
+        });
+        defer box.deinit();
 
-            const rs = box.data().rectScale();
+        const rs = box.data().rectScale();
 
-            dvui.renderImage(pixi.editor.atlas.source, rs, .{
-                .uv = uv,
-            }) catch {
-                std.log.err("Failed to render cursor image", .{});
-            };
-        }
+        dvui.renderImage(pixi.editor.atlas.source, rs, .{
+            .uv = uv,
+        }) catch {
+            std.log.err("Failed to render cursor image", .{});
+        };
     }
 }
 
@@ -1033,7 +1027,7 @@ pub fn drawLayers(self: *FileWidget) void {
             .s = self.init_options.canvas.scale,
         };
 
-        dvui.renderImage(file.checkerboard, image_rect_scale, .{
+        dvui.renderImage(file.editor.checkerboard, image_rect_scale, .{
             .colormod = dvui.themeGet().color(.content, .fill).lighten(8.0),
         }) catch {
             std.log.err("Failed to render checkerboard", .{});
@@ -1062,8 +1056,9 @@ pub fn drawLayers(self: *FileWidget) void {
         }
     }
 
-    const image = dvui.image(@src(), .{
-        .source = file.temporary_layer.source,
+    // Draw the selection layer
+    _ = dvui.image(@src(), .{
+        .source = file.editor.selection_layer.source,
     }, .{
         .rect = image_rect,
         .border = dvui.Rect.all(0),
@@ -1071,14 +1066,15 @@ pub fn drawLayers(self: *FileWidget) void {
         .background = false,
     });
 
-    // _ = dvui.image(@src(), .{
-    //     .source = file.selection_layer.source,
-    // }, .{
-    //     .rect = image_rect,
-    //     .border = dvui.Rect.all(0),
-    //     .id_extra = file.layers.len + 2,
-    //     .background = false,
-    // });
+    // Draw the temporary layer
+    const image = dvui.image(@src(), .{
+        .source = file.editor.temporary_layer.source,
+    }, .{
+        .rect = image_rect,
+        .border = dvui.Rect.all(0),
+        .id_extra = file.layers.len + 2,
+        .background = false,
+    });
 
     for (0..tiles_wide) |x| {
         dvui.Path.stroke(.{ .points = &.{
@@ -1106,7 +1102,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
     // Draw the selection box for the selected sprites
     if (pixi.editor.tools.current == .pointer) {
-        var iter = file.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+        var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
         while (iter.next()) |i| {
             const sprite_rect = file.spriteRect(i);
             const sprite_rect_physical = self.init_options.canvas.screenFromDataRect(sprite_rect);
@@ -1147,7 +1143,7 @@ pub fn processEvents(self: *FileWidget) void {
     };
 
     // If we are processing, we need to always ensure the temporary layer is cleared
-    @memset(self.init_options.file.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+    @memset(self.init_options.file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
 
     if (self.hovered() != null) {
         self.processKeybinds();

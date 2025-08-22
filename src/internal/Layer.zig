@@ -294,10 +294,6 @@ pub const BlitOptions = struct {
 };
 
 pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: dvui.Rect, options: BlitOptions) void {
-    if (options.mask) {
-        self.clearMask();
-    }
-
     const x = @as(usize, @intFromFloat(dst_rect.x));
     const y = @as(usize, @intFromFloat(dst_rect.y));
     const width = @as(usize, @intFromFloat(dst_rect.w));

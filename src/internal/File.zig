@@ -23,22 +23,16 @@ layers: std.MultiArrayList(Layer) = .{},
 deleted_layers: std.MultiArrayList(Layer) = .{},
 
 sprites: std.MultiArrayList(Sprite) = .{},
-selected_sprites: std.DynamicBitSet,
 
 animations: std.MultiArrayList(Animation) = .{},
 deleted_animations: std.MultiArrayList(Animation) = .{},
 
 selected_layer_index: usize = 0,
 
-temporary_layer: Layer,
-selection_layer: Layer,
-checkerboard: dvui.ImageSource,
-
 history: History,
 buffers: Buffers,
+
 counter: u64 = 0,
-saving: bool = false,
-grouping: u64 = 0,
 
 /// File-specific editor data
 editor: EditorData = .{},
@@ -47,6 +41,17 @@ pub const EditorData = struct {
     canvas: pixi.dvui.CanvasWidget = .{},
     layers_scroll_info: dvui.ScrollInfo = .{},
     transform: ?Editor.Transform = null,
+
+    saving: bool = false,
+    grouping: u64 = 0,
+
+    // Internal layers for editor
+    temporary_layer: Layer = undefined,
+    selection_layer: Layer = undefined,
+    transform_layer: Layer = undefined,
+    selected_sprites: std.DynamicBitSet = undefined,
+
+    checkerboard: dvui.ImageSource = undefined,
 };
 
 pub const History = @import("History.zig");
@@ -89,58 +94,59 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
             .tile_height = ext.tile_height,
             .history = pixi.Internal.File.History.init(pixi.app.allocator),
             .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
-            .checkerboard = pixi.image.init(
+        };
+
+        // Initialize checkerboard
+        {
+            internal.editor.checkerboard = pixi.image.init(
                 ext.tile_width * 2,
                 ext.tile_height * 2,
                 .{ .r = 0, .g = 0, .b = 0, .a = 0 },
                 .ptr,
-            ) catch return error.LayerCreateError,
-            .temporary_layer = undefined,
-            .selection_layer = undefined,
-            .selected_sprites = undefined,
-        };
+            ) catch return error.LayerCreateError;
 
-        const checker_color_1: [4]u8 = .{ 255, 255, 255, 255 };
-        const checker_color_2: [4]u8 = .{ 175, 175, 175, 255 };
+            const checker_color_1: [4]u8 = .{ 255, 255, 255, 255 };
+            const checker_color_2: [4]u8 = .{ 175, 175, 175, 255 };
 
-        if (@mod(internal.width, 2) == 0) {
-            // width is even
-            for (pixi.image.pixels(internal.checkerboard), 0..) |*pixel, i| {
-                const checkerboard_width = internal.tile_width * 2;
-                // Calculate which pixel row we are on
-                const row = @divTrunc(i, checkerboard_width);
+            if (@mod(internal.width, 2) == 0) {
+                // width is even
+                for (pixi.image.pixels(internal.editor.checkerboard), 0..) |*pixel, i| {
+                    const checkerboard_width = internal.tile_width * 2;
+                    // Calculate which pixel row we are on
+                    const row = @divTrunc(i, checkerboard_width);
 
-                if (@mod(row, 2) == 0) {
+                    if (@mod(row, 2) == 0) {
+                        if (@mod(i, 2) == 0) {
+                            pixel.* = checker_color_1;
+                        } else {
+                            pixel.* = checker_color_2;
+                        }
+                    } else {
+                        if (@mod(i, 2) != 0) {
+                            pixel.* = checker_color_1;
+                        } else {
+                            pixel.* = checker_color_2;
+                        }
+                    }
+                }
+            } else {
+                // width is odd
+                for (pixi.image.pixels(internal.editor.checkerboard), 0..) |*pixel, i| {
                     if (@mod(i, 2) == 0) {
                         pixel.* = checker_color_1;
                     } else {
                         pixel.* = checker_color_2;
                     }
-                } else {
-                    if (@mod(i, 2) != 0) {
-                        pixel.* = checker_color_1;
-                    } else {
-                        pixel.* = checker_color_2;
-                    }
                 }
             }
-        } else {
-            // width is odd
-            for (pixi.image.pixels(internal.checkerboard), 0..) |*pixel, i| {
-                if (@mod(i, 2) == 0) {
-                    pixel.* = checker_color_1;
-                } else {
-                    pixel.* = checker_color_2;
-                }
-            }
+            dvui.textureInvalidateCache(internal.editor.checkerboard.hash());
         }
 
-        dvui.textureInvalidateCache(internal.checkerboard.hash());
-
-        // Initialize layers and selected sprites
-        internal.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
-        internal.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-        internal.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
+        // Initialize editor layers and selected sprites
+        internal.editor.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
+        internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
         var set_layer_index: bool = false;
 
@@ -324,7 +330,7 @@ pub fn deinit(file: *File) void {
     file.deleted_layers.deinit(pixi.app.allocator);
     //file.deleted_heightmap_layers.deinit(pixi.app.allocator);
     file.sprites.deinit(pixi.app.allocator);
-    //file.selected_sprites.deinit();
+    //file.editor.selected_sprites.deinit();
     file.animations.deinit(pixi.app.allocator);
     file.deleted_animations.deinit(pixi.app.allocator);
     pixi.app.allocator.free(file.path);
@@ -369,13 +375,13 @@ pub fn spriteRect(file: *File, index: usize) dvui.Rect {
 }
 
 pub fn clearSelectedSprites(file: *File) void {
-    file.selected_sprites.setRangeValue(.{ .start = 0, .end = file.spriteCount() }, false);
+    file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.spriteCount() }, false);
 }
 
 pub fn setSpriteSelection(file: *File, selection_rect: dvui.Rect, value: bool) void {
     for (0..spriteCount(file)) |index| {
         if (!file.spriteRect(index).intersect(selection_rect).empty()) {
-            file.selected_sprites.setValue(index, value);
+            file.editor.selected_sprites.setValue(index, value);
         }
     }
 }
@@ -390,7 +396,7 @@ pub const DrawLayer = enum {
 /// If invalidate is true, the layer will be invalidated
 pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer, draw_options: DrawOptions) void {
     var active_layer: Layer = switch (layer) {
-        .temporary => file.temporary_layer,
+        .temporary => file.editor.temporary_layer,
         .selected => file.layers.get(file.selected_layer_index),
     };
 
@@ -475,7 +481,7 @@ pub const FillOptions = struct {
 
 pub fn fillPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer, fill_options: FillOptions) void {
     var active_layer: Layer = switch (layer) {
-        .temporary => file.temporary_layer,
+        .temporary => file.editor.temporary_layer,
         .selected => file.layers.get(file.selected_layer_index),
     };
 
@@ -527,7 +533,7 @@ pub const DrawOptions = struct {
 
 pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u8, layer: DrawLayer, draw_options: DrawOptions) void {
     var active_layer: Layer = switch (layer) {
-        .temporary => file.temporary_layer,
+        .temporary => file.editor.temporary_layer,
         .selected => file.layers.get(file.selected_layer_index),
     };
 
@@ -742,8 +748,8 @@ pub fn saveTar(self: *File, window: *dvui.Window) !void {
 }
 
 pub fn saveZip(self: *File, window: *dvui.Window) !void {
-    if (self.saving) return;
-    self.saving = true;
+    if (self.editor.saving) return;
+    self.editor.saving = true;
     var ext = try self.external(pixi.app.allocator);
     defer ext.deinit(pixi.app.allocator);
     const null_terminated_path = try pixi.editor.arena.allocator().dupeZ(u8, self.path);
@@ -790,7 +796,7 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
         }
     }
 
-    self.saving = false;
+    self.editor.saving = false;
     self.history.bookmark = 0;
 }
 
