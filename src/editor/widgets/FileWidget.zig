@@ -856,13 +856,16 @@ pub fn drawLayers(self: *FileWidget) void {
         };
     }
 
+    const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
+    const image_rect_physical = dvui.Rect.Physical.fromSize(.{ .w = image_rect.w, .h = image_rect.h });
+
     while (layer_index > 0) {
         layer_index -= 1;
 
         if (!file.layers.items(.visible)[layer_index]) continue;
 
         const image = dvui.image(@src(), .{ .source = file.layers.items(.source)[layer_index] }, .{
-            .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
+            .rect = image_rect,
             .border = dvui.Rect.all(0),
             .id_extra = file.layers.items(.id)[layer_index],
             .background = false,
@@ -879,9 +882,18 @@ pub fn drawLayers(self: *FileWidget) void {
     const image = dvui.image(@src(), .{
         .source = file.temporary_layer.source,
     }, .{
-        .rect = .{ .x = 0, .y = 0, .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) },
+        .rect = image_rect,
         .border = dvui.Rect.all(0),
         .id_extra = file.layers.len + 1,
+        .background = false,
+    });
+
+    _ = dvui.image(@src(), .{
+        .source = file.selection_layer.source,
+    }, .{
+        .rect = image_rect,
+        .border = dvui.Rect.all(0),
+        .id_extra = file.layers.len + 2,
         .background = false,
     });
 
@@ -924,14 +936,18 @@ pub fn drawLayers(self: *FileWidget) void {
     }
 
     if (file.editor.transform) |*transform| {
-        //const top_left = transform.data_points[0];
-
-        var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        var data_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        var screen_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         for (transform.data_points[0..5], 0..) |*point, point_index| {
             point.x = @round(point.x);
             point.y = @round(point.y);
 
             const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
+
+            defer if (point_index < 4) {
+                data_path.addPoint(.{ .x = point.x, .y = point.y });
+                screen_path.addPoint(.{ .x = screen_point.x, .y = screen_point.y });
+            };
 
             var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
             screen_rect.w = 30;
@@ -966,6 +982,7 @@ pub fn drawLayers(self: *FileWidget) void {
                                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
                                     dvui.captureMouse(null, e.num);
                                     dvui.dragEnd();
+                                    dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                                 }
                                 self.drag_data_point = null;
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
@@ -984,15 +1001,7 @@ pub fn drawLayers(self: *FileWidget) void {
                     }
                 }
             }
-            if (point_index < 4)
-                path.addPoint(screen_point);
         }
-
-        path.build().stroke(.{
-            .thickness = 2,
-            .color = dvui.themeGet().color(.err, .fill),
-            .closed = true,
-        });
 
         var centroid = transform.data_points[0];
         for (transform.data_points[1..4]) |*point| {
@@ -1002,10 +1011,21 @@ pub fn drawLayers(self: *FileWidget) void {
         centroid.x /= 4;
         centroid.y /= 4;
 
-        const triangle_opts: ?dvui.Triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
-            .center = file.editor.canvas.screenFromDataPoint(centroid),
+        const triangle_opts: ?dvui.Triangles = data_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
+            .center = .{ .x = centroid.x, .y = centroid.y },
             .color = .white,
         }) catch null;
+
+        // Here pass in the data rect, since we will be rendering directly to the low-res texture
+        const target_texture = dvui.textureCreateTarget(@intFromFloat(image_rect.w), @intFromFloat(image_rect.h), .nearest) catch {
+            std.log.err("Failed to create target texture", .{});
+            return;
+        };
+        const target = dvui.renderTarget(.{ .texture = target_texture, .offset = image_rect_physical.topLeft() });
+
+        const clip_rect = image_rect_physical;
+        const prev_clip = dvui.clipGet();
+        dvui.clipSet(clip_rect);
 
         if (triangle_opts) |triangles| {
             triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
@@ -1020,6 +1040,28 @@ pub fn drawLayers(self: *FileWidget) void {
         } else {
             std.log.err("Failed to fill triangles", .{});
         }
+        dvui.clipSet(prev_clip);
+        _ = dvui.renderTarget(target);
+
+        if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
+            @memcpy(file.selection_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
+            file.selection_layer.invalidate();
+        } else {
+            std.log.err("Failed to read target", .{});
+        }
+
+        // if (dvui.textureFromTarget(picture.texture) catch null) |texture| {
+
+        //     dvui.renderTexture(
+        //         texture,
+        //         .{ .r = .{ .x = 0, .y = 0, .w = image_rect.w, .h = image_rect.h }, .s = 1.0 },
+        //         .{},
+        //     ) catch {
+        //         dvui.log.err("Failed to render texture", .{});
+        //     };
+        // } else {
+        //     std.log.err("Failed to get texture from target", .{});
+        // }
 
         for (transform.data_points[0..4]) |*point| {
             const screen_point = file.editor.canvas.screenFromDataPoint(point.*);

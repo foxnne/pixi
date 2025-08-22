@@ -51,7 +51,7 @@ pub fn fromImageFilePath(name: []const u8, path: []const u8, invalidation: dvui.
 pub fn fromPixelsPMA(pixel_data: []dvui.Color.PMA, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
     return .{
         .pixelsPMA = .{
-            .rgba = pixi.app.allocator.dupe(u8, pixel_data) catch return error.MemoryAllocationFailed,
+            .rgba = pixi.app.allocator.dupe(dvui.Color.PMA, pixel_data) catch return error.MemoryAllocationFailed,
             .interpolation = .nearest,
             .invalidation = invalidation,
             .width = width,
