@@ -14,6 +14,7 @@ pub const Settings = @import("Settings.zig");
 //pub const Theme = @import("Theme.zig");
 pub const Tools = @import("Tools.zig");
 
+pub const Transform = @import("Transform.zig");
 pub const Keybinds = @import("Keybinds.zig");
 
 const zstbi = @import("zstbi");
@@ -803,6 +804,74 @@ pub fn forceCloseAllFiles(editor: *Editor) !void {
     var i: usize = 0;
     while (i < len) : (i += 1) {
         try editor.forceCloseFile(0);
+    }
+}
+
+pub fn transform(editor: *Editor) !void {
+    if (switch (editor.tools.current) {
+        .selection, .pointer => false,
+        else => true,
+    }) {
+        return;
+    }
+
+    if (editor.activeFile()) |file| {
+        var selected_layer = file.layers.get(file.selected_layer_index);
+
+        if (editor.tools.current == .pointer) {
+            // Current tool is the pointer, so we potentially have a sprite selection in
+            // selected sprites that we need to copy to the selection layer.
+            file.selection_layer.clear();
+            for (0..file.spriteCount()) |index| {
+                if (file.selected_sprites.isSet(index)) {
+                    const source_rect = file.spriteRect(index);
+                    if (selected_layer.pixelsFromRect(
+                        dvui.currentWindow().arena(),
+                        source_rect,
+                    )) |source_pixels| {
+                        file.selection_layer.blit(
+                            source_pixels,
+                            source_rect,
+                            .{ .transparent = true, .mask = true },
+                        );
+                        selected_layer.clearRect(source_rect);
+                    }
+                }
+            }
+        } else if (editor.tools.current == .selection) {
+            // We are in the selection tool, so we should assume that the user has painted a selection
+            // into the selection layer mask, we need to copy the pixels into the selection layer itself for reducing
+            var iterator = file.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+            while (iterator.next()) |pixel_index| {
+                file.selection_layer.pixels()[pixel_index] = selected_layer.pixels()[pixel_index];
+                selected_layer.pixels()[pixel_index] = .{ 0, 0, 0, 0 };
+            }
+        }
+
+        // We now have a selection layer that contains:
+        // 1. the unaltered colored pixels of the active selection
+        // 2. the mask of the selection layer, which is the pixels that the user has painted
+        const source_rect = dvui.Rect.fromSize(file.selection_layer.size());
+        if (file.selection_layer.reduce(source_rect)) |reduced_data_rect| {
+            file.editor.transform = .{
+                .file_id = file.id,
+                .layer_id = selected_layer.id,
+                .data_points = .{
+                    reduced_data_rect.topLeft(),
+                    reduced_data_rect.topRight(),
+                    reduced_data_rect.bottomRight(),
+                    reduced_data_rect.bottomLeft(),
+                    reduced_data_rect.center(),
+                    reduced_data_rect.center().plus(.{ .y = -20 }),
+                },
+                .source = pixi.image.fromPixels(
+                    @ptrCast(file.selection_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
+                    @intFromFloat(reduced_data_rect.w),
+                    @intFromFloat(reduced_data_rect.h),
+                    .ptr,
+                ) catch return error.MemoryAllocationFailed,
+            };
+        }
     }
 }
 

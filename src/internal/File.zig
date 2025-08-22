@@ -46,44 +46,8 @@ editor: EditorData = .{},
 pub const EditorData = struct {
     canvas: pixi.dvui.CanvasWidget = .{},
     layers_scroll_info: dvui.ScrollInfo = .{},
-    transform: ?Transform = null,
+    transform: ?Editor.Transform = null,
 };
-
-pub const ScrollRequest = struct {
-    from: f32,
-    to: f32,
-    elapsed: f32 = 0.0,
-    state: AnimationState,
-};
-
-pub const Transform = struct {
-    data_points: [5]dvui.Point,
-    active_data_point: ?usize = null,
-    rotation: f32 = 0.0,
-    source: dvui.ImageSource,
-};
-
-pub const TransformAction = enum {
-    none,
-    pan,
-    rotate,
-    move_pivot,
-    move_vertex,
-};
-
-pub const TransformControl = struct {
-    index: usize,
-    mode: TransformMode,
-};
-
-pub const TransformMode = enum {
-    locked_aspect,
-    free_aspect,
-    free,
-};
-
-pub const AnimationState = enum { pause, play };
-pub const Canvas = enum { primary, flipbook };
 
 pub const History = @import("History.zig");
 pub const Buffers = @import("Buffers.zig");
@@ -646,50 +610,14 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
     }
 }
 
-pub fn transform(self: *File) !void {
-    //if (self.editor.transform != null) return;
-
-    var selected_layer = self.layers.get(self.selected_layer_index);
-
-    //const active_layer = self.layers.get(self.selected_layer_index);
-    self.selection_layer.clear();
-
-    for (0..self.spriteCount()) |index| {
-        if (self.selected_sprites.isSet(index)) {
-            const source_rect = self.spriteRect(index);
-            std.log.debug("Source rect: {any}", .{source_rect});
-            if (selected_layer.pixelsFromRect(
-                dvui.currentWindow().arena(),
-                source_rect,
-            )) |source_pixels| {
-                self.selection_layer.blit(source_pixels, source_rect, true);
-                selected_layer.clearRect(source_rect);
-            }
+pub fn getLayer(self: *File, id: u64) ?Layer {
+    for (self.layers.items(.id), 0..) |layer_id, layer_index| {
+        if (layer_id == id) {
+            return self.layers.get(layer_index);
         }
     }
 
-    // At this point, we will assume that the selection layer has a copy of the active layer pixels,
-    // and we can use this to reduce and create a new image source
-
-    const source_rect = dvui.Rect.fromSize(self.selection_layer.size());
-
-    if (self.selection_layer.reduce(source_rect)) |reduced_data_rect| {
-        self.editor.transform = .{
-            .data_points = .{
-                reduced_data_rect.topLeft(),
-                reduced_data_rect.topRight(),
-                reduced_data_rect.bottomRight(),
-                reduced_data_rect.bottomLeft(),
-                reduced_data_rect.center(),
-            },
-            .source = pixi.image.fromPixels(
-                @ptrCast(self.selection_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
-                @intFromFloat(reduced_data_rect.w),
-                @intFromFloat(reduced_data_rect.h),
-                .ptr,
-            ) catch return error.MemoryAllocationFailed,
-        };
-    }
+    return null;
 }
 
 pub fn deleteLayer(self: *File, index: usize) !void {

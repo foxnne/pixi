@@ -62,7 +62,7 @@ pub fn processKeybinds(self: *FileWidget) void {
                 }
 
                 if (ke.matchBind("transform") and ke.action == .down) {
-                    self.init_options.file.transform() catch {
+                    pixi.editor.transform() catch {
                         std.log.err("Failed to transform", .{});
                     };
                 }
@@ -589,6 +589,190 @@ pub fn processFill(self: *FileWidget) void {
     }
 }
 
+pub fn processTransform(self: *FileWidget) void {
+    var valid: bool = true;
+
+    if (switch (pixi.editor.tools.current) {
+        .pointer,
+        => false,
+        else => true,
+    }) valid = false;
+
+    const file = self.init_options.file;
+    const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
+    const image_rect_physical = dvui.Rect.Physical.fromSize(.{ .w = image_rect.w, .h = image_rect.h });
+
+    if (file.editor.transform) |*transform| {
+        if (!valid) {
+            transform.cancel();
+            return;
+        }
+
+        var data_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        var screen_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        for (transform.data_points[0..4], 0..) |*point, point_index| {
+            point.x = @round(point.x);
+            point.y = @round(point.y);
+
+            const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
+
+            defer if (point_index < 4) {
+                data_path.addPoint(.{ .x = point.x, .y = point.y });
+                screen_path.addPoint(.{ .x = screen_point.x, .y = screen_point.y });
+            };
+
+            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
+            screen_rect.w = 30;
+            screen_rect.h = 30;
+            screen_rect.x -= screen_rect.w / 2;
+            screen_rect.y -= screen_rect.h / 2;
+
+            {
+                for (dvui.events()) |*e| {
+                    if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+                        continue;
+                    }
+
+                    switch (e.evt) {
+                        .mouse => |me| {
+                            if (self.init_options.canvas.rect.contains(me.p))
+                                dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+
+                            if (me.action == .press and me.button.pointer()) {
+                                if (screen_rect.contains(me.p)) {
+                                    transform.active_data_point = @enumFromInt(point_index);
+                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                                    dvui.dragPreStart(me.p, .{ .name = "transform_vertex_drag" });
+                                }
+                            } else if (me.action == .release and me.button.pointer()) {
+                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                    dvui.captureMouse(null, e.num);
+                                    dvui.dragEnd();
+                                    dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                                }
+                            } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
+                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                                    if (dvui.dragging(me.p, "transform_vertex_drag")) |_| {
+                                        if (transform.active_data_point) |active_data_point| {
+                                            if (me.mod.matchBind("ctrl/cmd")) {
+                                                if (@intFromEnum(active_data_point) == point_index) {
+                                                    var new_point = file.editor.canvas.dataFromScreenPoint(me.p);
+                                                    new_point.x = @round(new_point.x);
+                                                    new_point.y = @round(new_point.y);
+                                                    point.* = new_point;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        else => {},
+                    }
+                }
+            }
+        }
+
+        var centroid = transform.data_points[0];
+        for (transform.data_points[1..4]) |*point| {
+            centroid.x += point.x;
+            centroid.y += point.y;
+        }
+        centroid.x /= 4;
+        centroid.y /= 4;
+
+        const triangle_opts: ?dvui.Triangles = data_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
+            .center = .{ .x = centroid.x, .y = centroid.y },
+            .color = .white,
+        }) catch null;
+
+        // Here pass in the data rect, since we will be rendering directly to the low-res texture
+        const target_texture = dvui.textureCreateTarget(@intFromFloat(image_rect.w), @intFromFloat(image_rect.h), .nearest) catch {
+            std.log.err("Failed to create target texture", .{});
+            return;
+        };
+        // This is the target we will be rendering to
+        const target = dvui.renderTarget(.{ .texture = target_texture, .offset = image_rect_physical.topLeft() });
+
+        // Make sure we clip to the image rect, if we don't  and the texture overlaps the canvas,
+        // the rendering will be clipped incorrectly
+        // Use clipSet instead of clip, clip unions with current clip
+        const clip_rect = image_rect_physical;
+        const prev_clip = dvui.clipGet();
+        dvui.clipSet(clip_rect);
+
+        // Set UVs, there are 5 vertexes, or 1 more than the number of triangles, and is at the center
+        if (triangle_opts) |triangles| {
+            triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
+            triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
+            triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
+            triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
+            triangles.vertexes[4].uv = .{ 0.5, 0.5 }; // C
+
+            // Render the triangles to the target texture
+            dvui.renderTriangles(triangles, transform.source.getTexture() catch null) catch {
+                std.log.err("Failed to render triangles", .{});
+            };
+        } else {
+            std.log.err("Failed to fill triangles", .{});
+        }
+        // Restore the previous clip
+        dvui.clipSet(prev_clip);
+        // Actually render to the target
+        _ = dvui.renderTarget(target);
+
+        // Read the target texture and copy it to the selection layer
+        if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
+            @memcpy(file.temporary_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
+            file.temporary_layer.invalidate();
+        } else {
+            std.log.err("Failed to read target", .{});
+        }
+    }
+}
+
+pub fn drawTransform(self: *FileWidget) void {
+    const file = self.init_options.file;
+    if (pixi.editor.tools.current != .pointer) return;
+
+    if (file.editor.transform) |*transform| {
+        for (transform.data_points[0..4]) |*point| {
+            const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
+
+            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
+            screen_rect.w = 30;
+            screen_rect.h = 30;
+            screen_rect.x -= screen_rect.w / 2;
+            screen_rect.y -= screen_rect.h / 2;
+
+            screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+                .color = .green,
+            });
+        }
+        var centroid = transform.data_points[0];
+        for (transform.data_points[1..4]) |*point| {
+            centroid.x += point.x;
+            centroid.y += point.y;
+        }
+        centroid.x /= 4;
+        centroid.y /= 4;
+
+        const centroid_point = file.editor.canvas.screenFromDataPoint(centroid);
+
+        var centroid_rect = dvui.Rect.Physical.fromPoint(centroid_point);
+        centroid_rect.w = 30;
+        centroid_rect.h = 30;
+        centroid_rect.x -= centroid_rect.w / 2;
+        centroid_rect.y -= centroid_rect.h / 2;
+
+        centroid_rect.fill(dvui.Rect.Physical.all(100000), .{
+            .color = .green,
+        });
+    }
+}
+
 pub fn active(self: *FileWidget) bool {
     if (pixi.editor.activeFile()) |file| {
         if (file.id == self.init_options.file.id) {
@@ -857,7 +1041,6 @@ pub fn drawLayers(self: *FileWidget) void {
     }
 
     const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
-    const image_rect_physical = dvui.Rect.Physical.fromSize(.{ .w = image_rect.w, .h = image_rect.h });
 
     while (layer_index > 0) {
         layer_index -= 1;
@@ -888,14 +1071,14 @@ pub fn drawLayers(self: *FileWidget) void {
         .background = false,
     });
 
-    _ = dvui.image(@src(), .{
-        .source = file.selection_layer.source,
-    }, .{
-        .rect = image_rect,
-        .border = dvui.Rect.all(0),
-        .id_extra = file.layers.len + 2,
-        .background = false,
-    });
+    // _ = dvui.image(@src(), .{
+    //     .source = file.selection_layer.source,
+    // }, .{
+    //     .rect = image_rect,
+    //     .border = dvui.Rect.all(0),
+    //     .id_extra = file.layers.len + 2,
+    //     .background = false,
+    // });
 
     for (0..tiles_wide) |x| {
         dvui.Path.stroke(.{ .points = &.{
@@ -933,185 +1116,6 @@ pub fn drawLayers(self: *FileWidget) void {
                 .closed = true,
             });
         }
-    }
-
-    if (file.editor.transform) |*transform| {
-        var data_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-        var screen_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-        for (transform.data_points[0..5], 0..) |*point, point_index| {
-            point.x = @round(point.x);
-            point.y = @round(point.y);
-
-            const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
-
-            defer if (point_index < 4) {
-                data_path.addPoint(.{ .x = point.x, .y = point.y });
-                screen_path.addPoint(.{ .x = screen_point.x, .y = screen_point.y });
-            };
-
-            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 30;
-            screen_rect.h = 30;
-            screen_rect.x -= screen_rect.w / 2;
-            screen_rect.y -= screen_rect.h / 2;
-
-            {
-                for (dvui.events()) |*e| {
-                    if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
-                        continue;
-                    }
-
-                    switch (e.evt) {
-                        .mouse => |me| {
-                            const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
-
-                            if (self.init_options.canvas.rect.contains(me.p))
-                                dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
-
-                            if (me.action == .press and me.button.pointer()) {
-                                if (screen_rect.contains(me.p)) {
-                                    transform.active_data_point = point_index;
-                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
-                                    dvui.dragPreStart(me.p, .{ .name = "transform_vertex_drag" });
-
-                                    self.drag_data_point = current_point;
-                                }
-                            } else if (me.action == .release and me.button.pointer()) {
-                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
-                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                    dvui.captureMouse(null, e.num);
-                                    dvui.dragEnd();
-                                    dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
-                                }
-                                self.drag_data_point = null;
-                            } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
-                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
-                                    if (dvui.dragging(me.p, "transform_vertex_drag")) |_| {
-                                        if (transform.active_data_point) |active_data_point| {
-                                            if (active_data_point == point_index) {
-                                                point.* = file.editor.canvas.dataFromScreenPoint(me.p);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        else => {},
-                    }
-                }
-            }
-        }
-
-        var centroid = transform.data_points[0];
-        for (transform.data_points[1..4]) |*point| {
-            centroid.x += point.x;
-            centroid.y += point.y;
-        }
-        centroid.x /= 4;
-        centroid.y /= 4;
-
-        const triangle_opts: ?dvui.Triangles = data_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
-            .center = .{ .x = centroid.x, .y = centroid.y },
-            .color = .white,
-        }) catch null;
-
-        // Here pass in the data rect, since we will be rendering directly to the low-res texture
-        const target_texture = dvui.textureCreateTarget(@intFromFloat(image_rect.w), @intFromFloat(image_rect.h), .nearest) catch {
-            std.log.err("Failed to create target texture", .{});
-            return;
-        };
-        const target = dvui.renderTarget(.{ .texture = target_texture, .offset = image_rect_physical.topLeft() });
-
-        const clip_rect = image_rect_physical;
-        const prev_clip = dvui.clipGet();
-        dvui.clipSet(clip_rect);
-
-        if (triangle_opts) |triangles| {
-            triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
-            triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
-            triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
-            triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
-            triangles.vertexes[4].uv = .{ 0.5, 0.5 }; // C
-
-            dvui.renderTriangles(triangles, transform.source.getTexture() catch null) catch {
-                std.log.err("Failed to render triangles", .{});
-            };
-        } else {
-            std.log.err("Failed to fill triangles", .{});
-        }
-        dvui.clipSet(prev_clip);
-        _ = dvui.renderTarget(target);
-
-        if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
-            @memcpy(file.selection_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
-            file.selection_layer.invalidate();
-        } else {
-            std.log.err("Failed to read target", .{});
-        }
-
-        // if (dvui.textureFromTarget(picture.texture) catch null) |texture| {
-
-        //     dvui.renderTexture(
-        //         texture,
-        //         .{ .r = .{ .x = 0, .y = 0, .w = image_rect.w, .h = image_rect.h }, .s = 1.0 },
-        //         .{},
-        //     ) catch {
-        //         dvui.log.err("Failed to render texture", .{});
-        //     };
-        // } else {
-        //     std.log.err("Failed to get texture from target", .{});
-        // }
-
-        for (transform.data_points[0..4]) |*point| {
-            const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
-
-            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 30;
-            screen_rect.h = 30;
-            screen_rect.x -= screen_rect.w / 2;
-            screen_rect.y -= screen_rect.h / 2;
-
-            screen_rect.fill(dvui.Rect.Physical.all(100000), .{
-                .color = .green,
-            });
-        }
-
-        const screen_point = file.editor.canvas.screenFromDataPoint(centroid);
-
-        var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-        screen_rect.w = 30;
-        screen_rect.h = 30;
-        screen_rect.x -= screen_rect.w / 2;
-        screen_rect.y -= screen_rect.h / 2;
-
-        screen_rect.fill(dvui.Rect.Physical.all(100000), .{
-            .color = .green,
-        });
-
-        // var triangles = dvui.Path.fillConvexTriangles(transform.data_points[0..4], pixi.app.allocator, .{}) catch {
-        //     std.log.err("Failed to fill triangles", .{});
-        //     return;
-        // };
-
-        // var transform_rect = dvui.Rect.fromPoint(top_left);
-        // transform_rect.w = pixi.image.size(transform.source).w;
-        // transform_rect.h = pixi.image.size(transform.source).h;
-
-        // const transform_image = dvui.image(@src(), .{
-        //     .source = transform.source,
-        // }, .{
-        //     .rect = transform_rect,
-        //     .border = dvui.Rect.all(0),
-        //     .id_extra = file.layers.len + 2,
-        //     .background = false,
-        // });
-
-        // transform_image.rectScale().r.stroke(dvui.Rect.Physical.all(0), .{
-        //     .thickness = 2,
-        //     .color = dvui.themeGet().color(.err, .fill),
-        //     .closed = true,
-        // });
     }
 }
 
@@ -1151,6 +1155,7 @@ pub fn processEvents(self: *FileWidget) void {
         self.processStroke();
         self.processSample();
     }
+    self.processTransform();
 
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
@@ -1168,6 +1173,7 @@ pub fn processEvents(self: *FileWidget) void {
         self.drawCursor();
         self.drawSample();
     }
+    self.drawTransform();
 
     // Then process the scroll and zoom events last
     self.init_options.canvas.processEvents();

@@ -13,8 +13,6 @@ visible: bool = true,
 collapse: bool = false,
 dirty: bool = false,
 
-//transform_bindgroup: ?*gpu.BindGroup = null,
-
 pub fn init(id: u64, name: []const u8, width: u32, height: u32, default_color: dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
     const num_pixels = width * height;
     const p = pixi.app.allocator.alloc(dvui.Color.PMA, num_pixels) catch return error.MemoryAllocationFailed;
@@ -103,6 +101,7 @@ pub fn deinit(self: *Layer) void {
     self.mask.deinit();
 }
 
+/// Casts the source pixels into a slice of [4]u8
 pub fn pixels(self: *const Layer) [][4]u8 {
     return pixi.image.pixels(self.source);
 }
@@ -112,36 +111,48 @@ pub fn pixelsFromRect(self: *const Layer, allocator: std.mem.Allocator, rect: dv
     return pixi.image.pixelsFromRect(allocator, self.source, rect);
 }
 
+/// Casts the source pixels into a slice of bytes
 pub fn bytes(self: *const Layer) []u8 {
     return pixi.image.bytes(self.source);
 }
 
+/// Returns the index of the pixel at the given point
+/// returns null if the point is out of bounds
 pub fn pixelIndex(self: *Layer, p: dvui.Point) ?usize {
     return pixi.image.pixelIndex(self.source, p);
 }
 
+/// Returns the point at the given index
+/// returns null if the index is out of bounds
 pub fn point(self: *Layer, index: usize) ?dvui.Point {
     return pixi.image.point(self.source, index);
 }
 
+/// Returns the color at the given point
+/// returns null if the point is out of bounds
 pub fn pixel(self: *Layer, p: dvui.Point) ?[4]u8 {
     return pixi.image.pixel(self.source, p);
 }
 
+/// Sets the color at the given point
+/// does not invalidate the layer
 pub fn setPixel(self: *Layer, p: dvui.Point, color: [4]u8) void {
     pixi.image.setPixel(self.source, p, color);
 }
 
+/// Sets the mask at the given point
 pub fn setMaskPoint(self: *Layer, p: dvui.Point) void {
     if (self.pixelIndex(p)) |index| {
         self.mask.set(index);
     }
 }
 
+/// Clears the layer mask
 pub fn clearMask(self: *Layer) void {
     self.mask.setRangeValue(.{ .start = 0, .end = self.mask.capacity() }, false);
 }
 
+/// Sets all pixels in the mask that match the given color
 pub fn setMaskFromColor(self: *Layer, color: [4]u8) void {
     self.clearMask();
     for (self.pixels(), 0..) |*p, index| {
@@ -151,6 +162,7 @@ pub fn setMaskFromColor(self: *Layer, color: [4]u8) void {
     }
 }
 
+/// Sets all pixels in the layer that are in the mask to the given color
 pub fn setColorFromMask(self: *Layer, color: [4]u8) void {
     const iter = self.mask.iterator(.{ .kind = .set, .direction = .forward });
     while (iter.next()) |index| {
@@ -276,8 +288,63 @@ pub fn setRect(self: *Layer, rect: dvui.Rect, color: [4]u8) void {
     self.invalidate();
 }
 
-pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
-    pixi.image.blit(self.source, src_pixels, dst_rect, transparent);
+pub const BlitOptions = struct {
+    transparent: bool = true,
+    mask: bool = false,
+};
+
+pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: dvui.Rect, options: BlitOptions) void {
+    if (options.mask) {
+        self.clearMask();
+    }
+
+    const x = @as(usize, @intFromFloat(dst_rect.x));
+    const y = @as(usize, @intFromFloat(dst_rect.y));
+    const width = @as(usize, @intFromFloat(dst_rect.w));
+    const height = @as(usize, @intFromFloat(dst_rect.h));
+
+    const image_size = self.size();
+
+    const tex_width = @as(usize, @intFromFloat(image_size.w));
+
+    var yy = y;
+    var h = height;
+
+    var d = self.pixels()[x + yy * tex_width .. x + yy * tex_width + width];
+    var src_y: usize = 0;
+    while (h > 0) {
+        h -= 1;
+        const src_row = src_pixels[src_y * width .. (src_y * width) + width];
+        if (!options.transparent) {
+            if (options.mask) {
+                self.mask.setRangeValue(
+                    .{ .start = x + yy * tex_width, .end = x + yy * tex_width + width },
+                    true,
+                );
+            }
+
+            @memcpy(d, src_row);
+        } else {
+            for (src_row, d, 0..) |src, *dst, index| {
+                if (src[3] > 0) {
+                    if (options.mask)
+                        self.mask.set(x + yy * tex_width + index);
+
+                    dst.* = src;
+                }
+            }
+        }
+
+        // next row and move our slice to it as well
+        src_y += 1;
+        yy += 1;
+
+        const next_row_start = x + yy * tex_width;
+        const next_row_end = next_row_start + width;
+        if (next_row_start < self.pixels().len and next_row_end < self.pixels().len) {
+            d = self.pixels()[next_row_start..next_row_end];
+        }
+    }
     self.invalidate();
 }
 

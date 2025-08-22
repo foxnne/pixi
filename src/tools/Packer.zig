@@ -302,7 +302,7 @@ pub fn packAndClear(packer: *Packer) !void {
                     .y = @floatFromInt(slice[1]),
                     .w = @floatFromInt(slice[2]),
                     .h = @floatFromInt(slice[3]),
-                }, true);
+                }, .{});
             }
         }
         atlas_layer.invalidate();
