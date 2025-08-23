@@ -614,9 +614,15 @@ pub fn processTransform(self: *FileWidget) void {
             return;
         }
 
+        // First, track the mouse and allow movement of the transform points aligned to the pixel grid
+        // Also, track which mods are active during the drag, so we can know what to do with the other
+        // points. i.e. if ctrl/cmd is held, we will only move the singular point, while otherwise we will
+        // move the two adjacent points to remain square.
         var data_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         var screen_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-        for (transform.data_points[0..4], 0..) |*point, point_index| {
+        for (transform.data_points[0..6], 0..) |*point, point_index| {
+            const transform_point: pixi.Editor.Transform.TransformPoint = @enumFromInt(point_index);
+
             point.x = @round(point.x);
             point.y = @round(point.y);
 
@@ -646,7 +652,7 @@ pub fn processTransform(self: *FileWidget) void {
 
                             if (me.action == .press and me.button.pointer()) {
                                 if (screen_rect.contains(me.p)) {
-                                    transform.active_data_point = @enumFromInt(point_index);
+                                    transform.active_point = @enumFromInt(point_index);
                                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
                                     dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
                                     dvui.dragPreStart(me.p, .{ .name = "transform_vertex_drag" });
@@ -661,14 +667,12 @@ pub fn processTransform(self: *FileWidget) void {
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                                 if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                                     if (dvui.dragging(me.p, "transform_vertex_drag")) |_| {
-                                        if (transform.active_data_point) |active_data_point| {
-                                            if (me.mod.matchBind("ctrl/cmd")) {
-                                                if (@intFromEnum(active_data_point) == point_index) {
-                                                    var new_point = file.editor.canvas.dataFromScreenPoint(me.p);
-                                                    new_point.x = @round(new_point.x);
-                                                    new_point.y = @round(new_point.y);
-                                                    point.* = new_point;
-                                                }
+                                        if (transform.active_point) |active_point| {
+                                            if (active_point == transform_point) {
+                                                var new_point = file.editor.canvas.dataFromScreenPoint(me.p);
+                                                new_point.x = @round(new_point.x);
+                                                new_point.y = @round(new_point.y);
+                                                point.* = new_point;
                                             }
                                         }
                                     }
@@ -1161,7 +1165,6 @@ pub fn processEvents(self: *FileWidget) void {
 
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
-
     self.processSpriteSelection();
 
     // Draw shadows for the scroll container

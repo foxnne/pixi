@@ -8,7 +8,8 @@ pub const Transform = @This();
 /// 5: the pivot point
 /// 6: the rotation point
 data_points: [6]dvui.Point,
-active_data_point: ?TransformPoint = null,
+track_pivot: bool = false,
+active_point: ?TransformPoint = null,
 rotation: f32 = 0.0,
 file_id: u64,
 layer_id: u64,
@@ -43,23 +44,4 @@ pub const TransformPoint = enum(usize) {
     bottom_left = 3,
     pivot = 4,
     rotate = 5,
-};
-
-pub const TransformAction = enum {
-    none,
-    pan,
-    rotate,
-    move_pivot,
-    move_vertex,
-};
-
-pub const TransformControl = struct {
-    index: usize,
-    mode: TransformMode,
-};
-
-pub const TransformMode = enum {
-    locked_aspect,
-    free_aspect,
-    free,
 };

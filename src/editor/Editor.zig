@@ -11,7 +11,6 @@ pub const Colors = @import("Colors.zig");
 pub const Project = @import("Project.zig");
 pub const Recents = @import("Recents.zig");
 pub const Settings = @import("Settings.zig");
-//pub const Theme = @import("Theme.zig");
 pub const Tools = @import("Tools.zig");
 
 pub const Transform = @import("Transform.zig");
@@ -24,27 +23,19 @@ const zmath = @import("zmath");
 // Modules
 pub const Artboard = @import("Artboard.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
-//pub const Popups = @import("popups/Popups.zig");
 pub const Sidebar = @import("Sidebar.zig");
 pub const Menu = @import("Menu.zig");
 
 /// This arena is for small per-frame editor allocations, such as path joins, null terminations and labels.
 /// Do not free these allocations, instead, this allocator will be .reset(.retain_capacity) each frame
 arena: std.heap.ArenaAllocator,
-//allocator: std.mem.Allocator,
 
 atlas: pixi.Internal.Atlas,
 
-//theme: Theme,
 settings: Settings,
-//hotkeys: pixi.input.Hotkeys,
-//mouse: pixi.input.Mouse,
 recents: Recents,
 
-// Module pointers
 explorer: *Explorer,
-//popups: *Popups,
-artboard: *Artboard,
 
 /// Artboards stored by their grouping ID
 artboards: std.AutoArrayHashMap(u64, Artboard) = undefined,
@@ -52,20 +43,11 @@ sidebar: Sidebar,
 
 /// The root folder that will be searched for files and a .pixiproject file
 folder: ?[:0]const u8 = null,
-/// The current project which, if present, handles export paths
 project: ?Project = null,
-/// Backing allocations for the project paths
-//buffers: Buffers = .{},
 
-//previous_atlas_export: ?[:0]const u8 = null,
-//open_files: std.ArrayList(pixi.Internal.File) = undefined,
 open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
-//open_references: std.ArrayList(pixi.Internal.Reference) = undefined,
 
 open_artboard_grouping: u64 = 0,
-
-//open_file_index: usize = 0,
-open_reference_index: usize = 0,
 
 tools: Tools,
 colors: Colors = .{},
@@ -73,27 +55,11 @@ colors: Colors = .{},
 grouping_id_counter: u64 = 0,
 file_id_counter: u64 = 0,
 
-//selection_time: f32 = 0.0,
-//selection_invert: bool = false,
-
-//clipboard_image: ?zstbi.Image = null,
-//clipboard_position: [2]u32 = .{ 0, 0 },
-
-//counter: u64 = 0,
-
-// pub const Buffers = struct {
-//     atlas_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
-//     texture_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
-//     heightmap_path: [std.fs.max_path_bytes + 1:0]u8 = [_:0]u8{0} ** (std.fs.max_path_bytes + 1),
-// };
-
 pub fn init(
     app: *App,
 ) !Editor {
     var editor: Editor = .{
-        //.theme = undefined, // Leave theme undefined for now since settings need to load first
         .explorer = try app.allocator.create(Explorer),
-        .artboard = try app.allocator.create(Artboard),
         .sidebar = try .init(),
         .settings = try .load(app.allocator),
         .recents = try .load(app.allocator),
@@ -103,18 +69,15 @@ pub fn init(
             .source = try pixi.image.fromImageFilePath(pixi.paths.@"pixi.png", pixi.paths.@"pixi.png", .ptr),
         },
         .tools = try .init(app.allocator),
-        //.allocator = app.allocator,
     };
 
     editor.explorer.* = .init();
-    editor.artboard.* = .init(0);
     editor.open_files = .init(pixi.app.allocator);
     editor.artboards = .init(pixi.app.allocator);
     editor.artboards.put(0, .init(0)) catch |err| {
         std.log.err("Failed to create artboard: {s}", .{@errorName(err)});
         return err;
     };
-    //editor.open_references = std.ArrayList(pixi.Internal.Reference).init(editor.allocator);
 
     editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
 
@@ -136,32 +99,6 @@ pub fn newFileID(editor: *Editor) u64 {
     editor.file_id_counter += 1;
     return editor.file_id_counter;
 }
-
-// pub fn loadTheme(editor: *Editor) !void {
-//     _ = editor; // autofix
-//     //const theme_path = try std.fs.path.joinZ(editor.arena, &.{ pixi.paths.themes, editor.settings.theme });
-
-//     //editor.theme = try Theme.loadOrDefault(theme_path);
-//     //editor.theme.init();
-// }
-
-// pub fn processDialogRequest(editor: *Editor) !void {
-//     if (editor.popups.file_dialog_request) |request| {
-//         defer editor.popups.file_dialog_request = null;
-//         const initial = if (request.initial) |initial| initial else editor.folder;
-
-//         if (switch (request.state) {
-//             .file => try nfd.openFileDialog(request.filter, initial),
-//             .folder => try nfd.openFolderDialog(initial),
-//             .save => try nfd.saveFileDialog(request.filter, initial),
-//         }) |path| {
-//             editor.popups.file_dialog_response = .{
-//                 .path = path,
-//                 .type = request.type,
-//             };
-//         }
-//     }
-// }
 
 const handle_size = 10;
 const handle_dist = 60;
@@ -213,7 +150,6 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     }, .{
         .expand = .both,
         .background = true,
-        //.min_size_content = .{ .h = 100, .w = 100 },
         .color_fill = dvui.themeGet().color(.control, .fill),
     });
     defer explorer_artboard.deinit();
@@ -232,7 +168,6 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .{
                 .expand = .both,
                 .background = false,
-                //.color_fill = dvui.themeGet().color(.control, .fill),
             },
         );
         defer hbox.deinit();
@@ -572,87 +507,6 @@ pub fn saving(editor: *Editor) bool {
     return false;
 }
 
-/// Returns true if a new file was created.
-pub fn newFile(editor: *Editor, path: [:0]const u8, import_path: ?[:0]const u8) !bool {
-    for (editor.open_files.items, 0..) |file, i| {
-        if (std.mem.eql(u8, file.path, path)) {
-            editor.setActiveFile(i);
-            return false;
-        }
-    }
-
-    var internal: pixi.Internal.File = .{
-        .path = try pixi.app.allocator.dupeZ(u8, path),
-        .width = @as(u32, @intCast(editor.popups.file_setup_tiles[0] * editor.popups.file_setup_tile_size[0])),
-        .height = @as(u32, @intCast(editor.popups.file_setup_tiles[1] * editor.popups.file_setup_tile_size[1])),
-        .tile_width = @as(u32, @intCast(editor.popups.file_setup_tile_size[0])),
-        .tile_height = @as(u32, @intCast(editor.popups.file_setup_tile_size[1])),
-        .layers = .{},
-        .deleted_layers = .{},
-        .deleted_heightmap_layers = .{},
-        .sprites = .{},
-        .selected_sprites = std.ArrayList(usize).init(pixi.app.allocator),
-        .animations = .{},
-        .keyframe_animations = .{},
-        .keyframe_animation_texture = undefined,
-        .keyframe_transform_texture = undefined,
-        .deleted_animations = .{},
-        .background = undefined,
-        .history = pixi.Internal.File.History.init(pixi.app.allocator),
-        .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
-        .temporary_layer = undefined,
-        .selection_layer = undefined,
-    };
-
-    try internal.createBackground();
-
-    internal.temporary_layer = .{
-        .name = "Temporary",
-        .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
-    };
-
-    internal.selection_layer = .{
-        .name = "Selection",
-        .texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{}),
-    };
-
-    var new_layer: pixi.Internal.Layer = .{
-        .name = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{"Layer 0"}),
-        .texture = undefined,
-        .id = internal.newId(),
-    };
-
-    if (import_path) |import| {
-        new_layer.texture = try pixi.gfx.Texture.loadFromFile(import, .{});
-    } else {
-        new_layer.texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
-    }
-
-    try internal.layers.append(pixi.app.allocator, new_layer);
-
-    internal.keyframe_animation_texture = try pixi.gfx.Texture.createEmpty(internal.width, internal.height, .{});
-    internal.keyframe_transform_texture = .{
-        .vertices = .{pixi.Internal.File.TransformVertex{ .position = zmath.f32x4s(0.0) }} ** 4,
-        .texture = internal.layers.items(.texture)[0],
-    };
-
-    // Create sprites for all tiles.
-    {
-        const tiles = @as(usize, @intCast(editor.popups.file_setup_tiles[0] * editor.popups.file_setup_tiles[1]));
-        try internal.sprites.setCapacity(pixi.app.allocator, tiles);
-
-        var i: usize = 0;
-        while (i < tiles) : (i += 1) {
-            internal.sprites.appendAssumeCapacity(.{});
-        }
-    }
-
-    try editor.open_files.insert(0, internal);
-    editor.setActiveFile(0);
-
-    return true;
-}
-
 /// Returns true if png was imported and new file created.
 pub fn importPng(editor: *Editor, png_path: [:0]const u8, new_file_path: [:0]const u8) !bool {
     if (!std.mem.eql(u8, std.fs.path.extension(png_path)[0..4], ".png"))
@@ -697,30 +551,6 @@ pub fn openFile(editor: *Editor, path: []const u8, grouping: u64) !bool {
     return error.FailedToOpenFile;
 }
 
-// pub fn openReference(editor: *Editor, path: [:0]const u8) !bool {
-//     for (editor.open_references.items, 0..) |reference, i| {
-//         if (std.mem.eql(u8, reference.path, path)) {
-//             editor.setActiveReference(i);
-//             return false;
-//         }
-//     }
-
-//     const texture = try pixi.gfx.Texture.loadFromFile(path, .{});
-
-//     const reference: pixi.Internal.Reference = .{
-//         .path = try pixi.app.allocator.dupeZ(u8, path),
-//         .texture = texture,
-//     };
-
-//     try editor.open_references.insert(0, reference);
-//     editor.setActiveReference(0);
-
-//     if (!editor.popups.references)
-//         editor.popups.references = true;
-
-//     return true;
-// }
-
 pub fn setActiveFile(editor: *Editor, index: usize) void {
     if (index >= editor.open_files.values().len) return;
     const file = editor.open_files.values()[index];
@@ -730,16 +560,6 @@ pub fn setActiveFile(editor: *Editor, index: usize) void {
         editor.open_artboard_grouping = grouping;
         artboard.open_file_index = index;
     }
-
-    //const file = &editor.open_files.values()[index];
-    // if (file.heightmap.layer == null) {
-    //     if (editor.tools.current == .heightmap)
-    //         editor.tools.current = .pointer;
-    // }
-    // if (file.transform_texture != null and editor.tools.current != .pointer) {
-    //     editor.tools.set(.pointer);
-    // }
-    //editor.open_file_index = index;
 }
 
 pub fn setCopyFile(editor: *Editor, index: usize) void {
@@ -878,18 +698,7 @@ pub fn transform(editor: *Editor) !void {
 }
 
 /// Performs a save operation on the currently open file.
-/// Also will perform a full project pack and export if project.pack_on_save is true
 pub fn save(editor: *Editor) !void {
-    // if (editor.folder) |project_folder| {
-    //     if (editor.project) |*project| {
-    //         if (project.pack_on_save) {
-    //             try pixi.packer.appendProject();
-    //             try pixi.packer.packAndClear();
-    //             try project.exportAssets(project_folder);
-    //         }
-    //     }
-    // }
-
     if (editor.open_files.values().len == 0) return;
     if (editor.activeFile()) |file| {
         try file.saveAsync();
@@ -905,12 +714,6 @@ pub fn undo(editor: *Editor) !void {
 pub fn redo(editor: *Editor) !void {
     if (editor.activeFile()) |file| {
         try file.history.undoRedo(file, .redo);
-    }
-}
-
-pub fn saveAllFiles(editor: *Editor) !void {
-    for (editor.open_files.items) |*file| {
-        _ = try file.save();
     }
 }
 
@@ -993,24 +796,8 @@ pub fn closeReference(editor: *Editor, index: usize) !void {
 }
 
 pub fn deinit(editor: *Editor) !void {
-    // for (editor.open_files.items) |_| try editor.closeFile(0);
-    // editor.open_files.deinit();
-
-    // for (editor.open_references.items) |*reference| reference.deinit();
-    // editor.open_references.deinit();
-
-    //if (editor.atlas.data) |*data| data.deinit(editor.allocator);
-    //if (editor.previous_atlas_export) |path| editor.allocator.free(path);
-
-    //if (editor.atlas.texture) |*texture| texture.deinit();
-    //if (editor.atlas.heightmap) |*heightmap| heightmap.deinit();
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.file_tree_palette) |*palette| palette.deinit();
-
-    // editor.allocator.free(editor.hotkeys.hotkeys);
-    // editor.allocator.free(editor.mouse.buttons);
-
-    //if (editor.clipboard_image) |*image| image.deinit();
 
     try editor.recents.save();
     editor.recents.deinit();

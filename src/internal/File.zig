@@ -37,6 +37,11 @@ counter: u64 = 0,
 /// File-specific editor data
 editor: EditorData = .{},
 
+/// This may be a confusing distinction between "editor" and File fields,
+/// but the intent is that fields inside of the editor namespace are actively
+/// used each frame to write/read data the editor directly depends on.
+///
+/// Also, the fields here tend to be directly coupled with the UI library
 pub const EditorData = struct {
     canvas: pixi.dvui.CanvasWidget = .{},
     layers_scroll_info: dvui.ScrollInfo = .{},
@@ -322,15 +327,21 @@ pub fn deinit(file: *File) void {
     file.history.deinit();
     file.buffers.deinit();
 
-    for (file.layers.items(.name)) |name| {
+    for (file.layers.items(.name), file.layers.items(.source)) |name, source| {
         pixi.app.allocator.free(name);
+
+        if (source.getTexture() catch null) |texture| {
+            dvui.textureDestroyLater(texture);
+        }
+    }
+
+    if (file.editor.checkerboard.getTexture() catch null) |texture| {
+        dvui.textureDestroyLater(texture);
     }
 
     file.layers.deinit(pixi.app.allocator);
     file.deleted_layers.deinit(pixi.app.allocator);
-    //file.deleted_heightmap_layers.deinit(pixi.app.allocator);
     file.sprites.deinit(pixi.app.allocator);
-    //file.editor.selected_sprites.deinit();
     file.animations.deinit(pixi.app.allocator);
     file.deleted_animations.deinit(pixi.app.allocator);
     pixi.app.allocator.free(file.path);
