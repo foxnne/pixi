@@ -645,6 +645,14 @@ pub fn processTransform(self: *FileWidget) void {
                         continue;
                     }
 
+                    if (screen_rect.contains(dvui.currentWindow().mouse_pt)) {
+                        dvui.cursorSet(.hand);
+                    } else if (transform.active_point) |active_point| {
+                        if (active_point == @as(pixi.Editor.Transform.TransformPoint, @enumFromInt(point_index))) {
+                            dvui.cursorSet(.hand);
+                        }
+                    }
+
                     switch (e.evt) {
                         .mouse => |me| {
                             if (self.init_options.canvas.rect.contains(me.p))
@@ -662,6 +670,7 @@ pub fn processTransform(self: *FileWidget) void {
                                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
                                     dvui.captureMouse(null, e.num);
                                     dvui.dragEnd();
+                                    transform.active_point = null;
                                     dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                                 }
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
@@ -669,6 +678,12 @@ pub fn processTransform(self: *FileWidget) void {
                                     if (dvui.dragging(me.p, "transform_vertex_drag")) |_| {
                                         if (transform.active_point) |active_point| {
                                             if (active_point == transform_point) {
+                                                if (active_point == .pivot) {
+                                                    transform.track_pivot = true;
+                                                } else {
+                                                    transform.track_pivot = false;
+                                                }
+
                                                 var new_point = file.editor.canvas.dataFromScreenPoint(me.p);
                                                 new_point.x = @round(new_point.x);
                                                 new_point.y = @round(new_point.y);
@@ -748,19 +763,35 @@ pub fn drawTransform(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
 
     if (file.editor.transform) |*transform| {
+        var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
         for (transform.data_points[0..4]) |*point| {
             const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
 
+            path.addPoint(screen_point);
+
             var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 30;
-            screen_rect.h = 30;
+            screen_rect.w = 36;
+            screen_rect.h = 36;
             screen_rect.x -= screen_rect.w / 2;
             screen_rect.y -= screen_rect.h / 2;
 
             screen_rect.fill(dvui.Rect.Physical.all(100000), .{
-                .color = .green,
+                .color = dvui.themeGet().color(.control, .fill),
             });
         }
+        path.build().stroke(.{
+            .thickness = 6,
+            .color = dvui.themeGet().color(.control, .fill),
+            .closed = true,
+            .endcap_style = .square,
+        });
+        path.build().stroke(.{
+            .thickness = 1,
+            .color = dvui.themeGet().color(.window, .text),
+            .closed = true,
+            .endcap_style = .square,
+        });
+
         var centroid = transform.data_points[0];
         for (transform.data_points[1..4]) |*point| {
             centroid.x += point.x;
@@ -769,17 +800,49 @@ pub fn drawTransform(self: *FileWidget) void {
         centroid.x /= 4;
         centroid.y /= 4;
 
-        const centroid_point = file.editor.canvas.screenFromDataPoint(centroid);
+        if (!transform.track_pivot) {
+            transform.point(.pivot).* = centroid;
+        }
 
-        var centroid_rect = dvui.Rect.Physical.fromPoint(centroid_point);
-        centroid_rect.w = 30;
-        centroid_rect.h = 30;
-        centroid_rect.x -= centroid_rect.w / 2;
-        centroid_rect.y -= centroid_rect.h / 2;
+        for (transform.data_points[0..5], 0..) |*point, point_index| {
+            const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
 
-        centroid_rect.fill(dvui.Rect.Physical.all(100000), .{
-            .color = .green,
-        });
+            if (point_index < 4) {
+                dvui.Path.stroke(.{ .points = &.{
+                    screen_point,
+                    file.editor.canvas.screenFromDataPoint(centroid),
+                } }, .{ .thickness = 6, .color = dvui.themeGet().color(.control, .fill) });
+                dvui.Path.stroke(.{ .points = &.{
+                    screen_point,
+                    file.editor.canvas.screenFromDataPoint(centroid),
+                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .text) });
+            }
+
+            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
+            screen_rect.w = 30;
+            screen_rect.h = 30;
+            screen_rect.x -= screen_rect.w / 2;
+            screen_rect.y -= screen_rect.h / 2;
+
+            var color = dvui.themeGet().color(.window, .text);
+
+            if (screen_rect.contains(dvui.currentWindow().mouse_pt)) {
+                color = dvui.themeGet().color(.highlight, .fill);
+            } else if (transform.active_point) |active_point| {
+                if (active_point == @as(pixi.Editor.Transform.TransformPoint, @enumFromInt(point_index))) {
+                    color = dvui.themeGet().color(.highlight, .fill);
+                }
+            }
+
+            screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+                .color = color,
+            });
+
+            screen_rect = screen_rect.inset(dvui.Rect.Physical.all(4));
+            screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+                .color = dvui.themeGet().color(.window, .fill),
+            });
+        }
     }
 }
 
