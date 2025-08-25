@@ -67,6 +67,12 @@ pub fn processKeybinds(self: *FileWidget) void {
                     };
                 }
 
+                if (ke.matchBind("activate") and ke.action == .down) {
+                    if (self.init_options.file.editor.transform) |*transform| {
+                        transform.accept();
+                    }
+                }
+
                 if (ke.matchBind("cancel") and ke.action == .down) {
                     if (self.init_options.file.editor.transform) |*transform| {
                         transform.cancel();
@@ -623,8 +629,10 @@ pub fn processTransform(self: *FileWidget) void {
         for (transform.data_points[0..6], 0..) |*point, point_index| {
             const transform_point: pixi.Editor.Transform.TransformPoint = @enumFromInt(point_index);
 
-            point.x = @round(point.x);
-            point.y = @round(point.y);
+            if (point_index < 4) {
+                point.x = @round(point.x);
+                point.y = @round(point.y);
+            }
 
             const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
 
@@ -678,15 +686,15 @@ pub fn processTransform(self: *FileWidget) void {
                                     if (dvui.dragging(me.p, "transform_vertex_drag")) |_| {
                                         if (transform.active_point) |active_point| {
                                             if (active_point == transform_point) {
-                                                if (active_point == .pivot) {
-                                                    transform.track_pivot = true;
-                                                } else {
-                                                    transform.track_pivot = false;
-                                                }
+                                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                                transform.track_pivot = active_point == .pivot;
 
                                                 var new_point = file.editor.canvas.dataFromScreenPoint(me.p);
-                                                new_point.x = @round(new_point.x);
-                                                new_point.y = @round(new_point.y);
+                                                // Only round the corner points
+                                                if (point_index < 4) {
+                                                    new_point.x = @round(new_point.x);
+                                                    new_point.y = @round(new_point.y);
+                                                }
                                                 point.* = new_point;
                                             }
                                         }
@@ -718,8 +726,8 @@ pub fn processTransform(self: *FileWidget) void {
             std.log.err("Failed to create target texture", .{});
             return;
         };
-        // This is the target we will be rendering to
-        const target = dvui.renderTarget(.{ .texture = target_texture, .offset = image_rect_physical.topLeft() });
+        // This is the previous target, we will be setting this back
+        const previous_target = dvui.renderTarget(.{ .texture = target_texture, .offset = image_rect_physical.topLeft() });
 
         // Make sure we clip to the image rect, if we don't  and the texture overlaps the canvas,
         // the rendering will be clipped incorrectly
@@ -745,8 +753,8 @@ pub fn processTransform(self: *FileWidget) void {
         }
         // Restore the previous clip
         dvui.clipSet(prev_clip);
-        // Actually render to the target
-        _ = dvui.renderTarget(target);
+        // Set the target back
+        _ = dvui.renderTarget(previous_target);
 
         // Read the target texture and copy it to the selection layer
         if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
@@ -826,12 +834,12 @@ pub fn drawTransform(self: *FileWidget) void {
 
             var color = dvui.themeGet().color(.window, .text);
 
-            if (screen_rect.contains(dvui.currentWindow().mouse_pt)) {
-                color = dvui.themeGet().color(.highlight, .fill);
-            } else if (transform.active_point) |active_point| {
+            if (transform.active_point) |active_point| {
                 if (active_point == @as(pixi.Editor.Transform.TransformPoint, @enumFromInt(point_index))) {
                     color = dvui.themeGet().color(.highlight, .fill);
                 }
+            } else if (screen_rect.contains(dvui.currentWindow().mouse_pt)) {
+                color = dvui.themeGet().color(.highlight, .fill);
             }
 
             screen_rect.fill(dvui.Rect.Physical.all(100000), .{
@@ -1219,7 +1227,6 @@ pub fn processEvents(self: *FileWidget) void {
     @memset(self.init_options.file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
 
     if (self.hovered() != null) {
-        self.processKeybinds();
         self.processFill();
         self.processStroke();
         self.processSample();
@@ -1240,6 +1247,7 @@ pub fn processEvents(self: *FileWidget) void {
     if (self.hovered() != null) {
         self.drawCursor();
         self.drawSample();
+        self.processKeybinds();
     }
     self.drawTransform();
 
