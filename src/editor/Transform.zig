@@ -27,10 +27,12 @@ pub fn accept(self: *Transform) void {
         var layer = file.getLayer(self.layer_id) orelse return;
 
         for (file.editor.temporary_layer.pixels(), 0..) |*pixel, pixel_index| {
-            if (pixel[3] != 0) {
+            if (pixel[3] != 0 or file.editor.transform_layer.pixels()[pixel_index][3] != 0) {
                 file.buffers.stroke.append(pixel_index, file.editor.transform_layer.pixels()[pixel_index]) catch {
                     dvui.log.err("Failed to append stroke change to history", .{});
                 };
+            }
+            if (pixel[3] != 0) {
                 @memcpy(&layer.pixels()[pixel_index], pixel);
             }
         }

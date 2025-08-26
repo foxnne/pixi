@@ -642,8 +642,8 @@ pub fn processTransform(self: *FileWidget) void {
             };
 
             var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 30;
-            screen_rect.h = 30;
+            screen_rect.w = 16 * dvui.currentWindow().content_scale;
+            screen_rect.h = 16 * dvui.currentWindow().content_scale;
             screen_rect.x -= screen_rect.w / 2;
             screen_rect.y -= screen_rect.h / 2;
 
@@ -778,8 +778,8 @@ pub fn drawTransform(self: *FileWidget) void {
             path.addPoint(screen_point);
 
             var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 36;
-            screen_rect.h = 36;
+            screen_rect.w = 16 * dvui.currentWindow().content_scale;
+            screen_rect.h = 16 * dvui.currentWindow().content_scale;
             screen_rect.x -= screen_rect.w / 2;
             screen_rect.y -= screen_rect.h / 2;
 
@@ -788,13 +788,13 @@ pub fn drawTransform(self: *FileWidget) void {
             });
         }
         path.build().stroke(.{
-            .thickness = 6,
+            .thickness = 4,
             .color = dvui.themeGet().color(.control, .fill),
             .closed = true,
             .endcap_style = .square,
         });
         path.build().stroke(.{
-            .thickness = 1,
+            .thickness = 2,
             .color = dvui.themeGet().color(.window, .text),
             .closed = true,
             .endcap_style = .square,
@@ -819,16 +819,16 @@ pub fn drawTransform(self: *FileWidget) void {
                 dvui.Path.stroke(.{ .points = &.{
                     screen_point,
                     file.editor.canvas.screenFromDataPoint(centroid),
-                } }, .{ .thickness = 6, .color = dvui.themeGet().color(.control, .fill) });
+                } }, .{ .thickness = 4, .color = dvui.themeGet().color(.control, .fill) });
                 dvui.Path.stroke(.{ .points = &.{
                     screen_point,
                     file.editor.canvas.screenFromDataPoint(centroid),
-                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .text) });
+                } }, .{ .thickness = 2, .color = dvui.themeGet().color(.window, .text) });
             }
 
             var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 30;
-            screen_rect.h = 30;
+            screen_rect.w = 15 * dvui.currentWindow().content_scale;
+            screen_rect.h = 15 * dvui.currentWindow().content_scale;
             screen_rect.x -= screen_rect.w / 2;
             screen_rect.y -= screen_rect.h / 2;
 
@@ -846,7 +846,7 @@ pub fn drawTransform(self: *FileWidget) void {
                 .color = color,
             });
 
-            screen_rect = screen_rect.inset(dvui.Rect.Physical.all(4));
+            screen_rect = screen_rect.inset(dvui.Rect.Physical.all(2 * dvui.currentWindow().content_scale));
             screen_rect.fill(dvui.Rect.Physical.all(100000), .{
                 .color = dvui.themeGet().color(.window, .fill),
             });
@@ -1188,7 +1188,7 @@ pub fn drawLayers(self: *FileWidget) void {
             const sprite_rect = file.spriteRect(i);
             const sprite_rect_physical = self.init_options.canvas.screenFromDataRect(sprite_rect);
             sprite_rect_physical.stroke(dvui.Rect.Physical.all(@min(sprite_rect_physical.w, sprite_rect_physical.h) / 8), .{
-                .thickness = 6,
+                .thickness = 3 * dvui.currentWindow().content_scale,
                 .color = dvui.themeGet().color(.highlight, .fill),
                 .closed = true,
             });
