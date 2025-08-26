@@ -642,8 +642,8 @@ pub fn processTransform(self: *FileWidget) void {
             };
 
             var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 16 * dvui.currentWindow().content_scale;
-            screen_rect.h = 16 * dvui.currentWindow().content_scale;
+            screen_rect.w = 16 * dvui.currentWindow().natural_scale;
+            screen_rect.h = 16 * dvui.currentWindow().natural_scale;
             screen_rect.x -= screen_rect.w / 2;
             screen_rect.y -= screen_rect.h / 2;
 
@@ -778,8 +778,8 @@ pub fn drawTransform(self: *FileWidget) void {
             path.addPoint(screen_point);
 
             var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 16 * dvui.currentWindow().content_scale;
-            screen_rect.h = 16 * dvui.currentWindow().content_scale;
+            screen_rect.w = 16 * dvui.currentWindow().natural_scale;
+            screen_rect.h = 16 * dvui.currentWindow().natural_scale;
             screen_rect.x -= screen_rect.w / 2;
             screen_rect.y -= screen_rect.h / 2;
 
@@ -788,7 +788,7 @@ pub fn drawTransform(self: *FileWidget) void {
             });
         }
         path.build().stroke(.{
-            .thickness = 4,
+            .thickness = 4 * dvui.currentWindow().natural_scale,
             .color = dvui.themeGet().color(.control, .fill),
             .closed = true,
             .endcap_style = .square,
@@ -819,7 +819,7 @@ pub fn drawTransform(self: *FileWidget) void {
                 dvui.Path.stroke(.{ .points = &.{
                     screen_point,
                     file.editor.canvas.screenFromDataPoint(centroid),
-                } }, .{ .thickness = 4, .color = dvui.themeGet().color(.control, .fill) });
+                } }, .{ .thickness = 4 * dvui.currentWindow().natural_scale, .color = dvui.themeGet().color(.control, .fill) });
                 dvui.Path.stroke(.{ .points = &.{
                     screen_point,
                     file.editor.canvas.screenFromDataPoint(centroid),
@@ -827,8 +827,8 @@ pub fn drawTransform(self: *FileWidget) void {
             }
 
             var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 15 * dvui.currentWindow().content_scale;
-            screen_rect.h = 15 * dvui.currentWindow().content_scale;
+            screen_rect.w = 15 * dvui.currentWindow().natural_scale;
+            screen_rect.h = 15 * dvui.currentWindow().natural_scale;
             screen_rect.x -= screen_rect.w / 2;
             screen_rect.y -= screen_rect.h / 2;
 
@@ -846,7 +846,7 @@ pub fn drawTransform(self: *FileWidget) void {
                 .color = color,
             });
 
-            screen_rect = screen_rect.inset(dvui.Rect.Physical.all(2 * dvui.currentWindow().content_scale));
+            screen_rect = screen_rect.inset(dvui.Rect.Physical.all(2 * dvui.currentWindow().natural_scale));
             screen_rect.fill(dvui.Rect.Physical.all(100000), .{
                 .color = dvui.themeGet().color(.window, .fill),
             });
