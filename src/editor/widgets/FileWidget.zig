@@ -626,28 +626,44 @@ pub fn processTransform(self: *FileWidget) void {
         // move the two adjacent points to remain square.
         var data_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         var screen_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-        for (transform.data_points[0..6], 0..) |*point, point_index| {
-            const transform_point: pixi.Editor.Transform.TransformPoint = @enumFromInt(point_index);
+        for (transform.data_points[0..4]) |*point| {
+            //const transform_point: pixi.Editor.Transform.TransformPoint = @enumFromInt(point_index);
 
-            if (point_index < 4) {
-                point.x = @round(point.x);
-                point.y = @round(point.y);
-            }
+            point.x = @round(point.x);
+            point.y = @round(point.y);
 
             const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
 
-            defer if (point_index < 4) {
-                data_path.addPoint(.{ .x = point.x, .y = point.y });
-                screen_path.addPoint(.{ .x = screen_point.x, .y = screen_point.y });
-            };
+            data_path.addPoint(.{ .x = point.x, .y = point.y });
+            screen_path.addPoint(.{ .x = screen_point.x, .y = screen_point.y });
+        }
 
-            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 16 * dvui.currentWindow().natural_scale;
-            screen_rect.h = 16 * dvui.currentWindow().natural_scale;
-            screen_rect.x -= screen_rect.w / 2;
-            screen_rect.y -= screen_rect.h / 2;
+        var centroid = transform.data_points[0];
+        for (transform.data_points[1..4]) |*point| {
+            centroid.x += point.x;
+            centroid.y += point.y;
+        }
+        centroid.x /= 4;
+        centroid.y /= 4;
 
-            {
+        var triangle_opts: ?dvui.Triangles = data_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
+            .center = .{ .x = centroid.x, .y = centroid.y },
+            .color = .white,
+        }) catch null;
+
+        if (triangle_opts) |*triangles| {
+            // First, we rotate the triangles to match the angle
+            triangles.rotate(.{ .x = transform.point(.pivot).x, .y = transform.point(.pivot).y }, transform.rotation);
+
+            for (transform.data_points[0..6], 0..) |*data_point, point_index| {
+                const screen_point = if (point_index < 4) file.editor.canvas.screenFromDataPoint(.{ .x = triangles.vertexes[point_index].pos.x, .y = triangles.vertexes[point_index].pos.y }) else file.editor.canvas.screenFromDataPoint(data_point.*);
+
+                var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
+                screen_rect.w = 16 * dvui.currentWindow().natural_scale;
+                screen_rect.h = 16 * dvui.currentWindow().natural_scale;
+                screen_rect.x -= screen_rect.w / 2;
+                screen_rect.y -= screen_rect.h / 2;
+
                 for (dvui.events()) |*e| {
                     if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
                         continue;
@@ -685,17 +701,34 @@ pub fn processTransform(self: *FileWidget) void {
                                 if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                                     if (dvui.dragging(me.p, "transform_vertex_drag")) |_| {
                                         if (transform.active_point) |active_point| {
-                                            if (active_point == transform_point) {
+                                            if (@intFromEnum(active_point) == point_index) {
                                                 e.handle(@src(), self.init_options.canvas.scroll_container.data());
                                                 transform.track_pivot = active_point == .pivot;
 
                                                 var new_point = file.editor.canvas.dataFromScreenPoint(me.p);
-                                                // Only round the corner points
+
                                                 if (point_index < 4) {
-                                                    new_point.x = @round(new_point.x);
-                                                    new_point.y = @round(new_point.y);
+                                                    // Only round the corner points
+                                                    if (point_index < 4) {
+                                                        new_point.x = @round(new_point.x);
+                                                        new_point.y = @round(new_point.y);
+                                                    }
+
+                                                    // Now we have to un-rotate the vertex and set the original location
+                                                    new_point = pixi.math.rotate(new_point, transform.point(.pivot).*, -transform.rotation);
+                                                    data_point.* = new_point;
+                                                } else {
+                                                    if (active_point == .pivot) {
+                                                        data_point.* = new_point;
+                                                    }
+                                                    if (active_point == .rotate) {
+                                                        const diff = new_point.diff(transform.point(.pivot).*);
+                                                        const angle = std.math.atan2(diff.y, diff.x);
+                                                        transform.rotation = std.math.degreesToRadians(std.math.radiansToDegrees(angle) + 90);
+
+                                                        data_point.* = transform.point(.pivot).plus(diff.normalize().scale(20, dvui.Point));
+                                                    }
                                                 }
-                                                point.* = new_point;
                                             }
                                         }
                                     }
@@ -705,63 +738,49 @@ pub fn processTransform(self: *FileWidget) void {
                         else => {},
                     }
                 }
+                // Here pass in the data rect, since we will be rendering directly to the low-res texture
+                const target_texture = dvui.textureCreateTarget(@intFromFloat(image_rect.w), @intFromFloat(image_rect.h), .nearest) catch {
+                    std.log.err("Failed to create target texture", .{});
+                    return;
+                };
+                // This is the previous target, we will be setting this back
+                const previous_target = dvui.renderTarget(.{ .texture = target_texture, .offset = image_rect_physical.topLeft() });
+
+                // Make sure we clip to the image rect, if we don't  and the texture overlaps the canvas,
+                // the rendering will be clipped incorrectly
+                // Use clipSet instead of clip, clip unions with current clip
+                const clip_rect = image_rect_physical;
+                const prev_clip = dvui.clipGet();
+                dvui.clipSet(clip_rect);
+
+                // Set UVs, there are 5 vertexes, or 1 more than the number of triangles, and is at the center
+
+                triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
+                triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
+                triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
+                triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
+                triangles.vertexes[4].uv = .{ 0.5, 0.5 }; // C
+
+                // Render the triangles to the target texture
+                dvui.renderTriangles(triangles.*, transform.source.getTexture() catch null) catch {
+                    std.log.err("Failed to render triangles", .{});
+                };
+
+                // Restore the previous clip
+                dvui.clipSet(prev_clip);
+                // Set the target back
+                _ = dvui.renderTarget(previous_target);
+
+                // Read the target texture and copy it to the selection layer
+                if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
+                    @memcpy(file.editor.temporary_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
+                    file.editor.temporary_layer.invalidate();
+                } else {
+                    std.log.err("Failed to read target", .{});
+                }
             }
-        }
-
-        var centroid = transform.data_points[0];
-        for (transform.data_points[1..4]) |*point| {
-            centroid.x += point.x;
-            centroid.y += point.y;
-        }
-        centroid.x /= 4;
-        centroid.y /= 4;
-
-        const triangle_opts: ?dvui.Triangles = data_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
-            .center = .{ .x = centroid.x, .y = centroid.y },
-            .color = .white,
-        }) catch null;
-
-        // Here pass in the data rect, since we will be rendering directly to the low-res texture
-        const target_texture = dvui.textureCreateTarget(@intFromFloat(image_rect.w), @intFromFloat(image_rect.h), .nearest) catch {
-            std.log.err("Failed to create target texture", .{});
-            return;
-        };
-        // This is the previous target, we will be setting this back
-        const previous_target = dvui.renderTarget(.{ .texture = target_texture, .offset = image_rect_physical.topLeft() });
-
-        // Make sure we clip to the image rect, if we don't  and the texture overlaps the canvas,
-        // the rendering will be clipped incorrectly
-        // Use clipSet instead of clip, clip unions with current clip
-        const clip_rect = image_rect_physical;
-        const prev_clip = dvui.clipGet();
-        dvui.clipSet(clip_rect);
-
-        // Set UVs, there are 5 vertexes, or 1 more than the number of triangles, and is at the center
-        if (triangle_opts) |triangles| {
-            triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
-            triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
-            triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
-            triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
-            triangles.vertexes[4].uv = .{ 0.5, 0.5 }; // C
-
-            // Render the triangles to the target texture
-            dvui.renderTriangles(triangles, transform.source.getTexture() catch null) catch {
-                std.log.err("Failed to render triangles", .{});
-            };
         } else {
             std.log.err("Failed to fill triangles", .{});
-        }
-        // Restore the previous clip
-        dvui.clipSet(prev_clip);
-        // Set the target back
-        _ = dvui.renderTarget(previous_target);
-
-        // Read the target texture and copy it to the selection layer
-        if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
-            @memcpy(file.editor.temporary_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
-            file.editor.temporary_layer.invalidate();
-        } else {
-            std.log.err("Failed to read target", .{});
         }
     }
 }
@@ -774,31 +793,8 @@ pub fn drawTransform(self: *FileWidget) void {
         var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
         for (transform.data_points[0..4]) |*point| {
             const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
-
             path.addPoint(screen_point);
-
-            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 16 * dvui.currentWindow().natural_scale;
-            screen_rect.h = 16 * dvui.currentWindow().natural_scale;
-            screen_rect.x -= screen_rect.w / 2;
-            screen_rect.y -= screen_rect.h / 2;
-
-            screen_rect.fill(dvui.Rect.Physical.all(100000), .{
-                .color = dvui.themeGet().color(.control, .fill),
-            });
         }
-        path.build().stroke(.{
-            .thickness = 4 * dvui.currentWindow().natural_scale,
-            .color = dvui.themeGet().color(.control, .fill),
-            .closed = true,
-            .endcap_style = .square,
-        });
-        path.build().stroke(.{
-            .thickness = 2,
-            .color = dvui.themeGet().color(.window, .text),
-            .closed = true,
-            .endcap_style = .square,
-        });
 
         var centroid = transform.data_points[0];
         for (transform.data_points[1..4]) |*point| {
@@ -808,48 +804,69 @@ pub fn drawTransform(self: *FileWidget) void {
         centroid.x /= 4;
         centroid.y /= 4;
 
-        if (!transform.track_pivot) {
-            transform.point(.pivot).* = centroid;
-        }
+        var triangles_opt = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
+            .center = .{ .x = centroid.x, .y = centroid.y },
+            .color = .white,
+        }) catch null;
 
-        for (transform.data_points[0..5], 0..) |*point, point_index| {
-            const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
+        if (triangles_opt) |*triangles| {
+            triangles.rotate(file.editor.canvas.screenFromDataPoint(transform.point(.pivot).*), transform.rotation);
 
-            if (point_index < 4) {
-                dvui.Path.stroke(.{ .points = &.{
-                    screen_point,
-                    file.editor.canvas.screenFromDataPoint(centroid),
-                } }, .{ .thickness = 4 * dvui.currentWindow().natural_scale, .color = dvui.themeGet().color(.control, .fill) });
-                dvui.Path.stroke(.{ .points = &.{
-                    screen_point,
-                    file.editor.canvas.screenFromDataPoint(centroid),
-                } }, .{ .thickness = 2, .color = dvui.themeGet().color(.window, .text) });
+            var outline_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            for (triangles.vertexes[0..4]) |*vertex| {
+                outline_path.addPoint(.{ .x = vertex.pos.x, .y = vertex.pos.y });
             }
 
-            var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
-            screen_rect.w = 15 * dvui.currentWindow().natural_scale;
-            screen_rect.h = 15 * dvui.currentWindow().natural_scale;
-            screen_rect.x -= screen_rect.w / 2;
-            screen_rect.y -= screen_rect.h / 2;
+            outline_path.build().stroke(.{
+                .thickness = 4 * dvui.currentWindow().natural_scale,
+                .color = dvui.themeGet().color(.control, .fill),
+                .closed = true,
+                .endcap_style = .square,
+            });
+            outline_path.build().stroke(.{
+                .thickness = 2,
+                .color = dvui.themeGet().color(.window, .text),
+                .closed = true,
+                .endcap_style = .square,
+            });
 
-            var color = dvui.themeGet().color(.window, .text);
+            for (transform.data_points[0..6], 0..) |*point, point_index| {
+                var screen_point = file.editor.canvas.screenFromDataPoint(point.*);
 
-            if (transform.active_point) |active_point| {
-                if (active_point == @as(pixi.Editor.Transform.TransformPoint, @enumFromInt(point_index))) {
+                if (point_index < 4)
+                    screen_point = triangles.vertexes[point_index].pos;
+
+                var screen_rect = dvui.Rect.Physical.fromPoint(screen_point);
+                screen_rect.w = 16 * dvui.currentWindow().natural_scale;
+                screen_rect.h = 16 * dvui.currentWindow().natural_scale;
+                screen_rect.x -= screen_rect.w / 2;
+                screen_rect.y -= screen_rect.h / 2;
+
+                screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+                    .color = dvui.themeGet().color(.control, .fill),
+                });
+
+                screen_rect = screen_rect.inset(dvui.Rect.Physical.all(1 * dvui.currentWindow().natural_scale));
+
+                var color = dvui.themeGet().color(.window, .text);
+
+                if (transform.active_point) |active_point| {
+                    if (active_point == @as(pixi.Editor.Transform.TransformPoint, @enumFromInt(point_index))) {
+                        color = dvui.themeGet().color(.highlight, .fill);
+                    }
+                } else if (screen_rect.contains(dvui.currentWindow().mouse_pt)) {
                     color = dvui.themeGet().color(.highlight, .fill);
                 }
-            } else if (screen_rect.contains(dvui.currentWindow().mouse_pt)) {
-                color = dvui.themeGet().color(.highlight, .fill);
+
+                screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+                    .color = color,
+                });
+
+                screen_rect = screen_rect.inset(dvui.Rect.Physical.all(2 * dvui.currentWindow().natural_scale));
+                screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+                    .color = dvui.themeGet().color(.window, .fill),
+                });
             }
-
-            screen_rect.fill(dvui.Rect.Physical.all(100000), .{
-                .color = color,
-            });
-
-            screen_rect = screen_rect.inset(dvui.Rect.Physical.all(2 * dvui.currentWindow().natural_scale));
-            screen_rect.fill(dvui.Rect.Physical.all(100000), .{
-                .color = dvui.themeGet().color(.window, .fill),
-            });
         }
     }
 }
