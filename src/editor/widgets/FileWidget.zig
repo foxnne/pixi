@@ -620,24 +620,16 @@ pub fn processTransform(self: *FileWidget) void {
             return;
         }
 
-        // First, track the mouse and allow movement of the transform points aligned to the pixel grid
-        // Also, track which mods are active during the drag, so we can know what to do with the other
-        // points. i.e. if ctrl/cmd is held, we will only move the singular point, while otherwise we will
-        // move the two adjacent points to remain square.
+        // Reset the dragging flag when the transform is finished
+        transform.dragging = false;
+
+        // Data path is necessary to build and fill with convex triangles, which will be how we render to the target texture
         var data_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-        var screen_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         for (transform.data_points[0..4]) |*point| {
-            //const transform_point: pixi.Editor.Transform.TransformPoint = @enumFromInt(point_index);
-
-            //point.x = @round(point.x);
-            //point.y = @round(point.y);
-
-            const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
-
             data_path.addPoint(.{ .x = point.x, .y = point.y });
-            screen_path.addPoint(.{ .x = screen_point.x, .y = screen_point.y });
         }
 
+        // Calculate the centroid of the four corner points
         var centroid = transform.data_points[0];
         for (transform.data_points[1..4]) |*point| {
             centroid.x += point.x;
@@ -651,7 +643,7 @@ pub fn processTransform(self: *FileWidget) void {
             .color = .white,
         }) catch null;
 
-        {
+        { // Update the rotate point to locate towards the mouse
             const diff = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt).diff(transform.point(.pivot).*);
             transform.point(.rotate).* = transform.point(.pivot).plus(diff.normalize().scale(transform.radius, dvui.Point));
         }
@@ -718,7 +710,7 @@ pub fn processTransform(self: *FileWidget) void {
 
                                                 var new_point = file.editor.canvas.dataFromScreenPoint(me.p);
 
-                                                {
+                                                defer { // Calculate the radius of the transform no matter what point is changing
                                                     var radius: f32 = 0.0;
 
                                                     for (transform.data_points[0..4]) |*point| {
@@ -743,20 +735,19 @@ pub fn processTransform(self: *FileWidget) void {
 
                                                     // const diff = new_point.diff(transform.point(.pivot).*);
                                                     // transform.radius = diff.length + 2 * dvui.currentWindow().natural_scale;
-                                                } else {
-                                                    if (active_point == .pivot) {
-                                                        data_point.* = new_point;
-                                                    }
-                                                    if (transform_point == .rotate) {
-                                                        if (self.drag_data_point) |drag_data_point| {
-                                                            const drag_diff = drag_data_point.diff(transform.point(.pivot).*);
-                                                            const drag_angle = std.math.atan2(drag_diff.y, drag_diff.x);
+                                                }
+                                                if (active_point == .pivot) {
+                                                    data_point.* = new_point;
+                                                }
+                                                if (transform_point == .rotate) {
+                                                    if (self.drag_data_point) |drag_data_point| {
+                                                        const drag_diff = drag_data_point.diff(transform.point(.pivot).*);
+                                                        const drag_angle = std.math.atan2(drag_diff.y, drag_diff.x);
 
-                                                            const diff = new_point.diff(transform.point(.pivot).*);
-                                                            const angle = std.math.atan2(diff.y, diff.x);
+                                                        const diff = new_point.diff(transform.point(.pivot).*);
+                                                        const angle = std.math.atan2(diff.y, diff.x);
 
-                                                            transform.rotation = std.math.degreesToRadians(@round(std.math.radiansToDegrees(transform.start_rotation + (angle - drag_angle))));
-                                                        }
+                                                        transform.rotation = std.math.degreesToRadians(@round(std.math.radiansToDegrees(transform.start_rotation + (angle - drag_angle))));
                                                     }
                                                 }
                                             }
@@ -770,6 +761,8 @@ pub fn processTransform(self: *FileWidget) void {
                 }
             }
 
+            // Now if we havent selected any of the points, we need to handle dragging the interior of the polygon
+            // to move the entire transform
             if (transform.active_point == null) {
                 for (dvui.events()) |*e| {
                     if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
@@ -806,12 +799,18 @@ pub fn processTransform(self: *FileWidget) void {
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                                 if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                                     if (dvui.dragging(me.p, "transform_drag")) |_| {
+                                        transform.dragging = true;
                                         e.handle(@src(), self.init_options.canvas.scroll_container.data());
 
-                                        const prev_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt_prev);
-                                        const new_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                                        var prev_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt_prev);
+                                        prev_point.x = @round(prev_point.x);
+                                        prev_point.y = @round(prev_point.y);
+                                        var new_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                                        new_point.x = @round(new_point.x);
+                                        new_point.y = @round(new_point.y);
+
                                         const diff = new_point.diff(prev_point);
-                                        for (&transform.data_points) |*point| {
+                                        for (transform.data_points[0..5]) |*point| {
                                             point.* = point.plus(diff);
                                         }
                                     }
@@ -983,7 +982,7 @@ pub fn drawTransform(self: *FileWidget) void {
                 });
                 outline_path.build().stroke(.{
                     .thickness = 2,
-                    .color = if (is_hovered) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.window, .text),
+                    .color = if (is_hovered or transform.dragging) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.window, .text),
                     .closed = true,
                     .endcap_style = .square,
                 });
