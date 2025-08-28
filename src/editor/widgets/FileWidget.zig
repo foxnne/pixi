@@ -615,13 +615,11 @@ pub fn processTransform(self: *FileWidget) void {
     const image_rect_physical = dvui.Rect.Physical.fromSize(.{ .w = image_rect.w, .h = image_rect.h });
 
     if (file.editor.transform) |*transform| {
+        // If the scenario is not valid, cancel the transform
         if (!valid) {
             transform.cancel();
             return;
         }
-
-        // Reset the dragging flag when the transform is finished
-        transform.dragging = false;
 
         // Data path is necessary to build and fill with convex triangles, which will be how we render to the target texture
         var data_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
@@ -699,6 +697,7 @@ pub fn processTransform(self: *FileWidget) void {
                                     transform.active_point = null;
                                     dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                                     self.drag_data_point = null;
+                                    transform.dragging = false;
                                 }
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                                 if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
@@ -706,11 +705,15 @@ pub fn processTransform(self: *FileWidget) void {
                                         if (transform.active_point) |active_point| {
                                             if (@intFromEnum(active_point) == point_index) {
                                                 e.handle(@src(), self.init_options.canvas.scroll_container.data());
+
+                                                // Set this state in advance so we can use it for the radius calculation
                                                 transform.track_pivot = active_point == .pivot;
 
+                                                // This is the new data point of the dragged point
                                                 var new_point = file.editor.canvas.dataFromScreenPoint(me.p);
 
-                                                defer { // Calculate the radius of the transform no matter what point is changing
+                                                // Calculate the radius of the transform no matter what point is changing
+                                                defer {
                                                     var radius: f32 = 0.0;
 
                                                     for (transform.data_points[0..4]) |*point| {
@@ -725,7 +728,6 @@ pub fn processTransform(self: *FileWidget) void {
 
                                                 if (point_index < 4) {
                                                     // Only round the corner points
-
                                                     new_point.x = @round(new_point.x);
                                                     new_point.y = @round(new_point.y);
 
@@ -733,8 +735,67 @@ pub fn processTransform(self: *FileWidget) void {
                                                     new_point = pixi.math.rotate(new_point, transform.point(.pivot).*, -transform.rotation);
                                                     data_point.* = new_point;
 
-                                                    // const diff = new_point.diff(transform.point(.pivot).*);
-                                                    // transform.radius = diff.length + 2 * dvui.currentWindow().natural_scale;
+                                                    // data_point is the currently dragged point, but we also need to update adjacent points if we are keeping the transform square
+                                                    blk_vert: {
+                                                        if (!me.mod.matchBind("ctrl/cmd")) {
+                                                            // Find adjacent verts
+                                                            const adjacent_index_cw = if (point_index < 3) point_index + 1 else 0;
+                                                            const adjacent_index_ccw = if (point_index > 0) point_index - 1 else 3;
+
+                                                            // Get the adjacent points
+                                                            const adjacent_point_cw = &transform.data_points[adjacent_index_cw];
+                                                            const adjacent_point_ccw = &transform.data_points[adjacent_index_ccw];
+
+                                                            const opposite_index: usize = switch (point_index) {
+                                                                0 => 2,
+                                                                1 => 3,
+                                                                2 => 0,
+                                                                3 => 1,
+                                                                else => unreachable,
+                                                            };
+
+                                                            const opposite_point = &transform.data_points[opposite_index];
+
+                                                            var rotation_direction: dvui.Point = pixi.math.rotate(dvui.Point{ .x = 1, .y = 0 }, transform.point(.pivot).*, 0);
+                                                            var rotation_perp: dvui.Point = pixi.math.rotate(dvui.Point{ .x = 0, .y = 1 }, transform.point(.pivot).*, 0);
+
+                                                            // Calculate the difference between the adjacent points and the new point
+
+                                                            { // Calculate intersection point to set adjacent vert
+                                                                const as = data_point.*;
+                                                                const bs = opposite_point.*;
+                                                                const ad = rotation_direction.scale(-1.0, dvui.Point);
+                                                                const bd = rotation_perp;
+                                                                const dx = bs.x - as.x;
+                                                                const dy = bs.y - as.y;
+                                                                const det = bd.x * ad.y - bd.y * ad.x;
+                                                                if (det == 0.0) break :blk_vert;
+                                                                const u = (dy * bd.x - dx * bd.y) / det;
+                                                                switch (point_index) {
+                                                                    0, 2 => adjacent_point_cw.* = as.plus(ad.scale(u, dvui.Point)),
+                                                                    1, 3 => adjacent_point_ccw.* = as.plus(ad.scale(u, dvui.Point)),
+                                                                    else => unreachable,
+                                                                }
+                                                            }
+
+                                                            { // Calculate intersection point to set adjacent vert
+                                                                const as = data_point.*;
+                                                                const bs = opposite_point.*;
+                                                                const ad = rotation_perp.scale(-1.0, dvui.Point);
+                                                                const bd = rotation_direction;
+                                                                const dx = bs.x - as.x;
+                                                                const dy = bs.y - as.y;
+                                                                const det = bd.x * ad.y - bd.y * ad.x;
+                                                                if (det == 0.0) break :blk_vert;
+                                                                const u = (dy * bd.x - dx * bd.y) / det;
+                                                                switch (point_index) {
+                                                                    0, 2 => adjacent_point_ccw.* = as.plus(ad.scale(u, dvui.Point)),
+                                                                    1, 3 => adjacent_point_cw.* = as.plus(ad.scale(u, dvui.Point)),
+                                                                    else => unreachable,
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                                 if (active_point == .pivot) {
                                                     data_point.* = new_point;
@@ -788,13 +849,6 @@ pub fn processTransform(self: *FileWidget) void {
                                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
                                     dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
                                     dvui.dragPreStart(me.p, .{ .name = "transform_drag" });
-                                }
-                            } else if (me.action == .release and me.button.pointer()) {
-                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
-                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                    dvui.captureMouse(null, e.num);
-                                    dvui.dragEnd();
-                                    dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                                 }
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                                 if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
@@ -989,8 +1043,15 @@ pub fn drawTransform(self: *FileWidget) void {
             }
 
             for (transform.data_points[0..6], 0..) |*point, point_index| {
+                if (transform.active_point) |active_point| {
+                    if (active_point == .pivot) {
+                        if (point_index == 5) continue; // skip drawing the rotate point if we are dragging the pivot
+                    }
+                }
+
                 var screen_point = file.editor.canvas.screenFromDataPoint(point.*);
 
+                // Use the triangle points for the corners
                 if (point_index < 4)
                     screen_point = triangles.vertexes[point_index].pos;
 
