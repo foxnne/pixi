@@ -684,7 +684,7 @@ pub fn transform(editor: *Editor) !void {
                     reduced_data_rect.bottomRight(),
                     reduced_data_rect.bottomLeft(),
                     reduced_data_rect.center(),
-                    reduced_data_rect.center().plus(.{ .y = -20 }),
+                    reduced_data_rect.center(),
                 },
                 .source = pixi.image.fromPixels(
                     @ptrCast(file.editor.transform_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
@@ -693,6 +693,13 @@ pub fn transform(editor: *Editor) !void {
                     .ptr,
                 ) catch return error.MemoryAllocationFailed,
             };
+
+            for (file.editor.transform.?.data_points[0..4]) |*point| {
+                const d = point.diff(file.editor.transform.?.point(.pivot).*);
+                if (d.length() > file.editor.transform.?.radius) {
+                    file.editor.transform.?.radius = d.length() + 2 * dvui.currentWindow().natural_scale;
+                }
+            }
         }
     }
 }

@@ -9,8 +9,11 @@ pub const Transform = @This();
 /// 6: the rotation point
 data_points: [6]dvui.Point,
 track_pivot: bool = false,
+dragging: bool = false,
 active_point: ?TransformPoint = null,
 rotation: f32 = 0.0,
+start_rotation: f32 = 0.0,
+radius: f32 = 0.0,
 file_id: u64,
 layer_id: u64,
 source: dvui.ImageSource,
@@ -71,6 +74,157 @@ pub fn cancel(self: *Transform) void {
         self.* = undefined;
     }
 }
+
+pub fn hovered(self: *Transform, data_point: dvui.Point) bool {
+    var is_hovered = false;
+
+    var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+    path.addPoint(.{ .x = self.point(.top_left).x, .y = self.point(.top_left).y });
+    path.addPoint(.{ .x = self.point(.top_right).x, .y = self.point(.top_right).y });
+    path.addPoint(.{ .x = self.point(.bottom_right).x, .y = self.point(.bottom_right).y });
+    path.addPoint(.{ .x = self.point(.bottom_left).x, .y = self.point(.bottom_left).y });
+
+    var centroid = self.data_points[0];
+    for (self.data_points[1..4]) |*p| {
+        centroid.x += p.x;
+        centroid.y += p.y;
+    }
+    centroid.x /= 4;
+    centroid.y /= 4;
+
+    var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
+        .center = .{ .x = centroid.x, .y = centroid.y },
+        .color = .white,
+    }) catch null;
+
+    if (triangles) |*t| {
+        t.rotate(.{ .x = self.point(.pivot).x, .y = self.point(.pivot).y }, self.rotation);
+
+        const top_left = t.vertexes[0];
+        const top_right = t.vertexes[1];
+        const bottom_right = t.vertexes[2];
+        const bottom_left = t.vertexes[3];
+
+        {
+            const triangle_1 = [3]dvui.Point{
+                .{ .x = top_left.pos.x, .y = top_left.pos.y },
+                .{ .x = top_right.pos.x, .y = top_right.pos.y },
+                .{ .x = data_point.x, .y = data_point.y },
+            };
+
+            const triangle_2 = [3]dvui.Point{
+                .{ .x = top_right.pos.x, .y = top_right.pos.y },
+                .{ .x = bottom_right.pos.x, .y = bottom_right.pos.y },
+                .{ .x = data_point.x, .y = data_point.y },
+            };
+
+            const triangle_3 = [3]dvui.Point{
+                .{ .x = bottom_right.pos.x, .y = bottom_right.pos.y },
+                .{ .x = top_left.pos.x, .y = top_left.pos.y },
+                .{ .x = data_point.x, .y = data_point.y },
+            };
+
+            const triangle_4 = [3]dvui.Point{
+                .{ .x = top_left.pos.x, .y = top_left.pos.y },
+                .{ .x = top_right.pos.x, .y = top_right.pos.y },
+                .{ .x = bottom_right.pos.x, .y = bottom_right.pos.y },
+            };
+
+            const area_1 = area(triangle_1);
+            const area_2 = area(triangle_2);
+            const area_3 = area(triangle_3);
+            const area_4 = area(triangle_4);
+
+            const combined = area_1 + area_2 + area_3;
+            const diff = @abs(combined - area_4);
+
+            if (!is_hovered)
+                is_hovered = diff < 0.1;
+        }
+        {
+            const triangle_1 = [3]dvui.Point{
+                .{ .x = bottom_right.pos.x, .y = bottom_right.pos.y },
+                .{ .x = bottom_left.pos.x, .y = bottom_left.pos.y },
+                .{ .x = data_point.x, .y = data_point.y },
+            };
+
+            const triangle_2 = [3]dvui.Point{
+                .{ .x = bottom_left.pos.x, .y = bottom_left.pos.y },
+                .{ .x = top_left.pos.x, .y = top_left.pos.y },
+                .{ .x = data_point.x, .y = data_point.y },
+            };
+
+            const triangle_3 = [3]dvui.Point{
+                .{ .x = top_left.pos.x, .y = top_left.pos.y },
+                .{ .x = bottom_right.pos.x, .y = bottom_right.pos.y },
+                .{ .x = data_point.x, .y = data_point.y },
+            };
+
+            const triangle_4 = [3]dvui.Point{
+                .{ .x = top_left.pos.x, .y = top_left.pos.y },
+                .{ .x = bottom_right.pos.x, .y = bottom_right.pos.y },
+                .{ .x = bottom_left.pos.x, .y = bottom_left.pos.y },
+            };
+
+            const area_1 = area(triangle_1);
+            const area_2 = area(triangle_2);
+            const area_3 = area(triangle_3);
+            const area_4 = area(triangle_4);
+
+            const combined = area_1 + area_2 + area_3;
+            const diff = @abs(combined - area_4);
+
+            if (!is_hovered)
+                is_hovered = diff < 0.1;
+        }
+    }
+
+    return is_hovered;
+}
+
+fn area(triangle: [3]dvui.Point) f32 {
+    return @abs((triangle[0].x * (triangle[1].y - triangle[2].y) + triangle[1].x * (triangle[2].y - triangle[0].y) + triangle[2].x * (triangle[0].y - triangle[1].y)) / 2.0);
+}
+
+// pub fn isContainedTriangle(camera: Camera, triangle: [3]zm.F32x4, position: [2]f32) bool {
+//     const window_position_raw = imgui.getWindowPos();
+//     const window_position = zm.loadArr2(.{ window_position_raw.x, window_position_raw.y });
+//     const mat = camera.matrix();
+
+//     const triangle_1: [3]zm.F32x4 = .{
+//         zm.loadArr2(mat.transformVec2(.{ triangle[0][0], triangle[0][1] })) + window_position,
+//         zm.loadArr2(mat.transformVec2(.{ triangle[1][0], triangle[1][1] })) + window_position,
+//         zm.loadArr2(.{ position[0], position[1] }),
+//     };
+
+//     const triangle_2: [3]zm.F32x4 = .{
+//         zm.loadArr2(mat.transformVec2(.{ triangle[1][0], triangle[1][1] })) + window_position,
+//         zm.loadArr2(mat.transformVec2(.{ triangle[2][0], triangle[2][1] })) + window_position,
+//         zm.loadArr2(.{ position[0], position[1] }),
+//     };
+
+//     const triangle_3: [3]zm.F32x4 = .{
+//         zm.loadArr2(mat.transformVec2(.{ triangle[0][0], triangle[0][1] })) + window_position,
+//         zm.loadArr2(mat.transformVec2(.{ triangle[2][0], triangle[2][1] })) + window_position,
+//         zm.loadArr2(.{ position[0], position[1] }),
+//     };
+
+//     const triangle_4: [3]zm.F32x4 = .{
+//         zm.loadArr2(mat.transformVec2(.{ triangle[0][0], triangle[0][1] })) + window_position,
+//         zm.loadArr2(mat.transformVec2(.{ triangle[1][0], triangle[1][1] })) + window_position,
+//         zm.loadArr2(mat.transformVec2(.{ triangle[2][0], triangle[2][1] })) + window_position,
+//     };
+
+//     const area_1 = area(triangle_1);
+//     const area_2 = area(triangle_2);
+//     const area_3 = area(triangle_3);
+//     const area_4 = area(triangle_4);
+
+//     const combined = area_1 + area_2 + area_3;
+//     const diff = @abs(combined - area_4);
+
+//     return diff < 0.1;
+// }
 
 pub const TransformPoint = enum(usize) {
     top_left = 0,
