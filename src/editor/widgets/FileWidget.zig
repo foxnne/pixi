@@ -945,6 +945,26 @@ pub fn drawTransform(self: *FileWidget) void {
         centroid.x /= 4;
         centroid.y /= 4;
 
+        centroid = pixi.math.rotate(centroid, transform.point(.pivot).*, transform.rotation);
+
+        {
+            const centroid_rect = dvui.Rect.fromPoint(centroid);
+            var centroid_screen_rect = file.editor.canvas.screenFromDataRect(centroid_rect);
+            centroid_screen_rect.w = 8 * dvui.currentWindow().natural_scale;
+            centroid_screen_rect.h = 8 * dvui.currentWindow().natural_scale;
+            centroid_screen_rect.x -= centroid_screen_rect.w / 2;
+            centroid_screen_rect.y -= centroid_screen_rect.h / 2;
+
+            centroid_screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+                .color = dvui.themeGet().color(.window, .fill),
+            });
+
+            centroid_screen_rect = centroid_screen_rect.insetAll(2 * dvui.currentWindow().natural_scale);
+            centroid_screen_rect.fill(dvui.Rect.Physical.all(100000), .{
+                .color = dvui.themeGet().color(.window, .text),
+            });
+        }
+
         {
             { // Draw circular outline for the rotation path
                 var rotate_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
@@ -1197,7 +1217,6 @@ fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color) void {
     }, .{
         .thickness = 4 * dvui.currentWindow().natural_scale,
         .color = dvui.themeGet().color(.window, .fill),
-        .endcap_style = .square,
     });
     dvui.Path.stroke(.{
         .points = points,
