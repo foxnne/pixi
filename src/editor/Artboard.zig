@@ -453,10 +453,11 @@ pub fn drawCanvas(self: *Artboard) !void {
                     .background = false,
                 });
                 defer box.deinit();
-                if (dvui.button(@src(), "Cancel", .{}, .{})) {
+                if (dvui.buttonIcon(@src(), "Cancel", icons.tvg.lucide.x, .{}, .{ .fill_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .err, .expand = .horizontal })) {
                     transform.cancel();
                 }
-                if (dvui.button(@src(), "Accept", .{}, .{})) {
+                if (dvui.buttonIcon(@src(), "Accept", icons.tvg.lucide.check, .{}, .{ .fill_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .highlight, .expand = .horizontal
+                 })) {
                     transform.accept();
                 }
             }
