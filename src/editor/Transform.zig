@@ -17,6 +17,7 @@ radius: f32 = 0.0,
 file_id: u64,
 layer_id: u64,
 source: dvui.ImageSource,
+ortho: bool = true,
 
 pub fn point(self: *Transform, transform_point: TransformPoint) *dvui.Point {
     return &self.data_points[@intFromEnum(transform_point)];
