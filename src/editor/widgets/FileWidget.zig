@@ -956,7 +956,7 @@ pub fn drawTransform(self: *FileWidget) void {
             centroid_screen_rect.y -= centroid_screen_rect.h / 2;
 
             centroid_screen_rect.fill(dvui.Rect.Physical.all(100000), .{
-                .color = dvui.themeGet().color(.window, .fill),
+                .color = dvui.themeGet().color(.control, .fill),
             });
 
             centroid_screen_rect = centroid_screen_rect.insetAll(2 * dvui.currentWindow().natural_scale);
@@ -1089,7 +1089,7 @@ pub fn drawTransform(self: *FileWidget) void {
                                 var outline_rect = text_rect.outsetAll(2 * dvui.currentWindow().natural_scale);
 
                                 outline_rect.fill(dvui.Rect.Physical.all(100000), .{
-                                    .color = dvui.themeGet().color(.window, .fill),
+                                    .color = dvui.themeGet().color(.control, .fill),
                                 });
 
                                 dvui.renderText(.{
@@ -1146,7 +1146,7 @@ pub fn drawTransform(self: *FileWidget) void {
                                 var outline_rect = text_rect.outsetAll(2 * dvui.currentWindow().natural_scale);
 
                                 outline_rect.fill(dvui.Rect.Physical.all(100000), .{
-                                    .color = dvui.themeGet().color(.window, .fill),
+                                    .color = dvui.themeGet().color(.control, .fill),
                                 });
 
                                 dvui.renderText(.{
@@ -1204,7 +1204,7 @@ pub fn drawTransform(self: *FileWidget) void {
 
                 screen_rect = screen_rect.inset(dvui.Rect.Physical.all(2 * dvui.currentWindow().natural_scale));
                 screen_rect.fill(dvui.Rect.Physical.all(100000), .{
-                    .color = dvui.themeGet().color(.window, .fill),
+                    .color = dvui.themeGet().color(.control, .fill),
                 });
             }
         }
@@ -1216,7 +1216,7 @@ fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color) void {
         .points = points,
     }, .{
         .thickness = 4 * dvui.currentWindow().natural_scale,
-        .color = dvui.themeGet().color(.window, .fill),
+        .color = dvui.themeGet().color(.control, .fill),
     });
     dvui.Path.stroke(.{
         .points = points,
