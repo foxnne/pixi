@@ -1014,7 +1014,7 @@ pub fn drawTransform(self: *FileWidget) void {
                 });
                 outline_path.build().stroke(.{
                     .thickness = 2,
-                    .color = if (is_hovered or transform.dragging) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.window, .text),
+                    .color = if ((is_hovered and transform.active_point == null) or transform.dragging) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.window, .text),
                     .closed = true,
                     .endcap_style = .square,
                 });
@@ -1198,7 +1198,6 @@ fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color) void {
         .thickness = 4 * dvui.currentWindow().natural_scale,
         .color = dvui.themeGet().color(.window, .fill),
         .endcap_style = .square,
-        .closed = true,
     });
     dvui.Path.stroke(.{
         .points = points,
