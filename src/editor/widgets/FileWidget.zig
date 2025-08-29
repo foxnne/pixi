@@ -1040,6 +1040,7 @@ pub fn drawTransform(self: *FileWidget) void {
                 });
             }
 
+            // Dimensions and angle labels
             {
                 // Draw dimensions if the transform is square and there is an active point
                 if (transform.active_point) |active_point| {
@@ -1159,6 +1160,75 @@ pub fn drawTransform(self: *FileWidget) void {
                                 };
                             }
                         }
+                    }
+
+                    if (transform.active_point == .rotate) {
+                        // Draw a stroke from transform.point(.rotate).* to the point on the circle at the midpoint of the rotation arc,
+                        // but if the arc is > 180 degrees, the midpoint angle needs to be flipped 180 degrees.
+                        const pivot = transform.point(.pivot).*;
+                        const radius = transform.radius;
+
+                        // Find the angle of the start (drag) and end (current) rotation arms
+                        const start_angle = blk: {
+                            if (self.drag_data_point) |drag_data_point| {
+                                const drag_diff = drag_data_point.diff(pivot);
+                                break :blk std.math.atan2(drag_diff.y, drag_diff.x);
+                            } else {
+                                // Fallback: use current rotation
+                                break :blk std.math.atan2(transform.point(.rotate).y - pivot.y, transform.point(.rotate).x - pivot.x);
+                            }
+                        };
+                        const end_angle = std.math.atan2(transform.point(.rotate).y - pivot.y, transform.point(.rotate).x - pivot.x);
+
+                        // Compute the shortest arc between start and end
+                        var delta_angle = end_angle - start_angle;
+                        // Normalize to [-pi, pi]
+                        if (delta_angle > std.math.pi) {
+                            delta_angle -= 2.0 * std.math.pi;
+                        } else if (delta_angle < -std.math.pi) {
+                            delta_angle += 2.0 * std.math.pi;
+                        }
+
+                        // The midpoint angle along the arc
+                        var mid_angle = start_angle + delta_angle / 2.0;
+
+                        // If the arc is more than 180 degrees, flip the midpoint angle by 180 degrees
+                        if (delta_angle < 0) {
+                            mid_angle += std.math.pi;
+                        }
+
+                        // Calculate the point on the circle at the midpoint angle
+                        const center = file.editor.canvas.screenFromDataPoint(pivot.plus(.{
+                            .x = radius * 1.1 * std.math.cos(mid_angle),
+                            .y = radius * 1.1 * std.math.sin(mid_angle),
+                        }));
+
+                        var degrees = std.math.radiansToDegrees(delta_angle);
+                        if (degrees < 0) degrees += 360.0;
+
+                        const dimension_text = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d:0.0}°", .{degrees}) catch "Failed to allocate dimension text";
+
+                        const font = dvui.themeGet().font_body;
+                        const text_size = font.textSize(dimension_text);
+
+                        var text_rect = dvui.currentWindow().rectScale().rectToPhysical(.fromSize(.{ .w = text_size.w, .h = text_size.h }));
+                        text_rect.x = center.x - text_rect.w / 2;
+                        text_rect.y = center.y - text_rect.h / 2;
+
+                        var outline_rect = text_rect.outsetAll(2 * dvui.currentWindow().natural_scale);
+
+                        outline_rect.fill(dvui.Rect.Physical.all(100000), .{
+                            .color = dvui.themeGet().color(.control, .fill),
+                        });
+
+                        dvui.renderText(.{
+                            .text = dimension_text,
+                            .font = font,
+                            .color = dvui.themeGet().color(.window, .text),
+                            .rs = .{ .r = text_rect, .s = dvui.currentWindow().natural_scale },
+                        }) catch {
+                            dvui.log.err("Failed to render dimension text", .{});
+                        };
                     }
                 }
             }
