@@ -16,6 +16,39 @@ pub const Direction = enum(u8) {
     nw = 0b0000_1101, // 15
     sw = 0b0000_1111, // 13
 
+    pub fn fromRadians(radians: f32) Direction {
+        // Normalize angle to [0, 2π)
+        var angle = radians;
+        const two_pi: f32 = 2.0 * std.math.pi;
+        while (angle < 0) angle += two_pi;
+        while (angle >= two_pi) angle -= two_pi;
+
+        // 8 directions: N, NE, E, SE, S, SW, W, NW
+        // Each sector is 45 degrees (π/4 radians)
+        // We'll use the following mapping:
+        // 0: E (0)
+        // 1: NE (π/4)
+        // 2: N (π/2)
+        // 3: NW (3π/4)
+        // 4: W (π)
+        // 5: SW (5π/4)
+        // 6: S (3π/2)
+        // 7: SE (7π/4)
+        const sector: i32 = @intFromFloat(@mod(@divTrunc(angle + (std.math.pi / 8.0), (std.math.pi / 4.0)), 8));
+
+        return switch (sector) {
+            0 => .e,
+            1 => .ne,
+            2 => .n,
+            3 => .nw,
+            4 => .w,
+            5 => .sw,
+            6 => .s,
+            7 => .se,
+            else => .none,
+        };
+    }
+
     /// Returns closest direction of size to the supplied vector.
     pub fn find(comptime size: usize, vx: f32, vy: f32) Direction {
         return switch (size) {

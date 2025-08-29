@@ -813,6 +813,21 @@ pub fn processTransform(self: *FileWidget) void {
                                                         const angle = std.math.atan2(diff.y, diff.x);
 
                                                         transform.rotation = std.math.degreesToRadians(@round(std.math.radiansToDegrees(transform.start_rotation + (angle - drag_angle))));
+
+                                                        if (me.mod.matchBind("ctrl/cmd")) { // Lock rotation to cardinal directions
+                                                            const direction = pixi.math.Direction.fromRadians(transform.rotation);
+                                                            transform.rotation = switch (direction) {
+                                                                .n => std.math.pi / 2.0,
+                                                                .ne => std.math.pi / 4.0,
+                                                                .e => 0,
+                                                                .s => (3.0 * std.math.pi) / 2.0,
+                                                                .nw => (3.0 * std.math.pi) / 4.0,
+                                                                .w => std.math.pi,
+                                                                .sw => (5.0 * std.math.pi) / 4.0,
+                                                                .se => (7.0 * std.math.pi) / 4.0,
+                                                                else => unreachable,
+                                                            };
+                                                        }
                                                     }
                                                 }
                                             }
@@ -1178,10 +1193,9 @@ pub fn drawTransform(self: *FileWidget) void {
                                 break :blk std.math.atan2(transform.point(.rotate).y - pivot.y, transform.point(.rotate).x - pivot.x);
                             }
                         };
-                        const end_angle = std.math.atan2(transform.point(.rotate).y - pivot.y, transform.point(.rotate).x - pivot.x);
 
                         // Compute the shortest arc between start and end
-                        var delta_angle = end_angle - start_angle;
+                        var delta_angle = transform.rotation - transform.start_rotation;
                         // Normalize to [-pi, pi]
                         if (delta_angle > std.math.pi) {
                             delta_angle -= 2.0 * std.math.pi;
@@ -1199,8 +1213,8 @@ pub fn drawTransform(self: *FileWidget) void {
 
                         // Calculate the point on the circle at the midpoint angle
                         const center = file.editor.canvas.screenFromDataPoint(pivot.plus(.{
-                            .x = radius * 1.1 * std.math.cos(mid_angle),
-                            .y = radius * 1.1 * std.math.sin(mid_angle),
+                            .x = radius * 1.15 * std.math.cos(mid_angle),
+                            .y = radius * 1.15 * std.math.sin(mid_angle),
                         }));
 
                         var degrees = std.math.radiansToDegrees(delta_angle);
