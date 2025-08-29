@@ -718,8 +718,8 @@ pub fn processTransform(self: *FileWidget) void {
 
                                                     for (transform.data_points[0..4]) |*point| {
                                                         const diff = point.diff(transform.point(.pivot).*);
-                                                        if (diff.length() + 2 * dvui.currentWindow().natural_scale > radius) {
-                                                            radius = diff.length() + 2 * dvui.currentWindow().natural_scale;
+                                                        if (diff.length() + 4 > radius) {
+                                                            radius = diff.length() + 4;
                                                         }
                                                     }
 
