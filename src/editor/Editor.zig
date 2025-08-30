@@ -697,7 +697,7 @@ pub fn transform(editor: *Editor) !void {
             for (file.editor.transform.?.data_points[0..4]) |*point| {
                 const d = point.diff(file.editor.transform.?.point(.pivot).*);
                 if (d.length() > file.editor.transform.?.radius) {
-                    file.editor.transform.?.radius = d.length() + 2 * dvui.currentWindow().natural_scale;
+                    file.editor.transform.?.radius = d.length() + 4;
                 }
             }
         }

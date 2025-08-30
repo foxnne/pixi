@@ -1014,13 +1014,13 @@ pub fn drawTransform(self: *FileWidget) void {
                         doubleStroke(&.{
                             file.editor.canvas.screenFromDataPoint(transform.point(.pivot).*),
                             file.editor.canvas.screenFromDataPoint(transform.point(.pivot).plus(diff.normalize().scale(transform.radius, dvui.Point))),
-                        }, dvui.themeGet().color(.window, .text));
+                        }, dvui.themeGet().color(.control, .text), 2);
 
                         // New angle
                         doubleStroke(&.{
                             file.editor.canvas.screenFromDataPoint(transform.point(.pivot).*),
                             file.editor.canvas.screenFromDataPoint(transform.point(.rotate).*),
-                        }, dvui.themeGet().color(.window, .text));
+                        }, dvui.themeGet().color(.control, .text), 2);
                     }
                 }
             }
@@ -1065,31 +1065,31 @@ pub fn drawTransform(self: *FileWidget) void {
                                 const top_left: dvui.Point = .{ .x = triangles.vertexes[0].pos.x, .y = triangles.vertexes[0].pos.y };
                                 const bottom_left: dvui.Point = .{ .x = triangles.vertexes[3].pos.x, .y = triangles.vertexes[3].pos.y };
 
-                                var offset: dvui.Point = .{ .x = -4 * file.editor.canvas.scale, .y = 0 };
+                                var offset: dvui.Point = .{ .x = -3 * dvui.currentWindow().natural_scale * file.editor.canvas.scale, .y = 0 };
                                 offset = pixi.math.rotate(offset, .{ .x = 0, .y = 0 }, transform.rotation);
 
                                 const dim_top_left: dvui.Point = top_left.plus(offset);
                                 const dim_bottom_left: dvui.Point = bottom_left.plus(offset);
 
-                                const dim_arm_top_left = dim_top_left.plus(pixi.math.rotate(.{ .x = -1.5 * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_top_right = dim_top_left.plus(pixi.math.rotate(.{ .x = 1.5 * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_bottom_left = dim_bottom_left.plus(pixi.math.rotate(.{ .x = -1.5 * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_bottom_right = dim_bottom_left.plus(pixi.math.rotate(.{ .x = 1.5 * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
+                                const dim_arm_top_left = dim_top_left.plus(pixi.math.rotate(.{ .x = -(0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
+                                const dim_arm_top_right = dim_top_left.plus(pixi.math.rotate(.{ .x = (0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
+                                const dim_arm_bottom_left = dim_bottom_left.plus(pixi.math.rotate(.{ .x = -(0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
+                                const dim_arm_bottom_right = dim_bottom_left.plus(pixi.math.rotate(.{ .x = (0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
 
                                 doubleStroke(&.{
                                     .{ .x = dim_top_left.x, .y = dim_top_left.y },
                                     .{ .x = dim_bottom_left.x, .y = dim_bottom_left.y },
-                                }, dvui.themeGet().color(.window, .text));
+                                }, dvui.themeGet().color(.control, .text), 1);
 
                                 doubleStroke(&.{
                                     .{ .x = dim_arm_top_left.x, .y = dim_arm_top_left.y },
                                     .{ .x = dim_arm_top_right.x, .y = dim_arm_top_right.y },
-                                }, dvui.themeGet().color(.window, .text));
+                                }, dvui.themeGet().color(.control, .text), 1);
 
                                 doubleStroke(&.{
                                     .{ .x = dim_arm_bottom_left.x, .y = dim_arm_bottom_left.y },
                                     .{ .x = dim_arm_bottom_right.x, .y = dim_arm_bottom_right.y },
-                                }, dvui.themeGet().color(.window, .text));
+                                }, dvui.themeGet().color(.control, .text), 1);
 
                                 const center = top_left.plus(bottom_left).scale(0.5, dvui.Point);
 
@@ -1122,31 +1122,31 @@ pub fn drawTransform(self: *FileWidget) void {
                                 const bottom_right: dvui.Point = .{ .x = triangles.vertexes[2].pos.x, .y = triangles.vertexes[2].pos.y };
                                 const bottom_left: dvui.Point = .{ .x = triangles.vertexes[3].pos.x, .y = triangles.vertexes[3].pos.y };
 
-                                var offset: dvui.Point = .{ .x = 0, .y = 4 * file.editor.canvas.scale };
+                                var offset: dvui.Point = .{ .x = 0, .y = 3 * dvui.currentWindow().natural_scale * file.editor.canvas.scale };
                                 offset = pixi.math.rotate(offset, .{ .x = 0, .y = 0 }, transform.rotation);
 
                                 const dim_bottom_right: dvui.Point = bottom_right.plus(offset);
                                 const dim_bottom_left: dvui.Point = bottom_left.plus(offset);
 
-                                const dim_arm_right_bottom = dim_bottom_right.plus(pixi.math.rotate(.{ .x = 0, .y = -1.5 * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_right_top = dim_bottom_right.plus(pixi.math.rotate(.{ .x = 0, .y = 1.5 * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_left_bottom = dim_bottom_left.plus(pixi.math.rotate(.{ .x = 0, .y = -1.5 * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_left_top = dim_bottom_left.plus(pixi.math.rotate(.{ .x = 0, .y = 1.5 * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
+                                const dim_arm_right_bottom = dim_bottom_right.plus(pixi.math.rotate(.{ .x = 0, .y = -(0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
+                                const dim_arm_right_top = dim_bottom_right.plus(pixi.math.rotate(.{ .x = 0, .y = (0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
+                                const dim_arm_left_bottom = dim_bottom_left.plus(pixi.math.rotate(.{ .x = 0, .y = -(0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
+                                const dim_arm_left_top = dim_bottom_left.plus(pixi.math.rotate(.{ .x = 0, .y = (0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
 
                                 doubleStroke(&.{
                                     .{ .x = dim_bottom_right.x, .y = dim_bottom_right.y },
                                     .{ .x = dim_bottom_left.x, .y = dim_bottom_left.y },
-                                }, dvui.themeGet().color(.window, .text));
+                                }, dvui.themeGet().color(.control, .text), 1);
 
                                 doubleStroke(&.{
                                     .{ .x = dim_arm_right_bottom.x, .y = dim_arm_right_bottom.y },
                                     .{ .x = dim_arm_right_top.x, .y = dim_arm_right_top.y },
-                                }, dvui.themeGet().color(.window, .text));
+                                }, dvui.themeGet().color(.control, .text), 1);
 
                                 doubleStroke(&.{
                                     .{ .x = dim_arm_left_bottom.x, .y = dim_arm_left_bottom.y },
                                     .{ .x = dim_arm_left_top.x, .y = dim_arm_left_top.y },
-                                }, dvui.themeGet().color(.window, .text));
+                                }, dvui.themeGet().color(.control, .text), 1);
 
                                 const center = bottom_right.plus(bottom_left).scale(0.5, dvui.Point);
 
@@ -1213,8 +1213,8 @@ pub fn drawTransform(self: *FileWidget) void {
 
                         // Calculate the point on the circle at the midpoint angle
                         const center = file.editor.canvas.screenFromDataPoint(pivot.plus(.{
-                            .x = radius * 1.15 * std.math.cos(mid_angle),
-                            .y = radius * 1.15 * std.math.sin(mid_angle),
+                            .x = radius * (1.0 + 0.075 * dvui.currentWindow().natural_scale) * std.math.cos(mid_angle),
+                            .y = radius * (1.0 + 0.075 * dvui.currentWindow().natural_scale) * std.math.sin(mid_angle),
                         }));
 
                         var degrees = std.math.radiansToDegrees(delta_angle);
@@ -1295,17 +1295,17 @@ pub fn drawTransform(self: *FileWidget) void {
     }
 }
 
-fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color) void {
+fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color, thickness: f32) void {
     dvui.Path.stroke(.{
         .points = points,
     }, .{
-        .thickness = 4 * dvui.currentWindow().natural_scale,
+        .thickness = thickness * 2 * dvui.currentWindow().natural_scale,
         .color = dvui.themeGet().color(.control, .fill),
     });
     dvui.Path.stroke(.{
         .points = points,
     }, .{
-        .thickness = 2,
+        .thickness = thickness,
         .color = color,
     });
 }
