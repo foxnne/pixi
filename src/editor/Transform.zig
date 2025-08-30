@@ -26,18 +26,25 @@ pub fn point(self: *Transform, transform_point: TransformPoint) *dvui.Point {
 /// Accepts the current transform and applies it to the currently selected layer
 /// Actively transformed pixels are being copied to the temporary layer for display
 /// During a transform, the temporary layer is not used for anything else
+/// Transform layer contains the pixels being transformed prior to transformation,
+/// and the active layer has had those pixels removed.
 pub fn accept(self: *Transform) void {
     if (pixi.editor.open_files.getPtr(self.file_id)) |file| {
         var layer = file.getLayer(self.layer_id) orelse return;
 
-        for (file.editor.temporary_layer.pixels(), 0..) |*pixel, pixel_index| {
-            if (pixel[3] != 0 or file.editor.transform_layer.pixels()[pixel_index][3] != 0) {
-                file.buffers.stroke.append(pixel_index, file.editor.transform_layer.pixels()[pixel_index]) catch {
+        for (file.editor.temporary_layer.pixels(), file.editor.transform_layer.pixels(), layer.pixels(), 0..) |temp_pixel, transform_pixel, layer_pixel, pixel_index| {
+            if (layer_pixel[3] != 0) {
+                file.buffers.stroke.append(pixel_index, layer_pixel) catch {
+                    dvui.log.err("Failed to append stroke change to history", .{});
+                };
+            } else if (transform_pixel[3] != 0 or temp_pixel[3] != 0) {
+                file.buffers.stroke.append(pixel_index, transform_pixel) catch {
                     dvui.log.err("Failed to append stroke change to history", .{});
                 };
             }
-            if (pixel[3] != 0) {
-                @memcpy(&layer.pixels()[pixel_index], pixel);
+
+            if (temp_pixel[3] != 0) {
+                @memcpy(&layer.pixels()[pixel_index], &temp_pixel);
             }
         }
 
