@@ -637,6 +637,10 @@ pub fn transform(editor: *Editor) !void {
     }
 
     if (editor.activeFile()) |file| {
+        if (file.editor.transform) |*t| {
+            t.cancel();
+        }
+
         var selected_layer = file.layers.get(file.selected_layer_index);
 
         if (editor.tools.current == .pointer) {

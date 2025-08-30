@@ -1095,7 +1095,7 @@ pub fn drawTransform(self: *FileWidget) void {
 
                                 const dimension_text = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d:0.0}", .{transform.data_points[0].diff(transform.data_points[3]).length()}) catch "Failed to allocate dimension text";
 
-                                const font = dvui.themeGet().font_body;
+                                const font = dvui.themeGet().font_caption;
                                 const text_size = font.textSize(dimension_text);
 
                                 var text_rect = dvui.currentWindow().rectScale().rectToPhysical(.fromSize(.{ .w = text_size.w, .h = text_size.h }));
@@ -1152,7 +1152,7 @@ pub fn drawTransform(self: *FileWidget) void {
 
                                 const dimension_text = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d:0.0}", .{transform.data_points[3].diff(transform.data_points[2]).length()}) catch "Failed to allocate dimension text";
 
-                                const font = dvui.themeGet().font_body;
+                                const font = dvui.themeGet().font_caption;
                                 const text_size = font.textSize(dimension_text);
 
                                 var text_rect = dvui.currentWindow().rectScale().rectToPhysical(.fromSize(.{ .w = text_size.w, .h = text_size.h }));
@@ -1222,7 +1222,7 @@ pub fn drawTransform(self: *FileWidget) void {
 
                         const dimension_text = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d:0.0}°", .{degrees}) catch "Failed to allocate dimension text";
 
-                        const font = dvui.themeGet().font_body;
+                        const font = dvui.themeGet().font_caption;
                         const text_size = font.textSize(dimension_text);
 
                         var text_rect = dvui.currentWindow().rectScale().rectToPhysical(.fromSize(.{ .w = text_size.w, .h = text_size.h }));
