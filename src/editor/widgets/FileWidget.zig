@@ -260,8 +260,8 @@ pub fn processSpriteSelection(self: *FileWidget) void {
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
-                if (self.init_options.canvas.rect.contains(me.p))
-                    dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+                // if (self.init_options.canvas.rect.contains(me.p))
+                //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                 if (me.action == .press and me.button.pointer()) {
                     if (me.mod.matchBind("shift")) {
@@ -402,8 +402,8 @@ pub fn processStroke(self: *FileWidget) void {
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
-                if (self.init_options.canvas.rect.contains(me.p))
-                    dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+                // if (self.init_options.canvas.rect.contains(me.p))
+                //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
@@ -572,8 +572,8 @@ pub fn processFill(self: *FileWidget) void {
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
-                if (self.init_options.canvas.rect.contains(me.p))
-                    dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+                // if (self.init_options.canvas.rect.contains(me.p))
+                //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                 if (me.action == .press and me.button.pointer()) {
                     file.fillPoint(current_point, color, .selected, .{
@@ -677,8 +677,8 @@ pub fn processTransform(self: *FileWidget) void {
                         .mouse => |me| {
                             const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
-                            if (self.init_options.canvas.rect.contains(me.p))
-                                dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+                            // if (self.init_options.canvas.rect.contains(me.p))
+                            //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                             if (me.action == .press and me.button.pointer()) {
                                 if (screen_rect.contains(me.p)) {
@@ -860,8 +860,8 @@ pub fn processTransform(self: *FileWidget) void {
                         .mouse => |me| {
                             //const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
-                            if (self.init_options.canvas.rect.contains(me.p))
-                                dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+                            // if (self.init_options.canvas.rect.contains(me.p))
+                            //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                             if (me.action == .press and me.button.pointer()) {
                                 if (is_hovered) {
