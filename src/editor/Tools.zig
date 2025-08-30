@@ -12,8 +12,6 @@ pub const Tool = enum(u32) {
     pointer,
     pencil,
     eraser,
-    //animation,
-    //heightmap,
     bucket,
     selection,
 };

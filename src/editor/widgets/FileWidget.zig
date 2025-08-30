@@ -900,6 +900,14 @@ pub fn processTransform(self: *FileWidget) void {
                 std.log.err("Failed to create target texture", .{});
                 return;
             };
+
+            defer {
+                const texture: ?dvui.Texture = dvui.textureFromTarget(target_texture) catch null;
+                if (texture) |t| {
+                    dvui.textureDestroyLater(t);
+                }
+            }
+
             // This is the previous target, we will be setting this back
             const previous_target = dvui.renderTarget(.{ .texture = target_texture, .offset = image_rect_physical.topLeft() });
 
