@@ -17,8 +17,8 @@
             .lazy = true,
         },
         .icons = .{
-            .url = "git+https://github.com/foxnne/zig-lib-icons#1a4758f3947654a6b5b6b88523f1bca509835094",
-            .hash = "icons-0.0.0-iJxA-RP4MwDBfMN672stASocffHcNARGdTTK7LDWaBH2",
+            .url = "git+https://github.com/nat3Github/zig-lib-icons#4cb103884ce5513e1bcf9c14317860be17bcd835",
+            .hash = "icons-0.0.0-iJxA-VvGMwAC_m9jlrCFjwPdePXU-Pk4wqgV32SGoilA",
             .lazy = true,
         },
         .dvui = .{

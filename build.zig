@@ -24,8 +24,8 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         },
         GitDependency{
             // icons
-            .url = "https://github.com/foxnne/zig-lib-icons",
-            .branch = "main",
+            .url = "https://github.com/nat3Github/zig-lib-icons",
+            .branch = "converter",
         },
         GitDependency{
             // dvui
