@@ -419,7 +419,7 @@ pub fn drawCanvas(self: *Artboard) !void {
             fw.install();
             defer fw.deinit();
 
-            var anim = dvui.animate(@src(), .{ .kind = .vertical, .duration = 250_000, .easing = dvui.easing.outBack }, .{});
+            var anim = dvui.animate(@src(), .{ .kind = .vertical, .duration = 450_000, .easing = dvui.easing.outBack }, .{});
             defer anim.deinit();
 
             var anim_box = dvui.box(@src(), .{ .dir = .vertical }, .{

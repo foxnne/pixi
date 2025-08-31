@@ -104,19 +104,19 @@ const handle_size = 10;
 const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
-    {
-        Keybinds.tick() catch {
-            dvui.log.err("Failed to tick hotkeys", .{});
-        };
-    }
-
-    _ = dvui.cursorShow(true);
+    if (!dvui.cursorShow(null))
+        _ = dvui.cursorShow(true);
 
     editor.rebuildArtboards() catch {
         dvui.log.err("Failed to rebuild artboards", .{});
     };
 
-    { // Radial Menu
+    defer { // Radial Menu
+
+        Keybinds.tick() catch {
+            dvui.log.err("Failed to tick hotkeys", .{});
+        };
+
         for (dvui.events()) |*e| {
             switch (e.evt) {
                 .mouse => |me| {
@@ -127,7 +127,9 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
 
         if (editor.tools.radial_menu.visible) {
-            try editor.drawRadialMenu();
+            editor.drawRadialMenu() catch {
+                dvui.log.err("Failed to draw radial menu", .{});
+            };
         }
     }
 
@@ -209,7 +211,6 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }, .{
             .expand = .both,
             .background = false,
-            //.min_size_content = .{ .h = 100, .w = 100 },
         });
         defer canvas_flipbook.deinit();
 

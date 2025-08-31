@@ -59,6 +59,8 @@ pub fn tick() !void {
                         .down, .repeat => true,
                         .up => false,
                     };
+                    // If we include a refresh here, the underlying gui has a chance to reset the cursor
+                    dvui.refresh(null, @src(), dvui.currentWindow().data().id);
                 }
 
                 if (ke.matchBind("pencil") and ke.action == .down) {
