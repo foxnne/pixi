@@ -67,11 +67,11 @@ pub fn processKeybinds(self: *FileWidget) void {
                     };
                 }
 
-                if (ke.matchBind("activate") and ke.action == .down) {
+                if (ke.matchBind("activate") and (ke.action == .down or ke.action == .repeat)) {
                     if (self.init_options.file.editor.transform) |*transform| {
                         transform.accept();
+                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
                     }
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
                 }
 
                 if (ke.matchBind("cancel") and ke.action == .down) {

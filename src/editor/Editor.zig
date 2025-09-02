@@ -733,7 +733,7 @@ pub fn closeFileID(editor: *Editor, id: u64) !void {
     if (editor.open_files.get(id)) |file| {
         if (file.dirty()) {
             std.log.debug("closeFile: {d} is dirty", .{id});
-            return;
+            return error.FileIsDirty;
         }
         try editor.rawCloseFileID(id);
     }

@@ -210,7 +210,7 @@ fn drawTabs(self: *Artboard) void {
             }
         } else if (file.dirty()) {
             dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
-                .fill_color = dvui.themeGet().color(.window, .text),
+                .stroke_color = dvui.themeGet().color(.window, .text),
             }, .{
                 .expand = .both,
                 .gravity_y = 0.5,

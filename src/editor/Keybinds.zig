@@ -44,6 +44,8 @@ pub fn register() !void {
 // Any binds that need to be consumed by a specific widget do not need to trigger here.
 pub fn tick() !void {
     for (dvui.events()) |e| {
+        if (e.handled) continue;
+
         switch (e.evt) {
             .key => |ke| {
                 if (ke.matchBind("open_folder") and ke.action == .down) {

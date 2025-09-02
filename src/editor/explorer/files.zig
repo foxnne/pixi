@@ -379,7 +379,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                     @src(),
                                     "DirtyIcon",
                                     icons.tvg.lucide.@"circle-small",
-                                    .{ .fill_color = dvui.themeGet().color(.window, .text) },
+                                    .{ .stroke_color = dvui.themeGet().color(.window, .text) },
                                     .{ .gravity_y = 0.5 },
                                 );
                             }
