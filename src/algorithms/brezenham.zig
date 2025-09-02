@@ -1,48 +1,43 @@
 const std = @import("std");
 const pixi = @import("../pixi.zig");
+const dvui = @import("dvui");
 
-pub fn process(start: [2]f32, end: [2]f32) ![][2]f32 {
-    var output = std.ArrayList([2]f32).init(pixi.app.allocator);
+pub fn process(start: dvui.Point, end: dvui.Point) ![]dvui.Point {
+    // Bresenham's line algorithm for integer grid points
+    var output = std.array_list.Managed(dvui.Point).init(pixi.editor.arena.allocator());
 
-    var x1 = start[0];
-    var y1 = start[1];
-    var x2 = end[0];
-    var y2 = end[1];
+    // Round input points to nearest integer grid
+    const x0: i32 = @intFromFloat(@floor(start.x));
+    const y0: i32 = @intFromFloat(@floor(start.y));
+    const x1: i32 = @intFromFloat(@floor(end.x));
+    const y1: i32 = @intFromFloat(@floor(end.y));
 
-    const steep = @abs(y2 - y1) > @abs(x2 - x1);
-    if (steep) {
-        std.mem.swap(f32, &x1, &y1);
-        std.mem.swap(f32, &x2, &y2);
-    }
+    const dx: i32 = @intCast(@abs(x1 - x0));
+    const dy: i32 = @intCast(@abs(y1 - y0));
 
-    if (x1 > x2) {
-        std.mem.swap(f32, &x1, &x2);
-        std.mem.swap(f32, &y1, &y2);
-    }
+    var x: i32 = x0;
+    var y: i32 = y0;
 
-    const dx: f32 = x2 - x1;
-    const dy: f32 = @abs(y2 - y1);
+    const sx: i32 = if (x0 < x1) 1 else -1;
+    const sy: i32 = if (y0 < y1) 1 else -1;
 
-    var err: f32 = dx / 2.0;
-    const ystep: i32 = if (y1 < y2) 1 else -1;
-    var y: i32 = @as(i32, @intFromFloat(y1));
+    var err: i32 = dx - dy;
 
-    const maxX: i32 = @as(i32, @intFromFloat(x2));
+    while (true) {
+        try output.append(.{ .x = @floatFromInt(x), .y = @floatFromInt(y) });
 
-    var x: i32 = @as(i32, @intFromFloat(x1));
-    while (x <= maxX) : (x += 1) {
-        if (steep) {
-            try output.append(.{ @as(f32, @floatFromInt(y)), @as(f32, @floatFromInt(x)) });
-        } else {
-            try output.append(.{ @as(f32, @floatFromInt(x)), @as(f32, @floatFromInt(y)) });
+        if (x == x1 and y == y1) break;
+
+        const e2 = 2 * err;
+        if (e2 > -dy) {
+            err -= dy;
+            x += sx;
         }
-
-        err -= dy;
-        if (err < 0) {
-            y += ystep;
+        if (e2 < dx) {
             err += dx;
+            y += sy;
         }
     }
 
-    return output.toOwnedSlice();
+    return output.items;
 }

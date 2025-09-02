@@ -1,5 +1,4 @@
 const std = @import("std");
-const zm = @import("zmath");
 
 const sqrt = 0.70710678118654752440084436210485;
 const sqrt2 = 1.4142135623730950488016887242097;
@@ -16,6 +15,39 @@ pub const Direction = enum(u8) {
     ne = 0b0000_0101, // 7
     nw = 0b0000_1101, // 15
     sw = 0b0000_1111, // 13
+
+    pub fn fromRadians(radians: f32) Direction {
+        // Normalize angle to [0, 2π)
+        var angle = radians;
+        const two_pi: f32 = 2.0 * std.math.pi;
+        while (angle < 0) angle += two_pi;
+        while (angle >= two_pi) angle -= two_pi;
+
+        // 8 directions: N, NE, E, SE, S, SW, W, NW
+        // Each sector is 45 degrees (π/4 radians)
+        // We'll use the following mapping:
+        // 0: E (0)
+        // 1: NE (π/4)
+        // 2: N (π/2)
+        // 3: NW (3π/4)
+        // 4: W (π)
+        // 5: SW (5π/4)
+        // 6: S (3π/2)
+        // 7: SE (7π/4)
+        const sector: i32 = @intFromFloat(@mod(@divTrunc(angle + (std.math.pi / 8.0), (std.math.pi / 4.0)), 8));
+
+        return switch (sector) {
+            0 => .e,
+            1 => .ne,
+            2 => .n,
+            3 => .nw,
+            4 => .w,
+            5 => .sw,
+            6 => .s,
+            7 => .se,
+            else => .none,
+        };
+    }
 
     /// Returns closest direction of size to the supplied vector.
     pub fn find(comptime size: usize, vx: f32, vy: f32) Direction {
@@ -88,25 +120,25 @@ pub const Direction = enum(u8) {
         return @as(f32, @floatFromInt(@as(i8, @bitCast(@intFromEnum(self))) << 6 >> 6));
     }
 
-    /// Returns direction as a F32x4.
-    pub fn f32x4(self: Direction) zm.F32x4 {
-        return zm.f32x4(self.x(), self.y(), 0, 0);
-    }
+    // /// Returns direction as a F32x4.
+    // pub fn f32x4(self: Direction) zm.F32x4 {
+    //     return zm.f32x4(self.x(), self.y(), 0, 0);
+    // }
 
-    /// Returns direction as a normalized F32x4.
-    pub fn normalized(self: Direction) zm.F32x4 {
-        return switch (self) {
-            .none => zm.f32x4s(0),
-            .s => zm.f32x4(0, -1, 0, 0),
-            .se => zm.f32x4(sqrt, -sqrt, 0, 0),
-            .e => zm.f32x4(1, 0, 0, 0),
-            .ne => zm.f32x4(sqrt, sqrt, 0, 0),
-            .n => zm.f32x4(0, 1, 0, 0),
-            .nw => zm.f32x4(-sqrt, sqrt, 0, 0),
-            .w => zm.f32x4(-1, 0, 0, 0),
-            .sw => zm.f32x4(-1, -1, 0, 0),
-        };
-    }
+    // /// Returns direction as a normalized F32x4.
+    // pub fn normalized(self: Direction) zm.F32x4 {
+    //     return switch (self) {
+    //         .none => zm.f32x4s(0),
+    //         .s => zm.f32x4(0, -1, 0, 0),
+    //         .se => zm.f32x4(sqrt, -sqrt, 0, 0),
+    //         .e => zm.f32x4(1, 0, 0, 0),
+    //         .ne => zm.f32x4(sqrt, sqrt, 0, 0),
+    //         .n => zm.f32x4(0, 1, 0, 0),
+    //         .nw => zm.f32x4(-sqrt, sqrt, 0, 0),
+    //         .w => zm.f32x4(-1, 0, 0, 0),
+    //         .sw => zm.f32x4(-1, -1, 0, 0),
+    //     };
+    // }
 
     /// Returns true if direction is flipped to face west.
     pub fn flippedHorizontally(self: Direction) bool {
@@ -172,8 +204,8 @@ test "Direction" {
 
     direction = Direction.find(8, 1, 1);
     std.testing.expect(direction == .se);
-    std.testing.expectEqual(zm.f32x4(1, 1, 0, 0), direction.f32x4());
-    std.testing.expectEqual(zm.f32x4(sqrt, sqrt, 0, 0), direction.normalized());
+    // std.testing.expectEqual(zm.f32x4(1, 1, 0, 0), direction.f32x4());
+    // std.testing.expectEqual(zm.f32x4(sqrt, sqrt, 0, 0), direction.normalized());
 
     direction = Direction.find(8, 0, 1);
     std.testing.expect(direction == .s);

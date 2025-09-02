@@ -1,4 +1,7 @@
 const std = @import("std");
+const dvui = @import("dvui");
+const zip = @import("zip");
+const pixi = @import("../pixi.zig");
 
 /// reads the contents of a file. Returned value is owned by the caller and must be freed!
 pub fn read(allocator: std.mem.Allocator, filename: []const u8) ![]u8 {

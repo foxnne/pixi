@@ -1,92 +1,118 @@
+const std = @import("std");
 const pixi = @import("../pixi.zig");
-const Core = @import("mach").Core;
-
+const dvui = @import("dvui");
 const App = pixi.App;
 const Editor = pixi.Editor;
 
 const Pane = @import("explorer/Explorer.zig").Pane;
 
-const imgui = @import("zig-imgui");
-
 pub const Sidebar = @This();
 
-pub const mach_module = .sidebar;
-pub const mach_systems = .{ .init, .deinit, .draw };
-
-pub fn init(sidebar: *Sidebar) !void {
-    sidebar.* = .{};
+pub fn init() !Sidebar {
+    return .{};
 }
 
 pub fn deinit() void {
     // TODO: Free memory
 }
 
-pub fn draw(app: *App, editor: *Editor) !void {
-    imgui.pushStyleVar(imgui.StyleVar_WindowRounding, 0.0);
-    defer imgui.popStyleVar();
-    imgui.setNextWindowPos(.{
-        .x = 0.0,
-        .y = 0.0,
-    }, imgui.Cond_Always);
-    imgui.setNextWindowSize(.{
-        .x = editor.settings.sidebar_width,
-        .y = app.window_size[1],
-    }, imgui.Cond_None);
-    imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
-    imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_WindowBg, editor.theme.foreground.toImguiVec4());
-    defer imgui.popStyleVar();
-    defer imgui.popStyleColorEx(2);
+pub fn draw(_: Sidebar) !dvui.App.Result {
+    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .vertical,
+        .background = false,
+        .min_size_content = .{ .w = 40, .h = 100 },
+    });
+    defer vbox.deinit();
 
-    var sidebar_flags: imgui.WindowFlags = 0;
-    sidebar_flags |= imgui.WindowFlags_NoTitleBar;
-    sidebar_flags |= imgui.WindowFlags_NoResize;
-    sidebar_flags |= imgui.WindowFlags_NoMove;
-    sidebar_flags |= imgui.WindowFlags_NoCollapse;
-    sidebar_flags |= imgui.WindowFlags_NoScrollbar;
-    sidebar_flags |= imgui.WindowFlags_NoScrollWithMouse;
-    sidebar_flags |= imgui.WindowFlags_NoBringToFrontOnFocus;
+    const options = [_]struct { pane: Pane, icon: []const u8 }{
+        .{ .pane = .files, .icon = dvui.entypo.folder },
+        .{ .pane = .tools, .icon = dvui.entypo.pencil },
+        .{ .pane = .sprites, .icon = dvui.entypo.grid },
+        .{ .pane = .animations, .icon = dvui.entypo.controller_play },
+        .{ .pane = .keyframe_animations, .icon = dvui.entypo.key },
+        .{ .pane = .project, .icon = dvui.entypo.box },
+        .{ .pane = .settings, .icon = dvui.entypo.cog },
+    };
 
-    if (imgui.begin("Sidebar", null, sidebar_flags)) {
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.foreground.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.foreground.toImguiVec4());
-        defer imgui.popStyleColorEx(2);
-
-        drawOption(.files, pixi.fa.folder_open, editor);
-        drawOption(.tools, pixi.fa.pencil_alt, editor);
-        drawOption(.sprites, pixi.fa.th, editor);
-        drawOption(.animations, pixi.fa.play_circle, editor);
-        drawOption(.keyframe_animations, pixi.fa.key, editor);
-        drawOption(.pack, pixi.fa.box_open, editor);
-        drawOption(.settings, pixi.fa.cog, editor);
+    for (options) |option| {
+        try drawOption(option.pane, option.icon, 20);
     }
 
-    imgui.end();
+    return .ok;
 }
 
-fn drawOption(option: Pane, icon: [:0]const u8, editor: *Editor) void {
-    const position = imgui.getCursorPos();
-    const selectable_width = (editor.settings.sidebar_width - 8);
-    const selectable_height = (editor.settings.sidebar_width - 8);
-    imgui.dummy(.{
-        .x = selectable_width,
-        .y = selectable_height,
+fn drawOption(option: Pane, icon: []const u8, size: f32) !void {
+    const selected = option == pixi.editor.explorer.pane;
+
+    const theme = dvui.themeGet();
+
+    var bw = dvui.ButtonWidget.init(@src(), .{}, .{
+        .id_extra = @intFromEnum(option),
+        .min_size_content = .{ .h = size },
     });
+    defer bw.deinit();
+    bw.install();
+    bw.processEvents();
+    //try bw.drawBackground();
 
-    imgui.setCursorPos(position);
-    if (editor.explorer.pane == option) {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.highlight_primary.toImguiVec4());
-    } else if (imgui.isItemHovered(imgui.HoveredFlags_None)) {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
-    } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
+    const color: dvui.Color = if (selected) theme.color(.highlight, .fill) else if (bw.hovered()) theme.color(.window, .text) else theme.color(.control, .text);
+
+    dvui.icon(
+        @src(),
+        @tagName(option),
+        icon,
+        .{ .fill_color = color },
+        .{
+            .min_size_content = .{ .h = size },
+        },
+    );
+
+    if (bw.clicked()) {
+        pixi.editor.explorer.pane = option;
     }
 
-    const selectable_flags: imgui.SelectableFlags = imgui.SelectableFlags_DontClosePopups;
-    if (imgui.selectableEx(icon, editor.explorer.pane == option, selectable_flags, .{ .x = selectable_width, .y = selectable_height })) {
-        editor.explorer.pane = option;
-        if (option == .sprites)
-            editor.tools.set(.pointer);
+    if (selected) return;
+
+    var tooltip: dvui.FloatingTooltipWidget = .init(@src(), .{
+        .active_rect = bw.data().rectScale().r,
+    }, .{
+        .id_extra = @intFromEnum(option),
+        .color_fill = dvui.themeGet().color(.window, .fill),
+        .border = dvui.Rect.all(0),
+        .box_shadow = .{
+            .color = .black,
+            .shrink = 0,
+            .corner_radius = dvui.Rect.all(8),
+            .offset = .{ .x = 0, .y = 2 },
+            .fade = 8,
+            .alpha = 0.2,
+        },
+    });
+    defer tooltip.deinit();
+
+    if (tooltip.shown()) {
+        var animator = dvui.animate(@src(), .{
+            .kind = .alpha,
+            .duration = 350_000,
+        }, .{
+            .expand = .both,
+        });
+        defer animator.deinit();
+
+        var vbox2 = dvui.box(@src(), .{ .dir = .vertical }, dvui.FloatingTooltipWidget.defaults.override(.{
+            .background = false,
+            .expand = .both,
+            .border = dvui.Rect.all(0),
+        }));
+        defer vbox2.deinit();
+
+        var tl2 = dvui.textLayout(@src(), .{}, .{
+            .background = false,
+            .padding = dvui.Rect.all(4),
+        });
+        tl2.format("{s}", .{pixi.Editor.Explorer.title(option, false)}, .{
+            .font_style = .caption,
+        });
+        tl2.deinit();
     }
-    imgui.popStyleColor();
 }

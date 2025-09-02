@@ -5,27 +5,24 @@
         "build.zig.zon",
         "assets",
     },
-    .name = "pixi",
-    .version = "0.0.2",
-    .mach_zig_version = "2024.11.0-mach",
+    .fingerprint = 0xdef5a52d63bd43b9,
+    .name = .pixi,
+    .version = "0.0.3",
+    .minimum_zig_version = "0.15.1",
     .dependencies = .{
-        .mach = .{
-            //.path = "src/.temp/mach-dev/",
-            .url = "https://github.com/foxnne/mach/archive/24e6db38d0e4274367ff2595aa8199e0f0157875.tar.gz",
-            .hash = "12200958b6ba6cef9104aba34e6968f89b3d27b3e988c7f52aca7cb08ea0e5f118be",
+        .mach_objc = .{
+            .url = "git+https://github.com/foxnne/mach-objc#10d375670486f4c2c2c47b6b8bef9bcf42b52160",
+            .hash = "mach_objc-0.0.0-hSeUK_8vDQBaxz9sPYM0OavNriFU6NE2UUITDTFod4SX",
+            .lazy = true,
         },
-        .zig_imgui = .{
-            //.path = "src/.temp/zig-imgui/",
-            .url = "https://github.com/foxnne/zig-imgui/archive/5aa9281b29a61db91f4db29cdaf158321a91beb4.tar.gz",
-            .hash = "1220630398f144a39075c8574b0ff9915dbfb64a9398af05f334fab3c11108ebd42f",
+        .icons = .{
+            .url = "git+https://github.com/foxnne/zig-lib-icons#db034786a1286ab28dc35aba534c098aa4f1a3aa",
+            .hash = "icons-0.0.0-iJxA-VvGMwAgiKSXRe_Y0O7RpasdtEJhBfVx8IGGEBl_",
+            .lazy = true,
         },
-        .zstbi = .{
-            .url = "https://github.com/foxnne/zstbi/archive/d9a0947365b1ee8131fcf518feac8dfe896cfcfa.tar.gz",
-            .hash = "1220ce381d38f9ce6db428405b7884d139cab8173d3bf7d950582991d941c868423a",
-        },
-        .zmath = .{
-            .url = "https://github.com/foxnne/zmath/archive/9620a611a8c039711dc780bf296d8dc100d16d3a.tar.gz",
-            .hash = "12201b9f28adb918c2ffaf75b57a4b714a864038f8ba3e2d9f730187d0a852b952e1",
+        .dvui = .{
+            .url = "git+https://github.com/foxnne/dvui-dev#85d100a4c1ec40cfb045eca4447b942e7bdfb5f7",
+            .hash = "dvui-0.4.0-dev-AQFJmf330gAgALSLcmTkEn4YsgABSd--g8yBJtZCKZ9L",
         },
     },
 }

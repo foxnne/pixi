@@ -13,9 +13,7 @@
 
 ![pixi_explanatory_workflow](https://github.com/foxnne/pixi/assets/49629865/51e16f4d-634e-461d-ba5e-41cc4fa8229e)
 
-<img width="1468" alt="Screenshot 2023-08-09 at 1 15 03 AM" src="https://github.com/foxnne/pixi/assets/49629865/eaee91b2-5844-4e2e-a776-867a307cde7f">
-
-<img width="1468" alt="Screenshot 2023-08-09 at 1 12 48 AM" src="https://github.com/foxnne/pixi/assets/49629865/ed106b13-7a63-4538-b0a3-60daba0a8093">
+<img width="1312" height="940" alt="Screenshot 2025-07-18 at 8 45 53 AM" src="https://github.com/user-attachments/assets/639d978a-334e-45f9-a9d2-e167463f82aa" />
 
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R5R4LL2PJ)
@@ -39,8 +37,7 @@
 
 ## Compilation
 - [Linux] Ensure `gtk+3-devel` or similar is installed (for native file dialogs).
-- Install zig using [zigup](https://github.com/marler8997/zigup) `zigup 0.14.0-dev.2577+271452d22` or manually and add to PATH.
-- Zig version required is latest mach nominated version, find [here.]https://machengine.org/docs/nominated-zig/#2024110-mach(https://machengine.org/docs/nominated-zig/#2024110-mach)
+- Install zig 0.15.1.
 - Clone pixi.
 - Build.
     - ```git clone https://github.com/foxnne/pixi.git```

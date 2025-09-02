@@ -1,529 +1,581 @@
 const std = @import("std");
-
 const pixi = @import("../../pixi.zig");
-const Editor = pixi.Editor;
+const dvui = @import("dvui");
+const icons = @import("icons");
 
-const imgui = @import("zig-imgui");
-const layers = @import("layers.zig");
-const zmath = @import("zmath");
+var removed_index: ?usize = null;
+var insert_before_index: ?usize = null;
+var edit_layer_id: ?u64 = null;
+var prev_layer_count: usize = 0;
+var max_split_ratio: f32 = 0.4;
 
-pub fn draw(editor: *Editor) !void {
-    imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.foreground.toImguiVec4());
-    imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.foreground.toImguiVec4());
-    defer imgui.popStyleColorEx(3);
+pub fn draw() !void {
+    drawTools() catch {};
+    drawColors() catch {};
+    drawLayerControls() catch {};
 
-    imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 4.0 });
-    imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.8 });
-    imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 6.0 });
-    defer imgui.popStyleVarEx(3);
+    // Collect layers length to trigger a refit of the pan
+    const layer_count: usize = if (pixi.editor.activeFile()) |file| file.layers.len else 0;
+    defer prev_layer_count = layer_count;
 
-    if (imgui.beginChild("Tools", .{
-        .x = imgui.getWindowWidth(),
-        .y = -1.0,
-    }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-        defer imgui.endChild();
+    var paned = pixi.dvui.layersPaned(@src(), .{
+        .direction = .vertical,
+        .collapsed_size = 300,
+        .handle_size = 10,
+        .handle_dynamic = .{},
+    }, .{ .expand = .both, .background = false });
+    defer paned.deinit();
 
-        const style = imgui.getStyle();
+    if (paned.showFirst()) {
+        drawLayers() catch {};
+    }
 
-        const button_width = imgui.getWindowWidth() / 3.6;
-        const button_height = 36.0;
+    if (paned.dragging) {
+        max_split_ratio = paned.split_ratio.*;
+    }
 
-        const color_width = (imgui.getContentRegionAvail().x - style.indent_spacing) / 2.0 - style.item_spacing.x;
+    // Refit must be done between showFirst and showSecond
+    if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count) {
+        if (dvui.firstFrame(paned.data().id))
+            paned.split_ratio.* = 0.0;
 
-        {
-            // Row 1
-            {
-                imgui.setCursorPosX(style.item_spacing.x * 3.0);
-                try drawTool(editor, pixi.fa.mouse_pointer, button_width, button_height, .pointer);
-                imgui.sameLine();
-                try drawTool(editor, pixi.fa.pencil_alt, button_width, button_height, .pencil);
-                imgui.sameLine();
-                try drawTool(editor, pixi.fa.eraser, button_width, button_height, .eraser);
-            }
+        paned.animateSplit(paned.getFirstFittedRatio(
+            .{
+                .min_split = 0,
+                .max_split = max_split_ratio,
+                .min_size = 0,
+            },
+        ));
+    }
 
-            imgui.spacing();
+    if (paned.showSecond()) {
+        drawPalettes() catch {};
+    }
+}
 
-            // Row 2
-            {
-                imgui.setCursorPosX(style.item_spacing.x * 3.0);
-                try drawTool(editor, pixi.fa.sort_amount_up, button_width, button_height, .heightmap);
-                imgui.sameLine();
-                try drawTool(editor, pixi.fa.fill_drip, button_width, button_height, .bucket);
-                imgui.sameLine();
-                try drawTool(editor, pixi.fa.clipboard_check, button_width, button_height, .selection);
+pub fn drawTools() !void {
+    const toolbox = dvui.flexbox(@src(), .{}, .{
+        .expand = .horizontal,
+        .max_size_content = .{ .w = pixi.editor.explorer.scroll_info.viewport.w - 10, .h = std.math.floatMax(f32) },
+        .gravity_x = 0.5,
+    });
+    defer toolbox.deinit();
+    for (0..std.meta.fields(pixi.Editor.Tools.Tool).len) |i| {
+        const tool: pixi.Editor.Tools.Tool = @enumFromInt(i);
+        const id_extra = i;
+
+        var color = dvui.themeGet().color(.control, .fill_hover);
+        if (pixi.editor.colors.file_tree_palette) |*palette| {
+            color = palette.getDVUIColor(i);
+        }
+
+        const sprite = switch (tool) {
+            .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.dropper_default],
+            .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
+            .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
+            .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
+            .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
+        };
+        var button = dvui.ButtonWidget.init(@src(), .{}, .{
+            .expand = .none,
+            .min_size_content = .{ .w = 24, .h = 24 },
+            .id_extra = id_extra,
+            .background = true,
+            .corner_radius = dvui.Rect.all(1000),
+            .color_fill = if (pixi.editor.tools.current == tool) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -4.0, .y = 4.0 },
+                .fade = 8.0,
+                .alpha = 0.25,
+            },
+            .border = dvui.Rect.all(1.0),
+            .color_border = color,
+            .margin = .{ .h = 10.0, .w = 4, .x = 4, .y = 4 },
+        });
+        defer button.deinit();
+
+        const size: dvui.Size = dvui.imageSize(pixi.editor.atlas.source) catch .{ .w = 0, .h = 0 };
+
+        const uv = dvui.Rect{
+            .x = @as(f32, @floatFromInt(sprite.source[0])) / size.w,
+            .y = @as(f32, @floatFromInt(sprite.source[1])) / size.h,
+            .w = @as(f32, @floatFromInt(sprite.source[2])) / size.w,
+            .h = @as(f32, @floatFromInt(sprite.source[3])) / size.h,
+        };
+
+        button.install();
+        button.processEvents();
+        button.drawBackground();
+
+        var rs = button.data().contentRectScale();
+
+        const width = @as(f32, @floatFromInt(sprite.source[2])) * rs.s;
+        const height = @as(f32, @floatFromInt(sprite.source[3])) * rs.s;
+
+        rs.r.x += (rs.r.w - width) / 2.0;
+        rs.r.y += (rs.r.h - height) / 2.0;
+        rs.r.w = width;
+        rs.r.h = height;
+
+        dvui.renderImage(pixi.editor.atlas.source, rs, .{
+            .uv = uv,
+            .fade = 0.0,
+        }) catch {
+            dvui.log.err("Failed to render image", .{});
+        };
+
+        if (button.clicked()) {
+            pixi.editor.tools.set(tool);
+        }
+    }
+}
+
+pub fn drawLayerControls() !void {
+    var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .horizontal,
+        .background = false,
+    });
+    defer box.deinit();
+    dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font_style = .title_4, .gravity_y = 0.5 });
+
+    if (pixi.editor.activeFile()) |file| {
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .none,
+            .background = false,
+            .gravity_x = 1.0,
+        });
+        defer hbox.deinit();
+
+        if (dvui.buttonIcon(@src(), "AddLayer", icons.tvg.lucide.plus, .{}, .{}, .{
+            .expand = .none,
+            .gravity_y = 0.5,
+            .corner_radius = dvui.Rect.all(1000),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -2.0, .y = 2.0 },
+                .fade = 6.0,
+                .alpha = 0.15,
+                .corner_radius = dvui.Rect.all(1000),
+            },
+            .color_fill = dvui.themeGet().color(.control, .fill),
+        })) {
+            if (file.createLayer() catch null) |id| {
+                edit_layer_id = id;
             }
         }
 
-        imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderHovered, editor.theme.background.toImguiVec4());
-        imgui.pushStyleColorImVec4(imgui.Col_HeaderActive, editor.theme.background.toImguiVec4());
-        defer imgui.popStyleColorEx(3);
-
-        imgui.spacing();
-
-        const chip_width = pixi.editor.settings.color_chip_radius * 2.0;
-        const max_radius = (chip_width * 1.5) / 2.0;
-        const min_radius = (chip_width * 1.0) / 2.0;
-
-        if (imgui.collapsingHeader(pixi.fa.paint_brush ++ "  Colors", imgui.TreeNodeFlags_DefaultOpen)) {
-            defer imgui.spacing();
-
-            var heightmap_visible: bool = false;
-            if (editor.getFile(editor.open_file_index)) |file| {
-                heightmap_visible = file.heightmap.visible;
+        if (dvui.buttonIcon(@src(), "DuplicateLayer", icons.tvg.lucide.@"copy-plus", .{}, .{}, .{
+            .expand = .none,
+            .gravity_y = 0.5,
+            .corner_radius = dvui.Rect.all(1000),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -2.0, .y = 2.0 },
+                .fade = 6.0,
+                .alpha = 0.15,
+                .corner_radius = dvui.Rect.all(1000),
+            },
+            .color_fill = dvui.themeGet().color(.control, .fill),
+        })) {
+            if (file.duplicateLayer(file.selected_layer_index) catch null) |id| {
+                edit_layer_id = id;
             }
+        }
 
-            if (heightmap_visible) {
-                imgui.indentEx(10);
-                defer imgui.unindentEx(10);
-                var height: i32 = @as(i32, @intCast(editor.colors.height));
-                if (imgui.sliderInt("Height", &height, 0, 255)) {
-                    editor.colors.height = @as(u8, @intCast(std.math.clamp(height, 0, 255)));
-                }
-            } else {
-                imgui.indentEx(10);
-                defer imgui.unindentEx(10);
-                var disable_hotkeys: bool = false;
-
-                const primary: imgui.Vec4 = if (editor.tools.current == .heightmap) .{ .x = 255, .y = 255, .z = 255, .w = 255 } else .{
-                    .x = @as(f32, @floatFromInt(editor.colors.primary[0])) / 255.0,
-                    .y = @as(f32, @floatFromInt(editor.colors.primary[1])) / 255.0,
-                    .z = @as(f32, @floatFromInt(editor.colors.primary[2])) / 255.0,
-                    .w = @as(f32, @floatFromInt(editor.colors.primary[3])) / 255.0,
+        if (file.layers.len > 1) {
+            if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .fill_color = dvui.themeGet().color(.err, .fill) }, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .color_fill = dvui.themeGet().color(.control, .fill),
+            })) {
+                file.deleteLayer(file.selected_layer_index) catch {
+                    dvui.log.err("Failed to delete layer", .{});
                 };
-
-                const secondary: imgui.Vec4 = .{
-                    .x = @as(f32, @floatFromInt(editor.colors.secondary[0])) / 255.0,
-                    .y = @as(f32, @floatFromInt(editor.colors.secondary[1])) / 255.0,
-                    .z = @as(f32, @floatFromInt(editor.colors.secondary[2])) / 255.0,
-                    .w = @as(f32, @floatFromInt(editor.colors.secondary[3])) / 255.0,
-                };
-
-                if (imgui.colorButtonEx("Primary", primary, imgui.ColorEditFlags_AlphaPreview, .{
-                    .x = color_width,
-                    .y = 64,
-                })) {
-                    const color = editor.colors.primary;
-                    editor.colors.primary = editor.colors.secondary;
-                    editor.colors.secondary = color;
-                }
-                if (imgui.beginItemTooltip()) {
-                    defer imgui.endTooltip();
-                    imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click to edit color.");
-                }
-                if (imgui.beginPopupContextItem()) {
-                    defer imgui.endPopup();
-                    var c = pixi.math.Color.initFloats(primary.x, primary.y, primary.z, primary.w).toSlice();
-                    if (imgui.colorPicker4("Primary", &c, imgui.ColorEditFlags_None, null)) {
-                        editor.colors.primary = .{
-                            @as(u8, @intFromFloat(c[0] * 255.0)),
-                            @as(u8, @intFromFloat(c[1] * 255.0)),
-                            @as(u8, @intFromFloat(c[2] * 255.0)),
-                            @as(u8, @intFromFloat(c[3] * 255.0)),
-                        };
-                    }
-                    disable_hotkeys = true;
-                }
-                imgui.sameLine();
-
-                if (imgui.colorButtonEx("Secondary", secondary, imgui.ColorEditFlags_AlphaPreview, .{
-                    .x = color_width,
-                    .y = 64,
-                })) {
-                    const color = editor.colors.primary;
-                    editor.colors.primary = editor.colors.secondary;
-                    editor.colors.secondary = color;
-                }
-
-                if (imgui.beginItemTooltip()) {
-                    defer imgui.endTooltip();
-                    imgui.textColored(pixi.editor.theme.text_background.toImguiVec4(), "Right click to edit color.");
-                }
-
-                if (imgui.beginPopupContextItem()) {
-                    defer imgui.endPopup();
-                    var c = pixi.math.Color.initFloats(secondary.x, secondary.y, secondary.z, secondary.w).toSlice();
-                    if (imgui.colorPicker4("Secondary", &c, imgui.ColorEditFlags_None, null)) {
-                        editor.colors.secondary = .{
-                            @as(u8, @intFromFloat(c[0] * 255.0)),
-                            @as(u8, @intFromFloat(c[1] * 255.0)),
-                            @as(u8, @intFromFloat(c[2] * 255.0)),
-                            @as(u8, @intFromFloat(c[3] * 255.0)),
-                        };
-                    }
-
-                    disable_hotkeys = true;
-                }
-
-                editor.hotkeys.disable = disable_hotkeys;
             }
+        }
+    }
+}
 
-            {
-                defer imgui.endChild();
-                if (imgui.beginChild(
-                    "ColorVariations",
-                    .{ .x = -1.0, .y = chip_width * 1.5 },
-                    imgui.ChildFlags_None,
-                    imgui.WindowFlags_ChildWindow | imgui.WindowFlags_NoScrollWithMouse | imgui.WindowFlags_NoScrollbar,
-                )) {
-                    const count: usize = @intFromFloat((imgui.getContentRegionAvail().x) / (chip_width + style.item_spacing.x));
+pub fn drawLayers() !void {
+    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+        .background = false,
+    });
+    defer vbox.deinit();
 
-                    const hue_shift: f32 = editor.settings.suggested_hue_shift;
-                    const hue_step: f32 = hue_shift / @as(f32, @floatFromInt(count));
+    if (pixi.editor.activeFile()) |file| {
+        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.layers_scroll_info }, .{
+            .expand = .both,
+            .background = false,
+            .corner_radius = dvui.Rect.all(1000),
+        });
 
-                    const sat_shift: f32 = editor.settings.suggested_sat_shift;
-                    const sat_step: f32 = sat_shift / @as(f32, @floatFromInt(count));
+        defer scroll_area.deinit();
 
-                    const lit_shift: f32 = editor.settings.suggested_lit_shift;
-                    const lit_step: f32 = lit_shift / @as(f32, @floatFromInt(count));
+        const vertical_scroll = file.editor.layers_scroll_info.offset(.vertical);
 
-                    imgui.spacing();
+        var reorderable = pixi.dvui.reorder(@src(), .{ .drag_name = "layer_drag" }, .{
+            .expand = .horizontal,
+            .background = false,
+        });
+        defer reorderable.deinit();
 
-                    const chip_bar_width = @as(f32, @floatFromInt(count)) * (chip_width + style.item_spacing.x);
+        // Drag and drop is completing
+        if (insert_before_index) |insert_before| {
+            if (removed_index) |removed| {
+                const prev_order = try pixi.app.allocator.alloc(u64, file.layers.len);
+                for (file.layers.items(.id), 0..) |id, i| {
+                    prev_order[i] = id;
+                }
 
-                    const width_difference = imgui.getContentRegionAvail().x - chip_bar_width;
+                const layer = file.layers.get(removed);
+                file.layers.orderedRemove(removed);
 
-                    if (width_difference > 0.0) {
-                        imgui.indentEx(width_difference / 2.0);
-                    }
+                if (insert_before <= file.layers.len) {
+                    file.layers.insert(pixi.app.allocator, if (removed < insert_before) insert_before - 1 else insert_before, layer) catch {
+                        dvui.log.err("Failed to insert layer", .{});
+                    };
+                } else {
+                    file.layers.insert(pixi.app.allocator, if (removed < insert_before) file.layers.len else 0, layer) catch {
+                        dvui.log.err("Failed to insert layer", .{});
+                    };
+                }
 
-                    const red = @as(f32, @floatFromInt(editor.colors.primary[0])) / 255.0;
-                    const green = @as(f32, @floatFromInt(editor.colors.primary[1])) / 255.0;
-                    const blue = @as(f32, @floatFromInt(editor.colors.primary[2])) / 255.0;
-                    const alpha = @as(f32, @floatFromInt(editor.colors.primary[3])) / 255.0;
-
-                    const primary_hsl = zmath.rgbToHsl(.{ red, green, blue, alpha });
-
-                    const lightness_index: usize = @intFromFloat(@floor(primary_hsl[2] * @as(f32, @floatFromInt(count))));
-
-                    for (0..count) |i| {
-                        const towards_purple: f32 = std.math.sign((primary_hsl[0] * 360.0) - 270.0);
-                        const towards_yellow: f32 = std.math.sign((primary_hsl[0] * 360.0) - 60.0);
-                        const purple_half: f32 = if (i < @divFloor(count, 2)) towards_purple else towards_yellow;
-                        const difference: f32 = @as(f32, @floatFromInt(lightness_index)) - @as(f32, @floatFromInt(i));
-
-                        const hue: f32 = primary_hsl[0] + std.math.clamp(difference * hue_step * purple_half, -hue_shift, hue_shift);
-                        const saturation: f32 = primary_hsl[1] + difference * sat_step * purple_half;
-                        const lightness: f32 = primary_hsl[2] - difference * lit_step;
-
-                        var variation_hsl = zmath.hslToRgb(.{ hue, saturation, lightness, alpha });
-                        variation_hsl = zmath.clampFast(variation_hsl, zmath.f32x4s(0.0), zmath.f32x4s(1.0));
-
-                        const variation_color: imgui.Vec4 = .{ .x = variation_hsl[0], .y = variation_hsl[1], .z = variation_hsl[2], .w = variation_hsl[3] };
-
-                        const top_left = imgui.getCursorPos();
-
-                        imgui.pushIDInt(@intCast(i));
-                        defer imgui.popID();
-                        if (imgui.invisibleButton(
-                            "##color",
-                            .{ .x = chip_width, .y = chip_width * 1.5 },
-                            imgui.ColorEditFlags_None,
-                        )) {
-                            editor.colors.primary = .{
-                                @intFromFloat(variation_color.x * 255.0),
-                                @intFromFloat(variation_color.y * 255.0),
-                                @intFromFloat(variation_color.z * 255.0),
-                                @intFromFloat(variation_color.w * 255.0),
-                            };
-                        }
-
-                        {
-                            const window_pos = imgui.getWindowPos();
-                            const center: [2]f32 = .{ top_left.x + min_radius + window_pos.x + imgui.getScrollX(), top_left.y + min_radius + window_pos.y - imgui.getScrollY() };
-
-                            const dist_x = @abs(imgui.getMousePos().x - center[0]);
-                            const dist_y = @abs(imgui.getMousePos().y - center[1]);
-                            const dist = @sqrt(dist_x * dist_x + dist_y * dist_y);
-
-                            if (imgui.getWindowDrawList()) |draw_list| {
-                                draw_list.pushClipRectFullScreen();
-                                defer draw_list.popClipRect();
-
-                                const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 1.5), 0.0, 1.0));
-
-                                draw_list.addCircleFilled(
-                                    .{ .x = center[0], .y = center[1] },
-                                    radius,
-                                    pixi.math.Color.initFloats(
-                                        variation_color.x,
-                                        variation_color.y,
-                                        variation_color.z,
-                                        variation_color.w,
-                                    ).toU32(),
-                                    20,
-                                );
-                            }
-                        }
-
-                        imgui.sameLine();
-
-                        if (imgui.beginItemTooltip()) {
-                            defer imgui.endTooltip();
-                            imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for suggested color options.");
-                        }
-
-                        if (imgui.beginPopupContextItem()) {
-                            defer imgui.endPopup();
-
-                            imgui.separatorText("Suggested Colors");
-
-                            _ = imgui.sliderFloat("Hue Shift", &editor.settings.suggested_hue_shift, 0.0, 1.0);
-                            _ = imgui.sliderFloat("Saturation Shift", &editor.settings.suggested_sat_shift, 0.0, 1.0);
-                            _ = imgui.sliderFloat("Lightness Shift", &editor.settings.suggested_lit_shift, 0.0, 1.0);
-                        }
+                if (removed == file.selected_layer_index) {
+                    if (insert_before < file.layers.len) {
+                        file.selected_layer_index = if (removed < insert_before) insert_before - 1 else insert_before;
+                    } else {
+                        file.selected_layer_index = 0;
                     }
                 }
+
+                if (!std.mem.eql(u64, file.layers.items(.id)[0..file.layers.len], prev_order)) {
+                    file.history.append(.{
+                        .layers_order = .{
+                            .order = prev_order,
+                            .selected = file.layers.items(.id)[file.selected_layer_index],
+                        },
+                    }) catch {
+                        dvui.log.err("Failed to append history", .{});
+                    };
+                } else {
+                    pixi.app.allocator.free(prev_order);
+                }
+
+                insert_before_index = null;
+                removed_index = null;
             }
         }
 
-        if (imgui.collapsingHeader(pixi.fa.layer_group ++ "  Layers", imgui.TreeNodeFlags_SpanAvailWidth | imgui.TreeNodeFlags_DefaultOpen)) {
-            imgui.indent();
-            defer imgui.unindent();
-            try layers.draw(editor);
-        }
+        const box = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .horizontal,
+            .background = false,
+            .corner_radius = dvui.Rect.all(1000),
+            .margin = dvui.Rect.all(4),
+        });
+        defer box.deinit();
 
-        if (imgui.collapsingHeader(pixi.fa.palette ++ "  Palettes", imgui.TreeNodeFlags_SpanFullWidth | imgui.TreeNodeFlags_DefaultOpen)) {
-            imgui.setNextItemWidth(-1.0);
-            if (imgui.beginCombo("##PaletteCombo", if (editor.colors.palette) |palette| palette.name else "none", imgui.ComboFlags_HeightLargest)) {
-                defer imgui.endCombo();
-                try searchPalettes(editor);
+        for (file.layers.items(.id), 0..) |layer_id, layer_index| {
+            const selected = if (edit_layer_id) |id| id == layer_id else file.selected_layer_index == layer_index;
+
+            var color = dvui.themeGet().color(.control, .fill_hover);
+            if (pixi.editor.colors.file_tree_palette) |*palette| {
+                color = palette.getDVUIColor(layer_id);
             }
 
-            const columns: usize = @intFromFloat(@floor(imgui.getContentRegionAvail().x / (chip_width + style.item_spacing.x)));
+            var r = reorderable.reorderable(@src(), .{}, .{
+                .id_extra = layer_index,
+                .expand = .horizontal,
+                .corner_radius = dvui.Rect.all(1000),
+                .min_size_content = .{ .w = 0.0, .h = reorderable.reorderable_size.h },
+            });
+            defer r.deinit();
 
-            const chip_row_width: f32 = @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x);
-
-            const width_difference = imgui.getContentRegionAvail().x - chip_row_width;
-
-            if (width_difference > 0.0) {
-                imgui.indentEx(width_difference / 2.0);
+            if (dvui.firstFrame(r.data().id) or prev_layer_count != file.layers.len) {
+                dvui.animation(r.data().id, "expand", .{
+                    .start_val = 0.2,
+                    .end_val = 1.0,
+                    .end_time = 150_000 + (50_000 * @as(i32, @intCast(layer_index))),
+                    .easing = dvui.easing.inOutQuad,
+                });
             }
 
-            const content_region_avail = imgui.getContentRegionAvail().y;
+            if (dvui.animationGet(r.data().id, "expand")) |a| {
+                if (dvui.minSizeGet(r.data().id)) |ms| {
+                    if (r.data().rect.w > ms.w + 0.001) {
+                        // we are bigger than our min size (maybe expanded) - account for floating point
+                        const w = r.data().rect.w;
+                        r.data().rect.w *= @max(a.value(), 0);
+                        r.data().rect.x += r.data().options.gravityGet().x * (w - r.data().rect.w);
+                    }
+                }
+            }
 
-            const shadow_min: imgui.Vec2 = .{
-                .x = imgui.getCursorPosX() + imgui.getWindowPos().x,
-                .y = imgui.getCursorPosY() + imgui.getWindowPos().y,
-            };
-            const shadow_max: imgui.Vec2 = .{
-                .x = shadow_min.x + @as(f32, @floatFromInt(columns)) * (chip_width + style.item_spacing.x) - style.item_spacing.x,
-                .y = shadow_min.y + pixi.editor.settings.shadow_length,
-            };
-            const shadow_color = pixi.math.Color.initFloats(
-                0.0,
-                0.0,
-                0.0,
-                pixi.editor.settings.shadow_opacity * 4.0,
-            ).toU32();
-            var scroll_y: f32 = 0.0;
-            var scroll_x: f32 = 0.0;
+            if (r.removed()) {
+                removed_index = layer_index;
+            } else if (r.insertBefore()) {
+                insert_before_index = layer_index;
+            }
 
-            defer imgui.endChild(); // This can get cut off and causes a crash if begin child is not called because its off screen.
-            if (imgui.beginChild("PaletteColors", .{ .x = 0.0, .y = @max(content_region_avail, chip_width) }, imgui.ChildFlags_None, imgui.WindowFlags_ChildWindow)) {
-                if (editor.colors.palette) |palette| {
-                    scroll_y = imgui.getScrollY();
-                    scroll_x = imgui.getScrollX();
+            var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .both,
+                .background = true,
+                .color_fill = if (selected) dvui.themeGet().color(.content, .fill_press) else dvui.themeGet().color(.control, .fill),
+                .corner_radius = dvui.Rect.all(1000),
+                .margin = dvui.Rect.all(2),
+                .padding = dvui.Rect.all(1),
+                .border = dvui.Rect.all(1.0),
+                .color_border = color,
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+            });
+            defer hbox.deinit();
 
-                    for (palette.colors, 0..) |color, i| {
-                        imgui.pushIDInt(@as(c_int, @intCast(i)));
+            _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
+                .reorderable = r,
+                .tvg_bytes = icons.tvg.lucide.@"grip-horizontal",
+                .color = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
+            }, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .margin = .{ .x = 4, .w = 4 },
+            });
 
-                        const top_left = imgui.getCursorPos();
-
-                        if (imgui.invisibleButton(
-                            palette.name,
-                            .{ .x = chip_width, .y = chip_width },
-                            imgui.ColorEditFlags_None,
-                        )) {
-                            editor.colors.primary = color;
-                        }
-
-                        {
-                            const window_pos = imgui.getWindowPos();
-                            const center: [2]f32 = .{
-                                top_left.x + (chip_width / 2.0) + window_pos.x + scroll_x,
-                                top_left.y + (chip_width / 2.0) + window_pos.y - scroll_y,
-                            };
-
-                            const dist_x = @abs(imgui.getMousePos().x - center[0]);
-                            const dist_y = @abs(imgui.getMousePos().y - center[1]);
-                            const dist = @sqrt(dist_x * dist_x + dist_y * dist_y);
-
-                            if (imgui.getWindowDrawList()) |draw_list| {
-                                draw_list.pushClipRect(
-                                    .{ .x = window_pos.x - 24.0, .y = window_pos.y },
-                                    .{
-                                        .x = window_pos.x + imgui.getContentRegionAvail().x,
-                                        .y = window_pos.y + imgui.getWindowHeight(),
-                                    },
-                                    false,
-                                );
-                                defer draw_list.popClipRect();
-
-                                const radius = std.math.lerp(max_radius, min_radius, std.math.clamp(dist / (chip_width * 1.5), 0.0, 1.0));
-
-                                draw_list.addCircleFilled(
-                                    .{ .x = center[0], .y = center[1] },
-                                    radius,
-                                    pixi.math.Color.initBytes(color[0], color[1], color[2], color[3]).toU32(),
-                                    20,
-                                );
-                            }
-                        }
-
-                        imgui.popID();
-
-                        if (@mod(i + 1, columns) > 0 and i != palette.colors.len - 1)
-                            imgui.sameLine();
+            if (edit_layer_id != layer_id) {
+                if (file.selected_layer_index == layer_index) {
+                    if (dvui.labelClick(@src(), "{s}", .{file.layers.items(.name)[layer_index]}, .{}, .{
+                        .gravity_y = 0.5,
+                        .font_style = .caption,
+                        .margin = dvui.Rect.all(2),
+                        .padding = dvui.Rect.all(0),
+                        .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
+                    })) {
+                        edit_layer_id = layer_id;
                     }
                 } else {
-                    imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-                    defer imgui.popStyleColor();
-                    imgui.textWrapped("Currently there is no palette loaded, click the dropdown to select a palette");
-
-                    const new_palette_text = try std.fmt.allocPrintZ(pixi.app.allocator, "To add new palettes, download a .hex palette from lospec.com and place it here: \n {s}{c}{s}", .{
-                        pixi.app.root_path,
-                        std.fs.path.sep,
-                        pixi.paths.palettes,
+                    dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
+                        .gravity_y = 0.5,
+                        .margin = dvui.Rect.all(2),
+                        .font_style = .caption,
+                        .padding = dvui.Rect.all(0),
+                        .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     });
-                    defer pixi.app.allocator.free(new_palette_text);
-
-                    imgui.textWrapped(new_palette_text);
                 }
-            }
-
-            if (editor.colors.palette != null and scroll_y != 0.0) {
-                if (imgui.getWindowDrawList()) |draw_list| {
-                    draw_list.addRectFilledMultiColor(shadow_min, shadow_max, shadow_color, shadow_color, 0x00000000, 0x00000000);
-                }
-            }
-        }
-    }
-}
-
-pub fn drawTool(editor: *Editor, label: [:0]const u8, w: f32, h: f32, tool: pixi.Editor.Tools.Tool) !void {
-    imgui.pushStyleVarImVec2(imgui.StyleVar_SelectableTextAlign, .{ .x = 0.5, .y = 0.5 });
-    defer imgui.popStyleVar();
-
-    const selected = editor.tools.current == tool;
-    if (selected) {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
-    } else {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
-    }
-    defer imgui.popStyleColor();
-    if (imgui.selectableEx(label, selected, imgui.SelectableFlags_None, .{ .x = w, .y = h })) {
-        editor.tools.set(tool);
-    }
-
-    if (tool == .pencil or tool == .eraser or tool == .selection) {
-        imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text.toImguiVec4());
-        defer imgui.popStyleColor();
-        if (imgui.beginPopupContextItem()) {
-            defer imgui.endPopup();
-
-            imgui.separatorText("Stroke Options");
-
-            var stroke_size: c_int = @intCast(editor.tools.stroke_size);
-            if (imgui.sliderInt("Size", &stroke_size, 1, editor.settings.stroke_max_size)) {
-                editor.tools.stroke_size = @intCast(stroke_size);
-            }
-
-            const shape_label: [:0]const u8 = switch (editor.tools.stroke_shape) {
-                .circle => "Circle",
-                .square => "Square",
-            };
-            if (imgui.beginCombo("Shape", shape_label, imgui.ComboFlags_None)) {
-                defer imgui.endCombo();
-                if (imgui.selectable("Circle")) editor.tools.stroke_shape = .circle;
-                if (imgui.selectable("Square")) editor.tools.stroke_shape = .square;
-            }
-        }
-    }
-    try drawTooltip(editor, tool);
-}
-
-pub fn drawTooltip(editor: *Editor, tool: pixi.Editor.Tools.Tool) !void {
-    if (imgui.isItemHovered(imgui.HoveredFlags_DelayShort)) {
-        if (imgui.beginTooltip()) {
-            defer imgui.endTooltip();
-
-            const text = switch (tool) {
-                .pointer => "Pointer",
-                .pencil => "Pencil",
-                .eraser => "Eraser",
-                .animation => "Animation",
-                .heightmap => "Heightmap",
-                .bucket => "Bucket",
-                .selection => "Selection",
-            };
-
-            if (editor.hotkeys.hotkey(.{ .tool = tool })) |hotkey| {
-                const hotkey_text = try std.fmt.allocPrintZ(pixi.app.allocator, "{s} ({s})", .{ text, hotkey.shortcut });
-                defer pixi.app.allocator.free(hotkey_text);
-                imgui.text(hotkey_text);
             } else {
-                imgui.text(text);
+                var te = dvui.textEntry(@src(), .{}, .{
+                    .expand = .horizontal,
+                    .background = false,
+                    .padding = dvui.Rect.all(0),
+                    .margin = dvui.Rect.all(0),
+                    .font_style = .caption,
+                    .gravity_y = 0.5,
+                });
+                defer te.deinit();
+
+                if (dvui.firstFrame(te.data().id)) {
+                    te.textSet(file.layers.items(.name)[layer_index], true);
+                    dvui.focusWidget(te.data().id, null, null);
+                }
+
+                if (te.enter_pressed or dvui.focusedWidgetId() != te.data().id) {
+                    if (!std.mem.eql(u8, file.layers.items(.name)[layer_index], te.getText()) and te.getText().len > 0) {
+                        file.history.append(.{
+                            .layer_name = .{
+                                .index = layer_index,
+                                .name = try pixi.app.allocator.dupe(u8, file.layers.items(.name)[layer_index]),
+                            },
+                        }) catch {
+                            dvui.log.err("Failed to append history", .{});
+                        };
+                        pixi.app.allocator.free(file.layers.items(.name)[layer_index]);
+                        file.layers.items(.name)[layer_index] = try pixi.app.allocator.dupe(u8, te.getText());
+                    }
+                    edit_layer_id = null;
+                }
             }
 
-            switch (tool) {
-                .animation => {
-                    if (editor.hotkeys.hotkey(.{ .procedure = .primary })) |hotkey| {
-                        const first_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag with ({s}) released to edit the current animation", .{hotkey.shortcut});
-                        defer pixi.app.allocator.free(first_text);
+            if (reorderable.drag_point == null) {
+                var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .none, .background = false, .gravity_x = 1.0, .min_size_content = .{ .w = 20.0, .h = 20.0 } });
+                defer button_box.deinit();
 
-                        const second_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag while holding ({s}) to create a new animation", .{hotkey.shortcut});
-                        defer pixi.app.allocator.free(second_text);
+                if (dvui.buttonIcon(
+                    @src(),
+                    "collapse_button",
+                    if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-down-to-line" else icons.tvg.lucide.package,
+                    .{ .draw_focus = false },
+                    .{},
+                    //.{ .fill_color = if (file.selected_layer_index == layer_index) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text) },
+                    .{
+                        .expand = .none,
+                        .id_extra = layer_index,
+                        .gravity_y = 0.5,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .margin = dvui.Rect.all(1),
+                    },
+                )) {
+                    file.layers.items(.collapse)[layer_index] = !file.layers.items(.collapse)[layer_index];
+                }
 
-                        imgui.textColored(editor.theme.text_background.toImguiVec4(), first_text);
-                        imgui.textColored(editor.theme.text_background.toImguiVec4(), second_text);
-                    }
-                },
-                .pencil, .eraser => {
-                    imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
-                },
-                .selection => {
-                    if (editor.hotkeys.hotkey(.{ .procedure = .primary })) |primary_hk| {
-                        if (editor.hotkeys.hotkey(.{ .procedure = .secondary })) |secondary_hk| {
-                            imgui.textColored(editor.theme.text_background.toImguiVec4(), "Right click for size/shape options");
-                            const first_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag while holding ({s}) to add to selection.", .{primary_hk.shortcut});
-                            defer pixi.app.allocator.free(first_text);
+                if (dvui.buttonIcon(
+                    @src(),
+                    "hide_button",
+                    if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed",
+                    .{ .draw_focus = false },
+                    .{},
+                    //.{ .fill_color = if (file.selected_layer_index == layer_index) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text) },
+                    .{
+                        .expand = .none,
+                        .id_extra = layer_index,
+                        .gravity_y = 0.5,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .margin = dvui.Rect.all(1),
+                    },
+                )) {
+                    file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+                }
 
-                            const second_text = try std.fmt.allocPrintZ(pixi.app.allocator, "Click and drag while holding ({s}) to remove from selection", .{secondary_hk.shortcut});
-                            defer pixi.app.allocator.free(second_text);
-                            imgui.textColored(editor.theme.text_background.toImguiVec4(), first_text);
-                            imgui.textColored(editor.theme.text_background.toImguiVec4(), second_text);
-                        }
-                    }
-                },
-                else => {},
+                // This consumes the click event, so we need to do this last
+                if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
+                    file.selected_layer_index = layer_index;
+                }
             }
+        }
+
+        if (reorderable.finalSlot()) {
+            insert_before_index = file.layers.len;
+        }
+
+        // Only draw shadow if the scroll bar has been scrolled some
+        if (vertical_scroll > 0.0)
+            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{});
+
+        if (file.editor.layers_scroll_info.virtual_size.h > file.editor.layers_scroll_info.viewport.h and vertical_scroll < file.editor.layers_scroll_info.scrollMax(.vertical))
+            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
+    }
+}
+
+pub fn drawColors() !void {
+    dvui.labelNoFmt(@src(), "COLORS", .{}, .{ .font_style = .title_4 });
+
+    var hbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
+        .expand = .horizontal,
+        .background = false,
+        .min_size_content = .{ .w = 64.0, .h = 64.0 },
+    });
+    defer hbox.deinit();
+
+    const primary: dvui.Color = .{ .r = pixi.editor.colors.primary[0], .g = pixi.editor.colors.primary[1], .b = pixi.editor.colors.primary[2], .a = pixi.editor.colors.primary[3] };
+    const secondary: dvui.Color = .{ .r = pixi.editor.colors.secondary[0], .g = pixi.editor.colors.secondary[1], .b = pixi.editor.colors.secondary[2], .a = pixi.editor.colors.secondary[3] };
+
+    const button_opts: dvui.Options = .{
+        .expand = .both,
+        .background = true,
+        .corner_radius = dvui.Rect.all(8.0),
+        .color_fill = primary,
+        //.color_fill_hover = primary,
+        //.color_fill_press = primary,
+        .margin = dvui.Rect.all(1),
+        .padding = dvui.Rect.all(0),
+        .border = dvui.Rect.all(1.0),
+        .color_border = dvui.themeGet().color(.control, .fill),
+        .box_shadow = .{
+            .color = .black,
+            .offset = .{ .x = -2.0, .y = 2.0 },
+            .fade = 6.0,
+            .alpha = 0.15,
+            .corner_radius = dvui.Rect.all(8.0),
+        },
+    };
+
+    const secondary_overrider: dvui.Options = .{
+        .color_fill = secondary,
+        //.color_fill_hover = secondary,
+        //.color_fill_press = secondary,
+    };
+
+    var clicked: bool = false;
+    {
+        var primary_button = dvui.ButtonWidget.init(@src(), .{}, button_opts);
+        defer primary_button.deinit();
+
+        primary_button.install();
+        primary_button.processEvents();
+        primary_button.drawBackground();
+
+        drawColorPicker(primary_button.data().rectScale().r, &pixi.editor.colors.primary) catch {};
+
+        if (primary_button.clicked()) clicked = true;
+    }
+
+    {
+        var secondary_button = dvui.ButtonWidget.init(@src(), .{}, button_opts.override(secondary_overrider));
+        defer secondary_button.deinit();
+
+        secondary_button.install();
+        secondary_button.processEvents();
+        secondary_button.drawBackground();
+
+        drawColorPicker(secondary_button.data().rectScale().r, &pixi.editor.colors.secondary) catch {};
+
+        if (secondary_button.clicked()) clicked = true;
+    }
+
+    if (clicked) {
+        std.mem.swap([4]u8, &pixi.editor.colors.primary, &pixi.editor.colors.secondary);
+    }
+}
+
+fn drawColorPicker(rect: dvui.Rect.Physical, backing_color: *[4]u8) !void {
+    var context = dvui.context(@src(), .{ .rect = rect }, .{});
+    defer context.deinit();
+
+    if (context.activePoint()) |point| {
+        var fw2 = dvui.floatingMenu(@src(), .{ .from = dvui.Rect.Natural.fromPoint(point) }, .{ .box_shadow = .{
+            .color = .black,
+            .offset = .{ .x = 0, .y = 0 },
+            .shrink = 0,
+            .fade = 10,
+            .alpha = 0.15,
+        } });
+        defer fw2.deinit();
+
+        var color: dvui.Color.HSV = .fromColor(.{
+            .r = backing_color.*[0],
+            .g = backing_color.*[1],
+            .b = backing_color.*[2],
+            .a = backing_color.*[3],
+        });
+
+        if (dvui.colorPicker(@src(), .{ .alpha = true, .hsv = &color }, .{
+            .expand = .horizontal,
+            .background = false,
+            .corner_radius = dvui.Rect.all(1000),
+        })) {
+            const c = color.toColor();
+            backing_color.* = .{
+                c.r,
+                c.g,
+                c.b,
+                c.a,
+            };
         }
     }
 }
 
-fn searchPalettes(editor: *Editor) !void {
-    var dir_opt = std.fs.cwd().openDir(pixi.paths.palettes, .{ .access_sub_paths = false, .iterate = true }) catch null;
-    if (dir_opt) |*dir| {
-        defer dir.close();
-        var iter = dir.iterate();
-        while (try iter.next()) |entry| {
-            if (entry.kind == .file) {
-                const ext = std.fs.path.extension(entry.name);
-                if (std.mem.eql(u8, ext, ".hex")) {
-                    const label = try std.fmt.allocPrintZ(pixi.app.allocator, "{s}", .{entry.name});
-                    defer pixi.app.allocator.free(label);
-                    if (imgui.selectable(label)) {
-                        const abs_path = try std.fs.path.joinZ(pixi.app.allocator, &.{ pixi.paths.palettes, entry.name });
-                        defer pixi.app.allocator.free(abs_path);
-                        if (editor.colors.palette) |*palette|
-                            palette.deinit();
-
-                        editor.colors.palette = pixi.Internal.Palette.loadFromFile(abs_path) catch null;
-                    }
-                }
-            }
-        }
-    }
+pub fn drawPalettes() !void {
+    dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font_style = .title_4 });
 }

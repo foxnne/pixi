@@ -11,10 +11,17 @@ pub const FlipbookView = enum { sequential, grid };
 pub const Compatibility = enum { none, ldtk };
 
 /// Width of the explorer bar.
-explorer_width: f32 = 200.0,
+//explorer_width: f32 = 200.0,
+
+/// The ratio of the explorer to the artboard.
+explorer_ratio: f32 = 0.35,
+
+min_window_size: [2]f32 = .{ 640, 480 },
+
+initial_window_size: [2]f32 = .{ 1280, 720 },
 
 /// Width of the explorer grip.
-explorer_grip: f32 = 18.0,
+//explorer_grip: f32 = 18.0,
 
 /// Whether or not the artboard is split
 split_artboard: bool = false,
@@ -26,7 +33,7 @@ split_artboard_ratio: f32 = 0.5,
 explorer_title_align: f32 = 0.0,
 
 /// Height of the flipbook window.
-flipbook_height: f32 = 0.3,
+flipbook_ratio: f32 = 0.75,
 
 /// Flipbook view, sequential or grid
 flipbook_view: FlipbookView = .sequential,
@@ -36,12 +43,6 @@ font_size: f32 = 13.0,
 
 /// Height of the infobar.
 info_bar_height: f32 = 24.0,
-
-/// When a new window is opened, describes the height of the window.
-initial_window_height: u32 = 720,
-
-/// When a new window is opened, describes the width of the window.
-initial_window_width: u32 = 1280,
 
 /// Which control scheme to use for zooming and panning.
 /// TODO: Remove builtin check and offer a setup menu if settings.json doesn't exist.
@@ -157,7 +158,7 @@ pub fn load(allocator: std.mem.Allocator) !Settings {
 }
 
 pub fn save(settings: *Settings, allocator: std.mem.Allocator) !void {
-    const str = try std.json.stringifyAlloc(allocator, settings, .{});
+    const str = try std.json.Stringify.valueAlloc(allocator, settings, .{});
     defer allocator.free(str);
 
     var file = try std.fs.cwd().createFile("settings.json", .{});

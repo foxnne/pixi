@@ -105,6 +105,18 @@
                 "clear": true
             }
         },
+        {
+            "label": "Update dependencies",
+            "type": "shell",
+            "command": "zig build update",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "clear": true
+            }
+        },
     ],
     "inputs": [
         {

@@ -1,6 +1,24 @@
 const zm = @import("zmath");
-const game = @import("game");
 const std = @import("std");
+const dvui = @import("dvui");
+
+pub fn rotate(point: dvui.Point, origin: dvui.Point, radians: f32) dvui.Point {
+    if (radians == 0) return point;
+
+    const cos = @cos(radians);
+    const sin = @sin(radians);
+
+    // get vector from origin to point
+    const d = point.diff(origin);
+
+    // rotate vector
+    const rotated: dvui.Point = .{
+        .x = d.x * cos - d.y * sin,
+        .y = d.x * sin + d.y * cos,
+    };
+
+    return origin.plus(rotated);
+}
 
 pub const sqrt2: f32 = 1.414213562373095;
 

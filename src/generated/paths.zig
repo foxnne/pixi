@@ -7,13 +7,10 @@ pub const palettes = "assets/palettes/";
 
 pub const themes = "assets/themes/";
 
-pub const @"CozetteVector.ttf" = "assets/fonts/CozetteVector.ttf";
 pub const @"apollo.hex" = "assets/palettes/apollo.hex";
 pub const @"cursors.pixi" = "assets/src/cursors.pixi";
 pub const @"endesga-16.hex" = "assets/palettes/endesga-16.hex";
 pub const @"endesga-32.hex" = "assets/palettes/endesga-32.hex";
-pub const @"fa-regular-400.ttf" = "assets/fonts/fa-regular-400.ttf";
-pub const @"fa-solid-900.ttf" = "assets/fonts/fa-solid-900.ttf";
 pub const @"fox.png" = "assets/fox.png";
 pub const @"fox_bg.png" = "assets/fox_bg.png";
 pub const @"journey.hex" = "assets/palettes/journey.hex";

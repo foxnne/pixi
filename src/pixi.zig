@@ -17,38 +17,19 @@ pub const atlas = @import("generated/atlas.zig");
 pub const algorithms = @import("algorithms/algorithms.zig");
 pub const fa = @import("tools/font_awesome.zig");
 pub const fs = @import("tools/fs.zig");
-pub const gfx = @import("gfx/gfx.zig");
-pub const input = @import("input/input.zig");
+pub const image = @import("gfx/image.zig");
 pub const math = @import("math/math.zig");
-pub const shaders = @import("shaders/shaders.zig");
 
-// Modules
-
-/// App contains the main schedule, which is run by the mach entrypoint
 pub const App = @import("App.zig");
-pub const Artboard = @import("editor/artboard/Artboard.zig");
+//pub const Artboard = @import("editor/artboard/Artboard.zig");
 pub const Assets = @import("Assets.zig");
 pub const Editor = @import("editor/Editor.zig");
 pub const Explorer = @import("editor/explorer/Explorer.zig");
 pub const Packer = @import("tools/Packer.zig");
-pub const Popups = @import("editor/popups/Popups.zig");
+//pub const Popups = @import("editor/popups/Popups.zig");
 pub const Sidebar = @import("editor/Sidebar.zig");
 
-// The set of Mach modules our application may use.
-pub const Modules = mach.Modules(.{
-    App,
-    Artboard,
-    Assets,
-    Core,
-    Editor,
-    Explorer,
-    Packer,
-    Popups,
-    Sidebar,
-});
-
 // Global pointers
-pub var core: *Core = undefined;
 pub var app: *App = undefined;
 pub var editor: *Editor = undefined;
 pub var packer: *Packer = undefined;
@@ -63,14 +44,11 @@ pub const Internal = struct {
     pub const Atlas = @import("internal/Atlas.zig");
     pub const Buffers = @import("internal/Buffers.zig");
     pub const File = @import("internal/File.zig");
-    pub const Frame = @import("internal/Frame.zig");
     pub const History = @import("internal/History.zig");
-    pub const Keyframe = @import("internal/Keyframe.zig");
-    pub const KeyframeAnimation = @import("internal/KeyframeAnimation.zig");
     pub const Layer = @import("internal/Layer.zig");
     pub const Palette = @import("internal/Palette.zig");
-    pub const Reference = @import("internal/Reference.zig");
     pub const Sprite = @import("internal/Sprite.zig");
+    pub const Texture = @import("internal/Texture.zig");
 };
 
 /// Frame-by-frame sprite animation
@@ -87,3 +65,6 @@ pub const Layer = @import("Layer.zig");
 
 /// Source location within the atlas texture and origin location
 pub const Sprite = @import("Sprite.zig");
+
+/// Custom dvui stuff
+pub const dvui = @import("dvui.zig");
