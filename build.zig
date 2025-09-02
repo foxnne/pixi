@@ -84,6 +84,7 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
             .root_source_file = .{ .cwd_relative = "src/App.zig" },
         }),
+        .use_llvm = true,
     });
     b.installArtifact(exe);
 

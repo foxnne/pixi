@@ -47,6 +47,8 @@ project: ?Project = null,
 
 open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 
+// The actively focused artboard grouping ID
+// This will contain tabs for all open files with a matching grouping ID
 open_artboard_grouping: u64 = 0,
 
 tools: Tools,

@@ -77,6 +77,7 @@ pub fn processKeybinds(self: *FileWidget) void {
                 if (ke.matchBind("cancel") and ke.action == .down) {
                     if (self.init_options.file.editor.transform) |*transform| {
                         transform.cancel();
+                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
                     }
                 }
             },
