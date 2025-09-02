@@ -114,7 +114,7 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
             if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
             if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
             if (builtin.os.tag == .macos) {
-                dvui.icon(@src(), "cmd", icons.tvg.lucide.command, .{ .fill_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
+                dvui.icon(@src(), "cmd", icons.tvg.lucide.command, .{ .stroke_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
             } else {
                 dvui.labelNoFmt(@src(), "cmd", .{}, opts);
             }
@@ -127,7 +127,7 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
             if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
             if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
             if (builtin.os.tag == .macos) {
-                dvui.icon(@src(), "option", icons.tvg.lucide.option, .{ .fill_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
+                dvui.icon(@src(), "option", icons.tvg.lucide.option, .{ .stroke_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
             } else {
                 dvui.labelNoFmt(@src(), "alt", .{}, opts);
             }

@@ -156,8 +156,8 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
         var set_layer_index: bool = false;
 
         for (ext.layers, 0..) |l, i| {
-            const layer_image_name = std.fmt.allocPrintZ(dvui.currentWindow().arena(), "{s}.layer", .{l.name}) catch "Memory Allocation Failed";
-            const png_image_name = std.fmt.allocPrintZ(dvui.currentWindow().arena(), "{s}.png", .{l.name}) catch "Memory Allocation Failed";
+            const layer_image_name = std.fmt.allocPrintSentinel(dvui.currentWindow().arena(), "{s}.layer", .{l.name}, 0) catch "Memory Allocation Failed";
+            const png_image_name = std.fmt.allocPrintSentinel(dvui.currentWindow().arena(), "{s}.png", .{l.name}, 0) catch "Memory Allocation Failed";
 
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;
@@ -236,7 +236,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
     //             .link_name_buffer = &link_name_buffer,
     //         });
 
-    //         var json_content = std.ArrayList(u8).init(pixi.app.allocator);
+    //         var json_content = std.array_list.Managed(u8).init(pixi.app.allocator);
     //         defer json_content.deinit();
 
     //         while (try iter.next()) |entry| {
@@ -299,7 +299,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
     //                     std.log.debug("Entry name: {s}", .{entry.name});
 
     //                     if (std.mem.eql(u8, entry.name, layer_image_name)) {
-    //                         var layer_content = std.ArrayList(u8).init(pixi.app.allocator);
+    //                         var layer_content = std.array_list.Managed(u8).init(pixi.app.allocator);
     //                         try entry.writeAll(layer_content.writer());
 
     //                         var cond: ?pixi.Internal.Layer = pixi.Internal.Layer.fromPixels(internal.newID(), pixi.app.allocator.dupe(u8, ext_layer.name) catch ext_layer.name, layer_content.items, ext.width, ext.height, .ptr) catch null;
@@ -718,7 +718,7 @@ pub fn saveTar(self: *File, window: *dvui.Window) !void {
     defer handle.close();
     var wrt = std.tar.writer(handle.writer());
 
-    var json = std.ArrayList(u8).init(pixi.app.allocator);
+    var json = std.array_list.Managed(u8).init(pixi.app.allocator);
     const out_stream = json.writer();
     const options = std.json.StringifyOptions{};
 
@@ -768,11 +768,14 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
     const zip_file = zip.zip_open(null_terminated_path.ptr, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
     if (zip_file) |z| {
-        var json = std.ArrayList(u8).init(pixi.app.allocator);
-        const out_stream = json.writer();
-        const options = std.json.StringifyOptions{};
+        var json = std.array_list.Managed(u8).init(pixi.app.allocator);
+        const writer = json.writer();
+        const options = std.json.Stringify.Options{};
 
-        try std.json.stringify(ext, options, out_stream);
+        const output = try std.json.Stringify.valueAlloc(pixi.app.allocator, ext, options);
+        defer pixi.app.allocator.free(output);
+
+        writer.writeAll(output) catch return error.CouldNotWriteZipFile;
 
         const json_output = try json.toOwnedSlice();
         defer pixi.app.allocator.free(json_output);
@@ -787,7 +790,7 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
             while (index < self.layers.len) : (index += 1) {
                 const layer = slice.get(index);
 
-                const image_name = try std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}.layer", .{layer.name});
+                const image_name = try std.fmt.allocPrintSentinel(pixi.editor.arena.allocator(), "{s}.layer", .{layer.name}, 0);
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(image_name)));
                 _ = zip.zip_entry_write(z, @as([*]u8, @ptrCast(layer.bytes().ptr)), layer.bytes().len);
 

@@ -245,7 +245,7 @@ pub fn draw(self: *LayerPanedWidget) void {
     r.x = (rs.r.x + rs.r.w / 2) - r.w / 2;
     r = r.outset(dvui.Rect.Physical.all(2 * rs.s));
 
-    dvui.icon(@src(), "grip", icons.tvg.lucide.@"grip-horizontal", .{ .fill_color = dvui.themeGet().color(.control, .fill) }, .{
+    dvui.icon(@src(), "grip", icons.tvg.lucide.@"grip-horizontal", .{ .stroke_color = dvui.themeGet().color(.control, .fill) }, .{
         .rect = rs.rectFromPhysical(r),
     });
 }

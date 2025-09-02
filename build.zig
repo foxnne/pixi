@@ -1,7 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const nfd = @import("src/deps/nfd-zig/build.zig");
 const zip = @import("src/deps/zip/build.zig");
 
 const content_dir = "assets/";
@@ -12,26 +11,20 @@ const update = @import("update.zig");
 const GitDependency = update.GitDependency;
 fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
     const deps = &.{
-        // GitDependency{
-        //     // zstbi
-        //     .url = "https://github.com/foxnne/zstbi",
-        //     .branch = "main",
-        // },
         GitDependency{
             // mach_objc
             .url = "https://github.com/foxnne/mach-objc",
-            .branch = "dvui",
+            .branch = "dvuizig15",
         },
         GitDependency{
             // icons
-            .url = "https://github.com/nat3Github/zig-lib-icons",
-            .branch = "converter",
+            .url = "https://github.com/foxnne/zig-lib-icons",
+            .branch = "dvui",
         },
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
             .branch = "main",
-            //.branch = "main",
         },
     };
     try update.update_dependency(step.owner.allocator, deps);
@@ -43,9 +36,6 @@ pub fn build(b: *std.Build) !void {
 
     const step = b.step("update", "update git dependencies");
     step.makeFn = update_step;
-    // if true return
-
-    //const zstbi = b.dependency("zstbi", .{ .target = target, .optimize = optimize });
 
     const zip_pkg = zip.package(b, .{});
 
@@ -53,11 +43,13 @@ pub fn build(b: *std.Build) !void {
 
     //const timerModule = b.addModule("timer", .{ .root_source_file = .{ .cwd_relative = "src/tools/timer.zig" } });
 
-    const zstbi_lib = b.addStaticLibrary(.{
+    const zstbi_lib = b.addLibrary(.{
         .name = "zstbi",
-        .root_source_file = .{ .cwd_relative = "src/deps/stbi/zstbi.zig" },
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.addModule("zstbi", .{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = .{ .cwd_relative = "src/deps/stbi/zstbi.zig" },
+        }),
     });
     const zstbi_module = zstbi_lib.root_module;
 
@@ -87,9 +79,11 @@ pub fn build(b: *std.Build) !void {
 
     const exe = b.addExecutable(.{
         .name = "Pixi",
-        .root_source_file = .{ .cwd_relative = "src/App.zig" },
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.addModule("App", .{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = .{ .cwd_relative = "src/App.zig" },
+        }),
     });
     b.installArtifact(exe);
 
@@ -104,16 +98,16 @@ pub fn build(b: *std.Build) !void {
     const run_step = b.step("run", "Run the example");
 
     exe.root_module.addImport("zstbi", zstbi_module);
-    exe.root_module.addImport("nfd", nfd.getModule(b));
     exe.root_module.addImport("zip", zip_pkg.module);
     exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl3"));
+
     if (b.lazyDependency("icons", .{ .target = target, .optimize = optimize })) |dep| {
         exe.root_module.addImport("icons", dep.module("icons"));
     }
 
     //exe.root_module.addImport("zgif", zgif_module);
-    const nfd_lib = nfd.makeLib(b, target, optimize);
-    exe.root_module.addImport("nfd", nfd_lib);
+    // const nfd_lib = nfd.makeLib(b, target, optimize);
+    // exe.root_module.addImport("nfd", nfd_lib);
 
     if (target.result.os.tag == .macos) {
         if (b.lazyDependency("mach_objc", .{
@@ -121,14 +115,10 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
         })) |dep| {
             exe.root_module.addImport("objc", dep.module("mach-objc"));
-            if (dep.builder.lazyDependency("xcode_frameworks", .{})) |xcode_dep| {
-                nfd_lib.addSystemIncludePath(xcode_dep.path("include"));
-            }
         }
     }
 
     exe.linkLibCpp();
-    //exe.linkLibrary(zstbi.artifact("zstbi"));
     zip.link(exe);
 
     const assets = try ProcessAssetsStep.init(b, "assets", "src/generated/");

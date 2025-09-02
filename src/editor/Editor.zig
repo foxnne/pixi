@@ -811,8 +811,8 @@ pub fn deinit(editor: *Editor) !void {
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.file_tree_palette) |*palette| palette.deinit();
 
-    try editor.recents.save();
-    editor.recents.deinit();
+    //try editor.recents.save();
+    //editor.recents.deinit();
 
     try editor.settings.save(pixi.app.allocator);
     editor.settings.deinit(pixi.app.allocator);

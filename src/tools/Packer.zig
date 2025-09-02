@@ -30,19 +30,19 @@ pub const Sprite = struct {
     }
 };
 
-frames: std.ArrayList(zstbi.Rect),
-sprites: std.ArrayList(Sprite),
-animations: std.ArrayList(pixi.Animation),
+frames: std.array_list.Managed(zstbi.Rect),
+sprites: std.array_list.Managed(Sprite),
+animations: std.array_list.Managed(pixi.Animation),
 id_counter: u32 = 0,
 placeholder: Image,
 contains_height: bool = false,
-open_files: std.ArrayList(pixi.Internal.File),
+open_files: std.array_list.Managed(pixi.Internal.File),
 target: PackTarget = .project,
 //camera: pixi.gfx.Camera = .{},
 atlas: ?pixi.Internal.Atlas = null,
 
 ldtk: bool = false,
-ldtk_tilesets: std.ArrayList(LDTKTileset),
+ldtk_tilesets: std.array_list.Managed(LDTKTileset),
 
 pub const PackTarget = enum {
     project,
@@ -57,12 +57,12 @@ pub fn init(allocator: std.mem.Allocator) !Packer {
     }
 
     return .{
-        .sprites = std.ArrayList(Sprite).init(allocator),
-        .frames = std.ArrayList(zstbi.Rect).init(allocator),
-        .animations = std.ArrayList(pixi.Animation).init(allocator),
-        .open_files = std.ArrayList(pixi.Internal.File).init(allocator),
+        .sprites = std.array_list.Managed(Sprite).init(allocator),
+        .frames = std.array_list.Managed(zstbi.Rect).init(allocator),
+        .animations = std.array_list.Managed(pixi.Animation).init(allocator),
+        .open_files = std.array_list.Managed(pixi.Internal.File).init(allocator),
         .placeholder = .{ .width = 2, .height = 2, .pixels = pixels },
-        .ldtk_tilesets = std.ArrayList(LDTKTileset).init(allocator),
+        .ldtk_tilesets = std.array_list.Managed(LDTKTileset).init(allocator),
     };
 }
 

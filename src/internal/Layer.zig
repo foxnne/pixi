@@ -176,7 +176,7 @@ pub fn setMaskFloodPoint(layer: *Layer, p: dvui.Point, bounds: dvui.Rect) !void 
 
     layer.clearMask();
 
-    var queue = std.ArrayList(dvui.Point).init(pixi.app.allocator);
+    var queue = std.array_list.Managed(dvui.Point).init(pixi.app.allocator);
     defer queue.deinit();
     queue.append(p) catch return error.MemoryAllocationFailed;
 

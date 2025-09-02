@@ -8,23 +8,21 @@
     .fingerprint = 0xdef5a52d63bd43b9,
     .name = .pixi,
     .version = "0.0.3",
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.15.1",
     .dependencies = .{
         .mach_objc = .{
-            //.path = "src/.temp/mach-objc-dev",
-            .url = "git+https://github.com/foxnne/mach-objc#c2b1de1b24ce10e2eec1f2387b0a589f1f645bf3",
-            .hash = "mach_objc-0.0.0-hSeUK5QvDQAAvQR5phJO9c5QSkE6xNV9fyolAnAymu04",
+            .url = "git+https://github.com/foxnne/mach-objc#10d375670486f4c2c2c47b6b8bef9bcf42b52160",
+            .hash = "mach_objc-0.0.0-hSeUK_8vDQBaxz9sPYM0OavNriFU6NE2UUITDTFod4SX",
             .lazy = true,
         },
         .icons = .{
-            .url = "git+https://github.com/nat3Github/zig-lib-icons#4cb103884ce5513e1bcf9c14317860be17bcd835",
-            .hash = "icons-0.0.0-iJxA-VvGMwAC_m9jlrCFjwPdePXU-Pk4wqgV32SGoilA",
+            .url = "git+https://github.com/foxnne/zig-lib-icons#db034786a1286ab28dc35aba534c098aa4f1a3aa",
+            .hash = "icons-0.0.0-iJxA-VvGMwAgiKSXRe_Y0O7RpasdtEJhBfVx8IGGEBl_",
             .lazy = true,
         },
         .dvui = .{
-            //.path = "../dvui-dev/",
-            .url = "git+https://github.com/foxnne/dvui-dev#4d0784cd227b274e6da60ff38fa123d3ebff7cef",
-            .hash = "dvui-0.2.0-AQFJmanh0gBGjGb1RWJC-GieRvN6rde3R2AyG7rPADot",
+            .url = "git+https://github.com/foxnne/dvui-dev#85d100a4c1ec40cfb045eca4447b942e7bdfb5f7",
+            .hash = "dvui-0.4.0-dev-AQFJmf330gAgALSLcmTkEn4YsgABSd--g8yBJtZCKZ9L",
         },
     },
 }

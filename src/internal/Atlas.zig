@@ -27,7 +27,7 @@ pub fn save(atlas: Atlas, path: []const u8, selector: Selector) !void {
                 std.log.debug("File name must end with .png extension!", .{});
                 return error.InvalidExtension;
             }
-            const write_path = std.fmt.allocPrintZ(pixi.editor.arena.allocator(), "{s}", .{path}) catch unreachable;
+            const write_path = std.fmt.allocPrintSentinel(pixi.editor.arena.allocator(), "{s}", .{path}, 0) catch unreachable;
 
             try pixi.image.writeToPng(atlas.source, write_path);
         },
@@ -39,10 +39,17 @@ pub fn save(atlas: Atlas, path: []const u8, selector: Selector) !void {
             var handle = try std.fs.cwd().createFile(path, .{});
             defer handle.close();
 
-            const out_stream = handle.writer();
-            const options: std.json.StringifyOptions = .{};
+            const options: std.json.Stringify.Options = .{};
 
-            try std.json.stringify(atlas.data, options, out_stream);
+            const output = try std.json.Stringify.valueAlloc(pixi.editor.arena.allocator(), atlas.data, options);
+
+            const buf = pixi.editor.arena.allocator().alloc(u8, output.len) catch unreachable;
+
+            const writer = handle.writer(buf);
+
+            var interface = writer.interface;
+
+            interface.writeAll(output) catch return error.CouldNotWriteAtlasData;
         },
     }
 }

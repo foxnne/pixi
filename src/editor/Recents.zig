@@ -3,12 +3,12 @@ const pixi = @import("../pixi.zig");
 
 const Recents = @This();
 
-folders: std.ArrayList([:0]const u8),
-exports: std.ArrayList([:0]const u8),
+folders: std.array_list.Managed([:0]const u8),
+exports: std.array_list.Managed([:0]const u8),
 
 pub fn load(allocator: std.mem.Allocator) !Recents {
-    var folders = std.ArrayList([:0]const u8).init(allocator);
-    var exports = std.ArrayList([:0]const u8).init(allocator);
+    var folders = std.array_list.Managed([:0]const u8).init(allocator);
+    var exports = std.array_list.Managed([:0]const u8).init(allocator);
 
     if (pixi.fs.read(allocator, "recents.json") catch null) |read| {
         defer allocator.free(read);
@@ -84,15 +84,18 @@ pub fn appendExport(recents: *Recents, path: [:0]const u8) !void {
     }
 }
 
-pub fn save(recents: *Recents) !void {
-    var handle = try std.fs.cwd().createFile("recents.json", .{});
-    defer handle.close();
+// pub fn save(recents: *Recents) !void {
 
-    const out_stream = handle.writer();
-    const options = std.json.StringifyOptions{};
+//     var buf: []u8 = undefined;
 
-    try std.json.stringify(RecentsJson{ .folders = recents.folders.items, .exports = recents.exports.items }, options, out_stream);
-}
+//     var handle = try std.fs.cwd().createFile("recents.json", .{});
+//     defer handle.close();
+
+//     const out_stream = handle.writer();
+//     const options = std.json.Stringify.Options{};
+
+//     try std.json.stringify(RecentsJson{ .folders = recents.folders.items, .exports = recents.exports.items }, options, out_stream);
+// }
 
 pub fn deinit(recents: *Recents) void {
     for (recents.folders.items) |folder| {

@@ -39,7 +39,7 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
         const files = try getAllFiles(allocator, assets_root, true);
 
         if (files.len > 0) {
-            var paths = std.ArrayList(u8).init(allocator);
+            var paths = std.array_list.Managed(u8).init(allocator);
             var paths_writer = paths.writer();
 
             // Disclaimer
@@ -90,7 +90,7 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
                 if (std.mem.eql(u8, ext, ".atlas")) {
                     atlases += 1;
 
-                    var atlas_list = std.ArrayList(u8).init(allocator);
+                    var atlas_list = std.array_list.Managed(u8).init(allocator);
                     var atlas_writer = atlas_list.writer();
 
                     // Disclaimer
@@ -170,10 +170,10 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
 }
 
 fn getAllFiles(allocator: std.mem.Allocator, root_directory: []const u8, recurse: bool) ![][:0]const u8 {
-    var list = std.ArrayList([:0]const u8).init(allocator);
+    var list = std.array_list.Managed([:0]const u8).init(allocator);
 
     const recursor = struct {
-        fn search(alloc: std.mem.Allocator, directory: []const u8, recursive: bool, filelist: *std.ArrayList([:0]const u8)) !void {
+        fn search(alloc: std.mem.Allocator, directory: []const u8, recursive: bool, filelist: *std.array_list.Managed([:0]const u8)) !void {
             var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
             defer dir.close();
 

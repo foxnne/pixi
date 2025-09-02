@@ -133,13 +133,13 @@ pub const Change = union(ChangeType) {
 };
 
 bookmark: i32 = 0,
-undo_stack: std.ArrayList(Change),
-redo_stack: std.ArrayList(Change),
+undo_stack: std.array_list.Managed(Change),
+redo_stack: std.array_list.Managed(Change),
 
 pub fn init(allocator: std.mem.Allocator) History {
     return .{
-        .undo_stack = std.ArrayList(Change).init(allocator),
-        .redo_stack = std.ArrayList(Change).init(allocator),
+        .undo_stack = std.array_list.Managed(Change).init(allocator),
+        .redo_stack = std.array_list.Managed(Change).init(allocator),
     };
 }
 

@@ -10,7 +10,7 @@ pub fn get_hash(alloc: Allocator, url: []const u8, branch: []const u8) ![]const 
     var tokenizer = std.mem.tokenizeAny(u8, dat, "\r\n");
     var hash: []const u8 = "";
     const refs_heads = "refs/heads/";
-    var arlist = std.ArrayList([]const u8).init(alloc);
+    var arlist = std.array_list.Managed([]const u8).init(alloc);
     defer arlist.deinit();
     while (tokenizer.next()) |token| {
         hash = token[0..40];

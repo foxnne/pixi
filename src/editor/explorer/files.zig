@@ -57,7 +57,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         @src(),
         "FilterIcon",
         icons.tvg.lucide.search,
-        .{ .fill_color = dvui.themeGet().color(.window, .text) },
+        .{ .stroke_color = dvui.themeGet().color(.window, .text) },
         .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
     );
     const filter_text_edit = dvui.textEntry(@src(), .{ .placeholder = "Filter..." }, .{ .expand = .horizontal });
@@ -81,7 +81,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         @src(),
         "FolderIcon",
         icons.tvg.lucide.folder,
-        .{ .fill_color = color },
+        .{ .stroke_color = color },
         .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
     );
 
@@ -189,7 +189,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
             defer dir.close();
 
             // Collect all files/folders in the directory and sort them alphabetically
-            var files = std.ArrayList(std.fs.Dir.Entry).init(dvui.currentWindow().arena());
+            var files = std.array_list.Managed(std.fs.Dir.Entry).init(dvui.currentWindow().arena());
 
             var iter = dir.iterate();
             while (try iter.next()) |entry| {
@@ -354,7 +354,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             @src(),
                             "FileIcon",
                             icon,
-                            .{ .fill_color = icon_color },
+                            .{ .stroke_color = icon_color },
                             .{
                                 .gravity_y = 0.5,
                                 .padding = padding,
@@ -410,7 +410,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             "FolderIcon",
                             if (branch.expanded) icons.tvg.lucide.@"folder-open" else icons.tvg.lucide.@"folder-closed",
                             .{
-                                .fill_color = icon_color,
+                                .stroke_color = icon_color,
                             },
                             .{
                                 .gravity_y = 0.5,

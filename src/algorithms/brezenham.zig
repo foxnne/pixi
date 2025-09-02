@@ -4,7 +4,7 @@ const dvui = @import("dvui");
 
 pub fn process(start: dvui.Point, end: dvui.Point) ![]dvui.Point {
     // Bresenham's line algorithm for integer grid points
-    var output = std.ArrayList(dvui.Point).init(pixi.editor.arena.allocator());
+    var output = std.array_list.Managed(dvui.Point).init(pixi.editor.arena.allocator());
 
     // Round input points to nearest integer grid
     const x0: i32 = @intFromFloat(@floor(start.x));

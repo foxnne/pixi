@@ -62,15 +62,16 @@ pub fn save(project: *Project) !void {
         var handle = try std.fs.createFileAbsolute(file, .{});
         defer handle.close();
 
-        const out_stream = handle.writer();
-        const options = std.json.StringifyOptions{};
+        const options = std.json.Stringify.Options{};
 
-        try std.json.stringify(Project{
+        const str = try std.json.Stringify.valueAlloc(pixi.app.allocator, Project{
             .packed_atlas_output = project.packed_atlas_output,
             .packed_image_output = project.packed_image_output,
             //.packed_heightmap_output = project.packed_heightmap_output,
             .pack_on_save = project.pack_on_save,
-        }, options, out_stream);
+        }, options);
+
+        try handle.writeAll(str);
 
         return;
     }

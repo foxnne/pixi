@@ -158,7 +158,7 @@ pub fn load(allocator: std.mem.Allocator) !Settings {
 }
 
 pub fn save(settings: *Settings, allocator: std.mem.Allocator) !void {
-    const str = try std.json.stringifyAlloc(allocator, settings, .{});
+    const str = try std.json.Stringify.valueAlloc(allocator, settings, .{});
     defer allocator.free(str);
 
     var file = try std.fs.cwd().createFile("settings.json", .{});

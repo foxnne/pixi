@@ -37,8 +37,7 @@
 
 ## Compilation
 - [Linux] Ensure `gtk+3-devel` or similar is installed (for native file dialogs).
-- Install zig using [zigup](https://github.com/marler8997/zigup) `zigup 0.14.0-dev.2577+271452d22` or manually and add to PATH.
-- Zig version required is latest mach nominated version, find [here.]https://machengine.org/docs/nominated-zig/#2024110-mach(https://machengine.org/docs/nominated-zig/#2024110-mach)
+- Install zig 0.15.1.
 - Clone pixi.
 - Build.
     - ```git clone https://github.com/foxnne/pixi.git```
