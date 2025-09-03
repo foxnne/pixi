@@ -653,7 +653,6 @@ pub fn copy(editor: *Editor) !void {
                         ) catch return error.MemoryAllocationFailed,
                         .offset = reduced_data_rect.topLeft().diff(sprite_tl),
                     };
-                    std.log.debug("copied sprite to clipboard with offset {any}", .{editor.sprite_clipboard.?.offset});
                 }
             },
             .selection => {},
@@ -667,15 +666,14 @@ pub fn paste(editor: *Editor) !void {
         if (editor.activeFile()) |file| {
             const active_layer = file.layers.get(file.selected_layer_index);
 
+            var dst_rect: dvui.Rect = .fromSize(pixi.image.size(clipboard.source));
+
             var sprite_iterator = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
             while (sprite_iterator.next()) |sprite_index| {
                 const sprite_rect = file.spriteRect(sprite_index);
 
-                var dst_rect: dvui.Rect = .fromSize(pixi.image.size(clipboard.source));
                 dst_rect.x = sprite_rect.x + clipboard.offset.x;
                 dst_rect.y = sprite_rect.y + clipboard.offset.y;
-
-                std.log.debug("transform created withdst_rect: {any}", .{dst_rect});
 
                 file.editor.transform = .{
                     .file_id = file.id,
@@ -698,7 +696,31 @@ pub fn paste(editor: *Editor) !void {
                     }
                 }
 
-                break;
+                return;
+            }
+
+            dst_rect.x = clipboard.offset.x;
+            dst_rect.y = clipboard.offset.y;
+
+            file.editor.transform = .{
+                .file_id = file.id,
+                .layer_id = active_layer.id,
+                .data_points = .{
+                    dst_rect.topLeft(),
+                    dst_rect.topRight(),
+                    dst_rect.bottomRight(),
+                    dst_rect.bottomLeft(),
+                    dst_rect.center(),
+                    dst_rect.center(),
+                },
+                .source = clipboard.source,
+            };
+
+            for (file.editor.transform.?.data_points[0..4]) |*point| {
+                const d = point.diff(file.editor.transform.?.point(.pivot).*);
+                if (d.length() > file.editor.transform.?.radius) {
+                    file.editor.transform.?.radius = d.length() + 4;
+                }
             }
         }
     }

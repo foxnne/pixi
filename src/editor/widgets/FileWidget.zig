@@ -78,6 +78,8 @@ pub fn processKeybinds(self: *FileWidget) void {
                     if (self.init_options.file.editor.transform) |*transform| {
                         transform.cancel();
                         e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                    } else if (pixi.editor.tools.current == .pointer) {
+                        self.init_options.file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = self.init_options.file.spriteCount() }, false);
                     }
                 }
 
@@ -1662,7 +1664,7 @@ pub fn drawLayers(self: *FileWidget) void {
     } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text), .closed = true });
 
     // Draw the selection box for the selected sprites
-    if (pixi.editor.tools.current == .pointer and file.editor.transform == null) {
+    if (pixi.editor.tools.current == .pointer) {
         var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
         while (iter.next()) |i| {
             const sprite_rect = file.spriteRect(i);
