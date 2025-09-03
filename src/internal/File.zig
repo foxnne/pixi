@@ -356,6 +356,13 @@ pub fn newID(file: *File) u64 {
     return file.counter;
 }
 
+pub fn spritePoint(file: *File, point: dvui.Point) dvui.Point {
+    const column = @divTrunc(@as(u32, @intFromFloat(point.x)), file.tile_width);
+    const row = @divTrunc(@as(u32, @intFromFloat(point.y)), file.tile_height);
+
+    return .{ .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width)), .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height)) };
+}
+
 pub fn spriteCount(file: *File) usize {
     const tiles_wide = @divExact(file.width, file.tile_width);
     const tiles_high = @divExact(file.height, file.tile_height);
@@ -377,12 +384,14 @@ pub fn spriteRect(file: *File, index: usize) dvui.Rect {
     const tiles_wide = @divExact(file.width, file.tile_width);
     const column = @mod(@as(u32, @intCast(index)), tiles_wide);
     const row = @divTrunc(@as(u32, @intCast(index)), tiles_wide);
-    return .{
+
+    const out: dvui.Rect = .{
         .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width)),
         .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height)),
         .w = @as(f32, @floatFromInt(file.tile_width)),
         .h = @as(f32, @floatFromInt(file.tile_height)),
     };
+    return out;
 }
 
 pub fn clearSelectedSprites(file: *File) void {

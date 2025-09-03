@@ -80,6 +80,20 @@ pub fn processKeybinds(self: *FileWidget) void {
                         e.handle(@src(), self.init_options.canvas.scroll_container.data());
                     }
                 }
+
+                if (ke.matchBind("copy") and ke.action == .down) {
+                    pixi.editor.copy() catch {
+                        std.log.err("Failed to copy", .{});
+                    };
+                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                }
+
+                if (ke.matchBind("paste") and ke.action == .down) {
+                    pixi.editor.paste() catch {
+                        std.log.err("Failed to paste", .{});
+                    };
+                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                }
             },
             else => {},
         }

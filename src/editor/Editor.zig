@@ -57,6 +57,13 @@ colors: Colors = .{},
 grouping_id_counter: u64 = 0,
 file_id_counter: u64 = 0,
 
+sprite_clipboard: ?SpriteClipboard = null,
+
+pub const SpriteClipboard = struct {
+    source: dvui.ImageSource,
+    offset: dvui.Point,
+};
+
 pub fn init(
     app: *App,
 ) !Editor {
@@ -510,17 +517,6 @@ pub fn saving(editor: *Editor) bool {
     return false;
 }
 
-/// Returns true if png was imported and new file created.
-pub fn importPng(editor: *Editor, png_path: [:0]const u8, new_file_path: [:0]const u8) !bool {
-    if (!std.mem.eql(u8, std.fs.path.extension(png_path)[0..4], ".png"))
-        return false;
-
-    if (!std.mem.eql(u8, std.fs.path.extension(new_file_path)[0..5], ".pixi"))
-        return false;
-
-    return try editor.newFile(new_file_path, png_path);
-}
-
 /// Returns true if a new file was opened.
 pub fn openFile(editor: *Editor, path: []const u8, grouping: u64) !bool {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
@@ -565,21 +561,6 @@ pub fn setActiveFile(editor: *Editor, index: usize) void {
     }
 }
 
-pub fn setCopyFile(editor: *Editor, index: usize) void {
-    if (index >= editor.open_files.values().len) return;
-    const file = &editor.open_files.values()[index];
-    if (file.heightmap.layer == null) {
-        if (editor.tools.current == .heightmap)
-            editor.tools.current = .pointer;
-    }
-    editor.copy_file_index = index;
-}
-
-pub fn setActiveReference(editor: *Editor, index: usize) void {
-    if (index >= editor.open_references.items.len) return;
-    editor.open_reference_index = index;
-}
-
 /// Returns the actively focused file, through artboard grouping.
 pub fn activeFile(editor: *Editor) ?*pixi.Internal.File {
     if (editor.artboards.get(editor.open_artboard_grouping)) |artboard| {
@@ -608,13 +589,6 @@ pub fn getFileFromPath(editor: *Editor, path: []const u8) ?*pixi.Internal.File {
     return null;
 }
 
-pub fn getReference(editor: *Editor, index: usize) ?*pixi.Internal.Reference {
-    if (editor.open_references.items.len == 0) return null;
-    if (index >= editor.open_references.items.len) return null;
-
-    return &editor.open_references.items[index];
-}
-
 pub fn forceCloseFile(editor: *Editor, index: usize) !void {
     if (editor.getFile(index)) |file| {
         _ = file;
@@ -627,6 +601,106 @@ pub fn forceCloseAllFiles(editor: *Editor) !void {
     var i: usize = 0;
     while (i < len) : (i += 1) {
         try editor.forceCloseFile(0);
+    }
+}
+
+pub fn copy(editor: *Editor) !void {
+    if (switch (editor.tools.current) {
+        .selection, .pointer => false,
+        else => true,
+    }) {
+        return;
+    }
+
+    if (editor.activeFile()) |file| {
+        if (file.editor.transform != null) return;
+
+        if (editor.sprite_clipboard) |*clipboard| {
+            pixi.app.allocator.free(pixi.image.bytes(clipboard.source));
+            editor.sprite_clipboard = null;
+        }
+
+        file.editor.transform_layer.clear();
+
+        var selected_layer = file.layers.get(file.selected_layer_index);
+        switch (editor.tools.current) {
+            .pointer => {
+                var sprite_iterator = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                while (sprite_iterator.next()) |index| {
+                    const source_rect = file.spriteRect(index);
+                    if (selected_layer.pixelsFromRect(
+                        dvui.currentWindow().arena(),
+                        source_rect,
+                    )) |source_pixels| {
+                        file.editor.transform_layer.blit(
+                            source_pixels,
+                            source_rect,
+                            .{ .transparent = true, .mask = true },
+                        );
+                    }
+                }
+
+                const source_rect = dvui.Rect.fromSize(file.editor.transform_layer.size());
+                if (file.editor.transform_layer.reduce(source_rect)) |reduced_data_rect| {
+                    const sprite_tl = file.spritePoint(reduced_data_rect.topLeft());
+
+                    editor.sprite_clipboard = .{
+                        .source = pixi.image.fromPixels(
+                            @ptrCast(file.editor.transform_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
+                            @intFromFloat(reduced_data_rect.w),
+                            @intFromFloat(reduced_data_rect.h),
+                            .ptr,
+                        ) catch return error.MemoryAllocationFailed,
+                        .offset = reduced_data_rect.topLeft().diff(sprite_tl),
+                    };
+                    std.log.debug("copied sprite to clipboard with offset {any}", .{editor.sprite_clipboard.?.offset});
+                }
+            },
+            .selection => {},
+            else => unreachable,
+        }
+    }
+}
+
+pub fn paste(editor: *Editor) !void {
+    if (editor.sprite_clipboard) |*clipboard| {
+        if (editor.activeFile()) |file| {
+            const active_layer = file.layers.get(file.selected_layer_index);
+
+            var sprite_iterator = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+            while (sprite_iterator.next()) |sprite_index| {
+                const sprite_rect = file.spriteRect(sprite_index);
+
+                var dst_rect: dvui.Rect = .fromSize(pixi.image.size(clipboard.source));
+                dst_rect.x = sprite_rect.x + clipboard.offset.x;
+                dst_rect.y = sprite_rect.y + clipboard.offset.y;
+
+                std.log.debug("transform created withdst_rect: {any}", .{dst_rect});
+
+                file.editor.transform = .{
+                    .file_id = file.id,
+                    .layer_id = active_layer.id,
+                    .data_points = .{
+                        dst_rect.topLeft(),
+                        dst_rect.topRight(),
+                        dst_rect.bottomRight(),
+                        dst_rect.bottomLeft(),
+                        dst_rect.center(),
+                        dst_rect.center(),
+                    },
+                    .source = clipboard.source,
+                };
+
+                for (file.editor.transform.?.data_points[0..4]) |*point| {
+                    const d = point.diff(file.editor.transform.?.point(.pivot).*);
+                    if (d.length() > file.editor.transform.?.radius) {
+                        file.editor.transform.?.radius = d.length() + 4;
+                    }
+                }
+
+                break;
+            }
+        }
     }
 }
 
@@ -646,12 +720,14 @@ pub fn transform(editor: *Editor) !void {
 
         var selected_layer = file.layers.get(file.selected_layer_index);
 
-        if (editor.tools.current == .pointer) {
-            // Current tool is the pointer, so we potentially have a sprite selection in
-            // selected sprites that we need to copy to the selection layer.
-            file.editor.transform_layer.clear();
-            for (0..file.spriteCount()) |index| {
-                if (file.editor.selected_sprites.isSet(index)) {
+        switch (editor.tools.current) {
+            .pointer => {
+                // Current tool is the pointer, so we potentially have a sprite selection in
+                // selected sprites that we need to copy to the selection layer.
+                file.editor.transform_layer.clear();
+                var sprite_iterator = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+
+                while (sprite_iterator.next()) |index| {
                     const source_rect = file.spriteRect(index);
                     if (selected_layer.pixelsFromRect(
                         dvui.currentWindow().arena(),
@@ -665,16 +741,18 @@ pub fn transform(editor: *Editor) !void {
                         selected_layer.clearRect(source_rect);
                     }
                 }
-            }
-        } else if (editor.tools.current == .selection) {
-            // We are in the selection tool, so we should assume that the user has painted a selection
-            // into the selection layer mask, we need to copy the pixels into the transform layer itself for reducing
-            var iterator = file.editor.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
-            while (iterator.next()) |pixel_index| {
-                file.editor.transform_layer.pixels()[pixel_index] = selected_layer.pixels()[pixel_index];
-                selected_layer.pixels()[pixel_index] = .{ 0, 0, 0, 0 };
-                file.editor.transform_layer.mask.set(pixel_index);
-            }
+            },
+            .selection => {
+                // We are in the selection tool, so we should assume that the user has painted a selection
+                // into the selection layer mask, we need to copy the pixels into the transform layer itself for reducing
+                var pixel_iterator = file.editor.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+                while (pixel_iterator.next()) |pixel_index| {
+                    file.editor.transform_layer.pixels()[pixel_index] = selected_layer.pixels()[pixel_index];
+                    selected_layer.pixels()[pixel_index] = .{ 0, 0, 0, 0 };
+                    file.editor.transform_layer.mask.set(pixel_index);
+                }
+            },
+            else => unreachable,
         }
 
         // We now have a transform layer that contains:
