@@ -56,7 +56,8 @@ pub const EditorData = struct {
     transform_layer: Layer = undefined,
     selected_sprites: std.DynamicBitSet = undefined,
 
-    checkerboard: dvui.ImageSource = undefined,
+    checkerboard: std.DynamicBitSet = undefined,
+    checkerboard_tile: dvui.ImageSource = undefined,
 };
 
 pub const History = @import("History.zig");
@@ -101,9 +102,22 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
             .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
         };
 
-        // Initialize checkerboard
+        // Initialize editor layers and selected sprites
+        internal.editor.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
+        internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
+
+        internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
+        // Create a layer-sized checkerboard pattern for selection tools
+        for (0..internal.width * internal.height) |i| {
+            const value = pixi.math.checker(.{ .w = @floatFromInt(internal.width), .h = @floatFromInt(internal.height) }, i);
+            internal.editor.checkerboard.setValue(i, value);
+        }
+
+        // Initialize checkerboard tile image source
         {
-            internal.editor.checkerboard = pixi.image.init(
+            internal.editor.checkerboard_tile = pixi.image.init(
                 ext.tile_width * 2,
                 ext.tile_height * 2,
                 .{ .r = 0, .g = 0, .b = 0, .a = 0 },
@@ -113,45 +127,15 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
             const checker_color_1: [4]u8 = .{ 255, 255, 255, 255 };
             const checker_color_2: [4]u8 = .{ 175, 175, 175, 255 };
 
-            if (@mod(internal.width, 2) == 0) {
-                // width is even
-                for (pixi.image.pixels(internal.editor.checkerboard), 0..) |*pixel, i| {
-                    const checkerboard_width = internal.tile_width * 2;
-                    // Calculate which pixel row we are on
-                    const row = @divTrunc(i, checkerboard_width);
-
-                    if (@mod(row, 2) == 0) {
-                        if (@mod(i, 2) == 0) {
-                            pixel.* = checker_color_1;
-                        } else {
-                            pixel.* = checker_color_2;
-                        }
-                    } else {
-                        if (@mod(i, 2) != 0) {
-                            pixel.* = checker_color_1;
-                        } else {
-                            pixel.* = checker_color_2;
-                        }
-                    }
-                }
-            } else {
-                // width is odd
-                for (pixi.image.pixels(internal.editor.checkerboard), 0..) |*pixel, i| {
-                    if (@mod(i, 2) == 0) {
-                        pixel.* = checker_color_1;
-                    } else {
-                        pixel.* = checker_color_2;
-                    }
+            for (pixi.image.pixels(internal.editor.checkerboard_tile), 0..) |*pixel, i| {
+                if (pixi.math.checker(pixi.image.size(internal.editor.checkerboard_tile), i)) {
+                    pixel.* = checker_color_1;
+                } else {
+                    pixel.* = checker_color_2;
                 }
             }
-            dvui.textureInvalidateCache(internal.editor.checkerboard.hash());
+            dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
         }
-
-        // Initialize editor layers and selected sprites
-        internal.editor.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
-        internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-        internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-        internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
         var set_layer_index: bool = false;
 
@@ -177,6 +161,9 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
 
                 new_layer.visible = l.visible;
                 new_layer.collapse = l.collapse;
+
+                new_layer.setMaskFromTransparency(true);
+
                 internal.layers.append(pixi.app.allocator, new_layer) catch return error.FileLoadError;
 
                 if (l.visible and !set_layer_index) {
@@ -196,6 +183,9 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
 
                 new_layer.visible = l.visible;
                 new_layer.collapse = l.collapse;
+
+                new_layer.setMaskFromTransparency(true);
+
                 internal.layers.append(pixi.app.allocator, new_layer) catch return error.FileLoadError;
 
                 if (l.visible and !set_layer_index) {
@@ -335,7 +325,7 @@ pub fn deinit(file: *File) void {
         }
     }
 
-    if (file.editor.checkerboard.getTexture() catch null) |texture| {
+    if (file.editor.checkerboard_tile.getTexture() catch null) |texture| {
         dvui.textureDestroyLater(texture);
     }
 
@@ -406,15 +396,164 @@ pub fn setSpriteSelection(file: *File, selection_rect: dvui.Rect, value: bool) v
     }
 }
 
+pub const SelectOptions = struct {
+    value: bool = true,
+    clear: bool = false,
+    stroke_size: usize,
+    constrain_to_tile: bool = false,
+};
+
+/// Selects a point by considering the current stroke size and setting bits in the selection layer mask if there are
+/// non-transparent pixels in the currently active layer.
+/// If `value` is true, the point will be selected, otherwise it will be deselected.
+/// If `clear` is true, the selection layer mask will be cleared before setting the new value.
+pub fn selectPoint(file: *File, point: dvui.Point, select_options: SelectOptions) void {
+    const read_layer: Layer = file.layers.get(file.selected_layer_index);
+    var selection_layer: *Layer = &file.editor.selection_layer;
+
+    if (select_options.clear) {
+        selection_layer.clearMask();
+    }
+
+    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
+        return;
+    }
+
+    const column = @as(u32, @intFromFloat(point.x)) / file.tile_width;
+    const row = @as(u32, @intFromFloat(point.y)) / file.tile_height;
+
+    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width));
+    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height));
+
+    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.tile_width));
+    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.tile_height));
+
+    if (select_options.stroke_size < 10) {
+        const size: usize = @intCast(select_options.stroke_size);
+
+        for (0..(size * size)) |index| {
+            if (selection_layer.getIndexShapeOffset(point, index)) |result| {
+                if (select_options.constrain_to_tile) {
+                    if (result.point.x < min_x or result.point.x >= max_x or result.point.y < min_y or result.point.y >= max_y) {
+                        continue;
+                    }
+                }
+
+                if (read_layer.pixels()[result.index][3] > 0) {
+                    selection_layer.mask.setValue(result.index, select_options.value);
+                }
+            }
+        }
+    } else {
+        var iter = pixi.editor.tools.stroke.iterator(.{ .kind = .set, .direction = .forward });
+        while (iter.next()) |i| {
+            const offset = pixi.editor.tools.offset_table[i];
+            const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
+
+            if (select_options.constrain_to_tile) {
+                if (new_point.x < min_x or new_point.x >= max_x or new_point.y < min_y or new_point.y >= max_y) {
+                    continue;
+                }
+            }
+
+            if (selection_layer.pixelIndex(new_point)) |index| {
+                if (read_layer.pixels()[index][3] > 0) {
+                    selection_layer.mask.setValue(index, select_options.value);
+                }
+            }
+        }
+    }
+}
+
+pub fn selectLine(file: *File, point1: dvui.Point, point2: dvui.Point, select_options: SelectOptions) void {
+    const read_layer: Layer = file.layers.get(file.selected_layer_index);
+    var selection_layer: *Layer = &file.editor.selection_layer;
+
+    if (select_options.clear) {
+        selection_layer.clearMask();
+    }
+
+    if (point1.x < 0 or point1.x >= @as(f32, @floatFromInt(file.width)) or point1.y < 0 or point1.y >= @as(f32, @floatFromInt(file.height))) {
+        return;
+    }
+
+    if (point2.x < 0 or point2.x >= @as(f32, @floatFromInt(file.width)) or point2.y < 0 or point2.y >= @as(f32, @floatFromInt(file.height))) {
+        return;
+    }
+
+    const column = @as(u32, @intFromFloat(point2.x)) / file.tile_width;
+    const row = @as(u32, @intFromFloat(point2.y)) / file.tile_height;
+
+    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width));
+    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height));
+
+    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.tile_width));
+    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.tile_height));
+
+    const diff = point2.diff(point1).normalize().scale(4, dvui.Point);
+    const stroke_size: usize = @intCast(pixi.Editor.Tools.max_brush_size);
+
+    const center: dvui.Point = .{ .x = @floor(pixi.Editor.Tools.max_brush_size_float / 2), .y = @floor(pixi.Editor.Tools.max_brush_size_float / 2) };
+    var mask = pixi.editor.tools.stroke;
+
+    if (select_options.stroke_size > pixi.Editor.Tools.min_full_stroke_size) {
+        for (0..(stroke_size * stroke_size)) |index| {
+            if (pixi.editor.tools.getIndexShapeOffset(center.diff(diff), index)) |i| {
+                mask.unset(i);
+            }
+        }
+    }
+
+    if (pixi.algorithms.brezenham.process(point1, point2) catch null) |points| {
+        for (points, 0..) |point, point_i| {
+            if (select_options.stroke_size < pixi.Editor.Tools.min_full_stroke_size) {
+                selectPoint(file, point, select_options);
+            } else {
+                var stroke = if (point_i == 0) pixi.editor.tools.stroke else mask;
+
+                var iter = stroke.iterator(.{ .kind = .set, .direction = .forward });
+                while (iter.next()) |i| {
+                    const offset = pixi.editor.tools.offset_table[i];
+                    const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
+
+                    if (select_options.constrain_to_tile) {
+                        if (new_point.x < min_x or new_point.x >= max_x or new_point.y < min_y or new_point.y >= max_y) {
+                            continue;
+                        }
+                    }
+
+                    if (selection_layer.pixelIndex(new_point)) |index| {
+                        if (read_layer.pixels()[index][3] > 0) {
+                            selection_layer.mask.setValue(index, select_options.value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub const DrawLayer = enum {
     temporary,
     selected,
 };
 
-/// Draws a point on the selected (the point will be added to the stroke buffer) or temporary layer
-/// If to_change is true, the point will be added to the stroke buffer and then the history will be appended
-/// If invalidate is true, the layer will be invalidated
-pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer, draw_options: DrawOptions) void {
+pub const DrawOptions = struct {
+    stroke_size: usize,
+    mask_only: bool = false,
+    invalidate: bool = false,
+    to_change: bool = false,
+    constrain_to_tile: bool = false,
+    color: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = 255 },
+};
+
+/// Draws a point on the `.selected` (the point will be added to the stroke buffer) or `.temporary` layer.
+/// If `to_change` is true, the point will be added to the stroke buffer and then the history will be appended.
+/// If `invalidate` is true, the layer will be invalidated.
+/// If `mask_only` is true, the drawn pixels will only be marked on the mask, not the layer pixels themselves.
+/// If `constrain_to_tile` is true, the drawn pixels will only be marked on the tile that the point is currently within
+/// regardless of the stroke size.
+pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options: DrawOptions) void {
     var active_layer: Layer = switch (layer) {
         .temporary => file.editor.temporary_layer,
         .selected => file.layers.get(file.selected_layer_index),
@@ -425,6 +564,8 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
     if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
         return;
     }
+
+    const mask_value: bool = draw_options.color.a != 0;
 
     const column = @as(u32, @intFromFloat(point.x)) / file.tile_width;
     const row = @as(u32, @intFromFloat(point.y)) / file.tile_height;
@@ -446,12 +587,19 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
                     }
                 }
 
+                active_layer.mask.setValue(result.index, mask_value);
+
+                if (draw_options.mask_only) {
+                    continue;
+                }
+
                 if (layer == .selected) {
                     file.buffers.stroke.append(result.index, result.color) catch {
                         dvui.log.err("Failed to append to stroke buffer", .{});
                     };
                 }
-                active_layer.pixels()[result.index] = color;
+
+                active_layer.pixels()[result.index] = draw_options.color.toRGBA();
             }
         }
     } else {
@@ -467,15 +615,23 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
             }
 
             if (active_layer.pixelIndex(new_point)) |index| {
+                active_layer.mask.setValue(index, mask_value);
+                if (draw_options.mask_only) {
+                    continue;
+                }
                 if (layer == .selected) {
                     file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
                         dvui.log.err("Failed to append to stroke buffer", .{});
                     };
                 }
 
-                active_layer.pixels()[index] = color;
+                active_layer.pixels()[index] = draw_options.color.toRGBA();
             }
         }
+    }
+
+    if (draw_options.mask_only) {
+        return;
     }
 
     if (draw_options.invalidate) {
@@ -492,66 +648,7 @@ pub fn drawPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer,
     }
 }
 
-pub const FillOptions = struct {
-    invalidate: bool = false,
-    to_change: bool = false,
-    constrain_to_tile: bool = false,
-    replace: bool = false,
-};
-
-pub fn fillPoint(file: *File, point: dvui.Point, color: [4]u8, layer: DrawLayer, fill_options: FillOptions) void {
-    var active_layer: Layer = switch (layer) {
-        .temporary => file.editor.temporary_layer,
-        .selected => file.layers.get(file.selected_layer_index),
-    };
-
-    defer active_layer.dirty = true;
-
-    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
-        return;
-    }
-
-    if (fill_options.replace) {
-        if (active_layer.pixel(point)) |c| {
-            active_layer.setMaskFromColor(c);
-        }
-    } else {
-        active_layer.setMaskFloodPoint(point, .fromSize(.{ .w = @as(f32, @floatFromInt(file.width)), .h = @as(f32, @floatFromInt(file.height)) })) catch {
-            dvui.log.err("Failed to fill point", .{});
-        };
-    }
-
-    var iter = active_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
-    while (iter.next()) |index| {
-        file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
-            dvui.log.err("Failed to append to stroke buffer", .{});
-        };
-
-        active_layer.pixels()[index] = color;
-    }
-
-    if (fill_options.invalidate) {
-        active_layer.invalidate();
-    }
-
-    if (fill_options.to_change and layer == .selected) {
-        const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
-        if (change_opt) |change| {
-            file.history.append(change) catch {
-                dvui.log.err("Failed to append to history", .{});
-            };
-        }
-    }
-}
-
-pub const DrawOptions = struct {
-    stroke_size: usize,
-    invalidate: bool = false,
-    to_change: bool = false,
-    constrain_to_tile: bool = false,
-};
-
-pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u8, layer: DrawLayer, draw_options: DrawOptions) void {
+pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: DrawLayer, draw_options: DrawOptions) void {
     var active_layer: Layer = switch (layer) {
         .temporary => file.editor.temporary_layer,
         .selected => file.layers.get(file.selected_layer_index),
@@ -566,6 +663,8 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
     if (point2.x < 0 or point2.x >= @as(f32, @floatFromInt(file.width)) or point2.y < 0 or point2.y >= @as(f32, @floatFromInt(file.height))) {
         return;
     }
+
+    const mask_value: bool = draw_options.color.a != 0;
 
     const column = @as(u32, @intFromFloat(point2.x)) / file.tile_width;
     const row = @as(u32, @intFromFloat(point2.y)) / file.tile_height;
@@ -593,7 +692,7 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
     if (pixi.algorithms.brezenham.process(point1, point2) catch null) |points| {
         for (points, 0..) |point, point_i| {
             if (draw_options.stroke_size < pixi.Editor.Tools.min_full_stroke_size) {
-                drawPoint(file, point, color, layer, .{ .stroke_size = draw_options.stroke_size });
+                drawPoint(file, point, layer, draw_options);
             } else {
                 var stroke = if (point_i == 0) pixi.editor.tools.stroke else mask;
 
@@ -609,16 +708,24 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
                     }
 
                     if (active_layer.pixelIndex(new_point)) |index| {
+                        active_layer.mask.setValue(index, mask_value);
+                        if (draw_options.mask_only) {
+                            continue;
+                        }
                         if (layer == .selected) {
                             file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
                                 dvui.log.err("Failed to append to stroke buffer", .{});
                             };
                         }
 
-                        active_layer.pixels()[index] = color;
+                        active_layer.pixels()[index] = draw_options.color.toRGBA();
                     }
                 }
             }
+        }
+
+        if (draw_options.mask_only) {
+            return;
         }
 
         if (draw_options.invalidate) {
@@ -634,6 +741,78 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, color: [4]u
             }
         }
     }
+}
+
+pub const FillOptions = struct {
+    invalidate: bool = false,
+    to_change: bool = false,
+    mask_only: bool = false,
+    constrain_to_tile: bool = false,
+    replace: bool = false,
+    color: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = 255 },
+};
+
+pub fn fillPoint(file: *File, point: dvui.Point, layer: DrawLayer, fill_options: FillOptions) void {
+    var active_layer: Layer = switch (layer) {
+        .temporary => file.editor.temporary_layer,
+        .selected => file.layers.get(file.selected_layer_index),
+    };
+
+    defer active_layer.dirty = true;
+
+    const active_mask_before = active_layer.mask.clone(dvui.currentWindow().arena()) catch {
+        dvui.log.err("Failed to clone active mask", .{});
+        return;
+    };
+
+    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
+        return;
+    }
+
+    if (fill_options.replace) {
+        if (active_layer.pixel(point)) |c| {
+            active_layer.clearMask();
+            active_layer.setMaskFromColor(.{ .r = c[0], .g = c[1], .b = c[2], .a = c[3] }, true);
+        }
+    } else {
+        active_layer.clearMask();
+        active_layer.floodMaskPoint(point, .fromSize(.{ .w = @as(f32, @floatFromInt(file.width)), .h = @as(f32, @floatFromInt(file.height)) }), true) catch {
+            dvui.log.err("Failed to fill point", .{});
+        };
+    }
+
+    if (fill_options.mask_only) {
+        active_layer.mask.setIntersection(active_mask_before);
+        return;
+    }
+
+    var iter = active_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+    while (iter.next()) |index| {
+        file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
+            dvui.log.err("Failed to append to stroke buffer", .{});
+        };
+
+        active_layer.pixels()[index] = fill_options.color.toRGBA();
+    }
+
+    if (fill_options.invalidate) {
+        active_layer.invalidate();
+    }
+
+    if (fill_options.to_change and layer == .selected and !fill_options.mask_only) {
+        const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
+        if (change_opt) |change| {
+            file.history.append(change) catch {
+                dvui.log.err("Failed to append to history", .{});
+            };
+        }
+    }
+
+    if (fill_options.color.a != 0) {
+        active_layer.mask.toggleAll(); // This will ensure that all drawn pixels are off, and all undrawn pixels are on
+    }
+
+    active_layer.mask.setIntersection(active_mask_before);
 }
 
 pub fn getLayer(self: *File, id: u64) ?Layer {

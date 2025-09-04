@@ -112,23 +112,6 @@ pub fn processSample(self: *FileWidget) void {
         if (!self.right_mouse_down) {
             self.sample_data_point = null;
         }
-
-        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-        const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-        file.drawPoint(
-            current_point,
-            if (pixi.editor.tools.current != .eraser) pixi.editor.colors.primary else [_]u8{ 255, 255, 255, 255 },
-            .temporary,
-            .{
-                .invalidate = true,
-                .to_change = false,
-                .stroke_size = switch (pixi.editor.tools.current) {
-                    .pencil, .eraser => pixi.editor.tools.stroke_size,
-                    else => 1,
-                },
-            },
-        );
-        file.editor.temporary_layer.dirty = true;
     } else if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
         self.sample_key_down = true;
         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
@@ -143,13 +126,6 @@ pub fn processSample(self: *FileWidget) void {
         switch (e.evt) {
             .mouse => |me| {
                 if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
-                    if (e.evt == .mouse) {
-                        if (file.editor.temporary_layer.dirty) {
-                            @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                            file.editor.temporary_layer.invalidate();
-                            file.editor.temporary_layer.dirty = false;
-                        }
-                    }
                     continue;
                 }
 
@@ -179,22 +155,6 @@ pub fn processSample(self: *FileWidget) void {
                             self.sample_data_point = null;
                         }
                     }
-
-                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.drawPoint(
-                        current_point,
-                        if (pixi.editor.tools.current != .eraser) pixi.editor.colors.primary else [_]u8{ 255, 255, 255, 255 },
-                        .temporary,
-                        .{
-                            .invalidate = true,
-                            .to_change = false,
-                            .stroke_size = switch (pixi.editor.tools.current) {
-                                .pencil, .eraser => pixi.editor.tools.stroke_size,
-                                else => 1,
-                            },
-                        },
-                    );
-                    file.editor.temporary_layer.dirty = true;
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sample_drag")) |diff| {
@@ -360,6 +320,248 @@ pub fn processSpriteSelection(self: *FileWidget) void {
     }
 }
 
+pub fn processSelection(self: *FileWidget) void {
+    const file = self.init_options.file;
+
+    const selection_alpha: u8 = 215;
+    const selection_color_primary: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha };
+    const selection_color_secondary: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = selection_alpha };
+
+    var selection_color_primary_stroke: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha };
+    var selection_color_secondary_stroke: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = selection_alpha };
+
+    if (switch (pixi.editor.tools.current) {
+        .selection,
+        => false,
+        else => true,
+    }) return;
+
+    if (self.sample_key_down or self.right_mouse_down) return;
+
+    for (dvui.events()) |*e| {
+        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+            continue;
+        }
+
+        switch (e.evt) {
+            .key => |ke| {
+                var update: bool = false;
+                if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
+                    if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.max_brush_size - 1)
+                        pixi.editor.tools.stroke_size += 1;
+
+                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                    update = true;
+                }
+
+                if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
+                    if (pixi.editor.tools.stroke_size > 1)
+                        pixi.editor.tools.stroke_size -= 1;
+
+                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                    update = true;
+                }
+
+                if (update) {
+                    defer file.editor.temporary_layer.invalidate();
+                    const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                    {
+                        const active_layer = &file.layers.get(file.selected_layer_index);
+
+                        defer file.editor.temporary_layer.invalidate();
+
+                        // Clear temporary layer pixels and mask
+                        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                        file.editor.temporary_layer.clearMask();
+
+                        // Set the temporary layer mask to the selection layer mask
+                        file.editor.temporary_layer.mask.setUnion(file.editor.selection_layer.mask);
+
+                        // Draw the point at the stroke size to the temporary layer mask only
+                        file.drawPoint(
+                            current_point,
+                            .temporary,
+                            .{
+                                .color = .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+                                .mask_only = true,
+                                .stroke_size = pixi.editor.tools.stroke_size,
+                            },
+                        );
+
+                        // Intersect with the active layer mask so the stroke is confined to only non-transparent pixels
+                        file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
+                        file.editor.temporary_layer.setColorFromMask(selection_color_primary);
+
+                        // Intersect with the checkerboard mask so we can show the pattern
+                        file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
+                        file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
+                    }
+                }
+            },
+            .mouse => |me| {
+                const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+
+                {
+                    const active_layer = &file.layers.get(file.selected_layer_index);
+
+                    defer file.editor.temporary_layer.invalidate();
+
+                    // Clear temporary layer pixels and mask
+                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    file.editor.temporary_layer.clearMask();
+
+                    // Set the temporary layer mask to the selection layer mask
+                    file.editor.temporary_layer.mask.setUnion(file.editor.selection_layer.mask);
+                    file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
+
+                    // Now temp mask contains the active selection trimmed by the active layer mask
+                    // go ahead and draw out the selection in the normal colors
+                    file.editor.temporary_layer.setColorFromMask(selection_color_primary);
+                    file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
+                    file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
+
+                    // Clear the mask, we now need to only draw the point at the stroke size to the mask
+                    file.editor.temporary_layer.clearMask();
+
+                    if (me.mod.matchBind("shift")) {
+                        selection_color_primary_stroke = selection_color_primary_stroke.average(dvui.themeGet().color(.err, .fill));
+                        selection_color_secondary_stroke = selection_color_secondary_stroke.average(dvui.themeGet().color(.err, .fill));
+                    } else if (me.mod.matchBind("ctrl/cmd")) {
+                        selection_color_primary_stroke = selection_color_primary_stroke.average(dvui.themeGet().color(.highlight, .fill));
+                        selection_color_secondary_stroke = selection_color_secondary_stroke.average(dvui.themeGet().color(.highlight, .fill));
+                    }
+
+                    // Draw the point at the stroke size to the temporary layer mask only
+                    file.drawPoint(
+                        current_point,
+                        .temporary,
+                        .{
+                            .mask_only = true,
+                            .stroke_size = pixi.editor.tools.stroke_size,
+                        },
+                    );
+
+                    // Intersect with the active layer mask so the stroke is confined to only non-transparent pixels
+                    file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
+                    file.editor.temporary_layer.setColorFromMask(selection_color_primary_stroke);
+
+                    // Intersect with the checkerboard mask so we can show the pattern
+                    file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
+                    file.editor.temporary_layer.setColorFromMask(selection_color_secondary_stroke);
+                }
+
+                if (self.init_options.canvas.rect.contains(me.p))
+                    dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
+
+                if (me.action == .press and me.button.pointer()) {
+                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                    dvui.dragPreStart(me.p, .{ .name = "stroke_drag" });
+
+                    // Only clear the mask if we don't have ctrl/cmd pressed
+                    if (!me.mod.matchBind("ctrl/cmd") and !me.mod.matchBind("shift"))
+                        file.editor.selection_layer.clearMask();
+
+                    file.selectPoint(
+                        current_point,
+                        .{
+                            .value = !me.mod.matchBind("shift"),
+                            .stroke_size = pixi.editor.tools.stroke_size,
+                        },
+                    );
+
+                    self.drag_data_point = current_point;
+                } else if (me.action == .release and me.button.pointer()) {
+                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                        dvui.captureMouse(null, e.num);
+                        dvui.dragEnd();
+
+                        file.selectPoint(
+                            current_point,
+                            .{
+                                .value = !me.mod.matchBind("shift"),
+                                .stroke_size = pixi.editor.tools.stroke_size,
+                            },
+                        );
+
+                        self.drag_data_point = null;
+                    }
+                } else if (me.action == .position or me.action == .wheel_x or me.action == .wheel_y) {
+                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                        if (dvui.dragging(me.p, "stroke_drag")) |_| {
+                            if (self.drag_data_point) |previous_point| {
+                                // Construct a rect spanning between current_point and previous_point
+                                const min_x = @min(previous_point.x, current_point.x);
+                                const min_y = @min(previous_point.y, current_point.y);
+                                const max_x = @max(previous_point.x, current_point.x);
+                                const max_y = @max(previous_point.y, current_point.y);
+                                const span_rect = dvui.Rect{
+                                    .x = min_x,
+                                    .y = min_y,
+                                    .w = max_x - min_x + 1,
+                                    .h = max_y - min_y + 1,
+                                };
+
+                                const screen_rect = self.init_options.canvas.screenFromDataRect(span_rect);
+
+                                dvui.scrollDrag(.{
+                                    .mouse_pt = me.p,
+                                    .screen_rect = screen_rect,
+                                });
+                            }
+
+                            if (self.drag_data_point) |previous_point| {
+                                file.selectLine(
+                                    previous_point,
+                                    current_point,
+                                    .{
+                                        .value = !me.mod.matchBind("shift"),
+                                        .stroke_size = pixi.editor.tools.stroke_size,
+                                    },
+                                );
+
+                                // const active_layer = &file.layers.get(file.selected_layer_index);
+
+                                // defer file.editor.temporary_layer.invalidate();
+
+                                // // Clear temporary layer pixels and mask
+                                // @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                // file.editor.temporary_layer.clearMask();
+
+                                // // Set the temporary layer mask to the selection layer mask
+                                // file.editor.temporary_layer.mask.setUnion(file.editor.selection_layer.mask);
+
+                                // // Draw the point at the stroke size to the temporary layer mask only
+                                // file.drawLine(
+                                //     previous_point,
+                                //     current_point,
+                                //     .temporary,
+                                //     .{
+                                //         .mask_only = true,
+                                //         .stroke_size = pixi.editor.tools.stroke_size,
+                                //     },
+                                // );
+
+                                // // Intersect with the active layer mask so the stroke is confined to only non-transparent pixels
+                                // file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
+                                // file.editor.temporary_layer.setColorFromMask(selection_color_primary);
+
+                                // // Intersect with the checkerboard mask so we can show the pattern
+                                // file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
+                                // file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
+                            }
+
+                            self.drag_data_point = current_point;
+                        }
+                    }
+                }
+            },
+            else => {},
+        }
+    }
+}
+
 pub fn processStroke(self: *FileWidget) void {
     const file = self.init_options.file;
 
@@ -407,9 +609,9 @@ pub fn processStroke(self: *FileWidget) void {
                     const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
                     file.drawPoint(
                         current_point,
-                        if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 },
                         .temporary,
                         .{
+                            .color = if (pixi.editor.tools.current != .eraser) .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } else .white,
                             .invalidate = true,
                             .to_change = false,
                             .stroke_size = pixi.editor.tools.stroke_size,
@@ -431,9 +633,9 @@ pub fn processStroke(self: *FileWidget) void {
                     if (!me.mod.matchBind("shift")) {
                         file.drawPoint(
                             current_point,
-                            color,
                             .selected,
                             .{
+                                .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                                 .invalidate = true,
                                 .to_change = false,
                                 .stroke_size = pixi.editor.tools.stroke_size,
@@ -453,9 +655,9 @@ pub fn processStroke(self: *FileWidget) void {
                                 file.drawLine(
                                     previous_point,
                                     current_point,
-                                    color,
                                     .selected,
                                     .{
+                                        .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                                         .invalidate = true,
                                         .to_change = true,
                                         .stroke_size = pixi.editor.tools.stroke_size,
@@ -465,9 +667,9 @@ pub fn processStroke(self: *FileWidget) void {
                         } else {
                             file.drawPoint(
                                 current_point,
-                                color,
                                 .selected,
                                 .{
+                                    .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                                     .invalidate = true,
                                     .to_change = true,
                                     .stroke_size = pixi.editor.tools.stroke_size,
@@ -512,9 +714,9 @@ pub fn processStroke(self: *FileWidget) void {
                                     file.drawLine(
                                         previous_point,
                                         current_point,
-                                        color,
                                         .temporary,
                                         .{
+                                            .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                                             .invalidate = true,
                                             .to_change = false,
                                             .stroke_size = pixi.editor.tools.stroke_size,
@@ -526,9 +728,9 @@ pub fn processStroke(self: *FileWidget) void {
                                     file.drawLine(
                                         previous_point,
                                         current_point,
-                                        color,
                                         .selected,
                                         .{
+                                            .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                                             .invalidate = true,
                                             .to_change = false,
                                             .stroke_size = pixi.editor.tools.stroke_size,
@@ -543,9 +745,9 @@ pub fn processStroke(self: *FileWidget) void {
                                         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
                                         file.drawPoint(
                                             current_point,
-                                            temp_color,
                                             .temporary,
                                             .{
+                                                .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
                                                 .invalidate = true,
                                                 .to_change = false,
                                                 .stroke_size = pixi.editor.tools.stroke_size,
@@ -563,9 +765,13 @@ pub fn processStroke(self: *FileWidget) void {
                             const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
                             file.drawPoint(
                                 current_point,
-                                temp_color,
                                 .temporary,
-                                .{ .invalidate = true, .to_change = false, .stroke_size = pixi.editor.tools.stroke_size },
+                                .{
+                                    .invalidate = true,
+                                    .to_change = false,
+                                    .stroke_size = pixi.editor.tools.stroke_size,
+                                    .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
+                                },
                             );
                         }
                     }
@@ -594,7 +800,8 @@ pub fn processFill(self: *FileWidget) void {
                     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                 if (me.action == .press and me.button.pointer()) {
-                    file.fillPoint(current_point, color, .selected, .{
+                    file.fillPoint(current_point, .selected, .{
+                        .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                         .invalidate = true,
                         .to_change = true,
                         .replace = me.mod.matchBind("ctrl/cmd"),
@@ -607,9 +814,13 @@ pub fn processFill(self: *FileWidget) void {
                         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
                         file.drawPoint(
                             current_point,
-                            temp_color,
                             .temporary,
-                            .{ .invalidate = true, .to_change = false, .stroke_size = 1 },
+                            .{
+                                .invalidate = true,
+                                .to_change = false,
+                                .stroke_size = 1,
+                                .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
+                            },
                         );
                     }
                 }
@@ -1557,6 +1768,14 @@ pub fn drawSample(self: *FileWidget) void {
     }
 }
 
+pub fn updateActiveLayerMask(self: *FileWidget) void {
+    var file = self.init_options.file;
+    var active_layer = file.layers.get(file.selected_layer_index);
+
+    active_layer.clearMask();
+    active_layer.setMaskFromTransparency(true);
+}
+
 pub fn drawLayers(self: *FileWidget) void {
     var file = self.init_options.file;
     var layer_index: usize = file.layers.len;
@@ -1590,7 +1809,7 @@ pub fn drawLayers(self: *FileWidget) void {
             .s = self.init_options.canvas.scale,
         };
 
-        dvui.renderImage(file.editor.checkerboard, image_rect_scale, .{
+        dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
             .colormod = dvui.themeGet().color(.content, .fill).lighten(8.0),
         }) catch {
             std.log.err("Failed to render checkerboard", .{});
@@ -1707,15 +1926,34 @@ pub fn processEvents(self: *FileWidget) void {
 
     // If we are processing, we need to always ensure the temporary layer is cleared
     @memset(self.init_options.file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+    self.init_options.file.editor.temporary_layer.clearMask();
+
+    // Animate/Flip the checkerboard if we are in selection mode
+    if (pixi.editor.tools.current == .selection) {
+        const millis_per_frame = 250;
+        if (dvui.timerDoneOrNone(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+            self.init_options.file.editor.checkerboard.toggleAll();
+
+            const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
+            const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));
+            const wait = 1000 * (millis_per_frame - left);
+            dvui.timer(self.init_options.file.editor.canvas.scroll_container.data().id, wait);
+        }
+    }
+
+    // Ensure that the active layer mask is always up to date
+    self.updateActiveLayerMask();
 
     if (self.hovered() != null) {
         self.processFill();
         self.processStroke();
         self.processSample();
+        self.processSelection();
     }
     self.processTransform();
 
     // Draw layers first, so that the scrolling bounding box is updated
+
     self.drawLayers();
     self.processSpriteSelection();
 

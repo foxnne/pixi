@@ -765,14 +765,16 @@ pub fn transform(editor: *Editor) !void {
                 }
             },
             .selection => {
+                file.editor.transform_layer.clear();
                 // We are in the selection tool, so we should assume that the user has painted a selection
                 // into the selection layer mask, we need to copy the pixels into the transform layer itself for reducing
                 var pixel_iterator = file.editor.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
                 while (pixel_iterator.next()) |pixel_index| {
-                    file.editor.transform_layer.pixels()[pixel_index] = selected_layer.pixels()[pixel_index];
+                    @memcpy(&file.editor.transform_layer.pixels()[pixel_index], &selected_layer.pixels()[pixel_index]);
                     selected_layer.pixels()[pixel_index] = .{ 0, 0, 0, 0 };
                     file.editor.transform_layer.mask.set(pixel_index);
                 }
+                selected_layer.invalidate();
             },
             else => unreachable,
         }
@@ -807,6 +809,9 @@ pub fn transform(editor: *Editor) !void {
                     file.editor.transform.?.radius = d.length() + 4;
                 }
             }
+
+            // Set to pointer so we can operate on the transform
+            pixi.editor.tools.set(.pointer);
         }
     }
 }

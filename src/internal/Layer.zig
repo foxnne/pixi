@@ -153,28 +153,35 @@ pub fn clearMask(self: *Layer) void {
 }
 
 /// Sets all pixels in the mask that match the given color
-pub fn setMaskFromColor(self: *Layer, color: [4]u8) void {
-    self.clearMask();
+pub fn setMaskFromColor(self: *Layer, color: dvui.Color, value: bool) void {
+    const test_color: [4]u8 = color.toRGBA();
     for (self.pixels(), 0..) |*p, index| {
-        if (std.meta.eql(color, p.*)) {
-            self.mask.set(index);
+        if (std.meta.eql(test_color, p.*)) {
+            self.mask.setValue(index, value);
+        }
+    }
+}
+
+/// Sets all pixels in the mask that are not transparent
+pub fn setMaskFromTransparency(self: *Layer, value: bool) void {
+    for (self.pixels(), 0..) |*p, index| {
+        if (p[3] != 0) {
+            self.mask.setValue(index, value);
         }
     }
 }
 
 /// Sets all pixels in the layer that are in the mask to the given color
-pub fn setColorFromMask(self: *Layer, color: [4]u8) void {
-    const iter = self.mask.iterator(.{ .kind = .set, .direction = .forward });
+pub fn setColorFromMask(self: *Layer, color: dvui.Color) void {
+    var iter = self.mask.iterator(.{ .kind = .set, .direction = .forward });
     while (iter.next()) |index| {
-        self.pixels()[index] = color;
+        self.pixels()[index] = color.toRGBA();
     }
 }
 
 /// Flood fill a pixel and mark the flood to the mask, so you can handle changes.
-pub fn setMaskFloodPoint(layer: *Layer, p: dvui.Point, bounds: dvui.Rect) !void {
+pub fn floodMaskPoint(layer: *Layer, p: dvui.Point, bounds: dvui.Rect, value: bool) !void {
     if (!bounds.contains(p)) return;
-
-    layer.clearMask();
 
     var queue = std.array_list.Managed(dvui.Point).init(pixi.app.allocator);
     defer queue.deinit();
@@ -188,7 +195,7 @@ pub fn setMaskFloodPoint(layer: *Layer, p: dvui.Point, bounds: dvui.Rect) !void 
     };
 
     if (layer.pixelIndex(p)) |index| {
-        layer.mask.set(index);
+        layer.mask.setValue(index, value);
         const original_color = layer.pixels()[index];
 
         while (queue.pop()) |qp| {
@@ -200,7 +207,7 @@ pub fn setMaskFloodPoint(layer: *Layer, p: dvui.Point, bounds: dvui.Rect) !void 
                     if (!bounds.contains(new_point)) continue;
 
                     queue.append(new_point) catch return error.MemoryAllocationFailed;
-                    layer.mask.set(iter_index);
+                    layer.mask.setValue(iter_index, value);
                 }
             }
         }

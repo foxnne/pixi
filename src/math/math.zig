@@ -2,6 +2,18 @@ const zm = @import("zmath");
 const std = @import("std");
 const dvui = @import("dvui");
 
+// Returns true if the pixel would be color 1 of a checkerboard pattern
+// Returns false if the pixel would be color 2 of a checkerboard pattern
+pub fn checker(size: dvui.Size, index: usize) bool {
+    // Get the image width as usize
+    const w = @as(usize, @intFromFloat(size.w));
+    // Compute y (row) and x (column) from the index
+    const y = index / w;
+    const x = index % w;
+    // Checkerboard: light if (x + y) is even, dark if odd
+    return ((x + y) & 1) == 0;
+}
+
 pub fn rotate(point: dvui.Point, origin: dvui.Point, radians: f32) dvui.Point {
     if (radians == 0) return point;
 
