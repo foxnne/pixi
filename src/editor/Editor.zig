@@ -639,24 +639,32 @@ pub fn copy(editor: *Editor) !void {
                         );
                     }
                 }
-
-                const source_rect = dvui.Rect.fromSize(file.editor.transform_layer.size());
-                if (file.editor.transform_layer.reduce(source_rect)) |reduced_data_rect| {
-                    const sprite_tl = file.spritePoint(reduced_data_rect.topLeft());
-
-                    editor.sprite_clipboard = .{
-                        .source = pixi.image.fromPixels(
-                            @ptrCast(file.editor.transform_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
-                            @intFromFloat(reduced_data_rect.w),
-                            @intFromFloat(reduced_data_rect.h),
-                            .ptr,
-                        ) catch return error.MemoryAllocationFailed,
-                        .offset = reduced_data_rect.topLeft().diff(sprite_tl),
-                    };
+            },
+            .selection => {
+                // We are in the selection tool, so we should assume that the user has painted a selection
+                // into the selection layer mask, we need to copy the pixels into the transform layer itself for reducing
+                var pixel_iterator = file.editor.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+                while (pixel_iterator.next()) |pixel_index| {
+                    @memcpy(&file.editor.transform_layer.pixels()[pixel_index], &selected_layer.pixels()[pixel_index]);
+                    file.editor.transform_layer.mask.set(pixel_index);
                 }
             },
-            .selection => {},
             else => unreachable,
+        }
+
+        const source_rect = dvui.Rect.fromSize(file.editor.transform_layer.size());
+        if (file.editor.transform_layer.reduce(source_rect)) |reduced_data_rect| {
+            const sprite_tl = file.spritePoint(reduced_data_rect.topLeft());
+
+            editor.sprite_clipboard = .{
+                .source = pixi.image.fromPixels(
+                    @ptrCast(file.editor.transform_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
+                    @intFromFloat(reduced_data_rect.w),
+                    @intFromFloat(reduced_data_rect.h),
+                    .ptr,
+                ) catch return error.MemoryAllocationFailed,
+                .offset = reduced_data_rect.topLeft().diff(sprite_tl),
+            };
         }
     }
 }

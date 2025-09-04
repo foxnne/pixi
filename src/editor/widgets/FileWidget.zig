@@ -323,12 +323,12 @@ pub fn processSpriteSelection(self: *FileWidget) void {
 pub fn processSelection(self: *FileWidget) void {
     const file = self.init_options.file;
 
-    const selection_alpha: u8 = 215;
+    const selection_alpha: u8 = 175;
     const selection_color_primary: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha };
     const selection_color_secondary: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = selection_alpha };
 
-    var selection_color_primary_stroke: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha };
-    var selection_color_secondary_stroke: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = selection_alpha };
+    var selection_color_primary_stroke: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = 255 };
+    var selection_color_secondary_stroke: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = 255 };
 
     if (switch (pixi.editor.tools.current) {
         .selection,
@@ -382,7 +382,6 @@ pub fn processSelection(self: *FileWidget) void {
                             current_point,
                             .temporary,
                             .{
-                                .color = .{ .r = 255, .g = 255, .b = 255, .a = 255 },
                                 .mask_only = true,
                                 .stroke_size = pixi.editor.tools.stroke_size,
                             },
@@ -520,36 +519,6 @@ pub fn processSelection(self: *FileWidget) void {
                                         .stroke_size = pixi.editor.tools.stroke_size,
                                     },
                                 );
-
-                                // const active_layer = &file.layers.get(file.selected_layer_index);
-
-                                // defer file.editor.temporary_layer.invalidate();
-
-                                // // Clear temporary layer pixels and mask
-                                // @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                                // file.editor.temporary_layer.clearMask();
-
-                                // // Set the temporary layer mask to the selection layer mask
-                                // file.editor.temporary_layer.mask.setUnion(file.editor.selection_layer.mask);
-
-                                // // Draw the point at the stroke size to the temporary layer mask only
-                                // file.drawLine(
-                                //     previous_point,
-                                //     current_point,
-                                //     .temporary,
-                                //     .{
-                                //         .mask_only = true,
-                                //         .stroke_size = pixi.editor.tools.stroke_size,
-                                //     },
-                                // );
-
-                                // // Intersect with the active layer mask so the stroke is confined to only non-transparent pixels
-                                // file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
-                                // file.editor.temporary_layer.setColorFromMask(selection_color_primary);
-
-                                // // Intersect with the checkerboard mask so we can show the pattern
-                                // file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
-                                // file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
                             }
 
                             self.drag_data_point = current_point;
