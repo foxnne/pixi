@@ -35,6 +35,7 @@ pub fn register() !void {
     try window.keybinds.putNoClobber(window.gpa, "pencil", .{ .key = .d });
     try window.keybinds.putNoClobber(window.gpa, "eraser", .{ .key = .e });
     try window.keybinds.putNoClobber(window.gpa, "bucket", .{ .key = .b });
+    try window.keybinds.putNoClobber(window.gpa, "selection", .{ .key = .s, .command = false, .control = false });
     try window.keybinds.putNoClobber(window.gpa, "pointer", .{ .key = .escape });
 
     try window.keybinds.putNoClobber(window.gpa, "cancel", .{ .key = .escape });
@@ -80,6 +81,10 @@ pub fn tick() !void {
                 if (ke.matchBind("pointer") and ke.action == .down) {
                     std.log.debug("pointer tool selected", .{});
                     pixi.editor.tools.set(.pointer);
+                }
+                if (ke.matchBind("selection") and ke.action == .down) {
+                    std.log.debug("selection tool selected", .{});
+                    pixi.editor.tools.set(.selection);
                 }
             },
             else => {},

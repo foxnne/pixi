@@ -13,18 +13,18 @@ visible: bool = true,
 collapse: bool = false,
 dirty: bool = false,
 
-pub fn init(id: u64, name: []const u8, width: u32, height: u32, default_color: dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
+pub fn init(id: u64, name: []const u8, width: u32, height: u32, default_color: dvui.Color, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
     const num_pixels = width * height;
-    const p = pixi.app.allocator.alloc(dvui.Color.PMA, num_pixels) catch return error.MemoryAllocationFailed;
+    const p = pixi.app.allocator.alloc([4]u8, num_pixels) catch return error.MemoryAllocationFailed;
 
-    @memset(p, default_color);
+    @memset(p, default_color.toRGBA());
 
     return .{
         .id = id,
         .name = pixi.app.allocator.dupe(u8, name) catch return error.MemoryAllocationFailed,
         .source = .{
-            .pixelsPMA = .{
-                .rgba = p,
+            .pixels = .{
+                .rgba = @ptrCast(p),
                 .width = width,
                 .height = height,
                 .interpolation = .nearest,

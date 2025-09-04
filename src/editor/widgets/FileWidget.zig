@@ -323,12 +323,13 @@ pub fn processSpriteSelection(self: *FileWidget) void {
 pub fn processSelection(self: *FileWidget) void {
     const file = self.init_options.file;
 
-    const selection_alpha: u8 = 175;
+    const selection_alpha: u8 = 255;
     const selection_color_primary: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha };
     const selection_color_secondary: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = selection_alpha };
 
-    var selection_color_primary_stroke: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = 255 };
-    var selection_color_secondary_stroke: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = 255 };
+    const selection_alpha_stroke: u8 = 200;
+    var selection_color_primary_stroke: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha_stroke };
+    var selection_color_secondary_stroke: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = selection_alpha_stroke };
 
     if (switch (pixi.editor.tools.current) {
         .selection,
@@ -424,10 +425,14 @@ pub fn processSelection(self: *FileWidget) void {
 
                     if (me.mod.matchBind("shift")) {
                         selection_color_primary_stroke = selection_color_primary_stroke.average(dvui.themeGet().color(.err, .fill));
+                        selection_color_primary_stroke.a = selection_alpha_stroke;
                         selection_color_secondary_stroke = selection_color_secondary_stroke.average(dvui.themeGet().color(.err, .fill));
+                        selection_color_secondary_stroke.a = selection_alpha_stroke;
                     } else if (me.mod.matchBind("ctrl/cmd")) {
                         selection_color_primary_stroke = selection_color_primary_stroke.average(dvui.themeGet().color(.highlight, .fill));
+                        selection_color_primary_stroke.a = selection_alpha_stroke;
                         selection_color_secondary_stroke = selection_color_secondary_stroke.average(dvui.themeGet().color(.highlight, .fill));
+                        selection_color_secondary_stroke.a = selection_alpha_stroke;
                     }
 
                     // Draw the point at the stroke size to the temporary layer mask only

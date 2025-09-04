@@ -590,17 +590,8 @@ pub fn getFileFromPath(editor: *Editor, path: []const u8) ?*pixi.Internal.File {
 }
 
 pub fn forceCloseFile(editor: *Editor, index: usize) !void {
-    if (editor.getFile(index)) |file| {
-        _ = file;
+    if (editor.getFile(index) != null) {
         return editor.rawCloseFile(index);
-    }
-}
-
-pub fn forceCloseAllFiles(editor: *Editor) !void {
-    const len: usize = editor.open_files.items.len;
-    var i: usize = 0;
-    while (i < len) : (i += 1) {
-        try editor.forceCloseFile(0);
     }
 }
 
