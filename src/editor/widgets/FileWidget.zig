@@ -322,14 +322,33 @@ pub fn processSpriteSelection(self: *FileWidget) void {
 
 pub fn processSelection(self: *FileWidget) void {
     const file = self.init_options.file;
+    const active_layer = &file.layers.get(file.selected_layer_index);
 
-    const selection_alpha: u8 = 255;
-    const selection_color_primary: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha };
-    const selection_color_secondary: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = selection_alpha };
+    const selection_alpha: u8 = 185;
+    const selection_color_primary: dvui.Color = .{ .r = 200, .g = 200, .b = 200, .a = selection_alpha };
+    const selection_color_secondary: dvui.Color = .{ .r = 50, .g = 50, .b = 50, .a = selection_alpha };
 
-    const selection_alpha_stroke: u8 = 200;
+    const selection_alpha_stroke: u8 = 225;
     var selection_color_primary_stroke: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha_stroke };
-    var selection_color_secondary_stroke: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = selection_alpha_stroke };
+    var selection_color_secondary_stroke: dvui.Color = .{ .r = 200, .g = 200, .b = 200, .a = selection_alpha_stroke };
+
+    {
+        defer file.editor.temporary_layer.invalidate();
+
+        // Clear temporary layer pixels and mask
+        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        file.editor.temporary_layer.clearMask();
+
+        // Set the temporary layer mask to the selection layer mask
+        file.editor.temporary_layer.mask.setUnion(file.editor.selection_layer.mask);
+        file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
+
+        // Now temp mask contains the active selection trimmed by the active layer mask
+        // go ahead and draw out the selection in the normal colors
+        file.editor.temporary_layer.setColorFromMask(selection_color_primary);
+        file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
+        file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
+    }
 
     if (switch (pixi.editor.tools.current) {
         .selection,
@@ -367,8 +386,6 @@ pub fn processSelection(self: *FileWidget) void {
                     defer file.editor.temporary_layer.invalidate();
                     const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
                     {
-                        const active_layer = &file.layers.get(file.selected_layer_index);
-
                         defer file.editor.temporary_layer.invalidate();
 
                         // Clear temporary layer pixels and mask
@@ -401,37 +418,20 @@ pub fn processSelection(self: *FileWidget) void {
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
-                {
-                    const active_layer = &file.layers.get(file.selected_layer_index);
-
-                    defer file.editor.temporary_layer.invalidate();
-
-                    // Clear temporary layer pixels and mask
-                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.editor.temporary_layer.clearMask();
-
-                    // Set the temporary layer mask to the selection layer mask
-                    file.editor.temporary_layer.mask.setUnion(file.editor.selection_layer.mask);
-                    file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
-
-                    // Now temp mask contains the active selection trimmed by the active layer mask
-                    // go ahead and draw out the selection in the normal colors
-                    file.editor.temporary_layer.setColorFromMask(selection_color_primary);
-                    file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
-                    file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
+                if (me.action == .position) {
 
                     // Clear the mask, we now need to only draw the point at the stroke size to the mask
                     file.editor.temporary_layer.clearMask();
 
                     if (me.mod.matchBind("shift")) {
-                        selection_color_primary_stroke = selection_color_primary_stroke.average(dvui.themeGet().color(.err, .fill));
+                        selection_color_primary_stroke = selection_color_primary_stroke.lerp(dvui.themeGet().color(.err, .fill), 0.7);
                         selection_color_primary_stroke.a = selection_alpha_stroke;
-                        selection_color_secondary_stroke = selection_color_secondary_stroke.average(dvui.themeGet().color(.err, .fill));
+                        selection_color_secondary_stroke = selection_color_secondary_stroke.lerp(dvui.themeGet().color(.err, .fill), 0.7);
                         selection_color_secondary_stroke.a = selection_alpha_stroke;
                     } else if (me.mod.matchBind("ctrl/cmd")) {
-                        selection_color_primary_stroke = selection_color_primary_stroke.average(dvui.themeGet().color(.highlight, .fill));
+                        selection_color_primary_stroke = selection_color_primary_stroke.lerp(dvui.themeGet().color(.highlight, .fill), 0.7);
                         selection_color_primary_stroke.a = selection_alpha_stroke;
-                        selection_color_secondary_stroke = selection_color_secondary_stroke.average(dvui.themeGet().color(.highlight, .fill));
+                        selection_color_secondary_stroke = selection_color_secondary_stroke.lerp(dvui.themeGet().color(.highlight, .fill), 0.7);
                         selection_color_secondary_stroke.a = selection_alpha_stroke;
                     }
 
@@ -444,6 +444,17 @@ pub fn processSelection(self: *FileWidget) void {
                             .stroke_size = pixi.editor.tools.stroke_size,
                         },
                     );
+
+                    if (me.mod.matchBind("shift")) {
+                        file.editor.temporary_layer.mask.setIntersection(file.editor.selection_layer.mask);
+                    } else if (me.mod.matchBind("ctrl/cmd")) {
+                        var copy_mask = file.editor.selection_layer.mask.clone(dvui.currentWindow().arena()) catch {
+                            dvui.log.err("Failed to clone selection layer mask", .{});
+                            return;
+                        };
+                        copy_mask.toggleAll();
+                        file.editor.temporary_layer.mask.setIntersection(copy_mask);
+                    }
 
                     // Intersect with the active layer mask so the stroke is confined to only non-transparent pixels
                     file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
@@ -1922,8 +1933,8 @@ pub fn processEvents(self: *FileWidget) void {
         self.processFill();
         self.processStroke();
         self.processSample();
-        self.processSelection();
     }
+    self.processSelection();
     self.processTransform();
 
     // Draw layers first, so that the scrolling bounding box is updated
