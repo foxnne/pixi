@@ -322,6 +322,14 @@ pub fn processSpriteSelection(self: *FileWidget) void {
 }
 
 pub fn processSelection(self: *FileWidget) void {
+    if (switch (pixi.editor.tools.current) {
+        .selection,
+        => false,
+        else => true,
+    }) return;
+
+    if (self.sample_key_down or self.right_mouse_down) return;
+
     const file = self.init_options.file;
     const active_layer = &file.layers.get(file.selected_layer_index);
 
@@ -350,14 +358,6 @@ pub fn processSelection(self: *FileWidget) void {
         file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
         file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
     }
-
-    if (switch (pixi.editor.tools.current) {
-        .selection,
-        => false,
-        else => true,
-    }) return;
-
-    if (self.sample_key_down or self.right_mouse_down) return;
 
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {

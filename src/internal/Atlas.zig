@@ -43,13 +43,7 @@ pub fn save(atlas: Atlas, path: []const u8, selector: Selector) !void {
 
             const output = try std.json.Stringify.valueAlloc(pixi.editor.arena.allocator(), atlas.data, options);
 
-            const buf = pixi.editor.arena.allocator().alloc(u8, output.len) catch unreachable;
-
-            const writer = handle.writer(buf);
-
-            var interface = writer.interface;
-
-            interface.writeAll(output) catch return error.CouldNotWriteAtlasData;
+            handle.writeAll(output) catch return error.CouldNotWriteAtlasData;
         },
     }
 }

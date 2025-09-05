@@ -309,10 +309,5 @@ pub fn writeToPng(source: dvui.ImageSource, path: []const u8) !void {
 
     const png_encoded = dvui.pngEncode(dvui.currentWindow().arena(), data, w, h, .{}) catch return error.CouldNotWriteImage;
 
-    const buf: []u8 = dvui.currentWindow().arena().alloc(u8, png_encoded.len) catch return error.CouldNotWriteImage;
-    const out_stream = handle.writer(buf);
-
-    var interface = out_stream.interface;
-
-    interface.writeAll(png_encoded) catch return error.CouldNotWriteImage;
+    handle.writeAll(png_encoded) catch return error.CouldNotWriteImage;
 }
