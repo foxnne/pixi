@@ -331,6 +331,8 @@ pub fn packAndClear(packer: *Packer) !void {
             pixi.app.allocator.free(current_atlas.data.sprites);
             pixi.app.allocator.free(current_atlas.data.animations);
 
+            pixi.app.allocator.free(pixi.image.bytes(current_atlas.source));
+
             current_atlas.data = atlas;
             current_atlas.source = atlas_layer.source;
         } else {
