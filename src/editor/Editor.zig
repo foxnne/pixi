@@ -661,7 +661,7 @@ pub fn copy(editor: *Editor) !void {
             {
                 const id_mutex = dvui.toastAdd(dvui.currentWindow(), @src(), 0, file.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
                 const id = id_mutex.id;
-                const message = std.fmt.allocPrint(dvui.currentWindow().arena(), "Copied selection from {s}", .{std.fs.path.basename(file.path)}) catch "Copied selection";
+                const message = std.fmt.allocPrint(dvui.currentWindow().arena(), "Copied selection", .{}) catch "Copied selection.";
                 dvui.dataSetSlice(dvui.currentWindow(), id, "_message", message);
                 id_mutex.mutex.unlock();
             }
