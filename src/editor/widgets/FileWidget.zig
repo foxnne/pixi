@@ -420,16 +420,19 @@ pub fn processSelection(self: *FileWidget) void {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .position) {
-
                     // Clear the mask, we now need to only draw the point at the stroke size to the mask
                     file.editor.temporary_layer.clearMask();
 
+                    var default: bool = true;
+
                     if (me.mod.matchBind("shift")) {
+                        default = false;
                         selection_color_primary_stroke = selection_color_primary_stroke.lerp(dvui.themeGet().color(.err, .fill), 0.7);
                         selection_color_primary_stroke.a = selection_alpha_stroke;
                         selection_color_secondary_stroke = selection_color_secondary_stroke.lerp(dvui.themeGet().color(.err, .fill), 0.7);
                         selection_color_secondary_stroke.a = selection_alpha_stroke;
                     } else if (me.mod.matchBind("ctrl/cmd")) {
+                        default = false;
                         selection_color_primary_stroke = selection_color_primary_stroke.lerp(dvui.themeGet().color(.highlight, .fill), 0.7);
                         selection_color_primary_stroke.a = selection_alpha_stroke;
                         selection_color_secondary_stroke = selection_color_secondary_stroke.lerp(dvui.themeGet().color(.highlight, .fill), 0.7);
@@ -464,7 +467,7 @@ pub fn processSelection(self: *FileWidget) void {
 
                     // Intersect with the checkerboard mask so we can show the pattern
                     file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
-                    file.editor.temporary_layer.setColorFromMask(selection_color_secondary_stroke);
+                    file.editor.temporary_layer.setColorFromMask(if (default) selection_color_secondary_stroke else selection_color_primary_stroke);
                 }
 
                 if (self.init_options.canvas.rect.contains(me.p))

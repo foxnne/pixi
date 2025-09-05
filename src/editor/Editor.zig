@@ -656,6 +656,15 @@ pub fn copy(editor: *Editor) !void {
                 ) catch return error.MemoryAllocationFailed,
                 .offset = reduced_data_rect.topLeft().diff(sprite_tl),
             };
+
+            // Show a toast so its evident a copy action was completed
+            {
+                const id_mutex = dvui.toastAdd(dvui.currentWindow(), @src(), 0, file.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+                const id = id_mutex.id;
+                const message = std.fmt.allocPrint(dvui.currentWindow().arena(), "Copied selection from {s}", .{std.fs.path.basename(file.path)}) catch "Copied selection";
+                dvui.dataSetSlice(dvui.currentWindow(), id, "_message", message);
+                id_mutex.mutex.unlock();
+            }
         }
     }
 }
@@ -783,6 +792,7 @@ pub fn transform(editor: *Editor) !void {
         // 2. a mask containing bits for the pixels of the selection being transformed
         const source_rect = dvui.Rect.fromSize(file.editor.transform_layer.size());
         if (file.editor.transform_layer.reduce(source_rect)) |reduced_data_rect| {
+            defer file.editor.selection_layer.clearMask();
             file.editor.transform = .{
                 .file_id = file.id,
                 .layer_id = selected_layer.id,
