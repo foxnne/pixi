@@ -310,6 +310,7 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                                         .color = selection_color,
                                     },
                                 );
+                                break;
                             }
                         }
                     }
@@ -332,7 +333,7 @@ pub fn processSelection(self: *FileWidget) void {
     var selection_color_primary_stroke: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha_stroke };
     var selection_color_secondary_stroke: dvui.Color = .{ .r = 200, .g = 200, .b = 200, .a = selection_alpha_stroke };
 
-    {
+    { // Always draw the selection to the temporary layer so we dont only show it when the mouse moves/hovers
         defer file.editor.temporary_layer.invalidate();
 
         // Clear temporary layer pixels and mask
@@ -445,6 +446,7 @@ pub fn processSelection(self: *FileWidget) void {
                         },
                     );
 
+                    // Only show stroke over relevant pixels to make selection clearer
                     if (me.mod.matchBind("shift")) {
                         file.editor.temporary_layer.mask.setIntersection(file.editor.selection_layer.mask);
                     } else if (me.mod.matchBind("ctrl/cmd")) {
@@ -1545,17 +1547,30 @@ pub fn drawCursor(self: *FileWidget) void {
     if (pixi.editor.tools.current == .pointer) return;
     if (pixi.editor.tools.radial_menu.visible) return;
 
+    var subtract = false;
+    var add = false;
+
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
             continue;
         }
         switch (e.evt) {
-            .key => |_| {
+            .key => |ke| {
+                if (ke.mod.matchBind("shift")) {
+                    subtract = true;
+                } else if (ke.mod.matchBind("ctrl/cmd")) {
+                    add = true;
+                }
                 if (self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
                     _ = dvui.cursorShow(false);
                 }
             },
             .mouse => |me| {
+                if (me.mod.matchBind("shift")) {
+                    subtract = true;
+                } else if (me.mod.matchBind("ctrl/cmd")) {
+                    add = true;
+                }
                 if (self.init_options.canvas.rect.contains(me.p)) {
                     _ = dvui.cursorShow(false);
                 }
@@ -1573,7 +1588,7 @@ pub fn drawCursor(self: *FileWidget) void {
         .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
         .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
         .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
-        .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
+        .selection => if (subtract) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_rem_default] else if (add) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_add_default] else pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
         else => null,
     }) |sprite| {
         const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
