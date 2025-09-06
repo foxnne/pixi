@@ -227,6 +227,8 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
 
 pub fn processSpriteSelection(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
+    if (self.init_options.file.editor.transform != null) return;
+
     const file = self.init_options.file;
 
     for (dvui.events()) |*e| {
@@ -1886,7 +1888,7 @@ pub fn drawLayers(self: *FileWidget) void {
     } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text), .closed = true });
 
     // Draw the selection box for the selected sprites
-    if (pixi.editor.tools.current == .pointer) {
+    if (pixi.editor.tools.current == .pointer and file.editor.transform == null) {
         var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
         while (iter.next()) |i| {
             const sprite_rect = file.spriteRect(i);

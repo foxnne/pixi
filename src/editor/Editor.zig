@@ -16,10 +16,6 @@ pub const Tools = @import("Tools.zig");
 pub const Transform = @import("Transform.zig");
 pub const Keybinds = @import("Keybinds.zig");
 
-const zstbi = @import("zstbi");
-const nfd = @import("nfd");
-const zmath = @import("zmath");
-
 // Modules
 pub const Artboard = @import("Artboard.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
