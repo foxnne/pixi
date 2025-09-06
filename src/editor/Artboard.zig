@@ -551,14 +551,6 @@ pub fn drawLogo(_: *Artboard) !void {
                         .padding = dvui.Rect.all(0),
                     });
 
-                    const outset_rect = pixel.data().rectScale().r.outset(.{ .x = 1, .y = 1 });
-                    outset_rect.fill(dvui.Rect.Physical.all(0), .{ .color = .{
-                        .r = color[0],
-                        .g = color[1],
-                        .b = color[2],
-                        .a = color[3],
-                    } });
-
                     const rect = pixel.data().rect.outset(.{ .x = 0, .y = 0 });
                     const rs = pixel.data().rectScale();
                     pixel.deinit();
@@ -624,7 +616,6 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
             else => {},
         }
     }
-    if (new_rect.h <= 0) return;
 
     const corner_radius: dvui.Rect = .{ .x = rs.r.w / 2.0, .y = rs.r.h / 2.0 };
 
@@ -644,10 +635,13 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     const bl = dvui.Point.Physical{ .x = r.x + rad.h, .y = r.y + r.h - rad.h };
     const br = dvui.Point.Physical{ .x = r.x + r.w - rad.w, .y = r.y + r.h - rad.w };
     const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + rad.y };
-    path.addArc(tl, rad.x, dvui.math.pi * 1.5, dvui.math.pi, true);
-    path.addArc(bl, rad.h, dvui.math.pi, dvui.math.pi * 0.5, true);
-    path.addArc(br, rad.w, dvui.math.pi * 0.5, 0, true);
-    path.addArc(tr, rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+    path.addRect(rs.r.outset(.{ .x = 1, .y = 1 }), dvui.Rect.Physical.all(0));
+    if (new_rect.h > 0) {
+        path.addArc(tl, rad.x, dvui.math.pi * 1.5, dvui.math.pi, true);
+        path.addArc(bl, rad.h, dvui.math.pi, dvui.math.pi * 0.5, true);
+        path.addArc(br, rad.w, dvui.math.pi * 0.5, 0, true);
+        path.addArc(tr, rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+    }
 
     { // Bubble shadows
         // const triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = r.center(), .fade = 10 }) catch return;
