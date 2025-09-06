@@ -692,7 +692,14 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
     if (pixi.algorithms.brezenham.process(point1, point2) catch null) |points| {
         for (points, 0..) |point, point_i| {
             if (draw_options.stroke_size < pixi.Editor.Tools.min_full_stroke_size) {
-                drawPoint(file, point, layer, draw_options);
+                drawPoint(file, point, layer, .{
+                    .color = draw_options.color,
+                    .stroke_size = draw_options.stroke_size,
+                    .mask_only = draw_options.mask_only,
+                    .invalidate = false,
+                    .to_change = false,
+                    .constrain_to_tile = draw_options.constrain_to_tile,
+                });
             } else {
                 var stroke = if (point_i == 0) pixi.editor.tools.stroke else mask;
 
