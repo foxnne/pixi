@@ -146,18 +146,13 @@ fn sample(self: *ImageWidget, point: dvui.Point) void {
 pub fn drawCursor(self: *ImageWidget) void {
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
-            if (e.evt == .mouse) {
-                _ = dvui.cursorShow(true);
-            }
             continue;
         }
 
         switch (e.evt) {
             .mouse => |me| {
                 if (self.init_options.canvas.rect.contains(me.p) and (self.right_mouse_down or self.sample_key_down)) {
-                    _ = dvui.cursorShow(false);
-                } else {
-                    _ = dvui.cursorShow(true);
+                    _ = dvui.cursorSet(.hidden);
                 }
             },
             else => {},

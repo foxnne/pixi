@@ -109,9 +109,6 @@ const handle_size = 10;
 const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
-    if (!dvui.cursorShow(null))
-        _ = dvui.cursorShow(true);
-
     editor.rebuildArtboards() catch {
         dvui.log.err("Failed to rebuild artboards", .{});
     };

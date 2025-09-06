@@ -1567,7 +1567,7 @@ pub fn drawCursor(self: *FileWidget) void {
                     add = true;
                 }
                 if (self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
-                    _ = dvui.cursorShow(false);
+                    _ = dvui.cursorSet(.hidden);
                 }
             },
             .mouse => |me| {
@@ -1577,7 +1577,7 @@ pub fn drawCursor(self: *FileWidget) void {
                     add = true;
                 }
                 if (self.init_options.canvas.rect.contains(me.p)) {
-                    _ = dvui.cursorShow(false);
+                    _ = dvui.cursorSet(.hidden);
                 }
             },
             else => {},
