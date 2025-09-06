@@ -113,8 +113,8 @@ pub fn drawTools() !void {
         const width = @as(f32, @floatFromInt(sprite.source[2])) * rs.s;
         const height = @as(f32, @floatFromInt(sprite.source[3])) * rs.s;
 
-        rs.r.x += (rs.r.w - width) / 2.0;
-        rs.r.y += (rs.r.h - height) / 2.0;
+        rs.r.x = @round(rs.r.x + (rs.r.w - width) / 2.0);
+        rs.r.y = @round(rs.r.y + (rs.r.h - height) / 2.0);
         rs.r.w = width;
         rs.r.h = height;
 
