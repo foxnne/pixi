@@ -307,11 +307,9 @@ pub fn writeToPng(source: dvui.ImageSource, path: []const u8) !void {
     var handle = try std.fs.cwd().createFile(path, .{});
     defer handle.close();
 
-    var buffer: [256]u8 = undefined;
+    var buffer: [512]u8 = undefined;
     var writer = handle.writer(&buffer);
 
-    //const png_encoded = dvui.pngEncode(dvui.currentWindow().arena(), data, w, h, .{}) catch return error.CouldNotWriteImage;
     try dvui.PNGEncoder.write(&writer.interface, data, w, h);
-
-    //handle.writeAll(png_encoded) catch return error.CouldNotWriteImage;
+    try writer.end();
 }
