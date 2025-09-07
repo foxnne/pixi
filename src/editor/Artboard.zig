@@ -635,30 +635,13 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     const bl = dvui.Point.Physical{ .x = r.x + rad.h, .y = r.y + r.h - rad.h };
     const br = dvui.Point.Physical{ .x = r.x + r.w - rad.w, .y = r.y + r.h - rad.w };
     const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + rad.y };
-    path.addRect(rs.r.outset(.{ .x = 1, .y = 1 }), dvui.Rect.Physical.all(0));
+    path.addRect(rs.r.outsetAll(1), dvui.Rect.Physical.all(0));
+
     if (new_rect.h > 0) {
         path.addArc(tl, rad.x, dvui.math.pi * 1.5, dvui.math.pi, true);
         path.addArc(bl, rad.h, dvui.math.pi, dvui.math.pi * 0.5, true);
         path.addArc(br, rad.w, dvui.math.pi * 0.5, 0, true);
         path.addArc(tr, rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
-    }
-
-    { // Bubble shadows
-        // const triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = r.center(), .fade = 10 }) catch return;
-
-        // const black: dvui.Color = .black;
-        // const ca0 = black.opacity(0.1);
-        // const ca1 = black.opacity(0);
-
-        // for (triangles.vertexes) |*v| {
-        //     const t = std.math.clamp((v.pos.y - r.y) / r.h, 0.0, 1.0);
-        //     v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-        //     v.pos.y -= 3;
-        // }
-
-        // dvui.renderTriangles(triangles, null) catch {
-        //     dvui.log.err("Failed to render triangles", .{});
-        // };
     }
 
     path.build().fillConvex(.{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] }, .fade = 1.0 });

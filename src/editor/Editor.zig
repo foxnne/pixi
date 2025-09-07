@@ -33,6 +33,8 @@ recents: Recents,
 
 explorer: *Explorer,
 
+last_titlebar_color: dvui.Color,
+
 /// Artboards stored by their grouping ID
 artboards: std.AutoArrayHashMap(u64, Artboard) = undefined,
 sidebar: Sidebar,
@@ -69,6 +71,7 @@ pub fn init(
         .settings = try .load(app.allocator),
         .recents = try .load(app.allocator),
         .arena = .init(std.heap.page_allocator),
+        .last_titlebar_color = dvui.themeGet().color(.control, .fill),
         .atlas = .{
             .data = try .loadFromFile(app.allocator, pixi.paths.@"pixi.atlas"),
             .source = try pixi.image.fromImageFilePath(pixi.paths.@"pixi.png", pixi.paths.@"pixi.png", .ptr),
@@ -109,6 +112,11 @@ const handle_size = 10;
 const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
+    if (!std.mem.eql(u8, &editor.last_titlebar_color.toRGBA(), &dvui.themeGet().color(.control, .fill).toRGBA())) {
+        editor.last_titlebar_color = dvui.themeGet().color(.control, .fill);
+        App.setTitlebarColor(dvui.currentWindow(), editor.last_titlebar_color);
+    }
+
     editor.rebuildArtboards() catch {
         dvui.log.err("Failed to rebuild artboards", .{});
     };

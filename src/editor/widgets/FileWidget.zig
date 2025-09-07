@@ -307,11 +307,12 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                                 }
 
                                 screen_selection_rect.fill(
-                                    dvui.Rect.Physical.all(screen_selection_rect.w / 12),
+                                    dvui.Rect.Physical.all(6 * dvui.currentWindow().natural_scale),
                                     .{
                                         .color = selection_color,
                                     },
                                 );
+                                dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                                 break;
                             }
                         }
