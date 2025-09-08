@@ -319,8 +319,6 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
 
             for (pixi.editor.artboards.values()) |*artboard| {
                 if (artboard.drag_index) |drag_index| {
-                    defer artboard.drag_index = null;
-
                     var right_side = data.rectScale().r;
                     right_side.w /= 2;
                     right_side.x += right_side.w;
@@ -331,6 +329,7 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
                         });
 
                         if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                            defer artboard.drag_index = null;
                             // We dropped on the right side of the artboard, so we need to create a new artboard
                             e.handle(@src(), data);
                             dvui.dragEnd();
@@ -355,6 +354,7 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
                         });
 
                         if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                            defer artboard.drag_index = null;
                             // We dropped on the full artboard, so we need to move the file to this artboard
                             e.handle(@src(), data);
                             dvui.dragEnd();
