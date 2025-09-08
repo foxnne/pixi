@@ -789,7 +789,7 @@ pub fn fillPoint(file: *File, point: dvui.Point, layer: DrawLayer, fill_options:
     }
 
     if (fill_options.mask_only) {
-        active_layer.mask.setIntersection(active_mask_before);
+        active_layer.mask.setUnion(active_mask_before);
         return;
     }
 
@@ -819,7 +819,7 @@ pub fn fillPoint(file: *File, point: dvui.Point, layer: DrawLayer, fill_options:
         active_layer.mask.toggleAll(); // This will ensure that all drawn pixels are off, and all undrawn pixels are on
     }
 
-    active_layer.mask.setIntersection(active_mask_before);
+    active_layer.mask.setUnion(active_mask_before);
 }
 
 pub fn getLayer(self: *File, id: u64) ?Layer {
