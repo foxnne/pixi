@@ -7,13 +7,13 @@ const Editor = pixi.Editor;
 
 const File = @This();
 
-const Texture = @import("Texture.zig");
 const Layer = @import("Layer.zig");
 const Sprite = @import("Sprite.zig");
 const Animation = @import("Animation.zig");
 
 id: u64,
 path: []const u8,
+
 width: u32,
 height: u32,
 tile_width: u32 = 0,

@@ -48,7 +48,6 @@ pub const Internal = struct {
     pub const Layer = @import("internal/Layer.zig");
     pub const Palette = @import("internal/Palette.zig");
     pub const Sprite = @import("internal/Sprite.zig");
-    pub const Texture = @import("internal/Texture.zig");
 };
 
 /// Frame-by-frame sprite animation
