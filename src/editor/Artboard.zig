@@ -582,6 +582,35 @@ pub fn drawLogo(_: *Artboard) !void {
                 }
             }
         }
+
+        {
+            var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
+                .gravity_x = 0.5,
+                .padding = dvui.Rect.all(2),
+                .color_fill = dvui.themeGet().color(.control, .fill),
+            });
+            defer button.deinit();
+
+            button.install();
+            button.processEvents();
+            button.drawBackground();
+
+            pixi.dvui.labelWithKeybind("Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, .{ .padding = dvui.Rect.all(4) });
+
+            if (button.clicked()) {
+                if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{
+                    .title = "Open Files...",
+                    .filter_description = ".pixi, .png",
+                    .filters = &.{ "*.pixi", "*.png" },
+                })) |files| {
+                    for (files) |file| {
+                        _ = pixi.editor.openFilePath(file, pixi.editor.open_artboard_grouping) catch {
+                            std.log.err("Failed to open file: {s}", .{file});
+                        };
+                    }
+                }
+            }
+        }
     }
 }
 

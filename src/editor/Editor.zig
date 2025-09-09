@@ -533,7 +533,7 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
         editor.open_artboard_grouping = grouping;
     }
 
-    if (try pixi.Internal.File.fromPath(path)) |file| {
+    if (pixi.Internal.File.fromPath(path) catch null) |file| {
         try editor.open_files.put(file.id, file);
         if (editor.open_files.getPtr(file.id)) |f| {
             f.editor.grouping = grouping;
