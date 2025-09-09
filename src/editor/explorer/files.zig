@@ -41,12 +41,17 @@ pub fn draw() !void {
     } else {
         dvui.labelNoFmt(
             @src(),
-            "Choose a folder to get started.",
+            "Open a project folder to begin.",
             .{},
             .{ .color_text = dvui.themeGet().color(.control, .text) },
         );
+
+        if (dvui.button(@src(), "Open Folder", .{}, .{ .expand = .horizontal, .style = .highlight })) {
+            if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
+                try pixi.editor.setProjectFolder(folder);
+            }
+        }
     }
-    //     try drawRecents(editor);
 }
 
 pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {

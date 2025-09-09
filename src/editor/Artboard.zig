@@ -573,7 +573,6 @@ pub fn drawLogo(_: *Artboard) !void {
                 .gravity_x = 0.5,
                 .expand = .horizontal,
                 .padding = dvui.Rect.all(2),
-                .color_fill = dvui.themeGet().color(.control, .fill),
             });
             defer button.deinit();
 
@@ -595,7 +594,6 @@ pub fn drawLogo(_: *Artboard) !void {
                 .gravity_x = 0.5,
                 .expand = .horizontal,
                 .padding = dvui.Rect.all(2),
-                .color_fill = dvui.themeGet().color(.control, .fill),
             });
             defer button.deinit();
 
