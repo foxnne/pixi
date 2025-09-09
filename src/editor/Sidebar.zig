@@ -54,6 +54,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
     var bw = dvui.ButtonWidget.init(@src(), .{}, .{
         .id_extra = @intFromEnum(option),
         .min_size_content = .{ .h = size },
+        .gravity_y = if (option == .settings) 1.0 else null,
     });
     defer bw.deinit();
     bw.install();
@@ -116,7 +117,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
                 .padding = dvui.Rect.all(4),
             });
             tl2.format("{s}", .{pixi.Editor.Explorer.title(option, false)}, .{
-                .font_style = .caption,
+                .font_style = .caption_heading,
             });
             tl2.deinit();
         }

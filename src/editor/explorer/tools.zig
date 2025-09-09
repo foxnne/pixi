@@ -34,8 +34,10 @@ pub fn draw() !void {
         max_split_ratio = paned.split_ratio.*;
     }
 
+    const autofit = paned.collapsed_state == false and paned.split_ratio.* > 0.0;
+
     // Refit must be done between showFirst and showSecond
-    if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count) {
+    if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count or autofit) {
         if (dvui.firstFrame(paned.data().id))
             paned.split_ratio.* = 0.0;
 
@@ -184,7 +186,8 @@ pub fn drawLayerControls() !void {
         }
 
         if (file.layers.len > 1) {
-            if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .fill_color = dvui.themeGet().color(.err, .fill) }, .{
+            if (dvui.buttonIcon(@src(), "DeleteLayer", icons.tvg.lucide.trash, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{
+                .style = .err,
                 .expand = .none,
                 .gravity_y = 0.5,
                 .corner_radius = dvui.Rect.all(1000),
@@ -195,7 +198,6 @@ pub fn drawLayerControls() !void {
                     .alpha = 0.15,
                     .corner_radius = dvui.Rect.all(1000),
                 },
-                .color_fill = dvui.themeGet().color(.control, .fill),
             })) {
                 file.deleteLayer(file.selected_layer_index) catch {
                     dvui.log.err("Failed to delete layer", .{});
@@ -359,7 +361,7 @@ pub fn drawLayers() !void {
                 if (file.selected_layer_index == layer_index) {
                     if (dvui.labelClick(@src(), "{s}", .{file.layers.items(.name)[layer_index]}, .{}, .{
                         .gravity_y = 0.5,
-                        .font_style = .caption,
+                        .font_style = .body,
                         .margin = dvui.Rect.all(2),
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
@@ -370,7 +372,7 @@ pub fn drawLayers() !void {
                     dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(2),
-                        .font_style = .caption,
+                        .font_style = .body,
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     });
@@ -381,7 +383,7 @@ pub fn drawLayers() !void {
                     .background = false,
                     .padding = dvui.Rect.all(0),
                     .margin = dvui.Rect.all(0),
-                    .font_style = .caption,
+                    .font_style = .body,
                     .gravity_y = 0.5,
                 });
                 defer te.deinit();
