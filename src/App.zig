@@ -4,6 +4,8 @@ const zmath = @import("zmath");
 const dvui = @import("dvui");
 const objc = @import("objc");
 
+const icon = @embedFile("assets/icon.png");
+
 const cozette_ttf = @embedFile("fonts/CozetteVector.ttf");
 const cozette_bold_ttf = @embedFile("fonts/CozetteVectorBold.ttf");
 
@@ -35,6 +37,7 @@ pub const dvui_app: dvui.App = .{ .config = .{ .options = .{
     .size = .{ .w = 1200.0, .h = 800.0 },
     .min_size = .{ .w = 640.0, .h = 480.0 },
     .title = "Pixi",
+    .icon = icon,
 } }, .frameFn = AppFrame, .initFn = AppInit, .deinitFn = AppDeinit };
 
 pub const main = dvui.App.main;
