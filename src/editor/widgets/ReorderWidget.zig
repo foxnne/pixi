@@ -187,7 +187,7 @@ pub const draggableInitOptions = struct {
 };
 
 pub fn draggable(src: std.builtin.SourceLocation, init_opts: draggableInitOptions, opts: dvui.Options) ?dvui.Point.Physical {
-    var iw = dvui.IconWidget.init(src, "reorder_drag_icon", init_opts.tvg_bytes orelse dvui.entypo.menu, .{ .fill_color = init_opts.color }, opts);
+    var iw = dvui.IconWidget.init(src, "reorder_drag_icon", init_opts.tvg_bytes orelse dvui.entypo.menu, .{ .fill_color = init_opts.color, .stroke_color = init_opts.color }, opts);
     iw.install();
     var ret: ?dvui.Point.Physical = null;
     loop: for (dvui.events()) |*e| {

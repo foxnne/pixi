@@ -372,7 +372,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             .{if (filter_text.len > 0) std.fs.path.relative(dvui.currentWindow().arena(), pixi.editor.folder.?, abs_path) catch entry.name else entry.name},
                             .{
                                 .color_text = if (pixi.editor.getFileFromPath(abs_path) != null) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
-                                .font_style = .caption,
+                                .font_style = .body,
                                 .padding = padding,
                                 .gravity_y = 0.5,
                             },
@@ -419,7 +419,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         );
                         dvui.label(@src(), "{s}", .{folder_name}, .{
                             .color_text = dvui.themeGet().color(.control, .text),
-                            .font_style = .caption,
+                            .font_style = .body,
                             .padding = padding,
                         });
                         _ = dvui.icon(

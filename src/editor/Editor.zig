@@ -20,6 +20,7 @@ pub const Keybinds = @import("Keybinds.zig");
 pub const Artboard = @import("Artboard.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
 pub const Sidebar = @import("Sidebar.zig");
+pub const Infobar = @import("Infobar.zig");
 pub const Menu = @import("Menu.zig");
 
 /// This arena is for small per-frame editor allocations, such as path joins, null terminations and labels.
@@ -38,6 +39,7 @@ last_titlebar_color: dvui.Color,
 /// Artboards stored by their grouping ID
 artboards: std.AutoArrayHashMap(u64, Artboard) = undefined,
 sidebar: Sidebar,
+infobar: Infobar,
 
 /// The root folder that will be searched for files and a .pixiproject file
 folder: ?[:0]const u8 = null,
@@ -68,6 +70,7 @@ pub fn init(
     var editor: Editor = .{
         .explorer = try app.allocator.create(Explorer),
         .sidebar = try .init(),
+        .infobar = try .init(),
         .settings = try .load(app.allocator),
         .recents = try .load(app.allocator),
         .arena = .init(std.heap.page_allocator),
@@ -151,9 +154,9 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     // defer scaler.deinit();
 
     {
-        const base_box = dvui.box(
+        var base_box = dvui.box(
             @src(),
-            .{ .dir = .horizontal },
+            .{ .dir = .vertical },
             .{
                 .expand = .both,
                 .background = true,
@@ -162,8 +165,28 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer base_box.deinit();
 
+        {
+            editor.infobar.draw() catch {
+                dvui.log.err("Failed to draw infobar", .{});
+            };
+        }
+
+        var explorer_artboard_box = dvui.box(
+            @src(),
+            .{ .dir = .horizontal },
+            .{
+                .expand = .both,
+                .background = false,
+            },
+        );
+        defer explorer_artboard_box.deinit();
+
         // Sidebar area
-        const sidebar_pressed = try editor.sidebar.draw();
+
+        const sidebar_pressed = editor.sidebar.draw() catch {
+            dvui.log.err("Failed to draw sidebar", .{});
+            return false;
+        };
 
         var explorer_artboard = pixi.dvui.paned(@src(), .{
             .direction = .horizontal,
