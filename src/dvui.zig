@@ -86,68 +86,72 @@ pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, opts:
     defer box.deinit();
 
     dvui.labelNoFmt(@src(), label_str, .{}, opts.strip());
-    _ = dvui.spacer(@src(), .{ .min_size_content = .width(4) });
+    _ = dvui.spacer(@src(), .{ .min_size_content = .width(6) });
 
     var second_opts = opts.strip();
     second_opts.color_text = dvui.themeGet().color(.control, .text);
     second_opts.gravity_y = 0.5;
+    second_opts.gravity_x = 1.0;
 
     keybindLabels(&hotkey, second_opts);
 }
 
 pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
+    var box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .none, .gravity_x = 1.0 });
+    defer box.deinit();
+
     var needs_space = false;
     var needs_plus = false;
     if (self.control) |ctrl| {
         if (ctrl) {
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
-            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
+            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
 
-            dvui.labelNoFmt(@src(), "ctrl", .{}, opts);
+            dvui.labelNoFmt(@src(), "ctrl", .{}, opts.strip());
         }
     }
 
     if (self.command) |cmd| {
         if (cmd) {
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
-            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
+            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
             if (builtin.os.tag == .macos) {
                 dvui.icon(@src(), "cmd", icons.tvg.lucide.command, .{ .stroke_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
             } else {
-                dvui.labelNoFmt(@src(), "cmd", .{}, opts);
+                dvui.labelNoFmt(@src(), "cmd", .{}, opts.strip());
             }
         }
     }
 
     if (self.alt) |alt| {
         if (alt) {
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
-            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
+            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
             if (builtin.os.tag == .macos) {
                 dvui.icon(@src(), "option", icons.tvg.lucide.option, .{ .stroke_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
             } else {
-                dvui.labelNoFmt(@src(), "alt", .{}, opts);
+                dvui.labelNoFmt(@src(), "alt", .{}, opts.strip());
             }
         }
     }
 
     if (self.shift) |shift| {
         if (shift) {
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
-            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
-            dvui.labelNoFmt(@src(), "shift", .{}, opts);
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
+            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
+            dvui.labelNoFmt(@src(), "shift", .{}, opts.strip());
         }
     }
 
     if (self.key) |key| {
-        if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts);
-        if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts) else needs_plus = true;
-        if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts) else needs_space = true;
-        dvui.labelNoFmt(@src(), @tagName(key), .{}, opts);
+        if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
+        if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+        if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
+        dvui.labelNoFmt(@src(), @tagName(key), .{}, opts.strip());
     }
 }
 

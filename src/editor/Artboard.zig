@@ -562,9 +562,16 @@ pub fn drawLogo(_: *Artboard) !void {
             }
         }
 
+        var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .none,
+            .gravity_x = 0.5,
+        });
+        defer vbox.deinit();
+
         {
             var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
                 .gravity_x = 0.5,
+                .expand = .horizontal,
                 .padding = dvui.Rect.all(2),
                 .color_fill = dvui.themeGet().color(.control, .fill),
             });
@@ -574,7 +581,7 @@ pub fn drawLogo(_: *Artboard) !void {
             button.processEvents();
             button.drawBackground();
 
-            pixi.dvui.labelWithKeybind("Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, .{ .padding = dvui.Rect.all(4) });
+            pixi.dvui.labelWithKeybind("Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
 
             if (button.clicked()) {
                 if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
@@ -586,6 +593,7 @@ pub fn drawLogo(_: *Artboard) !void {
         {
             var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
                 .gravity_x = 0.5,
+                .expand = .horizontal,
                 .padding = dvui.Rect.all(2),
                 .color_fill = dvui.themeGet().color(.control, .fill),
             });
@@ -595,7 +603,7 @@ pub fn drawLogo(_: *Artboard) !void {
             button.processEvents();
             button.drawBackground();
 
-            pixi.dvui.labelWithKeybind("Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, .{ .padding = dvui.Rect.all(4) });
+            pixi.dvui.labelWithKeybind("Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
 
             if (button.clicked()) {
                 if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{
