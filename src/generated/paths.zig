@@ -13,6 +13,7 @@ pub const @"endesga-16.hex" = "assets/palettes/endesga-16.hex";
 pub const @"endesga-32.hex" = "assets/palettes/endesga-32.hex";
 pub const @"fox.png" = "assets/fox.png";
 pub const @"fox_bg.png" = "assets/fox_bg.png";
+pub const @"icon.png" = "assets/icon.png";
 pub const @"journey.hex" = "assets/palettes/journey.hex";
 pub const @"lospec500.hex" = "assets/palettes/lospec500.hex";
 pub const @"misc.pixi" = "assets/src/misc.pixi";

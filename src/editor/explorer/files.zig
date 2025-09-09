@@ -46,7 +46,7 @@ pub fn draw() !void {
             .{ .color_text = dvui.themeGet().color(.control, .text) },
         );
 
-        if (dvui.button(@src(), "Open Folder", .{}, .{ .expand = .horizontal, .color_fill = dvui.themeGet().color(.window, .fill) })) {
+        if (dvui.button(@src(), "Open Folder", .{ .draw_focus = false }, .{ .expand = .horizontal, .style = .highlight })) {
             if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
                 try pixi.editor.setProjectFolder(folder);
             }

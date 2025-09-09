@@ -16,7 +16,7 @@ pub fn deinit() void {
     // TODO: Free memory
 }
 
-pub fn draw(_: Sidebar) !dvui.App.Result {
+pub fn draw(_: Sidebar) !bool {
     const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .vertical,
         .background = false,
@@ -34,15 +34,20 @@ pub fn draw(_: Sidebar) !dvui.App.Result {
         .{ .pane = .settings, .icon = dvui.entypo.cog },
     };
 
+    var ret: bool = false;
+
     for (options) |option| {
-        try drawOption(option.pane, option.icon, 20);
+        if (try drawOption(option.pane, option.icon, 20)) {
+            ret = true;
+        }
     }
 
-    return .ok;
+    return ret;
 }
 
-fn drawOption(option: Pane, icon: []const u8, size: f32) !void {
+fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
     const selected = option == pixi.editor.explorer.pane;
+    var ret: bool = false;
 
     const theme = dvui.themeGet();
 
@@ -69,50 +74,53 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !void {
 
     if (bw.clicked()) {
         pixi.editor.explorer.pane = option;
+        ret = true;
     }
 
-    if (selected) return;
-
-    var tooltip: dvui.FloatingTooltipWidget = .init(@src(), .{
-        .active_rect = bw.data().rectScale().r,
-    }, .{
-        .id_extra = @intFromEnum(option),
-        .color_fill = dvui.themeGet().color(.window, .fill),
-        .border = dvui.Rect.all(0),
-        .box_shadow = .{
-            .color = .black,
-            .shrink = 0,
-            .corner_radius = dvui.Rect.all(8),
-            .offset = .{ .x = 0, .y = 2 },
-            .fade = 8,
-            .alpha = 0.2,
-        },
-    });
-    defer tooltip.deinit();
-
-    if (tooltip.shown()) {
-        var animator = dvui.animate(@src(), .{
-            .kind = .alpha,
-            .duration = 350_000,
+    if (!selected) {
+        var tooltip: dvui.FloatingTooltipWidget = .init(@src(), .{
+            .active_rect = bw.data().rectScale().r,
         }, .{
-            .expand = .both,
-        });
-        defer animator.deinit();
-
-        var vbox2 = dvui.box(@src(), .{ .dir = .vertical }, dvui.FloatingTooltipWidget.defaults.override(.{
-            .background = false,
-            .expand = .both,
+            .id_extra = @intFromEnum(option),
+            .color_fill = dvui.themeGet().color(.window, .fill),
             .border = dvui.Rect.all(0),
-        }));
-        defer vbox2.deinit();
+            .box_shadow = .{
+                .color = .black,
+                .shrink = 0,
+                .corner_radius = dvui.Rect.all(8),
+                .offset = .{ .x = 0, .y = 2 },
+                .fade = 8,
+                .alpha = 0.2,
+            },
+        });
+        defer tooltip.deinit();
 
-        var tl2 = dvui.textLayout(@src(), .{}, .{
-            .background = false,
-            .padding = dvui.Rect.all(4),
-        });
-        tl2.format("{s}", .{pixi.Editor.Explorer.title(option, false)}, .{
-            .font_style = .caption,
-        });
-        tl2.deinit();
+        if (tooltip.shown()) {
+            var animator = dvui.animate(@src(), .{
+                .kind = .alpha,
+                .duration = 350_000,
+            }, .{
+                .expand = .both,
+            });
+            defer animator.deinit();
+
+            var vbox2 = dvui.box(@src(), .{ .dir = .vertical }, dvui.FloatingTooltipWidget.defaults.override(.{
+                .background = false,
+                .expand = .both,
+                .border = dvui.Rect.all(0),
+            }));
+            defer vbox2.deinit();
+
+            var tl2 = dvui.textLayout(@src(), .{}, .{
+                .background = false,
+                .padding = dvui.Rect.all(4),
+            });
+            tl2.format("{s}", .{pixi.Editor.Explorer.title(option, false)}, .{
+                .font_style = .caption,
+            });
+            tl2.deinit();
+        }
     }
+
+    return ret;
 }

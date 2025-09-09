@@ -143,111 +143,114 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
     }
 
-    var scaler = dvui.scale(
-        @src(),
-        .{ .scale = &dvui.currentWindow().content_scale, .pinch_zoom = .global },
-        .{ .expand = .both },
-    );
-    defer scaler.deinit();
+    // var scaler = dvui.scale(
+    //     @src(),
+    //     .{ .scale = &dvui.currentWindow().content_scale, .pinch_zoom = .global },
+    //     .{ .expand = .both },
+    // );
+    // defer scaler.deinit();
 
-    var explorer_artboard = pixi.dvui.paned(@src(), .{
-        .direction = .horizontal,
-        .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
-        .handle_size = handle_size,
-        .handle_dynamic = .{
-            .handle_size_max = handle_size,
-            .distance_max = handle_dist,
-        },
-        .uncollapse_ratio = pixi.editor.settings.explorer_ratio,
-    }, .{
-        .expand = .both,
-        .background = true,
-        .color_fill = dvui.themeGet().color(.control, .fill),
-    });
-    defer explorer_artboard.deinit();
-
-    if (dvui.firstFrame(explorer_artboard.wd.id)) {
-        explorer_artboard.split_ratio.* = 0.0;
-        explorer_artboard.animateSplit(pixi.editor.settings.explorer_ratio);
-    } else if (!explorer_artboard.collapsing and !explorer_artboard.collapsed_state) {
-        editor.settings.explorer_ratio = explorer_artboard.split_ratio.*;
-    }
-
-    if (explorer_artboard.showFirst()) {
-        const hbox = dvui.box(
+    {
+        const base_box = dvui.box(
             @src(),
             .{ .dir = .horizontal },
             .{
                 .expand = .both,
-                .background = false,
+                .background = true,
+                .color_fill = dvui.themeGet().color(.control, .fill),
             },
         );
-        defer hbox.deinit();
+        defer base_box.deinit();
 
         // Sidebar area
-        {
-            const result = try editor.sidebar.draw();
-            if (result != .ok) {
-                return result;
-            }
-        }
+        const sidebar_pressed = try editor.sidebar.draw();
 
-        // Explorer area
-        {
-            const result = try editor.explorer.draw();
-            if (result != .ok) {
-                return result;
-            }
-        }
-    }
-
-    if (explorer_artboard.showSecond()) {
-        const artboard_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = false });
-        defer artboard_vbox.deinit();
-
-        {
-            const result = try Menu.draw();
-            if (result != .ok) {
-                return result;
-            }
-        }
-
-        var canvas_flipbook = pixi.dvui.paned(@src(), .{
-            .direction = .vertical,
-            .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
+        var explorer_artboard = pixi.dvui.paned(@src(), .{
+            .direction = .horizontal,
+            .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
             .handle_size = handle_size,
-            .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-            .uncollapse_ratio = pixi.editor.settings.flipbook_ratio,
+            .handle_dynamic = .{
+                .handle_size_max = handle_size,
+                .distance_max = handle_dist,
+            },
+            .uncollapse_ratio = pixi.editor.settings.explorer_ratio,
         }, .{
             .expand = .both,
-            .background = false,
+            .background = true,
+            .color_fill = dvui.themeGet().color(.control, .fill),
         });
-        defer canvas_flipbook.deinit();
+        defer explorer_artboard.deinit();
 
-        if (dvui.firstFrame(canvas_flipbook.wd.id)) {
-            canvas_flipbook.collapsed_state = false;
-            canvas_flipbook.collapsing = false;
-            canvas_flipbook.split_ratio.* = 1.0;
-            canvas_flipbook.animateSplit(pixi.editor.settings.flipbook_ratio);
-        } else if (!canvas_flipbook.collapsing and !canvas_flipbook.collapsed_state) {
-            pixi.editor.settings.flipbook_ratio = canvas_flipbook.split_ratio.*;
+        if (dvui.firstFrame(explorer_artboard.wd.id)) {
+            explorer_artboard.split_ratio.* = 0.0;
+            explorer_artboard.animateSplit(pixi.editor.settings.explorer_ratio);
+        } else if (!explorer_artboard.collapsing and !explorer_artboard.collapsed_state) {
+            editor.settings.explorer_ratio = explorer_artboard.split_ratio.*;
         }
 
-        if (canvas_flipbook.showFirst()) {
-            const result = try editor.drawArtboards(0);
-            if (result != .ok) {
-                return result;
+        if (sidebar_pressed and explorer_artboard.split_ratio.* == 0.0) {
+            explorer_artboard.animateSplit(0.2);
+        }
+
+        if (explorer_artboard.showFirst()) {
+
+            // Explorer area
+            {
+                const result = try editor.explorer.draw();
+                if (result != .ok) {
+                    return result;
+                }
             }
         }
 
-        if (canvas_flipbook.showSecond()) {
-            const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
-            defer vbox.deinit();
+        if (explorer_artboard.showSecond()) {
+            const artboard_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = false });
+            defer artboard_vbox.deinit();
 
-            pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .top, .{});
-            pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .bottom, .{});
-            pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{});
-            pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{});
+            {
+                const result = try Menu.draw();
+                if (result != .ok) {
+                    return result;
+                }
+            }
+
+            var canvas_flipbook = pixi.dvui.paned(@src(), .{
+                .direction = .vertical,
+                .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
+                .handle_size = handle_size,
+                .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
+                .uncollapse_ratio = pixi.editor.settings.flipbook_ratio,
+            }, .{
+                .expand = .both,
+                .background = false,
+            });
+            defer canvas_flipbook.deinit();
+
+            if (dvui.firstFrame(canvas_flipbook.wd.id)) {
+                canvas_flipbook.collapsed_state = false;
+                canvas_flipbook.collapsing = false;
+                canvas_flipbook.split_ratio.* = 1.0;
+                canvas_flipbook.animateSplit(pixi.editor.settings.flipbook_ratio);
+            } else if (!canvas_flipbook.collapsing and !canvas_flipbook.collapsed_state) {
+                pixi.editor.settings.flipbook_ratio = canvas_flipbook.split_ratio.*;
+            }
+
+            if (canvas_flipbook.showFirst()) {
+                const result = try editor.drawArtboards(0);
+                if (result != .ok) {
+                    return result;
+                }
+            }
+
+            if (canvas_flipbook.showSecond()) {
+                const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+                defer vbox.deinit();
+
+                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .top, .{});
+                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .bottom, .{});
+                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{});
+                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{});
+            }
         }
     }
 

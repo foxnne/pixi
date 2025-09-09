@@ -23,8 +23,6 @@ allocator: std.mem.Allocator = undefined,
 
 root_path: [:0]const u8 = undefined,
 should_close: bool = false,
-//timer: mach.time.Timer,
-//total_time: f32 = 0.0,
 window: *dvui.Window = undefined,
 
 var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
