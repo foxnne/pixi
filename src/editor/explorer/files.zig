@@ -387,15 +387,10 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         if (branch.button.clicked()) {
                             switch (ext) {
-                                .pixi => {
+                                .pixi, .png => {
                                     _ = pixi.editor.openFile(abs_path, pixi.editor.currentGroupingID()) catch {
                                         dvui.log.err("Failed to open file: {s}", .{abs_path});
                                     };
-                                },
-                                .png, .jpg => {
-                                    // _ = pixi.editor.openReference(abs_path) catch {
-                                    //     dvui.log.err("Failed to open reference: {s}", .{abs_path});
-                                    // };
                                 },
                                 else => {},
                             }

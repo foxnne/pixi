@@ -313,3 +313,24 @@ pub fn writeToPng(source: dvui.ImageSource, path: []const u8) !void {
     try dvui.PNGEncoder.write(&writer.interface, data, w, h);
     try writer.end();
 }
+
+pub fn writeToPngResolution(source: dvui.ImageSource, path: []const u8, resolution: u32) !void {
+    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
+
+    const w: u32 = @intFromFloat(s.w);
+    const h: u32 = @intFromFloat(s.h);
+    const data: []u8 = switch (source) {
+        .pixels => |p| @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
+        .pixelsPMA => |p| @as([*]u8, @ptrCast(@constCast(p.rgba.ptr)))[0..(p.width * p.height * 4)],
+        else => return error.InvalidImageSource,
+    };
+
+    var handle = try std.fs.cwd().createFile(path, .{});
+    defer handle.close();
+
+    var buffer: [512]u8 = undefined;
+    var writer = handle.writer(&buffer);
+
+    try dvui.PNGEncoder.writeWithResolution(&writer.interface, data, w, h, resolution);
+    try writer.end();
+}

@@ -20,7 +20,6 @@ pub const Image = struct {
 
 pub const Sprite = struct {
     image: ?Image = null,
-    //heightmap_image: ?Image = null,
     origin: [2]i32 = .{ 0, 0 },
 
     pub fn deinit(self: *Sprite, allocator: std.mem.Allocator) void {
@@ -261,7 +260,7 @@ pub fn recurseFiles(packer: *Packer, root_directory: [:0]const u8) !void {
                         if (pixi.editor.getFileFromPath(abs_path)) |file| {
                             try p.append(file);
                         } else {
-                            if (try pixi.Internal.File.load(abs_path)) |file| {
+                            if (try pixi.Internal.File.fromPath(abs_path)) |file| {
                                 try p.open_files.append(file);
                                 try p.append(&p.open_files.items[p.open_files.items.len - 1]);
                             }

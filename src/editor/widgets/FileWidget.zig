@@ -318,6 +318,9 @@ pub fn processSpriteSelection(self: *FileWidget) void {
 }
 
 pub fn drawSpriteSelection(self: *FileWidget) void {
+    if (pixi.editor.tools.current != .pointer) return;
+    if (self.init_options.file.editor.transform != null) return;
+
     if (self.drag_data_point) |previous_point| {
         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
         const min_x = @min(previous_point.x, current_point.x);

@@ -520,8 +520,10 @@ pub fn saving(editor: *Editor) bool {
 
 /// Returns true if a new file was opened.
 pub fn openFile(editor: *Editor, path: []const u8, grouping: u64) !bool {
-    if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
-        return false;
+    // if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
+    //     return false;
+
+    std.log.debug("Opening file: {s}", .{path});
 
     for (editor.open_files.values(), 0..) |*file, i| {
         if (std.mem.eql(u8, file.path, path)) {
@@ -534,7 +536,7 @@ pub fn openFile(editor: *Editor, path: []const u8, grouping: u64) !bool {
         editor.open_artboard_grouping = grouping;
     }
 
-    if (try pixi.Internal.File.load(path)) |file| {
+    if (try pixi.Internal.File.fromPath(path)) |file| {
         try editor.open_files.put(file.id, file);
         if (editor.open_files.getPtr(file.id)) |f| {
             f.editor.grouping = grouping;
@@ -649,7 +651,7 @@ pub fn copy(editor: *Editor) !void {
             const sprite_tl = file.spritePoint(reduced_data_rect.topLeft());
 
             editor.sprite_clipboard = .{
-                .source = pixi.image.fromPixels(
+                .source = pixi.image.fromPixelsPMA(
                     @ptrCast(file.editor.transform_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
                     @intFromFloat(reduced_data_rect.w),
                     @intFromFloat(reduced_data_rect.h),
@@ -805,7 +807,7 @@ pub fn transform(editor: *Editor) !void {
                     reduced_data_rect.center(),
                     reduced_data_rect.center(),
                 },
-                .source = pixi.image.fromPixels(
+                .source = pixi.image.fromPixelsPMA(
                     @ptrCast(file.editor.transform_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
                     @intFromFloat(reduced_data_rect.w),
                     @intFromFloat(reduced_data_rect.h),

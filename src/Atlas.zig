@@ -15,7 +15,7 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
     defer allocator.free(read);
 
     const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-    const parsed = try std.json.parseFromSlice(Atlas, allocator, read, options);
+    const parsed: std.json.Parsed(Atlas) = try std.json.parseFromSlice(Atlas, allocator, read, options);
     defer parsed.deinit();
 
     const animations = try allocator.dupe(Animation, parsed.value.animations);

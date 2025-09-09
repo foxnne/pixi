@@ -63,9 +63,61 @@ pub const EditorData = struct {
 pub const History = @import("History.zig");
 pub const Buffers = @import("Buffers.zig");
 
-pub fn load(path: []const u8) !?pixi.Internal.File {
+pub fn init(path: []const u8, width: u32, height: u32) !pixi.Internal.File {
+    var internal: pixi.Internal.File = .{
+        .id = pixi.editor.newFileID(),
+        .path = try pixi.app.allocator.dupe(u8, path),
+        .width = width,
+        .height = height,
+        .history = pixi.Internal.File.History.init(pixi.app.allocator),
+        .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
+    };
+
+    // Initialize editor layers and selected sprites
+    internal.editor.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
+    internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
+
+    internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
+    // Create a layer-sized checkerboard pattern for selection tools
+    for (0..internal.width * internal.height) |i| {
+        const value = pixi.math.checker(.{ .w = @floatFromInt(internal.width), .h = @floatFromInt(internal.height) }, i);
+        internal.editor.checkerboard.setValue(i, value);
+    }
+
+    // Initialize checkerboard tile image source
+    {
+        internal.editor.checkerboard_tile = pixi.image.init(
+            width * 2,
+            height * 2,
+            .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+            .ptr,
+        ) catch return error.LayerCreateError;
+
+        const checker_color_1: [4]u8 = .{ 255, 255, 255, 255 };
+        const checker_color_2: [4]u8 = .{ 175, 175, 175, 255 };
+
+        for (pixi.image.pixels(internal.editor.checkerboard_tile), 0..) |*pixel, i| {
+            if (pixi.math.checker(pixi.image.size(internal.editor.checkerboard_tile), i)) {
+                pixel.* = checker_color_1;
+            } else {
+                pixel.* = checker_color_2;
+            }
+        }
+        dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
+    }
+    return internal;
+}
+
+pub fn fromPath(path: []const u8) !?pixi.Internal.File {
+    if (std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png")) {
+        std.log.debug("Loading PNG file as the first layer of a new file", .{});
+        return fromPathPng(path);
+    }
+
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
-        return null;
+        return error.InvalidExtension;
 
     const null_terminated_path = try dvui.currentWindow().arena().dupeZ(u8, path);
 
@@ -102,7 +154,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
             .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
         };
 
-        // Initialize editor layers and selected sprites
+        //Initialize editor layers and selected sprites
         internal.editor.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
         internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
@@ -138,7 +190,6 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
         }
 
         var set_layer_index: bool = false;
-
         for (ext.layers, 0..) |l, i| {
             const layer_image_name = std.fmt.allocPrintSentinel(dvui.currentWindow().arena(), "{s}.layer", .{l.name}, 0) catch "Memory Allocation Failed";
             const png_image_name = std.fmt.allocPrintSentinel(dvui.currentWindow().arena(), "{s}.png", .{l.name}, 0) catch "Memory Allocation Failed";
@@ -174,7 +225,7 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
                 const data = img_buf orelse continue;
 
-                var new_layer: pixi.Internal.Layer = try .fromImageFile(
+                var new_layer: pixi.Internal.Layer = try .fromImageFileBytes(
                     internal.newID(),
                     l.name,
                     @as([*]u8, @ptrCast(data))[0..img_len],
@@ -311,6 +362,68 @@ pub fn load(path: []const u8) !?pixi.Internal.File {
     // }
 
     return error.FileLoadError;
+}
+
+/// Loads a PNG file as the first layer of a new file, and retains the png path
+/// when saved, layers will be flattened to the png file
+pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
+    if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
+        return error.InvalidExtension;
+
+    var png_layer: pixi.Internal.Layer = try pixi.Internal.Layer.fromImageFilePath(pixi.editor.newFileID(), "Layer", path, .ptr);
+    const size = png_layer.size();
+    const width: u32 = @intFromFloat(size.w);
+    const height: u32 = @intFromFloat(size.h);
+
+    var internal: pixi.Internal.File = .{
+        .id = pixi.editor.newFileID(),
+        .path = try pixi.app.allocator.dupe(u8, path),
+        .width = width,
+        .height = height,
+        .tile_width = width,
+        .tile_height = height,
+        .history = pixi.Internal.File.History.init(pixi.app.allocator),
+        .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
+    };
+
+    internal.layers.append(pixi.app.allocator, png_layer) catch return error.LayerCreateError;
+
+    // Initialize editor layers and selected sprites
+    internal.editor.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
+    internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
+
+    internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
+    // Create a layer-sized checkerboard pattern for selection tools
+    for (0..internal.width * internal.height) |i| {
+        const value = pixi.math.checker(.{ .w = @floatFromInt(internal.width), .h = @floatFromInt(internal.height) }, i);
+        internal.editor.checkerboard.setValue(i, value);
+    }
+
+    // Initialize checkerboard tile image source
+    {
+        internal.editor.checkerboard_tile = pixi.image.init(
+            width * 2,
+            height * 2,
+            .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+            .ptr,
+        ) catch return error.LayerCreateError;
+
+        const checker_color_1: [4]u8 = .{ 255, 255, 255, 255 };
+        const checker_color_2: [4]u8 = .{ 175, 175, 175, 255 };
+
+        for (pixi.image.pixels(internal.editor.checkerboard_tile), 0..) |*pixel, i| {
+            if (pixi.math.checker(pixi.image.size(internal.editor.checkerboard_tile), i)) {
+                pixel.* = checker_color_1;
+            } else {
+                pixel.* = checker_color_2;
+            }
+        }
+        dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
+    }
+
+    return internal;
 }
 
 pub fn deinit(file: *File) void {
@@ -953,6 +1066,25 @@ pub fn saveTar(self: *File, window: *dvui.Window) !void {
     self.history.bookmark = 0;
 }
 
+pub fn savePng(self: *File, window: *dvui.Window) !void {
+    if (self.editor.saving) return;
+    self.editor.saving = true;
+
+    // Write only the first layer, we shouldn't do anything with other layers
+    try pixi.image.writeToPngResolution(self.layers.get(self.selected_layer_index).source, self.path, @intFromFloat(@round(window.natural_scale * 72.0 / 0.0254)));
+
+    {
+        const id_mutex = dvui.toastAdd(window, @src(), 0, self.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+        const id = id_mutex.id;
+        const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
+        dvui.dataSetSlice(window, id, "_message", message);
+        id_mutex.mutex.unlock();
+    }
+
+    self.editor.saving = false;
+    self.history.bookmark = 0;
+}
+
 pub fn saveZip(self: *File, window: *dvui.Window) !void {
     if (self.editor.saving) return;
     self.editor.saving = true;
@@ -1011,8 +1143,16 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
 
 pub fn saveAsync(self: *File) !void {
     if (!self.dirty()) return;
-    const thread = try std.Thread.spawn(.{}, saveZip, .{ self, dvui.currentWindow() });
-    thread.detach();
+
+    const ext = std.fs.path.extension(self.path);
+
+    if (std.mem.eql(u8, ext, ".pixi")) {
+        const thread = try std.Thread.spawn(.{}, saveZip, .{ self, dvui.currentWindow() });
+        thread.detach();
+    } else if (std.mem.eql(u8, ext, ".png")) {
+        const thread = try std.Thread.spawn(.{}, savePng, .{ self, dvui.currentWindow() });
+        thread.detach();
+    }
 }
 
 pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
