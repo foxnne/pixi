@@ -110,12 +110,19 @@ pub fn init(path: []const u8, width: u32, height: u32) !pixi.Internal.File {
     return internal;
 }
 
+/// Attempts to load a file from the given path to create a new file
 pub fn fromPath(path: []const u8) !?pixi.Internal.File {
-    if (std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png")) {
-        std.log.debug("Loading PNG file as the first layer of a new file", .{});
+    const extension = std.fs.path.extension(path[0..path.len]);
+    if (std.mem.eql(u8, extension, ".png"))
         return fromPathPng(path);
-    }
 
+    if (std.mem.eql(u8, extension, ".pixi"))
+        return fromPathPixi(path);
+
+    return error.InvalidExtension;
+}
+
+pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return error.InvalidExtension;
 

@@ -277,7 +277,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         if ((dvui.menuItemLabel(@src(), "Open", .{}, .{
                             .expand = .horizontal,
                         })) != null) {
-                            _ = pixi.editor.openFile(abs_path, pixi.editor.currentGroupingID()) catch {
+                            _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch {
                                 dvui.log.err("Failed to open file: {s}", .{abs_path});
                             };
 
@@ -287,7 +287,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         if ((dvui.menuItemLabel(@src(), "Open to the side", .{}, .{
                             .expand = .horizontal,
                         })) != null) {
-                            _ = pixi.editor.openFile(abs_path, pixi.editor.newGroupingID()) catch {
+                            _ = pixi.editor.openFilePath(abs_path, pixi.editor.newGroupingID()) catch {
                                 dvui.log.err("Failed to open file: {s}", .{abs_path});
                             };
 
@@ -388,7 +388,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         if (branch.button.clicked()) {
                             switch (ext) {
                                 .pixi, .png => {
-                                    _ = pixi.editor.openFile(abs_path, pixi.editor.currentGroupingID()) catch {
+                                    _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch {
                                         dvui.log.err("Failed to open file: {s}", .{abs_path});
                                     };
                                 },

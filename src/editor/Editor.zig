@@ -519,12 +519,9 @@ pub fn saving(editor: *Editor) bool {
 }
 
 /// Returns true if a new file was opened.
-pub fn openFile(editor: *Editor, path: []const u8, grouping: u64) !bool {
-    // if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
-    //     return false;
-
-    std.log.debug("Opening file: {s}", .{path});
-
+/// The editor doesn't care what type of file is being opened,
+/// File.fromPath will handle the file type
+pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
     for (editor.open_files.values(), 0..) |*file, i| {
         if (std.mem.eql(u8, file.path, path)) {
             editor.setActiveFile(i);
@@ -805,7 +802,7 @@ pub fn transform(editor: *Editor) !void {
                     reduced_data_rect.bottomRight(),
                     reduced_data_rect.bottomLeft(),
                     reduced_data_rect.center(),
-                    reduced_data_rect.center(),
+                    reduced_data_rect.center(), // This point constantly moves
                 },
                 .source = pixi.image.fromPixelsPMA(
                     @ptrCast(file.editor.transform_layer.pixelsFromRect(pixi.app.allocator, reduced_data_rect)),
@@ -929,9 +926,6 @@ pub fn closeReference(editor: *Editor, index: usize) !void {
 pub fn deinit(editor: *Editor) !void {
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.file_tree_palette) |*palette| palette.deinit();
-
-    //try editor.recents.save();
-    //editor.recents.deinit();
 
     try editor.settings.save(pixi.app.allocator);
     editor.settings.deinit(pixi.app.allocator);
