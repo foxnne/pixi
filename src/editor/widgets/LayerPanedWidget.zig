@@ -96,6 +96,7 @@ pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Op
         .init_opts = init_options,
         .collapsing = dvui.dataGet(null, wd.id, "_collapsing", bool) orelse false,
         .collapsed_state = dvui.dataGet(null, wd.id, "_collapsed", bool) orelse (our_size < init_options.collapsed_size),
+        .dragging = dvui.dataGet(null, wd.id, "_dragging", bool) orelse false,
         .should_autofit = dvui.firstFrame(wd.id),
 
         // might be changed in processEvents
@@ -410,12 +411,14 @@ pub fn processEvent(self: *LayerPanedWidget, e: *Event) void {
                 e.handle(@src(), self.data());
                 // capture and start drag
                 dvui.captureMouse(self.data(), e.num);
-                dvui.dragPreStart(e.evt.mouse.p, .{ .cursor = cursor });
+                dvui.dragStart(e.evt.mouse.p, .{ .cursor = cursor });
+                self.dragging = true;
             } else if (e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
                 e.handle(@src(), self.data());
                 // stop possible drag and capture
                 dvui.captureMouse(null, e.num);
                 dvui.dragEnd();
+                self.dragging = false;
             } else if (e.evt.mouse.action == .motion and dvui.captured(self.data().id)) {
                 e.handle(@src(), self.data());
                 // move if dragging
@@ -446,6 +449,7 @@ pub fn deinit(self: *LayerPanedWidget) void {
     dvui.clipSet(self.prevClip);
     dvui.dataSet(null, self.data().id, "_collapsing", self.collapsing);
     dvui.dataSet(null, self.data().id, "_collapsed", self.collapsed_state);
+    dvui.dataSet(null, self.data().id, "_dragging", self.dragging);
     self.data().minSizeSetAndRefresh();
     self.data().minSizeReportToParent();
     dvui.parentReset(self.data().id, self.data().parent);

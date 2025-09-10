@@ -34,7 +34,7 @@ pub fn draw() !void {
         max_split_ratio = paned.split_ratio.*;
     }
 
-    const autofit = paned.collapsed_state == false and paned.split_ratio.* > 0.0;
+    const autofit = paned.collapsed_state == false and paned.split_ratio.* > 0.01 and !paned.dragging;
 
     // Refit must be done between showFirst and showSecond
     if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count or autofit) {
@@ -44,7 +44,7 @@ pub fn draw() !void {
         paned.animateSplit(paned.getFirstFittedRatio(
             .{
                 .min_split = 0,
-                .max_split = max_split_ratio,
+                .max_split = max_split_ratio + 0.01,
                 .min_size = 0,
             },
         ));
