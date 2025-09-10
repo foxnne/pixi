@@ -340,9 +340,11 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
                     right_side.x += right_side.w;
 
                     if (right_side.contains(e.evt.mouse.p) and pixi.editor.artboards.keys()[pixi.editor.artboards.keys().len - 1] == self.grouping) {
-                        right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
-                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                        });
+                        if (e.evt == .mouse and e.evt.mouse.action == .position) {
+                            right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
+                                .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                            });
+                        }
 
                         if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
                             defer artboard.drag_index = null;
@@ -365,9 +367,11 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
                             pixi.editor.open_artboard_grouping = dragged_file.editor.grouping;
                         }
                     } else if (data.rectScale().r.contains(e.evt.mouse.p)) {
-                        data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
-                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                        });
+                        if (e.evt == .mouse and e.evt.mouse.action == .position) {
+                            data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
+                                .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                            });
+                        }
 
                         if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
                             defer artboard.drag_index = null;
