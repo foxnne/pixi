@@ -2004,8 +2004,6 @@ pub fn processEvents(self: *FileWidget) void {
 }
 
 pub fn deinit(self: *FileWidget) void {
-    defer dvui.widgetFree(self);
-
     self.init_options.canvas.deinit();
 
     self.* = undefined;
