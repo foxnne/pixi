@@ -192,7 +192,12 @@ fn drawTabs(self: *Artboard) void {
         });
 
         if (is_pixi_file) {
-            pixi.dvui.renderSprite(pixi.editor.atlas.source, pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default], box.data().rect.topLeft(), 3.0) catch {
+            pixi.dvui.renderSprite(
+                pixi.editor.atlas.source,
+                pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
+                box.data().rect.topLeft(),
+                2.0,
+            ) catch {
                 std.log.err("Failed to render pixi file icon", .{});
             };
         }

@@ -34,7 +34,7 @@ pub fn draw() !void {
         max_split_ratio = paned.split_ratio.*;
     }
 
-    const autofit = paned.collapsed_state == false and paned.split_ratio.* > 0.01 and !paned.dragging;
+    const autofit = !paned.collapsed_state and paned.split_ratio.* > 0.01 and !paned.dragging and !paned.collapsed() and !paned.collapsing;
 
     // Refit must be done between showFirst and showSecond
     if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count or autofit) {
