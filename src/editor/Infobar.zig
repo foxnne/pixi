@@ -28,33 +28,32 @@ pub fn draw(_: Infobar) !void {
     var infobox = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
         .background = false,
-        .gravity_y = 1.0,
         .padding = .all(0),
         .margin = .all(0),
     });
     defer infobox.deinit();
 
-    {
-        var highlight_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .vertical,
-            .background = true,
-            .color_fill = dvui.themeGet().color(.highlight, .fill),
-            .padding = .all(0),
+    if (dvui.buttonIcon(
+        @src(),
+        "info_icon",
+        icons.tvg.lucide.info,
+        .{},
+        .{ .stroke_color = dvui.themeGet().color(.window, .text) },
+        .{
+            .gravity_y = 0.5,
             .margin = .all(0),
-        });
-        defer highlight_box.deinit();
+        },
+    )) {}
+    dvui.label(@src(), "Pixi", .{}, .{ .font_style = .caption, .gravity_y = 0.5, .padding = .all(0), .margin = .all(0) });
 
-        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 8 } });
+    if (pixi.editor.folder) |folder| {
         dvui.icon(
             @src(),
             "Info Bar",
-            icons.tvg.lucide.info,
-            .{ .stroke_color = dvui.themeGet().color(.window, .fill) },
-            .{
-                .gravity_y = 0.5,
-                .expand = .vertical,
-            },
+            icons.tvg.lucide.book,
+            .{ .stroke_color = dvui.themeGet().color(.window, .text) },
+            .{ .gravity_y = 0.5 },
         );
-        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 8 } });
+        dvui.label(@src(), "{s}", .{std.fs.path.basename(folder)}, .{ .font_style = .caption, .gravity_y = 0.5 });
     }
 }

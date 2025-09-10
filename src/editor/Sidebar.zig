@@ -54,7 +54,6 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
     var bw = dvui.ButtonWidget.init(@src(), .{}, .{
         .id_extra = @intFromEnum(option),
         .min_size_content = .{ .h = size },
-        .gravity_y = if (option == .settings) 1.0 else null,
     });
     defer bw.deinit();
     bw.install();

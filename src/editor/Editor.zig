@@ -156,7 +156,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     {
         var base_box = dvui.box(
             @src(),
-            .{ .dir = .vertical },
+            .{ .dir = .horizontal },
             .{
                 .expand = .both,
                 .background = true,
@@ -165,15 +165,16 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer base_box.deinit();
 
-        {
-            editor.infobar.draw() catch {
-                dvui.log.err("Failed to draw infobar", .{});
-            };
-        }
+        // Sidebar area
+
+        const sidebar_pressed = editor.sidebar.draw() catch {
+            dvui.log.err("Failed to draw sidebar", .{});
+            return false;
+        };
 
         var explorer_artboard_box = dvui.box(
             @src(),
-            .{ .dir = .horizontal },
+            .{ .dir = .vertical },
             .{
                 .expand = .both,
                 .background = false,
@@ -181,12 +182,11 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer explorer_artboard_box.deinit();
 
-        // Sidebar area
-
-        const sidebar_pressed = editor.sidebar.draw() catch {
-            dvui.log.err("Failed to draw sidebar", .{});
-            return false;
-        };
+        {
+            editor.infobar.draw() catch {
+                dvui.log.err("Failed to draw infobar", .{});
+            };
+        }
 
         var explorer_artboard = pixi.dvui.paned(@src(), .{
             .direction = .horizontal,
