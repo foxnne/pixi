@@ -1119,8 +1119,6 @@ pub fn processTransform(self: *FileWidget) void {
 
                     switch (e.evt) {
                         .mouse => |me| {
-                            //const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
-
                             if (self.init_options.canvas.rect.contains(me.p))
                                 dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
@@ -1143,10 +1141,8 @@ pub fn processTransform(self: *FileWidget) void {
                                         new_point.x = @round(new_point.x);
                                         new_point.y = @round(new_point.y);
 
-                                        const diff = new_point.diff(prev_point);
-                                        for (transform.data_points[0..5]) |*point| {
-                                            point.* = point.plus(diff);
-                                        }
+                                        transform.move(new_point.diff(prev_point));
+                                        dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                                     }
                                 }
                             }
