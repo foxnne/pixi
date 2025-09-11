@@ -953,6 +953,7 @@ pub fn processTransform(self: *FileWidget) void {
                                     if (transform.active_point) |active_point| {
                                         if (active_point == .pivot and transform.dragging == false) {
                                             transform.point(.pivot).* = transform.centroid();
+                                            transform.updateRadius();
                                         }
                                     }
 
@@ -979,18 +980,7 @@ pub fn processTransform(self: *FileWidget) void {
                                                 var new_point = file.editor.canvas.dataFromScreenPoint(me.p);
 
                                                 // Calculate the radius of the transform no matter what point is changing
-                                                defer {
-                                                    var radius: f32 = 0.0;
-
-                                                    for (transform.data_points[0..4]) |*point| {
-                                                        const diff = point.diff(transform.point(.pivot).*);
-                                                        if (diff.length() + 4 > radius) {
-                                                            radius = diff.length() + 4;
-                                                        }
-                                                    }
-
-                                                    transform.radius = radius;
-                                                }
+                                                defer transform.updateRadius();
 
                                                 if (point_index < 4) {
                                                     // Only round the corner points

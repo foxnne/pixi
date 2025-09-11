@@ -83,6 +83,17 @@ pub fn cancel(self: *Transform) void {
     }
 }
 
+pub fn updateRadius(self: *Transform) void {
+    var radius: f32 = 0.0;
+    for (self.data_points[0..4]) |*p| {
+        const diff = p.diff(self.point(.pivot).*);
+        if (diff.length() > radius) {
+            radius = diff.length() + 4;
+        }
+    }
+    self.radius = radius;
+}
+
 pub fn centroid(self: *Transform) dvui.Point {
     var ret = self.data_points[0];
     for (self.data_points[1..4]) |*p| {
