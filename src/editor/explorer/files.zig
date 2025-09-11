@@ -81,12 +81,16 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     });
     defer branch.deinit();
 
+    if (branch.button.clicked()) {
+        selected_id = null;
+    }
+
     const color: dvui.Color = if (pixi.editor.colors.file_tree_palette) |*palette| palette.getDVUIColor(0) else dvui.themeGet().color(.control, .fill_hover);
 
     _ = dvui.icon(
         @src(),
         "FolderIcon",
-        icons.tvg.entypo.@"down-open",
+        if (branch.expanded) icons.tvg.entypo.@"down-open" else icons.tvg.entypo.@"right-open",
         .{ .fill_color = color },
         .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
     );
@@ -227,6 +231,8 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             .alpha = 0.15,
                         } });
                         defer fw2.deinit();
+
+                        selected_id = inner_id_extra.*;
 
                         if ((dvui.menuItemLabel(@src(), "Open", .{}, .{
                             .expand = .horizontal,
