@@ -423,86 +423,7 @@ pub fn drawCanvas(self: *Artboard) !void {
         const file = &pixi.editor.open_files.values()[self.open_file_index];
         file.editor.canvas.id = canvas_vbox.data().id;
 
-        if (file.editor.transform) |*transform| {
-            var rect = canvas_vbox.data().rect;
-            rect.w = 0;
-            rect.h = 0;
-
-            var fw = dvui.FloatingWidget.init(@src(), .{}, .{
-                .rect = .{ .x = canvas_vbox.data().rectScale().r.toNatural().x + 10, .y = canvas_vbox.data().rectScale().r.toNatural().y + 10, .w = 0, .h = 0 },
-                .expand = .none,
-                .background = true,
-                .color_fill = dvui.themeGet().color(.control, .fill),
-                .corner_radius = dvui.Rect.all(8),
-                .box_shadow = .{
-                    .color = .black,
-                    .alpha = 0.2,
-                    .fade = 8,
-                    .corner_radius = dvui.Rect.all(8),
-                },
-            });
-            fw.install();
-            defer fw.deinit();
-
-            var anim = dvui.animate(@src(), .{ .kind = .vertical, .duration = 450_000, .easing = dvui.easing.outBack }, .{});
-            defer anim.deinit();
-
-            var anim_box = dvui.box(@src(), .{ .dir = .vertical }, .{
-                .expand = .both,
-                .background = false,
-            });
-            defer anim_box.deinit();
-
-            dvui.labelNoFmt(@src(), "TRANSFORM", .{ .align_x = 0.5 }, .{
-                .padding = dvui.Rect.all(4),
-                .expand = .horizontal,
-                .font_style = .title_4,
-            });
-            _ = dvui.separator(@src(), .{ .expand = .horizontal });
-
-            _ = dvui.spacer(@src(), .{ .expand = .horizontal });
-
-            var degrees: f32 = std.math.radiansToDegrees(transform.rotation);
-
-            var slider_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .expand = .horizontal,
-                .background = false,
-            });
-
-            if (dvui.sliderEntry(@src(), "{d:0.0}°", .{
-                .value = &degrees,
-                .min = 0,
-                .max = 360,
-                .interval = 1,
-            }, .{ .expand = .horizontal, .color_fill = dvui.themeGet().color(.window, .fill) })) {
-                transform.rotation = std.math.degreesToRadians(degrees);
-            }
-            slider_box.deinit();
-
-            if (transform.ortho) {
-                var box = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
-                    .expand = .horizontal,
-                    .background = false,
-                });
-                defer box.deinit();
-                dvui.label(@src(), "Width: {d:0.0}", .{transform.point(.bottom_left).diff(transform.point(.bottom_right).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
-                dvui.label(@src(), "Height: {d:0.0}", .{transform.point(.top_left).diff(transform.point(.bottom_left).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
-            }
-
-            {
-                var box = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
-                    .expand = .horizontal,
-                    .background = false,
-                });
-                defer box.deinit();
-                if (dvui.buttonIcon(@src(), "transform_cancel", icons.tvg.lucide.@"trash-2", .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .err, .expand = .horizontal })) {
-                    transform.cancel();
-                }
-                if (dvui.buttonIcon(@src(), "transform_accept", icons.tvg.lucide.check, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .highlight, .expand = .horizontal })) {
-                    transform.accept();
-                }
-            }
-        }
+        self.drawTransformDialog(canvas_vbox);
 
         var file_widget = pixi.dvui.FileWidget.init(@src(), .{
             .canvas = &file.editor.canvas,
@@ -517,6 +438,90 @@ pub fn drawCanvas(self: *Artboard) !void {
         file_widget.processEvents();
     } else {
         try self.drawLogo();
+    }
+}
+
+pub fn drawTransformDialog(self: *Artboard, canvas_vbox: *dvui.BoxWidget) void {
+    const file = &pixi.editor.open_files.values()[self.open_file_index];
+    if (file.editor.transform) |*transform| {
+        var rect = canvas_vbox.data().rect;
+        rect.w = 0;
+        rect.h = 0;
+
+        var fw = dvui.FloatingWidget.init(@src(), .{}, .{
+            .rect = .{ .x = canvas_vbox.data().rectScale().r.toNatural().x + 10, .y = canvas_vbox.data().rectScale().r.toNatural().y + 10, .w = 0, .h = 0 },
+            .expand = .none,
+            .background = true,
+            .color_fill = dvui.themeGet().color(.control, .fill),
+            .corner_radius = dvui.Rect.all(8),
+            .box_shadow = .{
+                .color = .black,
+                .alpha = 0.2,
+                .fade = 8,
+                .corner_radius = dvui.Rect.all(8),
+            },
+        });
+        fw.install();
+        defer fw.deinit();
+
+        var anim = dvui.animate(@src(), .{ .kind = .vertical, .duration = 450_000, .easing = dvui.easing.outBack }, .{});
+        defer anim.deinit();
+
+        var anim_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .both,
+            .background = false,
+        });
+        defer anim_box.deinit();
+
+        dvui.labelNoFmt(@src(), "TRANSFORM", .{ .align_x = 0.5 }, .{
+            .padding = dvui.Rect.all(4),
+            .expand = .horizontal,
+            .font_style = .title_4,
+        });
+        _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
+        _ = dvui.spacer(@src(), .{ .expand = .horizontal });
+
+        var degrees: f32 = std.math.radiansToDegrees(transform.rotation);
+
+        var slider_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .horizontal,
+            .background = false,
+        });
+
+        if (dvui.sliderEntry(@src(), "{d:0.0}°", .{
+            .value = &degrees,
+            .min = 0,
+            .max = 360,
+            .interval = 1,
+        }, .{ .expand = .horizontal, .color_fill = dvui.themeGet().color(.window, .fill) })) {
+            transform.rotation = std.math.degreesToRadians(degrees);
+        }
+        slider_box.deinit();
+
+        if (transform.ortho) {
+            var box = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
+                .expand = .horizontal,
+                .background = false,
+            });
+            defer box.deinit();
+            dvui.label(@src(), "Width: {d:0.0}", .{transform.point(.bottom_left).diff(transform.point(.bottom_right).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
+            dvui.label(@src(), "Height: {d:0.0}", .{transform.point(.top_left).diff(transform.point(.bottom_left).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
+        }
+
+        {
+            var box = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
+                .expand = .horizontal,
+                .background = false,
+            });
+            defer box.deinit();
+            if (dvui.buttonIcon(@src(), "transform_cancel", icons.tvg.lucide.@"trash-2", .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .err, .expand = .horizontal })) {
+                transform.cancel();
+            }
+            if (dvui.buttonIcon(@src(), "transform_accept", icons.tvg.lucide.check, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .highlight, .expand = .horizontal })) {
+                transform.accept();
+            }
+        }
     }
 }
 

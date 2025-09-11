@@ -83,6 +83,17 @@ pub fn cancel(self: *Transform) void {
     }
 }
 
+pub fn centroid(self: *Transform) dvui.Point {
+    var ret = self.data_points[0];
+    for (self.data_points[1..4]) |*p| {
+        ret.x += p.x;
+        ret.y += p.y;
+    }
+    ret.x /= 4;
+    ret.y /= 4;
+    return ret;
+}
+
 pub fn move(self: *Transform, delta: dvui.Point) void {
     self.point(.top_left).* = self.point(.top_left).plus(delta);
     self.point(.top_right).* = self.point(.top_right).plus(delta);
@@ -101,16 +112,10 @@ pub fn hovered(self: *Transform, data_point: dvui.Point) bool {
     path.addPoint(.{ .x = self.point(.bottom_right).x, .y = self.point(.bottom_right).y });
     path.addPoint(.{ .x = self.point(.bottom_left).x, .y = self.point(.bottom_left).y });
 
-    var centroid = self.data_points[0];
-    for (self.data_points[1..4]) |*p| {
-        centroid.x += p.x;
-        centroid.y += p.y;
-    }
-    centroid.x /= 4;
-    centroid.y /= 4;
+    const cent = self.centroid();
 
     var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
-        .center = .{ .x = centroid.x, .y = centroid.y },
+        .center = .{ .x = cent.x, .y = cent.y },
         .color = .white,
     }) catch null;
 

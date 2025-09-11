@@ -871,13 +871,7 @@ pub fn processTransform(self: *FileWidget) void {
         }
 
         // Calculate the centroid of the four corner points
-        var centroid = transform.data_points[0];
-        for (transform.data_points[1..4]) |*point| {
-            centroid.x += point.x;
-            centroid.y += point.y;
-        }
-        centroid.x /= 4;
-        centroid.y /= 4;
+        const centroid = transform.centroid();
 
         var triangle_opts: ?dvui.Triangles = data_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{
             .center = .{ .x = centroid.x, .y = centroid.y },
@@ -918,21 +912,25 @@ pub fn processTransform(self: *FileWidget) void {
 
                     switch (e.evt) {
                         .key => |ke| {
-                            if (ke.action == .down and ke.matchBind("up")) {
+                            if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("up")) {
                                 transform.move(.{ .x = 0, .y = -1 });
                                 e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                             }
-                            if (ke.action == .down and ke.matchBind("down")) {
+                            if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("down")) {
                                 transform.move(.{ .x = 0, .y = 1 });
                                 e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                             }
-                            if (ke.action == .down and ke.matchBind("left")) {
+                            if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("left")) {
                                 transform.move(.{ .x = -1, .y = 0 });
                                 e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                             }
-                            if (ke.action == .down and ke.matchBind("right")) {
+                            if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("right")) {
                                 transform.move(.{ .x = 1, .y = 0 });
                                 e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                             }
                         },
                         .mouse => |me| {
@@ -952,6 +950,12 @@ pub fn processTransform(self: *FileWidget) void {
                                 }
                             } else if (me.action == .release and me.button.pointer()) {
                                 if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                                    if (transform.active_point) |active_point| {
+                                        if (active_point == .pivot and transform.dragging == false) {
+                                            transform.point(.pivot).* = transform.centroid();
+                                        }
+                                    }
+
                                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
                                     dvui.captureMouse(null, e.num);
                                     dvui.dragEnd();
@@ -963,6 +967,7 @@ pub fn processTransform(self: *FileWidget) void {
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                                 if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                                     if (dvui.dragging(me.p, "transform_vertex_drag")) |_| {
+                                        transform.dragging = true;
                                         if (transform.active_point) |active_point| {
                                             if (@intFromEnum(active_point) == point_index) {
                                                 e.handle(@src(), self.init_options.canvas.scroll_container.data());
@@ -1123,14 +1128,15 @@ pub fn processTransform(self: *FileWidget) void {
                                 dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                             if (me.action == .press and me.button.pointer()) {
-                                if (is_hovered) {
-                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
-                                    dvui.dragPreStart(me.p, .{ .name = "transform_drag" });
-                                }
+                                //if (is_hovered or me.mod.matchBind("ctrl/cmd")) {
+                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                                dvui.dragPreStart(me.p, .{ .name = "transform_drag" });
+                                //}
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                                 if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                                     if (dvui.dragging(me.p, "transform_drag")) |_| {
+                                        dvui.cursorSet(.hand);
                                         transform.dragging = true;
                                         e.handle(@src(), self.init_options.canvas.scroll_container.data());
 
@@ -1217,14 +1223,7 @@ pub fn drawTransform(self: *FileWidget) void {
             path.addPoint(screen_point);
         }
 
-        var centroid = transform.data_points[0];
-        for (transform.data_points[1..4]) |*point| {
-            centroid.x += point.x;
-            centroid.y += point.y;
-        }
-        centroid.x /= 4;
-        centroid.y /= 4;
-
+        var centroid = transform.centroid();
         centroid = pixi.math.rotate(centroid, transform.point(.pivot).*, transform.rotation);
 
         // Draw guides if we are centered
