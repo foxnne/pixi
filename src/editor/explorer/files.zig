@@ -9,6 +9,7 @@ const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
 var tree_removed_path: ?[]const u8 = null;
+var selected_id: ?usize = null;
 var edit_path: ?[]const u8 = null;
 var input_widget: ?*dvui.TextEntryWidget = null;
 
@@ -85,8 +86,8 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     _ = dvui.icon(
         @src(),
         "FolderIcon",
-        icons.tvg.lucide.folder,
-        .{ .stroke_color = color },
+        icons.tvg.entypo.@"down-open",
+        .{ .fill_color = color },
         .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
     );
 
@@ -102,20 +103,13 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         .font_style = .title_4,
         .gravity_y = 0.5,
     });
-    _ = dvui.icon(
-        @src(),
-        "DropIcon",
-        if (branch.expanded) dvui.entypo.triangle_down else dvui.entypo.triangle_right,
-        .{ .fill_color = color },
-        .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
-    );
 
     if (branch.expander(@src(), .{ .indent = 24 }, .{
         .color_border = color,
         .color_fill = dvui.themeGet().color(.control, .fill),
         .corner_radius = branch.button.wd.options.corner_radius,
         // .box_shadow = .{
-        //     .color = .{ .color = .black },
+        //     .color = .black,
         //     .offset = .{ .x = -5, .y = 5 },
         //     .shrink = 5,
         //     .fade = 10,
@@ -124,58 +118,11 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         .expand = .both,
         .margin = .{ .x = 10, .w = 5 },
         .background = true,
-        .border = .{ .x = 1, .w = 1 },
+        .border = .{ .x = 1, .w = 0 },
     })) {
         try recurseFiles(path, tree, unique_id, filter_text);
     }
 }
-
-// fn drawRecents(editor: *Editor) !void {
-//     if (imgui.collapsingHeader(pixi.fa.clock ++ "  Recents", imgui.TreeNodeFlags_DefaultOpen)) {
-//         imgui.indent();
-//         defer imgui.unindent();
-
-//         if (editor.recents.folders.items.len > 0) {
-//             imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_secondary.toImguiVec4());
-//             defer imgui.popStyleColor();
-//             if (imgui.beginChild("Recents", .{
-//                 .x = imgui.getContentRegionAvail().x,
-//                 .y = 0.0,
-//             }, imgui.ChildFlags_None, imgui.WindowFlags_HorizontalScrollbar)) {
-//                 defer imgui.endChild();
-
-//                 var i: usize = editor.recents.folders.items.len;
-//                 while (i > 0) {
-//                     i -= 1;
-//                     const folder = editor.recents.folders.items[i];
-//                     const label = try std.fmt.allocPrintZ(editor.arena.allocator(), "{s} {s}##{s}", .{ pixi.fa.folder, std.fs.path.basename(folder), folder });
-
-//                     if (imgui.selectable(label)) {
-//                         try editor.setProjectFolder(folder);
-//                     }
-//                     imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 2.0, .y = 2.0 });
-//                     imgui.pushStyleVarImVec2(imgui.StyleVar_ItemSpacing, .{ .x = 4.0, .y = 6.0 });
-//                     imgui.pushStyleVar(imgui.StyleVar_IndentSpacing, 16.0);
-//                     imgui.pushStyleVarImVec2(imgui.StyleVar_WindowPadding, .{ .x = 10.0, .y = 10.0 });
-//                     defer imgui.popStyleVarEx(4);
-//                     if (imgui.beginPopupContextItem()) {
-//                         defer imgui.endPopup();
-//                         if (imgui.menuItem("Remove")) {
-//                             const item = editor.recents.folders.orderedRemove(i);
-//                             pixi.app.allocator.free(item);
-//                             try editor.recents.save();
-//                         }
-//                     }
-
-//                     imgui.sameLineEx(0.0, 5.0);
-//                     imgui.pushStyleColorImVec4(imgui.Col_Text, editor.theme.text_background.toImguiVec4());
-//                     imgui.text(folder);
-//                     imgui.popStyleColor();
-//                 }
-//             }
-//         }
-//     }
-// }
 
 fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
     if (lhs.kind == .directory and rhs.kind == .file) return true;
@@ -235,13 +182,15 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                 const padding = dvui.Rect.all(2);
 
+                const selected: bool = if (selected_id) |id| inner_id_extra.* == id else false;
+
                 const branch = tree.branch(@src(), .{
                     .expanded = false,
                 }, .{
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
                     //.color_fill_hover = .fill,
-                    .color_fill = dvui.themeGet().color(.control, .fill),
+                    .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
                     .padding = dvui.Rect.all(1),
                 });
                 defer branch.deinit();
@@ -353,18 +302,39 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         const icon_color = color;
 
-                        //const text_color = dvui.themeGet().color_text_press;
+                        var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                            .expand = .none,
+                            .background = false,
+                        });
 
-                        _ = dvui.icon(
+                        const file_icon_color: dvui.Color = if (ext == .pixi) .transparent else icon_color;
+
+                        dvui.icon(
                             @src(),
                             "FileIcon",
                             icon,
-                            .{ .stroke_color = icon_color },
+                            .{ .stroke_color = file_icon_color, .fill_color = file_icon_color },
                             .{
                                 .gravity_y = 0.5,
                                 .padding = padding,
                             },
                         );
+
+                        if (ext == .pixi) {
+                            //const sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default];
+                            //const sprite_size = dvui.Size{ .w = @floatFromInt(sprite.source[2]), .h = @floatFromInt(sprite.source[3]) };
+                            //const sprite_offset = dvui.Point{ .x = -sprite_size.w * 2, .y = -sprite_size.h * 2 };
+                            pixi.dvui.renderSprite(
+                                pixi.editor.atlas.source,
+                                pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
+                                box.data().rect.topLeft().diff(.{ .y = 2 }),
+                                2.0,
+                            ) catch {
+                                dvui.log.err("Failed to render sprite: {s}", .{abs_path});
+                            };
+                        }
+
+                        box.deinit();
 
                         dvui.label(
                             @src(),
@@ -391,6 +361,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         }
 
                         if (branch.button.clicked()) {
+                            selected_id = inner_id_extra.*;
                             switch (ext) {
                                 .pixi, .png => {
                                     _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch {
@@ -407,10 +378,27 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         _ = dvui.icon(
                             @src(),
-                            "FolderIcon",
-                            if (branch.expanded) icons.tvg.lucide.@"folder-open" else icons.tvg.lucide.@"folder-closed",
+                            "DropIcon",
+                            if (branch.expanded) icons.tvg.entypo.@"down-open" else icons.tvg.entypo.@"right-open",
                             .{
+                                .fill_color = icon_color,
                                 .stroke_color = icon_color,
+                                .stroke_width = 2,
+                            },
+                            .{
+                                .gravity_y = 0.5,
+                                .padding = padding,
+                            },
+                        );
+
+                        _ = dvui.icon(
+                            @src(),
+                            "FolderIcon",
+                            if (branch.expanded) icons.tvg.entypo.folder else icons.tvg.entypo.folder,
+                            .{
+                                .fill_color = icon_color,
+                                .stroke_color = icon_color,
+                                .stroke_width = 2,
                             },
                             .{
                                 .gravity_y = 0.5,
@@ -422,23 +410,27 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             .font_style = .body,
                             .padding = padding,
                         });
-                        _ = dvui.icon(
-                            @src(),
-                            "DropIcon",
-                            if (branch.expanded) dvui.entypo.triangle_down else dvui.entypo.triangle_right,
-                            .{ .fill_color = icon_color },
-                            .{
-                                .gravity_y = 0.5,
-                                .gravity_x = 1.0,
-                                .padding = padding,
-                            },
-                        );
+
+                        if (branch.button.clicked()) {
+                            selected_id = inner_id_extra.*;
+                        }
+                        // _ = dvui.icon(
+                        //     @src(),
+                        //     "DropIcon",
+                        //     if (branch.expanded) dvui.entypo.triangle_down else dvui.entypo.triangle_right,
+                        //     .{ .fill_color = icon_color },
+                        //     .{
+                        //         .gravity_y = 0.5,
+                        //         .gravity_x = 1.0,
+                        //         .padding = padding,
+                        //     },
+                        // );
 
                         if (branch.expander(@src(), .{ .indent = 14 }, .{
                             .color_fill = dvui.themeGet().color(.control, .fill),
                             .color_border = color,
                             .background = true,
-                            .border = .{ .x = 1, .w = 1 },
+                            .border = .{ .x = 1, .w = 0 },
                             .expand = .horizontal,
                             .corner_radius = branch.button.wd.options.corner_radius,
                             .box_shadow = .{

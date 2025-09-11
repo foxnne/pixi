@@ -24,7 +24,7 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
-            .branch = "main",
+            .branch = "borderfade",
         },
     };
     try update.update_dependency(step.owner.allocator, deps);
@@ -84,7 +84,7 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
             .root_source_file = .{ .cwd_relative = "src/App.zig" },
         }),
-        .use_llvm = true,
+        //.use_llvm = true,
     });
     b.installArtifact(exe);
 
