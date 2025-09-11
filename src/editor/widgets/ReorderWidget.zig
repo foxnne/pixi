@@ -202,6 +202,9 @@ pub fn draggable(src: std.builtin.SourceLocation, init_opts: draggableInitOption
                     const reo_top_left: ?dvui.Point.Physical = if (init_opts.reorderable) |reo| reo.data().rectScale().r.topLeft() else null;
                     const top_left: ?dvui.Point.Physical = init_opts.top_left orelse reo_top_left;
                     dvui.dragPreStart(me.p, .{ .offset = (top_left orelse iw.data().rectScale().r.topLeft()).diff(me.p) });
+                } else if (me.action == .release and me.button.pointer()) {
+                    dvui.captureMouse(null, e.num);
+                    dvui.dragEnd();
                 } else if (me.action == .motion) {
                     if (dvui.captured(iw.data().id)) {
                         e.handle(@src(), iw.data());
@@ -303,11 +306,18 @@ pub const Reorderable = struct {
                     self.reorder.found_slot = true;
 
                     if (self.init_options.draw_target) {
-                        rs.r.fill(.{}, .{ .color = dvui.themeGet().focus, .fade = 1.0 });
+                        rs.r.fill(
+                            .all(10000),
+                            .{ .color = dvui.themeGet().color(.window, .fill), .fade = if (rs.s > 1.0) 0.0 else 1.0 },
+                        );
                     }
 
                     if (self.init_options.reinstall and !self.init_options.last_slot) {
                         self.reinstall();
+                    }
+
+                    if (self.init_options.last_slot) {
+                        dvui.scrollTo(.{ .screen_rect = rs.r });
                     }
                 }
 
