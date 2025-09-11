@@ -467,8 +467,8 @@ pub fn newID(file: *File) u64 {
 }
 
 pub fn spritePoint(file: *File, point: dvui.Point) dvui.Point {
-    const column = @divTrunc(@as(u32, @intFromFloat(point.x)), file.tile_width);
-    const row = @divTrunc(@as(u32, @intFromFloat(point.y)), file.tile_height);
+    const column = @divTrunc(@as(i32, @intFromFloat(point.x)), @as(i32, @intCast(file.tile_width)));
+    const row = @divTrunc(@as(i32, @intFromFloat(point.y)), @as(i32, @intCast(file.tile_height)));
 
     return .{ .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width)), .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height)) };
 }

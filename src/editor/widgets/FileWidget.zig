@@ -917,6 +917,24 @@ pub fn processTransform(self: *FileWidget) void {
                     }
 
                     switch (e.evt) {
+                        .key => |ke| {
+                            if (ke.action == .down and ke.matchBind("up")) {
+                                transform.move(.{ .x = 0, .y = -1 });
+                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                            }
+                            if (ke.action == .down and ke.matchBind("down")) {
+                                transform.move(.{ .x = 0, .y = 1 });
+                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                            }
+                            if (ke.action == .down and ke.matchBind("left")) {
+                                transform.move(.{ .x = -1, .y = 0 });
+                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                            }
+                            if (ke.action == .down and ke.matchBind("right")) {
+                                transform.move(.{ .x = 1, .y = 0 });
+                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                            }
+                        },
                         .mouse => |me| {
                             const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
@@ -1212,6 +1230,36 @@ pub fn drawTransform(self: *FileWidget) void {
         centroid.y /= 4;
 
         centroid = pixi.math.rotate(centroid, transform.point(.pivot).*, transform.rotation);
+
+        // Draw guides if we are centered
+        {
+            if (file.spriteIndex(centroid)) |sprite_index| {
+                const sprite_rect = file.spriteRect(sprite_index);
+                const sprite_center = sprite_rect.center();
+
+                const sprite_diff = sprite_center.diff(centroid);
+
+                if (@floor(sprite_diff.x) == 0) {
+                    const point_1: dvui.Point = .{ .x = sprite_center.x, .y = sprite_rect.topLeft().y };
+                    const point_2: dvui.Point = .{ .x = sprite_center.x, .y = sprite_rect.bottomRight().y };
+
+                    dvui.Path.stroke(.{ .points = &.{
+                        file.editor.canvas.screenFromDataPoint(point_1),
+                        file.editor.canvas.screenFromDataPoint(point_2),
+                    } }, .{ .thickness = 1, .color = .magenta });
+                }
+
+                if (@floor(sprite_diff.y) == 0) {
+                    const point_1: dvui.Point = .{ .x = sprite_rect.topLeft().x, .y = sprite_center.y };
+                    const point_2: dvui.Point = .{ .x = sprite_rect.bottomRight().x, .y = sprite_center.y };
+
+                    dvui.Path.stroke(.{ .points = &.{
+                        file.editor.canvas.screenFromDataPoint(point_1),
+                        file.editor.canvas.screenFromDataPoint(point_2),
+                    } }, .{ .thickness = 1, .color = .magenta });
+                }
+            }
+        }
 
         {
             const centroid_rect = dvui.Rect.fromPoint(centroid);

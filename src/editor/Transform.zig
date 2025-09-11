@@ -83,6 +83,15 @@ pub fn cancel(self: *Transform) void {
     }
 }
 
+pub fn move(self: *Transform, delta: dvui.Point) void {
+    self.point(.top_left).* = self.point(.top_left).plus(delta);
+    self.point(.top_right).* = self.point(.top_right).plus(delta);
+    self.point(.bottom_right).* = self.point(.bottom_right).plus(delta);
+    self.point(.bottom_left).* = self.point(.bottom_left).plus(delta);
+    self.point(.pivot).* = self.point(.pivot).plus(delta);
+    self.point(.rotate).* = self.point(.rotate).plus(delta);
+}
+
 pub fn hovered(self: *Transform, data_point: dvui.Point) bool {
     var is_hovered = false;
 

@@ -40,6 +40,11 @@ pub fn register() !void {
     try window.keybinds.putNoClobber(window.gpa, "selection", .{ .key = .s, .command = false, .control = false });
     try window.keybinds.putNoClobber(window.gpa, "pointer", .{ .key = .escape });
 
+    try window.keybinds.putNoClobber(window.gpa, "up", .{ .key = .up });
+    try window.keybinds.putNoClobber(window.gpa, "down", .{ .key = .down });
+    try window.keybinds.putNoClobber(window.gpa, "left", .{ .key = .left });
+    try window.keybinds.putNoClobber(window.gpa, "right", .{ .key = .right });
+
     try window.keybinds.putNoClobber(window.gpa, "cancel", .{ .key = .escape });
 }
 

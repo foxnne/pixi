@@ -299,11 +299,11 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         //if (ext == .hidden) continue;
                         const icon = switch (ext) {
                             .pixi, .psd => icons.tvg.lucide.@"file-pen-line",
-                            .jpg, .png, .aseprite, .pyxel, .gif => icons.tvg.lucide.@"file-image",
-                            .pdf => icons.tvg.lucide.@"file-text",
-                            .json, .zig, .txt, .atlas => icons.tvg.lucide.@"file-code-2",
-                            .tar, ._7z, .zip => icons.tvg.lucide.@"file-lock-2",
-                            else => icons.tvg.lucide.@"file-question",
+                            .jpg, .png, .aseprite, .pyxel, .gif => icons.tvg.entypo.picture,
+                            .pdf => icons.tvg.entypo.@"doc-text",
+                            .json, .zig, .txt, .atlas => icons.tvg.entypo.code,
+                            .tar, ._7z, .zip => icons.tvg.entypo.archive,
+                            else => icons.tvg.entypo.archive,
                         };
 
                         const icon_color = color;
@@ -323,17 +323,18 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             .{
                                 .gravity_y = 0.5,
                                 .padding = padding,
+                                .background = false,
                             },
                         );
 
                         if (ext == .pixi) {
-                            //const sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default];
+                            const sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default];
                             //const sprite_size = dvui.Size{ .w = @floatFromInt(sprite.source[2]), .h = @floatFromInt(sprite.source[3]) };
                             //const sprite_offset = dvui.Point{ .x = -sprite_size.w * 2, .y = -sprite_size.h * 2 };
                             pixi.dvui.renderSprite(
                                 pixi.editor.atlas.source,
                                 pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
-                                box.data().rect.topLeft().diff(.{ .y = 2 }),
+                                box.data().rect.topLeft().diff(.{ .x = @as(f32, @floatFromInt(sprite.source[2])) / 2, .y = @as(f32, @floatFromInt(sprite.source[3])) / 2 }),
                                 2.0,
                             ) catch {
                                 dvui.log.err("Failed to render sprite: {s}", .{abs_path});
@@ -475,6 +476,7 @@ pub fn extension(file: []const u8) Extension {
     if (std.mem.eql(u8, ext, ".pixi")) return .pixi;
     if (std.mem.eql(u8, ext, ".atlas")) return .atlas;
     if (std.mem.eql(u8, ext, ".png")) return .png;
+    if (std.mem.eql(u8, ext, ".gif")) return .gif;
     if (std.mem.eql(u8, ext, ".jpg")) return .jpg;
     if (std.mem.eql(u8, ext, ".pdf")) return .pdf;
     if (std.mem.eql(u8, ext, ".psd")) return .psd;
