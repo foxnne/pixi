@@ -34,20 +34,26 @@ pub fn draw() !void {
         max_split_ratio = paned.split_ratio.*;
     }
 
-    const autofit = !paned.collapsed_state and paned.split_ratio.* > 0.1 and !paned.dragging and !paned.collapsed() and !paned.collapsing;
+    const autofit = !paned.dragging and !paned.collapsed_state;
 
     // Refit must be done between showFirst and showSecond
     if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count or autofit) {
         if (dvui.firstFrame(paned.data().id))
             paned.split_ratio.* = 0.0;
 
-        paned.animateSplit(paned.getFirstFittedRatio(
+        const ratio = paned.getFirstFittedRatio(
             .{
                 .min_split = 0,
                 .max_split = max_split_ratio + 0.01,
-                .min_size = 10,
+                .min_size = 0,
             },
-        ));
+        );
+
+        const diff = @abs(ratio - paned.split_ratio.*);
+
+        if (diff > 0.001 and dvui.animationGet(paned.data().id, "_split_ratio") == null and layer_count > 0) {
+            paned.animateSplit(ratio);
+        }
     }
 
     if (paned.showSecond()) {

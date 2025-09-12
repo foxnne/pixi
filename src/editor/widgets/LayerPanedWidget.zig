@@ -284,7 +284,7 @@ pub fn showSecond(self: *LayerPanedWidget) bool {
 }
 
 pub fn animateSplit(self: *LayerPanedWidget, end_val: f32) void {
-    dvui.animation(self.data().id, "_split_ratio", dvui.Animation{ .start_val = self.split_ratio.*, .end_val = end_val, .end_time = 250_000 });
+    dvui.animation(self.data().id, "_split_ratio", dvui.Animation{ .start_val = self.split_ratio.*, .end_val = end_val, .end_time = 750_000, .easing = dvui.easing.outCirc });
 }
 
 pub fn widget(self: *LayerPanedWidget) Widget {
