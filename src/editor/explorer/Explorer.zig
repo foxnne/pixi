@@ -24,6 +24,7 @@ pane: Pane = .files,
 scroll_info: dvui.ScrollInfo = .{
     .horizontal = .auto,
 },
+width: f32 = 0.0,
 
 pub const Pane = enum(u32) {
     files,
@@ -63,6 +64,8 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         .background = false,
     });
     defer vbox.deinit();
+
+    explorer.width = vbox.data().rect.w;
 
     try drawHeader(explorer);
 

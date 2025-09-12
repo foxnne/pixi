@@ -14,7 +14,7 @@ pub fn draw() !void {
     drawColors() catch {};
     drawLayerControls() catch {};
 
-    // Collect layers length to trigger a refit of the pan
+    // Collect layers length to trigger a refit of the panel
     const layer_count: usize = if (pixi.editor.activeFile()) |file| file.layers.len else 0;
     defer prev_layer_count = layer_count;
 
@@ -64,7 +64,7 @@ pub fn draw() !void {
 }
 
 pub fn drawTools() !void {
-    const toolbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = false }, .{
+    const toolbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
         .gravity_x = 0.5,
     });
@@ -587,4 +587,120 @@ fn drawColorPicker(rect: dvui.Rect.Physical, backing_color: *[4]u8) !void {
 
 pub fn drawPalettes() !void {
     dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font_style = .title_4 });
+
+    // Palette search dropdown
+    {
+        const oldt = dvui.themeGet();
+        var t = oldt;
+        t.control.fill = t.window.fill;
+        dvui.themeSet(t);
+        defer dvui.themeSet(oldt);
+
+        var dropdown = dvui.DropdownWidget.init(@src(), .{ .label = "Palette" }, .{
+            .expand = .horizontal,
+            .corner_radius = dvui.Rect.all(1000),
+        });
+        dropdown.install();
+        defer dropdown.deinit();
+
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .vertical,
+            .gravity_x = 1.0,
+        });
+
+        if (pixi.editor.colors.palette) |*palette| {
+            dvui.label(@src(), "{s}", .{palette.name}, .{ .margin = .all(0), .padding = .all(0) });
+        } else {
+            dvui.label(@src(), "Palette Search", .{}, .{ .margin = .all(0), .padding = .all(0) });
+        }
+
+        dvui.icon(
+            @src(),
+            "dropdown_triangle",
+            dvui.entypo.triangle_down,
+            .{},
+            .{ .gravity_y = 0.5 },
+        );
+
+        hbox.deinit();
+
+        if (dropdown.dropped()) {
+            searchPalettes(&dropdown) catch {
+                dvui.log.err("Failed to search palettes", .{});
+            };
+        }
+
+        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 10, .h = 10 } });
+    }
+
+    {
+        if (pixi.editor.colors.palette) |*palette| {
+            var flex_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal, .max_size_content = .{ .w = pixi.editor.explorer.width, .h = std.math.floatMax(f32) } });
+            defer flex_box.deinit();
+
+            for (palette.colors, 0..) |color, i| {
+                var button_widget = dvui.ButtonWidget.init(@src(), .{}, .{
+                    .expand = .none,
+                    .min_size_content = .{ .w = 24, .h = 24 },
+                    .id_extra = i,
+                    .background = true,
+                    .corner_radius = dvui.Rect.all(1000),
+                    .color_fill = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
+                    .margin = .all(1),
+                    .padding = .all(0),
+                });
+
+                button_widget.install();
+                button_widget.processEvents();
+
+                const button_center = button_widget.data().rectScale().r.center();
+                const dist = dvui.currentWindow().mouse_pt.diff(button_center).length();
+
+                // Calculate scale based on mouse distance (closer = larger)
+                const max_distance = 50.0; // Maximum distance for scaling effect
+                const scale_factor = if (dist < max_distance)
+                    1.0 + (1.0 - (dist / max_distance)) * 0.5 // Scale up to 1.5x when very close
+                else
+                    1.0;
+
+                const rect = button_widget.data().contentRectScale().r.outsetAll((scale_factor - 1) * button_widget.data().rectScale().r.w / 2);
+
+                rect.fill(.all(1000), .{
+                    .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
+                });
+
+                if (button_widget.clicked()) {
+                    @memcpy(&pixi.editor.colors.primary, &color);
+                }
+                button_widget.deinit();
+            }
+        }
+    }
+}
+
+fn searchPalettes(dropdown: *dvui.DropdownWidget) !void {
+    var dir_opt = std.fs.cwd().openDir(pixi.paths.palettes, .{ .access_sub_paths = false, .iterate = true }) catch null;
+    if (dir_opt) |*dir| {
+        defer dir.close();
+        var iter = dir.iterate();
+        while (try iter.next()) |entry| {
+            if (entry.kind == .file) {
+                const ext = std.fs.path.extension(entry.name);
+                if (std.mem.eql(u8, ext, ".hex")) {
+                    const label = try std.fmt.allocPrint(dvui.currentWindow().arena(), "{s}", .{entry.name});
+                    if (dropdown.addChoiceLabel(label)) {
+                        const abs_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ pixi.paths.palettes, entry.name });
+
+                        if (pixi.editor.colors.palette) |*palette|
+                            palette.deinit();
+
+                        pixi.editor.colors.palette = pixi.Internal.Palette.loadFromFile(abs_path) catch |err| {
+                            dvui.log.err("Failed to load palette: {s}", .{@errorName(err)});
+                            return error.FailedToLoadPalette;
+                        };
+                    }
+                }
+            }
+        }
+    }
 }

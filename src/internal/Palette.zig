@@ -28,7 +28,10 @@ pub fn loadFromFile(file: []const u8) !Palette {
         var interface = &reader.interface;
 
         while (interface.takeDelimiterExclusive('\n') catch null) |line| {
-            const color_u32 = try std.fmt.parseInt(u32, line[0 .. line.len - 1], 16);
+            const color_u32 = std.fmt.parseInt(u32, line[0 .. line.len - 1], 16) catch {
+                dvui.log.err("Failed to parse color: {s}", .{line[0 .. line.len - 1]});
+                return error.FailedToParseColor;
+            };
             const color_packed: PackedColor = @as(PackedColor, @bitCast(color_u32));
             try colors.append(.{ color_packed.b, color_packed.g, color_packed.r, 255 });
             //pixi.app.allocator.free(line);

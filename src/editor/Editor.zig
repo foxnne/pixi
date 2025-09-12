@@ -91,6 +91,7 @@ pub fn init(
     };
 
     editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
+    editor.colors.palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
 
     try Keybinds.register();
 
