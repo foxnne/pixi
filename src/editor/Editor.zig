@@ -211,8 +211,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             editor.settings.explorer_ratio = explorer_artboard.split_ratio.*;
         }
 
-        if (sidebar_pressed and explorer_artboard.split_ratio.* == 0.0) {
-            explorer_artboard.animateSplit(0.2);
+        if (sidebar_pressed and explorer_artboard.split_ratio.* == 0.0 and !explorer_artboard.collapsed()) {
+            explorer_artboard.animateSplit(0.1);
         }
 
         if (explorer_artboard.showFirst()) {

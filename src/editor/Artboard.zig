@@ -248,6 +248,7 @@ fn drawTabs(self: *Artboard) void {
                 .mouse => |me| {
                     if (me.action == .press and me.button.pointer()) {
                         pixi.editor.setActiveFile(i);
+                        dvui.refresh(null, @src(), hbox.data().id);
 
                         e.handle(@src(), hbox.data());
                         dvui.captureMouse(hbox.data(), e.num);
