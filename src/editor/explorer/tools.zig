@@ -20,7 +20,7 @@ pub fn draw() !void {
 
     var paned = pixi.dvui.layersPaned(@src(), .{
         .direction = .vertical,
-        .collapsed_size = 300,
+        .collapsed_size = 0,
         .handle_size = 10,
         .handle_dynamic = .{},
     }, .{ .expand = .both, .background = false });
@@ -34,7 +34,7 @@ pub fn draw() !void {
         max_split_ratio = paned.split_ratio.*;
     }
 
-    const autofit = !paned.collapsed_state and paned.split_ratio.* > 0.01 and !paned.dragging and !paned.collapsed() and !paned.collapsing;
+    const autofit = !paned.collapsed_state and paned.split_ratio.* > 0.1 and !paned.dragging and !paned.collapsed() and !paned.collapsing;
 
     // Refit must be done between showFirst and showSecond
     if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count or autofit) {
@@ -45,7 +45,7 @@ pub fn draw() !void {
             .{
                 .min_split = 0,
                 .max_split = max_split_ratio + 0.01,
-                .min_size = 0,
+                .min_size = 10,
             },
         ));
     }
@@ -56,9 +56,8 @@ pub fn draw() !void {
 }
 
 pub fn drawTools() !void {
-    const toolbox = dvui.flexbox(@src(), .{}, .{
-        .expand = .horizontal,
-        .max_size_content = .{ .w = pixi.editor.explorer.scroll_info.viewport.w - 10, .h = std.math.floatMax(f32) },
+    const toolbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = false }, .{
+        .expand = .none,
         .gravity_x = 0.5,
     });
     defer toolbox.deinit();
