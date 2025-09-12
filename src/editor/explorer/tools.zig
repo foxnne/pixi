@@ -46,7 +46,7 @@ pub fn draw() !void {
         const ratio = paned.getFirstFittedRatio(
             .{
                 .min_split = 0,
-                .max_split = max_split_ratio,
+                .max_split = @min(max_split_ratio, 0.75),
                 .min_size = 0,
             },
         );
@@ -635,7 +635,7 @@ pub fn drawPalettes() !void {
 
     {
         if (pixi.editor.colors.palette) |*palette| {
-            var flex_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal, .max_size_content = .{ .w = pixi.editor.explorer.width, .h = std.math.floatMax(f32) } });
+            var flex_box = dvui.flexbox(@src(), .{ .justify_content = .center }, .{ .expand = .horizontal, .max_size_content = .{ .w = pixi.editor.explorer.rect.w, .h = std.math.floatMax(f32) } });
             defer flex_box.deinit();
 
             for (palette.colors, 0..) |color, i| {
