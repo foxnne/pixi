@@ -27,7 +27,9 @@ pub fn draw() !void {
     defer paned.deinit();
 
     if (paned.showFirst()) {
-        drawLayers() catch {};
+        drawLayers() catch {
+            dvui.log.err("Failed to draw layers", .{});
+        };
     }
 
     if (paned.dragging) {
@@ -44,14 +46,14 @@ pub fn draw() !void {
         const ratio = paned.getFirstFittedRatio(
             .{
                 .min_split = 0,
-                .max_split = max_split_ratio + 0.01,
+                .max_split = max_split_ratio,
                 .min_size = 0,
             },
         );
 
         const diff = @abs(ratio - paned.split_ratio.*);
 
-        if (diff > 0.001 and dvui.animationGet(paned.data().id, "_split_ratio") == null and layer_count > 0) {
+        if (diff > 0.000001 and layer_count > 0) {
             paned.animateSplit(ratio);
         }
     }

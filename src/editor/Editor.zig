@@ -188,7 +188,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             };
         }
 
-        var explorer_artboard = pixi.dvui.paned(@src(), .{
+        var explorer_artboard = pixi.dvui.editorPaned(@src(), .{
             .direction = .horizontal,
             .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
             .handle_size = handle_size,
@@ -237,7 +237,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 }
             }
 
-            var canvas_flipbook = pixi.dvui.paned(@src(), .{
+            var canvas_flipbook = pixi.dvui.editorPaned(@src(), .{
                 .direction = .vertical,
                 .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
                 .handle_size = handle_size,
@@ -468,7 +468,7 @@ pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
     if (index >= editor.artboards.count()) return .ok;
 
     if (index <= editor.artboards.count() - 1) {
-        var s = pixi.dvui.paned(@src(), .{
+        var s = pixi.dvui.editorPaned(@src(), .{
             .direction = .horizontal,
             .collapsed_size = if (index == editor.artboards.count() - 1) std.math.floatMax(f32) else 0,
             .handle_size = handle_size,

@@ -188,23 +188,6 @@ pub fn draw(self: *LayerPanedWidget) void {
 
     const rs = self.data().contentRectScale();
 
-    if (self.split_ratio.* == 0.0) {
-        dvui.Path.stroke(.{ .points = switch (self.init_opts.direction) {
-            .vertical => &.{
-                .{ .x = rs.r.x, .y = rs.r.y + (self.split_ratio.* * rs.r.h) },
-                .{ .x = rs.r.x + rs.r.w, .y = rs.r.y + (self.split_ratio.* * rs.r.h) },
-            },
-            .horizontal => &.{
-                .{ .x = rs.r.x + (self.split_ratio.* * rs.r.w), .y = rs.r.y },
-                .{ .x = rs.r.x + (self.split_ratio.* * rs.r.w), .y = rs.r.y + rs.r.h },
-            },
-        } }, .{
-            .closed = false,
-            .color = self.data().options.color(.fill),
-            .thickness = 8.0,
-        });
-    }
-
     if (dvui.captured(self.data().id)) {
         // we are dragging it, draw it fully
         self.mouse_dist = 0;
@@ -284,7 +267,12 @@ pub fn showSecond(self: *LayerPanedWidget) bool {
 }
 
 pub fn animateSplit(self: *LayerPanedWidget, end_val: f32) void {
-    dvui.animation(self.data().id, "_split_ratio", dvui.Animation{ .start_val = self.split_ratio.*, .end_val = end_val, .end_time = 750_000, .easing = dvui.easing.outCirc });
+    dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
+        .start_val = self.split_ratio.*,
+        .end_val = end_val,
+        .end_time = 500_000,
+        .easing = dvui.easing.outBack,
+    });
 }
 
 pub fn widget(self: *LayerPanedWidget) Widget {
