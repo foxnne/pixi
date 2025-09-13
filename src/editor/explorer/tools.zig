@@ -648,9 +648,9 @@ pub fn drawPalettes() !void {
                 var anim = dvui.animate(
                     @src(),
                     .{
-                        .duration = 20_000 + 50_000 * @as(i32, @intCast(i)),
+                        .duration = 20_000 + 10_000 * @as(i32, @intCast(i)),
                         .kind = .horizontal,
-                        .easing = dvui.easing.linear,
+                        .easing = dvui.easing.outBack,
                     },
                     .{ .expand = .none, .id_extra = i },
                 );
