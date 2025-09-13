@@ -191,7 +191,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                 var anim = dvui.animate(
                     @src(),
                     .{
-                        .duration = @max(100_000, 75_000 * @as(i32, @intCast(i))),
+                        .duration = 350_000 + 100_000 * @as(i32, @intCast(i)),
                         .kind = .horizontal,
                         .easing = dvui.easing.linear,
                     },
