@@ -635,7 +635,13 @@ pub fn drawPalettes() !void {
 
     {
         if (pixi.editor.colors.palette) |*palette| {
-            var flex_box = dvui.flexbox(@src(), .{ .justify_content = .center }, .{ .expand = .horizontal, .max_size_content = .{ .w = pixi.editor.explorer.rect.w, .h = std.math.floatMax(f32) } });
+            var flex_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{
+                .expand = .horizontal,
+                .max_size_content = .{
+                    .w = pixi.editor.explorer.rect.w - 20 * dvui.currentWindow().natural_scale,
+                    .h = pixi.editor.explorer.rect.h - 20 * dvui.currentWindow().natural_scale,
+                },
+            });
             defer flex_box.deinit();
 
             for (palette.colors, 0..) |color, i| {

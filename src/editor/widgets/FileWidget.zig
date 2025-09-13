@@ -48,24 +48,28 @@ pub fn processKeybinds(self: *FileWidget) void {
                     pixi.editor.undo() catch {
                         std.log.err("Failed to undo", .{});
                     };
+                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
                 }
 
                 if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
                     pixi.editor.redo() catch {
                         std.log.err("Failed to redo", .{});
                     };
+                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
                 }
 
                 if (ke.matchBind("save") and ke.action == .down) {
                     pixi.editor.save() catch {
                         std.log.err("Failed to save", .{});
                     };
+                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
                 }
 
                 if (ke.matchBind("transform") and ke.action == .down) {
                     pixi.editor.transform() catch {
                         std.log.err("Failed to transform", .{});
                     };
+                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
                 }
 
                 if (ke.matchBind("activate") and (ke.action == .down or ke.action == .repeat)) {
