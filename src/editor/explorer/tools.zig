@@ -645,7 +645,15 @@ pub fn drawPalettes() !void {
             defer flex_box.deinit();
 
             for (palette.colors, 0..) |color, i| {
-                var anim = dvui.animate(@src(), .{ .duration = 50_000 + 20_000 * @as(i32, @intCast(i)), .kind = .alpha, .easing = dvui.easing.linear }, .{ .expand = .none, .id_extra = i });
+                var anim = dvui.animate(
+                    @src(),
+                    .{
+                        .duration = 20_000 + 50_000 * @as(i32, @intCast(i)),
+                        .kind = .horizontal,
+                        .easing = dvui.easing.linear,
+                    },
+                    .{ .expand = .none, .id_extra = i },
+                );
                 defer anim.deinit();
 
                 var button_widget = dvui.ButtonWidget.init(@src(), .{}, .{

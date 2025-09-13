@@ -188,7 +188,15 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                 const selected: bool = if (selected_id) |id| inner_id_extra.* == id else false;
 
-                var anim = dvui.animate(@src(), .{ .duration = 100_000 + 100_000 * @as(i32, @intCast(i)), .kind = .alpha, .easing = dvui.easing.outCirc }, .{ .expand = .horizontal, .id_extra = inner_id_extra.* });
+                var anim = dvui.animate(
+                    @src(),
+                    .{
+                        .duration = @max(100_000, 75_000 * @as(i32, @intCast(i))),
+                        .kind = .horizontal,
+                        .easing = dvui.easing.linear,
+                    },
+                    .{ .expand = .horizontal, .id_extra = inner_id_extra.* },
+                );
                 defer anim.deinit();
 
                 const branch = tree.branch(@src(), .{
