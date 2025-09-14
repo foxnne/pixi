@@ -40,7 +40,7 @@ pub fn draw() !void {
 
     // Refit must be done between showFirst and showSecond
     if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count or autofit) {
-        if (dvui.firstFrame(paned.data().id))
+        if (dvui.firstFrame(paned.data().id) and layer_count == 0)
             paned.split_ratio.* = 0.0;
 
         const ratio = paned.getFirstFittedRatio(
@@ -73,6 +73,8 @@ pub fn drawTools() !void {
         const tool: pixi.Editor.Tools.Tool = @enumFromInt(i);
         const id_extra = i;
 
+        const selected = pixi.editor.tools.current == tool;
+
         var color = dvui.themeGet().color(.control, .fill_hover);
         if (pixi.editor.colors.file_tree_palette) |*palette| {
             color = palette.getDVUIColor(i);
@@ -91,7 +93,7 @@ pub fn drawTools() !void {
             .id_extra = id_extra,
             .background = true,
             .corner_radius = dvui.Rect.all(1000),
-            .color_fill = if (pixi.editor.tools.current == tool) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
+            .color_fill = if (selected) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
             .box_shadow = .{
                 .color = .black,
                 .offset = .{ .x = -4.0, .y = 4.0 },
@@ -99,10 +101,14 @@ pub fn drawTools() !void {
                 .alpha = 0.25,
             },
             .border = dvui.Rect.all(1.0),
-            .color_border = color,
+            .color_border = if (selected) color else dvui.themeGet().color(.control, .fill),
             .margin = .{ .h = 10.0, .w = 4, .x = 4, .y = 4 },
         });
         defer button.deinit();
+
+        if (button.hovered()) {
+            button.data().options.color_border = color;
+        }
 
         const size: dvui.Size = dvui.imageSize(pixi.editor.atlas.source) catch .{ .w = 0, .h = 0 };
 
@@ -335,15 +341,17 @@ pub fn drawLayers() !void {
                 insert_before_index = layer_index;
             }
 
+            const hovered = pixi.dvui.hovered(r.data());
+
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected) dvui.themeGet().color(.content, .fill_press) else dvui.themeGet().color(.control, .fill),
+                .color_fill = if (selected or hovered) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
                 .corner_radius = dvui.Rect.all(1000),
                 .margin = dvui.Rect.all(2),
                 .padding = dvui.Rect.all(1),
                 .border = dvui.Rect.all(1.0),
-                .color_border = color,
+                .color_border = if (selected) color else dvui.themeGet().color(.control, .fill),
                 .box_shadow = .{
                     .color = .black,
                     .offset = .{ .x = -2.0, .y = 2.0 },
@@ -684,6 +692,7 @@ pub fn drawPalettes() !void {
 
                 rect.fill(.all(1000), .{
                     .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
+                    .fade = 1.0,
                 });
 
                 if (button_widget.clicked()) {
