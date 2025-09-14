@@ -356,7 +356,7 @@ pub fn drawLayers() !void {
                     .color = .black,
                     .offset = .{ .x = -2.0, .y = 2.0 },
                     .fade = 6.0,
-                    .alpha = 0.15,
+                    .alpha = 0.25,
                     .corner_radius = dvui.Rect.all(1000),
                 },
             });
