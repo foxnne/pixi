@@ -656,7 +656,7 @@ pub fn drawPalettes() !void {
                 var anim = dvui.animate(
                     @src(),
                     .{
-                        .duration = 20_000 + 10_000 * @as(i32, @intCast(i)),
+                        .duration = 250_000 + 10_000 * @as(i32, @intCast(i)),
                         .kind = .horizontal,
                         .easing = dvui.easing.outBack,
                     },
