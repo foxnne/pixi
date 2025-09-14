@@ -48,8 +48,8 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
     defer vbox.deinit();
 
     defer {
-        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{});
-        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{});
+        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{ .opacity = 0.15 });
+        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{ .opacity = 0.15 });
     }
 
     // Set the active artboard grouping when the user clicks on the artboard rect
@@ -411,7 +411,8 @@ pub fn drawCanvas(self: *Artboard) !void {
     var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
     defer {
         dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
-        pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{});
+        pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{ .opacity = 0.15 });
+        pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .bottom, .{ .opacity = 0.15 });
         canvas_vbox.deinit();
     }
     defer self.processCanvasDrag(canvas_vbox.data());

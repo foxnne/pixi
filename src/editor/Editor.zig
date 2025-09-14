@@ -270,10 +270,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
                 defer vbox.deinit();
 
-                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .top, .{});
-                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .bottom, .{});
-                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{});
-                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{});
+                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .top, .{ .opacity = 0.15 });
+                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .bottom, .{ .opacity = 0.15 });
+                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{ .opacity = 0.15 });
+                pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{ .opacity = 0.15 });
             }
         }
     }

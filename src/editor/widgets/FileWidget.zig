@@ -2025,10 +2025,10 @@ pub fn processEvents(self: *FileWidget) void {
     self.drawSpriteSelection();
 
     // Draw shadows for the scroll container
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .top, .{});
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .bottom, .{ .opacity = 0.2 });
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .left, .{});
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .right, .{ .opacity = 0.2 });
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .top, .{ .opacity = 0.15 });
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .bottom, .{});
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .left, .{ .opacity = 0.15 });
+    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .right, .{});
 
     // Only process draw cursor on the hovered widget
     if (self.hovered() != null) {

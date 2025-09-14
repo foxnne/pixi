@@ -209,7 +209,7 @@ const Shadow = enum {
 
 const ShadowOptions = struct {
     color: dvui.Color = .black,
-    opacity: f32 = 0.1,
+    opacity: f32 = 0.25,
     offset: dvui.Rect = .{},
     thickness: f32 = 20.0,
 };
