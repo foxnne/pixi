@@ -93,8 +93,10 @@ pub fn screenFromViewportRect(self: *CanvasWidget, viewport: dvui.Rect) dvui.Rec
 /// Returns the data/world point of the mouse, which corresponds to the pixel input of
 /// Layer functions
 pub fn hovered(self: *CanvasWidget) ?dvui.Point {
-    if (self.rect.contains(dvui.currentWindow().mouse_pt)) {
-        return self.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+    if (self.mouse()) |me| {
+        if (self.rect.contains(me.p)) {
+            return self.dataFromScreenPoint(me.p);
+        }
     }
 
     return null;

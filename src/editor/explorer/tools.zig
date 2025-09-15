@@ -682,7 +682,7 @@ pub fn drawPalettes() !void {
                 const dist = dvui.currentWindow().mouse_pt.diff(button_center).length();
 
                 // Calculate scale based on mouse distance (closer = larger)
-                const max_distance = 50.0; // Maximum distance for scaling effect
+                const max_distance = 25.0 * dvui.currentWindow().natural_scale; // Maximum distance for scaling effect
                 const scale_factor = if (dist < max_distance)
                     1.0 + (1.0 - (dist / max_distance)) * 0.5 // Scale up to 1.5x when very close
                 else
