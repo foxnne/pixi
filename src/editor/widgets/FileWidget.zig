@@ -234,8 +234,6 @@ pub fn processSpriteSelection(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
 
-    self.shift_key_down = false;
-
     const file = self.init_options.file;
 
     for (dvui.events()) |*e| {
@@ -244,6 +242,18 @@ pub fn processSpriteSelection(self: *FileWidget) void {
         }
 
         switch (e.evt) {
+            .key => |ke| {
+                if (ke.mod.matchBind("shift")) {
+                    switch (ke.action) {
+                        .down, .repeat => {
+                            self.shift_key_down = true;
+                        },
+                        .up => {
+                            self.shift_key_down = false;
+                        },
+                    }
+                }
+            },
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
@@ -252,6 +262,7 @@ pub fn processSpriteSelection(self: *FileWidget) void {
 
                 if (me.action == .press and me.button.pointer()) {
                     if (me.mod.matchBind("shift")) {
+                        self.shift_key_down = true;
                         if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
                             file.editor.selected_sprites.unset(sprite_index);
                         }
@@ -307,7 +318,9 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                                     //selection_color = dvui.themeGet().color(.err, .fill).opacity(0.5);
                                 } else if (me.mod.matchBind("ctrl/cmd")) {
                                     file.setSpriteSelection(span_rect, true);
+                                    self.shift_key_down = false;
                                 } else {
+                                    self.shift_key_down = false;
                                     file.clearSelectedSprites();
                                     file.setSpriteSelection(span_rect, true);
                                 }

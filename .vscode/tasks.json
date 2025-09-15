@@ -18,7 +18,7 @@
         {
             "label": "Build Project",
             "type": "shell",
-            "command": "zig build",
+            "command": "zig build -Dno-emit",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -108,7 +108,7 @@
         {
             "label": "Update dependencies",
             "type": "shell",
-            "command": "zig build update",
+            "command": "zig build update -Dno-emit",
             "group": {
                 "kind": "build",
                 "isDefault": true

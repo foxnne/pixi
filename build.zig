@@ -24,7 +24,7 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
-            .branch = "borderfade",
+            .branch = "main",
         },
     };
     try update.update_dependency(step.owner.allocator, deps);
@@ -33,6 +33,8 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const no_emit = b.option(bool, "no-emit", "Check for compile errors without emitting any code") orelse false;
 
     const step = b.step("update", "update git dependencies");
     step.makeFn = update_step;
@@ -86,17 +88,39 @@ pub fn build(b: *std.Build) !void {
         }),
         //.use_llvm = true,
     });
-    b.installArtifact(exe);
 
-    if (optimize != .Debug) {
-        switch (target.result.os.tag) {
-            .windows => exe.subsystem = .Windows,
-            else => exe.subsystem = .Posix,
+    if (no_emit) {
+        b.getInstallStep().dependOn(&exe.step);
+    } else {
+        b.installArtifact(exe);
+
+        if (optimize != .Debug) {
+            switch (target.result.os.tag) {
+                .windows => exe.subsystem = .Windows,
+                else => exe.subsystem = .Posix,
+            }
         }
-    }
 
-    const run_cmd = b.addRunArtifact(exe);
-    const run_step = b.step("run", "Run the example");
+        const run_cmd = b.addRunArtifact(exe);
+        const run_step = b.step("run", "Run the example");
+
+        const assets = try ProcessAssetsStep.init(b, "assets", "src/generated/");
+        var process_assets_step = b.step("process-assets", "generates struct for all assets");
+        process_assets_step.dependOn(&assets.step);
+        exe.step.dependOn(process_assets_step);
+
+        const install_content_step = b.addInstallDirectory(.{
+            .source_dir = .{ .cwd_relative = thisDir() ++ "/" ++ content_dir },
+            .install_dir = .{ .custom = "" },
+            .install_subdir = "bin/" ++ content_dir,
+        });
+        exe.step.dependOn(&install_content_step.step);
+
+        const installArtifact = b.addInstallArtifact(exe, .{});
+        run_cmd.step.dependOn(&installArtifact.step);
+        run_step.dependOn(&run_cmd.step);
+        b.getInstallStep().dependOn(&installArtifact.step);
+    }
 
     exe.root_module.addImport("zstbi", zstbi_module);
     exe.root_module.addImport("zip", zip_pkg.module);
@@ -121,23 +145,6 @@ pub fn build(b: *std.Build) !void {
 
     exe.linkLibCpp();
     zip.link(exe);
-
-    const assets = try ProcessAssetsStep.init(b, "assets", "src/generated/");
-    var process_assets_step = b.step("process-assets", "generates struct for all assets");
-    process_assets_step.dependOn(&assets.step);
-    exe.step.dependOn(process_assets_step);
-
-    const install_content_step = b.addInstallDirectory(.{
-        .source_dir = .{ .cwd_relative = thisDir() ++ "/" ++ content_dir },
-        .install_dir = .{ .custom = "" },
-        .install_subdir = "bin/" ++ content_dir,
-    });
-    exe.step.dependOn(&install_content_step.step);
-
-    const installArtifact = b.addInstallArtifact(exe, .{});
-    run_cmd.step.dependOn(&installArtifact.step);
-    run_step.dependOn(&run_cmd.step);
-    b.getInstallStep().dependOn(&installArtifact.step);
 }
 
 inline fn thisDir() []const u8 {
