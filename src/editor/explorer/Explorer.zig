@@ -43,8 +43,9 @@ pub fn init() Explorer {
     };
 }
 
-pub fn deinit() void {
+pub fn deinit(self: *Explorer) void {
     // TODO: Free memory
+    self.open_branches.deinit();
 }
 
 pub fn title(pane: Pane, all_caps: bool) []const u8 {

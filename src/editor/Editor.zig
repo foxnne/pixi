@@ -964,6 +964,8 @@ pub fn deinit(editor: *Editor) !void {
         project.deinit(pixi.app.allocator);
     }
 
+    editor.explorer.deinit();
+
     if (editor.folder) |folder| pixi.app.allocator.free(folder);
     editor.arena.deinit();
 }
