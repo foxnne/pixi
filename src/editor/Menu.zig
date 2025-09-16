@@ -38,16 +38,17 @@ pub fn draw() !dvui.App.Result {
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
         defer fw.deinit();
 
-        if (menuItemWithHotkey(@src(), "Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, .{}, .{
+        if (menuItemWithHotkey(@src(), "Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, true, .{}, .{
             .expand = .horizontal,
             //.style = .control,
         }) != null) {
             if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
                 try pixi.editor.setProjectFolder(folder);
             }
+            fw.close();
         }
 
-        if (menuItemWithHotkey(@src(), "Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, .{}, .{
+        if (menuItemWithHotkey(@src(), "Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, true, .{}, .{
             .expand = .horizontal,
             //.style = .control,
         }) != null) {
@@ -62,46 +63,21 @@ pub fn draw() !dvui.App.Result {
                     };
                 }
             }
-        }
-    }
-
-    if (menuItem(@src(), "View", .{ .submenu = true }, .{
-        .expand = .horizontal,
-    })) |r| {
-        var animator = dvui.animate(@src(), .{
-            .kind = .alpha,
-            .duration = 250_000,
-        }, .{
-            .expand = .both,
-        });
-        defer animator.deinit();
-
-        var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
-        defer fw.deinit();
-
-        if (menuItem(
-            @src(),
-            if (pixi.editor.explorer.paned.split_ratio.* == 0.0) "Expand Explorer" else "Collapse Explorer",
-            .{},
-            .{
-                .expand = .horizontal,
-                .color_accent = dvui.themeGet().color(.window, .fill),
-            },
-        ) != null) {
-            if (pixi.editor.explorer.paned.split_ratio.* == 0.0) {
-                pixi.editor.explorer.open();
-            } else {
-                pixi.editor.explorer.close();
-            }
-
             fw.close();
         }
 
         _ = dvui.separator(@src(), .{ .expand = .horizontal });
 
-        if (menuItem(@src(), "Show DVUI Demo", .{}, .{ .expand = .horizontal, .color_accent = dvui.themeGet().color(.window, .fill) }) != null) {
-            dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
-            fw.close();
+        if (menuItemWithHotkey(@src(), "Save", dvui.currentWindow().keybinds.get("save") orelse .{}, if (pixi.editor.activeFile()) |file| if (file.dirty()) true else false else false, .{}, .{
+            .expand = .horizontal,
+            .color_text = dvui.themeGet().color(.window, .text),
+        }) != null) {
+            if (pixi.editor.activeFile()) |file| {
+                file.saveAsync() catch {
+                    std.log.err("Failed to save", .{});
+                };
+                fw.close();
+            }
         }
     }
 
@@ -125,10 +101,48 @@ pub fn draw() !dvui.App.Result {
         var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
         defer fw.deinit();
 
-        if (menuItemWithHotkey(@src(), "Undo", dvui.currentWindow().keybinds.get("undo") orelse .{}, .{}, .{
-            .expand = .horizontal,
-            //.style = .control,
-        }) != null) {
+        if (menuItemWithHotkey(
+            @src(),
+            "Copy",
+            dvui.currentWindow().keybinds.get("copy") orelse .{},
+            if (pixi.editor.activeFile() != null) true else false,
+            .{},
+            .{ .expand = .horizontal },
+        ) != null) {
+            if (pixi.editor.activeFile() != null) {
+                pixi.editor.copy() catch {
+                    std.log.err("Failed to copy", .{});
+                };
+                fw.close();
+            }
+        }
+
+        if (menuItemWithHotkey(
+            @src(),
+            "Paste",
+            dvui.currentWindow().keybinds.get("paste") orelse .{},
+            if (pixi.editor.activeFile() != null) true else false,
+            .{},
+            .{ .expand = .horizontal },
+        ) != null) {
+            if (pixi.editor.activeFile() != null) {
+                pixi.editor.paste() catch {
+                    std.log.err("Failed to paste", .{});
+                };
+                fw.close();
+            }
+        }
+
+        _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
+        if (menuItemWithHotkey(
+            @src(),
+            "Undo",
+            dvui.currentWindow().keybinds.get("undo") orelse .{},
+            if (pixi.editor.activeFile()) |file| if (file.history.undo_stack.items.len > 0) true else false else false,
+            .{},
+            .{ .expand = .horizontal },
+        ) != null) {
             if (pixi.editor.activeFile()) |file| {
                 file.history.undoRedo(file, .undo) catch {
                     std.log.err("Failed to undo", .{});
@@ -136,22 +150,86 @@ pub fn draw() !dvui.App.Result {
             }
         }
 
-        if (menuItemWithHotkey(@src(), "Redo", dvui.currentWindow().keybinds.get("redo") orelse .{}, .{}, .{
-            .expand = .horizontal,
-            //.style = .control,
-        }) != null) {
+        if (menuItemWithHotkey(
+            @src(),
+            "Redo",
+            dvui.currentWindow().keybinds.get("redo") orelse .{},
+            if (pixi.editor.activeFile()) |file| if (file.history.redo_stack.items.len > 0) true else false else false,
+            .{},
+            .{ .expand = .horizontal },
+        ) != null) {
             if (pixi.editor.activeFile()) |file| {
                 file.history.undoRedo(file, .redo) catch {
                     std.log.err("Failed to redo", .{});
                 };
             }
         }
+
+        _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
+        if (menuItemWithHotkey(
+            @src(),
+            "Transform",
+            dvui.currentWindow().keybinds.get("transform") orelse .{},
+            if (pixi.editor.activeFile() != null) true else false,
+            .{},
+            .{ .expand = .horizontal },
+        ) != null) {
+            if (pixi.editor.activeFile() != null) {
+                pixi.editor.transform() catch {
+                    std.log.err("Failed to transform", .{});
+                };
+                fw.close();
+            }
+        }
+    }
+
+    if (menuItem(@src(), "View", .{ .submenu = true }, .{
+        .expand = .horizontal,
+    })) |r| {
+        var animator = dvui.animate(@src(), .{
+            .kind = .alpha,
+            .duration = 250_000,
+        }, .{
+            .expand = .both,
+        });
+        defer animator.deinit();
+
+        var fw = dvui.floatingMenu(@src(), .{ .from = r }, .{});
+        defer fw.deinit();
+
+        if (menuItemWithHotkey(
+            @src(),
+            if (pixi.editor.explorer.paned.split_ratio.* == 0.0) "Show Explorer" else "Hide Explorer",
+            dvui.currentWindow().keybinds.get("explorer") orelse .{},
+            true,
+            .{},
+            .{
+                .expand = .horizontal,
+                .color_accent = dvui.themeGet().color(.window, .fill),
+            },
+        ) != null) {
+            if (pixi.editor.explorer.paned.split_ratio.* == 0.0) {
+                pixi.editor.explorer.open();
+            } else {
+                pixi.editor.explorer.close();
+            }
+
+            fw.close();
+        }
+
+        _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
+        if (menuItem(@src(), "Show DVUI Demo", .{}, .{ .expand = .horizontal, .color_accent = dvui.themeGet().color(.window, .fill) }) != null) {
+            dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
+            fw.close();
+        }
     }
 
     return .ok;
 }
 
-pub fn menuItemWithHotkey(src: std.builtin.SourceLocation, label_str: []const u8, hotkey: dvui.enums.Keybind, init_opts: dvui.MenuItemWidget.InitOptions, opts: dvui.Options) ?dvui.Rect.Natural {
+pub fn menuItemWithHotkey(src: std.builtin.SourceLocation, label_str: []const u8, hotkey: dvui.enums.Keybind, enabled: bool, init_opts: dvui.MenuItemWidget.InitOptions, opts: dvui.Options) ?dvui.Rect.Natural {
     var mi = dvui.menuItem(src, init_opts, opts);
 
     var ret: ?dvui.Rect.Natural = null;
@@ -159,7 +237,7 @@ pub fn menuItemWithHotkey(src: std.builtin.SourceLocation, label_str: []const u8
         ret = r;
     }
 
-    pixi.dvui.labelWithKeybind(label_str, hotkey, opts);
+    pixi.dvui.labelWithKeybind(label_str, hotkey, enabled, opts);
 
     mi.deinit();
 

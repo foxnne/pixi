@@ -608,7 +608,7 @@ pub fn drawLogo(_: *Artboard) !void {
             button.processEvents();
             button.drawBackground();
 
-            pixi.dvui.labelWithKeybind("Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
+            pixi.dvui.labelWithKeybind("Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
 
             if (button.clicked()) {
                 if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
@@ -630,7 +630,7 @@ pub fn drawLogo(_: *Artboard) !void {
             button.processEvents();
             button.drawBackground();
 
-            pixi.dvui.labelWithKeybind("Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
+            pixi.dvui.labelWithKeybind("Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
 
             if (button.clicked()) {
                 if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{

@@ -18,6 +18,7 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "save", .{ .command = true, .key = .s });
         try window.keybinds.putNoClobber(window.gpa, "sample", .{ .control = true });
         try window.keybinds.putNoClobber(window.gpa, "transform", .{ .command = true, .key = .t });
+        try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .command = true, .key = .e });
     } else {
         try window.keybinds.putNoClobber(window.gpa, "open_folder", .{ .key = .f, .control = true });
         try window.keybinds.putNoClobber(window.gpa, "open_files", .{ .key = .o, .control = true });
@@ -27,6 +28,7 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "save", .{ .control = true, .key = .s });
         try window.keybinds.putNoClobber(window.gpa, "sample", .{ .alt = true });
         try window.keybinds.putNoClobber(window.gpa, "transform", .{ .control = true, .key = .t });
+        try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .control = true, .key = .e });
     }
 
     try window.keybinds.putNoClobber(window.gpa, "shift", .{ .shift = true });
@@ -84,6 +86,14 @@ pub fn tick() !void {
                     };
                     // If we include a refresh here, the underlying gui has a chance to reset the cursor
                     dvui.refresh(null, @src(), dvui.currentWindow().data().id);
+                }
+
+                if (ke.matchBind("explorer") and ke.action == .down) {
+                    if (pixi.editor.explorer.paned.split_ratio.* == 0.0) {
+                        pixi.editor.explorer.open();
+                    } else {
+                        pixi.editor.explorer.close();
+                    }
                 }
 
                 if (ke.matchBind("pencil") and ke.action == .down) {

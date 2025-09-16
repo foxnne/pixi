@@ -125,28 +125,6 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         dvui.log.err("Failed to rebuild artboards", .{});
     };
 
-    defer { // Radial Menu
-
-        Keybinds.tick() catch {
-            dvui.log.err("Failed to tick hotkeys", .{});
-        };
-
-        for (dvui.events()) |*e| {
-            switch (e.evt) {
-                .mouse => |me| {
-                    editor.tools.radial_menu.mouse_position = me.p;
-                },
-                else => {},
-            }
-        }
-
-        if (editor.tools.radial_menu.visible) {
-            editor.drawRadialMenu() catch {
-                dvui.log.err("Failed to draw radial menu", .{});
-            };
-        }
-    }
-
     // TODO: Does this need to be here for touchscreen zooming? Or does that belong in canvas?
     // var scaler = dvui.scale(
     //     @src(),
@@ -276,6 +254,28 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .bottom, .{ .opacity = 0.15 });
                 pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{ .opacity = 0.15 });
                 pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{ .opacity = 0.15 });
+            }
+        }
+
+        { // Radial Menu
+
+            Keybinds.tick() catch {
+                dvui.log.err("Failed to tick hotkeys", .{});
+            };
+
+            for (dvui.events()) |*e| {
+                switch (e.evt) {
+                    .mouse => |me| {
+                        editor.tools.radial_menu.mouse_position = me.p;
+                    },
+                    else => {},
+                }
+            }
+
+            if (editor.tools.radial_menu.visible) {
+                editor.drawRadialMenu() catch {
+                    dvui.log.err("Failed to draw radial menu", .{});
+                };
             }
         }
     }

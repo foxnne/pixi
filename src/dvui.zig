@@ -232,11 +232,20 @@ pub fn renderSprite(source: dvui.ImageSource, s: pixi.Sprite, data_point: dvui.P
     try dvui.renderImage(source, rs, opt);
 }
 
-pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, opts: dvui.Options) void {
+pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, enabled: bool, opts: dvui.Options) void {
     const box = dvui.box(@src(), .{ .dir = .horizontal }, opts);
     defer box.deinit();
 
-    dvui.labelNoFmt(@src(), label_str, .{}, opts.strip());
+    var new_opts = opts.strip();
+    if (!enabled) {
+        if (new_opts.color_text) |c| {
+            new_opts.color_text = c.opacity(0.5);
+        } else {
+            new_opts.color_text = dvui.themeGet().color(.window, .text).opacity(0.5);
+        }
+    }
+
+    dvui.labelNoFmt(@src(), label_str, .{}, new_opts);
     _ = dvui.spacer(@src(), .{ .min_size_content = .width(6) });
 
     var second_opts = opts.strip();
@@ -244,12 +253,20 @@ pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, opts:
     second_opts.gravity_y = 0.5;
     second_opts.gravity_x = 1.0;
 
-    keybindLabels(&hotkey, second_opts);
+    keybindLabels(&hotkey, enabled, second_opts);
 }
 
-pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
+pub fn keybindLabels(self: *const dvui.enums.Keybind, enabled: bool, opts: dvui.Options) void {
     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .none, .gravity_x = 1.0 });
     defer box.deinit();
+
+    var color = if (opts.color_text) |c| c else dvui.themeGet().color(.control, .text);
+    if (!enabled) {
+        color = color.opacity(0.5);
+    }
+
+    var second_opts = opts.strip();
+    second_opts.color_text = color;
 
     var needs_space = false;
     if (self.control) |ctrl| {
@@ -259,7 +276,7 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
             //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
             //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
 
-            dvui.labelNoFmt(@src(), "ctrl", .{}, opts.strip());
+            dvui.labelNoFmt(@src(), "ctrl", .{}, second_opts);
         }
     }
 
@@ -270,9 +287,9 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
             //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
             //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
             if (builtin.os.tag == .macos) {
-                dvui.icon(@src(), "cmd", icons.tvg.lucide.command, .{ .stroke_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
+                dvui.icon(@src(), "cmd", icons.tvg.lucide.command, .{ .stroke_color = color }, .{ .gravity_y = 0.5 });
             } else {
-                dvui.labelNoFmt(@src(), "cmd", .{}, opts.strip());
+                dvui.labelNoFmt(@src(), "cmd", .{}, second_opts);
             }
         }
     }
@@ -284,9 +301,9 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
             //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
             //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
             if (builtin.os.tag == .macos) {
-                dvui.icon(@src(), "option", icons.tvg.lucide.option, .{ .stroke_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
+                dvui.icon(@src(), "option", icons.tvg.lucide.option, .{ .stroke_color = color }, .{ .gravity_y = 0.5 });
             } else {
-                dvui.labelNoFmt(@src(), "alt", .{}, opts.strip());
+                dvui.labelNoFmt(@src(), "alt", .{}, second_opts);
             }
         }
     }
@@ -297,7 +314,7 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
             if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
             //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
             //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
-            dvui.labelNoFmt(@src(), "shift", .{}, opts.strip());
+            dvui.labelNoFmt(@src(), "shift", .{}, second_opts);
         }
     }
 
@@ -306,7 +323,7 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
         if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
         //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
         //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
-        dvui.labelNoFmt(@src(), @tagName(key), .{}, opts.strip());
+        dvui.labelNoFmt(@src(), @tagName(key), .{}, second_opts);
     }
 }
 
