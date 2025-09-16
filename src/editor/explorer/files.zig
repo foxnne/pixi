@@ -191,7 +191,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                 var anim = dvui.animate(
                     @src(),
                     .{
-                        .duration = 350_000 + 100_000 * @as(i32, @intCast(i)),
+                        .duration = 250_000 + 100_000 * @as(i32, @intCast(i)),
                         .kind = .horizontal,
                         .easing = dvui.easing.linear,
                     },
@@ -199,8 +199,16 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                 );
                 defer anim.deinit();
 
+                const branch_id = tree.data().id.update(abs_path);
+
+                var expanded = false;
+
+                if (pixi.editor.explorer.open_branches.get(branch_id) != null) {
+                    expanded = true;
+                }
+
                 const branch = tree.branch(@src(), .{
-                    .expanded = false,
+                    .expanded = expanded,
                 }, .{
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
@@ -347,6 +355,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                 pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
                                 box.data().rect.topLeft().diff(.{ .x = @as(f32, @floatFromInt(sprite.source[2])) / 2, .y = @as(f32, @floatFromInt(sprite.source[3])) / 2 }),
                                 2.0,
+                                .{ .colormod = dvui.Color.white.opacity(if (anim.val) |val| val else 1.0) },
                             ) catch {
                                 dvui.log.err("Failed to render sprite: {s}", .{abs_path});
                             };
@@ -459,6 +468,9 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                 .alpha = 0.15,
                             },
                         })) {
+                            pixi.editor.explorer.open_branches.put(branch_id, {}) catch {
+                                dvui.log.debug("Failed to track branch state!", .{});
+                            };
                             try search(
                                 abs_path,
                                 tree,
@@ -467,6 +479,10 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                 color_id,
                                 filter_text,
                             );
+                        } else {
+                            if (pixi.editor.explorer.open_branches.contains(branch_id)) {
+                                _ = pixi.editor.explorer.open_branches.remove(branch_id);
+                            }
                         }
                         color_id.* = color_id.* + 1;
                     },

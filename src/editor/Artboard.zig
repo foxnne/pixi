@@ -197,6 +197,7 @@ fn drawTabs(self: *Artboard) void {
                 pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
                 box.data().rect.topLeft(),
                 2.0,
+                .{},
             ) catch {
                 std.log.err("Failed to render pixi file icon", .{});
             };

@@ -25,6 +25,7 @@ scroll_info: dvui.ScrollInfo = .{
     .horizontal = .auto,
 },
 rect: dvui.Rect = .{},
+open_branches: std.AutoHashMap(dvui.Id, void) = undefined,
 
 pub const Pane = enum(u32) {
     files,
@@ -37,7 +38,9 @@ pub const Pane = enum(u32) {
 };
 
 pub fn init() Explorer {
-    return .{};
+    return .{
+        .open_branches = .init(pixi.app.allocator),
+    };
 }
 
 pub fn deinit() void {

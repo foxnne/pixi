@@ -82,22 +82,66 @@ pub fn toastDisplay(id: dvui.Id) !void {
     }
 }
 
-pub fn renderSprite(source: dvui.ImageSource, sprite: pixi.Sprite, data_point: dvui.Point, scale: f32) !void {
+pub fn sprite(source: dvui.ImageSource, s: pixi.Sprite, opts: dvui.Options) !dvui.WidgetData {
+    const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
+        std.log.err("Failed to get atlas size", .{});
+        return error.FailedToGetAtlasSize;
+    };
+
+    const uv = dvui.Rect{
+        .x = (@as(f32, @floatFromInt(s.source[0])) / atlas_size.w),
+        .y = (@as(f32, @floatFromInt(s.source[1])) / atlas_size.h),
+        .w = (@as(f32, @floatFromInt(s.source[2])) / atlas_size.w),
+        .h = (@as(f32, @floatFromInt(s.source[3])) / atlas_size.h),
+    };
+
+    const image = dvui.image(@src(), .{ .source = source, .uv = uv }, opts);
+    return image;
+
+    // const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+    //     .expand = .none,
+    //     .rect = .{
+    //         .x = position.x,
+    //         .y = position.y,
+    //         .w = @as(f32, @floatFromInt(sprite.source[2])) * scale,
+    //         .h = @as(f32, @floatFromInt(sprite.source[3])) * scale,
+    //     },
+    //     .border = dvui.Rect.all(0),
+    //     .corner_radius = .{ .x = 0, .y = 0 },
+    //     .padding = .{ .x = 0, .y = 0 },
+    //     .margin = .{ .x = 0, .y = 0 },
+    //     .background = false,
+    //     .color_fill = dvui.themeGet().color(.err, .fill),
+    // });
+    // defer box.deinit();
+
+    // const rs = box.data().rectScale();
+
+    // try dvui.renderImage(source, rs, .{
+    //     .uv = uv,
+    // });
+}
+
+pub fn renderSprite(source: dvui.ImageSource, s: pixi.Sprite, data_point: dvui.Point, scale: f32, opts: dvui.RenderTextureOptions) !void {
     const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
         std.log.err("Failed to get atlas size", .{});
         return;
     };
 
+    var opt = opts;
+
     const uv = dvui.Rect{
-        .x = (@as(f32, @floatFromInt(sprite.source[0])) / atlas_size.w),
-        .y = (@as(f32, @floatFromInt(sprite.source[1])) / atlas_size.h),
-        .w = (@as(f32, @floatFromInt(sprite.source[2])) / atlas_size.w),
-        .h = (@as(f32, @floatFromInt(sprite.source[3])) / atlas_size.h),
+        .x = (@as(f32, @floatFromInt(s.source[0])) / atlas_size.w),
+        .y = (@as(f32, @floatFromInt(s.source[1])) / atlas_size.h),
+        .w = (@as(f32, @floatFromInt(s.source[2])) / atlas_size.w),
+        .h = (@as(f32, @floatFromInt(s.source[3])) / atlas_size.h),
     };
 
+    opt.uv = uv;
+
     const origin = dvui.Point{
-        .x = @as(f32, @floatFromInt(sprite.origin[0])) * 1 / scale,
-        .y = @as(f32, @floatFromInt(sprite.origin[1])) * 1 / scale,
+        .x = @as(f32, @floatFromInt(s.origin[0])) * 1 / scale,
+        .y = @as(f32, @floatFromInt(s.origin[1])) * 1 / scale,
     };
 
     const position = data_point.diff(origin);
@@ -107,8 +151,8 @@ pub fn renderSprite(source: dvui.ImageSource, sprite: pixi.Sprite, data_point: d
         .rect = .{
             .x = position.x,
             .y = position.y,
-            .w = @as(f32, @floatFromInt(sprite.source[2])) * scale,
-            .h = @as(f32, @floatFromInt(sprite.source[3])) * scale,
+            .w = @as(f32, @floatFromInt(s.source[2])) * scale,
+            .h = @as(f32, @floatFromInt(s.source[3])) * scale,
         },
         .border = dvui.Rect.all(0),
         .corner_radius = .{ .x = 0, .y = 0 },
@@ -121,9 +165,7 @@ pub fn renderSprite(source: dvui.ImageSource, sprite: pixi.Sprite, data_point: d
 
     const rs = box.data().rectScale();
 
-    try dvui.renderImage(source, rs, .{
-        .uv = uv,
-    });
+    try dvui.renderImage(source, rs, opt);
 }
 
 pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, opts: dvui.Options) void {
