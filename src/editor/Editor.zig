@@ -147,6 +147,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
     }
 
+    // TODO: Does this need to be here for touchscreen zooming? Or does that belong in canvas?
     // var scaler = dvui.scale(
     //     @src(),
     //     .{ .scale = &dvui.currentWindow().content_scale, .pinch_zoom = .global },
@@ -167,7 +168,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         defer base_box.deinit();
 
         // Sidebar area
-
+        // Since sidebar is drawn before the explorer, and we want to allow expanding the explorer
+        // from clicking a sidebar option, we need to check if the sidebar was pressed
         const sidebar_pressed = editor.sidebar.draw() catch {
             dvui.log.err("Failed to draw sidebar", .{});
             return false;
@@ -183,13 +185,13 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer explorer_artboard_box.deinit();
 
-        {
+        defer {
             editor.infobar.draw() catch {
                 dvui.log.err("Failed to draw infobar", .{});
             };
         }
 
-        var explorer_artboard = pixi.dvui.editorPaned(@src(), .{
+        editor.explorer.paned = pixi.dvui.editorPaned(@src(), .{
             .direction = .horizontal,
             .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
             .handle_size = handle_size,
@@ -203,20 +205,20 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .background = true,
             .color_fill = dvui.themeGet().color(.control, .fill),
         });
-        defer explorer_artboard.deinit();
+        defer editor.explorer.paned.deinit();
 
-        if (dvui.firstFrame(explorer_artboard.wd.id)) {
-            explorer_artboard.split_ratio.* = 0.0;
-            explorer_artboard.animateSplit(pixi.editor.settings.explorer_ratio);
-        } else if (!explorer_artboard.collapsing and !explorer_artboard.collapsed_state) {
-            editor.settings.explorer_ratio = explorer_artboard.split_ratio.*;
+        if (dvui.firstFrame(editor.explorer.paned.wd.id)) {
+            editor.explorer.paned.split_ratio.* = 0.0;
+            editor.explorer.paned.animateSplit(pixi.editor.settings.explorer_ratio);
+        } else if (!editor.explorer.paned.collapsing and !editor.explorer.paned.collapsed_state) {
+            editor.settings.explorer_ratio = editor.explorer.paned.split_ratio.*;
         }
 
-        if (sidebar_pressed and explorer_artboard.split_ratio.* == 0.0 and !explorer_artboard.collapsed()) {
-            explorer_artboard.animateSplit(0.1);
+        if (sidebar_pressed) {
+            editor.explorer.open();
         }
 
-        if (explorer_artboard.showFirst()) {
+        if (editor.explorer.paned.showFirst()) {
 
             // Explorer area
             {
@@ -227,7 +229,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             }
         }
 
-        if (explorer_artboard.showSecond()) {
+        if (editor.explorer.paned.showSecond()) {
             const artboard_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = false });
             defer artboard_vbox.deinit();
 

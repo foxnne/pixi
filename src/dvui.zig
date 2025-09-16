@@ -252,12 +252,12 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
     defer box.deinit();
 
     var needs_space = false;
-    var needs_plus = false;
     if (self.control) |ctrl| {
         if (ctrl) {
+            needs_space = true;
             if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
-            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
+            //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+            //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
 
             dvui.labelNoFmt(@src(), "ctrl", .{}, opts.strip());
         }
@@ -265,9 +265,10 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
 
     if (self.command) |cmd| {
         if (cmd) {
+            needs_space = true;
             if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
-            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
+            //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+            //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
             if (builtin.os.tag == .macos) {
                 dvui.icon(@src(), "cmd", icons.tvg.lucide.command, .{ .stroke_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
             } else {
@@ -278,9 +279,10 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
 
     if (self.alt) |alt| {
         if (alt) {
+            needs_space = true;
             if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
-            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
+            //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+            //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
             if (builtin.os.tag == .macos) {
                 dvui.icon(@src(), "option", icons.tvg.lucide.option, .{ .stroke_color = dvui.themeGet().color(.control, .text) }, .{ .gravity_y = 0.5 });
             } else {
@@ -291,17 +293,19 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, opts: dvui.Options) void {
 
     if (self.shift) |shift| {
         if (shift) {
+            needs_space = true;
             if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
-            if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
-            if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
+            //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+            //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
             dvui.labelNoFmt(@src(), "shift", .{}, opts.strip());
         }
     }
 
     if (self.key) |key| {
+        needs_space = true;
         if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip());
-        if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
-        if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
+        //if (needs_plus) dvui.labelNoFmt(@src(), "+", .{}, opts.strip()) else needs_plus = true;
+        //if (needs_space) dvui.labelNoFmt(@src(), " ", .{}, opts.strip()) else needs_space = true;
         dvui.labelNoFmt(@src(), @tagName(key), .{}, opts.strip());
     }
 }

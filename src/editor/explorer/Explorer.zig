@@ -21,6 +21,7 @@ pub const project = @import("project.zig");
 pub const settings = @import("settings.zig");
 
 pane: Pane = .files,
+paned: *pixi.dvui.EditorPanedWidget = undefined,
 scroll_info: dvui.ScrollInfo = .{
     .horizontal = .auto,
 },
@@ -61,6 +62,20 @@ pub fn title(pane: Pane, all_caps: bool) []const u8 {
 }
 
 pub fn processKeybinds(_: *Explorer) !void {}
+
+pub fn close(explorer: *Explorer) void {
+    explorer.paned.animateSplit(0.0);
+}
+
+pub fn open(explorer: *Explorer) void {
+    if (explorer.paned.collapsed()) return;
+
+    if (pixi.editor.settings.explorer_ratio > 0.0) {
+        explorer.paned.animateSplit(pixi.editor.settings.explorer_ratio);
+    } else {
+        explorer.paned.animateSplit(0.2);
+    }
+}
 
 pub fn draw(explorer: *Explorer) !dvui.App.Result {
     const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
