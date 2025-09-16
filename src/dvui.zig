@@ -82,21 +82,85 @@ pub fn toastDisplay(id: dvui.Id) !void {
     }
 }
 
-pub fn sprite(source: dvui.ImageSource, s: pixi.Sprite, opts: dvui.Options) !dvui.WidgetData {
-    const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
-        std.log.err("Failed to get atlas size", .{});
-        return error.FailedToGetAtlasSize;
-    };
+pub const SpriteInitOptions = struct {
+    source: dvui.ImageSource,
+    sprite: pixi.Sprite,
+    scale: f32 = 1.0,
+};
+
+pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opts: dvui.Options) dvui.WidgetData {
+    const source_size: dvui.Size = dvui.imageSize(init_opts.source) catch .{ .w = 0, .h = 0 };
 
     const uv = dvui.Rect{
-        .x = (@as(f32, @floatFromInt(s.source[0])) / atlas_size.w),
-        .y = (@as(f32, @floatFromInt(s.source[1])) / atlas_size.h),
-        .w = (@as(f32, @floatFromInt(s.source[2])) / atlas_size.w),
-        .h = (@as(f32, @floatFromInt(s.source[3])) / atlas_size.h),
+        .x = (@as(f32, @floatFromInt(init_opts.sprite.source[0])) / source_size.w),
+        .y = (@as(f32, @floatFromInt(init_opts.sprite.source[1])) / source_size.h),
+        .w = (@as(f32, @floatFromInt(init_opts.sprite.source[2])) / source_size.w),
+        .h = (@as(f32, @floatFromInt(init_opts.sprite.source[3])) / source_size.h),
     };
 
-    const image = dvui.image(@src(), .{ .source = source, .uv = uv }, opts);
-    return image;
+    const options = (dvui.Options{ .name = "sprite" }).override(opts);
+
+    var size = dvui.Size{};
+    if (options.min_size_content) |msc| {
+        // user gave us a min size, use it
+        size = msc;
+    } else {
+        // user didn't give us one, use natural size
+        size = .{ .w = @as(f32, @floatFromInt(init_opts.sprite.source[2])) * init_opts.scale, .h = @as(f32, @floatFromInt(init_opts.sprite.source[3])) * init_opts.scale };
+    }
+
+    var wd = dvui.WidgetData.init(src, .{}, options.override(.{ .min_size_content = size }));
+    wd.register();
+
+    const cr = wd.contentRect();
+    const ms = wd.options.min_size_contentGet();
+
+    var too_big = false;
+    if (ms.w > cr.w or ms.h > cr.h) {
+        too_big = true;
+    }
+
+    var e = wd.options.expandGet();
+    const g = wd.options.gravityGet();
+    var rect = dvui.placeIn(cr, ms, e, g);
+
+    if (too_big and e != .ratio) {
+        if (ms.w > cr.w and !e.isHorizontal()) {
+            rect.w = ms.w;
+            rect.x -= g.x * (ms.w - cr.w);
+        }
+
+        if (ms.h > cr.h and !e.isVertical()) {
+            rect.h = ms.h;
+            rect.y -= g.y * (ms.h - cr.h);
+        }
+    }
+
+    // rect is the content rect, so expand to the whole rect
+    wd.rect = rect.outset(wd.options.paddingGet()).outset(wd.options.borderGet()).outset(wd.options.marginGet());
+
+    var renderBackground: ?dvui.Color = if (wd.options.backgroundGet()) wd.options.color(.fill) else null;
+
+    if (wd.options.rotationGet() == 0.0) {
+        wd.borderAndBackground(.{});
+        renderBackground = null;
+    } else {
+        if (wd.options.borderGet().nonZero()) {
+            dvui.log.debug("image {x} can't render border while rotated\n", .{wd.id});
+        }
+    }
+    const render_tex_opts = dvui.RenderTextureOptions{
+        .rotation = wd.options.rotationGet(),
+        .corner_radius = wd.options.corner_radiusGet(),
+        .uv = uv,
+        .background_color = renderBackground,
+    };
+    const content_rs = wd.contentRectScale();
+    dvui.renderImage(init_opts.source, content_rs, render_tex_opts) catch |err| dvui.logError(@src(), err, "Could not render image {?s} at {}", .{ opts.name, content_rs });
+    wd.minSizeSetAndRefresh();
+    wd.minSizeReportToParent();
+
+    return wd;
 
     // const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
     //     .expand = .none,
@@ -123,7 +187,7 @@ pub fn sprite(source: dvui.ImageSource, s: pixi.Sprite, opts: dvui.Options) !dvu
 }
 
 pub fn renderSprite(source: dvui.ImageSource, s: pixi.Sprite, data_point: dvui.Point, scale: f32, opts: dvui.RenderTextureOptions) !void {
-    const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
+    const atlas_size = dvui.imageSize(source) catch {
         std.log.err("Failed to get atlas size", .{});
         return;
     };

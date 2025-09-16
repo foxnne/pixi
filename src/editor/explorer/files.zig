@@ -73,7 +73,10 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
 
     const folder = std.fs.path.basename(path);
 
-    const branch = tree.branch(@src(), .{ .expanded = true }, .{
+    const branch = tree.branch(@src(), .{
+        .expanded = true,
+        .animation_duration = 0,
+    }, .{
         .id_extra = 0,
         .expand = .horizontal,
         //.color_fill_hover = dvui.themeGet().color(.window, .fill),
@@ -162,7 +165,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                 lessThan,
             );
 
-            for (files.items, 0..) |entry, i| {
+            for (files.items) |entry| {
                 const abs_path = try std.fs.path.join(
                     dvui.currentWindow().arena(),
                     &.{ directory, entry.name },
@@ -187,17 +190,6 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                 const padding = dvui.Rect.all(2);
 
                 const selected: bool = if (selected_id) |id| inner_id_extra.* == id else false;
-
-                var anim = dvui.animate(
-                    @src(),
-                    .{
-                        .duration = 150_000 + 50_000 * @as(i32, @intCast(i)),
-                        .kind = .horizontal,
-                        .easing = dvui.easing.linear,
-                    },
-                    .{ .expand = .horizontal, .id_extra = inner_id_extra.* },
-                );
-                defer anim.deinit();
 
                 const branch_id = tree.data().id.update(abs_path);
 
@@ -327,41 +319,42 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         const icon_color = color;
 
-                        var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                            .expand = .none,
-                            .background = false,
-                        });
-
                         const file_icon_color: dvui.Color = if (ext == .pixi) .transparent else icon_color;
 
-                        dvui.icon(
-                            @src(),
-                            "FileIcon",
-                            icon,
-                            .{ .stroke_color = file_icon_color, .fill_color = file_icon_color },
-                            .{
-                                .gravity_y = 0.5,
-                                .padding = padding,
-                                .background = false,
-                            },
-                        );
-
                         if (ext == .pixi) {
-                            const sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default];
-                            //const sprite_size = dvui.Size{ .w = @floatFromInt(sprite.source[2]), .h = @floatFromInt(sprite.source[3]) };
-                            //const sprite_offset = dvui.Point{ .x = -sprite_size.w * 2, .y = -sprite_size.h * 2 };
-                            pixi.dvui.renderSprite(
-                                pixi.editor.atlas.source,
-                                pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
-                                box.data().rect.topLeft().diff(.{ .x = @as(f32, @floatFromInt(sprite.source[2])) / 2, .y = @as(f32, @floatFromInt(sprite.source[3])) / 2 }),
-                                2.0,
-                                .{ .colormod = dvui.Color.white.opacity(if (anim.val) |val| val else 1.0) },
-                            ) catch {
-                                dvui.log.err("Failed to render sprite: {s}", .{abs_path});
-                            };
+                            _ = pixi.dvui.sprite(
+                                @src(),
+                                .{ .source = pixi.editor.atlas.source, .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default], .scale = 2.0 },
+                                .{ .gravity_y = 0.5, .margin = padding, .padding = padding, .background = false },
+                            );
+                        } else {
+                            dvui.icon(
+                                @src(),
+                                "FileIcon",
+                                icon,
+                                .{ .stroke_color = file_icon_color, .fill_color = file_icon_color },
+                                .{
+                                    .gravity_y = 0.5,
+                                    .padding = padding,
+                                    .background = false,
+                                },
+                            );
                         }
 
-                        box.deinit();
+                        // if (ext == .pixi) {
+                        //     const sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default];
+                        //     //const sprite_size = dvui.Size{ .w = @floatFromInt(sprite.source[2]), .h = @floatFromInt(sprite.source[3]) };
+                        //     //const sprite_offset = dvui.Point{ .x = -sprite_size.w * 2, .y = -sprite_size.h * 2 };
+                        //     pixi.dvui.renderSprite(
+                        //         pixi.editor.atlas.source,
+                        //         pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
+                        //         box.data().rect.topLeft().diff(.{ .x = @as(f32, @floatFromInt(sprite.source[2])) / 2, .y = @as(f32, @floatFromInt(sprite.source[3])) / 2 }),
+                        //         2.0,
+                        //         .{},
+                        //     ) catch {
+                        //         dvui.log.err("Failed to render sprite: {s}", .{abs_path});
+                        //     };
+                        // }
 
                         dvui.label(
                             @src(),

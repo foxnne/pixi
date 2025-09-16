@@ -179,30 +179,24 @@ fn drawTabs(self: *Artboard) void {
             self.insert_before_index = i;
         }
 
-        var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .none,
-            .background = false,
-        });
-
-        dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{
-            .stroke_color = if (is_pixi_file) .transparent else dvui.themeGet().color(.control, .text),
-        }, .{
-            .gravity_y = 0.5,
-            .padding = dvui.Rect.all(4),
-        });
-
         if (is_pixi_file) {
-            pixi.dvui.renderSprite(
-                pixi.editor.atlas.source,
-                pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
-                box.data().rect.topLeft(),
-                2.0,
-                .{},
-            ) catch {
-                std.log.err("Failed to render pixi file icon", .{});
-            };
+            _ = pixi.dvui.sprite(@src(), .{
+                .source = pixi.editor.atlas.source,
+                .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
+                .scale = 2.0,
+            }, .{
+                .gravity_y = 0.5,
+                .padding = dvui.Rect.all(4),
+            });
+        } else {
+            dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{
+                .stroke_color = if (is_pixi_file) .transparent else dvui.themeGet().color(.control, .text),
+            }, .{
+                .gravity_y = 0.5,
+                .padding = dvui.Rect.all(4),
+            });
         }
-        box.deinit();
+
         dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
             .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
             .padding = dvui.Rect.all(4),
