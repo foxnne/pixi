@@ -163,7 +163,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer explorer_artboard_box.deinit();
 
-        defer {
+        {
             editor.infobar.draw() catch {
                 dvui.log.err("Failed to draw infobar", .{});
             };

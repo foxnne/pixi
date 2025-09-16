@@ -246,7 +246,7 @@ pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, enabl
     }
 
     dvui.labelNoFmt(@src(), label_str, .{}, new_opts);
-    _ = dvui.spacer(@src(), .{ .min_size_content = .width(6) });
+    _ = dvui.spacer(@src(), .{ .min_size_content = .width(12) });
 
     var second_opts = opts.strip();
     second_opts.color_text = dvui.themeGet().color(.control, .text);
@@ -261,7 +261,7 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, enabled: bool, opts: dvui.
     defer box.deinit();
 
     var color = if (opts.color_text) |c| c else dvui.themeGet().color(.control, .text);
-    if (!enabled) {
+    if (true or enabled) {
         color = color.opacity(0.5);
     }
 
