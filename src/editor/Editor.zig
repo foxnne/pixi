@@ -558,22 +558,18 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
         }
     }
 
-    if (editor.artboards.contains(grouping)) {
-        editor.open_artboard_grouping = grouping;
-    }
-
     if (pixi.Internal.File.fromPath(path) catch null) |file| {
         try editor.open_files.put(file.id, file);
         if (editor.open_files.getPtr(file.id)) |f| {
             f.editor.grouping = grouping;
         }
 
-        editor.rebuildArtboards() catch {
-            dvui.log.err("Failed to rebuild artboards", .{});
-        };
+        // At this point, if the artboard grouping doesn't exist, it will next frame
+        // once the artboards are rebuilt. Since we cant wait on that, go ahead and set it now
+        editor.open_artboard_grouping = grouping;
 
+        // If the artboard grouping does exist, go ahead and set the active file
         editor.setActiveFile(editor.open_files.count() - 1);
-
         return true;
     }
     return error.FailedToOpenFile;
@@ -856,7 +852,6 @@ pub fn transform(editor: *Editor) !void {
 
 /// Performs a save operation on the currently open file.
 pub fn save(editor: *Editor) !void {
-    if (editor.open_files.values().len == 0) return;
     if (editor.activeFile()) |file| {
         try file.saveAsync();
     }
@@ -918,9 +913,9 @@ pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     file.deinit();
     editor.open_files.orderedRemoveAt(index);
 
-    editor.rebuildArtboards() catch {
-        dvui.log.err("Failed to rebuild artboards", .{});
-    };
+    // editor.rebuildArtboards() catch {
+    //     dvui.log.err("Failed to rebuild artboards", .{});
+    // };
 }
 
 pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
@@ -940,9 +935,9 @@ pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
         file.deinit();
         _ = editor.open_files.orderedRemove(id);
 
-        editor.rebuildArtboards() catch {
-            dvui.log.err("Failed to rebuild artboards", .{});
-        };
+        // editor.rebuildArtboards() catch {
+        //     dvui.log.err("Failed to rebuild artboards", .{});
+        // };
     }
 }
 

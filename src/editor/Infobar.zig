@@ -61,8 +61,8 @@ pub fn draw(_: Infobar) !void {
         dvui.icon(
             @src(),
             "project_icon",
-            icons.tvg.lucide.book,
-            .{ .stroke_color = dvui.themeGet().color(.window, .text) },
+            icons.tvg.entypo.folder,
+            .{ .stroke_color = dvui.themeGet().color(.window, .text), .fill_color = dvui.themeGet().color(.window, .text) },
             .{ .gravity_y = 0.5 },
         );
         dvui.label(@src(), "{s}", .{std.fs.path.basename(folder)}, .{ .font_style = .caption_heading, .gravity_y = 0.5 });

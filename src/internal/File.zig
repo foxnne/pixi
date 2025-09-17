@@ -208,10 +208,10 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
                 const data = img_buf orelse continue;
 
-                var new_layer: pixi.Internal.Layer = try .fromPixels(
+                var new_layer: pixi.Internal.Layer = try .fromPixelsPMA(
                     internal.newID(),
                     l.name,
-                    @as([*]u8, @ptrCast(data))[0..img_len],
+                    @ptrCast(data),
                     internal.width,
                     internal.height,
                     .ptr,

@@ -61,7 +61,7 @@ pub fn fromImageFileBytes(id: u64, name: []const u8, image_bytes: []const u8, in
     };
 }
 
-pub fn fromPixelsPMA(id: u64, name: []const u8, pixel_data: []dvui.Color.PMA, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
+pub fn fromPixelsPMA(id: u64, name: []const u8, pixel_data: []dvui.Color.PMA, width: u32, height: u32, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
     const source = pixi.image.fromPixelsPMA(pixel_data, width, height, invalidation) catch return error.ErrorCreatingImageSource;
     const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intCast(width * height))) catch return error.MemoryAllocationFailed;
 
