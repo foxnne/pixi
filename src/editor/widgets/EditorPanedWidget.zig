@@ -96,7 +96,7 @@ pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Op
         .init_opts = init_options,
         .collapsing = dvui.dataGet(null, wd.id, "_collapsing", bool) orelse false,
         .collapsed_state = dvui.dataGet(null, wd.id, "_collapsed", bool) orelse (our_size < init_options.collapsed_size),
-        .dragging = dvui.dataGet(null, wd.id, "_dragging", bool) orelse false,
+        //dragging = dvui.dataGet(null, wd.id, "_dragging", bool) orelse false,
         .should_autofit = dvui.firstFrame(wd.id),
 
         // might be changed in processEvents
@@ -280,7 +280,12 @@ pub fn showSecond(self: *PanedWidget) bool {
 }
 
 pub fn animateSplit(self: *PanedWidget, end_val: f32) void {
-    dvui.animation(self.data().id, "_split_ratio", dvui.Animation{ .start_val = self.split_ratio.*, .end_val = end_val, .end_time = 250_000 });
+    dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
+        .start_val = self.split_ratio.*,
+        .end_val = end_val,
+        .end_time = 500_000,
+        .easing = dvui.easing.outBack,
+    });
 }
 
 pub fn widget(self: *PanedWidget) Widget {
@@ -414,7 +419,7 @@ pub fn processEvent(self: *PanedWidget, e: *Event) void {
                 // stop possible drag and capture
                 dvui.captureMouse(null, e.num);
                 dvui.dragEnd();
-                self.dragging = false;
+                //self.dragging = false;
             } else if (e.evt.mouse.action == .motion and dvui.captured(self.data().id)) {
                 e.handle(@src(), self.data());
                 // move if dragging
@@ -440,16 +445,17 @@ pub fn processEvent(self: *PanedWidget, e: *Event) void {
 }
 
 pub fn deinit(self: *PanedWidget) void {
+    const should_free = self.data().was_allocated_on_widget_stack;
+    defer if (should_free) dvui.widgetFree(self);
+    defer self.* = undefined;
     if (self.init_opts.draw_in_deinit) self.draw();
-    defer dvui.widgetFree(self);
     dvui.clipSet(self.prevClip);
     dvui.dataSet(null, self.data().id, "_collapsing", self.collapsing);
     dvui.dataSet(null, self.data().id, "_collapsed", self.collapsed_state);
-    dvui.dataSet(null, self.data().id, "_dragging", self.dragging);
+    //dvui.dataSet(null, self.data().id, "_dragging", self.dragging);
     self.data().minSizeSetAndRefresh();
     self.data().minSizeReportToParent();
     dvui.parentReset(self.data().id, self.data().parent);
-    self.* = undefined;
 }
 
 test {

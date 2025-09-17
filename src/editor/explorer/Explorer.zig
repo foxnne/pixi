@@ -27,7 +27,7 @@ scroll_info: dvui.ScrollInfo = .{
 },
 rect: dvui.Rect = .{},
 open_branches: std.AutoHashMap(dvui.Id, void) = undefined,
-pinned_layers: bool = false,
+pinned_palettes: bool = false,
 layers_ratio: f32 = 0.5,
 
 pub const Pane = enum(u32) {

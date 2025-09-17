@@ -71,6 +71,7 @@ layout: dvui.BasicLayout = .{},
 should_autofit: bool = false,
 drawn: bool = false,
 dragging: bool = false,
+was_dragging: bool = false,
 
 pub const AutoFitOptions = struct {
     /// The minimum split percentage [0-1] for the first side
@@ -97,6 +98,7 @@ pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Op
         .collapsing = dvui.dataGet(null, wd.id, "_collapsing", bool) orelse false,
         .collapsed_state = dvui.dataGet(null, wd.id, "_collapsed", bool) orelse (our_size < init_options.collapsed_size),
         .dragging = dvui.dataGet(null, wd.id, "_dragging", bool) orelse false,
+        //.was_dragging = dvui.dataGet(null, wd.id, "_was_dragging", bool) orelse false,
         .should_autofit = dvui.firstFrame(wd.id),
 
         // might be changed in processEvents
@@ -267,12 +269,23 @@ pub fn showSecond(self: *LayerPanedWidget) bool {
 }
 
 pub fn animateSplit(self: *LayerPanedWidget, end_val: f32) void {
-    dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
-        .start_val = self.split_ratio.*,
-        .end_val = end_val,
-        .end_time = 500_000,
-        .easing = dvui.easing.outBack,
-    });
+    if (dvui.animationGet(self.data().id, "_split_ratio")) |a| {
+        if (a.end_val != end_val) {
+            dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
+                .start_val = self.split_ratio.*,
+                .end_val = end_val,
+                .end_time = @as(i32, @intFromFloat(@as(f32, @floatFromInt(a.end_time)) - @as(f32, @floatFromInt(a.start_time)) * a.value())),
+                .easing = dvui.easing.outBack,
+            });
+        }
+    } else {
+        dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
+            .start_val = self.split_ratio.*,
+            .end_val = end_val,
+            .end_time = 500_000,
+            .easing = dvui.easing.outBack,
+        });
+    }
 }
 
 pub fn widget(self: *LayerPanedWidget) Widget {
@@ -399,8 +412,7 @@ pub fn processEvent(self: *LayerPanedWidget, e: *Event) void {
                 e.handle(@src(), self.data());
                 // capture and start drag
                 dvui.captureMouse(self.data(), e.num);
-                dvui.dragStart(e.evt.mouse.p, .{ .cursor = cursor });
-                self.dragging = true;
+                dvui.dragPreStart(e.evt.mouse.p, .{ .cursor = cursor });
             } else if (e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
                 e.handle(@src(), self.data());
                 // stop possible drag and capture
@@ -432,16 +444,18 @@ pub fn processEvent(self: *LayerPanedWidget, e: *Event) void {
 }
 
 pub fn deinit(self: *LayerPanedWidget) void {
+    const should_free = self.data().was_allocated_on_widget_stack;
+    defer if (should_free) dvui.widgetFree(self);
+    defer self.* = undefined;
     if (self.init_opts.draw_in_deinit) self.draw();
-    defer dvui.widgetFree(self);
     dvui.clipSet(self.prevClip);
     dvui.dataSet(null, self.data().id, "_collapsing", self.collapsing);
     dvui.dataSet(null, self.data().id, "_collapsed", self.collapsed_state);
     dvui.dataSet(null, self.data().id, "_dragging", self.dragging);
+    //dvui.dataSet(null, self.data().id, "_was_dragging", self.was_dragging);
     self.data().minSizeSetAndRefresh();
     self.data().minSizeReportToParent();
     dvui.parentReset(self.data().id, self.data().parent);
-    self.* = undefined;
 }
 
 test {

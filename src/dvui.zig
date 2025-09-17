@@ -17,6 +17,7 @@ pub const LayerPanedWidget = Widgets.LayerPanedWidget;
 pub fn layersPaned(src: std.builtin.SourceLocation, init_opts: LayerPanedWidget.InitOptions, opts: dvui.Options) *LayerPanedWidget {
     var ret = dvui.widgetAlloc(LayerPanedWidget);
     ret.* = LayerPanedWidget.init(src, init_opts, opts);
+    ret.data().was_allocated_on_widget_stack = true;
     ret.install();
     ret.processEvents();
     return ret;
@@ -26,6 +27,7 @@ pub fn layersPaned(src: std.builtin.SourceLocation, init_opts: LayerPanedWidget.
 pub fn editorPaned(src: std.builtin.SourceLocation, init_opts: EditorPanedWidget.InitOptions, opts: dvui.Options) *EditorPanedWidget {
     var ret = dvui.widgetAlloc(EditorPanedWidget);
     ret.* = EditorPanedWidget.init(src, init_opts, opts);
+    ret.data().was_allocated_on_widget_stack = true;
     ret.install();
     ret.processEvents();
     return ret;

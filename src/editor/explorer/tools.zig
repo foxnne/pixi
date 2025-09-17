@@ -27,6 +27,7 @@ pub fn draw() !void {
     defer paned.deinit();
 
     if (paned.dragging) {
+        max_split_ratio = paned.split_ratio.*;
         pixi.editor.explorer.layers_ratio = paned.split_ratio.*;
     }
 
@@ -36,14 +37,10 @@ pub fn draw() !void {
         };
     }
 
-    if (paned.dragging) {
-        max_split_ratio = paned.split_ratio.*;
-    }
-
     const autofit = !paned.dragging and !paned.collapsed_state;
 
     // Refit must be done between showFirst and showSecond
-    if ((dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count or autofit) and !pixi.editor.explorer.pinned_layers) {
+    if (((dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count) or autofit) and !pixi.editor.explorer.pinned_palettes) {
         if (dvui.firstFrame(paned.data().id) and layer_count == 0)
             paned.split_ratio.* = 0.0;
 
@@ -58,6 +55,7 @@ pub fn draw() !void {
         const diff = @abs(ratio - paned.split_ratio.*);
 
         if (diff > 0.000001 and layer_count > 0) {
+            std.log.debug("autofit", .{});
             paned.animateSplit(ratio);
         }
     } else {
@@ -616,7 +614,7 @@ pub fn drawPaletteControls() !void {
 
     dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font_style = .title_4 });
 
-    if (dvui.buttonIcon(@src(), "PinLayers", if (!pixi.editor.explorer.pinned_layers) icons.tvg.lucide.@"pin-off" else icons.tvg.lucide.pin, .{}, .{
+    if (dvui.buttonIcon(@src(), "PinPalettes", if (!pixi.editor.explorer.pinned_palettes) icons.tvg.lucide.@"pin-off" else icons.tvg.lucide.pin, .{ .draw_focus = false }, .{
         .fill_color = dvui.themeGet().color(.window, .text),
         .stroke_color = dvui.themeGet().color(.window, .text),
     }, .{
@@ -632,7 +630,7 @@ pub fn drawPaletteControls() !void {
             .corner_radius = dvui.Rect.all(1000),
         },
     })) {
-        pixi.editor.explorer.pinned_layers = !pixi.editor.explorer.pinned_layers;
+        pixi.editor.explorer.pinned_palettes = !pixi.editor.explorer.pinned_palettes;
     }
 }
 
