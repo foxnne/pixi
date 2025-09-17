@@ -55,7 +55,6 @@ pub fn draw() !void {
         const diff = @abs(ratio - paned.split_ratio.*);
 
         if (diff > 0.000001 and layer_count > 0) {
-            std.log.debug("autofit", .{});
             paned.animateSplit(ratio);
         }
     } else {
@@ -635,6 +634,11 @@ pub fn drawPaletteControls() !void {
 }
 
 pub fn drawPalettes() !void {
+    var scroll_area = dvui.scrollArea(@src(), .{}, .{
+        .expand = .both,
+        .background = false,
+    });
+    defer scroll_area.deinit();
 
     // Palette search dropdown
     {

@@ -75,7 +75,6 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
 
     const branch = tree.branch(@src(), .{
         .expanded = true,
-        .animation_duration = 0,
     }, .{
         .id_extra = 0,
         .expand = .horizontal,
@@ -127,6 +126,13 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         .background = true,
         .border = .{ .x = 1, .w = 0 },
     })) {
+        var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .horizontal,
+            .background = false,
+            .gravity_y = 0.2,
+        });
+        defer box.deinit();
+
         try recurseFiles(path, tree, unique_id, filter_text);
     }
 }
