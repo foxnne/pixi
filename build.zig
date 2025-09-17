@@ -140,6 +140,9 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
         })) |dep| {
             exe.root_module.addImport("objc", dep.module("mach-objc"));
+            if (dep.builder.lazyDependency("xcode_frameworks", .{})) |d| {
+                exe.root_module.addSystemIncludePath(d.path("include"));
+            }
         }
     }
 

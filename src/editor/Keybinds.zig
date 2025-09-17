@@ -36,10 +36,10 @@ pub fn register() !void {
     try window.keybinds.putNoClobber(window.gpa, "decrease_stroke_size", .{ .key = .left_bracket });
     try window.keybinds.putNoClobber(window.gpa, "quick_tools", .{ .key = .space });
 
-    try window.keybinds.putNoClobber(window.gpa, "pencil", .{ .key = .d });
-    try window.keybinds.putNoClobber(window.gpa, "eraser", .{ .key = .e });
-    try window.keybinds.putNoClobber(window.gpa, "bucket", .{ .key = .b });
-    try window.keybinds.putNoClobber(window.gpa, "selection", .{ .key = .s, .command = false, .control = false });
+    try window.keybinds.putNoClobber(window.gpa, "pencil", .{ .key = .d, .command = false, .control = false, .alt = false, .shift = false });
+    try window.keybinds.putNoClobber(window.gpa, "eraser", .{ .key = .e, .command = false, .control = false, .alt = false, .shift = false });
+    try window.keybinds.putNoClobber(window.gpa, "bucket", .{ .key = .b, .command = false, .control = false, .alt = false, .shift = false });
+    try window.keybinds.putNoClobber(window.gpa, "selection", .{ .key = .s, .command = false, .control = false, .alt = false, .shift = false });
     try window.keybinds.putNoClobber(window.gpa, "pointer", .{ .key = .escape });
 
     try window.keybinds.putNoClobber(window.gpa, "up", .{ .key = .up });
