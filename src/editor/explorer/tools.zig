@@ -26,6 +26,10 @@ pub fn draw() !void {
     }, .{ .expand = .both, .background = false });
     defer paned.deinit();
 
+    if (paned.dragging) {
+        pixi.editor.explorer.layers_ratio = paned.split_ratio.*;
+    }
+
     if (paned.showFirst()) {
         drawLayers() catch {
             dvui.log.err("Failed to draw layers", .{});
@@ -39,7 +43,7 @@ pub fn draw() !void {
     const autofit = !paned.dragging and !paned.collapsed_state;
 
     // Refit must be done between showFirst and showSecond
-    if (dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count or autofit) {
+    if ((dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count or autofit) and !pixi.editor.explorer.pinned_layers) {
         if (dvui.firstFrame(paned.data().id) and layer_count == 0)
             paned.split_ratio.* = 0.0;
 
@@ -56,9 +60,19 @@ pub fn draw() !void {
         if (diff > 0.000001 and layer_count > 0) {
             paned.animateSplit(ratio);
         }
+    } else {
+        if (dvui.firstFrame(paned.data().id)) {
+            if (layer_count == 0)
+                paned.split_ratio.* = 0.0
+            else
+                paned.split_ratio.* = pixi.editor.explorer.layers_ratio;
+
+            pixi.editor.explorer.layers_ratio = paned.split_ratio.*;
+        }
     }
 
     if (paned.showSecond()) {
+        drawPaletteControls() catch {};
         drawPalettes() catch {};
     }
 }
@@ -593,8 +607,36 @@ fn drawColorPicker(rect: dvui.Rect.Physical, backing_color: *[4]u8) !void {
     }
 }
 
-pub fn drawPalettes() !void {
+pub fn drawPaletteControls() !void {
+    var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .horizontal,
+        .background = false,
+    });
+    defer box.deinit();
+
     dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font_style = .title_4 });
+
+    if (dvui.buttonIcon(@src(), "PinLayers", if (!pixi.editor.explorer.pinned_layers) icons.tvg.lucide.@"pin-off" else icons.tvg.lucide.pin, .{}, .{
+        .fill_color = dvui.themeGet().color(.window, .text),
+        .stroke_color = dvui.themeGet().color(.window, .text),
+    }, .{
+        .expand = .none,
+        .gravity_y = 0.5,
+        .gravity_x = 1.0,
+        .corner_radius = dvui.Rect.all(1000),
+        .box_shadow = .{
+            .color = .black,
+            .offset = .{ .x = -2.0, .y = 2.0 },
+            .fade = 6.0,
+            .alpha = 0.15,
+            .corner_radius = dvui.Rect.all(1000),
+        },
+    })) {
+        pixi.editor.explorer.pinned_layers = !pixi.editor.explorer.pinned_layers;
+    }
+}
+
+pub fn drawPalettes() !void {
 
     // Palette search dropdown
     {
