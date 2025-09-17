@@ -628,6 +628,7 @@ pub fn drawPaletteControls() !void {
             .alpha = 0.15,
             .corner_radius = dvui.Rect.all(1000),
         },
+        .rotation = std.math.pi * 0.5,
     })) {
         pixi.editor.explorer.pinned_palettes = !pixi.editor.explorer.pinned_palettes;
     }
