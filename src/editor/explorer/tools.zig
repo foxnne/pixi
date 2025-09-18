@@ -613,10 +613,7 @@ pub fn drawPaletteControls() !void {
 
     dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font_style = .title_4 });
 
-    if (dvui.buttonIcon(@src(), "PinPalettes", if (!pixi.editor.explorer.pinned_palettes) icons.tvg.lucide.@"pin-off" else icons.tvg.lucide.pin, .{ .draw_focus = false }, .{
-        .fill_color = dvui.themeGet().color(.window, .text),
-        .stroke_color = dvui.themeGet().color(.window, .text),
-    }, .{
+    if (dvui.buttonIcon(@src(), "PinPalettes", if (!pixi.editor.explorer.pinned_palettes) icons.tvg.lucide.@"pin-off" else icons.tvg.lucide.pin, .{ .draw_focus = false }, .{}, .{
         .expand = .none,
         .gravity_y = 0.5,
         .gravity_x = 1.0,
