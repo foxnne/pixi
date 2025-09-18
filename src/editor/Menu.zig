@@ -25,7 +25,7 @@ pub fn draw() !dvui.App.Result {
     if (menuItem(@src(), "File", .{ .submenu = true }, .{
         .expand = .horizontal,
         //.color_accent = dvui.themeGet().color(.window, .fill),
-
+        .color_text = dvui.themeGet().color(.control, .text),
     })) |r| {
         var animator = dvui.animate(@src(), .{
             .kind = .alpha,
@@ -87,6 +87,7 @@ pub fn draw() !dvui.App.Result {
         .{ .submenu = true },
         .{
             .expand = .horizontal,
+            .color_text = dvui.themeGet().color(.control, .text),
             //.style = .control,
         },
     )) |r| {
@@ -186,6 +187,7 @@ pub fn draw() !dvui.App.Result {
 
     if (menuItem(@src(), "View", .{ .submenu = true }, .{
         .expand = .horizontal,
+        .color_text = dvui.themeGet().color(.control, .text),
     })) |r| {
         var animator = dvui.animate(@src(), .{
             .kind = .alpha,
@@ -252,7 +254,15 @@ pub fn menuItem(src: std.builtin.SourceLocation, label_str: []const u8, init_opt
         ret = r;
     }
 
-    dvui.labelNoFmt(@src(), label_str, .{}, opts.strip());
+    var label_opts = opts;
+    label_opts.margin = dvui.Rect.all(0);
+    label_opts.padding = dvui.Rect.all(0);
+
+    if (pixi.dvui.hovered(mi.data())) {
+        label_opts.color_text = dvui.themeGet().color(.window, .text);
+    }
+
+    dvui.labelNoFmt(@src(), label_str, .{}, label_opts);
 
     mi.deinit();
 
