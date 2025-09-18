@@ -48,6 +48,7 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
     defer vbox.deinit();
 
     defer {
+        //if (pixi.editor.explorer.scroll_info.virtual_size.w > pixi.editor.explorer.scroll_info.viewport.w)
         pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{ .opacity = 0.15 });
         pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{ .opacity = 0.15 });
     }
@@ -149,9 +150,9 @@ fn drawTabs(self: *Artboard) void {
 
         var hbox = dvui.BoxWidget.init(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
-            .border = .{ .y = 1 },
+            .border = .{ .h = 1 },
             .color_border = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .fill),
-            .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
+            .color_fill = if (selected) dvui.themeGet().color(.control, .fill) else dvui.themeGet().color(.window, .fill),
             .background = true,
             .id_extra = i,
             .padding = dvui.Rect.all(2),
@@ -163,9 +164,9 @@ fn drawTabs(self: *Artboard) void {
         var hovered = false;
         if (pixi.dvui.hovered(hbox.data())) {
             hovered = true;
-            hbox.data().options.color_fill = dvui.themeGet().color(.window, .fill);
+            hbox.data().options.color_fill = dvui.themeGet().color(.control, .fill);
             if (!selected)
-                hbox.data().options.color_border = dvui.themeGet().color(.window, .fill);
+                hbox.data().options.color_border = dvui.themeGet().color(.control, .fill);
         }
         hbox.drawBackground();
 
