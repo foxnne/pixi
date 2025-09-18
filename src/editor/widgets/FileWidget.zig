@@ -1804,6 +1804,24 @@ pub fn drawSample(self: *FileWidget) void {
         var rs = box.data().borderRectScale();
         rs.r = rs.r.inset(dvui.Rect.Physical.all(border_width * self.init_options.canvas.scale * 2));
 
+        dvui.renderImage(file.editor.checkerboard_tile, rs, .{
+            .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
+            .uv = .{
+                .x = @mod(data_point.x - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_width * 2))) / @as(f32, @floatFromInt(file.tile_width * 2)),
+                .y = @mod(data_point.y - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_height * 2))) / @as(f32, @floatFromInt(file.tile_height * 2)),
+                .w = sample_region_size / @as(f32, @floatFromInt(file.tile_width * 2)),
+                .h = sample_region_size / @as(f32, @floatFromInt(file.tile_height * 2)),
+            },
+            .corner_radius = .{
+                .x = corner_radius.x * rs.s,
+                .y = corner_radius.y * rs.s,
+                .w = corner_radius.w * rs.s,
+                .h = corner_radius.h * rs.s,
+            },
+        }) catch {
+            dvui.log.err("Failed to render checkerboard", .{});
+        };
+
         var i: usize = file.layers.len;
         while (i > 0) {
             i -= 1;
