@@ -21,24 +21,6 @@ pub const InitOptions = struct {
     data_size: dvui.Size,
 };
 
-// pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: dvui.Options) CanvasWidget {
-//     var canvas: CanvasWidget = .{
-//         .id = init_opts.id,
-//     };
-
-//     canvas.scroll = dvui.scrollArea(src, .{ .scroll_info = &canvas.scroll_info }, opts);
-//     canvas.scaler = dvui.scale(src, .{ .scale = &canvas.scale }, .{ .rect = .{ .x = -canvas.origin.x, .y = -canvas.origin.y } });
-
-//     canvas.scroll_container = &canvas.scroll.scroll.?;
-//     // can use this to convert between viewport/virtual_size and screen coords
-//     canvas.scroll_rect_scale = canvas.scroll_container.screenRectScale(.{});
-//     // can use this to convert between data and screen coords
-//     canvas.screen_rect_scale = canvas.scaler.screenRectScale(.{});
-//     canvas.rect = canvas.screenFromDataRect(dvui.Rect.fromSize(.{ .w = init_opts.data_size.w, .h = init_opts.data_size.h }));
-
-//     return canvas;
-// }
-
 pub fn install(canvas: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: InitOptions, opts: dvui.Options) void {
     canvas.id = init_opts.id;
     canvas.scroll = dvui.scrollArea(src, .{ .scroll_info = &canvas.scroll_info }, opts);

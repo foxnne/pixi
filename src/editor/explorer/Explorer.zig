@@ -90,7 +90,6 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
 
     try drawHeader(explorer);
 
-    //_ = dvui.separator(@src(), .{ .expand = .horizontal });
     _ = dvui.spacer(@src(), .{});
 
     const pane_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{

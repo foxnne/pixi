@@ -49,8 +49,8 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
 
     defer {
         //if (pixi.editor.explorer.scroll_info.virtual_size.w > pixi.editor.explorer.scroll_info.viewport.w)
-        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{ .opacity = 0.15 });
-        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{ .opacity = 0.15 });
+        //pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{ .opacity = 0.15 });
+        //pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{ .opacity = 0.15 });
     }
 
     // Set the active artboard grouping when the user clicks on the artboard rect
@@ -151,7 +151,7 @@ fn drawTabs(self: *Artboard) void {
         var hbox = dvui.BoxWidget.init(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
             .border = .{ .h = 1 },
-            .color_border = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .fill),
+            .color_border = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.window, .fill),
             .color_fill = if (selected) dvui.themeGet().color(.control, .fill) else dvui.themeGet().color(.window, .fill),
             .background = true,
             .id_extra = i,
@@ -407,8 +407,8 @@ pub fn drawCanvas(self: *Artboard) !void {
     var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
     defer {
         dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
-        pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{ .opacity = 0.15 });
-        pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .bottom, .{ .opacity = 0.15 });
+        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{ .opacity = 0.15 });
+        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .bottom, .{ .opacity = 0.15 });
         canvas_vbox.deinit();
     }
     defer self.processCanvasDrag(canvas_vbox.data());
