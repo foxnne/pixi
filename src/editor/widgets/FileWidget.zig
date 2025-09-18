@@ -1742,16 +1742,18 @@ pub fn drawSample(self: *FileWidget) void {
             } }, .{ .thickness = 2, .color = .white, .closed = true });
         }
 
-        // The scale of the enlarged view is always twice the scale of self.init_options.canvas
-        const enlarged_scale: f32 = self.init_options.canvas.scale * 2.0;
+        // The scale of the enlarged view varies based on the canvas scale
+        // When canvas scale is small, we want more magnification
+        // When canvas scale is large, we want less magnification
+        const enlarged_scale: f32 = self.init_options.canvas.scale * (8.0 / (1.0 + self.init_options.canvas.scale));
 
         // The size of the sample box in screen space (constant size)
         const sample_box_size: f32 = 100.0 * 1 / self.init_options.canvas.scale; // e.g. 100x80 pixels on screen
 
         const corner_radius = dvui.Rect{
-            .y = sample_box_size / 2,
-            .w = sample_box_size / 2,
-            .h = sample_box_size / 2,
+            .y = 1000000,
+            .w = 1000000,
+            .h = 1000000,
         };
 
         // The size of the sample region in data (texture) space
