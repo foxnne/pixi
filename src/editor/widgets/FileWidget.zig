@@ -1847,6 +1847,7 @@ pub fn drawSample(self: *FileWidget) void {
 
 pub fn updateActiveLayerMask(self: *FileWidget) void {
     var file = self.init_options.file;
+    if (file.selected_layer_index >= file.layers.len) return;
     var active_layer = file.layers.get(file.selected_layer_index);
 
     active_layer.clearMask();
@@ -2040,6 +2041,7 @@ pub fn processEvents(self: *FileWidget) void {
     // Draw shadows for the scroll container
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .top, .{ .opacity = 0.15 });
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .bottom, .{});
+    //if (pixi.editor.explorer.scroll_info.virtual_size.w > pixi.editor.explorer.scroll_info.viewport.w)
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .left, .{ .opacity = 0.15 });
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .right, .{});
 
