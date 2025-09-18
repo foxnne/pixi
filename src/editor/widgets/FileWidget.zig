@@ -1874,6 +1874,7 @@ pub fn drawLayers(self: *FileWidget) void {
                 .y = 2 * 1 / self.init_options.canvas.scale,
             },
         },
+        .color_fill = dvui.themeGet().color(.control, .fill),
     });
     shadow_box.deinit();
 
@@ -1888,7 +1889,7 @@ pub fn drawLayers(self: *FileWidget) void {
         };
 
         dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-            .colormod = dvui.themeGet().color(.content, .fill).lighten(8.0),
+            .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
         }) catch {
             std.log.err("Failed to render checkerboard", .{});
         };
