@@ -1894,7 +1894,7 @@ pub fn drawLayers(self: *FileWidget) void {
                 .y = 2 * 1 / self.init_options.canvas.scale,
             },
         },
-        .color_fill = dvui.themeGet().color(.control, .fill),
+        .color_fill = dvui.themeGet().color(.window, .fill),
     });
     shadow_box.deinit();
 
