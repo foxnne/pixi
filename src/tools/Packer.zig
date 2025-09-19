@@ -335,11 +335,8 @@ pub fn packAndClear(packer: *Packer) !void {
             current_atlas.data = atlas;
             current_atlas.source = atlas_layer.source;
         } else {
-            defer atlas_layer.deinit();
-            const width: u32 = @intFromFloat(atlas_layer.size().w);
-            const height: u32 = @intFromFloat(atlas_layer.size().h);
             packer.atlas = .{
-                .source = pixi.image.fromPixelsPMA(@ptrCast(pixi.image.pixels(atlas_layer.source)), width, height, .ptr) catch return error.ErrorCreatingImageSource,
+                .source = atlas_layer.source,
                 .data = atlas,
             };
         }
