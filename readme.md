@@ -1,6 +1,6 @@
 
 <p align="center">  
-  <img width="25%" src="https://github.com/user-attachments/assets/808c1e9f-f0ad-44bf-9728-00b3a283ace9">
+  <img width="25%" src="https://github.com/user-attachments/assets/fa4adcf9-6b59-49f9-8dd9-e8851ab0192d">
   <h3 align=center></h3>
 </p>
 
@@ -11,7 +11,10 @@
 
 #### Check out the [user guide](https://github.com/foxnne/pixi/wiki/User-Guide)!
 
-![pixi_explanatory_workflow](https://github.com/foxnne/pixi/assets/49629865/51e16f4d-634e-461d-ba5e-41cc4fa8229e)
+
+![Pixi-FileExplorer](https://github.com/user-attachments/assets/b69bd3f5-d387-4a51-8767-d29179cd3061)
+![Pixi-TabSplits](https://github.com/user-attachments/assets/8d947fe8-3dec-45fc-9550-0a250981895d)
+
 
 <img width="1312" height="940" alt="Screenshot 2025-07-18 at 8 45 53 AM" src="https://github.com/user-attachments/assets/639d978a-334e-45f9-a9d2-e167463f82aa" />
 
