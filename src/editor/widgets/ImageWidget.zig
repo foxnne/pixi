@@ -369,8 +369,6 @@ pub fn processEvents(self: *ImageWidget) void {
 }
 
 pub fn deinit(self: *ImageWidget) void {
-    defer dvui.widgetFree(self);
-
     self.init_options.canvas.deinit();
 
     self.* = undefined;

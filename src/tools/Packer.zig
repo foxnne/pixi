@@ -339,14 +339,7 @@ pub fn packAndClear(packer: *Packer) !void {
             const width: u32 = @intFromFloat(atlas_layer.size().w);
             const height: u32 = @intFromFloat(atlas_layer.size().h);
             packer.atlas = .{
-                .source = .{
-                    .pixels = .{
-                        .rgba = try pixi.app.allocator.dupe(u8, pixi.image.bytes(atlas_layer.source)),
-                        .width = width,
-                        .height = height,
-                        .interpolation = .nearest,
-                    },
-                },
+                .source = pixi.image.fromPixelsPMA(@ptrCast(pixi.image.pixels(atlas_layer.source)), width, height, .ptr) catch return error.ErrorCreatingImageSource,
                 .data = atlas,
             };
         }
