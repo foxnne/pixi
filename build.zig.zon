@@ -15,6 +15,11 @@
             .hash = "mach_objc-0.0.0-hSeUK_8vDQBaxz9sPYM0OavNriFU6NE2UUITDTFod4SX",
             .lazy = true,
         },
+        .zigwin32 = .{
+            .url = "git+https://github.com/marlersoft/zigwin32.git#9d399c0895de4746c1fcab366841e2ab031b0429",
+            .hash = "zigwin32-25.0.28-preview-AAAAANd_5APbcon3QqoYfLKnJ13fiBGJSGq9YrVZsfI-",
+            .lazy = true,
+        },
         .icons = .{
             .url = "git+https://github.com/foxnne/zig-lib-icons#db034786a1286ab28dc35aba534c098aa4f1a3aa",
             .hash = "icons-0.0.0-iJxA-VvGMwAgiKSXRe_Y0O7RpasdtEJhBfVx8IGGEBl_",

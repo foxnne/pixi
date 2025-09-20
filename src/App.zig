@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const zmath = @import("zmath");
 const dvui = @import("dvui");
 const objc = @import("objc");
+const win32 = @import("win32");
 
 const icon = @embedFile("assets/icon.png");
 
@@ -63,6 +64,24 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
             );
             window.setBackgroundColor(new_color);
         }
+    } else if (builtin.os.tag == .windows) {
+        // Convert dvui.Color to COLORREF (0x00BBGGRR format)
+        const colorref = @as(u32, @intCast(color.r)) |
+            (@as(u32, @intCast(color.g)) << 8) |
+            (@as(u32, @intCast(color.b)) << 16);
+
+        // Set both caption color and border color
+        _ = win32.graphics.dwm.DwmSetWindowAttribute(@ptrCast(dvui.backend.c.SDL_GetPointerProperty(
+            dvui.backend.c.SDL_GetWindowProperties(win.backend.impl.window),
+            dvui.backend.c.SDL_PROP_WINDOW_WIN32_HWND_POINTER,
+            null,
+        )), win32.graphics.dwm.DWMWA_CAPTION_COLOR, &colorref, @sizeOf(u32));
+
+        _ = win32.graphics.dwm.DwmSetWindowAttribute(@ptrCast(dvui.backend.c.SDL_GetPointerProperty(
+            dvui.backend.c.SDL_GetWindowProperties(win.backend.impl.window),
+            dvui.backend.c.SDL_PROP_WINDOW_WIN32_HWND_POINTER,
+            null,
+        )), win32.graphics.dwm.DWMWA_BORDER_COLOR, &colorref, @sizeOf(u32));
     }
 }
 
