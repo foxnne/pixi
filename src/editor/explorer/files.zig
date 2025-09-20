@@ -83,6 +83,33 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     });
     defer branch.deinit();
 
+    { // Add right click context menu for item options
+        var context = dvui.context(@src(), .{ .rect = branch.button.data().borderRectScale().r }, .{});
+        defer context.deinit();
+
+        if (context.activePoint()) |point| {
+            var fw2 = dvui.floatingMenu(@src(), .{ .from = dvui.Rect.Natural.fromPoint(point) }, .{ .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = 0, .y = 0 },
+                .shrink = 0,
+                .fade = 10,
+                .alpha = 0.15,
+            } });
+            defer fw2.deinit();
+
+            if ((dvui.menuItemLabel(@src(), "Close", .{}, .{
+                .expand = .horizontal,
+            })) != null) {
+                if (pixi.editor.folder) |f| {
+                    pixi.app.allocator.free(f);
+                    pixi.editor.folder = null;
+                }
+
+                fw2.close();
+            }
+        }
+    }
+
     if (branch.button.clicked()) {
         selected_id = null;
     }
@@ -126,7 +153,9 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         .background = true,
         .border = .{ .x = 1, .w = 0 },
     })) {
-        var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+        var box = dvui.box(@src(), .{
+            .dir = .vertical,
+        }, .{
             .expand = .horizontal,
             .background = false,
             .gravity_y = 0.2,

@@ -335,18 +335,8 @@ pub fn packAndClear(packer: *Packer) !void {
             current_atlas.data = atlas;
             current_atlas.source = atlas_layer.source;
         } else {
-            defer atlas_layer.deinit();
-            const width: u32 = @intFromFloat(atlas_layer.size().w);
-            const height: u32 = @intFromFloat(atlas_layer.size().h);
             packer.atlas = .{
-                .source = .{
-                    .pixels = .{
-                        .rgba = try pixi.app.allocator.dupe(u8, pixi.image.bytes(atlas_layer.source)),
-                        .width = width,
-                        .height = height,
-                        .interpolation = .nearest,
-                    },
-                },
+                .source = atlas_layer.source,
                 .data = atlas,
             };
         }

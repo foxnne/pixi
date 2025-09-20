@@ -17,6 +17,11 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
             .branch = "dvuizig15",
         },
         GitDependency{
+            // zigwin32
+            .url = "https://github.com/marlersoft/zigwin32",
+            .branch = "main",
+        },
+        GitDependency{
             // icons
             .url = "https://github.com/foxnne/zig-lib-icons",
             .branch = "dvui",
@@ -143,6 +148,10 @@ pub fn build(b: *std.Build) !void {
             if (dep.builder.lazyDependency("xcode_frameworks", .{})) |d| {
                 exe.root_module.addSystemIncludePath(d.path("include"));
             }
+        }
+    } else if (target.result.os.tag == .windows) {
+        if (b.lazyDependency("zigwin32", .{})) |dep| {
+            exe.root_module.addImport("win32", dep.module("win32"));
         }
     }
 

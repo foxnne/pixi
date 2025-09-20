@@ -437,16 +437,8 @@ pub fn deinit(file: *File) void {
     file.history.deinit();
     file.buffers.deinit();
 
-    for (file.layers.items(.name), file.layers.items(.source)) |name, source| {
+    for (file.layers.items(.name)) |name| {
         pixi.app.allocator.free(name);
-
-        if (source.getTexture() catch null) |texture| {
-            dvui.textureDestroyLater(texture);
-        }
-    }
-
-    if (file.editor.checkerboard_tile.getTexture() catch null) |texture| {
-        dvui.textureDestroyLater(texture);
     }
 
     file.layers.deinit(pixi.app.allocator);
