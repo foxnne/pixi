@@ -23,20 +23,22 @@
 
 ## Currently supported features
 - [x] Typical pixel art operations. (draw, erase, dropper, bucket, selection, transformation, etc)
-- [x] Create animations and preview easily, edit directly on the preview.
-- [x] View previous and next frames of the animation.
-- [x] Set sprite origins for drawing sprites easily in game frameworks.
-- [x] Import and slice existing .png spritesheets.
+- [ ] Tabs and splits, drag and drop to reorder and reconfigure
+- [ ] File explorer with search and drag and drop.
+- [ ] Create animations and preview easily, edit directly on the preview.
+- [ ] View previous and next frames of the animation.
+- [ ] Set sprite origins for drawing sprites easily in game frameworks.
+- [ ] Import and slice existing .png spritesheets.
 - [x] Intuitive and customizeable user interface.
 - [x] Sprite packing
-- [x] Theming
-- [x] Automatic packing and export on file save
+- [ ] Theming
+- [ ] Automatic packing and export on file save
 - [x] Also a zig library offering modules for handling assets
-- [x] NEW: Export animations as .gifs 
+- [ ] Export animations as .gifs 
 
 ## User Interface
-- The user interface is driven by [Dear Imgui](https://github.com/ocornut/imgui) which should be familiar to many.
-- The general layout takes many ideas from VSCode, as well as general project setup using folders.
+- The user interface is driven by [DVUI](https://github.com/david-vanderson/dvui).
+- The general layout takes many ideas from VSCode or IDE's, as well as general project setup using folders.
 
 ## Compilation
 - [Linux] Ensure `gtk+3-devel` or similar is installed (for native file dialogs).
@@ -48,7 +50,7 @@
     - ```zig build run```
 
 ## Credits
-- The wonderful [Dear Imgui](https://github.com/ocornut/imgui) used for almost all of the user interface.
+- [David Vanderson](https://github.com/david-vanderson) for all the help and [DVUI](https://github.com/david-vanderson/dvui).
 - [emidoots](https://github.com/emidoots) for all the help and [mach](https://github.com/hexops/mach).
 - [michal-z](https://github.com/michal-z) for all the help and [zig-gamedev](https://github.com/michal-z/zig-gamedev).
 - [prime31](https://github.com/prime31) for all the help.
