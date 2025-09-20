@@ -435,7 +435,7 @@ pub fn drawCanvas(self: *Artboard) !void {
         defer file_widget.deinit();
         file_widget.processEvents();
     } else {
-        try self.drawLogo();
+        try self.drawLogo(canvas_vbox);
     }
 }
 
@@ -523,7 +523,7 @@ pub fn drawTransformDialog(self: *Artboard, canvas_vbox: *dvui.BoxWidget) void {
     }
 }
 
-pub fn drawLogo(_: *Artboard) !void {
+pub fn drawLogo(_: *Artboard, canvas_vbox: *dvui.BoxWidget) !void {
     if (true) {
         const logo_pixel_size = 32;
         const logo_width = 3;
@@ -594,8 +594,6 @@ pub fn drawLogo(_: *Artboard) !void {
             .expand = .none,
             .gravity_x = 0.5,
         });
-        defer vbox.deinit();
-
         {
             var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
                 .gravity_x = 0.5,
@@ -644,6 +642,30 @@ pub fn drawLogo(_: *Artboard) !void {
                             std.log.err("Failed to open file: {s}", .{file});
                         };
                     }
+                }
+            }
+        }
+        vbox.deinit();
+
+        {
+            var recents_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+                .expand = .none,
+                .gravity_x = 0.5,
+                .max_size_content = .{ .h = canvas_vbox.data().rect.h / 5.0, .w = canvas_vbox.data().rect.w / 3.0 },
+            });
+            defer recents_box.deinit();
+
+            var scroll_area = dvui.scrollArea(@src(), .{}, .{
+                .expand = .both,
+                .border = .all(1),
+                .color_border = dvui.themeGet().color(.control, .fill),
+                .corner_radius = dvui.Rect.all(8),
+            });
+            defer scroll_area.deinit();
+
+            for (pixi.editor.recents.folders.items, 0..) |folder, i| {
+                if (dvui.button(@src(), folder, .{}, .{ .expand = .horizontal, .gravity_x = 0.5, .font_style = .heading, .id_extra = i })) {
+                    try pixi.editor.setProjectFolder(folder);
                 }
             }
         }
