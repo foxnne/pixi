@@ -613,7 +613,7 @@ pub fn drawPaletteControls() !void {
 
     dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font_style = .title_4 });
 
-    if (dvui.buttonIcon(@src(), "PinPalettes", if (!pixi.editor.explorer.pinned_palettes) icons.tvg.lucide.@"pin-off" else icons.tvg.lucide.pin, .{ .draw_focus = false }, .{}, .{
+    if (dvui.buttonIcon(@src(), "PinPalettes", dvui.entypo.pin, .{ .draw_focus = false }, .{}, .{
         .expand = .none,
         .gravity_y = 0.5,
         .gravity_x = 1.0,
@@ -626,6 +626,7 @@ pub fn drawPaletteControls() !void {
             .corner_radius = dvui.Rect.all(1000),
         },
         .rotation = std.math.pi * 0.5,
+        .style = if (pixi.editor.explorer.pinned_palettes) .highlight else .control,
     })) {
         pixi.editor.explorer.pinned_palettes = !pixi.editor.explorer.pinned_palettes;
     }
