@@ -1807,10 +1807,10 @@ pub fn drawSample(self: *FileWidget) void {
         dvui.renderImage(file.editor.checkerboard_tile, rs, .{
             .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
             .uv = .{
-                .x = @mod(data_point.x - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_width * 2))) / @as(f32, @floatFromInt(file.tile_width * 2)),
-                .y = @mod(data_point.y - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_height * 2))) / @as(f32, @floatFromInt(file.tile_height * 2)),
-                .w = sample_region_size / @as(f32, @floatFromInt(file.tile_width * 2)),
-                .h = sample_region_size / @as(f32, @floatFromInt(file.tile_height * 2)),
+                .x = @mod(data_point.x - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_width)) * dvui.currentWindow().natural_scale) / @as(f32, @floatFromInt(file.tile_width)) * dvui.currentWindow().natural_scale,
+                .y = @mod(data_point.y - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_height)) * dvui.currentWindow().natural_scale) / @as(f32, @floatFromInt(file.tile_height)) * dvui.currentWindow().natural_scale,
+                .w = sample_region_size / @as(f32, @floatFromInt(file.tile_width)) * dvui.currentWindow().natural_scale,
+                .h = sample_region_size / @as(f32, @floatFromInt(file.tile_height)) * dvui.currentWindow().natural_scale,
             },
             .corner_radius = .{
                 .x = corner_radius.x * rs.s,

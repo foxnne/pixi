@@ -47,7 +47,6 @@ pub const std_options: std.Options = .{
 
 pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
     if (builtin.os.tag == .macos) {
-        // This sets the native window titlebar color on macos
         const native_window: ?*objc.app_kit.Window = @ptrCast(dvui.backend.c.SDL_GetPointerProperty(
             dvui.backend.c.SDL_GetWindowProperties(win.backend.impl.window),
             dvui.backend.c.SDL_PROP_WINDOW_COCOA_WINDOW_POINTER,
@@ -65,7 +64,6 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
             window.setBackgroundColor(new_color);
         }
     } else if (builtin.os.tag == .windows) {
-        // Convert dvui.Color to COLORREF (0x00BBGGRR format)
         const colorref = @as(u32, @intCast(color.r)) |
             (@as(u32, @intCast(color.g)) << 8) |
             (@as(u32, @intCast(color.b)) << 16);
