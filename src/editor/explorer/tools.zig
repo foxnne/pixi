@@ -719,7 +719,9 @@ pub fn drawPalettes() !void {
                 });
 
                 button_widget.install();
-                button_widget.processEvents();
+
+                // Events should not be consumed here
+                //button_widget.processEvents();
 
                 const button_center = button_widget.data().rectScale().r.center();
                 const dist = dvui.currentWindow().mouse_pt.diff(button_center).length();
@@ -738,9 +740,25 @@ pub fn drawPalettes() !void {
                     .fade = 1.0,
                 });
 
-                if (button_widget.clicked()) {
-                    @memcpy(&pixi.editor.colors.primary, &color);
+                if (dvui.clickedEx(button_widget.data(), .{ .buttons = .any })) |evt| {
+                    switch (evt) {
+                        .mouse => |mouse_evt| {
+                            switch (mouse_evt.button) {
+                                .left => {
+                                    @memcpy(&pixi.editor.colors.primary, &color);
+                                },
+                                .right => {
+                                    @memcpy(&pixi.editor.colors.secondary, &color);
+                                },
+
+                                else => {},
+                            }
+                        },
+
+                        else => {},
+                    }
                 }
+
                 button_widget.deinit();
             }
         }
