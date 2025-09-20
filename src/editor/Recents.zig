@@ -84,18 +84,17 @@ pub fn appendExport(recents: *Recents, path: [:0]const u8) !void {
     }
 }
 
-// pub fn save(recents: *Recents) !void {
+pub fn save(recents: *Recents, allocator: std.mem.Allocator) !void {
+    const recents_json = RecentsJson{ .folders = recents.folders.items, .exports = recents.exports.items };
 
-//     var buf: []u8 = undefined;
+    const str = try std.json.Stringify.valueAlloc(allocator, recents_json, .{});
+    defer allocator.free(str);
 
-//     var handle = try std.fs.cwd().createFile("recents.json", .{});
-//     defer handle.close();
+    var file = try std.fs.cwd().createFile("recents.json", .{});
+    defer file.close();
 
-//     const out_stream = handle.writer();
-//     const options = std.json.Stringify.Options{};
-
-//     try std.json.stringify(RecentsJson{ .folders = recents.folders.items, .exports = recents.exports.items }, options, out_stream);
-// }
+    try file.writeAll(str);
+}
 
 pub fn deinit(recents: *Recents) void {
     for (recents.folders.items) |folder| {

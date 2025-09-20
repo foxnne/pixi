@@ -531,6 +531,11 @@ pub fn close(app: *App, editor: *Editor) void {
 
 pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
     if (editor.folder) |folder| {
+        if (editor.project) |*project| {
+            project.save() catch {
+                dvui.log.err("Failed to save project", .{});
+            };
+        }
         pixi.app.allocator.free(folder);
     }
     editor.folder = try pixi.app.allocator.dupeZ(u8, path);
@@ -950,6 +955,11 @@ pub fn closeReference(editor: *Editor, index: usize) !void {
 pub fn deinit(editor: *Editor) !void {
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.file_tree_palette) |*palette| palette.deinit();
+
+    editor.recents.save(pixi.app.allocator) catch {
+        dvui.log.err("Failed to save recents", .{});
+    };
+    editor.recents.deinit();
 
     try editor.settings.save(pixi.app.allocator);
     editor.settings.deinit(pixi.app.allocator);
