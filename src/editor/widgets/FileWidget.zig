@@ -6,6 +6,7 @@ options: Options,
 drag_data_point: ?dvui.Point = null,
 sample_data_point: ?dvui.Point = null,
 previous_mods: dvui.enums.Mod = .none,
+left_mouse_down: bool = false,
 right_mouse_down: bool = false,
 sample_key_down: bool = false,
 shift_key_down: bool = false,
@@ -23,6 +24,7 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
         .sample_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "sample_data_point", dvui.Point)) |point| point else null,
         .sample_key_down = if (dvui.dataGet(null, init_opts.canvas.id, "sample_key_down", bool)) |key| key else false,
         .right_mouse_down = if (dvui.dataGet(null, init_opts.canvas.id, "right_mouse_down", bool)) |key| key else false,
+        .left_mouse_down = if (dvui.dataGet(null, init_opts.canvas.id, "left_mouse_down", bool)) |key| key else false,
     };
 
     init_opts.canvas.install(src, .{
@@ -120,7 +122,7 @@ pub fn processSample(self: *FileWidget) void {
     } else if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
         self.sample_key_down = true;
         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-        self.sample(file, current_point, self.right_mouse_down);
+        self.sample(file, current_point, self.right_mouse_down or self.left_mouse_down);
 
         @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
         file.editor.temporary_layer.invalidate();
@@ -136,6 +138,16 @@ pub fn processSample(self: *FileWidget) void {
 
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
+                if (me.action == .press and me.button.pointer()) {
+                    self.left_mouse_down = true;
+                    if (dvui.dragging(me.p, "sample_drag")) |_| {
+                        self.sample(file, current_point, true);
+                    }
+                    dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                } else if (me.action == .release and me.button.pointer()) {
+                    self.left_mouse_down = false;
+                }
+
                 if (me.action == .press and me.button == .right) {
                     self.right_mouse_down = true;
                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
@@ -143,7 +155,7 @@ pub fn processSample(self: *FileWidget) void {
                     dvui.dragPreStart(me.p, .{ .name = "sample_drag" });
                     self.drag_data_point = current_point;
 
-                    self.sample(file, current_point, self.sample_key_down);
+                    self.sample(file, current_point, self.sample_key_down or self.left_mouse_down);
 
                     @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                     file.editor.temporary_layer.invalidate();
@@ -183,11 +195,11 @@ pub fn processSample(self: *FileWidget) void {
                                 .screen_rect = screen_rect,
                             });
 
-                            self.sample(file, current_point, self.sample_key_down);
+                            self.sample(file, current_point, self.sample_key_down or self.left_mouse_down);
                             e.handle(@src(), self.init_options.canvas.scroll_container.data());
                         }
                     } else if (self.right_mouse_down or self.sample_key_down) {
-                        self.sample(file, current_point, self.right_mouse_down and self.sample_key_down);
+                        self.sample(file, current_point, self.right_mouse_down and (self.sample_key_down or self.left_mouse_down));
                     }
                 }
             },
@@ -1804,13 +1816,15 @@ pub fn drawSample(self: *FileWidget) void {
         var rs = box.data().borderRectScale();
         rs.r = rs.r.inset(dvui.Rect.Physical.all(border_width * self.init_options.canvas.scale * 2));
 
+        const nat_scale: u32 = @intFromFloat(1.0);
+
         dvui.renderImage(file.editor.checkerboard_tile, rs, .{
             .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
             .uv = .{
-                .x = @mod(data_point.x - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_width)) * dvui.currentWindow().natural_scale) / @as(f32, @floatFromInt(file.tile_width)) * dvui.currentWindow().natural_scale,
-                .y = @mod(data_point.y - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_height)) * dvui.currentWindow().natural_scale) / @as(f32, @floatFromInt(file.tile_height)) * dvui.currentWindow().natural_scale,
-                .w = sample_region_size / @as(f32, @floatFromInt(file.tile_width)) * dvui.currentWindow().natural_scale,
-                .h = sample_region_size / @as(f32, @floatFromInt(file.tile_height)) * dvui.currentWindow().natural_scale,
+                .x = @mod(data_point.x - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_width * nat_scale))) / @as(f32, @floatFromInt(file.tile_width * nat_scale)),
+                .y = @mod(data_point.y - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_height * nat_scale))) / @as(f32, @floatFromInt(file.tile_height * nat_scale)),
+                .w = sample_region_size / @as(f32, @floatFromInt(file.tile_width * nat_scale)),
+                .h = sample_region_size / @as(f32, @floatFromInt(file.tile_height * nat_scale)),
             },
             .corner_radius = .{
                 .x = corner_radius.x * rs.s,
@@ -2021,6 +2035,12 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataSet(null, self.init_options.canvas.id, "right_mouse_down", self.right_mouse_down);
     } else {
         dvui.dataRemove(null, self.init_options.canvas.id, "right_mouse_down");
+    };
+
+    defer if (self.left_mouse_down) {
+        dvui.dataSet(null, self.init_options.canvas.id, "left_mouse_down", self.left_mouse_down);
+    } else {
+        dvui.dataRemove(null, self.init_options.canvas.id, "left_mouse_down");
     };
 
     if (self.active() or self.hovered() != null) {
