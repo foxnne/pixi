@@ -647,24 +647,39 @@ pub fn drawLogo(_: *Artboard, canvas_vbox: *dvui.BoxWidget) !void {
         }
         vbox.deinit();
 
+        _ = dvui.spacer(@src(), .{ .expand = .horizontal, .min_size_content = .{ .h = 30 } });
+
         {
             var recents_box = dvui.box(@src(), .{ .dir = .vertical }, .{
                 .expand = .none,
                 .gravity_x = 0.5,
-                .max_size_content = .{ .h = canvas_vbox.data().rect.h / 5.0, .w = canvas_vbox.data().rect.w / 3.0 },
+                .max_size_content = .{ .h = canvas_vbox.data().rect.h / 10.0, .w = canvas_vbox.data().rect.w / 2.0 },
             });
             defer recents_box.deinit();
 
             var scroll_area = dvui.scrollArea(@src(), .{}, .{
                 .expand = .both,
-                .border = .all(1),
                 .color_border = dvui.themeGet().color(.control, .fill),
                 .corner_radius = dvui.Rect.all(8),
             });
             defer scroll_area.deinit();
 
-            for (pixi.editor.recents.folders.items, 0..) |folder, i| {
-                if (dvui.button(@src(), folder, .{}, .{ .expand = .horizontal, .gravity_x = 0.5, .font_style = .heading, .id_extra = i })) {
+            var i: usize = pixi.editor.recents.folders.items.len;
+            while (i > 0) : (i -= 1) {
+                var anim = dvui.animate(@src(), .{ .kind = .horizontal, .duration = 150_000 + 150_000 * @as(i32, @intCast(i)), .easing = dvui.easing.outBack }, .{
+                    .id_extra = i,
+                    .expand = .horizontal,
+                });
+                defer anim.deinit();
+
+                const folder = pixi.editor.recents.folders.items[i - 1];
+                if (dvui.button(@src(), folder, .{}, .{
+                    .expand = .horizontal,
+                    .font_style = .heading,
+                    .id_extra = i,
+                    .margin = dvui.Rect.all(1),
+                    .padding = dvui.Rect.all(2),
+                })) {
                     try pixi.editor.setProjectFolder(folder);
                 }
             }
