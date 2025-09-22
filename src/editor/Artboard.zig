@@ -647,13 +647,13 @@ pub fn drawLogo(_: *Artboard, canvas_vbox: *dvui.BoxWidget) !void {
         }
         vbox.deinit();
 
-        _ = dvui.spacer(@src(), .{ .expand = .horizontal, .min_size_content = .{ .h = 30 } });
+        const spacer = dvui.spacer(@src(), .{ .expand = .horizontal, .min_size_content = .{ .h = 30 } });
 
         {
             var recents_box = dvui.box(@src(), .{ .dir = .vertical }, .{
                 .expand = .none,
                 .gravity_x = 0.5,
-                .max_size_content = .{ .h = canvas_vbox.data().rect.h / 10.0, .w = canvas_vbox.data().rect.w / 2.0 },
+                .max_size_content = .{ .h = (canvas_vbox.data().rect.h - spacer.rect.y) / 3.0, .w = canvas_vbox.data().rect.w / 2.0 },
             });
             defer recents_box.deinit();
 
@@ -666,14 +666,20 @@ pub fn drawLogo(_: *Artboard, canvas_vbox: *dvui.BoxWidget) !void {
 
             var i: usize = pixi.editor.recents.folders.items.len;
             while (i > 0) : (i -= 1) {
-                var anim = dvui.animate(@src(), .{ .kind = .horizontal, .duration = 150_000 + 150_000 * @as(i32, @intCast(i)), .easing = dvui.easing.outBack }, .{
+                var anim = dvui.animate(@src(), .{
+                    .kind = .horizontal,
+                    .duration = 150_000 + 150_000 * @as(i32, @intCast(i)),
+                    .easing = dvui.easing.outBack,
+                }, .{
                     .id_extra = i,
                     .expand = .horizontal,
                 });
                 defer anim.deinit();
 
                 const folder = pixi.editor.recents.folders.items[i - 1];
-                if (dvui.button(@src(), folder, .{}, .{
+                if (dvui.button(@src(), folder, .{
+                    .draw_focus = false,
+                }, .{
                     .expand = .horizontal,
                     .font_style = .heading,
                     .id_extra = i,

@@ -2090,8 +2090,8 @@ pub fn processEvents(self: *FileWidget) void {
     if (self.hovered() != null) {
         self.drawCursor();
         self.drawSample();
-        self.processKeybinds();
     }
+    self.processKeybinds();
     self.drawTransform();
 
     // Then process the scroll and zoom events last
