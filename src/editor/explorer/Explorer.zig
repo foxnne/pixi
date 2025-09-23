@@ -21,7 +21,7 @@ pub const project = @import("project.zig");
 pub const settings = @import("settings.zig");
 
 pane: Pane = .files,
-paned: *pixi.dvui.EditorPanedWidget = undefined,
+paned: *pixi.dvui.PanedWidget = undefined,
 scroll_info: dvui.ScrollInfo = .{
     .horizontal = .auto,
 },

@@ -171,7 +171,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
 
         // Draw the explorer paned widget, which will recursively draw the workspaces in the second pane
-        editor.explorer.paned = pixi.dvui.editorPaned(@src(), .{
+        editor.explorer.paned = pixi.dvui.paned(@src(), .{
             .direction = .horizontal,
             .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
             .handle_size = handle_size,
@@ -220,7 +220,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 }
             }
 
-            var canvas_flipbook = pixi.dvui.editorPaned(@src(), .{
+            var canvas_flipbook = pixi.dvui.paned(@src(), .{
                 .direction = .vertical,
                 .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
                 .handle_size = handle_size,
@@ -473,7 +473,7 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     if (index >= editor.workspaces.count()) return .ok;
 
     if (index <= editor.workspaces.count() - 1) {
-        var s = pixi.dvui.editorPaned(@src(), .{
+        var s = pixi.dvui.paned(@src(), .{
             .direction = .horizontal,
             .collapsed_size = if (index == editor.workspaces.count() - 1) std.math.floatMax(f32) else 0,
             .handle_size = handle_size,

@@ -18,7 +18,7 @@ pub fn draw() !void {
     const layer_count: usize = if (pixi.editor.activeFile()) |file| file.layers.len else 0;
     defer prev_layer_count = layer_count;
 
-    var paned = pixi.dvui.layersPaned(@src(), .{
+    var paned = pixi.dvui.paned(@src(), .{
         .direction = .vertical,
         .collapsed_size = 0,
         .handle_size = 10,

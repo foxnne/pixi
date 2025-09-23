@@ -11,22 +11,12 @@ pub const ImageWidget = Widgets.ImageWidget;
 pub const CanvasWidget = Widgets.CanvasWidget;
 pub const ReorderWidget = Widgets.ReorderWidget;
 pub const EditorPanedWidget = Widgets.EditorPanedWidget;
-pub const LayerPanedWidget = Widgets.LayerPanedWidget;
+pub const PanedWidget = Widgets.PanedWidget;
 
 /// Currently this is specialized for the layers paned widget, just includes icon and dragging flag so we know when the pane is dragging
-pub fn layersPaned(src: std.builtin.SourceLocation, init_opts: LayerPanedWidget.InitOptions, opts: dvui.Options) *LayerPanedWidget {
-    var ret = dvui.widgetAlloc(LayerPanedWidget);
-    ret.* = LayerPanedWidget.init(src, init_opts, opts);
-    ret.data().was_allocated_on_widget_stack = true;
-    ret.install();
-    ret.processEvents();
-    return ret;
-}
-
-/// Currently this is specialized, just includes icon in the handle
-pub fn editorPaned(src: std.builtin.SourceLocation, init_opts: EditorPanedWidget.InitOptions, opts: dvui.Options) *EditorPanedWidget {
-    var ret = dvui.widgetAlloc(EditorPanedWidget);
-    ret.* = EditorPanedWidget.init(src, init_opts, opts);
+pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions, opts: dvui.Options) *PanedWidget {
+    var ret = dvui.widgetAlloc(PanedWidget);
+    ret.* = PanedWidget.init(src, init_opts, opts);
     ret.data().was_allocated_on_widget_stack = true;
     ret.install();
     ret.processEvents();
