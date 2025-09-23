@@ -7,7 +7,12 @@ const icons = @import("icons");
 const App = pixi.App;
 const Editor = pixi.Editor;
 
-pub const Artboard = @This();
+/// Workspaces are drawn recursively inside of the explorer paned widget
+/// second pane, and contains drag/drop enabled tabs. Tabs can freely be dragged to
+/// panes or other tab bars.
+/// Workspaces can potentially draw open files, the project logo, or the project pane
+/// containing the packed atlas.
+pub const Workspace = @This();
 
 open_file_index: usize = 0,
 grouping: u64 = 0,
@@ -16,7 +21,7 @@ drag_index: ?usize = null,
 removed_index: ?usize = null,
 insert_before_index: ?usize = null,
 
-pub fn init(grouping: u64) Artboard {
+pub fn init(grouping: u64) Workspace {
     return .{ .grouping = grouping };
 }
 
@@ -42,16 +47,10 @@ const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
 
 var dragging: bool = false;
 
-pub fn draw(self: *Artboard) !dvui.App.Result {
+pub fn draw(self: *Workspace) !dvui.App.Result {
     // Canvas Area
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0, .id_extra = self.grouping });
     defer vbox.deinit();
-
-    defer {
-        //if (pixi.editor.explorer.scroll_info.virtual_size.w > pixi.editor.explorer.scroll_info.viewport.w)
-        //pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{ .opacity = 0.15 });
-        //pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{ .opacity = 0.15 });
-    }
 
     // Set the active artboard grouping when the user clicks on the artboard rect
     for (dvui.events()) |*e| {
@@ -61,7 +60,7 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
 
         if (e.evt == .mouse) {
             if (e.evt.mouse.action == .press) {
-                pixi.editor.open_artboard_grouping = self.grouping;
+                pixi.editor.open_workspace_grouping = self.grouping;
             }
         }
     }
@@ -76,7 +75,7 @@ pub fn draw(self: *Artboard) !dvui.App.Result {
     return .ok;
 }
 
-fn drawProject(self: *Artboard) void {
+fn drawProject(self: *Workspace) void {
     var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .id_extra = self.grouping });
     defer canvas_vbox.deinit();
 
@@ -94,7 +93,7 @@ fn drawProject(self: *Artboard) void {
     }
 }
 
-fn drawTabs(self: *Artboard) void {
+fn drawTabs(self: *Workspace) void {
     if (pixi.editor.open_files.values().len == 0) return;
 
     // Handle dragging of tabs between artboard reorderables (tab bars)
@@ -146,7 +145,7 @@ fn drawTabs(self: *Artboard) void {
         });
         defer reorderable.deinit();
 
-        const selected = self.open_file_index == i and pixi.editor.open_artboard_grouping == self.grouping;
+        const selected = self.open_file_index == i and pixi.editor.open_workspace_grouping == self.grouping;
 
         var hbox = dvui.BoxWidget.init(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
@@ -272,7 +271,7 @@ fn drawTabs(self: *Artboard) void {
     }
 }
 
-pub fn processTabsDrag(self: *Artboard) void {
+pub fn processTabsDrag(self: *Workspace) void {
     if (self.insert_before_index) |insert_before| {
         if (self.removed_index) |removed| { // Dragging from this artboard
 
@@ -296,7 +295,7 @@ pub fn processTabsDrag(self: *Artboard) void {
             self.removed_index = null;
             self.insert_before_index = null;
         } else { // Dragging from another artboard
-            for (pixi.editor.artboards.values()) |*artboard| {
+            for (pixi.editor.workspaces.values()) |*artboard| {
                 if (artboard.removed_index) |removed| {
                     if (removed > insert_before) {
                         std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
@@ -330,18 +329,18 @@ pub fn processTabsDrag(self: *Artboard) void {
 }
 
 /// Responsible for handling the cross-widget drag of tabs between multiple artboards or between tabs and artboards
-pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
+pub fn processCanvasDrag(self: *Workspace, data: *dvui.WidgetData) void {
     if (dvui.dragName("tab_drag")) {
         for (dvui.events()) |*e| {
             if (!dvui.eventMatch(e, .{ .id = data.id, .r = data.rectScale().r, .drag_name = "tab_drag" })) continue;
 
-            for (pixi.editor.artboards.values()) |*artboard| {
+            for (pixi.editor.workspaces.values()) |*artboard| {
                 if (artboard.drag_index) |drag_index| {
                     var right_side = data.rectScale().r;
                     right_side.w /= 2;
                     right_side.x += right_side.w;
 
-                    if (right_side.contains(e.evt.mouse.p) and pixi.editor.artboards.keys()[pixi.editor.artboards.keys().len - 1] == self.grouping) {
+                    if (right_side.contains(e.evt.mouse.p) and pixi.editor.workspaces.keys()[pixi.editor.workspaces.keys().len - 1] == self.grouping) {
                         if (e.evt == .mouse and e.evt.mouse.action == .position) {
                             right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
                                 .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
@@ -366,7 +365,7 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
                                 }
                             }
                             dragged_file.editor.grouping = pixi.editor.newGroupingID();
-                            pixi.editor.open_artboard_grouping = dragged_file.editor.grouping;
+                            pixi.editor.open_workspace_grouping = dragged_file.editor.grouping;
                         }
                     } else if (data.rectScale().r.contains(e.evt.mouse.p)) {
                         if (e.evt == .mouse and e.evt.mouse.action == .position) {
@@ -393,7 +392,7 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
                                 }
                             }
                             dragged_file.editor.grouping = self.grouping;
-                            pixi.editor.open_artboard_grouping = dragged_file.editor.grouping;
+                            pixi.editor.open_workspace_grouping = dragged_file.editor.grouping;
                             self.open_file_index = pixi.editor.open_files.getIndex(dragged_file.id) orelse 0;
                         }
                     }
@@ -403,12 +402,10 @@ pub fn processCanvasDrag(self: *Artboard, data: *dvui.WidgetData) void {
     }
 }
 
-pub fn drawCanvas(self: *Artboard) !void {
+pub fn drawCanvas(self: *Workspace) !void {
     var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
     defer {
         dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
-        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{ .opacity = 0.15 });
-        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .bottom, .{ .opacity = 0.15 });
         canvas_vbox.deinit();
     }
     defer self.processCanvasDrag(canvas_vbox.data());
@@ -439,7 +436,7 @@ pub fn drawCanvas(self: *Artboard) !void {
     }
 }
 
-pub fn drawTransformDialog(self: *Artboard, canvas_vbox: *dvui.BoxWidget) void {
+pub fn drawTransformDialog(self: *Workspace, canvas_vbox: *dvui.BoxWidget) void {
     const file = &pixi.editor.open_files.values()[self.open_file_index];
     if (file.editor.transform) |*transform| {
         var rect = canvas_vbox.data().rect;
@@ -523,7 +520,7 @@ pub fn drawTransformDialog(self: *Artboard, canvas_vbox: *dvui.BoxWidget) void {
     }
 }
 
-pub fn drawLogo(_: *Artboard, canvas_vbox: *dvui.BoxWidget) !void {
+pub fn drawLogo(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
     if (true) {
         const logo_pixel_size = 32;
         const logo_width = 3;
@@ -638,7 +635,7 @@ pub fn drawLogo(_: *Artboard, canvas_vbox: *dvui.BoxWidget) !void {
                     .filters = &.{ "*.pixi", "*.png" },
                 })) |files| {
                     for (files) |file| {
-                        _ = pixi.editor.openFilePath(file, pixi.editor.open_artboard_grouping) catch {
+                        _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {
                             std.log.err("Failed to open file: {s}", .{file});
                         };
                     }

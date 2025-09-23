@@ -58,7 +58,7 @@ pub fn draw() !dvui.App.Result {
                 .filters = &.{ "*.pixi", "*.png" },
             })) |files| {
                 for (files) |file| {
-                    _ = pixi.editor.openFilePath(file, pixi.editor.open_artboard_grouping) catch {
+                    _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {
                         std.log.err("Failed to open file: {s}", .{file});
                     };
                 }

@@ -17,7 +17,7 @@ pub const Transform = @import("Transform.zig");
 pub const Keybinds = @import("Keybinds.zig");
 
 // Modules
-pub const Artboard = @import("Artboard.zig");
+pub const Workspace = @import("Workspace.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
 pub const Sidebar = @import("Sidebar.zig");
 pub const Infobar = @import("Infobar.zig");
@@ -37,7 +37,7 @@ explorer: *Explorer,
 last_titlebar_color: dvui.Color,
 
 /// Artboards stored by their grouping ID
-artboards: std.AutoArrayHashMap(u64, Artboard) = undefined,
+workspaces: std.AutoArrayHashMap(u64, Workspace) = undefined,
 sidebar: Sidebar,
 infobar: Infobar,
 
@@ -49,7 +49,7 @@ open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 
 // The actively focused artboard grouping ID
 // This will contain tabs for all open files with a matching grouping ID
-open_artboard_grouping: u64 = 0,
+open_workspace_grouping: u64 = 0,
 
 tools: Tools,
 colors: Colors = .{},
@@ -84,9 +84,9 @@ pub fn init(
 
     editor.explorer.* = .init();
     editor.open_files = .init(pixi.app.allocator);
-    editor.artboards = .init(pixi.app.allocator);
-    editor.artboards.put(0, .init(0)) catch |err| {
-        std.log.err("Failed to create artboard: {s}", .{@errorName(err)});
+    editor.workspaces = .init(pixi.app.allocator);
+    editor.workspaces.put(0, .init(0)) catch |err| {
+        std.log.err("Failed to create workspace: {s}", .{@errorName(err)});
         return err;
     };
 
@@ -99,7 +99,7 @@ pub fn init(
 }
 
 pub fn currentGroupingID(editor: *Editor) u64 {
-    return editor.open_artboard_grouping;
+    return editor.open_workspace_grouping;
 }
 
 pub fn newGroupingID(editor: *Editor) u64 {
@@ -121,8 +121,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         App.setTitlebarColor(dvui.currentWindow(), editor.last_titlebar_color);
     }
 
-    editor.rebuildArtboards() catch {
-        dvui.log.err("Failed to rebuild artboards", .{});
+    editor.rebuildWorkspaces() catch {
+        dvui.log.err("Failed to rebuild workspaces", .{});
     };
 
     // TODO: Does this need to be here for touchscreen zooming? Or does that belong in canvas?
@@ -153,7 +153,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             return false;
         };
 
-        var explorer_artboard_box = dvui.box(
+        var explorer_paned_box = dvui.box(
             @src(),
             .{ .dir = .vertical },
             .{
@@ -161,14 +161,16 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 .background = false,
             },
         );
-        defer explorer_artboard_box.deinit();
+        defer explorer_paned_box.deinit();
 
+        // Draw the infobar, but draw it at the bottom of the paned box (gravity_y = 1.0)
         {
             editor.infobar.draw() catch {
                 dvui.log.err("Failed to draw infobar", .{});
             };
         }
 
+        // Draw the explorer paned widget, which will recursively draw the artboards in the second pane
         editor.explorer.paned = pixi.dvui.editorPaned(@src(), .{
             .direction = .horizontal,
             .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
@@ -401,19 +403,19 @@ pub fn drawRadialMenu(editor: *Editor) !void {
     }
 }
 
-pub fn rebuildArtboards(editor: *Editor) !void {
+pub fn rebuildWorkspaces(editor: *Editor) !void {
 
     // Create artboards for each grouping ID
     for (editor.open_files.values()) |*file| {
-        if (!editor.artboards.contains(file.editor.grouping)) {
-            var artboard: pixi.Editor.Artboard = .init(file.editor.grouping);
+        if (!editor.workspaces.contains(file.editor.grouping)) {
+            var artboard: pixi.Editor.Workspace = .init(file.editor.grouping);
             for (editor.open_files.values()) |*f| {
                 if (f.editor.grouping == file.editor.grouping) {
                     artboard.open_file_index = editor.open_files.getIndex(f.id) orelse 0;
                 }
             }
 
-            editor.artboards.put(file.editor.grouping, artboard) catch |err| {
+            editor.workspaces.put(file.editor.grouping, artboard) catch |err| {
                 std.log.err("Failed to create artboard: {s}", .{@errorName(err)});
                 return err;
             };
@@ -421,8 +423,8 @@ pub fn rebuildArtboards(editor: *Editor) !void {
     }
 
     // Remove artboards that are no longer needed
-    for (editor.artboards.values()) |*artboard| {
-        if (editor.artboards.count() == 1) {
+    for (editor.workspaces.values()) |*artboard| {
+        if (editor.workspaces.count() == 1) {
             break;
         }
 
@@ -435,18 +437,18 @@ pub fn rebuildArtboards(editor: *Editor) !void {
         }
 
         if (!contains) {
-            if (editor.open_artboard_grouping == artboard.grouping) {
-                const new_index: usize = if (editor.artboards.getIndex(artboard.grouping)) |index| if (index > 0) index - 1 else 0 else 0;
-                editor.open_artboard_grouping = new_index;
+            if (editor.open_workspace_grouping == artboard.grouping) {
+                const new_index: usize = if (editor.workspaces.getIndex(artboard.grouping)) |index| if (index > 0) index - 1 else 0 else 0;
+                editor.open_workspace_grouping = new_index;
             }
 
-            _ = editor.artboards.orderedRemove(artboard.grouping);
+            _ = editor.workspaces.orderedRemove(artboard.grouping);
             break;
         }
     }
 
     // Ensure the selected file for each artboard is still valid
-    for (editor.artboards.values()) |*artboard| {
+    for (editor.workspaces.values()) |*artboard| {
         if (editor.getFile(artboard.open_file_index)) |file| {
             if (file.editor.grouping == artboard.grouping) {
                 continue;
@@ -468,12 +470,12 @@ pub fn rebuildArtboards(editor: *Editor) !void {
 }
 
 pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
-    if (index >= editor.artboards.count()) return .ok;
+    if (index >= editor.workspaces.count()) return .ok;
 
-    if (index <= editor.artboards.count() - 1) {
+    if (index <= editor.workspaces.count() - 1) {
         var s = pixi.dvui.editorPaned(@src(), .{
             .direction = .horizontal,
-            .collapsed_size = if (index == editor.artboards.count() - 1) std.math.floatMax(f32) else 0,
+            .collapsed_size = if (index == editor.workspaces.count() - 1) std.math.floatMax(f32) else 0,
             .handle_size = handle_size,
             .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
         }, .{
@@ -481,7 +483,7 @@ pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
         });
         defer s.deinit();
 
-        if (index == editor.artboards.count() - 1) {
+        if (index == editor.workspaces.count() - 1) {
             s.split_ratio.* = 1.0;
         } else {
             if (dvui.firstFrame(s.wd.id)) {
@@ -491,7 +493,7 @@ pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
         }
 
         if (s.showFirst()) {
-            const result = try editor.artboards.values()[index].draw();
+            const result = try editor.workspaces.values()[index].draw();
             if (result != .ok) {
                 return result;
             }
@@ -504,7 +506,7 @@ pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
             }
         }
     } else {
-        const result = try editor.artboards.values()[index].draw();
+        const result = try editor.workspaces.values()[index].draw();
         if (result != .ok) {
             return result;
         }
@@ -571,7 +573,7 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
 
         // At this point, if the artboard grouping doesn't exist, it will next frame
         // once the artboards are rebuilt. Since we cant wait on that, go ahead and set it now
-        editor.open_artboard_grouping = grouping;
+        editor.open_workspace_grouping = grouping;
 
         // If the artboard grouping does exist, go ahead and set the active file
         editor.setActiveFile(editor.open_files.count() - 1);
@@ -585,15 +587,15 @@ pub fn setActiveFile(editor: *Editor, index: usize) void {
     const file = editor.open_files.values()[index];
     const grouping = file.editor.grouping;
 
-    if (editor.artboards.getPtr(grouping)) |artboard| {
-        editor.open_artboard_grouping = grouping;
+    if (editor.workspaces.getPtr(grouping)) |artboard| {
+        editor.open_workspace_grouping = grouping;
         artboard.open_file_index = index;
     }
 }
 
 /// Returns the actively focused file, through artboard grouping.
 pub fn activeFile(editor: *Editor) ?*pixi.Internal.File {
-    if (editor.artboards.get(editor.open_artboard_grouping)) |artboard| {
+    if (editor.workspaces.get(editor.open_workspace_grouping)) |artboard| {
         return editor.getFile(artboard.open_file_index);
     }
 
@@ -904,7 +906,7 @@ pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     //editor.open_file_index = 0;
     var file = editor.open_files.values()[index];
 
-    if (editor.artboards.getPtr(file.editor.grouping)) |artboard| {
+    if (editor.workspaces.getPtr(file.editor.grouping)) |artboard| {
         if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
             for (pixi.editor.open_files.values(), 0..) |f, i| {
                 if (f.grouping == artboard.grouping and f.id != file.id) {
@@ -927,7 +929,7 @@ pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
     if (editor.open_files.getPtr(id)) |file| {
 
         //editor.open_file_index = 0;
-        if (editor.artboards.getPtr(file.editor.grouping)) |artboard| {
+        if (editor.workspaces.getPtr(file.editor.grouping)) |artboard| {
             if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
                 for (pixi.editor.open_files.values(), 0..) |f, i| {
                     if (f.editor.grouping == artboard.grouping and f.id != file.id) {
