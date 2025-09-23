@@ -52,7 +52,7 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0, .id_extra = self.grouping });
     defer vbox.deinit();
 
-    // Set the active artboard grouping when the user clicks on the artboard rect
+    // Set the active workspace grouping when the user clicks on the workspace rect
     for (dvui.events()) |*e| {
         if (!vbox.matchEvent(e)) {
             continue;
@@ -96,7 +96,7 @@ fn drawProject(self: *Workspace) void {
 fn drawTabs(self: *Workspace) void {
     if (pixi.editor.open_files.values().len == 0) return;
 
-    // Handle dragging of tabs between artboard reorderables (tab bars)
+    // Handle dragging of tabs between workspace reorderables (tab bars)
     defer self.processTabsDrag();
 
     var tabs_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -273,7 +273,7 @@ fn drawTabs(self: *Workspace) void {
 
 pub fn processTabsDrag(self: *Workspace) void {
     if (self.insert_before_index) |insert_before| {
-        if (self.removed_index) |removed| { // Dragging from this artboard
+        if (self.removed_index) |removed| { // Dragging from this workspace
 
             if (removed > pixi.editor.open_files.count()) return;
             if (removed > insert_before) {
@@ -294,9 +294,9 @@ pub fn processTabsDrag(self: *Workspace) void {
 
             self.removed_index = null;
             self.insert_before_index = null;
-        } else { // Dragging from another artboard
-            for (pixi.editor.workspaces.values()) |*artboard| {
-                if (artboard.removed_index) |removed| {
+        } else { // Dragging from another workspace
+            for (pixi.editor.workspaces.values()) |*workspace| {
+                if (workspace.removed_index) |removed| {
                     if (removed > insert_before) {
                         std.mem.swap(pixi.Internal.File, &pixi.editor.open_files.values()[removed], &pixi.editor.open_files.values()[insert_before]);
                         std.mem.swap(u64, &pixi.editor.open_files.keys()[removed], &pixi.editor.open_files.keys()[insert_before]);
@@ -320,22 +320,22 @@ pub fn processTabsDrag(self: *Workspace) void {
                     self.removed_index = null;
                     self.insert_before_index = null;
 
-                    artboard.removed_index = null;
-                    artboard.insert_before_index = null;
+                    workspace.removed_index = null;
+                    workspace.insert_before_index = null;
                 }
             }
         }
     }
 }
 
-/// Responsible for handling the cross-widget drag of tabs between multiple artboards or between tabs and artboards
+/// Responsible for handling the cross-widget drag of tabs between multiple workspaces or between tabs and workspaces
 pub fn processCanvasDrag(self: *Workspace, data: *dvui.WidgetData) void {
     if (dvui.dragName("tab_drag")) {
         for (dvui.events()) |*e| {
             if (!dvui.eventMatch(e, .{ .id = data.id, .r = data.rectScale().r, .drag_name = "tab_drag" })) continue;
 
-            for (pixi.editor.workspaces.values()) |*artboard| {
-                if (artboard.drag_index) |drag_index| {
+            for (pixi.editor.workspaces.values()) |*workspace| {
+                if (workspace.drag_index) |drag_index| {
                     var right_side = data.rectScale().r;
                     right_side.w /= 2;
                     right_side.x += right_side.w;
@@ -348,18 +348,18 @@ pub fn processCanvasDrag(self: *Workspace, data: *dvui.WidgetData) void {
                         }
 
                         if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
-                            defer artboard.drag_index = null;
-                            // We dropped on the right side of the artboard, so we need to create a new artboard
+                            defer workspace.drag_index = null;
+                            // We dropped on the right side of the workspace, so we need to create a new workspace
                             e.handle(@src(), data);
                             dvui.dragEnd();
                             dvui.refresh(null, @src(), data.id);
 
                             var dragged_file = &pixi.editor.open_files.values()[drag_index];
 
-                            if (artboard.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
+                            if (workspace.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
                                 for (pixi.editor.open_files.values()) |f| {
-                                    if (f.editor.grouping == artboard.grouping and f.id != dragged_file.id) {
-                                        artboard.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
+                                    if (f.editor.grouping == workspace.grouping and f.id != dragged_file.id) {
+                                        workspace.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
                                         break;
                                     }
                                 }
@@ -375,18 +375,18 @@ pub fn processCanvasDrag(self: *Workspace, data: *dvui.WidgetData) void {
                         }
 
                         if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
-                            defer artboard.drag_index = null;
-                            // We dropped on the full artboard, so we need to move the file to this artboard
+                            defer workspace.drag_index = null;
+                            // We dropped on the full workspace, so we need to move the file to this workspace
                             e.handle(@src(), data);
                             dvui.dragEnd();
                             dvui.refresh(null, @src(), data.id);
 
                             var dragged_file = &pixi.editor.open_files.values()[drag_index];
 
-                            if (artboard.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
+                            if (workspace.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
                                 for (pixi.editor.open_files.values()) |f| {
-                                    if (f.editor.grouping == artboard.grouping and f.id != dragged_file.id) {
-                                        artboard.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
+                                    if (f.editor.grouping == workspace.grouping and f.id != dragged_file.id) {
+                                        workspace.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
                                         break;
                                     }
                                 }

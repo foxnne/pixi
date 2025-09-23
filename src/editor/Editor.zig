@@ -36,7 +36,7 @@ explorer: *Explorer,
 
 last_titlebar_color: dvui.Color,
 
-/// Artboards stored by their grouping ID
+/// Workspaces stored by their grouping ID
 workspaces: std.AutoArrayHashMap(u64, Workspace) = undefined,
 sidebar: Sidebar,
 infobar: Infobar,
@@ -47,7 +47,7 @@ project: ?Project = null,
 
 open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 
-// The actively focused artboard grouping ID
+// The actively focused workspace grouping ID
 // This will contain tabs for all open files with a matching grouping ID
 open_workspace_grouping: u64 = 0,
 
@@ -170,7 +170,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             };
         }
 
-        // Draw the explorer paned widget, which will recursively draw the artboards in the second pane
+        // Draw the explorer paned widget, which will recursively draw the workspaces in the second pane
         editor.explorer.paned = pixi.dvui.editorPaned(@src(), .{
             .direction = .horizontal,
             .collapsed_size = pixi.editor.settings.min_window_size[0] + 1,
@@ -210,8 +210,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
 
         if (editor.explorer.paned.showSecond()) {
-            const artboard_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = false });
-            defer artboard_vbox.deinit();
+            const workspace_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = false });
+            defer workspace_vbox.deinit();
 
             {
                 const result = try Menu.draw();
@@ -242,7 +242,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             }
 
             if (canvas_flipbook.showFirst()) {
-                const result = try editor.drawArtboards(0);
+                const result = try editor.drawWorkspaces(0);
                 if (result != .ok) {
                     return result;
                 }
@@ -405,52 +405,52 @@ pub fn drawRadialMenu(editor: *Editor) !void {
 
 pub fn rebuildWorkspaces(editor: *Editor) !void {
 
-    // Create artboards for each grouping ID
+    // Create workspaces for each grouping ID
     for (editor.open_files.values()) |*file| {
         if (!editor.workspaces.contains(file.editor.grouping)) {
-            var artboard: pixi.Editor.Workspace = .init(file.editor.grouping);
+            var workspace: pixi.Editor.Workspace = .init(file.editor.grouping);
             for (editor.open_files.values()) |*f| {
                 if (f.editor.grouping == file.editor.grouping) {
-                    artboard.open_file_index = editor.open_files.getIndex(f.id) orelse 0;
+                    workspace.open_file_index = editor.open_files.getIndex(f.id) orelse 0;
                 }
             }
 
-            editor.workspaces.put(file.editor.grouping, artboard) catch |err| {
-                std.log.err("Failed to create artboard: {s}", .{@errorName(err)});
+            editor.workspaces.put(file.editor.grouping, workspace) catch |err| {
+                std.log.err("Failed to create workspace: {s}", .{@errorName(err)});
                 return err;
             };
         }
     }
 
-    // Remove artboards that are no longer needed
-    for (editor.workspaces.values()) |*artboard| {
+    // Remove workspaces that are no longer needed
+    for (editor.workspaces.values()) |*workspace| {
         if (editor.workspaces.count() == 1) {
             break;
         }
 
         var contains: bool = false;
         for (editor.open_files.values()) |*file| {
-            if (file.editor.grouping == artboard.grouping) {
+            if (file.editor.grouping == workspace.grouping) {
                 contains = true;
                 break;
             }
         }
 
         if (!contains) {
-            if (editor.open_workspace_grouping == artboard.grouping) {
-                const new_index: usize = if (editor.workspaces.getIndex(artboard.grouping)) |index| if (index > 0) index - 1 else 0 else 0;
+            if (editor.open_workspace_grouping == workspace.grouping) {
+                const new_index: usize = if (editor.workspaces.getIndex(workspace.grouping)) |index| if (index > 0) index - 1 else 0 else 0;
                 editor.open_workspace_grouping = new_index;
             }
 
-            _ = editor.workspaces.orderedRemove(artboard.grouping);
+            _ = editor.workspaces.orderedRemove(workspace.grouping);
             break;
         }
     }
 
-    // Ensure the selected file for each artboard is still valid
-    for (editor.workspaces.values()) |*artboard| {
-        if (editor.getFile(artboard.open_file_index)) |file| {
-            if (file.editor.grouping == artboard.grouping) {
+    // Ensure the selected file for each workspace is still valid
+    for (editor.workspaces.values()) |*workspace| {
+        if (editor.getFile(workspace.open_file_index)) |file| {
+            if (file.editor.grouping == workspace.grouping) {
                 continue;
             }
         }
@@ -460,8 +460,8 @@ pub fn rebuildWorkspaces(editor: *Editor) !void {
             i -= 1;
 
             if (editor.getFile(i)) |file| {
-                if (file.editor.grouping == artboard.grouping) {
-                    artboard.open_file_index = i;
+                if (file.editor.grouping == workspace.grouping) {
+                    workspace.open_file_index = i;
                     break;
                 }
             }
@@ -469,7 +469,7 @@ pub fn rebuildWorkspaces(editor: *Editor) !void {
     }
 }
 
-pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
+pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     if (index >= editor.workspaces.count()) return .ok;
 
     if (index <= editor.workspaces.count() - 1) {
@@ -500,7 +500,7 @@ pub fn drawArtboards(editor: *Editor, index: usize) !dvui.App.Result {
         }
 
         if (s.showSecond()) {
-            const result = try drawArtboards(editor, index + 1);
+            const result = try drawWorkspaces(editor, index + 1);
             if (result != .ok) {
                 return result;
             }
@@ -571,11 +571,11 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
             f.editor.grouping = grouping;
         }
 
-        // At this point, if the artboard grouping doesn't exist, it will next frame
-        // once the artboards are rebuilt. Since we cant wait on that, go ahead and set it now
+        // At this point, if the workspace grouping doesn't exist, it will next frame
+        // once the workspaces are rebuilt. Since we cant wait on that, go ahead and set it now
         editor.open_workspace_grouping = grouping;
 
-        // If the artboard grouping does exist, go ahead and set the active file
+        // If the workspace grouping does exist, go ahead and set the active file
         editor.setActiveFile(editor.open_files.count() - 1);
         return true;
     }
@@ -587,16 +587,16 @@ pub fn setActiveFile(editor: *Editor, index: usize) void {
     const file = editor.open_files.values()[index];
     const grouping = file.editor.grouping;
 
-    if (editor.workspaces.getPtr(grouping)) |artboard| {
+    if (editor.workspaces.getPtr(grouping)) |workspace| {
         editor.open_workspace_grouping = grouping;
-        artboard.open_file_index = index;
+        workspace.open_file_index = index;
     }
 }
 
-/// Returns the actively focused file, through artboard grouping.
+/// Returns the actively focused file, through workspace grouping.
 pub fn activeFile(editor: *Editor) ?*pixi.Internal.File {
-    if (editor.workspaces.get(editor.open_workspace_grouping)) |artboard| {
-        return editor.getFile(artboard.open_file_index);
+    if (editor.workspaces.get(editor.open_workspace_grouping)) |workspace| {
+        return editor.getFile(workspace.open_file_index);
     }
 
     return null;
@@ -906,11 +906,11 @@ pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     //editor.open_file_index = 0;
     var file = editor.open_files.values()[index];
 
-    if (editor.workspaces.getPtr(file.editor.grouping)) |artboard| {
-        if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
+    if (editor.workspaces.getPtr(file.editor.grouping)) |workspace| {
+        if (workspace.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
             for (pixi.editor.open_files.values(), 0..) |f, i| {
-                if (f.grouping == artboard.grouping and f.id != file.id) {
-                    artboard.open_file_index = i;
+                if (f.grouping == workspace.grouping and f.id != file.id) {
+                    workspace.open_file_index = i;
                     break;
                 }
             }
@@ -920,8 +920,8 @@ pub fn rawCloseFile(editor: *Editor, index: usize) !void {
     file.deinit();
     editor.open_files.orderedRemoveAt(index);
 
-    // editor.rebuildArtboards() catch {
-    //     dvui.log.err("Failed to rebuild artboards", .{});
+    // editor.rebuildWorkspaces() catch {
+    //     dvui.log.err("Failed to rebuild workspaces", .{});
     // };
 }
 
@@ -929,11 +929,11 @@ pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
     if (editor.open_files.getPtr(id)) |file| {
 
         //editor.open_file_index = 0;
-        if (editor.workspaces.getPtr(file.editor.grouping)) |artboard| {
-            if (artboard.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
+        if (editor.workspaces.getPtr(file.editor.grouping)) |workspace| {
+            if (workspace.open_file_index == pixi.editor.open_files.getIndex(file.id)) {
                 for (pixi.editor.open_files.values(), 0..) |f, i| {
-                    if (f.editor.grouping == artboard.grouping and f.id != file.id) {
-                        artboard.open_file_index = i;
+                    if (f.editor.grouping == workspace.grouping and f.id != file.id) {
+                        workspace.open_file_index = i;
                         break;
                     }
                 }
@@ -942,8 +942,8 @@ pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
         file.deinit();
         _ = editor.open_files.orderedRemove(id);
 
-        // editor.rebuildArtboards() catch {
-        //     dvui.log.err("Failed to rebuild artboards", .{});
+        // editor.rebuildWorkspaces() catch {
+        //     dvui.log.err("Failed to rebuild workspaces", .{});
         // };
     }
 }

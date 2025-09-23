@@ -331,10 +331,15 @@ pub fn menuItemWithChevron(src: std.builtin.SourceLocation, label_str: []const u
 
     dvui.labelNoFmt(@src(), label_str, .{}, label_opts);
 
-    dvui.icon(@src(), "chevron_right", dvui.entypo.chevron_small_right, .{}, .{
+    dvui.icon(@src(), "chevron_right", dvui.entypo.chevron_small_right, .{
+        .stroke_color = dvui.themeGet().color(.control, .text).opacity(0.5),
+        .fill_color = dvui.themeGet().color(.control, .text).opacity(0.5),
+    }, .{
         .expand = .none,
         .gravity_x = 1.0,
         .gravity_y = 0.5,
+        .margin = dvui.Rect.all(0),
+        .padding = dvui.Rect.all(0),
     });
 
     mi.deinit();
