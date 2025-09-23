@@ -2048,27 +2048,25 @@ pub fn processEvents(self: *FileWidget) void {
         // If we are processing, we need to always ensure the temporary layer is cleared
         @memset(self.init_options.file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
         self.init_options.file.editor.temporary_layer.clearMask();
-        // Ensure that the active layer mask is always up to date
-        self.updateActiveLayerMask();
+
+        if (self.active()) {
+            // Ensure that the active layer mask is always up to date
+            self.updateActiveLayerMask();
+        }
 
         // Animate/Flip the checkerboard if we are in selection mode
         if (pixi.editor.tools.current == .selection) {
-            const millis_per_frame = 250;
             if (dvui.timerDoneOrNone(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                 self.init_options.file.editor.checkerboard.toggleAll();
 
-                const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
-                const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));
-                const wait = 1000 * (millis_per_frame - left);
-                dvui.timer(self.init_options.file.editor.canvas.scroll_container.data().id, wait);
+                dvui.timer(self.init_options.file.editor.canvas.scroll_container.data().id, 500_000);
             }
         }
 
-        if (self.hovered() != null) {
-            self.processFill();
-            self.processStroke();
-            self.processSample();
-        }
+        self.processFill();
+        self.processStroke();
+        self.processSample();
+
         self.processSpriteSelection();
         self.processSelection();
         self.processTransform();
@@ -2082,7 +2080,6 @@ pub fn processEvents(self: *FileWidget) void {
     // Draw shadows for the scroll container
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .top, .{ .opacity = 0.15 });
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .bottom, .{});
-    //if (pixi.editor.explorer.scroll_info.virtual_size.w > pixi.editor.explorer.scroll_info.viewport.w)
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .left, .{ .opacity = 0.15 });
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .right, .{});
 

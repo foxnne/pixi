@@ -685,6 +685,8 @@ pub fn drawLogo(_: *Artboard, canvas_vbox: *dvui.BoxWidget) !void {
                     .id_extra = i,
                     .margin = dvui.Rect.all(1),
                     .padding = dvui.Rect.all(2),
+                    .color_fill = dvui.themeGet().color(.window, .fill),
+                    .color_text = dvui.themeGet().color(.control, .text).opacity(0.5),
                 })) {
                     try pixi.editor.setProjectFolder(folder);
                 }

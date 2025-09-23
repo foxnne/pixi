@@ -3,12 +3,12 @@ const pixi = @import("../pixi.zig");
 
 const Recents = @This();
 
-folders: std.array_list.Managed([:0]const u8),
-exports: std.array_list.Managed([:0]const u8),
+folders: std.array_list.Managed([]const u8),
+exports: std.array_list.Managed([]const u8),
 
 pub fn load(allocator: std.mem.Allocator) !Recents {
-    var folders = std.array_list.Managed([:0]const u8).init(allocator);
-    var exports = std.array_list.Managed([:0]const u8).init(allocator);
+    var folders = std.array_list.Managed([]const u8).init(allocator);
+    var exports = std.array_list.Managed([]const u8).init(allocator);
 
     if (pixi.fs.read(allocator, "recents.json") catch null) |read| {
         defer allocator.free(read);
@@ -18,16 +18,16 @@ pub fn load(allocator: std.mem.Allocator) !Recents {
             defer parsed.deinit();
 
             for (parsed.value.folders) |folder| {
-                const dir_opt = std.fs.openDirAbsoluteZ(folder, .{}) catch null;
+                const dir_opt = std.fs.openDirAbsolute(folder, .{}) catch null;
                 if (dir_opt != null)
-                    try folders.append(try allocator.dupeZ(u8, folder));
+                    try folders.append(try allocator.dupe(u8, folder));
             }
 
             for (parsed.value.exports) |exp| {
                 if (std.fs.path.dirname(exp)) |path| {
                     const dir_opt = std.fs.openDirAbsolute(path, .{}) catch null;
                     if (dir_opt != null)
-                        try exports.append(try allocator.dupeZ(u8, exp));
+                        try exports.append(try allocator.dupe(u8, exp));
                 }
             }
         }
@@ -59,11 +59,11 @@ pub fn indexOfExport(recents: *Recents, path: [:0]const u8) ?usize {
 pub fn appendFolder(recents: *Recents, path: [:0]const u8) !void {
     if (recents.indexOfFolder(path)) |index| {
         pixi.app.allocator.free(path);
-        const folder = recents.folders.swapRemove(index);
+        const folder = recents.folders.orderedRemove(index);
         try recents.folders.append(folder);
     } else {
         if (recents.folders.items.len >= pixi.editor.settings.max_recents) {
-            const folder = recents.folders.swapRemove(0);
+            const folder = recents.folders.orderedRemove(0);
             pixi.app.allocator.free(folder);
         }
 
@@ -113,6 +113,6 @@ pub fn deinit(recents: *Recents) void {
 }
 
 const RecentsJson = struct {
-    folders: [][:0]const u8,
-    exports: [][:0]const u8,
+    folders: [][]const u8,
+    exports: [][]const u8,
 };
