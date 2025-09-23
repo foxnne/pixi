@@ -68,6 +68,50 @@ pub fn draw() !dvui.App.Result {
 
         _ = dvui.separator(@src(), .{ .expand = .horizontal });
 
+        if (menuItemWithChevron(
+            @src(),
+            "Recent Folders",
+            .{ .submenu = true },
+            .{
+                .expand = .horizontal,
+                .color_text = dvui.themeGet().color(.window, .text),
+                //.style = .control,
+            },
+        )) |recents_item| {
+            var recents_anim = dvui.animate(@src(), .{
+                .kind = .alpha,
+                .duration = 250_000,
+            }, .{
+                .expand = .both,
+            });
+            defer recents_anim.deinit();
+
+            var recents_fw = dvui.floatingMenu(@src(), .{ .from = recents_item }, .{});
+            defer recents_fw.deinit();
+
+            var vert_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+                .expand = .none,
+            });
+            defer vert_box.deinit();
+
+            var i: usize = pixi.editor.recents.folders.items.len;
+            while (i > 0) : (i -= 1) {
+                const folder = pixi.editor.recents.folders.items[i - 1];
+                if (menuItem(@src(), folder, .{}, .{
+                    .expand = .horizontal,
+                    .font_style = .heading,
+                    .id_extra = i,
+                    .margin = dvui.Rect.all(1),
+                    .padding = dvui.Rect.all(2),
+                    .color_fill = dvui.themeGet().color(.window, .fill),
+                })) |_| {
+                    try pixi.editor.setProjectFolder(folder);
+                }
+            }
+        }
+
+        _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
         if (menuItemWithHotkey(@src(), "Save", dvui.currentWindow().keybinds.get("save") orelse .{}, if (pixi.editor.activeFile()) |file| if (file.dirty()) true else false else false, .{}, .{
             .expand = .horizontal,
             .color_text = dvui.themeGet().color(.window, .text),
@@ -263,6 +307,35 @@ pub fn menuItem(src: std.builtin.SourceLocation, label_str: []const u8, init_opt
     }
 
     dvui.labelNoFmt(@src(), label_str, .{}, label_opts);
+
+    mi.deinit();
+
+    return ret;
+}
+
+pub fn menuItemWithChevron(src: std.builtin.SourceLocation, label_str: []const u8, init_opts: dvui.MenuItemWidget.InitOptions, opts: dvui.Options) ?dvui.Rect.Natural {
+    var mi = dvui.menuItem(src, init_opts, opts);
+
+    var ret: ?dvui.Rect.Natural = null;
+    if (mi.activeRect()) |r| {
+        ret = r;
+    }
+
+    var label_opts = opts;
+    label_opts.margin = dvui.Rect.all(0);
+    label_opts.padding = dvui.Rect.all(0);
+
+    if (pixi.dvui.hovered(mi.data())) {
+        label_opts.color_text = dvui.themeGet().color(.window, .text);
+    }
+
+    dvui.labelNoFmt(@src(), label_str, .{}, label_opts);
+
+    dvui.icon(@src(), "chevron_right", dvui.entypo.chevron_small_right, .{}, .{
+        .expand = .none,
+        .gravity_x = 1.0,
+        .gravity_y = 0.5,
+    });
 
     mi.deinit();
 
