@@ -313,8 +313,8 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                                 const span_rect = dvui.Rect{
                                     .x = min_x,
                                     .y = min_y,
-                                    .w = max_x - min_x,
-                                    .h = max_y - min_y,
+                                    .w = @max(max_x - min_x, 1),
+                                    .h = @max(max_y - min_y, 1),
                                 };
 
                                 const screen_selection_rect = self.init_options.canvas.screenFromDataRect(span_rect);
