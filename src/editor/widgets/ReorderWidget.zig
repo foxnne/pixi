@@ -129,7 +129,7 @@ pub fn processEvents(self: *ReorderWidget) void {
 pub fn processEvent(self: *ReorderWidget, e: *dvui.Event) void {
     switch (e.evt) {
         .mouse => |me| {
-            if (me.action == .release and me.button.pointer()) {
+            if (me.action == .release and me.button.pointer() and self.drag_point != null) {
                 e.handle(@src(), self.data());
                 self.drag_ending = true;
                 dvui.captureMouse(null, e.num);
