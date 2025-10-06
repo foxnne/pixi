@@ -168,13 +168,13 @@ pub fn deinit(self: *ReorderWidget) void {
     self.* = undefined;
 }
 
-pub fn dragStart(self: *ReorderWidget, reorder_id: usize, p: dvui.Point.Physical, event_num: u16) void {
+pub fn dragStart(self: *ReorderWidget, reorder_id: usize, p: dvui.Point.Physical, event_num: u16, offset: dvui.Point.Physical) void {
     self.id_reorderable = reorder_id;
     self.drag_point = p;
     dvui.captureMouse(self.data(), event_num);
     if (self.init_opts.drag_name) |dn| {
         // have to call dragStart to set the drag name
-        dvui.dragStart(p, .{ .name = dn });
+        dvui.dragStart(p, .{ .name = dn, .offset = offset });
         dvui.captureMouse(null, 0);
     }
 }
@@ -199,9 +199,9 @@ pub fn draggable(src: std.builtin.SourceLocation, init_opts: draggableInitOption
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), iw.data());
                     dvui.captureMouse(iw.data(), e.num);
-                    const reo_top_left: ?dvui.Point.Physical = if (init_opts.reorderable) |reo| reo.data().rectScale().r.topLeft() else null;
-                    const top_left: ?dvui.Point.Physical = init_opts.top_left orelse reo_top_left;
-                    dvui.dragPreStart(me.p, .{ .offset = (top_left orelse iw.data().rectScale().r.topLeft()).diff(me.p) });
+                    //const reo_top_left: ?dvui.Point.Physical = if (init_opts.reorderable) |reo| reo.data().rectScale().r.topLeft() else null;
+                    //const top_left: ?dvui.Point.Physical = init_opts.top_left orelse reo_top_left;
+                    dvui.dragPreStart(me.p, .{ .offset = (iw.data().rectScale().r.topLeft()).diff(me.p) });
                 } else if (me.action == .release and me.button.pointer()) {
                     dvui.captureMouse(null, e.num);
                     dvui.dragEnd();
@@ -211,7 +211,7 @@ pub fn draggable(src: std.builtin.SourceLocation, init_opts: draggableInitOption
                         if (dvui.dragging(me.p, null)) |_| {
                             ret = me.p;
                             if (init_opts.reorderable) |reo| {
-                                reo.reorder.dragStart(reo.data().id.asUsize(), me.p, e.num); // reorder grabs capture
+                                reo.reorder.dragStart(reo.data().id.asUsize(), me.p, e.num, (iw.data().rectScale().r.topLeft()).diff(me.p)); // reorder grabs capture
                             }
                             break :loop;
                         }

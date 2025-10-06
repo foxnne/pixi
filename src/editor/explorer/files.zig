@@ -140,7 +140,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     if (branch.expander(@src(), .{ .indent = 24 }, .{
         .color_border = color,
         .color_fill = dvui.themeGet().color(.control, .fill),
-        .corner_radius = branch.button.wd.options.corner_radius,
+        .corner_radius = .all(8),
         // .box_shadow = .{
         //     .color = .black,
         //     .offset = .{ .x = -5, .y = 5 },
@@ -332,7 +332,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         if ((dvui.menuItemLabel(@src(), "Delete", .{}, .{
                             .expand = .horizontal,
-                            .color_accent = dvui.themeGet().color(.err, .fill),
+                            .style = .err,
                         })) != null) {
                             fw2.close();
                         }
@@ -487,7 +487,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             .background = true,
                             .border = .{ .x = 1, .w = 0 },
                             .expand = .horizontal,
-                            .corner_radius = branch.button.wd.options.corner_radius,
+                            .corner_radius = .all(8),
                             .box_shadow = .{
                                 .color = .black,
                                 .offset = .{ .x = -5, .y = 5 },

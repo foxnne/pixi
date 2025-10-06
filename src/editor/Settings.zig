@@ -16,6 +16,9 @@ pub const Compatibility = enum { none, ldtk };
 /// The ratio of the explorer to the artboard.
 explorer_ratio: f32 = 0.35,
 
+/// Height of the flipbook window.
+panel_ratio: f32 = 0.75,
+
 min_window_size: [2]f32 = .{ 640, 480 },
 
 initial_window_size: [2]f32 = .{ 1280, 720 },
@@ -24,73 +27,71 @@ initial_window_size: [2]f32 = .{ 1280, 720 },
 //explorer_grip: f32 = 18.0,
 
 /// Whether or not the artboard is split
-split_artboard: bool = false,
+//split_artboard: bool = false,
 
 /// The horizontal ratio of the artboard split
-split_artboard_ratio: f32 = 0.5,
+//split_artboard_ratio: f32 = 0.5,
 
 /// Alignment of explorer separator titles
 explorer_title_align: f32 = 0.0,
 
-/// Height of the flipbook window.
-flipbook_ratio: f32 = 0.75,
-
 /// Flipbook view, sequential or grid
-flipbook_view: FlipbookView = .sequential,
+//flipbook_view: FlipbookView = .sequential,
 
 /// Font size set when loading the editor.
-font_size: f32 = 13.0,
+//font_size: f32 = 13.0,
 
 /// Height of the infobar.
-info_bar_height: f32 = 24.0,
+//info_bar_height: f32 = 24.0,
 
 /// Which control scheme to use for zooming and panning.
 /// TODO: Remove builtin check and offer a setup menu if settings.json doesn't exist.
 input_scheme: InputScheme = if (builtin.os.tag == .macos) .trackpad else .mouse,
 
 /// Sensitivity when panning via scrolling with trackpad.
-pan_sensitivity: f32 = 15.0,
+//pan_sensitivity: f32 = 15.0,
 
 /// Whether or not to show rulers on the canvas.
 show_rulers: bool = true,
 
 /// Width of the sidebar.
-sidebar_width: f32 = 50,
+//sidebar_width: f32 = 50,
 
 /// Height of the sprite edit panel
-sprite_edit_height: f32 = 100,
+//sprite_edit_height: f32 = 100,
 
 /// Height of the animation edit panel
-animation_edit_height: f32 = 100,
+//animation_edit_height: f32 = 100,
 
 /// Time of editor animations in seconds
 /// If set to 0.0, animations are effectively disabled.
-editor_animation_time: f32 = 0.75,
+//editor_animation_time: f32 = 0.75,
 
 /// Time it takes for a hotkey to repeat if possible,
 /// example: sizing up or down the current tool size
-hotkey_repeat_time: f32 = 0.075,
+//hotkey_repeat_time: f32 = 0.075,
 
 /// Maximum zoom sensitivity applied at last zoom steps.
-zoom_max_sensitivity: f32 = 1.0,
+//zoom_max_sensitivity: f32 = 1.0,
 
 /// Minimum zoom sensitivity applied at first zoom steps.
-zoom_min_sensitivity: f32 = 0.1,
+//zoom_min_sensitivity: f32 = 0.1,
 
 /// Setting to control overall zoom sensitivity
-zoom_sensitivity: f32 = 100.0,
+/// 0 - 1
+zoom_sensitivity: f32 = 1.0,
 
 /// Predetermined zoom steps, each is pixel perfect.
-zoom_steps: [21]f32 = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 5, 6, 8, 12, 18, 28, 38, 50, 70, 90, 128 },
+zoom_steps: [23]f32 = [_]f32{ 0.125, 0.167, 0.2, 0.25, 0.333, 0.5, 1, 2, 3, 4, 5, 6, 8, 12, 18, 28, 38, 50, 70, 90, 128, 256, 512 },
 
 /// Amount of time it takes for the zoom correction.
-zoom_time: f32 = 0.2,
+//zoom_time: f32 = 0.2,
 
 /// Amount of time after zooming that the tooltip hangs around.
-zoom_tooltip_time: f32 = 0.6,
+//zoom_tooltip_time: f32 = 0.6,
 
 /// Amount of time before zoom is corrected, increase if fighting while zooming slowly.
-zoom_wait_time: f32 = 0.1,
+//zoom_wait_time: f32 = 0.1,
 
 /// Maximum file size
 max_file_size: [2]i32 = .{ 4096, 4096 },
@@ -99,19 +100,19 @@ max_file_size: [2]i32 = .{ 4096, 4096 },
 max_recents: usize = 10,
 
 /// Automatically switch layers when using eyedropper tool
-eyedropper_auto_switch_layer: bool = true,
+//eyedropper_auto_switch_layer: bool = true,
 
 /// Width and height of the eyedropper preview
-eyedropper_preview_size: f32 = 64.0,
+//eyedropper_preview_size: f32 = 64.0,
 
 /// Drop shadow opacity (shows between artboard and flipbook)
-shadow_opacity: f32 = 0.1,
+shadow_opacity: f32 = 0.15,
 
 /// Drop shadow length (shows between artboard and flipbook)
-shadow_length: f32 = 14.0,
+shadow_length: f32 = 12.0,
 
 /// Stroke max size
-stroke_max_size: i32 = 64,
+stroke_max_size: i32 = 256,
 
 /// Hue shift for suggested
 suggested_hue_shift: f32 = 0.25,
@@ -123,19 +124,19 @@ suggested_sat_shift: f32 = 0.65,
 suggested_lit_shift: f32 = 0.75,
 
 /// Opacity of the reference window background
-reference_window_opacity: f32 = 50.0,
+//reference_window_opacity: f32 = 50.0,
 
 /// Currently applied theme name
-theme: [:0]const u8,
+theme: []const u8,
 
 /// Temporary switch to allow ctrl on macos for zoom
-zoom_ctrl: bool = false,
+//zoom_ctrl: bool = false,
 
 /// Setting to generate a compatiblity layer between pixi and level editors
-compatibility: Compatibility = .none,
+//compatibility: Compatibility = .none,
 
 /// Radius of the color chips in palettes and suggested colors
-color_chip_radius: f32 = 12.0,
+//color_chip_radius: f32 = 12.0,
 
 /// Loads settings or if fails, returns default settings
 pub fn load(allocator: std.mem.Allocator) !Settings {
@@ -153,7 +154,7 @@ pub fn load(allocator: std.mem.Allocator) !Settings {
     }
 
     return .{
-        .theme = try allocator.dupeZ(u8, "pixi_dark.json"),
+        .theme = try allocator.dupe(u8, "pixi_dark.json"),
     };
 }
 

@@ -16,9 +16,9 @@ pub const Tools = @import("Tools.zig");
 pub const Transform = @import("Transform.zig");
 pub const Keybinds = @import("Keybinds.zig");
 
-// Modules
 pub const Workspace = @import("Workspace.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
+pub const Panel = @import("panel/Panel.zig");
 pub const Sidebar = @import("Sidebar.zig");
 pub const Infobar = @import("Infobar.zig");
 pub const Menu = @import("Menu.zig");
@@ -33,6 +33,7 @@ settings: Settings,
 recents: Recents,
 
 explorer: *Explorer,
+panel: *Panel,
 
 last_titlebar_color: dvui.Color,
 
@@ -69,6 +70,7 @@ pub fn init(
 ) !Editor {
     var editor: Editor = .{
         .explorer = try app.allocator.create(Explorer),
+        .panel = try app.allocator.create(Panel),
         .sidebar = try .init(),
         .infobar = try .init(),
         .settings = try .load(app.allocator),
@@ -83,6 +85,7 @@ pub fn init(
     };
 
     editor.explorer.* = .init();
+    editor.panel.* = .init();
     editor.open_files = .init(pixi.app.allocator);
     editor.workspaces = .init(pixi.app.allocator);
     editor.workspaces.put(0, .init(0)) catch |err| {
@@ -220,37 +223,42 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 }
             }
 
-            var canvas_flipbook = pixi.dvui.paned(@src(), .{
+            editor.panel.paned = pixi.dvui.paned(@src(), .{
                 .direction = .vertical,
                 .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
                 .handle_size = handle_size,
                 .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-                .uncollapse_ratio = pixi.editor.settings.flipbook_ratio,
+                .uncollapse_ratio = pixi.editor.settings.panel_ratio,
             }, .{
                 .expand = .both,
                 .background = false,
             });
-            defer canvas_flipbook.deinit();
+            defer editor.panel.paned.deinit();
 
-            if (dvui.firstFrame(canvas_flipbook.wd.id)) {
-                canvas_flipbook.collapsed_state = false;
-                canvas_flipbook.collapsing = false;
-                canvas_flipbook.split_ratio.* = 1.0;
-                canvas_flipbook.animateSplit(pixi.editor.settings.flipbook_ratio);
-            } else if (!canvas_flipbook.collapsing and !canvas_flipbook.collapsed_state) {
-                pixi.editor.settings.flipbook_ratio = canvas_flipbook.split_ratio.*;
+            if (dvui.firstFrame(editor.panel.paned.wd.id)) {
+                editor.panel.paned.collapsed_state = false;
+                editor.panel.paned.collapsing = false;
+                editor.panel.paned.split_ratio.* = 1.0;
+                editor.panel.paned.animateSplit(pixi.editor.settings.panel_ratio);
+            } else if (!editor.panel.paned.collapsing and !editor.panel.paned.collapsed_state) {
+                pixi.editor.settings.panel_ratio = editor.panel.paned.split_ratio.*;
             }
 
-            if (canvas_flipbook.showFirst()) {
+            if (editor.panel.paned.showFirst()) {
                 const result = try editor.drawWorkspaces(0);
                 if (result != .ok) {
                     return result;
                 }
             }
 
-            if (canvas_flipbook.showSecond()) {
+            if (editor.panel.paned.showSecond()) {
                 const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
                 defer vbox.deinit();
+
+                const result = try editor.panel.draw();
+                if (result != .ok) {
+                    return result;
+                }
 
                 pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .top, .{ .opacity = 0.15 });
                 pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .bottom, .{ .opacity = 0.15 });

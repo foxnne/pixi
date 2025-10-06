@@ -103,7 +103,6 @@ pub fn draw() !dvui.App.Result {
                     .id_extra = i,
                     .margin = dvui.Rect.all(1),
                     .padding = dvui.Rect.all(2),
-                    .color_fill = dvui.themeGet().color(.window, .fill),
                 })) |_| {
                     try pixi.editor.setProjectFolder(folder);
                 }
@@ -252,7 +251,6 @@ pub fn draw() !dvui.App.Result {
             .{},
             .{
                 .expand = .horizontal,
-                .color_accent = dvui.themeGet().color(.window, .fill),
             },
         ) != null) {
             if (pixi.editor.explorer.paned.split_ratio.* == 0.0) {
@@ -266,7 +264,7 @@ pub fn draw() !dvui.App.Result {
 
         _ = dvui.separator(@src(), .{ .expand = .horizontal });
 
-        if (menuItem(@src(), "Show DVUI Demo", .{}, .{ .expand = .horizontal, .color_accent = dvui.themeGet().color(.window, .fill) }) != null) {
+        if (menuItem(@src(), "Show DVUI Demo", .{}, .{ .expand = .horizontal }) != null) {
             dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
             fw.close();
         }
