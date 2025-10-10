@@ -54,12 +54,13 @@ pub fn draw() !void {
                         }
                         break :blk chosen_scale;
                     },
+                    .depth = 0.25,
                 }, .{
                     .id_extra = index,
-                    .margin = .all(6),
+                    //.margin = .all(6),
                     .padding = .all(0),
-                    .border = .all(1),
-                    .color_border = dvui.themeGet().color(.control, .text),
+                    //.border = .all(1),
+                    //.color_border = dvui.themeGet().color(.control, .text),
                 });
             }
         } else {
@@ -94,7 +95,7 @@ pub fn draw() !void {
                     .scale = blk: {
                         const steps = pixi.editor.settings.zoom_steps;
                         const target_h = pixi.editor.panel.scroll_info.viewport.h;
-                        const sprite_h = src_rect.h + 12;
+                        const sprite_h = src_rect.h;
                         var chosen_scale: f32 = 1.0;
                         var found = false;
                         var i: usize = steps.len;
@@ -109,7 +110,7 @@ pub fn draw() !void {
                         if (!found) {
                             chosen_scale = steps[0];
                         }
-                        break :blk 1.0;
+                        break :blk chosen_scale;
                     },
                 }, .{
                     .id_extra = index,
