@@ -23,8 +23,8 @@
 
 ## Currently supported features
 - [x] Typical pixel art operations. (draw, erase, dropper, bucket, selection, transformation, etc)
-- [ ] Tabs and splits, drag and drop to reorder and reconfigure
-- [ ] File explorer with search and drag and drop.
+- [x] Tabs and splits, drag and drop to reorder and reconfigure
+- [x] File explorer with search and drag and drop.
 - [ ] Create animations and preview easily, edit directly on the preview.
 - [ ] View previous and next frames of the animation.
 - [ ] Set sprite origins for drawing sprites easily in game frameworks.
