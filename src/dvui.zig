@@ -20,7 +20,7 @@ pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions
     ret.data().was_allocated_on_widget_stack = true;
     ret.install();
     ret.processEvents();
-    return ret;
+    return ret; 
 }
 
 pub fn hovered(wd: *dvui.WidgetData) bool {
@@ -76,21 +76,25 @@ pub fn toastDisplay(id: dvui.Id) !void {
 
 pub const SpriteInitOptions = struct {
     source: dvui.ImageSource,
+    alpha_source: ?dvui.ImageSource = null,
     sprite: pixi.Sprite,
     scale: f32 = 1.0,
     //vertex_offsets: [4]dvui.Point.Physical = .{ .{ .x = 0, .y = 0 }, .{ .x = 0, .y = 0 }, .{ .x = 0, .y = 0 }, .{ .x = 0, .y = 0 } },
     depth: f32 = 0.0, // -1.0 is front, 1.0 is back
     reflection: bool = false,
+    overlap: f32 = 0.0,
 };
 
 pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opts: dvui.Options) dvui.WidgetData {
     const source_size: dvui.Size = dvui.imageSize(init_opts.source) catch .{ .w = 0, .h = 0 };
 
+    const overlap: f32 = 1.0 - init_opts.overlap;
+
     const uv = dvui.Rect{
-        .x = (@as(f32, @floatFromInt(init_opts.sprite.source[0])) / source_size.w),
-        .y = (@as(f32, @floatFromInt(init_opts.sprite.source[1])) / source_size.h),
-        .w = (@as(f32, @floatFromInt(init_opts.sprite.source[2])) / source_size.w),
-        .h = (@as(f32, @floatFromInt(init_opts.sprite.source[3])) / source_size.h),
+        .x = @as(f32, @floatFromInt(init_opts.sprite.source[0])) / source_size.w,
+        .y = @as(f32, @floatFromInt(init_opts.sprite.source[1])) / source_size.h,
+        .w = @as(f32, @floatFromInt(init_opts.sprite.source[2])) / source_size.w,
+        .h = @as(f32, @floatFromInt(init_opts.sprite.source[3])) / source_size.h,
     };
 
     const options = (dvui.Options{ .name = "sprite" }).override(opts);
@@ -101,7 +105,7 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
         size = msc;
     } else {
         // user didn't give us one, use natural size
-        size = .{ .w = @as(f32, @floatFromInt(init_opts.sprite.source[2])) * init_opts.scale, .h = @as(f32, @floatFromInt(init_opts.sprite.source[3])) * init_opts.scale };
+        size = .{ .w = @as(f32, @floatFromInt(init_opts.sprite.source[2])) * init_opts.scale * overlap, .h = @as(f32, @floatFromInt(init_opts.sprite.source[3])) * init_opts.scale * overlap };
     }
 
     var wd = dvui.WidgetData.init(src, .{}, options.override(.{ .min_size_content = size }));
@@ -144,143 +148,69 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
             dvui.log.debug("image {x} can't render border while rotated\n", .{wd.id});
         }
     }
-    // const render_tex_opts = dvui.RenderTextureOptions{
-    //     .rotation = wd.options.rotationGet(),
-    //     .corner_radius = wd.options.corner_radiusGet(),
-    //     .uv = uv,
-    //     .background_color = renderBackground,
-    // };
-    // const content_rs = wd.contentRectScale();
 
     var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
     defer path.deinit();
 
-    var path2: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-    defer path2.deinit();
-
     var top_left = wd.contentRectScale().r.topLeft();
-    const top_right = wd.contentRectScale().r.topRight();
-    const bottom_right = wd.contentRectScale().r.bottomRight();
+    var top_right = wd.contentRectScale().r.topRight();
+    var bottom_right = wd.contentRectScale().r.bottomRight();
     var bottom_left = wd.contentRectScale().r.bottomLeft();
 
-    top_left = top_left.plus(bottom_right.diff(top_left).normalize().scale(init_opts.depth * wd.contentRectScale().r.w, dvui.Point.Physical));
-    bottom_left = bottom_left.plus(top_right.diff(bottom_left).normalize().scale(init_opts.depth * wd.contentRectScale().r.w, dvui.Point.Physical));
+    if (init_opts.depth > 0) {
+        top_left = top_left.plus(bottom_right.diff(top_left).normalize().scale(init_opts.depth * wd.contentRectScale().r.w * -1.0, dvui.Point.Physical));
+        bottom_left = bottom_left.plus(top_right.diff(bottom_left).normalize().scale(init_opts.depth * wd.contentRectScale().r.w * -1.0, dvui.Point.Physical));
+    } else {
+        top_right = top_right.plus(bottom_right.diff(top_right).normalize().scale(init_opts.depth * wd.contentRectScale().r.w, dvui.Point.Physical));
+        bottom_right = bottom_right.plus(top_right.diff(bottom_right).normalize().scale(init_opts.depth * wd.contentRectScale().r.w, dvui.Point.Physical));
+    }
 
     path.addPoint(top_left);
     path.addPoint(top_right);
     path.addPoint(bottom_right);
     path.addPoint(bottom_left);
 
-    path2.addPoint(bottom_left.plus(.{ .y = bottom_left.y - top_left.y }));
-    path2.addPoint(bottom_right.plus(.{ .y = bottom_left.y - top_left.y }));
-    path2.addPoint(bottom_right);
-    path2.addPoint(bottom_left);
+    if (init_opts.reflection) {
+        var path2: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+        defer path2.deinit();
 
-    // Calculate centroid as the intersection of the diagonals (top_left to bottom_right and top_right to bottom_left)
-    // Line 1: top_left to bottom_right
-    // Line 2: top_right to bottom_left
-    // Find intersection point
+        path2.addPoint(bottom_left.plus(.{ .y = bottom_left.y - top_left.y }));
+        path2.addPoint(bottom_right.plus(.{ .y = bottom_left.y - top_left.y }));
+        path2.addPoint(bottom_right);
+        path2.addPoint(bottom_left);
 
-    // const x1 = top_left.x;
-    // const y1 = top_left.y;
-    // const x2 = bottom_right.x;
-    // const y2 = bottom_right.y;
-    // const x3 = top_right.x;
-    // const y3 = top_right.y;
-    // const x4 = bottom_left.x;
-    // const y4 = bottom_left.y;
-
-    //const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-
-    // const centroid: dvui.Point.Physical = if (denom != 0) .{
-    //     .x = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denom,
-    //     .y = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denom,
-    // } else .{
-    //     // Fallback: average of the four points (shouldn't happen for a proper quad)
-    //     .x = (top_left.x + top_right.x + bottom_right.x + bottom_left.x) / 4,
-    //     .y = (top_left.y + top_right.y + bottom_right.y + bottom_left.y) / 4,
-    // };
-
-    const triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{ .subdivisions = 4, .uv = uv }) catch unreachable;
-
-    var last_pos: dvui.Point.Physical = triangles.vertexes[0].pos;
-    for (triangles.vertexes[1..]) |v| {
-        dvui.Path.stroke(.{ .points = &.{ last_pos, v.pos } }, .{ .color = .white, .thickness = 1.0 });
-        last_pos = v.pos;
+        const reflection_triangles = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 4, .uv = uv, .vertical_fade = true }) catch unreachable;
+        dvui.renderTriangles(reflection_triangles, init_opts.source.getTexture() catch null) catch {
+            dvui.log.err("Failed to render triangles", .{});
+        };
     }
 
-    // Correct UVs: uv.x/y = top-left, uv.w/h = bottom-right
-    // triangles.vertexes[0].uv = .{ // top left
-    //     uv.x,
-    //     uv.y,
-    // };
-    // triangles.vertexes[1].uv = .{ // top right
-    //     uv.x + uv.w,
-    //     uv.y,
-    // };
-    // triangles.vertexes[2].uv = .{ // bottom right
-    //     uv.x + uv.w,
-    //     uv.y + uv.h,
-    // };
-    // triangles.vertexes[3].uv = .{ // bottom left
-    //     uv.x,
-    //     uv.y + uv.h,
-    // };
-    // Set the center UV to the actual center of the UV rectangle
-    // triangles.vertexes[4].uv = .{ // center
-    //     uv.x + uv.w * 0.5,
-    //     uv.y + uv.h * 0.5,
-    // };
+    const triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv }) catch unreachable;
 
-    const triangles_2 = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 4, .uv = uv, .vertical_fade = true }) catch unreachable;
-    dvui.renderTriangles(triangles_2, init_opts.source.getTexture() catch null) catch {
-        dvui.log.err("Failed to render triangles", .{});
-    };
+    if (init_opts.alpha_source) |alpha_source| {
+        const alpha_triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .color_mod = dvui.themeGet().color(.content, .fill).lighten(12.0) }) catch unreachable;
+        dvui.renderTriangles(alpha_triangles, alpha_source.getTexture() catch null) catch {
+            dvui.log.err("Failed to render triangles", .{});
+        };
+    }
 
     dvui.renderTriangles(triangles, init_opts.source.getTexture() catch null) catch {
         dvui.log.err("Failed to render triangles", .{});
     };
 
-    // path.build().stroke(.{ .color = .white, .thickness = 1.0, .closed = true });
-
-    // dvui.Path.stroke(.{ .points = &.{ centroid, top_left } }, .{ .thickness = 1.0, .color = .white, .closed = false });
-    // dvui.Path.stroke(.{ .points = &.{ centroid, top_right } }, .{ .thickness = 1.0, .color = .white, .closed = false });
-    // dvui.Path.stroke(.{ .points = &.{ centroid, bottom_right } }, .{ .thickness = 1.0, .color = .white, .closed = false });
-    // dvui.Path.stroke(.{ .points = &.{ centroid, bottom_left } }, .{ .thickness = 1.0, .color = .white, .closed = false });
+    path.build().stroke(.{ .color = opts.color_border orelse .transparent, .thickness = 1.0, .closed = true });
 
     wd.minSizeSetAndRefresh();
     wd.minSizeReportToParent();
 
     return wd;
-
-    // const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-    //     .expand = .none,
-    //     .rect = .{
-    //         .x = position.x,
-    //         .y = position.y,
-    //         .w = @as(f32, @floatFromInt(sprite.source[2])) * scale,
-    //         .h = @as(f32, @floatFromInt(sprite.source[3])) * scale,
-    //     },
-    //     .border = dvui.Rect.all(0),
-    //     .corner_radius = .{ .x = 0, .y = 0 },
-    //     .padding = .{ .x = 0, .y = 0 },
-    //     .margin = .{ .x = 0, .y = 0 },
-    //     .background = false,
-    //     .color_fill = dvui.themeGet().color(.err, .fill),
-    // });
-    // defer box.deinit();
-
-    // const rs = box.data().rectScale();
-
-    // try dvui.renderImage(source, rs, .{
-    //     .uv = uv,
-    // });
 }
 
 pub const PathToSubdividedQuadOptions = struct {
     subdivisions: usize = 4,
     uv: ?dvui.Rect = null,
     vertical_fade: bool = false,
+    color_mod: dvui.Color = .white,
 };
 
 pub fn pathToSubdividedQuad(path: dvui.Path, allocator: std.mem.Allocator, options: PathToSubdividedQuadOptions) std.mem.Allocator.Error!dvui.Triangles {
@@ -333,10 +263,11 @@ pub fn pathToSubdividedQuad(path: dvui.Path, allocator: std.mem.Allocator, optio
             };
 
             const col: dvui.Color = if (options.vertical_fade) dvui.Color.white.opacity(0.5 * (1.0 - (1.0 - t))) else .white;
+            const opacity = col.a;
 
             builder.appendVertex(.{
                 .pos = pos,
-                .col = dvui.Color.PMA.fromColor(col),
+                .col = dvui.Color.PMA.fromColor(col.lerp(options.color_mod, 0.5).opacity(@as(f32, @floatFromInt(opacity)) / 255.0)),
                 .uv = uv,
             });
         }

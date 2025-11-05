@@ -34,23 +34,6 @@ pub fn loadFromFile(file: []const u8) !Palette {
                 try colors.append(.{ color_packed.b, color_packed.g, color_packed.r, 255 });
             }
         }
-        // var contents = try std.fs.cwd().openFile(file, .{});
-        // defer contents.close();
-
-        // var buf: [1000]u8 = undefined;
-        // var reader = contents.reader(&buf);
-        // var interface = &reader.interface;
-
-        // while (interface.takeDelimiterExclusive('\n') catch null) |line| {
-        //     //if (line.len == 0) continue;
-        //     const color_u32 = std.fmt.parseInt(u32, line[0 .. line.len - 1], 16) catch {
-        //         dvui.log.err("Failed to parse color: {s}", .{line[0 .. line.len - 1]});
-        //         return error.FailedToParseColor;
-        //     };
-        //     const color_packed: PackedColor = @as(PackedColor, @bitCast(color_u32));
-        //     try colors.append(.{ color_packed.b, color_packed.g, color_packed.r, 255 });
-        //     //pixi.app.allocator.free(line);
-        // }
     } else {
         return error.WrongFileType;
     }

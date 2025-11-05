@@ -75,6 +75,8 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
 
     const branch = tree.branch(@src(), .{
         .expanded = true,
+        .animation_duration = 450_000,
+        .animation_easing = dvui.easing.outBack,
     }, .{
         .id_extra = 0,
         .expand = .horizontal,
@@ -236,6 +238,8 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                 const branch = tree.branch(@src(), .{
                     .expanded = expanded,
+                    .animation_duration = 450_000,
+                    .animation_easing = dvui.easing.outBack,
                 }, .{
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
