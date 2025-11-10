@@ -362,7 +362,7 @@ pub fn drawRadialMenu(editor: *Editor) !void {
                 .alpha = 0.25,
             },
             .border = dvui.Rect.all(1.0),
-            .color_border = color,
+            .color_border = if (tool == editor.tools.current) color else dvui.themeGet().color(.control, .fill),
         });
 
         const sprite = switch (@as(Editor.Tools.Tool, @enumFromInt(i))) {
