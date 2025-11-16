@@ -113,11 +113,21 @@ pub fn init(path: []const u8, width: u32, height: u32) !pixi.Internal.File {
 /// Attempts to load a file from the given path to create a new file
 pub fn fromPath(path: []const u8) !?pixi.Internal.File {
     const extension = std.fs.path.extension(path[0..path.len]);
-    if (std.mem.eql(u8, extension, ".png"))
-        return fromPathPng(path);
+    if (std.mem.eql(u8, extension, ".png")) {
+        const file = fromPathPng(path) catch |err| {
+            dvui.log.err("{any}: {s}", .{ err, path });
+            return err;
+        };
+        return file;
+    }
 
-    if (std.mem.eql(u8, extension, ".pixi"))
-        return fromPathPixi(path);
+    if (std.mem.eql(u8, extension, ".pixi")) {
+        const file = fromPathPixi(path) catch |err| {
+            dvui.log.err("{any}: {s}", .{ err, path });
+            return err;
+        };
+        return file;
+    }
 
     return error.InvalidExtension;
 }
@@ -208,10 +218,10 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                 _ = zip.zip_entry_read(pixi_file, &img_buf, &img_len);
                 const data = img_buf orelse continue;
 
-                var new_layer: pixi.Internal.Layer = try pixi.Internal.Layer.fromPixelsPMA(
+                var new_layer: pixi.Internal.Layer = try .fromPixelsPMA(
                     internal.newID(),
                     l.name,
-                    @ptrCast(data),
+                    @as([*]dvui.Color.PMA, @ptrCast(@constCast(data)))[0..(internal.width * internal.height)],
                     internal.width,
                     internal.height,
                     .ptr,
@@ -1118,9 +1128,7 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
 
                 const image_name = try std.fmt.allocPrintSentinel(pixi.editor.arena.allocator(), "{s}.layer", .{layer.name}, 0);
                 _ = zip.zip_entry_open(z, @as([*c]const u8, @ptrCast(image_name)));
-                _ = zip.zip_entry_write(z, @as([*]u8, @ptrCast(layer.bytes().ptr)), layer.bytes().len);
-
-                //try layer.writeSourceToZip(z);
+                _ = zip.zip_entry_write(z, @ptrCast(layer.bytes().ptr), layer.bytes().len);
                 _ = zip.zip_entry_close(z);
             }
         }

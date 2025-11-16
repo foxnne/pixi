@@ -281,15 +281,19 @@ pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: dvui.Rect, 
 pub fn writeToZip(
     source: dvui.ImageSource,
     zip_file: ?*anyopaque,
+    resolution: u32,
 ) !void {
     const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
 
     const w = @as(c_int, @intFromFloat(s.w));
     const h = @as(c_int, @intFromFloat(s.h));
-    const png_encoded = dvui.pngEncode(pixi.editor.arena.allocator(), pixi.image.bytes(source), @intCast(w), @intCast(h), .{ .resolution = 0 }) catch return error.CouldNotWriteImage;
+
+    var writer = std.Io.Writer.Allocating.init(pixi.editor.arena.allocator());
+
+    try dvui.PNGEncoder.writeWithResolution(&writer.writer, pixi.image.bytes(source), @intCast(w), @intCast(h), resolution);
 
     if (@as(?*zip.struct_zip_t, @ptrCast(zip_file))) |z| {
-        _ = zip.zip_entry_write(z, png_encoded.ptr, @as(usize, @intCast(png_encoded.len)));
+        _ = zip.zip_entry_write(z, writer.written().ptr, @as(usize, writer.written().len));
     }
 }
 

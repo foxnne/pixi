@@ -375,8 +375,9 @@ pub fn clear(self: *Layer) void {
 pub fn writeSourceToZip(
     layer: *const Layer,
     zip_file: ?*anyopaque,
+    resolution: u32,
 ) !void {
-    return pixi.fs.writeSourceToZip(layer.source, zip_file);
+    return pixi.image.writeToZip(layer.source, zip_file, resolution);
 }
 
 pub fn writeSourceToPng(layer: *const Layer, path: []const u8) !void {
