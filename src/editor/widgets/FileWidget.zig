@@ -346,6 +346,158 @@ pub fn processSpriteSelection(self: *FileWidget) void {
     }
 }
 
+pub fn drawSpriteBubbles(self: *FileWidget) void {
+    if (pixi.editor.tools.current != .pointer) return;
+    if (self.init_options.file.editor.transform != null) return;
+    if (pixi.editor.explorer.pane != .sprites) return;
+
+    if (self.init_options.file.editor.selected_sprites.count() == 0) {
+        for (0..self.init_options.file.spriteCount()) |index| {
+            const sprite_rect = self.init_options.file.spriteRect(index);
+
+            const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+
+            const max_distance: f32 = sprite_rect.h;
+
+            const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5)) / 1.0;
+            const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25)) / 1.0;
+            const distance = @sqrt(dx * dx + dy * dy);
+
+            var t = distance / max_distance;
+            if (t > 1.0) t = 1.0;
+            if (t < 0.0) t = 0.0;
+            drawSpriteBubble(self, index, t);
+        }
+    }
+
+    var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+    var i: usize = 0;
+    while (iter.next()) |index| {
+        i += 1;
+        const anim = dvui.animate(@src(), .{ .duration = 100_000 + 50_000 * @as(i32, @intCast(i)), .kind = .vertical, .easing = dvui.easing.outBack }, .{
+            .id_extra = index,
+        });
+        defer anim.deinit();
+
+        var t = anim.val orelse 1.0;
+        if (t > 1.0) t = 1.0;
+        if (t < 0.0) t = 0.0;
+
+        drawSpriteBubble(self, index, 1.0 - t);
+    }
+}
+
+pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32) void {
+    const color: dvui.Color = dvui.themeGet().color(.highlight, .fill);
+    const fill_color: dvui.Color = dvui.themeGet().color(.window, .fill);
+
+    const sprite_rect = self.init_options.file.spriteRect(index);
+
+    var new_rect = dvui.Rect{
+        .x = sprite_rect.x,
+        .y = sprite_rect.y - sprite_rect.h,
+        .w = sprite_rect.w,
+        .h = sprite_rect.h,
+    };
+
+    const scaled_h = sprite_rect.h / 2 - (sprite_rect.h / 2 - 0) * t;
+
+    new_rect.h = scaled_h;
+    new_rect.y = sprite_rect.y - new_rect.h;
+
+    var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .rect = new_rect,
+        .id_extra = index,
+        .corner_radius = .{ .x = 1000000, .y = 1000000 },
+    });
+
+    const corner_radius: dvui.Rect = .{ .x = box.data().rectScale().r.w / 2.0, .y = box.data().rectScale().r.w / 2.0 };
+
+    var path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
+
+    const rad = corner_radius.scale(1 - t, dvui.Rect);
+    const r = box.data().contentRectScale().r;
+
+    const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + rad.x };
+    //onst bl = dvui.Point.Physical{ .x = r.x + rad.h, .y = r.y + r.h - rad.h };
+    //const br = dvui.Point.Physical{ .x = r.x + r.w - rad.w, .y = r.y + r.h - rad.w };
+    const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + rad.y };
+    //path.addRect(box.data().contentRectScale().r, dvui.Rect.Physical.all(0));
+
+    if (new_rect.h > 1) {
+        path.addArc(tr.plus(.{ .x = -2, .y = 5 }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+        path.addArc(tl.plus(.{ .x = 2, .y = 5 }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
+        //path.addArc(bl.plus(.{ .x = 2.5 }), rad.h, dvui.math.pi, dvui.math.pi * 0.5, false);
+        //path.addArc(br.plus(.{ .x = -2.5 }), rad.w, dvui.math.pi * 0.5, 0, false);
+
+        path.build().stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 5.0 });
+        path.build().fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 1.0 });
+        path.deinit();
+
+        var new_path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
+        new_path.addPoint(box.data().contentRectScale().r.bottomRight());
+        new_path.addPoint(box.data().contentRectScale().r.bottomRight().plus(.{ .y = sprite_rect.h * box.data().contentRectScale().s }));
+        new_path.addPoint(box.data().contentRectScale().r.bottomLeft().plus(.{ .y = sprite_rect.h * box.data().contentRectScale().s }));
+        new_path.addPoint(box.data().contentRectScale().r.bottomLeft());
+        new_path.build().stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 3.0 });
+        new_path.deinit();
+
+        box.deinit();
+
+        // const button_rect: dvui.Rect = .{
+        //     .x = box.data().contentRectScale().r.center().x - 10,
+        //     .y = box.data().contentRectScale().r.center().y - 10,
+        //     .w = 20,
+        //     .h = 20,
+        // };
+
+        var button = dvui.ButtonWidget.init(@src(), .{}, .{
+            .rect = .{
+                .x = new_rect.center().x - 5,
+                .y = new_rect.center().y - 5,
+                .w = 10,
+                .h = 10,
+            },
+            .margin = .all(0),
+            .padding = .all(0),
+            .id_extra = index,
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -2.0, .y = 2.0 },
+                .fade = 2.0,
+                .alpha = 0.25,
+            },
+            .border = dvui.Rect.all(0.0),
+            .color_border = dvui.themeGet().color(.highlight, .fill),
+        });
+        defer button.deinit();
+
+        button.install();
+        button.processEvents();
+        button.drawBackground();
+
+        // dvui.renderImage(self.init_options.file.editor.checkerboard_tile, box.data().borderRectScale(), .{
+        //     .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
+        //     .uv = .{
+        //         .x = 0,
+        //         .y = t,
+        //         .w = 1,
+        //         .h = 1,
+        //     },
+        //     .corner_radius = .{
+        //         .x = rad.x,
+        //         .y = rad.y,
+        //         .w = rad.w,
+        //         .h = rad.h,
+        //     },
+        // }) catch {
+        //     dvui.log.err("Failed to render checkerboard", .{});
+        // };
+    } else {
+        box.deinit();
+    }
+}
+
 pub fn drawSpriteSelection(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
@@ -1912,21 +2064,23 @@ pub fn drawLayers(self: *FileWidget) void {
     });
     shadow_box.deinit();
 
-    const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-    // Draw the checkerboard texture at the hovered sprite position
-    if (file.spriteIndex(mouse_data_point)) |sprite_index| {
-        const image_rect = file.spriteRect(sprite_index);
+    if (pixi.editor.explorer.pane != .sprites) {
+        const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+        // Draw the checkerboard texture at the hovered sprite position
+        if (file.spriteIndex(mouse_data_point)) |sprite_index| {
+            const image_rect = file.spriteRect(sprite_index);
 
-        const image_rect_scale: dvui.RectScale = .{
-            .r = self.init_options.canvas.screenFromDataRect(image_rect),
-            .s = self.init_options.canvas.scale,
-        };
+            const image_rect_scale: dvui.RectScale = .{
+                .r = self.init_options.canvas.screenFromDataRect(image_rect),
+                .s = self.init_options.canvas.scale,
+            };
 
-        dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-            .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
-        }) catch {
-            std.log.err("Failed to render checkerboard", .{});
-        };
+            dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
+                .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
+            }) catch {
+                std.log.err("Failed to render checkerboard", .{});
+            };
+        }
     }
 
     const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
@@ -1971,14 +2125,14 @@ pub fn drawLayers(self: *FileWidget) void {
         .background = false,
     });
 
-    for (0..tiles_wide) |x| {
+    for (1..tiles_wide) |x| {
         dvui.Path.stroke(.{ .points = &.{
             self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
             self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
         } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text) });
     }
 
-    for (0..tiles_high) |y| {
+    for (1..tiles_high) |y| {
         dvui.Path.stroke(.{ .points = &.{
             self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
             self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
@@ -1987,16 +2141,16 @@ pub fn drawLayers(self: *FileWidget) void {
 
     self.init_options.canvas.bounding_box = image.rectScale().r;
 
-    // Outline the image with a rectangle
-    dvui.Path.stroke(.{ .points = &.{
-        self.init_options.canvas.rect.topLeft(),
-        self.init_options.canvas.rect.topRight(),
-        self.init_options.canvas.rect.bottomRight(),
-        self.init_options.canvas.rect.bottomLeft(),
-    } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text), .closed = true });
+    // // Outline the image with a rectangle
+    // dvui.Path.stroke(.{ .points = &.{
+    //     self.init_options.canvas.rect.topLeft(),
+    //     self.init_options.canvas.rect.topRight(),
+    //     self.init_options.canvas.rect.bottomRight(),
+    //     self.init_options.canvas.rect.bottomLeft(),
+    // } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text), .closed = true });
 
     // Draw the selection box for the selected sprites
-    if (pixi.editor.tools.current == .pointer and file.editor.transform == null) {
+    if (pixi.editor.tools.current == .pointer and file.editor.transform == null and pixi.editor.explorer.pane != .sprites) {
         var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
         while (iter.next()) |i| {
             const sprite_rect = file.spriteRect(i);
@@ -2067,7 +2221,6 @@ pub fn processEvents(self: *FileWidget) void {
         self.processStroke();
         self.processSample();
 
-        self.processSpriteSelection();
         self.processSelection();
         self.processTransform();
     }
@@ -2075,6 +2228,9 @@ pub fn processEvents(self: *FileWidget) void {
     // Draw layers first, so that the scrolling bounding box is updated
 
     self.drawLayers();
+
+    self.drawSpriteBubbles();
+    self.processSpriteSelection();
     self.drawSpriteSelection();
 
     // Draw shadows for the scroll container
@@ -2088,6 +2244,7 @@ pub fn processEvents(self: *FileWidget) void {
         self.drawCursor();
         self.drawSample();
     }
+
     self.processKeybinds();
     self.drawTransform();
 

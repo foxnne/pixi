@@ -80,7 +80,6 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     }, .{
         .id_extra = 0,
         .expand = .horizontal,
-        //.color_fill_hover = dvui.themeGet().color(.window, .fill),
         .color_fill = dvui.themeGet().color(.control, .fill),
     });
     defer branch.deinit();
@@ -379,21 +378,6 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                 },
                             );
                         }
-
-                        // if (ext == .pixi) {
-                        //     const sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default];
-                        //     //const sprite_size = dvui.Size{ .w = @floatFromInt(sprite.source[2]), .h = @floatFromInt(sprite.source[3]) };
-                        //     //const sprite_offset = dvui.Point{ .x = -sprite_size.w * 2, .y = -sprite_size.h * 2 };
-                        //     pixi.dvui.renderSprite(
-                        //         pixi.editor.atlas.source,
-                        //         pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
-                        //         box.data().rect.topLeft().diff(.{ .x = @as(f32, @floatFromInt(sprite.source[2])) / 2, .y = @as(f32, @floatFromInt(sprite.source[3])) / 2 }),
-                        //         2.0,
-                        //         .{},
-                        //     ) catch {
-                        //         dvui.log.err("Failed to render sprite: {s}", .{abs_path});
-                        //     };
-                        // }
 
                         dvui.label(
                             @src(),
