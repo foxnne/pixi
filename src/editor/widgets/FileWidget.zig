@@ -358,15 +358,15 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-            const max_distance: f32 = sprite_rect.h;
+            const max_distance: f32 = sprite_rect.h * 2.0;
 
             const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5)) / 1.0;
-            const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25)) / 1.0;
+            const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.5)) / 1.0;
             const distance = @sqrt(dx * dx + dy * dy);
 
             const t = distance / max_distance;
             if (t < 1.0 and t > 0.0) {
-                drawSpriteBubble(self, index, t, dvui.themeGet().color(.highlight, .fill));
+                drawSpriteBubble(self, index, t, dvui.themeGet().color(.control, .text));
             }
         }
     }
@@ -384,7 +384,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         if (t > 1.0) t = 1.0;
         if (t < 0.0) t = 0.0;
 
-        drawSpriteBubble(self, index, 1.0 - t, dvui.themeGet().color(.highlight, .fill));
+        drawSpriteBubble(self, index, 1.0 - t, dvui.themeGet().color(.control, .text));
     }
 }
 
@@ -400,7 +400,7 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
         .h = sprite_rect.h,
     };
 
-    const scaled_h = sprite_rect.h / 2 - (sprite_rect.h / 2 - 0) * t;
+    const scaled_h = sprite_rect.h / 2 - (sprite_rect.h / 2) * t;
 
     new_rect.h = scaled_h;
     new_rect.y = sprite_rect.y - new_rect.h;
@@ -408,7 +408,7 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .rect = new_rect,
         .id_extra = index,
-        .corner_radius = .{ .x = 1000000, .y = 1000000 },
+        .corner_radius = .{ .x = new_rect.h / 2, .y = new_rect.h / 2 },
     });
 
     const corner_radius: dvui.Rect = .{ .x = box.data().rectScale().r.w / 2.0, .y = box.data().rectScale().r.w / 2.0 };
@@ -425,22 +425,17 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
     //path.addRect(box.data().contentRectScale().r, dvui.Rect.Physical.all(0));
 
     if (new_rect.h > 1) {
-        path.addArc(tr.plus(.{ .x = -2, .y = 5 }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
-        path.addArc(tl.plus(.{ .x = 2, .y = 5 }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
+        path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+        path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
         //path.addArc(bl.plus(.{ .x = 2.5 }), rad.h, dvui.math.pi, dvui.math.pi * 0.5, false);
         //path.addArc(br.plus(.{ .x = -2.5 }), rad.w, dvui.math.pi * 0.5, 0, false);
 
-        path.build().stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 5.0 });
-        path.build().fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 1.0 });
-        path.deinit();
+        var built = path.build();
 
-        var new_path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
-        new_path.addPoint(box.data().contentRectScale().r.bottomRight());
-        new_path.addPoint(box.data().contentRectScale().r.bottomRight().plus(.{ .y = sprite_rect.h * box.data().contentRectScale().s }));
-        new_path.addPoint(box.data().contentRectScale().r.bottomLeft().plus(.{ .y = sprite_rect.h * box.data().contentRectScale().s }));
-        new_path.addPoint(box.data().contentRectScale().r.bottomLeft());
-        new_path.build().stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 3.0 });
-        new_path.deinit();
+        built.stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 2.5 * dvui.currentWindow().natural_scale });
+
+        built.fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 2.0 });
+        path.deinit();
 
         box.deinit();
 
@@ -453,10 +448,10 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
 
         var button = dvui.ButtonWidget.init(@src(), .{}, .{
             .rect = .{
-                .x = new_rect.center().x - sprite_rect.w / 3.0 / 2.0,
-                .y = new_rect.center().y - sprite_rect.w / 3.0 / 2.0,
-                .w = sprite_rect.w / 3.0,
-                .h = sprite_rect.w / 3.0,
+                .x = new_rect.center().x - (sprite_rect.w / 3.0 / 2.0 * (1.0 - t)),
+                .y = new_rect.center().y - (sprite_rect.w / 3.0 / 2.0 * (1.0 - t)),
+                .w = (sprite_rect.w / 3.0) * (1.0 - t),
+                .h = (sprite_rect.w / 3.0) * (1.0 - t),
             },
             .margin = .all(0),
             .padding = .all(0),
@@ -464,8 +459,8 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
             .box_shadow = .{
                 .color = .black,
                 .offset = .{ .x = -1.0, .y = 1.0 },
-                .fade = 2.0,
-                .alpha = 0.25,
+                .fade = 2.0 * (1.0 - t),
+                .alpha = 0.25 * (1.0 - t),
             },
             .corner_radius = dvui.Rect.all(1000000),
             .border = dvui.Rect.all(0.0),
