@@ -360,12 +360,12 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const max_distance: f32 = sprite_rect.h * 2.0;
 
-            const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5)) / 1.0;
-            const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.5)) / 1.0;
+            const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
+            const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.5));
             const distance = @sqrt(dx * dx + dy * dy);
 
             const t = distance / max_distance;
-            if (t < 1.0 and t > 0.0) {
+            if (t <= 1.0 and t > 0.0) {
                 drawSpriteBubble(self, index, t, dvui.themeGet().color(.control, .text));
             }
         }
@@ -400,7 +400,7 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
         .h = sprite_rect.h,
     };
 
-    const scaled_h = sprite_rect.h / 2 - (sprite_rect.h / 2) * t;
+    const scaled_h = @min(sprite_rect.h, sprite_rect.w) / 2 - (@min(sprite_rect.h, sprite_rect.w) / 2) * t;
 
     new_rect.h = scaled_h;
     new_rect.y = sprite_rect.y - new_rect.h;
@@ -408,7 +408,7 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .rect = new_rect,
         .id_extra = index,
-        .corner_radius = .{ .x = new_rect.h / 2, .y = new_rect.h / 2 },
+        .corner_radius = .{ .x = @min(new_rect.h, new_rect.w) / 2, .y = @min(new_rect.h, new_rect.w) / 2 },
     });
 
     const corner_radius: dvui.Rect = .{ .x = box.data().rectScale().r.w / 2.0, .y = box.data().rectScale().r.w / 2.0 };
@@ -446,12 +446,14 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
         //     .h = 20,
         // };
 
+        const button_size = @max(@min(sprite_rect.w / 3.0, sprite_rect.h / 3.0) * (dvui.easing.outBack(1 - t)), @min(sprite_rect.h, sprite_rect.w) / 6.0);
+
         var button = dvui.ButtonWidget.init(@src(), .{}, .{
             .rect = .{
-                .x = new_rect.center().x - (sprite_rect.w / 3.0 / 2.0 * (1.0 - t)),
-                .y = new_rect.center().y - (sprite_rect.w / 3.0 / 2.0 * (1.0 - t)),
-                .w = (sprite_rect.w / 3.0) * (1.0 - t),
-                .h = (sprite_rect.w / 3.0) * (1.0 - t),
+                .x = new_rect.center().x - (button_size / 2.0),
+                .y = new_rect.center().y - (button_size / 2.0),
+                .w = button_size,
+                .h = button_size,
             },
             .margin = .all(0),
             .padding = .all(0),
