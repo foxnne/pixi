@@ -1,5 +1,6 @@
 pub const FileWidget = @This();
 const CanvasWidget = @import("CanvasWidget.zig");
+const icons = @import("icons");
 
 init_options: InitOptions,
 options: Options,
@@ -363,10 +364,10 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25)) / 1.0;
             const distance = @sqrt(dx * dx + dy * dy);
 
-            var t = distance / max_distance;
-            if (t > 1.0) t = 1.0;
-            if (t < 0.0) t = 0.0;
-            drawSpriteBubble(self, index, t);
+            const t = distance / max_distance;
+            if (t < 1.0 and t > 0.0) {
+                drawSpriteBubble(self, index, t, dvui.themeGet().color(.highlight, .fill));
+            }
         }
     }
 
@@ -383,12 +384,11 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         if (t > 1.0) t = 1.0;
         if (t < 0.0) t = 0.0;
 
-        drawSpriteBubble(self, index, 1.0 - t);
+        drawSpriteBubble(self, index, 1.0 - t, dvui.themeGet().color(.highlight, .fill));
     }
 }
 
-pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32) void {
-    const color: dvui.Color = dvui.themeGet().color(.highlight, .fill);
+pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Color) void {
     const fill_color: dvui.Color = dvui.themeGet().color(.window, .fill);
 
     const sprite_rect = self.init_options.file.spriteRect(index);
@@ -453,20 +453,21 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32) void {
 
         var button = dvui.ButtonWidget.init(@src(), .{}, .{
             .rect = .{
-                .x = new_rect.center().x - 5,
-                .y = new_rect.center().y - 5,
-                .w = 10,
-                .h = 10,
+                .x = new_rect.center().x - sprite_rect.w / 3.0 / 2.0,
+                .y = new_rect.center().y - sprite_rect.w / 3.0 / 2.0,
+                .w = sprite_rect.w / 3.0,
+                .h = sprite_rect.w / 3.0,
             },
             .margin = .all(0),
             .padding = .all(0),
             .id_extra = index,
             .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = -2.0, .y = 2.0 },
+                .offset = .{ .x = -1.0, .y = 1.0 },
                 .fade = 2.0,
                 .alpha = 0.25,
             },
+            .corner_radius = dvui.Rect.all(1000000),
             .border = dvui.Rect.all(0.0),
             .color_border = dvui.themeGet().color(.highlight, .fill),
         });
@@ -475,6 +476,14 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32) void {
         button.install();
         button.processEvents();
         button.drawBackground();
+
+        dvui.icon(
+            @src(),
+            "checkmark",
+            icons.tvg.lucide.check,
+            .{ .stroke_color = dvui.themeGet().color(.highlight, .fill) },
+            .{ .gravity_x = 0.5, .gravity_y = 0.5, .expand = .both },
+        );
 
         // dvui.renderImage(self.init_options.file.editor.checkerboard_tile, box.data().borderRectScale(), .{
         //     .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
