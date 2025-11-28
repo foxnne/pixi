@@ -358,10 +358,10 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-            const max_distance: f32 = sprite_rect.h * 2.0;
+            const max_distance: f32 = sprite_rect.h * 2;
 
             const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
-            const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.5));
+            const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
             const distance = @sqrt(dx * dx + dy * dy);
 
             const t = distance / max_distance;
@@ -400,22 +400,21 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
         .h = sprite_rect.h,
     };
 
-    const scaled_h = @min(sprite_rect.h, sprite_rect.w) / 2 - (@min(sprite_rect.h, sprite_rect.w) / 2) * t;
+    const scaled_h = (@min(sprite_rect.h, sprite_rect.w) / 2) * (1 - t);
 
     new_rect.h = scaled_h;
-    new_rect.y = sprite_rect.y - new_rect.h;
+    new_rect.y = sprite_rect.y - scaled_h;
 
     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .rect = new_rect,
         .id_extra = index,
-        .corner_radius = .{ .x = @min(new_rect.h, new_rect.w) / 2, .y = @min(new_rect.h, new_rect.w) / 2 },
     });
 
-    const corner_radius: dvui.Rect = .{ .x = box.data().rectScale().r.w / 2.0, .y = box.data().rectScale().r.w / 2.0 };
+    const corner_radius: dvui.Rect = .{ .x = box.data().rectScale().r.h, .y = box.data().rectScale().r.h };
 
     var path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
 
-    const rad = corner_radius.scale(1 - t, dvui.Rect);
+    const rad = corner_radius.scale(1, dvui.Rect);
     const r = box.data().contentRectScale().r;
 
     const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + rad.x };
@@ -460,8 +459,8 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
             .id_extra = index,
             .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = -1.0, .y = 1.0 },
-                .fade = 2.0 * (1.0 - t),
+                .offset = .{ .x = -1.0 * (1.0 - t), .y = 1.0 * (1.0 - t) },
+                .fade = (button_size / 10) * (1.0 - t),
                 .alpha = 0.25 * (1.0 - t),
             },
             .corner_radius = dvui.Rect.all(1000000),
@@ -474,13 +473,15 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
         button.processEvents();
         button.drawBackground();
 
-        dvui.icon(
-            @src(),
-            "checkmark",
-            icons.tvg.lucide.check,
-            .{ .stroke_color = dvui.themeGet().color(.highlight, .fill) },
-            .{ .gravity_x = 0.5, .gravity_y = 0.5, .expand = .both },
-        );
+        if (false) {
+            dvui.icon(
+                @src(),
+                "checkmark",
+                icons.tvg.lucide.check,
+                .{ .stroke_color = dvui.themeGet().color(.highlight, .fill) },
+                .{ .gravity_x = 0.5, .gravity_y = 0.5, .expand = .both },
+            );
+        }
 
         // dvui.renderImage(self.init_options.file.editor.checkerboard_tile, box.data().borderRectScale(), .{
         //     .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
