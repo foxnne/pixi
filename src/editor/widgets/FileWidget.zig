@@ -365,7 +365,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             const distance = @sqrt(dx * dx + dy * dy);
 
             const t = distance / max_distance;
-            if (t <= 1.0 and t > 0.0) {
+            if (t <= 1.1 and t > -0.1) {
                 drawSpriteBubble(self, index, t, dvui.themeGet().color(.control, .text));
             }
         }
@@ -381,8 +381,8 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         defer anim.deinit();
 
         var t = anim.val orelse 1.0;
-        if (t > 1.0) t = 1.0;
-        if (t < 0.0) t = 0.0;
+        if (t > 1.1) t = 1.1;
+        if (t < -0.1) t = -0.1;
 
         drawSpriteBubble(self, index, 1.0 - t, dvui.themeGet().color(.control, .text));
     }
