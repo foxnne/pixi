@@ -384,7 +384,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         if (t > 1.1) t = 1.1;
         if (t < -0.1) t = -0.1;
 
-        drawSpriteBubble(self, index, 1.0 - t, dvui.themeGet().color(.control, .text));
+        drawSpriteBubble(self, index, 1.0 - t, dvui.themeGet().color(.highlight, .fill));
     }
 }
 
