@@ -35,9 +35,8 @@ pub const Change = union(ChangeType) {
     pub const Animation = struct {
         index: usize,
         name: [128]u8,
-        fps: usize,
-        start: usize,
-        length: usize,
+        fps: f32,
+        frames: []usize,
     };
 
     pub const AnimationRestoreDelete = struct {
@@ -190,10 +189,7 @@ pub fn append(self: *History, change: Change) !void {
                         if (equal) {
                             equal = animation.fps == change.animation.fps;
                             if (equal) {
-                                equal = animation.start == change.animation.start;
-                                if (equal) {
-                                    equal = animation.length == change.animation.length;
-                                }
+                                equal = std.mem.eql(usize, animation.frames, change.animation.frames);
                             }
                         }
                     }
@@ -352,14 +348,24 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             const fps = animation.fps;
             animation.fps = file.animations.items(.fps)[animation.index];
             file.animations.items(.fps)[animation.index] = fps;
-            // Start
-            const start = animation.start;
-            animation.start = file.animations.items(.start)[animation.index];
-            file.animations.items(.start)[animation.index] = start;
-            // Length
-            const length = animation.length;
-            animation.length = file.animations.items(.length)[animation.index];
-            file.animations.items(.length)[animation.index] = length;
+
+            // Frames
+
+            const frames = try pixi.app.allocator.alloc(usize, animation.frames.len);
+            @memcpy(frames, animation.frames);
+            animation.frames = try pixi.app.allocator.alloc(usize, file.animations.items(.frames)[animation.index].len);
+            @memcpy(animation.frames, file.animations.items(.frames)[animation.index]);
+            pixi.app.allocator.free(file.animations.items(.frames)[animation.index]);
+            file.animations.items(.frames)[animation.index] = frames;
+
+            // // Start
+            // const start = animation.start;
+            // animation.start = file.animations.items(.start)[animation.index];
+            // file.animations.items(.start)[animation.index] = start;
+            // // Length
+            // const length = animation.length;
+            // animation.length = file.animations.items(.length)[animation.index];
+            // file.animations.items(.length)[animation.index] = length;
 
             pixi.editor.explorer.pane = .animations;
         },

@@ -6,35 +6,59 @@ const Atlas = @This();
 
 const Sprite = @import("Sprite.zig");
 const Animation = @import("internal/Animation.zig");
+const OldAnimation = Animation.OldAnimation;
 
 sprites: []Sprite,
 animations: []Animation,
+
+const OldAtlas = struct {
+    sprites: []Sprite,
+    animations: []OldAnimation,
+};
 
 pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
     const read = try fs.read(allocator, file);
     defer allocator.free(read);
 
     const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
-    const parsed: std.json.Parsed(Atlas) = try std.json.parseFromSlice(Atlas, allocator, read, options);
-    defer parsed.deinit();
 
-    const animations = try allocator.dupe(Animation, parsed.value.animations);
+    if (std.json.parseFromSlice(Atlas, allocator, read, options) catch null) |parsed| {
+        const animations = try allocator.dupe(Animation, parsed.value.animations);
 
-    for (animations) |*animation| {
-        animation.name = try allocator.dupe(u8, animation.name);
+        for (animations) |*animation| {
+            animation.name = try allocator.dupe(u8, animation.name);
+        }
+
+        return .{
+            .sprites = try allocator.dupe(Sprite, parsed.value.sprites),
+            .animations = animations,
+        };
+    } else if (std.json.parseFromSlice(OldAtlas, allocator, read, options) catch null) |parsed| {
+        const animations = try allocator.alloc(Animation, parsed.value.animations.len);
+        for (animations, parsed.value.animations) |*animation, old_animation| {
+            animation.name = try allocator.dupe(u8, old_animation.name);
+            animation.frames = try allocator.alloc(usize, old_animation.length);
+            for (animation.frames, 0..old_animation.length) |*frame, i| {
+                frame.* = old_animation.start + i;
+            }
+            animation.fps = old_animation.fps;
+        }
+
+        return .{
+            .sprites = try allocator.dupe(Sprite, parsed.value.sprites),
+            .animations = animations,
+        };
     }
 
-    return .{
-        .sprites = try allocator.dupe(Sprite, parsed.value.sprites),
-        .animations = animations,
-    };
+    return error.CannotLoadAtlas;
 }
 
 pub fn spriteName(atlas: *Atlas, allocator: std.mem.Allocator, index: usize) ![]const u8 {
     for (atlas.animations) |animation| {
-        if (index >= animation.start and index < animation.start + animation.length) {
-            if (animation.length > 1) {
-                const frame: usize = index - animation.start;
+        for (animation.frames) |frame| {
+            if (frame != index) continue;
+
+            if (animation.frames.len > 1) {
                 return std.fmt.allocPrint(allocator, "{s}_{d}", .{ animation.name, frame });
             } else {
                 return std.fmt.allocPrint(allocator, "{s}", .{animation.name});

@@ -199,19 +199,22 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                 var animation_index: usize = 0;
                 while (animation_index < file.animations.slice().len) : (animation_index += 1) {
                     const animation = file.animations.slice().get(animation_index);
-                    if (sprite_index >= animation.start and sprite_index < animation.start + animation.length) {
-                        // Sprite contains no pixels but is part of an animation
-                        // To preserve the animation, add a blank pixel to the sprites list
-                        try self.sprites.append(.{
-                            .image = null,
-                            .origin = .{ 0, 0 },
-                        });
 
-                        try self.frames.append(.{
-                            .id = self.newId(),
-                            .w = 2,
-                            .h = 2,
-                        });
+                    for (animation.frames) |frame| {
+                        if (frame == sprite_index) {
+                            // Sprite contains no pixels but is part of an animation
+                            // To preserve the animation, add a blank pixel to the sprites list
+                            try self.sprites.append(.{
+                                .image = null,
+                                .origin = .{ 0, 0 },
+                            });
+
+                            try self.frames.append(.{
+                                .id = self.newId(),
+                                .w = 2,
+                                .h = 2,
+                            });
+                        }
                     }
                 }
             }
@@ -219,11 +222,12 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
             var animation_index: usize = 0;
             while (animation_index < file.animations.slice().len) : (animation_index += 1) {
                 const animation = file.animations.slice().get(animation_index);
-                if (sprite_index == animation.start) {
+                if (sprite_index == animation.frames[0]) {
                     try self.animations.append(.{
                         .name = try std.fmt.allocPrint(pixi.app.allocator, "{s}_{s}", .{ animation.name, layer.name }),
-                        .start = self.sprites.items.len - 1,
-                        .length = animation.length,
+                        .frames = try pixi.app.allocator.dupe(usize, animation.frames),
+                        //.start = self.sprites.items.len - 1,
+                        //.length = animation.length,
                         .fps = animation.fps,
                     });
                 }
@@ -319,8 +323,9 @@ pub fn packAndClear(packer: *Packer) !void {
         for (atlas.animations, packer.animations.items) |*dst, src| {
             dst.name = try pixi.app.allocator.dupe(u8, src.name);
             dst.fps = src.fps;
-            dst.length = src.length;
-            dst.start = src.start;
+            dst.frames = try pixi.app.allocator.dupe(usize, src.frames);
+            //dst.length = src.length;
+            // dst.start = src.start;
         }
 
         if (packer.atlas) |*current_atlas| {

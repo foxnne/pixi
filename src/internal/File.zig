@@ -155,10 +155,45 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
             .ignore_unknown_fields = true,
         };
 
-        var parsed = std.json.parseFromSlice(pixi.File, pixi.app.allocator, content, options) catch return error.FileLoadError;
-        defer parsed.deinit();
+        var try_parse: ?std.json.Parsed(pixi.File) = null;
 
-        const ext = parsed.value;
+        try_parse = std.json.parseFromSlice(pixi.File, pixi.app.allocator, content, options) catch null;
+
+        var ext: pixi.File = if (try_parse) |parsed| parsed.value else undefined;
+
+        if (try_parse == null) {
+            // If we are here, we have tried to load the file but hit an issue because the old animation format
+            // exists
+
+            // we now need to load the old animation format.
+
+            if (std.json.parseFromSlice(pixi.File.OldFile, pixi.app.allocator, content, options) catch null) |old_file| {
+                const animations = try pixi.app.allocator.alloc(pixi.Animation, old_file.value.animations.len);
+                for (animations, old_file.value.animations) |*animation, old_animation| {
+                    animation.name = try pixi.app.allocator.dupe(u8, old_animation.name);
+                    animation.frames = try pixi.app.allocator.alloc(usize, old_animation.length);
+                    for (animation.frames, 0..old_animation.length) |*frame, i| {
+                        frame.* = old_animation.start + i;
+                    }
+                    animation.fps = old_animation.fps;
+                }
+
+                ext = .{
+                    .version = old_file.value.version,
+                    .width = old_file.value.width,
+                    .height = old_file.value.height,
+                    .tile_width = old_file.value.tile_width,
+                    .tile_height = old_file.value.tile_height,
+                    .layers = old_file.value.layers,
+                    .sprites = old_file.value.sprites,
+                    .animations = animations,
+                };
+            }
+        }
+
+        defer if (try_parse) |parsed| parsed.deinit();
+
+        //defer parsed.deinit();
 
         var internal: pixi.Internal.File = .{
             .id = pixi.editor.newFileID(),
@@ -275,8 +310,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
         for (ext.animations) |animation| {
             internal.animations.append(pixi.app.allocator, .{
                 .name = try pixi.app.allocator.dupe(u8, animation.name),
-                .start = animation.start,
-                .length = animation.length,
+                .frames = try pixi.app.allocator.dupe(usize, animation.frames),
                 .fps = animation.fps,
             }) catch return error.FileLoadError;
         }
@@ -1180,8 +1214,9 @@ pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
     for (animations, 0..) |*animation, i| {
         animation.name = try allocator.dupe(u8, self.animations.items(.name)[i]);
         animation.fps = self.animations.items(.fps)[i];
-        animation.start = self.animations.items(.start)[i];
-        animation.length = self.animations.items(.length)[i];
+        //animation.start = self.animations.items(.start)[i];
+        //animation.length = self.animations.items(.length)[i];
+        animation.frames = try allocator.dupe(usize, self.animations.items(.frames)[i]);
     }
 
     return .{
