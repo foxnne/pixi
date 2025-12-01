@@ -51,12 +51,14 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
 
     const theme = dvui.themeGet();
 
-    var bw = dvui.ButtonWidget.init(@src(), .{}, .{
+    var bw: dvui.ButtonWidget = undefined;
+
+    bw.init(@src(), .{}, .{
         .id_extra = @intFromEnum(option),
         .min_size_content = .{ .h = size },
     });
     defer bw.deinit();
-    bw.install();
+    //bw.install();
     bw.processEvents();
     //try bw.drawBackground();
 
@@ -78,7 +80,8 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
     }
 
     if (!selected) {
-        var tooltip: dvui.FloatingTooltipWidget = .init(@src(), .{
+        var tooltip: dvui.FloatingTooltipWidget = undefined;
+        tooltip.init(@src(), .{
             .active_rect = bw.data().rectScale().r,
         }, .{
             .id_extra = @intFromEnum(option),

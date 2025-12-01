@@ -55,11 +55,11 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
 
 pub fn spriteName(atlas: *Atlas, allocator: std.mem.Allocator, index: usize) ![]const u8 {
     for (atlas.animations) |animation| {
-        for (animation.frames) |frame| {
+        for (animation.frames, 0..) |frame, i| {
             if (frame != index) continue;
 
             if (animation.frames.len > 1) {
-                return std.fmt.allocPrint(allocator, "{s}_{d}", .{ animation.name, frame });
+                return std.fmt.allocPrint(allocator, "{s}_{d}", .{ animation.name, i });
             } else {
                 return std.fmt.allocPrint(allocator, "{s}", .{animation.name});
             }

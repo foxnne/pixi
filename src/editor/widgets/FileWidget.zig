@@ -447,7 +447,8 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
 
         const button_size = @max(@min(sprite_rect.w / 3.0, sprite_rect.h / 3.0) * (dvui.easing.outBack(1 - t)), @min(sprite_rect.h, sprite_rect.w) / 6.0);
 
-        var button = dvui.ButtonWidget.init(@src(), .{}, .{
+        var button: dvui.ButtonWidget = undefined;
+        button.init(@src(), .{}, .{
             .rect = .{
                 .x = new_rect.center().x - (button_size / 2.0),
                 .y = new_rect.center().y - (button_size / 2.0),
@@ -469,7 +470,6 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
         });
         defer button.deinit();
 
-        button.install();
         button.processEvents();
         button.drawBackground();
 

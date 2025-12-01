@@ -34,8 +34,8 @@ pub fn draw(_: Infobar) !void {
     defer infobox.deinit();
 
     {
-        var button = dvui.ButtonWidget.init(@src(), .{}, .{ .gravity_y = 0.5, .margin = .all(0), .padding = .all(0) });
-        button.install();
+        var button: dvui.ButtonWidget = undefined;
+        button.init(@src(), .{}, .{ .gravity_y = 0.5, .margin = .all(0), .padding = .all(0) });
         button.processEvents();
         button.drawBackground();
         defer button.deinit();

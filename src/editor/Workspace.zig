@@ -147,7 +147,8 @@ fn drawTabs(self: *Workspace) void {
 
         const selected = self.open_file_index == i and pixi.editor.open_workspace_grouping == self.grouping;
 
-        var hbox = dvui.BoxWidget.init(@src(), .{ .dir = .horizontal }, .{
+        var hbox: dvui.BoxWidget = undefined;
+        hbox.init(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
             .border = .{ .h = 1 },
             .color_border = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.window, .fill),
@@ -157,8 +158,8 @@ fn drawTabs(self: *Workspace) void {
             .padding = dvui.Rect.all(2),
             .margin = dvui.Rect.all(0),
         });
+
         defer hbox.deinit();
-        hbox.install();
 
         var hovered = false;
         if (pixi.dvui.hovered(hbox.data())) {
@@ -443,7 +444,8 @@ pub fn drawTransformDialog(self: *Workspace, canvas_vbox: *dvui.BoxWidget) void 
         rect.w = 0;
         rect.h = 0;
 
-        var fw = dvui.FloatingWidget.init(@src(), .{}, .{
+        var fw: dvui.FloatingWidget = undefined;
+        fw.init(@src(), .{}, .{
             .rect = .{ .x = canvas_vbox.data().rectScale().r.toNatural().x + 10, .y = canvas_vbox.data().rectScale().r.toNatural().y + 10, .w = 0, .h = 0 },
             .expand = .none,
             .background = true,
@@ -456,7 +458,6 @@ pub fn drawTransformDialog(self: *Workspace, canvas_vbox: *dvui.BoxWidget) void 
                 .corner_radius = dvui.Rect.all(8),
             },
         });
-        fw.install();
         defer fw.deinit();
 
         var anim = dvui.animate(@src(), .{ .kind = .vertical, .duration = 450_000, .easing = dvui.easing.outBack }, .{});
@@ -592,7 +593,8 @@ pub fn drawLogo(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
             .gravity_x = 0.5,
         });
         {
-            var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
+            var button: dvui.ButtonWidget = undefined;
+            button.init(@src(), .{ .draw_focus = true }, .{
                 .gravity_x = 0.5,
                 .expand = .horizontal,
                 .padding = dvui.Rect.all(2),
@@ -600,7 +602,6 @@ pub fn drawLogo(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
             });
             defer button.deinit();
 
-            button.install();
             button.processEvents();
             button.drawBackground();
 
@@ -614,7 +615,8 @@ pub fn drawLogo(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
         }
 
         {
-            var button = dvui.ButtonWidget.init(@src(), .{ .draw_focus = true }, .{
+            var button: dvui.ButtonWidget = undefined;
+            button.init(@src(), .{ .draw_focus = true }, .{
                 .gravity_x = 0.5,
                 .expand = .horizontal,
                 .padding = dvui.Rect.all(2),
@@ -622,7 +624,6 @@ pub fn drawLogo(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
             });
             defer button.deinit();
 
-            button.install();
             button.processEvents();
             button.drawBackground();
 

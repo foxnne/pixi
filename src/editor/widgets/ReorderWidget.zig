@@ -187,8 +187,8 @@ pub const draggableInitOptions = struct {
 };
 
 pub fn draggable(src: std.builtin.SourceLocation, init_opts: draggableInitOptions, opts: dvui.Options) ?dvui.Point.Physical {
-    var iw = dvui.IconWidget.init(src, "reorder_drag_icon", init_opts.tvg_bytes orelse dvui.entypo.menu, .{ .fill_color = init_opts.color, .stroke_color = init_opts.color }, opts);
-    iw.install();
+    var iw: dvui.IconWidget = undefined;
+    iw.init(src, "reorder_drag_icon", init_opts.tvg_bytes orelse dvui.entypo.menu, .{ .fill_color = init_opts.color, .stroke_color = init_opts.color }, opts);
     var ret: ?dvui.Point.Physical = null;
     loop: for (dvui.events()) |*e| {
         if (!iw.matchEvent(e))
@@ -289,8 +289,10 @@ pub const Reorderable = struct {
                 self.data().register();
                 dvui.parentSet(self.widget());
 
-                self.floating_widget = dvui.FloatingWidget.init(@src(), .{ .mouse_events = false }, .{ .rect = Rect.fromPoint(.cast(topleft.toNatural())), .min_size_content = self.reorder.reorderable_size });
-                self.floating_widget.?.install();
+                var fw: dvui.FloatingWidget = undefined;
+                fw.init(@src(), .{ .mouse_events = false }, .{ .rect = Rect.fromPoint(.cast(topleft.toNatural())), .min_size_content = self.reorder.reorderable_size });
+
+                self.floating_widget = fw;
             } else {
                 if (self.init_options.last_slot) {
                     self.wd = WidgetData.init(self.data().src, .{}, self.options.override(.{ .min_size_content = self.reorder.reorderable_size }));

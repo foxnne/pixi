@@ -98,7 +98,8 @@ pub fn drawTools() !void {
             .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
             .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
         };
-        var button = dvui.ButtonWidget.init(@src(), .{}, .{
+        var button: dvui.ButtonWidget = undefined;
+        button.init(@src(), .{}, .{
             .expand = .none,
             .min_size_content = .{ .w = 24, .h = 24 },
             .id_extra = id_extra,
@@ -130,7 +131,6 @@ pub fn drawTools() !void {
             .h = @as(f32, @floatFromInt(sprite.source[3])) / size.h,
         };
 
-        button.install();
         button.processEvents();
         button.drawBackground();
 
@@ -535,10 +535,10 @@ pub fn drawColors() !void {
 
     var clicked: bool = false;
     {
-        var primary_button = dvui.ButtonWidget.init(@src(), .{}, button_opts);
+        var primary_button: dvui.ButtonWidget = undefined;
+        primary_button.init(@src(), .{}, button_opts);
         defer primary_button.deinit();
 
-        primary_button.install();
         primary_button.processEvents();
         primary_button.drawBackground();
 
@@ -548,10 +548,10 @@ pub fn drawColors() !void {
     }
 
     {
-        var secondary_button = dvui.ButtonWidget.init(@src(), .{}, button_opts.override(secondary_overrider));
+        var secondary_button: dvui.ButtonWidget = undefined;
+        secondary_button.init(@src(), .{}, button_opts.override(secondary_overrider));
         defer secondary_button.deinit();
 
-        secondary_button.install();
         secondary_button.processEvents();
         secondary_button.drawBackground();
 
@@ -645,11 +645,12 @@ pub fn drawPalettes() !void {
         dvui.themeSet(t);
         defer dvui.themeSet(oldt);
 
-        var dropdown = dvui.DropdownWidget.init(@src(), .{ .label = "Palette" }, .{
+        var dropdown: dvui.DropdownWidget = undefined;
+        dropdown.init(@src(), .{ .label = "Palette" }, .{
             .expand = .horizontal,
             .corner_radius = dvui.Rect.all(1000),
         });
-        dropdown.install();
+
         defer dropdown.deinit();
 
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -705,7 +706,8 @@ pub fn drawPalettes() !void {
                 );
                 defer anim.deinit();
 
-                var button_widget = dvui.ButtonWidget.init(@src(), .{}, .{
+                var button_widget: dvui.ButtonWidget = undefined;
+                button_widget.init(@src(), .{}, .{
                     .expand = .none,
                     .min_size_content = .{ .w = 24, .h = 24 },
                     .id_extra = i,
@@ -715,8 +717,6 @@ pub fn drawPalettes() !void {
                     .margin = .all(1),
                     .padding = .all(0),
                 });
-
-                button_widget.install();
 
                 // Events should not be consumed here
                 //button_widget.processEvents();

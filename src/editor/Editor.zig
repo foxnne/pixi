@@ -299,12 +299,12 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 }
 
 pub fn drawRadialMenu(editor: *Editor) !void {
-    var fw = dvui.FloatingWidget.init(@src(), .{}, .{
+    var fw: dvui.FloatingWidget = undefined;
+    fw.init(@src(), .{}, .{
         .rect = .cast(dvui.windowRect()),
         .background = false,
     });
     defer fw.deinit();
-    fw.install();
 
     if (dvui.firstFrame(fw.data().id)) {
         editor.tools.radial_menu.center = editor.tools.radial_menu.mouse_position;
@@ -350,7 +350,8 @@ pub fn drawRadialMenu(editor: *Editor) !void {
 
         const tool = @as(Editor.Tools.Tool, @enumFromInt(i));
 
-        var button = dvui.ButtonWidget.init(@src(), .{}, .{
+        var button: dvui.ButtonWidget = undefined;
+        button.init(@src(), .{}, .{
             .rect = rect,
             .id_extra = i,
             .corner_radius = dvui.Rect.all(1000.0),
@@ -381,7 +382,6 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .h = @as(f32, @floatFromInt(sprite.source[3])) / size.h,
         };
 
-        button.install();
         button.processEvents();
         button.drawBackground();
 
