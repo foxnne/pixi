@@ -10,7 +10,10 @@ pub const RestoreDelete = enum { restore, delete };
 pub const ChangeType = enum {
     pixels,
     origins,
-    animation,
+    animation_name,
+    animation_frames,
+    animation_settings,
+    animation_order,
     animation_restore_delete,
     layers_order,
     layer_restore_delete,
@@ -32,10 +35,23 @@ pub const Change = union(ChangeType) {
         values: [][2]f32,
     };
 
-    pub const Animation = struct {
+    pub const AnimationName = struct {
         index: usize,
-        name: [128]u8,
+        name: []u8,
+    };
+
+    pub const AnimationSettings = struct {
+        index: usize,
         fps: f32,
+    };
+
+    pub const AnimationOrder = struct {
+        order: []u64,
+        selected: usize,
+    };
+
+    pub const AnimationFrames = struct {
+        index: usize,
         frames: []usize,
     };
 
@@ -45,7 +61,7 @@ pub const Change = union(ChangeType) {
     };
 
     pub const LayersOrder = struct {
-        order: []usize,
+        order: []u64,
         selected: usize,
     };
 
@@ -68,7 +84,10 @@ pub const Change = union(ChangeType) {
 
     pixels: Pixels,
     origins: Origins,
-    animation: Animation,
+    animation_name: AnimationName,
+    animation_frames: AnimationFrames,
+    animation_settings: AnimationSettings,
+    animation_order: AnimationOrder,
     animation_restore_delete: AnimationRestoreDelete,
     layers_order: LayersOrder,
     layer_restore_delete: LayerRestoreDelete,
@@ -105,7 +124,7 @@ pub const Change = union(ChangeType) {
                 .order = try allocator.alloc(usize, len),
                 .selected = 0,
             } },
-            .layer_name => .{ .layer_name = .{
+            .layer_name => .{ .animation_name = .{
                 .name = [_:0]u8{0} ** Editor.Constants.max_name_len,
                 .index = 0,
             } },
@@ -182,17 +201,17 @@ pub fn append(self: *History, change: Change) !void {
                         }
                     }
                 },
-                .animation => |animation| {
-                    equal = std.mem.eql(u8, &animation.name, &change.animation.name);
-                    if (equal) {
-                        equal = animation.index == change.animation.index;
-                        if (equal) {
-                            equal = animation.fps == change.animation.fps;
-                            if (equal) {
-                                equal = std.mem.eql(usize, animation.frames, change.animation.frames);
-                            }
-                        }
-                    }
+                .animation_name => {
+                    equal = false;
+                },
+                .animation_frames => {
+                    equal = false;
+                },
+                .animation_settings => {
+                    equal = false;
+                },
+                .animation_order => {
+                    equal = false;
                 },
                 .animation_restore_delete => {
                     equal = false;
@@ -336,39 +355,6 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             layer_settings.collapse = collapse;
             pixi.editor.explorer.pane = .tools;
         },
-        .animation => |*animation| {
-            // Name
-            var name = [_:0]u8{0} ** 128;
-            @memcpy(name[0..animation.name.len], &animation.name);
-            animation.name = [_:0]u8{0} ** 128;
-            @memcpy(animation.name[0..file.animations.items(.name)[animation.index].len], file.animations.items(.name)[animation.index]);
-            pixi.app.allocator.free(file.animations.items(.name)[animation.index]);
-            file.animations.items(.name)[animation.index] = try pixi.app.allocator.dupe(u8, std.mem.trimRight(u8, &name, "\u{0}"));
-            // FPS
-            const fps = animation.fps;
-            animation.fps = file.animations.items(.fps)[animation.index];
-            file.animations.items(.fps)[animation.index] = fps;
-
-            // Frames
-
-            const frames = try pixi.app.allocator.alloc(usize, animation.frames.len);
-            @memcpy(frames, animation.frames);
-            animation.frames = try pixi.app.allocator.alloc(usize, file.animations.items(.frames)[animation.index].len);
-            @memcpy(animation.frames, file.animations.items(.frames)[animation.index]);
-            pixi.app.allocator.free(file.animations.items(.frames)[animation.index]);
-            file.animations.items(.frames)[animation.index] = frames;
-
-            // // Start
-            // const start = animation.start;
-            // animation.start = file.animations.items(.start)[animation.index];
-            // file.animations.items(.start)[animation.index] = start;
-            // // Length
-            // const length = animation.length;
-            // animation.length = file.animations.items(.length)[animation.index];
-            // file.animations.items(.length)[animation.index] = length;
-
-            pixi.editor.explorer.pane = .animations;
-        },
         .animation_restore_delete => |*animation_restore_delete| {
             const a = animation_restore_delete.action;
             switch (a) {
@@ -387,7 +373,62 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     //     file.selected_animation_index = 0;
                 },
             }
-            pixi.editor.explorer.pane = .animations;
+            pixi.editor.explorer.pane = .sprites;
+        },
+        .animation_name => |*animation_name| {
+            const name = try pixi.app.allocator.dupe(u8, file.animations.items(.name)[animation_name.index]);
+            pixi.app.allocator.free(file.animations.items(.name)[animation_name.index]);
+            file.animations.items(.name)[animation_name.index] = try pixi.app.allocator.dupe(u8, animation_name.name);
+            animation_name.name = name;
+            pixi.editor.explorer.pane = .sprites;
+        },
+        .animation_settings => |*animation_settings| {
+            const fps = file.animations.items(.fps)[animation_settings.index];
+            file.animations.items(.fps)[animation_settings.index] = animation_settings.fps;
+            animation_settings.fps = fps;
+            pixi.editor.explorer.pane = .sprites;
+        },
+        .animation_order => |*animation_order| {
+            var new_order = try pixi.app.allocator.alloc(usize, animation_order.order.len);
+            for (0..file.animations.len) |anim_index| {
+                new_order[anim_index] = file.animations.items(.id)[anim_index];
+            }
+
+            const slice = file.animations.slice();
+
+            for (animation_order.order, 0..) |id, i| {
+                if (slice.items(.id)[i] == id) continue;
+
+                // Save current animation
+                const current_animation = slice.get(i);
+                animation_order.order[i] = current_animation.id;
+
+                // Make changes to the animations
+                var other_animation_index: usize = 0;
+                while (other_animation_index < file.animations.len) : (other_animation_index += 1) {
+                    const animation = slice.get(other_animation_index);
+                    if (animation.id == animation_order.selected) {
+                        file.selected_animation_index = other_animation_index;
+                    }
+                    if (animation.id == id) {
+                        file.animations.set(i, animation);
+                        file.animations.set(other_animation_index, current_animation);
+                        continue;
+                    }
+                }
+            }
+
+            @memcpy(animation_order.order, new_order);
+            pixi.app.allocator.free(new_order);
+        },
+        .animation_frames => |*animation_frames| {
+            const frames = try pixi.app.allocator.alloc(usize, animation_frames.frames.len);
+            @memcpy(frames, animation_frames.frames);
+            animation_frames.frames = try pixi.app.allocator.alloc(usize, file.animations.items(.frames)[animation_frames.index].len);
+            @memcpy(animation_frames.frames, file.animations.items(.frames)[animation_frames.index]);
+            pixi.app.allocator.free(file.animations.items(.frames)[animation_frames.index]);
+            file.animations.items(.frames)[animation_frames.index] = frames;
+            pixi.editor.explorer.pane = .sprites;
         },
         // .heightmap_restore_delete => |*heightmap_restore_delete| {
         //     const a = heightmap_restore_delete.action;

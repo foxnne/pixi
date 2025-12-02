@@ -364,9 +364,26 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
             const distance = @sqrt(dx * dx + dy * dy);
 
+            var animation_id: ?u64 = null;
+            for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
+                for (frames) |frame| {
+                    if (frame == index) {
+                        animation_id = self.init_options.file.animations.items(.id)[i];
+                        break;
+                    }
+                }
+            }
+
+            var color = dvui.themeGet().color(.highlight, .fill);
+            if (animation_id) |anim_id| {
+                if (pixi.editor.colors.file_tree_palette) |*palette| {
+                    color = palette.getDVUIColor(anim_id);
+                }
+            }
+
             const t = distance / max_distance;
-            if (t <= 1.1 and t > -0.1) {
-                drawSpriteBubble(self, index, t, dvui.themeGet().color(.control, .text));
+            if (t <= 1.2 and t > -0.2) {
+                drawSpriteBubble(self, index, t, color);
             }
         }
     }
@@ -375,16 +392,30 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
     var i: usize = 0;
     while (iter.next()) |index| {
         i += 1;
-        const anim = dvui.animate(@src(), .{ .duration = 100_000 + 50_000 * @as(i32, @intCast(i)), .kind = .vertical, .easing = dvui.easing.outBack }, .{
+        const anim = dvui.animate(@src(), .{ .duration = 110_000 + 40_000 * @as(i32, @intCast(i)), .kind = .vertical, .easing = dvui.easing.inOutBack }, .{
             .id_extra = index,
         });
         defer anim.deinit();
 
-        var t = anim.val orelse 1.0;
-        if (t > 1.1) t = 1.1;
-        if (t < -0.1) t = -0.1;
+        var animation_id: ?u64 = null;
+        for (self.init_options.file.animations.items(.frames), 0..) |frames, j| {
+            for (frames) |frame| {
+                if (frame == index) {
+                    animation_id = self.init_options.file.animations.items(.id)[j];
+                    break;
+                }
+            }
+        }
 
-        drawSpriteBubble(self, index, 1.0 - t, dvui.themeGet().color(.highlight, .fill));
+        var color = dvui.themeGet().color(.highlight, .fill);
+        if (animation_id) |anim_id| {
+            if (pixi.editor.colors.file_tree_palette) |*palette| {
+                color = palette.getDVUIColor(anim_id);
+            }
+        }
+
+        const t = anim.val orelse 1.0;
+        drawSpriteBubble(self, index, 1.0 - t, color);
     }
 }
 
@@ -410,17 +441,19 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
         .id_extra = index,
     });
 
-    const corner_radius: dvui.Rect = .{ .x = box.data().rectScale().r.h, .y = box.data().rectScale().r.h };
+    const radius = std.math.clamp(scaled_h, -0.1, @min(sprite_rect.h, sprite_rect.w) / 2.0);
+
+    const corner_radius: dvui.Rect = .{ .x = radius, .y = radius };
 
     var path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
 
-    const rad = corner_radius.scale(1, dvui.Rect);
+    const rad = corner_radius.scale(box.data().contentRectScale().s, dvui.Rect);
     const r = box.data().contentRectScale().r;
 
-    const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + rad.x };
+    const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + box.data().contentRectScale().r.h };
     //onst bl = dvui.Point.Physical{ .x = r.x + rad.h, .y = r.y + r.h - rad.h };
     //const br = dvui.Point.Physical{ .x = r.x + r.w - rad.w, .y = r.y + r.h - rad.w };
-    const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + rad.y };
+    const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + box.data().contentRectScale().r.h };
     //path.addRect(box.data().contentRectScale().r, dvui.Rect.Physical.all(0));
 
     if (new_rect.h > 1) {

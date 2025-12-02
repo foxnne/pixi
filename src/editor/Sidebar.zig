@@ -28,8 +28,8 @@ pub fn draw(_: Sidebar) !bool {
         .{ .pane = .files, .icon = dvui.entypo.folder },
         .{ .pane = .tools, .icon = dvui.entypo.pencil },
         .{ .pane = .sprites, .icon = dvui.entypo.grid },
-        .{ .pane = .animations, .icon = dvui.entypo.controller_play },
-        .{ .pane = .keyframe_animations, .icon = dvui.entypo.key },
+        //.{ .pane = .animations, .icon = dvui.entypo.controller_play },
+        //.{ .pane = .keyframe_animations, .icon = dvui.entypo.key },
         .{ .pane = .project, .icon = dvui.entypo.box },
         .{ .pane = .settings, .icon = dvui.entypo.cog },
     };
@@ -58,9 +58,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
         .min_size_content = .{ .h = size },
     });
     defer bw.deinit();
-    //bw.install();
     bw.processEvents();
-    //try bw.drawBackground();
 
     const color: dvui.Color = if (selected) theme.color(.highlight, .fill) else if (bw.hovered()) theme.color(.window, .text) else theme.color(.control, .fill).lighten(12.0);
 

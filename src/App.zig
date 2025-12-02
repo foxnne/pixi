@@ -107,6 +107,9 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     dvui.addFont("CozetteVector", cozette_ttf, null) catch {};
     dvui.addFont("CozetteVectorBold", cozette_bold_ttf, null) catch {};
+    dvui.addFont("Vera", dvui.Font.builtin.Vera, null) catch {};
+    dvui.addFont("VeraBd", dvui.Font.builtin.VeraBd, null) catch {};
+    dvui.addFont("VeraMono", dvui.Font.builtin.VeraMono, null) catch {};
 
     var theme = dvui.themeGet();
 

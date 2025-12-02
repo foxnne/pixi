@@ -19,20 +19,21 @@ height: u32,
 tile_width: u32 = 0,
 tile_height: u32 = 0,
 
+selected_layer_index: usize = 0,
 layers: std.MultiArrayList(Layer) = .{},
 deleted_layers: std.MultiArrayList(Layer) = .{},
 
 sprites: std.MultiArrayList(Sprite) = .{},
 
+selected_animation_index: usize = 0,
 animations: std.MultiArrayList(Animation) = .{},
 deleted_animations: std.MultiArrayList(Animation) = .{},
-
-selected_layer_index: usize = 0,
 
 history: History,
 buffers: Buffers,
 
-counter: u64 = 0,
+layer_id_counter: u64 = 0,
+anim_id_counter: u64 = 0,
 
 /// File-specific editor data
 editor: EditorData = .{},
@@ -45,6 +46,7 @@ editor: EditorData = .{},
 pub const EditorData = struct {
     canvas: pixi.dvui.CanvasWidget = .{},
     layers_scroll_info: dvui.ScrollInfo = .{},
+    animations_scroll_info: dvui.ScrollInfo = .{},
     transform: ?Editor.Transform = null,
 
     saving: bool = false,
@@ -207,9 +209,9 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
         };
 
         //Initialize editor layers and selected sprites
-        internal.editor.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-        internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-        internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
         internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
@@ -254,7 +256,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                 const data = img_buf orelse continue;
 
                 var new_layer: pixi.Internal.Layer = try .fromPixelsPMA(
-                    internal.newID(),
+                    internal.newLayerID(),
                     l.name,
                     @as([*]dvui.Color.PMA, @ptrCast(@constCast(data)))[0..(internal.width * internal.height)],
                     internal.width,
@@ -278,7 +280,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                 const data = img_buf orelse continue;
 
                 var new_layer: pixi.Internal.Layer = try .fromImageFileBytes(
-                    internal.newID(),
+                    internal.newLayerID(),
                     l.name,
                     @as([*]u8, @ptrCast(data))[0..img_len],
                     .ptr,
@@ -309,6 +311,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
 
         for (ext.animations) |animation| {
             internal.animations.append(pixi.app.allocator, .{
+                .id = internal.newAnimationID(),
                 .name = try pixi.app.allocator.dupe(u8, animation.name),
                 .frames = try pixi.app.allocator.dupe(usize, animation.frames),
                 .fps = animation.fps,
@@ -440,9 +443,9 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
     internal.layers.append(pixi.app.allocator, png_layer) catch return error.LayerCreateError;
 
     // Initialize editor layers and selected sprites
-    internal.editor.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-    internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-    internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
     internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
@@ -485,6 +488,14 @@ pub fn deinit(file: *File) void {
         pixi.app.allocator.free(name);
     }
 
+    for (file.animations.items(.name)) |name| {
+        pixi.app.allocator.free(name);
+    }
+
+    for (file.animations.items(.frames)) |frames| {
+        pixi.app.allocator.free(frames);
+    }
+
     file.layers.deinit(pixi.app.allocator);
     file.deleted_layers.deinit(pixi.app.allocator);
     file.sprites.deinit(pixi.app.allocator);
@@ -497,9 +508,14 @@ pub fn dirty(self: File) bool {
     return self.history.bookmark != 0;
 }
 
-pub fn newID(file: *File) u64 {
-    file.counter += 1;
-    return file.counter;
+pub fn newAnimationID(file: *File) u64 {
+    file.anim_id_counter += 1;
+    return file.anim_id_counter;
+}
+
+pub fn newLayerID(file: *File) u64 {
+    file.layer_id_counter += 1;
+    return file.layer_id_counter;
 }
 
 pub fn spritePoint(file: *File, point: dvui.Point) dvui.Point {
@@ -1003,7 +1019,7 @@ pub fn duplicateLayer(self: *File, index: usize) !u64 {
     const new_name = try std.fmt.allocPrint(dvui.currentWindow().lifo(), "{s}_copy", .{layer.name});
     defer dvui.currentWindow().lifo().free(new_name);
 
-    var new_layer = Layer.init(self.newID(), new_name, self.width, self.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.FailedToDuplicateLayer;
+    var new_layer = Layer.init(self.newLayerID(), new_name, self.width, self.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.FailedToDuplicateLayer;
     new_layer.visible = layer.visible;
     new_layer.collapse = layer.collapse;
 
@@ -1028,7 +1044,7 @@ pub fn duplicateLayer(self: *File, index: usize) !u64 {
 }
 
 pub fn createLayer(self: *File) !u64 {
-    if (pixi.Internal.Layer.init(self.newID(), "New Layer", self.width, self.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
+    if (pixi.Internal.Layer.init(self.newLayerID(), "New Layer", self.width, self.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
         self.layers.insert(pixi.app.allocator, 0, layer) catch {
             dvui.log.err("Failed to append layer", .{});
         };
@@ -1047,6 +1063,36 @@ pub fn createLayer(self: *File) !u64 {
     }
 
     return error.FailedToCreateLayer;
+}
+
+pub fn createAnimation(self: *File) !u64 {
+    if (Animation.init(pixi.app.allocator, self.newAnimationID(), "New Animation", &[_]usize{}, 1.0) catch null) |animation| {
+        self.animations.append(pixi.app.allocator, animation) catch {
+            dvui.log.err("Failed to append animation", .{});
+        };
+        return animation.id;
+    }
+
+    return error.FailedToCreateAnimation;
+}
+
+pub fn duplicateAnimation(self: *File, index: usize) !u64 {
+    const animation = self.animations.slice().get(index);
+    const new_name = try std.fmt.allocPrint(dvui.currentWindow().lifo(), "{s}_copy", .{animation.name});
+    const new_animation = Animation.init(pixi.app.allocator, animation.id, new_name, animation.frames, animation.fps) catch return error.FailedToDuplicateAnimation;
+    self.animations.insert(pixi.app.allocator, 0, new_animation) catch {
+        dvui.log.err("Failed to append animation", .{});
+    };
+    return new_animation.id;
+}
+
+pub fn deleteAnimation(self: *File, index: usize) !void {
+    try self.deleted_animations.append(pixi.app.allocator, self.animations.slice().get(index));
+    self.animations.orderedRemove(index);
+    try self.history.append(.{ .animation_restore_delete = .{
+        .action = .restore,
+        .index = index,
+    } });
 }
 
 pub fn undo(self: *File) !void {

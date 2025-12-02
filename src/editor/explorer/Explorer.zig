@@ -14,7 +14,7 @@ pub const Explorer = @This();
 
 pub const files = @import("files.zig");
 pub const tools = @import("tools.zig");
-// pub const sprites = @import("sprites.zig");
+pub const sprites = @import("sprites.zig");
 // pub const animations = @import("animations.zig");
 // pub const keyframe_animations = @import("keyframe_animations.zig");
 pub const project = @import("project.zig");
@@ -29,6 +29,7 @@ rect: dvui.Rect = .{},
 open_branches: std.AutoHashMap(dvui.Id, void) = undefined,
 pinned_palettes: bool = false,
 layers_ratio: f32 = 0.5,
+animations_ratio: f32 = 0.5,
 
 pub const Pane = enum(u32) {
     files,
@@ -108,6 +109,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         .settings => try settings.draw(),
         .project => try project.draw(),
         .tools => try tools.draw(),
+        .sprites => try sprites.draw(),
         else => {},
     }
 

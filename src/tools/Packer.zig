@@ -224,6 +224,7 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                 const animation = file.animations.slice().get(animation_index);
                 if (sprite_index == animation.frames[0]) {
                     try self.animations.append(.{
+                        .id = animation.id,
                         .name = try std.fmt.allocPrint(pixi.app.allocator, "{s}_{s}", .{ animation.name, layer.name }),
                         .frames = try pixi.app.allocator.dupe(usize, animation.frames),
                         //.start = self.sprites.items.len - 1,
