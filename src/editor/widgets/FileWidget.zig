@@ -286,7 +286,24 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                     } else {
                         file.clearSelectedSprites();
                         if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
-                            file.editor.selected_sprites.set(sprite_index);
+                            if (pixi.editor.explorer.pane == .sprites) {
+                                var found: bool = false;
+                                for (file.animations.items(.frames), 0..) |frames, anim_index| {
+                                    for (frames) |frame| {
+                                        if (frame == sprite_index) {
+                                            file.selected_animation_index = anim_index;
+                                            found = true;
+                                            break;
+                                        }
+                                        if (found) break;
+                                    }
+                                    if (found) break;
+                                }
+
+                                file.editor.selected_sprites.set(sprite_index);
+                            } else {
+                                file.editor.selected_sprites.set(sprite_index);
+                            }
                         }
                     }
 
@@ -352,8 +369,61 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
     if (self.init_options.file.editor.transform != null) return;
     if (pixi.editor.explorer.pane != .sprites) return;
 
-    if (self.init_options.file.editor.selected_sprites.count() == 0) {
-        for (0..self.init_options.file.spriteCount()) |index| {
+    for (0..self.init_options.file.spriteCount()) |index| {
+        // First, lets grab the selected animation
+        //const selected_animation = self.init_options.file.animations.get(self.init_options.file.selected_animation_index);
+
+        // and set the default bubble color, which will be the highlight color
+        var color = dvui.themeGet().color(.control, .text);
+
+        var automatic_animation: bool = false;
+        var automatic_animation_i: usize = 0;
+
+        // Then, search through the existing animations and see if our current sprite is in any of them
+        var animation_index: ?usize = null;
+        anim_blk: for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
+            for (frames, 0..) |frame, j| {
+                if (frame == index) {
+                    automatic_animation_i = j;
+                    animation_index = i;
+                    break :anim_blk;
+                }
+            }
+        }
+
+        // If we have a sprite thats part of an animation, bubble color needs to come from the animation color
+        if (animation_index) |ai| {
+            const id = self.init_options.file.animations.get(ai).id;
+
+            if (pixi.editor.colors.file_tree_palette) |*palette| {
+                color = palette.getDVUIColor(id);
+            }
+            if (self.init_options.file.selected_animation_index == ai) {
+                automatic_animation = true;
+            }
+        }
+
+        // if (!automatic_animation) {
+        //     var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+        //     var i: usize = 0;
+        //     while (iter.next()) |selected_index| {
+        //         i += 1;
+        //         if (selected_index == index) {
+        //             color = dvui.themeGet().color(.highlight, .fill);
+        //             automatic_animation_i = i;
+        //             automatic_animation = true;
+        //         }
+        //     }
+        // }
+
+        if (automatic_animation) {
+            const anim = dvui.animate(@src(), .{ .duration = 50_000 + 100_000 * @as(i32, @intCast(automatic_animation_i)), .kind = .vertical, .easing = dvui.easing.outBack }, .{
+                .id_extra = index,
+            });
+            defer anim.deinit();
+            const t = anim.val orelse 1.0;
+            drawSpriteBubble(self, index, 1.0 - t, color, animation_index);
+        } else {
             const sprite_rect = self.init_options.file.spriteRect(index);
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
@@ -364,62 +434,101 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
             const distance = @sqrt(dx * dx + dy * dy);
 
-            var animation_id: ?u64 = null;
-            for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
-                for (frames) |frame| {
-                    if (frame == index) {
-                        animation_id = self.init_options.file.animations.items(.id)[i];
-                        break;
-                    }
-                }
-            }
-
-            var color = dvui.themeGet().color(.highlight, .fill);
-            if (animation_id) |anim_id| {
-                if (pixi.editor.colors.file_tree_palette) |*palette| {
-                    color = palette.getDVUIColor(anim_id);
-                }
-            }
-
             const t = distance / max_distance;
-            if (t <= 1.2 and t > -0.2) {
-                drawSpriteBubble(self, index, t, color);
-            }
+
+            drawSpriteBubble(self, index, t, color, animation_index);
         }
     }
 
-    var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-    var i: usize = 0;
-    while (iter.next()) |index| {
-        i += 1;
-        const anim = dvui.animate(@src(), .{ .duration = 110_000 + 40_000 * @as(i32, @intCast(i)), .kind = .vertical, .easing = dvui.easing.inOutBack }, .{
-            .id_extra = index,
-        });
-        defer anim.deinit();
+    // if (self.init_options.file.editor.selected_sprites.count() == 0) {
+    //     for (0..self.init_options.file.spriteCount()) |index| {
+    //         const sprite_rect = self.init_options.file.spriteRect(index);
 
-        var animation_id: ?u64 = null;
-        for (self.init_options.file.animations.items(.frames), 0..) |frames, j| {
-            for (frames) |frame| {
-                if (frame == index) {
-                    animation_id = self.init_options.file.animations.items(.id)[j];
-                    break;
-                }
-            }
-        }
+    //         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-        var color = dvui.themeGet().color(.highlight, .fill);
-        if (animation_id) |anim_id| {
-            if (pixi.editor.colors.file_tree_palette) |*palette| {
-                color = palette.getDVUIColor(anim_id);
-            }
-        }
+    //         const max_distance: f32 = sprite_rect.h * 2;
 
-        const t = anim.val orelse 1.0;
-        drawSpriteBubble(self, index, 1.0 - t, color);
-    }
+    //         const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
+    //         const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
+    //         const distance = @sqrt(dx * dx + dy * dy);
+
+    //         var animation_id: ?u64 = null;
+    //         var animation_index: ?usize = null;
+
+    //         for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
+    //             for (frames) |frame| {
+    //                 if (frame == index) {
+    //                     animation_id = self.init_options.file.animations.items(.id)[i];
+    //                     animation_index = i;
+    //                     break;
+    //                 }
+    //             }
+    //         }
+
+    //         var color = dvui.themeGet().color(.highlight, .fill);
+    //         if (animation_id) |anim_id| {
+    //             if (pixi.editor.colors.file_tree_palette) |*palette| {
+    //                 color = palette.getDVUIColor(anim_id);
+    //             }
+    //         }
+
+    //         const t = distance / max_distance;
+    //         if (t <= 1.2 and t > -0.2) {
+    //             drawSpriteBubble(self, index, t, color, animation_index);
+    //         }
+    //     }
+    // }
+
+    // var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+    // var i: usize = 0;
+    // while (iter.next()) |index| {
+    //     i += 1;
+    //     const anim = dvui.animate(@src(), .{ .duration = 110_000 + 40_000 * @as(i32, @intCast(i)), .kind = .vertical, .easing = dvui.easing.inOutBack }, .{
+    //         .id_extra = index,
+    //     });
+    //     defer anim.deinit();
+
+    //     var animation_id: ?u64 = null;
+    //     var animation_index: ?usize = null;
+    //     for (self.init_options.file.animations.items(.frames), 0..) |frames, j| {
+    //         for (frames) |frame| {
+    //             if (frame == index) {
+    //                 animation_id = self.init_options.file.animations.items(.id)[j];
+    //                 animation_index = j;
+    //                 break;
+    //             }
+    //         }
+    //     }
+
+    //     var color = dvui.themeGet().color(.highlight, .fill);
+    //     if (animation_id) |anim_id| {
+    //         if (pixi.editor.colors.file_tree_palette) |*palette| {
+    //             color = palette.getDVUIColor(anim_id);
+    //         }
+    //     }
+
+    //     const t = anim.val orelse 1.0;
+    //     drawSpriteBubble(self, index, 1.0 - t, color, animation_index);
+    // }
+
+    // for (self.init_options.file.animations.get(self.init_options.file.selected_animation_index).frames, 0..) |frame, j| {
+    //     const anim = dvui.animate(@src(), .{ .duration = 110_000 + 40_000 * @as(i32, @intCast(j)), .kind = .vertical, .easing = dvui.easing.inOutBack }, .{
+    //         .id_extra = frame,
+    //     });
+    //     defer anim.deinit();
+
+    //     var color = dvui.themeGet().color(.highlight, .fill);
+
+    //     if (pixi.editor.colors.file_tree_palette) |*palette| {
+    //         color = palette.getDVUIColor(self.init_options.file.animations.get(self.init_options.file.selected_animation_index).id);
+    //     }
+
+    //     const t = anim.val orelse 1.0;
+    //     drawSpriteBubble(self, frame, 1.0 - t, color, self.init_options.file.selected_animation_index);
+    // }
 }
 
-pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Color) void {
+pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Color, animation_index: ?usize) void {
     const fill_color: dvui.Color = dvui.themeGet().color(.window, .fill);
 
     const sprite_rect = self.init_options.file.spriteRect(index);
@@ -451,32 +560,20 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
     const r = box.data().contentRectScale().r;
 
     const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + box.data().contentRectScale().r.h };
-    //onst bl = dvui.Point.Physical{ .x = r.x + rad.h, .y = r.y + r.h - rad.h };
-    //const br = dvui.Point.Physical{ .x = r.x + r.w - rad.w, .y = r.y + r.h - rad.w };
     const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + box.data().contentRectScale().r.h };
-    //path.addRect(box.data().contentRectScale().r, dvui.Rect.Physical.all(0));
 
     if (new_rect.h > 1) {
         path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
         path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
-        //path.addArc(bl.plus(.{ .x = 2.5 }), rad.h, dvui.math.pi, dvui.math.pi * 0.5, false);
-        //path.addArc(br.plus(.{ .x = -2.5 }), rad.w, dvui.math.pi * 0.5, 0, false);
 
         var built = path.build();
 
         built.stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 2.5 * dvui.currentWindow().natural_scale });
 
-        built.fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 2.0 });
+        built.fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 1.0 });
         path.deinit();
 
         box.deinit();
-
-        // const button_rect: dvui.Rect = .{
-        //     .x = box.data().contentRectScale().r.center().x - 10,
-        //     .y = box.data().contentRectScale().r.center().y - 10,
-        //     .w = 20,
-        //     .h = 20,
-        // };
 
         const button_size = @max(@min(sprite_rect.w / 3.0, sprite_rect.h / 3.0) * (dvui.easing.outBack(1 - t)), @min(sprite_rect.h, sprite_rect.w) / 6.0);
 
@@ -506,7 +603,45 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
         button.processEvents();
         button.drawBackground();
 
-        if (false) {
+        if (button.clicked()) {
+            if (animation_index) |ai| {
+                // TODO: Efficiently resize the animation frames array instead of duplicating it
+
+                var anim = self.init_options.file.animations.get(ai);
+
+                var frames = std.array_list.Managed(usize).init(pixi.app.allocator);
+                frames.appendSlice(anim.frames) catch {
+                    dvui.log.err("Failed to append frames", .{});
+                    return;
+                };
+
+                var in_frames: bool = false;
+                for (frames.items, 0..) |frame, i| {
+                    if (frame == index) {
+                        in_frames = true;
+                        _ = frames.orderedRemove(i);
+                        break;
+                    }
+                }
+
+                if (in_frames) {
+                    frames.append(index) catch {
+                        dvui.log.err("Failed to append frame", .{});
+                        return;
+                    };
+                }
+
+                pixi.app.allocator.free(anim.frames);
+                anim.frames = frames.toOwnedSlice() catch {
+                    dvui.log.err("Failed to free frames", .{});
+                    return;
+                };
+
+                self.init_options.file.animations.set(ai, anim);
+            }
+        }
+
+        if (animation_index == self.init_options.file.selected_animation_index and animation_index != null) {
             dvui.icon(
                 @src(),
                 "checkmark",
@@ -515,24 +650,6 @@ pub fn drawSpriteBubble(self: *FileWidget, index: usize, t: f32, color: dvui.Col
                 .{ .gravity_x = 0.5, .gravity_y = 0.5, .expand = .both },
             );
         }
-
-        // dvui.renderImage(self.init_options.file.editor.checkerboard_tile, box.data().borderRectScale(), .{
-        //     .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
-        //     .uv = .{
-        //         .x = 0,
-        //         .y = t,
-        //         .w = 1,
-        //         .h = 1,
-        //     },
-        //     .corner_radius = .{
-        //         .x = rad.x,
-        //         .y = rad.y,
-        //         .w = rad.w,
-        //         .h = rad.h,
-        //     },
-        // }) catch {
-        //     dvui.log.err("Failed to render checkerboard", .{});
-        // };
     } else {
         box.deinit();
     }
@@ -2190,13 +2307,13 @@ pub fn drawLayers(self: *FileWidget) void {
     // } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text), .closed = true });
 
     // Draw the selection box for the selected sprites
-    if (pixi.editor.tools.current == .pointer and file.editor.transform == null and pixi.editor.explorer.pane != .sprites) {
+    if (pixi.editor.tools.current == .pointer and file.editor.transform == null) {
         var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
         while (iter.next()) |i| {
             const sprite_rect = file.spriteRect(i);
             const sprite_rect_physical = self.init_options.canvas.screenFromDataRect(sprite_rect);
-            sprite_rect_physical.stroke(dvui.Rect.Physical.all(@min(sprite_rect_physical.w, sprite_rect_physical.h) / 8), .{
-                .thickness = 3 * dvui.currentWindow().content_scale,
+            sprite_rect_physical.inset(.all(dvui.currentWindow().natural_scale * 1.5)).stroke(dvui.Rect.Physical.all(@min(sprite_rect_physical.w, sprite_rect_physical.h) / 8), .{
+                .thickness = 1.5 * dvui.currentWindow().natural_scale,
                 .color = dvui.themeGet().color(.highlight, .fill),
                 .closed = true,
             });

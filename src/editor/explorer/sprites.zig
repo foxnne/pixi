@@ -118,9 +118,11 @@ pub fn drawAnimationControls() !void {
             },
             .color_fill = dvui.themeGet().color(.control, .fill),
         })) {
-            _ = file.duplicateAnimation(file.selected_animation_index) catch {
-                dvui.log.err("Failed to duplicate animation", .{});
-            };
+            if (file.selected_animation_index) |index| {
+                _ = file.duplicateAnimation(index) catch {
+                    dvui.log.err("Failed to duplicate animation", .{});
+                };
+            }
         }
 
         if (file.animations.len > 1) {
@@ -137,9 +139,11 @@ pub fn drawAnimationControls() !void {
                     .corner_radius = dvui.Rect.all(1000),
                 },
             })) {
-                file.deleteAnimation(file.selected_animation_index) catch {
-                    dvui.log.err("Failed to delete animation", .{});
-                };
+                if (file.selected_animation_index) |index| {
+                    file.deleteAnimation(index) catch {
+                        dvui.log.err("Failed to delete animation", .{});
+                    };
+                }
             }
         }
     }
@@ -203,7 +207,7 @@ pub fn drawAnimations() !void {
                     file.history.append(.{
                         .animation_order = .{
                             .order = prev_order,
-                            .selected = file.animations.items(.id)[file.selected_animation_index],
+                            .selected = file.animations.items(.id)[file.selected_animation_index orelse 0],
                         },
                     }) catch {
                         dvui.log.err("Failed to append history", .{});
@@ -376,11 +380,11 @@ pub fn drawAnimations() !void {
             if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
                 file.selected_animation_index = anim_index;
 
-                const anim = file.animations.get(anim_index);
-                file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.spriteCount() }, false);
-                for (0..anim.frames.len) |frame_index| {
-                    file.editor.selected_sprites.set(anim.frames[frame_index]);
-                }
+                // const anim = file.animations.get(anim_index);
+                // file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.spriteCount() }, false);
+                // for (0..anim.frames.len) |frame_index| {
+                //     file.editor.selected_sprites.set(anim.frames[frame_index]);
+                // }
             }
             //}
         }

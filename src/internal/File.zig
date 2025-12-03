@@ -25,7 +25,7 @@ deleted_layers: std.MultiArrayList(Layer) = .{},
 
 sprites: std.MultiArrayList(Sprite) = .{},
 
-selected_animation_index: usize = 0,
+selected_animation_index: ?usize = null,
 animations: std.MultiArrayList(Animation) = .{},
 deleted_animations: std.MultiArrayList(Animation) = .{},
 
