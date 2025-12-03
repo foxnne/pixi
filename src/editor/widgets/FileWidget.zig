@@ -292,6 +292,7 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                                     for (frames) |frame| {
                                         if (frame == sprite_index) {
                                             file.selected_animation_index = anim_index;
+                                            file.editor.animations_scroll_to_index = anim_index;
                                             found = true;
                                             break;
                                         }
@@ -377,14 +378,27 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         var automatic_animation: bool = false;
         var automatic_animation_i: usize = 0;
 
-        // Then, search through the existing animations and see if our current sprite is in any of them
+        // Search through the existing animations and see if our current sprite is in any of them
         var animation_index: ?usize = null;
-        anim_blk: for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
-            for (frames, 0..) |frame, j| {
+
+        if (self.init_options.file.selected_animation_index) |selected_animation_index| {
+            for (self.init_options.file.animations.items(.frames)[selected_animation_index], 0..) |frame, i| {
                 if (frame == index) {
-                    automatic_animation_i = j;
-                    animation_index = i;
-                    break :anim_blk;
+                    automatic_animation_i = i;
+                    animation_index = selected_animation_index;
+                    break;
+                }
+            }
+        }
+
+        if (animation_index == null) {
+            anim_blk: for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
+                for (frames, 0..) |frame, j| {
+                    if (frame == index) {
+                        automatic_animation_i = j;
+                        animation_index = i;
+                        break :anim_blk;
+                    }
                 }
             }
         }
@@ -503,7 +517,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         button.processEvents();
         button.drawBackground();
 
-        if (button.clicked()) {
+        if (button.clicked()) { // Toggle animation frame on or off for this selection/animation
             if (self.init_options.file.selected_animation_index) |anim_index| {
                 // TODO: Efficiently resize the animation frames array instead of duplicating it
 
@@ -551,11 +565,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
                 }
 
                 if (!remove) {
-                    frames.append(sprite_index) catch {
-                        dvui.log.err("Failed to append frame", .{});
-                        return;
-                    };
-
                     if (self.init_options.file.editor.selected_sprites.count() > 0) {
                         var in_selection: bool = false;
 
@@ -575,7 +584,17 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
                                     return;
                                 };
                             }
+                        } else {
+                            frames.append(sprite_index) catch {
+                                dvui.log.err("Failed to append frame", .{});
+                                return;
+                            };
                         }
+                    } else {
+                        frames.append(sprite_index) catch {
+                            dvui.log.err("Failed to append frame", .{});
+                            return;
+                        };
                     }
                 }
 

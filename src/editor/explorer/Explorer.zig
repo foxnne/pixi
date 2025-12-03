@@ -14,12 +14,13 @@ pub const Explorer = @This();
 
 pub const files = @import("files.zig");
 pub const tools = @import("tools.zig");
-pub const sprites = @import("sprites.zig");
+pub const Sprites = @import("sprites.zig");
 // pub const animations = @import("animations.zig");
 // pub const keyframe_animations = @import("keyframe_animations.zig");
 pub const project = @import("project.zig");
 pub const settings = @import("settings.zig");
 
+sprites: Sprites = .{},
 pane: Pane = .files,
 paned: *pixi.dvui.PanedWidget = undefined,
 scroll_info: dvui.ScrollInfo = .{
@@ -109,7 +110,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         .settings => try settings.draw(),
         .project => try project.draw(),
         .tools => try tools.draw(),
-        .sprites => try sprites.draw(),
+        .sprites => try explorer.sprites.draw(),
         else => {},
     }
 

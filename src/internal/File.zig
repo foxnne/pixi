@@ -46,7 +46,9 @@ editor: EditorData = .{},
 pub const EditorData = struct {
     canvas: pixi.dvui.CanvasWidget = .{},
     layers_scroll_info: dvui.ScrollInfo = .{},
+    sprites_scroll_info: dvui.ScrollInfo = .{},
     animations_scroll_info: dvui.ScrollInfo = .{},
+    animations_scroll_to_index: ?usize = null,
     transform: ?Editor.Transform = null,
 
     saving: bool = false,
@@ -540,6 +542,25 @@ pub fn spriteIndex(file: *File, point: dvui.Point) ?usize {
     const row = @divTrunc(@as(u32, @intFromFloat(point.y)), file.tile_height);
 
     return row * tiles_wide + column;
+}
+
+// Returns the name of the animation and the frame index of the sprite, or just the frame index
+pub fn spriteName(file: *File, allocator: std.mem.Allocator, index: usize, by_animation: bool) ![]const u8 {
+    if (by_animation) {
+        for (file.animations.items(.frames), 0..) |frames, animation_index| {
+            for (frames, 0..) |frame, i| {
+                if (frame != index) continue;
+
+                if (frames.len > 1) {
+                    return std.fmt.allocPrint(allocator, "{s}_{d}", .{ file.animations.items(.name)[animation_index], i });
+                } else {
+                    return std.fmt.allocPrint(allocator, "{s}", .{file.animations.items(.name)[animation_index]});
+                }
+            }
+        }
+    }
+
+    return std.fmt.allocPrint(allocator, "Index: {d}", .{index});
 }
 
 pub fn spriteRect(file: *File, index: usize) dvui.Rect {
@@ -1079,7 +1100,7 @@ pub fn createAnimation(self: *File) !u64 {
 pub fn duplicateAnimation(self: *File, index: usize) !u64 {
     const animation = self.animations.slice().get(index);
     const new_name = try std.fmt.allocPrint(dvui.currentWindow().lifo(), "{s}_copy", .{animation.name});
-    const new_animation = Animation.init(pixi.app.allocator, animation.id, new_name, animation.frames, animation.fps) catch return error.FailedToDuplicateAnimation;
+    const new_animation = Animation.init(pixi.app.allocator, self.newAnimationID(), new_name, animation.frames, animation.fps) catch return error.FailedToDuplicateAnimation;
     self.animations.insert(pixi.app.allocator, 0, new_animation) catch {
         dvui.log.err("Failed to append animation", .{});
     };
