@@ -516,37 +516,37 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
                 };
 
                 var remove: bool = false;
-                for (frames.items, 0..) |frame, i| {
-                    if (frame == sprite_index) {
+                for (frames.items, 0..) |frame_sprite_index, i| {
+                    if (frame_sprite_index == sprite_index) {
                         remove = true;
 
                         // First remove the currently clicked frame, regardless
                         _ = frames.orderedRemove(i);
+                    }
+                }
 
-                        if (self.init_options.file.editor.selected_sprites.count() > 0) {
-                            var in_selection: bool = false;
-                            var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-                            while (iter.next()) |selected_index| {
-                                if (selected_index == frame) {
-                                    in_selection = true;
-                                    break;
-                                }
-                            }
+                if (self.init_options.file.editor.selected_sprites.count() > 0) {
+                    var in_selection: bool = false;
+                    var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                    while (iter.next()) |selected_index| {
+                        if (selected_index == sprite_index) {
+                            in_selection = true;
+                            break;
+                        }
+                    }
 
-                            if (in_selection) {
-                                iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-                                while (iter.next()) |selected_index| {
-                                    for (frames.items, 0..) |f, j| {
-                                        if (f == selected_index) {
-                                            _ = frames.orderedRemove(j);
-                                            break;
-                                        }
-                                    }
+                    if (in_selection) {
+                        // Remove all selected_sprite_index values from frames, regardless of their position.
+                        // To avoid skipping items due to shifting, iterate backward through frames.
+                        iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                        while (iter.next()) |selected_sprite_index| {
+                            var j: usize = frames.items.len;
+                            while (j > 0) : (j -= 1) {
+                                if (frames.items[j - 1] == selected_sprite_index) {
+                                    _ = frames.orderedRemove(j - 1);
                                 }
                             }
                         }
-
-                        break;
                     }
                 }
 
