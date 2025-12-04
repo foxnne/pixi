@@ -506,12 +506,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
 
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{
-            // .rect = .{
-            //     .x = new_rect.center().x - (button_size / 2.0),
-            //     .y = new_rect.center().y - (button_size / 2.0),
-            //     .w = button_size,
-            //     .h = button_size,
-            // },
             .margin = .all(2),
             .padding = .all(0),
             .id_extra = sprite_index,

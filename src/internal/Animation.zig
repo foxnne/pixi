@@ -1,4 +1,5 @@
 const std = @import("std");
+const dvui = @import("dvui");
 const Animation = @This();
 
 // TODO: make the same type as external without id
@@ -20,6 +21,60 @@ pub fn init(allocator: std.mem.Allocator, id: u64, name: []const u8, frames: []u
         .name = try allocator.dupe(u8, name),
         .frames = try allocator.dupe(usize, frames),
         .fps = fps,
+    };
+}
+
+pub fn appendFrame(self: *Animation, allocator: std.mem.Allocator, frame: usize) !void {
+    var new_frames = std.array_list.Managed(usize).init(allocator);
+    new_frames.appendSlice(self.frames) catch {
+        dvui.log.err("Failed to append frames", .{});
+        return;
+    };
+    new_frames.append(frame) catch {
+        dvui.log.err("Failed to append frame", .{});
+        return;
+    };
+
+    allocator.free(self.frames);
+
+    self.frames = new_frames.toOwnedSlice() catch {
+        dvui.log.err("Failed to free frames", .{});
+        return;
+    };
+}
+
+pub fn insertFrame(self: *Animation, allocator: std.mem.Allocator, index: usize, frame: usize) void {
+    var new_frames = std.array_list.Managed(usize).init(allocator);
+    new_frames.appendSlice(self.frames) catch {
+        dvui.log.err("Failed to append frames", .{});
+        return;
+    };
+    new_frames.insert(index, frame) catch {
+        dvui.log.err("Failed to insert frame", .{});
+        return;
+    };
+
+    allocator.free(self.frames);
+
+    self.frames = new_frames.toOwnedSlice() catch {
+        dvui.log.err("Failed to free frames", .{});
+        return;
+    };
+}
+
+pub fn removeFrame(self: *Animation, allocator: std.mem.Allocator, index: usize) void {
+    var new_frames = std.array_list.Managed(usize).init(allocator);
+    new_frames.appendSlice(self.frames) catch {
+        dvui.log.err("Failed to append frames", .{});
+        return;
+    };
+    _ = new_frames.orderedRemove(index);
+
+    allocator.free(self.frames);
+
+    self.frames = new_frames.toOwnedSlice() catch {
+        dvui.log.err("Failed to free frames", .{});
+        return;
     };
 }
 

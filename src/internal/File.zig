@@ -1105,14 +1105,14 @@ pub fn createAnimation(self: *File) !usize {
     return self.animations.len - 1;
 }
 
-pub fn duplicateAnimation(self: *File, index: usize) !u64 {
+pub fn duplicateAnimation(self: *File, index: usize) !usize {
     const animation = self.animations.slice().get(index);
     const new_name = try std.fmt.allocPrint(dvui.currentWindow().lifo(), "{s}_copy", .{animation.name});
     const new_animation = Animation.init(pixi.app.allocator, self.newAnimationID(), new_name, animation.frames, animation.fps) catch return error.FailedToDuplicateAnimation;
-    self.animations.insert(pixi.app.allocator, 0, new_animation) catch {
+    self.animations.insert(pixi.app.allocator, index + 1, new_animation) catch {
         dvui.log.err("Failed to append animation", .{});
     };
-    return new_animation.id;
+    return index + 1;
 }
 
 pub fn deleteAnimation(self: *File, index: usize) !void {

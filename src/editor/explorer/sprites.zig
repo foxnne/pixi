@@ -24,7 +24,6 @@ pub fn init() Sprites {
 
 pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
-        self.drawAnimationControls() catch {};
 
         // Collect layers length to trigger a refit of the panel
         const anim_count: usize = file.animations.len;
@@ -96,41 +95,7 @@ pub fn draw(self: *Sprites) !void {
     }
 }
 
-pub fn drawSprites(self: *Sprites) !void {
-    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .horizontal,
-        .background = false,
-        .color_fill = dvui.themeGet().color(.content, .fill),
-    });
-    defer vbox.deinit();
-
-    dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font_style = .title_4 });
-
-    if (pixi.editor.activeFile()) |file| {
-        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.sprites_scroll_info }, .{
-            .expand = .horizontal,
-            .background = false,
-            .corner_radius = dvui.Rect.all(1000),
-        });
-
-        defer scroll_area.deinit();
-
-        const vertical_scroll = file.editor.sprites_scroll_info.offset(.vertical);
-
-        self.drawAnimationSprites() catch {
-            dvui.log.err("Failed to draw animation sprites", .{});
-        };
-
-        // Only draw shadow if the scroll bar has been scrolled some
-        if (vertical_scroll > 0.0)
-            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{});
-
-        if (file.editor.sprites_scroll_info.virtual_size.h > file.editor.sprites_scroll_info.viewport.h and vertical_scroll < file.editor.animations_scroll_info.scrollMax(.vertical))
-            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
-    }
-}
-
-pub fn drawAnimationSprites(self: *Sprites) !void {
+pub fn drawFrames(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         if (file.selected_animation_index) |animation_index| {
             var animation = file.animations.get(animation_index);
@@ -238,6 +203,7 @@ pub fn drawAnimationSprites(self: *Sprites) !void {
                     self.sprite_insert_before_index = frame_index;
                 }
 
+                const selected = file.editor.selected_sprites.isSet(frame);
                 const hovered = pixi.dvui.hovered(r.data());
 
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -248,7 +214,7 @@ pub fn drawAnimationSprites(self: *Sprites) !void {
                     .margin = dvui.Rect.all(2),
                     .padding = dvui.Rect.all(1),
                     .border = dvui.Rect.all(1.0),
-                    .color_border = color,
+                    .color_border = if (selected) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.control, .fill),
                     .box_shadow = .{
                         .color = .black,
                         .offset = .{ .x = -2.0, .y = 2.0 },
@@ -274,7 +240,7 @@ pub fn drawAnimationSprites(self: *Sprites) !void {
                     .margin = dvui.Rect.all(2),
                     .font_style = .body,
                     .padding = dvui.Rect.all(0),
-                    .color_text = dvui.themeGet().color(.window, .text),
+                    .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
                 });
 
                 // if (self.edit_anim_id != animation.id) {
@@ -340,10 +306,18 @@ pub fn drawAnimationSprites(self: *Sprites) !void {
                 }
 
                 // This consumes the click event, so we need to do this last
-                // if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
-                //     file.selected_animation_index = anim_index;
-                //     dvui.scrollTo(.{ .screen_rect = hbox.data().rectScale().r });
-                // }
+                if (dvui.clickedEx(hbox.data(), .{ .hover_cursor = .hand })) |e| {
+                    if (e == .mouse) {
+                        if (e.mouse.mod.matchBind("ctrl/cmd")) {
+                            file.editor.selected_sprites.set(frame);
+                        } else if (e.mouse.mod.matchBind("shift")) {
+                            file.editor.selected_sprites.unset(frame);
+                        } else {
+                            file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.editor.selected_sprites.capacity() }, false);
+                            file.editor.selected_sprites.set(frame);
+                        }
+                    }
+                }
 
                 // if (file.editor.animations_scroll_to_index) |index| {
                 //     if (index == anim_index) {
@@ -359,8 +333,6 @@ pub fn drawAnimationSprites(self: *Sprites) !void {
         }
     }
 }
-
-pub fn drawSelectionSprites(_: *Sprites) !void {}
 
 pub fn drawAnimationControls(_: *Sprites) !void {
     var box = dvui.box(@src(), .{ .dir = .vertical }, .{
@@ -395,44 +367,48 @@ pub fn drawAnimationControls(_: *Sprites) !void {
             file.editor.animations_scroll_to_index = anim_index;
         }
 
-        if (dvui.buttonIcon(@src(), "DuplicateAnimation", icons.tvg.lucide.@"copy-plus", .{}, .{}, .{
-            .expand = .none,
-            .gravity_y = 0.5,
-            .corner_radius = dvui.Rect.all(1000),
-            .box_shadow = .{
-                .color = .black,
-                .offset = .{ .x = -2.0, .y = 2.0 },
-                .fade = 6.0,
-                .alpha = 0.15,
-                .corner_radius = dvui.Rect.all(1000),
-            },
-            .color_fill = dvui.themeGet().color(.control, .fill),
-        })) {
+        if (file.animations.len > 0) {
             if (file.selected_animation_index) |index| {
-                _ = file.duplicateAnimation(index) catch {
-                    dvui.log.err("Failed to duplicate animation", .{});
-                };
-            }
-        }
-
-        if (file.animations.len > 1) {
-            if (dvui.buttonIcon(@src(), "DeleteAnimation", icons.tvg.lucide.trash, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{
-                .style = .err,
-                .expand = .none,
-                .gravity_y = 0.5,
-                .corner_radius = dvui.Rect.all(1000),
-                .box_shadow = .{
-                    .color = .black,
-                    .offset = .{ .x = -2.0, .y = 2.0 },
-                    .fade = 6.0,
-                    .alpha = 0.15,
+                if (dvui.buttonIcon(@src(), "DuplicateAnimation", icons.tvg.lucide.@"copy-plus", .{}, .{}, .{
+                    .expand = .none,
+                    .gravity_y = 0.5,
                     .corner_radius = dvui.Rect.all(1000),
-                },
-            })) {
-                if (file.selected_animation_index) |index| {
+                    .box_shadow = .{
+                        .color = .black,
+                        .offset = .{ .x = -2.0, .y = 2.0 },
+                        .fade = 6.0,
+                        .alpha = 0.15,
+                        .corner_radius = dvui.Rect.all(1000),
+                    },
+                    .color_fill = dvui.themeGet().color(.control, .fill),
+                })) {
+                    const anim_index = try file.duplicateAnimation(index);
+                    file.selected_animation_index = anim_index;
+                    file.editor.animations_scroll_to_index = anim_index;
+                }
+
+                if (dvui.buttonIcon(@src(), "DeleteAnimation", icons.tvg.lucide.trash, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{
+                    .style = .err,
+                    .expand = .none,
+                    .gravity_y = 0.5,
+                    .corner_radius = dvui.Rect.all(1000),
+                    .box_shadow = .{
+                        .color = .black,
+                        .offset = .{ .x = -2.0, .y = 2.0 },
+                        .fade = 6.0,
+                        .alpha = 0.15,
+                        .corner_radius = dvui.Rect.all(1000),
+                    },
+                })) {
                     file.deleteAnimation(index) catch {
                         dvui.log.err("Failed to delete animation", .{});
                     };
+
+                    if (index > 0) {
+                        file.selected_animation_index = index - 1;
+                    } else {
+                        file.selected_animation_index = null;
+                    }
                 }
             }
         }
@@ -446,8 +422,17 @@ pub fn drawAnimations(self: *Sprites) !void {
         .color_fill = dvui.themeGet().color(.content, .fill),
     });
     defer vbox.deinit();
+    { // Draw the animation controls
+        const controls_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .horizontal,
+            .background = false,
+        });
+        defer controls_box.deinit();
 
-    dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font_style = .title_4 });
+        dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font_style = .title_4 });
+
+        self.drawAnimationControls() catch {};
+    }
 
     if (pixi.editor.activeFile()) |file| {
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.animations_scroll_info }, .{
@@ -680,6 +665,124 @@ pub fn drawAnimations(self: *Sprites) !void {
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{});
 
         if (file.editor.animations_scroll_info.virtual_size.h > file.editor.animations_scroll_info.viewport.h and vertical_scroll < file.editor.animations_scroll_info.scrollMax(.vertical))
+            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
+    }
+}
+
+pub fn drawFrameControls(_: *Sprites) !void {
+    var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .horizontal,
+        .background = false,
+    });
+    defer box.deinit();
+
+    if (pixi.editor.activeFile()) |file| {
+        if (file.selected_animation_index) |index| {
+            var animation = file.animations.get(index);
+
+            var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .none,
+                .background = false,
+                .gravity_x = 1.0,
+            });
+            defer hbox.deinit();
+
+            if (dvui.buttonIcon(@src(), "AddSprite", icons.tvg.lucide.plus, .{}, .{}, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .color_fill = dvui.themeGet().color(.control, .fill),
+            })) {
+                if (file.editor.selected_sprites.count() > 0) {
+                    var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                    while (iter.next()) |sprite_index| {
+                        animation.appendFrame(pixi.app.allocator, sprite_index) catch {
+                            dvui.log.err("Failed to append frame", .{});
+                        };
+                    }
+
+                    file.animations.set(index, animation);
+                }
+            }
+
+            if (dvui.buttonIcon(@src(), "DeleteSprite", icons.tvg.lucide.trash, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{
+                .style = .err,
+                .expand = .none,
+                .gravity_y = 0.5,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+            })) {
+                if (file.editor.selected_sprites.count() > 0) {
+                    var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                    while (iter.next()) |sprite_index| {
+                        for (animation.frames, 0..) |frame_sprite_index, i| {
+                            if (frame_sprite_index == sprite_index) {
+                                animation.removeFrame(pixi.app.allocator, i);
+                                break;
+                            }
+                        }
+                    }
+
+                    file.animations.set(index, animation);
+                }
+            }
+        }
+    }
+}
+
+pub fn drawSprites(self: *Sprites) !void {
+    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .horizontal,
+        .background = false,
+        .color_fill = dvui.themeGet().color(.content, .fill),
+    });
+    defer vbox.deinit();
+
+    { // Draw the animation controls
+        const controls_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .horizontal,
+            .background = false,
+        });
+        defer controls_box.deinit();
+
+        dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font_style = .title_4 });
+
+        self.drawFrameControls() catch {};
+    }
+
+    if (pixi.editor.activeFile()) |file| {
+        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.sprites_scroll_info }, .{
+            .expand = .horizontal,
+            .background = false,
+            .corner_radius = dvui.Rect.all(1000),
+        });
+
+        defer scroll_area.deinit();
+
+        const vertical_scroll = file.editor.sprites_scroll_info.offset(.vertical);
+
+        self.drawFrames() catch {
+            dvui.log.err("Failed to draw frames", .{});
+        };
+
+        // Only draw shadow if the scroll bar has been scrolled some
+        if (vertical_scroll > 0.0)
+            pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{});
+
+        if (file.editor.sprites_scroll_info.virtual_size.h > file.editor.sprites_scroll_info.viewport.h and vertical_scroll < file.editor.animations_scroll_info.scrollMax(.vertical))
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
     }
 }
