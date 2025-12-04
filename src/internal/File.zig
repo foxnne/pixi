@@ -1086,15 +1086,23 @@ pub fn createLayer(self: *File) !u64 {
     return error.FailedToCreateLayer;
 }
 
-pub fn createAnimation(self: *File) !u64 {
-    if (Animation.init(pixi.app.allocator, self.newAnimationID(), "New Animation", &[_]usize{}, 1.0) catch null) |animation| {
-        self.animations.append(pixi.app.allocator, animation) catch {
-            dvui.log.err("Failed to append animation", .{});
-        };
-        return animation.id;
+pub fn createAnimation(self: *File) !usize {
+    var animation = Animation.init(pixi.app.allocator, self.newAnimationID(), "New Animation", &[_]usize{}, 1.0) catch return error.FailedToCreateAnimation;
+
+    if (self.editor.selected_sprites.count() > 0) {
+        animation.frames = try pixi.app.allocator.alloc(usize, self.editor.selected_sprites.count());
+
+        var iter = self.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+        var i: usize = 0;
+        while (iter.next()) |sprite_index| : (i += 1) {
+            animation.frames[i] = sprite_index;
+        }
     }
 
-    return error.FailedToCreateAnimation;
+    self.animations.append(pixi.app.allocator, animation) catch {
+        dvui.log.err("Failed to append animation", .{});
+    };
+    return self.animations.len - 1;
 }
 
 pub fn duplicateAnimation(self: *File, index: usize) !u64 {

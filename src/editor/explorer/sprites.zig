@@ -390,9 +390,9 @@ pub fn drawAnimationControls(_: *Sprites) !void {
             },
             .color_fill = dvui.themeGet().color(.control, .fill),
         })) {
-            _ = file.createAnimation() catch {
-                dvui.log.err("Failed to create animation", .{});
-            };
+            const anim_index = try file.createAnimation();
+            file.selected_animation_index = anim_index;
+            file.editor.animations_scroll_to_index = anim_index;
         }
 
         if (dvui.buttonIcon(@src(), "DuplicateAnimation", icons.tvg.lucide.@"copy-plus", .{}, .{}, .{
