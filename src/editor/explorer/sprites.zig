@@ -657,10 +657,16 @@ pub fn drawAnimations(self: *Sprites) !void {
                 file.selected_animation_index = anim_index;
             }
 
-            if (file.editor.animations_scroll_to_index) |index| {
-                if (index == anim_index) {
-                    dvui.scrollTo(.{ .screen_rect = hbox.data().rectScale().r });
-                    file.editor.animations_scroll_to_index = null;
+            if (file.editor.animations_scroll_to_index != null and dvui.timerGet(hbox.data().id) == null) {
+                dvui.timer(hbox.data().id, 1);
+            }
+
+            if (dvui.timerDone(hbox.data().id)) {
+                if (file.editor.animations_scroll_to_index) |index| {
+                    if (index == anim_index) {
+                        dvui.scrollTo(.{ .screen_rect = hbox.data().rectScale().r, .over_scroll = true });
+                        file.editor.animations_scroll_to_index = null;
+                    }
                 }
             }
         }

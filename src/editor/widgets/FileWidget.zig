@@ -463,6 +463,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         .rect = new_rect,
         .id_extra = sprite_index,
     });
+    defer box.deinit();
 
     const radius = std.math.clamp(scaled_h, -0.1, @min(sprite_rect.h, sprite_rect.w) / 2.0);
 
@@ -487,18 +488,16 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         built.fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 1.5 });
         path.deinit();
 
-        box.deinit();
-
         const button_size = @max(@min(sprite_rect.w / 3.0, sprite_rect.h / 3.0) * (dvui.easing.outBack(1 - t)), @min(sprite_rect.h, sprite_rect.w) / 6.0);
 
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{
-            .rect = .{
-                .x = new_rect.center().x - (button_size / 2.0),
-                .y = new_rect.center().y - (button_size / 2.0),
-                .w = button_size,
-                .h = button_size,
-            },
+            // .rect = .{
+            //     .x = new_rect.center().x - (button_size / 2.0),
+            //     .y = new_rect.center().y - (button_size / 2.0),
+            //     .w = button_size,
+            //     .h = button_size,
+            // },
             .margin = .all(0),
             .padding = .all(0),
             .id_extra = sprite_index,
@@ -511,6 +510,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
             .corner_radius = dvui.Rect.all(1000000),
             .border = dvui.Rect.all(0.0),
             .color_border = dvui.themeGet().color(.highlight, .fill),
+            .gravity_x = 0.5,
+            .gravity_y = 0.5,
+            .min_size_content = .{ .w = button_size, .h = button_size },
         });
         defer button.deinit();
 
@@ -609,16 +611,10 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         }
 
         if (animation_index == self.init_options.file.selected_animation_index and animation_index != null) {
-            dvui.icon(
-                @src(),
-                "checkmark",
-                icons.tvg.lucide.check,
-                .{ .stroke_color = dvui.themeGet().color(.highlight, .fill) },
-                .{ .gravity_x = 0.5, .gravity_y = 0.5, .expand = .both },
-            );
+            button.data().contentRectScale().r.inset(.all(button.data().contentRectScale().r.w / 3.0)).fill(.all(10000000), .{
+                .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a },
+            });
         }
-    } else {
-        box.deinit();
     }
 }
 
