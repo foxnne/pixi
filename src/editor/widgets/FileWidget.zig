@@ -376,26 +376,27 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         var color = dvui.themeGet().color(.control, .text);
 
         var automatic_animation: bool = false;
-        var automatic_animation_i: usize = 0;
+        var automatic_animation_frame_i: usize = 0;
 
-        // Search through the existing animations and see if our current sprite is in any of them
         var animation_index: ?usize = null;
 
+        // First, search through the frames of the selected animation to see if our current sprite is in it
         if (self.init_options.file.selected_animation_index) |selected_animation_index| {
             for (self.init_options.file.animations.items(.frames)[selected_animation_index], 0..) |frame, i| {
                 if (frame == index) {
-                    automatic_animation_i = i;
+                    automatic_animation_frame_i = i;
                     animation_index = selected_animation_index;
                     break;
                 }
             }
         }
 
+        // If we didn't find the sprite in the selected animation, search through all animations
         if (animation_index == null) {
             anim_blk: for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
                 for (frames, 0..) |frame, j| {
                     if (frame == index) {
-                        automatic_animation_i = j;
+                        automatic_animation_frame_i = j;
                         animation_index = i;
                         break :anim_blk;
                     }
@@ -418,7 +419,22 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         }
 
         if (automatic_animation) {
-            const anim = dvui.animate(@src(), .{ .duration = 50_000 + 100_000 * @as(i32, @intCast(automatic_animation_i)), .kind = .vertical, .easing = dvui.easing.outBack }, .{
+            const total_duration: i32 = 1_000_000;
+            const max_step_duration: i32 = @divTrunc(total_duration, 4);
+
+            var duration_step = max_step_duration;
+
+            if (animation_index) |ai| {
+                duration_step = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(self.init_options.file.animations.get(ai).frames.len))), 0, max_step_duration);
+            }
+
+            const duration = duration_step + (duration_step * @as(i32, @intCast(automatic_animation_frame_i)));
+
+            const anim = dvui.animate(@src(), .{
+                .duration = duration,
+                .kind = .vertical,
+                .easing = dvui.easing.outBack,
+            }, .{
                 .id_extra = index,
             });
             defer anim.deinit();
@@ -611,9 +627,16 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         }
 
         if (animation_index == self.init_options.file.selected_animation_index and animation_index != null) {
-            button.data().contentRectScale().r.inset(.all(button.data().contentRectScale().r.w / 3.0)).fill(.all(10000000), .{
-                .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a },
-            });
+            // circle
+            // button.data().contentRectScale().r.inset(.all(button.data().contentRectScale().r.w / 3.0)).fill(.all(10000000), .{
+            //     .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a },
+            // });
+
+            var checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -button.data().contentRectScale().r.w / 3, .y = 0.0 }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = button.data().contentRectScale().r.h / 4.0 }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = button.data().contentRectScale().r.w / 2, .y = -button.data().contentRectScale().r.h / 2.0 }));
+            checkmark_path.build().stroke(.{ .thickness = button.data().contentRectScale().r.w / 8, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
         }
     }
 }
