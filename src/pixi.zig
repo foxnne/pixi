@@ -50,7 +50,7 @@ pub const Internal = struct {
 };
 
 /// Frame-by-frame sprite animation
-pub const Animation = Internal.Animation;
+pub const Animation = @import("Animation.zig");
 
 /// Contains lists of sprites and animations
 pub const Atlas = @import("Atlas.zig");

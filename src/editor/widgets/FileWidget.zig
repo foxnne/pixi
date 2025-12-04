@@ -285,26 +285,24 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                         }
                     } else {
                         file.clearSelectedSprites();
+
+                        // If we have a sprite that is part of an animation, select the animation
                         if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
-                            if (pixi.editor.explorer.pane == .sprites) {
-                                var found: bool = false;
-                                for (file.animations.items(.frames), 0..) |frames, anim_index| {
-                                    for (frames) |frame| {
-                                        if (frame == sprite_index) {
-                                            file.selected_animation_index = anim_index;
-                                            file.editor.animations_scroll_to_index = anim_index;
-                                            found = true;
-                                            break;
-                                        }
-                                        if (found) break;
+                            var found: bool = false;
+                            for (file.animations.items(.frames), 0..) |frames, anim_index| {
+                                for (frames) |frame| {
+                                    if (frame == sprite_index) {
+                                        file.selected_animation_index = anim_index;
+                                        file.editor.animations_scroll_to_index = anim_index;
+                                        found = true;
+                                        break;
                                     }
                                     if (found) break;
                                 }
-
-                                file.editor.selected_sprites.set(sprite_index);
-                            } else {
-                                file.editor.selected_sprites.set(sprite_index);
+                                if (found) break;
                             }
+
+                            file.editor.selected_sprites.set(sprite_index);
                         }
                     }
 
@@ -514,7 +512,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
             //     .w = button_size,
             //     .h = button_size,
             // },
-            .margin = .all(0),
+            .margin = .all(2),
             .padding = .all(0),
             .id_extra = sprite_index,
             .box_shadow = .{

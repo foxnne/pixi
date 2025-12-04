@@ -5,7 +5,7 @@ const pixi = @import("pixi.zig");
 const Atlas = @This();
 
 const Sprite = @import("Sprite.zig");
-const Animation = @import("internal/Animation.zig");
+const Animation = @import("Animation.zig");
 const OldAnimation = Animation.OldAnimation;
 
 sprites: []Sprite,
