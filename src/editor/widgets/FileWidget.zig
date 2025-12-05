@@ -510,6 +510,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{
             .rect = .{ .x = center.x - button_size / 2, .y = center.y - button_size / 2, .w = button_size, .h = button_size },
+            .color_fill = dvui.themeGet().color(.control, .fill_hover),
+
             .margin = .all(2),
             .padding = .all(0),
             .id_extra = sprite_index,
@@ -520,8 +522,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
                 .alpha = 0.25 * (1.0 - t),
             },
             .corner_radius = dvui.Rect.all(1000000),
-            .border = dvui.Rect.all(0.0),
-            .color_border = dvui.themeGet().color(.highlight, .fill),
+            //.border = dvui.Rect.all(0.0),
+            //.color_border = dvui.themeGet().color(.highlight, .fill),
             .gravity_x = 0.5,
             .gravity_y = 0.5,
         });
