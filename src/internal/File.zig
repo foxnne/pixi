@@ -26,6 +26,7 @@ deleted_layers: std.MultiArrayList(Layer) = .{},
 sprites: std.MultiArrayList(Sprite) = .{},
 
 selected_animation_index: ?usize = null,
+selected_animation_frame_index: usize = 0,
 animations: std.MultiArrayList(Animation) = .{},
 deleted_animations: std.MultiArrayList(Animation) = .{},
 
@@ -51,6 +52,7 @@ pub const EditorData = struct {
     animations_scroll_to_index: ?usize = null,
     transform: ?Editor.Transform = null,
 
+    playing: bool = false,
     saving: bool = false,
     grouping: u64 = 0,
 

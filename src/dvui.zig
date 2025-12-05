@@ -76,6 +76,7 @@ pub fn toastDisplay(id: dvui.Id) !void {
 
 pub const SpriteInitOptions = struct {
     source: dvui.ImageSource,
+    file: ?*pixi.Internal.File = null,
     alpha_source: ?dvui.ImageSource = null,
     sprite: pixi.Sprite,
     scale: f32 = 1.0,
@@ -194,9 +195,19 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
         };
     }
 
-    dvui.renderTriangles(triangles, init_opts.source.getTexture() catch null) catch {
-        dvui.log.err("Failed to render triangles", .{});
-    };
+    if (init_opts.file) |file| {
+        var index: usize = file.layers.len;
+        while (index > 0) {
+            index -= 1;
+            dvui.renderTriangles(triangles, file.layers.items(.source)[index].getTexture() catch null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
+        }
+    } else {
+        dvui.renderTriangles(triangles, init_opts.source.getTexture() catch null) catch {
+            dvui.log.err("Failed to render triangles", .{});
+        };
+    }
 
     path.build().stroke(.{ .color = opts.color_border orelse .transparent, .thickness = 1.0, .closed = true });
 
