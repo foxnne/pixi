@@ -26,39 +26,57 @@ pub fn init(allocator: std.mem.Allocator, id: u64, name: []const u8, frames: []u
 
 pub fn appendFrame(self: *Animation, allocator: std.mem.Allocator, frame: usize) !void {
     var new_frames = std.array_list.Managed(usize).init(allocator);
-    new_frames.appendSlice(self.frames) catch {
+    new_frames.appendSlice(self.frames) catch |err| {
         dvui.log.err("Failed to append frames", .{});
-        return;
+        return err;
     };
-    new_frames.append(frame) catch {
+    new_frames.append(frame) catch |err| {
         dvui.log.err("Failed to append frame", .{});
-        return;
+        return err;
     };
 
     allocator.free(self.frames);
 
-    self.frames = new_frames.toOwnedSlice() catch {
+    self.frames = new_frames.toOwnedSlice() catch |err| {
         dvui.log.err("Failed to free frames", .{});
-        return;
+        return err;
     };
 }
 
-pub fn insertFrame(self: *Animation, allocator: std.mem.Allocator, index: usize, frame: usize) void {
+pub fn appendFrames(self: *Animation, allocator: std.mem.Allocator, frames: []usize) !void {
     var new_frames = std.array_list.Managed(usize).init(allocator);
-    new_frames.appendSlice(self.frames) catch {
+    new_frames.appendSlice(self.frames) catch |err| {
         dvui.log.err("Failed to append frames", .{});
-        return;
+        return err;
     };
-    new_frames.insert(index, frame) catch {
+    new_frames.appendSlice(frames) catch |err| {
+        dvui.log.err("Failed to append frames", .{});
+        return err;
+    };
+
+    allocator.free(self.frames);
+    self.frames = new_frames.toOwnedSlice() catch |err| {
+        dvui.log.err("Failed to free frames", .{});
+        return err;
+    };
+}
+
+pub fn insertFrame(self: *Animation, allocator: std.mem.Allocator, index: usize, frame: usize) !void {
+    var new_frames = std.array_list.Managed(usize).init(allocator);
+    new_frames.appendSlice(self.frames) catch |err| {
+        dvui.log.err("Failed to append frames", .{});
+        return err;
+    };
+    new_frames.insert(index, frame) catch |err| {
         dvui.log.err("Failed to insert frame", .{});
-        return;
+        return err;
     };
 
     allocator.free(self.frames);
 
-    self.frames = new_frames.toOwnedSlice() catch {
+    self.frames = new_frames.toOwnedSlice() catch |err| {
         dvui.log.err("Failed to free frames", .{});
-        return;
+        return err;
     };
 }
 

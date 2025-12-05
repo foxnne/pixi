@@ -98,20 +98,20 @@ pub fn draw(self: *Sprites) !void {
 pub fn drawAnimationControls(self: *Sprites) !void {
     var box = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .horizontal,
-        .background = true,
-        .color_fill = dvui.themeGet().color(.control, .fill),
-        .corner_radius = dvui.Rect.all(1000),
-        .margin = dvui.Rect.all(4),
-        .padding = dvui.Rect.all(0),
-        .border = dvui.Rect.all(1.0),
-        .color_border = dvui.themeGet().color(.control, .fill),
-        .box_shadow = .{
-            .color = .black,
-            .offset = .{ .x = -2.0, .y = 2.0 },
-            .fade = 6.0,
-            .alpha = 0.25,
-            .corner_radius = dvui.Rect.all(1000),
-        },
+        // .background = true,
+        // .color_fill = dvui.themeGet().color(.control, .fill),
+        // .corner_radius = dvui.Rect.all(1000),
+        // .margin = dvui.Rect.all(4),
+        // .padding = dvui.Rect.all(0),
+        // .border = dvui.Rect.all(1.0),
+        // .color_border = dvui.themeGet().color(.control, .fill),
+        // .box_shadow = .{
+        //     .color = .black,
+        //     .offset = .{ .x = -2.0, .y = 2.0 },
+        //     .fade = 6.0,
+        //     .alpha = 0.25,
+        //     .corner_radius = dvui.Rect.all(1000),
+        // },
     });
     defer box.deinit();
 
@@ -119,7 +119,7 @@ pub fn drawAnimationControls(self: *Sprites) !void {
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
             .background = false,
-            .gravity_x = 1.0,
+            //.gravity_x = 1.0,
         });
         defer hbox.deinit();
 
@@ -444,20 +444,20 @@ pub fn drawAnimations(self: *Sprites) !void {
 pub fn drawFrameControls(_: *Sprites) !void {
     var box = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .horizontal,
-        .background = true,
-        .color_fill = dvui.themeGet().color(.control, .fill),
-        .corner_radius = dvui.Rect.all(1000),
-        .margin = dvui.Rect.all(4),
-        .padding = dvui.Rect.all(0),
-        .border = dvui.Rect.all(1.0),
-        .color_border = dvui.themeGet().color(.control, .fill),
-        .box_shadow = .{
-            .color = .black,
-            .offset = .{ .x = -2.0, .y = 2.0 },
-            .fade = 6.0,
-            .alpha = 0.25,
-            .corner_radius = dvui.Rect.all(1000),
-        },
+        // .background = true,
+        // .color_fill = dvui.themeGet().color(.control, .fill),
+        // .corner_radius = dvui.Rect.all(1000),
+        // .margin = dvui.Rect.all(4),
+        // .padding = dvui.Rect.all(0),
+        // .border = dvui.Rect.all(1.0),
+        // .color_border = dvui.themeGet().color(.control, .fill),
+        // .box_shadow = .{
+        //     .color = .black,
+        //     .offset = .{ .x = -2.0, .y = 2.0 },
+        //     .fade = 6.0,
+        //     .alpha = 0.25,
+        //     .corner_radius = dvui.Rect.all(1000),
+        // },
     });
     defer box.deinit();
 
@@ -468,7 +468,7 @@ pub fn drawFrameControls(_: *Sprites) !void {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
                 .background = false,
-                .gravity_x = 1.0,
+                //.gravity_x = 1.0,
             });
             defer hbox.deinit();
 
@@ -521,11 +521,17 @@ pub fn drawFrameControls(_: *Sprites) !void {
                     .color_fill = dvui.themeGet().color(.control, .fill),
                 })) {
                     var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                    var frames = std.array_list.Managed(usize).init(dvui.currentWindow().arena());
                     while (iter.next()) |sprite_index| {
-                        animation.appendFrame(pixi.app.allocator, sprite_index) catch {
+                        frames.append(sprite_index) catch {
                             dvui.log.err("Failed to append frame", .{});
+                            return;
                         };
                     }
+
+                    animation.appendFrames(pixi.app.allocator, frames.items) catch {
+                        dvui.log.err("Failed to append frames", .{});
+                    };
 
                     file.animations.set(index, animation);
                 }
