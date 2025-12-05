@@ -625,10 +625,10 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
             // });
 
             var checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -button.data().contentRectScale().r.w / 3, .y = 0.0 }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -button.data().contentRectScale().r.w / 3.25, .y = 0.0 }));
             checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = button.data().contentRectScale().r.h / 4.0 }));
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = button.data().contentRectScale().r.w / 2, .y = -button.data().contentRectScale().r.h / 2.0 }));
-            checkmark_path.build().stroke(.{ .thickness = button.data().contentRectScale().r.w / 8, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = button.data().contentRectScale().r.w / 2, .y = -button.data().contentRectScale().r.h / 2.5 }));
+            checkmark_path.build().stroke(.{ .thickness = button.data().contentRectScale().r.w / 9, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
         }
     }
 }
