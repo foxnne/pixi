@@ -478,7 +478,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         .id_extra = sprite_index,
     });
 
-    const radius = std.math.clamp(scaled_h, -0.1, @min(sprite_rect.h, sprite_rect.w) / 2.0);
+    const radius = std.math.clamp(scaled_h, -0.5, @min(sprite_rect.h, sprite_rect.w) / 2.0);
 
     const corner_radius: dvui.Rect = .{ .x = radius, .y = radius };
 
@@ -505,14 +505,14 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
 
         box.deinit();
 
-        const button_size = @max(@min(sprite_rect.w / 3.0, sprite_rect.h / 3.0) * (dvui.easing.outBack(1 - t)), @min(sprite_rect.h, sprite_rect.w) / 6.0);
+        const button_size = (@min(sprite_rect.h, sprite_rect.w) / 4.0) * dvui.easing.outBack(1 - t);
 
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{
             .rect = .{ .x = center.x - button_size / 2, .y = center.y - button_size / 2, .w = button_size, .h = button_size },
             .color_fill = dvui.themeGet().color(.control, .fill_hover),
 
-            .margin = .all(2),
+            .margin = .all(0),
             .padding = .all(0),
             .id_extra = sprite_index,
             .box_shadow = .{
