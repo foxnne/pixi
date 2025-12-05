@@ -477,7 +477,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         .rect = new_rect,
         .id_extra = sprite_index,
     });
-    defer box.deinit();
 
     const radius = std.math.clamp(scaled_h, -0.1, @min(sprite_rect.h, sprite_rect.w) / 2.0);
 
@@ -502,10 +501,15 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         built.fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 1.5 });
         path.deinit();
 
+        const center = box.data().rect.center();
+
+        box.deinit();
+
         const button_size = @max(@min(sprite_rect.w / 3.0, sprite_rect.h / 3.0) * (dvui.easing.outBack(1 - t)), @min(sprite_rect.h, sprite_rect.w) / 6.0);
 
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{
+            .rect = .{ .x = center.x - button_size / 2, .y = center.y - button_size / 2, .w = button_size, .h = button_size },
             .margin = .all(2),
             .padding = .all(0),
             .id_extra = sprite_index,
@@ -520,7 +524,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
             .color_border = dvui.themeGet().color(.highlight, .fill),
             .gravity_x = 0.5,
             .gravity_y = 0.5,
-            .min_size_content = .{ .w = button_size, .h = button_size },
         });
         defer button.deinit();
 
@@ -630,6 +633,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
             checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = button.data().contentRectScale().r.w / 2, .y = -button.data().contentRectScale().r.h / 2.5 }));
             checkmark_path.build().stroke(.{ .thickness = button.data().contentRectScale().r.w / 9, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
         }
+    } else {
+        box.deinit();
     }
 }
 
