@@ -804,11 +804,21 @@ pub fn drawFrames(self: *Sprites) !void {
                 //     }
                 // }
 
-                if (reorder.drag_point == null) {
+                if (reorder.drag_point == null and frame_index == file.selected_animation_frame_index) {
                     var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                        .expand = .none,
+                        .expand = .ratio,
                         .gravity_x = 1.0,
-                        .min_size_content = .{ .w = 20.0, .h = 20.0 },
+                        .min_size_content = .{ .w = 5.0, .h = 5.0 },
+                        .corner_radius = dvui.Rect.all(1000),
+                        .background = true,
+                        .color_fill = color,
+                        .box_shadow = .{
+                            .color = .black,
+                            .offset = .{ .x = -2.0, .y = 2.0 },
+                            .fade = 6.0,
+                            .alpha = 0.25,
+                            .corner_radius = dvui.Rect.all(1000),
+                        },
                     });
                     defer button_box.deinit();
                 }
@@ -823,6 +833,7 @@ pub fn drawFrames(self: *Sprites) !void {
                         } else {
                             file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.editor.selected_sprites.capacity() }, false);
                             file.editor.selected_sprites.set(frame);
+                            file.selected_animation_frame_index = frame_index;
                         }
                     }
                 }

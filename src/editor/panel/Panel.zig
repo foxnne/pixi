@@ -10,8 +10,9 @@ const Packer = pixi.Packer;
 
 pub const Panel = @This();
 
-pub const sprites = @import("sprites.zig");
+pub const Sprites = @import("sprites.zig");
 
+sprites: Sprites = .{},
 pane: Pane = .sprites,
 paned: *pixi.dvui.PanedWidget = undefined,
 scroll_info: dvui.ScrollInfo = .{
@@ -35,7 +36,7 @@ pub fn draw(panel: *Panel) !dvui.App.Result {
     defer scroll_area.deinit();
 
     switch (panel.pane) {
-        .sprites => try sprites.draw(),
+        .sprites => try panel.sprites.draw(),
     }
 
     return .ok;

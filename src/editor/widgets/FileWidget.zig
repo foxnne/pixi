@@ -290,9 +290,10 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                         if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
                             var found: bool = false;
                             for (file.animations.items(.frames), 0..) |frames, anim_index| {
-                                for (frames) |frame| {
+                                for (frames, 0..) |frame, frame_index| {
                                     if (frame == sprite_index) {
                                         file.selected_animation_index = anim_index;
+                                        file.selected_animation_frame_index = frame_index;
                                         file.editor.animations_scroll_to_index = anim_index;
                                         found = true;
                                         break;
@@ -477,6 +478,16 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         .rect = new_rect,
         .id_extra = sprite_index,
     });
+    var anim_offset: f32 = 0.0;
+
+    if (self.init_options.file.selected_animation_index) |ai| {
+        const frame = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index];
+        if (frame != sprite_index) {
+            anim_offset = 0.0;
+        } else {
+            anim_offset = (scaled_h / 8.0);
+        }
+    }
 
     const radius = std.math.clamp(scaled_h, -0.5, @min(sprite_rect.h, sprite_rect.w) / 2.0);
 
@@ -507,11 +518,12 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
 
         const button_size = (@min(sprite_rect.h, sprite_rect.w) / 4.0) * dvui.easing.outBack(1 - t);
 
+        const button_rect = dvui.Rect{ .x = center.x - button_size / 2, .y = center.y - (button_size / 2) + anim_offset, .w = button_size, .h = button_size };
+
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{
-            .rect = .{ .x = center.x - button_size / 2, .y = center.y - button_size / 2, .w = button_size, .h = button_size },
+            .rect = button_rect,
             .color_fill = dvui.themeGet().color(.control, .fill_hover),
-
             .margin = .all(0),
             .padding = .all(0),
             .id_extra = sprite_index,

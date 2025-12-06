@@ -4,13 +4,15 @@ const dvui = @import("dvui");
 const pixi = @import("../../pixi.zig");
 const Editor = pixi.Editor;
 
-const sprites = @This();
+const Sprites = @This();
 
-pub fn draw() !void {
+pub fn draw(_: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         if (dvui.buttonIcon(@src(), "Play", if (file.editor.playing) icons.tvg.lucide.pause else icons.tvg.lucide.play, .{}, .{}, .{
             .expand = .none,
             .corner_radius = dvui.Rect.all(1000),
+            .gravity_x = 0.01,
+            .gravity_y = 0.01,
             .box_shadow = .{
                 .color = .black,
                 .offset = .{ .x = -2.0, .y = 2.0 },
@@ -32,24 +34,16 @@ pub fn draw() !void {
         });
         defer hbox.deinit();
 
-        if (file.editor.playing) {
-            if (file.selected_animation_index) |index| {
-                const animation = file.animations.get(index);
-
-                if (dvui.timerDone(hbox.data().id)) {
-                    file.selected_animation_frame_index = (file.selected_animation_frame_index + 1) % animation.frames.len;
-                }
-
-                if (dvui.timerDoneOrNone(hbox.data().id)) {
-                    dvui.timer(hbox.data().id, @as(i32, @intFromFloat(1_000_000.0 / animation.fps)));
-                }
-            }
-        }
+        
 
         if (file.selected_animation_index) |index| {
             const animation = file.animations.get(index);
 
-            const frame_index = file.selected_animation_frame_index;
+            var frame_index = file.selected_animation_frame_index;
+
+            if (frame_index >= animation.frames.len) {
+                frame_index = 0;
+            }
             const frame = animation.frames[frame_index];
 
             const src_rect = file.spriteRect(frame);
