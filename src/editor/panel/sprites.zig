@@ -34,8 +34,6 @@ pub fn draw(_: *Sprites) !void {
         });
         defer hbox.deinit();
 
-        
-
         if (file.selected_animation_index) |index| {
             const animation = file.animations.get(index);
 
@@ -86,7 +84,7 @@ pub fn draw(_: *Sprites) !void {
 
                     for (steps, 0..) |zoom, i| {
                         if ((sprite_h * zoom) > target_h) {
-                            if (i - 1 > 0) {
+                            if (i > 0) {
                                 chosen_scale = steps[i - 1];
                                 break;
                             }

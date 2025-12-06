@@ -548,6 +548,10 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
             if (self.init_options.file.selected_animation_index) |anim_index| {
                 // TODO: Efficiently resize the animation frames array instead of duplicating it
 
+                if (self.init_options.file.selected_animation_frame_index == sprite_index) {
+                    self.init_options.file.selected_animation_frame_index = 0;
+                }
+
                 var anim = self.init_options.file.animations.get(anim_index);
 
                 var frames = std.array_list.Managed(usize).init(pixi.app.allocator);

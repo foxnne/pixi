@@ -572,7 +572,7 @@ pub fn drawFrameControls(_: *Sprites) !void {
                             }
                         }
                     }
-
+                    file.selected_animation_frame_index = 0;
                     file.animations.set(index, animation);
                 }
             }
@@ -812,13 +812,13 @@ pub fn drawFrames(self: *Sprites) !void {
                         .corner_radius = dvui.Rect.all(1000),
                         .background = true,
                         .color_fill = color,
-                        .box_shadow = .{
-                            .color = .black,
-                            .offset = .{ .x = -2.0, .y = 2.0 },
-                            .fade = 6.0,
-                            .alpha = 0.25,
-                            .corner_radius = dvui.Rect.all(1000),
-                        },
+                        // .box_shadow = .{
+                        //     .color = .black,
+                        //     .offset = .{ .x = -2.0, .y = 2.0 },
+                        //     .fade = 6.0,
+                        //     .alpha = 0.25,
+                        //     .corner_radius = dvui.Rect.all(1000),
+                        // },
                     });
                     defer button_box.deinit();
                 }
