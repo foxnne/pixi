@@ -6,24 +6,9 @@ const Editor = pixi.Editor;
 
 const Sprites = @This();
 
-pub fn draw(_: *Sprites) !void {
+pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
-        if (dvui.buttonIcon(@src(), "Play", if (file.editor.playing) icons.tvg.lucide.pause else icons.tvg.lucide.play, .{}, .{}, .{
-            .expand = .none,
-            .corner_radius = dvui.Rect.all(1000),
-            .gravity_x = 0.01,
-            .gravity_y = 0.01,
-            .box_shadow = .{
-                .color = .black,
-                .offset = .{ .x = -2.0, .y = 2.0 },
-                .fade = 6.0,
-                .alpha = 0.15,
-                .corner_radius = dvui.Rect.all(1000),
-            },
-            .color_fill = dvui.themeGet().color(.control, .fill),
-        })) {
-            file.editor.playing = !file.editor.playing;
-        }
+        self.drawAnimationControlsDialog();
 
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
@@ -218,4 +203,109 @@ pub fn draw(_: *Sprites) !void {
     //         }
     //     }
     // }
+}
+
+pub fn drawAnimationControlsDialog(_: *Sprites) void {
+    if (pixi.editor.activeFile()) |file| {
+        if (file.selected_animation_index) |_| {
+            var rect = dvui.parentGet().data().rectScale().r;
+
+            if (dvui.parentGet().data().rect.h < 48.0) {
+                return;
+            }
+
+            var fw: dvui.FloatingWidget = undefined;
+            fw.init(@src(), .{}, .{
+                .rect = .{ .x = rect.toNatural().x + 10, .y = rect.toNatural().y + 10, .w = 0, .h = 0 },
+                .expand = .none,
+                .background = true,
+                .color_fill = dvui.themeGet().color(.control, .fill),
+                .corner_radius = dvui.Rect.all(8),
+                .box_shadow = .{
+                    .color = .black,
+                    .alpha = 0.2,
+                    .fade = 8,
+                    .corner_radius = dvui.Rect.all(8),
+                },
+            });
+            defer fw.deinit();
+
+            var anim = dvui.animate(@src(), .{ .kind = .vertical, .duration = 450_000, .easing = dvui.easing.outBack }, .{});
+            defer anim.deinit();
+
+            var anim_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .both,
+                .background = false,
+            });
+            defer anim_box.deinit();
+
+            {
+                if (dvui.buttonIcon(@src(), "Play", if (file.editor.playing) icons.tvg.feather.pause else icons.tvg.feather.play, .{}, .{}, .{
+                    .expand = .none,
+                    .corner_radius = dvui.Rect.all(1000),
+                    .box_shadow = .{
+                        .color = .black,
+                        .offset = .{ .x = -2.0, .y = 2.0 },
+                        .fade = 6.0,
+                        .alpha = 0.15,
+                        .corner_radius = dvui.Rect.all(1000),
+                    },
+                    .color_fill = dvui.themeGet().color(.control, .fill),
+                    .min_size_content = .{ .w = 12.0, .h = 12.0 },
+                })) {
+                    file.editor.playing = !file.editor.playing;
+                }
+            }
+
+            // dvui.labelNoFmt(@src(), "TRANSFORM", .{ .align_x = 0.5 }, .{
+            //     .padding = dvui.Rect.all(4),
+            //     .expand = .horizontal,
+            //     .font_style = .title_4,
+            // });
+            // _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
+            // _ = dvui.spacer(@src(), .{ .expand = .horizontal });
+
+            // var degrees: f32 = std.math.radiansToDegrees(transform.rotation);
+
+            // var slider_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            //     .expand = .horizontal,
+            //     .background = false,
+            // });
+
+            // if (dvui.sliderEntry(@src(), "{d:0.0}°", .{
+            //     .value = &degrees,
+            //     .min = 0,
+            //     .max = 360,
+            //     .interval = 1,
+            // }, .{ .expand = .horizontal, .color_fill = dvui.themeGet().color(.window, .fill) })) {
+            //     transform.rotation = std.math.degreesToRadians(degrees);
+            // }
+            // slider_box.deinit();
+
+            // if (transform.ortho) {
+            //     var box = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
+            //         .expand = .horizontal,
+            //         .background = false,
+            //     });
+            //     defer box.deinit();
+            //     dvui.label(@src(), "Width: {d:0.0}", .{transform.point(.bottom_left).diff(transform.point(.bottom_right).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
+            //     dvui.label(@src(), "Height: {d:0.0}", .{transform.point(.top_left).diff(transform.point(.bottom_left).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
+            // }
+
+            // {
+            //     var box = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
+            //         .expand = .horizontal,
+            //         .background = false,
+            //     });
+            //     defer box.deinit();
+            //     if (dvui.buttonIcon(@src(), "transform_cancel", icons.tvg.lucide.@"trash-2", .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .err, .expand = .horizontal })) {
+            //         transform.cancel();
+            //     }
+            //     if (dvui.buttonIcon(@src(), "transform_accept", icons.tvg.lucide.check, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .highlight, .expand = .horizontal })) {
+            //         transform.accept();
+            //     }
+            // }
+        }
+    }
 }
