@@ -149,12 +149,14 @@ pub fn processEvents(self: *CanvasWidget) void {
                     switch (pixi.editor.settings.input_scheme) {
                         .mouse => {
                             const base: f32 = if (me.mod.matchBind("shift")) 1.005 else 1.001;
-                            e.handle(@src(), self.scroll_container.data());
-                            if (me.action == .wheel_y) {
-                                const zs = @exp(@log(base) * me.action.wheel_y);
-                                if (zs != 1.0) {
-                                    zoom *= zs;
-                                    zoomP = me.p;
+                            if ((me.mod.matchBind("shift") and me.mod.matchBind("ctrl/cmd")) or !me.mod.matchBind("shift") and !me.mod.matchBind("ctrl/cmd")) {
+                                e.handle(@src(), self.scroll_container.data());
+                                if (me.action == .wheel_y) {
+                                    const zs = @exp(@log(base) * me.action.wheel_y);
+                                    if (zs != 1.0) {
+                                        zoom *= zs;
+                                        zoomP = me.p;
+                                    }
                                 }
                             }
                         },
