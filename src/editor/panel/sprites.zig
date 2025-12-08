@@ -68,7 +68,7 @@ pub fn draw(self: *Sprites) !void {
                     // }
 
                     for (steps, 0..) |zoom, i| {
-                        if ((sprite_h * zoom) > target_h) {
+                        if ((sprite_h * zoom) >= target_h - 10.0) {
                             if (i > 0) {
                                 chosen_scale = steps[i - 1];
                                 break;

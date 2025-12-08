@@ -457,7 +457,8 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
     }
 }
 
-pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: dvui.Color, animation_index: ?usize) void {
+pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, color: dvui.Color, animation_index: ?usize) void {
+    const t = progress;
     const fill_color: dvui.Color = dvui.themeGet().color(.window, .fill);
 
     const sprite_rect = self.init_options.file.spriteRect(sprite_index);
@@ -469,7 +470,18 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         .h = sprite_rect.h,
     };
 
-    const scaled_h = (@min(sprite_rect.h, sprite_rect.w) / 2) * (1 - t);
+    var max_height: f32 = @min(sprite_rect.h, sprite_rect.w) / 2;
+
+    if (self.init_options.file.selected_animation_index) |ai| {
+        if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
+            const frame = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index];
+            if (frame != sprite_index and animation_index == ai) {
+                max_height = max_height * 0.8;
+            }
+        }
+    }
+
+    const scaled_h = max_height * (1 - t);
 
     new_rect.h = scaled_h;
     new_rect.y = sprite_rect.y - scaled_h;
@@ -478,16 +490,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
         .rect = new_rect,
         .id_extra = sprite_index,
     });
-    var anim_offset: f32 = 0.0;
-
-    if (self.init_options.file.selected_animation_index) |ai| {
-        const frame = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index];
-        if (frame != sprite_index) {
-            anim_offset = 0.0;
-        } else {
-            anim_offset = (scaled_h / 8.0);
-        }
-    }
 
     const radius = std.math.clamp(scaled_h, -0.5, @min(sprite_rect.h, sprite_rect.w) / 2.0);
 
@@ -518,7 +520,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
 
         const button_size = (@min(sprite_rect.h, sprite_rect.w) / 4.0) * dvui.easing.outBack(1 - t);
 
-        const button_rect = dvui.Rect{ .x = center.x - button_size / 2, .y = center.y - (button_size / 2) + anim_offset, .w = button_size, .h = button_size };
+        const button_rect = dvui.Rect{ .x = center.x - button_size / 2, .y = center.y - (button_size / 2), .w = button_size, .h = button_size };
 
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{
@@ -529,7 +531,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, t: f32, color: d
             .id_extra = sprite_index,
             .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = -1.0 * (1.0 - t), .y = 1.0 * (1.0 - t) },
+                .offset = .{ .x = -1.5 * (1.0 - t), .y = 1.5 * (1.0 - t) },
                 .fade = (button_size / 10) * (1.0 - t),
                 .alpha = 0.25 * (1.0 - t),
             },
