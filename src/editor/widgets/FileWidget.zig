@@ -430,7 +430,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                 duration_step = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(self.init_options.file.animations.get(ai).frames.len))), 0, max_step_duration);
             }
 
-            const duration = (duration_step * 2) + (duration_step * @as(i32, @intCast(automatic_animation_frame_i)));
+            const duration = (duration_step) + (duration_step * @as(i32, @intCast(automatic_animation_frame_i + 1)));
 
             const anim = dvui.animate(@src(), .{
                 .duration = duration,

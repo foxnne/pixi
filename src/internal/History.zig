@@ -2,8 +2,8 @@ const std = @import("std");
 const pixi = @import("../pixi.zig");
 const zgui = @import("zgui");
 const History = @This();
-const Core = @import("mach").Core;
 const Editor = pixi.Editor;
+const dvui = @import("dvui");
 
 pub const Action = enum { undo, redo };
 pub const RestoreDelete = enum { restore, delete };
@@ -389,28 +389,24 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             pixi.editor.explorer.pane = .sprites;
         },
         .animation_order => |*animation_order| {
-            var new_order = try pixi.app.allocator.alloc(usize, animation_order.order.len);
+            var new_order = try dvui.currentWindow().arena().alloc(usize, animation_order.order.len);
             for (0..file.animations.len) |anim_index| {
                 new_order[anim_index] = file.animations.items(.id)[anim_index];
             }
 
-            const slice = file.animations.slice();
-
             for (animation_order.order, 0..) |id, i| {
-                if (slice.items(.id)[i] == id) continue;
-
                 // Save current animation
-                const current_animation = slice.get(i);
+                const current_animation = file.animations.get(i);
                 animation_order.order[i] = current_animation.id;
 
                 // Make changes to the animations
                 var other_animation_index: usize = 0;
                 while (other_animation_index < file.animations.len) : (other_animation_index += 1) {
-                    const animation = slice.get(other_animation_index);
+                    const animation = file.animations.get(other_animation_index);
                     if (animation.id == animation_order.selected) {
                         file.selected_animation_index = other_animation_index;
                     }
-                    if (animation.id == id) {
+                    if (animation.id == id and current_animation.id != id) {
                         file.animations.set(i, animation);
                         file.animations.set(other_animation_index, current_animation);
                         continue;
@@ -419,16 +415,23 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             }
 
             @memcpy(animation_order.order, new_order);
-            pixi.app.allocator.free(new_order);
+            // pixi.app.allocator.free(new_order);
         },
         .animation_frames => |*animation_frames| {
-            const frames = try pixi.app.allocator.alloc(usize, animation_frames.frames.len);
-            @memcpy(frames, animation_frames.frames);
-            animation_frames.frames = try pixi.app.allocator.alloc(usize, file.animations.items(.frames)[animation_frames.index].len);
-            @memcpy(animation_frames.frames, file.animations.items(.frames)[animation_frames.index]);
-            pixi.app.allocator.free(file.animations.items(.frames)[animation_frames.index]);
-            file.animations.items(.frames)[animation_frames.index] = frames;
-            pixi.editor.explorer.pane = .sprites;
+            const history_frames = &animation_frames.frames;
+            const current_frames = &file.animations.items(.frames)[animation_frames.index];
+            if (current_frames.len == history_frames.len) {
+                std.mem.swap([]usize, current_frames, history_frames);
+            } else {
+                current_frames.* = pixi.app.allocator.realloc(current_frames.*, history_frames.len) catch |err| {
+                    dvui.log.err("Failed to realloc frames", .{});
+                    return err;
+                };
+                for (0..current_frames.len) |i| {
+                    if (current_frames.*[i] == history_frames.*[i]) continue;
+                    std.mem.swap(usize, &current_frames.*[i], &history_frames.*[i]);
+                }
+            }
         },
         // .heightmap_restore_delete => |*heightmap_restore_delete| {
         //     const a = heightmap_restore_delete.action;

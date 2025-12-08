@@ -233,7 +233,7 @@ pub fn drawAnimations(self: *Sprites) !void {
         // Drag and drop is completing
         if (self.animation_insert_before_index) |insert_before| {
             if (self.animation_removed_index) |removed| {
-                const prev_order = try dvui.currentWindow().arena().dupe(u64, file.animations.items(.id));
+                const prev_order = try pixi.app.allocator.dupe(u64, file.animations.items(.id));
 
                 const anim = file.animations.get(removed);
                 file.animations.orderedRemove(removed);
@@ -625,9 +625,12 @@ pub fn drawFrames(self: *Sprites) !void {
             //var sprite = file.sprites.get(frame);
 
             // Drag and drop is completing
-            if (self.sprite_insert_before_index) |_| {
-                if (self.sprite_removed_index) |_| {
-                    const prev_order = try dvui.currentWindow().arena().dupe(usize, animation.frames);
+            if (self.sprite_insert_before_index) |insert_before| {
+                if (self.sprite_removed_index) |removed| {
+                    const prev_order = try pixi.app.allocator.dupe(usize, animation.frames);
+                    defer file.animations.set(animation_index, animation);
+
+                    dvui.ReorderWidget.reorderSlice(usize, animation.frames, removed, insert_before);
 
                     // file.animations.orderedRemove(removed);
 
@@ -653,11 +656,13 @@ pub fn drawFrames(self: *Sprites) !void {
                         file.history.append(.{
                             .animation_frames = .{
                                 .index = animation_index,
-                                .frames = animation.frames,
+                                .frames = prev_order,
                             },
                         }) catch {
                             dvui.log.err("Failed to append history", .{});
                         };
+                    } else {
+                        pixi.app.allocator.free(prev_order);
                     }
 
                     self.sprite_insert_before_index = null;
