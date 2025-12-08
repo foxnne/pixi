@@ -562,7 +562,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 .color = .black,
                 .offset = .{ .x = -0.1 * button_size, .y = 0.1 * button_size },
                 .fade = (button_size / 10) * (1.0 - t),
-                .alpha = 0.25 * (1.0 - t),
+                .alpha = 0.35 * (1.0 - t),
             },
             .corner_radius = dvui.Rect.all(1000000),
             //.border = dvui.Rect.all(0.0),

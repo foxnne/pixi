@@ -202,9 +202,12 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
         var index: usize = file.layers.len;
         while (index > 0) {
             index -= 1;
-            dvui.renderTriangles(triangles, file.layers.items(.source)[index].getTexture() catch null) catch {
-                dvui.log.err("Failed to render triangles", .{});
-            };
+
+            if (file.layers.items(.visible)[index]) {
+                dvui.renderTriangles(triangles, file.layers.items(.source)[index].getTexture() catch null) catch {
+                    dvui.log.err("Failed to render triangles", .{});
+                };
+            }
         }
     } else {
         dvui.renderTriangles(triangles, init_opts.source.getTexture() catch null) catch {

@@ -29,79 +29,78 @@ pub fn draw(self: *Sprites) !void {
         if (file.selected_animation_index) |index| {
             const animation = file.animations.get(index);
 
-            var frame_index = file.selected_animation_frame_index;
+            const frame_index = file.selected_animation_frame_index;
 
-            if (frame_index >= animation.frames.len) {
-                frame_index = 0;
-            }
-            const frame = animation.frames[frame_index];
+            if (frame_index < animation.frames.len) {
+                const frame = animation.frames[frame_index];
 
-            const src_rect = file.spriteRect(frame);
+                const src_rect = file.spriteRect(frame);
 
-            _ = pixi.dvui.sprite(@src(), .{
-                .source = file.layers.items(.source)[file.selected_layer_index],
-                .file = file,
-                .alpha_source = file.editor.checkerboard_tile,
-                .sprite = .{
-                    .source = .{
-                        @intFromFloat(src_rect.x),
-                        @intFromFloat(src_rect.y),
-                        @intFromFloat(src_rect.w),
-                        @intFromFloat(src_rect.h),
+                _ = pixi.dvui.sprite(@src(), .{
+                    .source = file.layers.items(.source)[file.selected_layer_index],
+                    .file = file,
+                    .alpha_source = file.editor.checkerboard_tile,
+                    .sprite = .{
+                        .source = .{
+                            @intFromFloat(src_rect.x),
+                            @intFromFloat(src_rect.y),
+                            @intFromFloat(src_rect.w),
+                            @intFromFloat(src_rect.h),
+                        },
+                        .origin = .{
+                            0,
+                            0,
+                        },
                     },
-                    .origin = .{
-                        0,
-                        0,
-                    },
-                },
-                .scale = blk: {
-                    const steps = pixi.editor.settings.zoom_steps;
-                    const target_h = pixi.editor.panel.scroll_info.viewport.h;
-                    const sprite_h = src_rect.h;
-                    var chosen_scale: f32 = 1.0;
-                    // var found = false;
-                    // var i: usize = 0;
-                    // while (i > steps.len) {
-                    //     const scale = steps[i];
-                    //     if ((sprite_h * scale) > target_h) {
-                    //         chosen_scale = if (i == 0) 1.0 else steps[i - 1];
-                    //         found = true;
-                    //         break;
-                    //     }
-                    //     i += 1;
-                    // }
-                    // if (!found) {
-                    //     chosen_scale = steps[0];
-                    // }
+                    .scale = blk: {
+                        const steps = pixi.editor.settings.zoom_steps;
+                        const target_h = pixi.editor.panel.scroll_info.viewport.h;
+                        const sprite_h = src_rect.h;
+                        var chosen_scale: f32 = 1.0;
+                        // var found = false;
+                        // var i: usize = 0;
+                        // while (i > steps.len) {
+                        //     const scale = steps[i];
+                        //     if ((sprite_h * scale) > target_h) {
+                        //         chosen_scale = if (i == 0) 1.0 else steps[i - 1];
+                        //         found = true;
+                        //         break;
+                        //     }
+                        //     i += 1;
+                        // }
+                        // if (!found) {
+                        //     chosen_scale = steps[0];
+                        // }
 
-                    for (steps, 0..) |zoom, i| {
-                        if ((sprite_h * zoom) >= target_h - 10.0) {
-                            if (i > 0) {
-                                chosen_scale = steps[i - 1];
+                        for (steps, 0..) |zoom, i| {
+                            if ((sprite_h * zoom) >= target_h - 10.0) {
+                                if (i > 0) {
+                                    chosen_scale = steps[i - 1];
+                                    break;
+                                }
+                                chosen_scale = steps[i];
                                 break;
                             }
-                            chosen_scale = steps[i];
-                            break;
                         }
-                    }
-                    break :blk chosen_scale;
-                },
-                // Compute a normalized depth in [-1.0, 1.0] where 0.0 is the center of the viewport
-                // .depth = blk: {
-                //     const viewport = pixi.editor.panel.scroll_info.viewport;
-                //     const cx = viewport.x + viewport.w / 2.0;
-                //     const px = hbox.data().rectScale().r.center().x;
-                //     break :blk (px - cx) / (viewport.w / 2.0);
-                // },
-                //.overlap = 0.8,
-                .reflection = true,
-            }, .{
-                .id_extra = index,
-                .margin = .all(0),
-                .padding = .all(0),
-                //.border = .all(1),
-                //.color_border = dvui.themeGet().color(.control, .text),
-            });
+                        break :blk chosen_scale;
+                    },
+                    // Compute a normalized depth in [-1.0, 1.0] where 0.0 is the center of the viewport
+                    // .depth = blk: {
+                    //     const viewport = pixi.editor.panel.scroll_info.viewport;
+                    //     const cx = viewport.x + viewport.w / 2.0;
+                    //     const px = hbox.data().rectScale().r.center().x;
+                    //     break :blk (px - cx) / (viewport.w / 2.0);
+                    // },
+                    //.overlap = 0.8,
+                    .reflection = true,
+                }, .{
+                    .id_extra = index,
+                    .margin = .all(0),
+                    .padding = .all(0),
+                    //.border = .all(1),
+                    //.color_border = dvui.themeGet().color(.control, .text),
+                });
+            }
         }
     }
 

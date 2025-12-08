@@ -153,22 +153,24 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 if (file.selected_animation_index) |index| {
                     const animation = file.animations.get(index);
 
-                    const millis_per_frame = @as(i32, @intFromFloat(1_000 / animation.fps));
-                    if (dvui.timerDoneOrNone(base_box.data().id)) {
-                        const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
-                        const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));
-                        const wait = 1000 * (millis_per_frame - left);
-                        dvui.timer(base_box.data().id, wait);
+                    if (animation.frames.len > 0) {
+                        const millis_per_frame = @as(i32, @intFromFloat(1_000 / animation.fps));
+                        if (dvui.timerDoneOrNone(base_box.data().id)) {
+                            const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
+                            const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));
+                            const wait = 1000 * (millis_per_frame - left);
+                            dvui.timer(base_box.data().id, wait);
+                        }
+
+                        const num_frames: i32 = @as(i32, @intCast(animation.frames.len));
+                        const frame = blk: {
+                            const millis = @divFloor(dvui.frameTimeNS(), std.time.ns_per_ms);
+                            const left = @as(i32, @intCast(@rem(millis, num_frames * millis_per_frame)));
+                            break :blk @as(usize, @intCast(@divTrunc(left, millis_per_frame)));
+                        };
+
+                        file.selected_animation_frame_index = frame;
                     }
-
-                    const num_frames: i32 = @as(i32, @intCast(animation.frames.len));
-                    const frame = blk: {
-                        const millis = @divFloor(dvui.frameTimeNS(), std.time.ns_per_ms);
-                        const left = @as(i32, @intCast(@rem(millis, num_frames * millis_per_frame)));
-                        break :blk @as(usize, @intCast(@divTrunc(left, millis_per_frame)));
-                    };
-
-                    file.selected_animation_frame_index = frame;
                 }
             }
         }
