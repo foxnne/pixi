@@ -531,7 +531,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             .id_extra = sprite_index,
             .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = -1.5 * (1.0 - t), .y = 1.5 * (1.0 - t) },
+                .offset = .{ .x = -0.1 * button_size, .y = 0.1 * button_size },
                 .fade = (button_size / 10) * (1.0 - t),
                 .alpha = 0.25 * (1.0 - t),
             },
