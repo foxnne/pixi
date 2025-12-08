@@ -154,6 +154,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     const animation = file.animations.get(index);
 
                     if (animation.frames.len > 0) {
+                        if (file.selected_animation_frame_index >= animation.frames.len) {
+                            file.selected_animation_frame_index = 0;
+                        }
+
                         const millis_per_frame = @as(i32, @intFromFloat(1_000 / animation.fps));
                         if (dvui.timerDoneOrNone(base_box.data().id)) {
                             const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);

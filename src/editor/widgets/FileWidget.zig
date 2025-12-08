@@ -370,7 +370,10 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
     if (self.init_options.file.editor.transform != null) return;
     if (pixi.editor.explorer.pane != .sprites) return;
 
-    for (0..self.init_options.file.spriteCount()) |index| {
+    var index: usize = self.init_options.file.spriteCount();
+
+    while (index > 0) {
+        index -= 1;
         // Set the default bubble color, which will be the highlight color
         var color = dvui.themeGet().color(.control, .text);
 
@@ -432,7 +435,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             const anim = dvui.animate(@src(), .{
                 .duration = duration,
                 .kind = .vertical,
-                .easing = dvui.easing.outBack,
+                .easing = dvui.easing.outElastic,
             }, .{
                 .id_extra = index,
             });
@@ -677,9 +680,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             // });
 
             var checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -button.data().contentRectScale().r.w / 3.25, .y = 0.0 }));
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = button.data().contentRectScale().r.h / 4.0 }));
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = button.data().contentRectScale().r.w / 2, .y = -button.data().contentRectScale().r.h / 2.5 }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -(button.data().contentRectScale().r.w / 3.25) * (1.0 - t), .y = 0.0 }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.h / 4.0) * (1.0 - t) }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = (button.data().contentRectScale().r.w / 2) * (1.0 - t), .y = -(button.data().contentRectScale().r.h / 2.5) * (1.0 - t) }));
             checkmark_path.build().stroke(.{ .thickness = button.data().contentRectScale().r.w / 9, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
         }
     } else {
