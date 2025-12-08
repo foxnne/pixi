@@ -191,7 +191,7 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
     if (init_opts.alpha_source) |alpha_source| {
         const alpha_triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
             .subdivisions = 8,
-            .color_mod = dvui.themeGet().color(.content, .fill).lighten(12.0),
+            .color_mod = dvui.themeGet().color(.window, .fill).lighten(12.0),
         }) catch unreachable;
         dvui.renderTriangles(alpha_triangles, alpha_source.getTexture() catch null) catch {
             dvui.log.err("Failed to render triangles", .{});
