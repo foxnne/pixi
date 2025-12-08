@@ -14,8 +14,15 @@ pub fn draw(self: *Sprites) !void {
             .expand = .none,
             .gravity_x = 0.5,
             .gravity_y = 0.5,
-            .border = .all(1),
+            .border = .all(0),
             .color_border = dvui.themeGet().color(.control, .text),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -4.0, .y = 4.0 },
+                .fade = 12.0,
+                .alpha = 0.25,
+                .corner_radius = dvui.Rect.all(0),
+            },
         });
         defer hbox.deinit();
 

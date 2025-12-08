@@ -463,6 +463,13 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
     const sprite_rect = self.init_options.file.spriteRect(sprite_index);
 
+    const sprite_rect_scale: dvui.RectScale = .{
+        .r = self.init_options.canvas.screenFromDataRect(sprite_rect),
+        .s = self.init_options.canvas.scale,
+    };
+
+    const sprite_hovered: bool = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
+
     var new_rect = dvui.Rect{
         .x = sprite_rect.x,
         .y = sprite_rect.y - sprite_rect.h,
@@ -470,30 +477,33 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         .h = sprite_rect.h,
     };
 
-    var max_height: f32 = @min(sprite_rect.h, sprite_rect.w) / 2;
+    var multiplier: f32 = 0.5;
+    const max_height: f32 = @min(sprite_rect.h, sprite_rect.w);
 
     if (self.init_options.file.selected_animation_index) |ai| {
         if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
             const frame = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index];
             if (frame != sprite_index and animation_index == ai) {
-                max_height = max_height * 0.8;
+                //max_height = max_height * 0.8;
+                multiplier *= 0.75;
             }
         }
     }
 
-    const scaled_h = max_height * (1 - t);
+    const scaled_h = (max_height * multiplier) * (1 - t);
 
     new_rect.h = scaled_h;
     new_rect.y = sprite_rect.y - scaled_h;
 
-    var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .rect = new_rect,
-        .id_extra = sprite_index,
-    });
-
     const radius = std.math.clamp(scaled_h, -0.5, @min(sprite_rect.h, sprite_rect.w) / 2.0);
 
     const corner_radius: dvui.Rect = .{ .x = radius, .y = radius };
+
+    var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .rect = new_rect,
+        .id_extra = sprite_index,
+        .corner_radius = corner_radius,
+    });
 
     var path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
 
@@ -508,11 +518,30 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
 
         var built = path.build();
+        defer path.deinit();
 
         built.stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 2.5 * dvui.currentWindow().natural_scale });
 
-        built.fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 1.5 });
-        path.deinit();
+        if (sprite_hovered) {
+            var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(12.0), .fade = 1.5 }) catch {
+                dvui.log.err("Failed to fill convex triangles", .{});
+                return;
+            };
+
+            const uv_rect = dvui.Rect{
+                .x = 0.0,
+                .y = ((t / 2.0) * multiplier) * (1.0 / multiplier), // adjust in case y grows up
+                .w = 1.0,
+                .h = ((scaled_h / max_height) * multiplier) * (1.0 / multiplier),
+            };
+            triangles.uvFromRectuv(r, uv_rect);
+
+            dvui.renderTriangles(triangles, self.init_options.file.editor.checkerboard_tile.getTexture() catch null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
+        } else {
+            built.fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 1.5 });
+        }
 
         const center = box.data().rect.center();
 
@@ -2224,23 +2253,21 @@ pub fn drawLayers(self: *FileWidget) void {
     });
     shadow_box.deinit();
 
-    if (pixi.editor.explorer.pane != .sprites) {
-        const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-        // Draw the checkerboard texture at the hovered sprite position
-        if (file.spriteIndex(mouse_data_point)) |sprite_index| {
-            const image_rect = file.spriteRect(sprite_index);
+    const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+    // Draw the checkerboard texture at the hovered sprite position
+    if (file.spriteIndex(mouse_data_point)) |sprite_index| {
+        const image_rect = file.spriteRect(sprite_index);
 
-            const image_rect_scale: dvui.RectScale = .{
-                .r = self.init_options.canvas.screenFromDataRect(image_rect),
-                .s = self.init_options.canvas.scale,
-            };
+        const image_rect_scale: dvui.RectScale = .{
+            .r = self.init_options.canvas.screenFromDataRect(image_rect),
+            .s = self.init_options.canvas.scale,
+        };
 
-            dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
-            }) catch {
-                std.log.err("Failed to render checkerboard", .{});
-            };
-        }
+        dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
+            .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
+        }) catch {
+            std.log.err("Failed to render checkerboard", .{});
+        };
     }
 
     const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });

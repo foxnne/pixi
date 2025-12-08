@@ -189,7 +189,10 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
     const triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv }) catch unreachable;
 
     if (init_opts.alpha_source) |alpha_source| {
-        const alpha_triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .color_mod = dvui.themeGet().color(.content, .fill).lighten(12.0) }) catch unreachable;
+        const alpha_triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
+            .subdivisions = 8,
+            .color_mod = dvui.themeGet().color(.content, .fill).lighten(12.0),
+        }) catch unreachable;
         dvui.renderTriangles(alpha_triangles, alpha_source.getTexture() catch null) catch {
             dvui.log.err("Failed to render triangles", .{});
         };
@@ -278,7 +281,7 @@ pub fn pathToSubdividedQuad(path: dvui.Path, allocator: std.mem.Allocator, optio
 
             builder.appendVertex(.{
                 .pos = pos,
-                .col = dvui.Color.PMA.fromColor(col.lerp(options.color_mod, 0.5).opacity(@as(f32, @floatFromInt(opacity)) / 255.0)),
+                .col = dvui.Color.PMA.fromColor(col.lerp(options.color_mod, 1.0).opacity(@as(f32, @floatFromInt(opacity)) / 255.0)),
                 .uv = uv,
             });
         }
