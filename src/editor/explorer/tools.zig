@@ -331,7 +331,7 @@ pub fn drawLayers() !void {
                     .start_val = 0.2,
                     .end_val = 1.0,
                     .end_time = 150_000 + (50_000 * @as(i32, @intCast(layer_index))),
-                    .easing = dvui.easing.inOutQuad,
+                    .easing = dvui.easing.outQuad,
                 });
             }
 
@@ -360,7 +360,7 @@ pub fn drawLayers() !void {
                 .color_fill = if (selected or hovered) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
                 .corner_radius = dvui.Rect.all(1000),
                 .margin = dvui.Rect.all(2),
-                .padding = dvui.Rect.all(1),
+                .padding = dvui.Rect.all(0),
                 .border = dvui.Rect.all(1.0),
                 .color_border = if (selected) color else dvui.themeGet().color(.control, .fill),
                 .box_shadow = .{
@@ -436,49 +436,53 @@ pub fn drawLayers() !void {
                 }
             }
 
-            //if (reorderable.drag_point == null) {
-            var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .none, .background = false, .gravity_x = 1.0, .min_size_content = .{ .w = 20.0, .h = 20.0 } });
-            defer button_box.deinit();
-
-            if (dvui.buttonIcon(
-                @src(),
-                "collapse_button",
-                if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-down-to-line" else icons.tvg.lucide.package,
-                .{ .draw_focus = false },
-                .{},
-                .{
+            if (true) {
+                var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .none,
-                    .id_extra = layer_index,
-                    .gravity_y = 0.5,
-                    .corner_radius = dvui.Rect.all(1000),
-                    .margin = dvui.Rect.all(1),
-                },
-            )) {
-                file.layers.items(.collapse)[layer_index] = !file.layers.items(.collapse)[layer_index];
-            }
+                    .background = false,
+                    .gravity_x = 1.0,
+                });
+                defer button_box.deinit();
 
-            if (dvui.buttonIcon(
-                @src(),
-                "hide_button",
-                if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed",
-                .{ .draw_focus = false },
-                .{},
-                .{
-                    .expand = .none,
-                    .id_extra = layer_index,
-                    .gravity_y = 0.5,
-                    .corner_radius = dvui.Rect.all(1000),
-                    .margin = dvui.Rect.all(1),
-                },
-            )) {
-                file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+                if (dvui.buttonIcon(
+                    @src(),
+                    "collapse_button",
+                    if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-down-to-line" else icons.tvg.lucide.package,
+                    .{ .draw_focus = false },
+                    .{},
+                    .{
+                        .expand = .ratio,
+                        .id_extra = layer_index,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .margin = dvui.Rect.all(1),
+                        .min_size_content = .{ .w = 10.0, .h = 10.0 },
+                    },
+                )) {
+                    file.layers.items(.collapse)[layer_index] = !file.layers.items(.collapse)[layer_index];
+                }
+
+                if (dvui.buttonIcon(
+                    @src(),
+                    "hide_button",
+                    if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed",
+                    .{ .draw_focus = false },
+                    .{},
+                    .{
+                        .expand = .ratio,
+                        .id_extra = layer_index,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .margin = dvui.Rect.all(1),
+                        .min_size_content = .{ .w = 10.0, .h = 10.0 },
+                    },
+                )) {
+                    file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+                }
             }
 
             // This consumes the click event, so we need to do this last
             if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
                 file.selected_layer_index = layer_index;
             }
-            //}
         }
 
         if (reorderable.finalSlot()) {

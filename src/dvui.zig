@@ -61,8 +61,6 @@ pub fn toastDisplay(id: dvui.Id) !void {
         .margin = .all(2),
         .padding = .{ .x = 2, .y = 2, .w = 2, .h = 2 },
         .color_fill = dvui.themeGet().color(.control, .fill),
-        //.border = dvui.Rect.all(2),
-        //.color_border = dvui.themeGet().color(.control, .border),
         .box_shadow = .{
             .color = .black,
             .offset = .{ .x = -2.0, .y = 2.0 },
