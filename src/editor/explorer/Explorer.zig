@@ -65,8 +65,6 @@ pub fn title(pane: Pane, all_caps: bool) []const u8 {
     };
 }
 
-pub fn processKeybinds(_: *Explorer) !void {}
-
 pub fn close(explorer: *Explorer) void {
     explorer.paned.animateSplit(0.0);
 }

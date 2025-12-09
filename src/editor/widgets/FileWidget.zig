@@ -47,33 +47,19 @@ pub fn processKeybinds(self: *FileWidget) void {
 
         switch (e.evt) {
             .key => |ke| {
-                if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
-                    pixi.editor.undo() catch {
-                        std.log.err("Failed to undo", .{});
-                    };
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                }
+                // if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
+                //     pixi.editor.undo() catch {
+                //         std.log.err("Failed to undo", .{});
+                //     };
+                //     e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                // }
 
-                if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
-                    pixi.editor.redo() catch {
-                        std.log.err("Failed to redo", .{});
-                    };
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                }
-
-                if (ke.matchBind("save") and ke.action == .down) {
-                    pixi.editor.save() catch {
-                        std.log.err("Failed to save", .{});
-                    };
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                }
-
-                if (ke.matchBind("transform") and ke.action == .down) {
-                    pixi.editor.transform() catch {
-                        std.log.err("Failed to transform", .{});
-                    };
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                }
+                // if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
+                //     pixi.editor.redo() catch {
+                //         std.log.err("Failed to redo", .{});
+                //     };
+                //     e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                // }
 
                 if (ke.matchBind("activate") and (ke.action == .down or ke.action == .repeat)) {
                     if (self.init_options.file.editor.transform) |*transform| {
@@ -89,20 +75,6 @@ pub fn processKeybinds(self: *FileWidget) void {
                     } else if (pixi.editor.tools.current == .pointer) {
                         self.init_options.file.clearSelectedSprites();
                     }
-                }
-
-                if (ke.matchBind("copy") and ke.action == .down) {
-                    pixi.editor.copy() catch {
-                        std.log.err("Failed to copy", .{});
-                    };
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                }
-
-                if (ke.matchBind("paste") and ke.action == .down) {
-                    pixi.editor.paste() catch {
-                        std.log.err("Failed to paste", .{});
-                    };
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
                 }
             },
             else => {},
@@ -440,6 +412,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                 .id_extra = index,
             });
             defer anim.deinit();
+
             const t = anim.val orelse 1.0;
             drawSpriteBubble(self, index, 1.0 - t, color, animation_index);
         } else if (!dvui.dragName("sprite_selection_drag")) {

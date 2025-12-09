@@ -96,6 +96,42 @@ pub fn tick() !void {
                     }
                 }
 
+                if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
+                    pixi.editor.undo() catch {
+                        std.log.err("Failed to undo", .{});
+                    };
+                }
+
+                if (ke.matchBind("copy") and ke.action == .down) {
+                    pixi.editor.copy() catch {
+                        std.log.err("Failed to copy", .{});
+                    };
+                }
+
+                if (ke.matchBind("paste") and ke.action == .down) {
+                    pixi.editor.paste() catch {
+                        std.log.err("Failed to paste", .{});
+                    };
+                }
+
+                if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
+                    pixi.editor.redo() catch {
+                        std.log.err("Failed to redo", .{});
+                    };
+                }
+
+                if (ke.matchBind("save") and ke.action == .down) {
+                    pixi.editor.save() catch {
+                        std.log.err("Failed to save", .{});
+                    };
+                }
+
+                if (ke.matchBind("transform") and ke.action == .down) {
+                    pixi.editor.transform() catch {
+                        std.log.err("Failed to transform", .{});
+                    };
+                }
+
                 if (ke.matchBind("pencil") and ke.action == .down) {
                     std.log.debug("pencil tool selected", .{});
                     pixi.editor.tools.set(.pencil);

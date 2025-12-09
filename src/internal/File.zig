@@ -1194,9 +1194,9 @@ pub fn savePng(self: *File, window: *dvui.Window) !void {
     try pixi.image.writeToPngResolution(self.layers.get(self.selected_layer_index).source, self.path, @intFromFloat(@round(window.natural_scale * 72.0 / 0.0254)));
 
     {
-        const id_mutex = dvui.toastAdd(window, @src(), 0, self.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+        const id_mutex = dvui.toastAdd(window, @src(), self.id, self.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
         const id = id_mutex.id;
-        const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
+        const message = std.fmt.allocPrint(window.arena(), "Saved {s} to disk", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
         id_mutex.mutex.unlock();
     }

@@ -54,7 +54,7 @@ pub fn toastDisplay(id: dvui.Id) !void {
         return;
     };
 
-    var animator = dvui.animate(@src(), .{ .kind = .alpha, .duration = 300_000 }, .{ .id_extra = id.asUsize() });
+    var animator = dvui.animate(@src(), .{ .kind = .alpha, .duration = 400_000 }, .{ .id_extra = id.asUsize(), .gravity_x = 0.5 });
     defer animator.deinit();
 
     dvui.labelNoFmt(@src(), message, .{}, .{
@@ -63,6 +63,7 @@ pub fn toastDisplay(id: dvui.Id) !void {
         .padding = .{ .x = 16, .y = 8, .w = 16, .h = 8 },
         .color_fill = dvui.themeGet().color(.control, .fill),
         .border = dvui.Rect.all(2),
+        .gravity_x = 0.5,
     });
 
     if (dvui.timerDone(id)) {

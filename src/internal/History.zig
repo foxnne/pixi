@@ -263,6 +263,104 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
     // Modify this change before its put into the other stack.
     var change = active_stack.pop().?;
 
+    defer {
+        const id_mutex = dvui.toastAdd(dvui.currentWindow(), @src(), @intCast(std.time.microTimestamp()), file.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+        const id = id_mutex.id;
+        const action_text = switch (action) {
+            .undo => "Undo:",
+            .redo => "Redo:",
+        };
+        var message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s}", .{action_text}) catch "Invalid change";
+
+        switch (change) {
+            .pixels => |*pixels| {
+                for (file.layers.items(.name), file.layers.items(.id)) |name, layer_id| {
+                    if (layer_id == pixels.layer_id) {
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} pixels modified", .{ action_text, name }) catch "Invalid change";
+                        break;
+                    }
+                }
+            },
+            .origins => |_| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Sprite origins modified", .{action_text}) catch "Invalid change";
+            },
+            .animation_name => |*animation_name| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animation name {s} -> {s}", .{
+                    action_text,
+                    animation_name.name,
+                    file.animations.items(.name)[animation_name.index],
+                }) catch "Invalid change";
+            },
+            .animation_frames => |*animation_frames| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animation {s} frames modified", .{
+                    action_text,
+                    file.animations.items(.name)[animation_frames.index],
+                }) catch "Invalid change";
+            },
+            .animation_settings => |*animation_settings| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animation {s} settings modified", .{
+                    action_text,
+                    file.animations.items(.name)[animation_settings.index],
+                }) catch "Invalid change";
+            },
+            .animation_order => |_| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animations order modified", .{action_text}) catch "Invalid change";
+            },
+            .animation_restore_delete => |*animation_restore_delete| {
+                switch (animation_restore_delete.action) {
+                    .restore => {
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animation {s} created", .{
+                            action_text,
+                            file.animations.items(.name)[animation_restore_delete.index],
+                        }) catch "Invalid change";
+                    },
+                    .delete => {
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animation {s} deleted", .{
+                            action_text,
+                            file.animations.items(.name)[animation_restore_delete.index],
+                        }) catch "Invalid change";
+                    },
+                }
+            },
+            .layers_order => |_| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layers order modified", .{action_text}) catch "Invalid change";
+            },
+            .layer_restore_delete => |*layer_restore_delete| {
+                switch (layer_restore_delete.action) {
+                    .restore => {
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} created", .{
+                            action_text,
+                            file.layers.items(.name)[layer_restore_delete.index],
+                        }) catch "Invalid change";
+                    },
+                    .delete => {
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} deleted", .{
+                            action_text,
+                            file.layers.items(.name)[layer_restore_delete.index],
+                        }) catch "Invalid change";
+                    },
+                }
+            },
+            .layer_name => |*layer_name| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer name {s} -> {s}", .{
+                    action_text,
+                    layer_name.name,
+                    file.layers.items(.name)[layer_name.index],
+                }) catch "Invalid change";
+            },
+            .layer_settings => |*layer_settings| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} settings modified", .{
+                    action_text,
+                    file.layers.items(.name)[layer_settings.index],
+                }) catch "Invalid change";
+            },
+            else => {},
+        }
+
+        dvui.dataSetSlice(dvui.currentWindow(), id, "_message", message);
+        id_mutex.mutex.unlock();
+    }
+
     switch (change) {
         .pixels => |*pixels| {
             if (pixels.temporary) temporary = true;
@@ -415,7 +513,6 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             }
 
             @memcpy(animation_order.order, new_order);
-            // pixi.app.allocator.free(new_order);
         },
         .animation_frames => |*animation_frames| {
             const history_frames = &animation_frames.frames;
