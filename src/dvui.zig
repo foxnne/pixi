@@ -54,15 +54,30 @@ pub fn toastDisplay(id: dvui.Id) !void {
         return;
     };
 
+    var box = dvui.box(@src(), .{}, .{
+        .id_extra = id.asUsize(),
+        .background = true,
+        .corner_radius = dvui.Rect.all(1000),
+        .margin = .all(2),
+        .padding = .{ .x = 2, .y = 2, .w = 2, .h = 2 },
+        .color_fill = dvui.themeGet().color(.control, .fill),
+        //.border = dvui.Rect.all(2),
+        //.color_border = dvui.themeGet().color(.control, .border),
+        .box_shadow = .{
+            .color = .black,
+            .offset = .{ .x = -2.0, .y = 2.0 },
+            .fade = 6.0,
+            .alpha = 0.25,
+            .corner_radius = dvui.Rect.all(10000),
+        },
+        .gravity_x = 0.5,
+    });
+    defer box.deinit();
+
     var animator = dvui.animate(@src(), .{ .kind = .alpha, .duration = 400_000 }, .{ .id_extra = id.asUsize(), .gravity_x = 0.5 });
     defer animator.deinit();
 
     dvui.labelNoFmt(@src(), message, .{}, .{
-        .background = true,
-        .corner_radius = dvui.Rect.all(1000),
-        .padding = .{ .x = 16, .y = 8, .w = 16, .h = 8 },
-        .color_fill = dvui.themeGet().color(.control, .fill),
-        .border = dvui.Rect.all(2),
         .gravity_x = 0.5,
     });
 
