@@ -47,20 +47,6 @@ pub fn processKeybinds(self: *FileWidget) void {
 
         switch (e.evt) {
             .key => |ke| {
-                // if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
-                //     pixi.editor.undo() catch {
-                //         std.log.err("Failed to undo", .{});
-                //     };
-                //     e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                // }
-
-                // if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
-                //     pixi.editor.redo() catch {
-                //         std.log.err("Failed to redo", .{});
-                //     };
-                //     e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                // }
-
                 if (ke.matchBind("activate") and (ke.action == .down or ke.action == .repeat)) {
                     if (self.init_options.file.editor.transform) |*transform| {
                         transform.accept();
@@ -215,6 +201,40 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
     }
 }
 
+pub fn processAnimationSelection(self: *FileWidget) void {
+    const file = self.init_options.file;
+    for (dvui.events()) |*e| {
+        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+            continue;
+        }
+
+        switch (e.evt) {
+            .mouse => |me| {
+                if (me.button.pointer() or pixi.editor.tools.current != .pointer) {
+                    // If we have a sprite that is part of an animation, select the animation
+                    if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
+                        var found: bool = false;
+                        for (file.animations.items(.frames), 0..) |frames, anim_index| {
+                            for (frames, 0..) |frame, frame_index| {
+                                if (frame == sprite_index) {
+                                    file.selected_animation_index = anim_index;
+                                    file.selected_animation_frame_index = frame_index;
+                                    file.editor.animations_scroll_to_index = anim_index;
+                                    found = true;
+                                    break;
+                                }
+                                if (found) break;
+                            }
+                            if (found) break;
+                        }
+                    }
+                }
+            },
+            else => {},
+        }
+    }
+}
+
 pub fn processSpriteSelection(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
@@ -257,26 +277,6 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                         }
                     } else {
                         file.clearSelectedSprites();
-
-                        // If we have a sprite that is part of an animation, select the animation
-                        if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
-                            var found: bool = false;
-                            for (file.animations.items(.frames), 0..) |frames, anim_index| {
-                                for (frames, 0..) |frame, frame_index| {
-                                    if (frame == sprite_index) {
-                                        file.selected_animation_index = anim_index;
-                                        file.selected_animation_frame_index = frame_index;
-                                        file.editor.animations_scroll_to_index = anim_index;
-                                        found = true;
-                                        break;
-                                    }
-                                    if (found) break;
-                                }
-                                if (found) break;
-                            }
-
-                            file.editor.selected_sprites.set(sprite_index);
-                        }
                     }
 
                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
@@ -338,9 +338,9 @@ pub fn processSpriteSelection(self: *FileWidget) void {
 }
 
 pub fn drawSpriteBubbles(self: *FileWidget) void {
-    if (pixi.editor.tools.current != .pointer) return;
+    //if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
-    if (pixi.editor.explorer.pane != .sprites) return;
+    //if (pixi.editor.explorer.pane != .sprites) return;
 
     var index: usize = self.init_options.file.spriteCount();
 
@@ -415,7 +415,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const t = anim.val orelse 1.0;
             drawSpriteBubble(self, index, 1.0 - t, color, animation_index);
-        } else if (!dvui.dragName("sprite_selection_drag")) {
+        } else if (!dvui.dragName("sprite_selection_drag") and pixi.editor.tools.current == .pointer) {
             const sprite_rect = self.init_options.file.spriteRect(index);
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
@@ -2393,6 +2393,7 @@ pub fn processEvents(self: *FileWidget) void {
     self.drawLayers();
 
     self.drawSpriteBubbles();
+    self.processAnimationSelection();
     self.processSpriteSelection();
     self.drawSpriteSelection();
 
