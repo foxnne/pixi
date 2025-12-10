@@ -222,8 +222,11 @@ pub fn processAnimationSelection(self: *FileWidget) void {
                             for (frames, 0..) |frame, frame_index| {
                                 if (frame == sprite_index) {
                                     file.selected_animation_index = anim_index;
-                                    file.selected_animation_frame_index = frame_index;
                                     file.editor.animations_scroll_to_index = anim_index;
+
+                                    if (!file.editor.playing)
+                                        file.selected_animation_frame_index = frame_index;
+
                                     found = true;
                                     break;
                                 }
