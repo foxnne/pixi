@@ -441,6 +441,7 @@ pub fn drawLayers() !void {
                     .expand = .none,
                     .background = false,
                     .gravity_x = 1.0,
+                    //.min_size_content = .{ .w = 15.0, .h = 15.0 },
                 });
                 defer button_box.deinit();
 
@@ -452,10 +453,10 @@ pub fn drawLayers() !void {
                     .{},
                     .{
                         .expand = .ratio,
+                        .min_size_content = .{ .w = 0.0, .h = 11.0 },
                         .id_extra = layer_index,
                         .corner_radius = dvui.Rect.all(1000),
                         .margin = dvui.Rect.all(1),
-                        .min_size_content = .{ .w = 10.0, .h = 10.0 },
                     },
                 )) {
                     file.layers.items(.collapse)[layer_index] = !file.layers.items(.collapse)[layer_index];
@@ -469,10 +470,10 @@ pub fn drawLayers() !void {
                     .{},
                     .{
                         .expand = .ratio,
+                        .min_size_content = .{ .w = 0.0, .h = 11.0 },
                         .id_extra = layer_index,
                         .corner_radius = dvui.Rect.all(1000),
                         .margin = dvui.Rect.all(1),
-                        .min_size_content = .{ .w = 10.0, .h = 10.0 },
                     },
                 )) {
                     file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
