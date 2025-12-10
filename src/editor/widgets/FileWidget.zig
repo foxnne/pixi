@@ -210,7 +210,7 @@ pub fn processAnimationSelection(self: *FileWidget) void {
 
         switch (e.evt) {
             .mouse => |me| {
-                if (me.button.pointer() or pixi.editor.tools.current != .pointer) {
+                if ((me.button.pointer() and me.action == .press and !me.mod.matchBind("ctrl/cmd") and !me.mod.matchBind("shift")) or pixi.editor.tools.current != .pointer) {
                     // If we have a sprite that is part of an animation, select the animation
                     if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
                         var found: bool = false;
