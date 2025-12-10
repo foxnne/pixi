@@ -201,6 +201,10 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
     }
 }
 
+/// Responsible for changing the currently selected animation index, the animation frame index, and the animations scroll to index
+/// when the user clicks on a sprite that is part of an animation.
+///
+/// This is not restricted to any pane or tool, and will change on hover for any tool except the pointer tool.
 pub fn processAnimationSelection(self: *FileWidget) void {
     const file = self.init_options.file;
     for (dvui.events()) |*e| {
@@ -235,6 +239,10 @@ pub fn processAnimationSelection(self: *FileWidget) void {
     }
 }
 
+/// Responsible for handling rough/broad sprite selection (grid tiles)
+/// Sprites can only be selected with the pointer tool.
+///
+/// Supports add/remove, drag selection, etc.
 pub fn processSpriteSelection(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
@@ -337,10 +345,15 @@ pub fn processSpriteSelection(self: *FileWidget) void {
     }
 }
 
+/// Responsible for drawing the indicators for animation frames as bubbles over each sprite.
+///
+/// Bubbles contain a button that acts as a toggle for adding/removing a sprite from an animation.
+/// When using the pointer tool, bubbles will be drawn based on distance from the mouse location, as well as the currently selected animation frames.
+/// When using other tools, bubbles will be drawn based on the currently selected animation frames.
+///
+/// Bubbles use a elastic animation, and also display the currently viewed animation frame in the panel.
 pub fn drawSpriteBubbles(self: *FileWidget) void {
-    //if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
-    //if (pixi.editor.explorer.pane != .sprites) return;
 
     var index: usize = self.init_options.file.spriteCount();
 
@@ -433,6 +446,8 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
     }
 }
 
+/// Draw a single sprite bubble based on sprite index and progress. Animation index just lets us know if not null, its part of an animation,
+/// and if its equal to the currently selected animation index, we need to draw a checkmark in the bubble because its part of the currently selected animation.
 pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, color: dvui.Color, animation_index: ?usize) void {
     const t = progress;
     const fill_color: dvui.Color = dvui.themeGet().color(.window, .fill);
@@ -663,6 +678,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     }
 }
 
+/// Draw the highlight colored selection box for each selected sprite.
 pub fn drawSpriteSelection(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
@@ -691,6 +707,9 @@ pub fn drawSpriteSelection(self: *FileWidget) void {
     }
 }
 
+/// Responsible for processing events to create/modify the current fine-grained selection.
+/// This selection is pixel-based, and includes shift/ctrl/cmd modifiers to support add/remove.
+/// The selection uses the same logic as the stroke tool to brush the selection over existing pixels.
 pub fn processSelection(self: *FileWidget) void {
     if (switch (pixi.editor.tools.current) {
         .selection,
@@ -922,6 +941,8 @@ pub fn processSelection(self: *FileWidget) void {
     }
 }
 
+/// Responsible for processing events to modify pixels on the current layer for strokes of various size
+/// Supports using shift to draw a line between two points, and increasing/decreasing stroke size
 pub fn processStroke(self: *FileWidget) void {
     const file = self.init_options.file;
 
@@ -1142,6 +1163,9 @@ pub fn processStroke(self: *FileWidget) void {
     }
 }
 
+/// Responsible for processing events to fill pixels on the current layer with a solid color.
+/// Supports using ctrl/cmd to replace all existing pixels of the same color with the new color,
+/// or without modifiers to flood fill the layer with the new color.
 pub fn processFill(self: *FileWidget) void {
     if (pixi.editor.tools.current != .bucket) return;
     const file = self.init_options.file;
@@ -1190,6 +1214,8 @@ pub fn processFill(self: *FileWidget) void {
     }
 }
 
+/// Responsible for processing events to create/modify a transform. A transform is basically a quad with controls on each corner, and
+/// allows moving, rotating, skewing and scaling the quad. The controls also include a pivot point for the rotation.
 pub fn processTransform(self: *FileWidget) void {
     var valid: bool = true;
 
@@ -1548,6 +1574,8 @@ pub fn processTransform(self: *FileWidget) void {
     }
 }
 
+/// Responsible for drawing the transform guides and controls for the current transform after processing.
+/// Includes guides for the sprite size and angle in appropriately scaled text labels.
 pub fn drawTransform(self: *FileWidget) void {
     const file = self.init_options.file;
     if (pixi.editor.tools.current != .pointer) return;
