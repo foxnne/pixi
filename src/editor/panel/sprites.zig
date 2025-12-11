@@ -246,8 +246,8 @@ pub fn drawAnimationControlsDialog(_: *Sprites) void {
             defer anim_box.deinit();
 
             {
-                if (dvui.buttonIcon(@src(), "Play", if (file.editor.playing) icons.tvg.feather.pause else icons.tvg.feather.play, .{}, .{}, .{
-                    .expand = .none,
+                if (dvui.buttonIcon(@src(), "Play", if (file.editor.playing) icons.tvg.entypo.pause else icons.tvg.entypo.play, .{}, .{}, .{
+                    .expand = .ratio,
                     .corner_radius = dvui.Rect.all(1000),
                     .box_shadow = .{
                         .color = .black,
@@ -257,7 +257,7 @@ pub fn drawAnimationControlsDialog(_: *Sprites) void {
                         .corner_radius = dvui.Rect.all(1000),
                     },
                     .color_fill = dvui.themeGet().color(.control, .fill),
-                    .min_size_content = .{ .w = 12.0, .h = 12.0 },
+                    .min_size_content = .{ .w = 0.0, .h = 12.0 },
                 })) {
                     file.editor.playing = !file.editor.playing;
                 }

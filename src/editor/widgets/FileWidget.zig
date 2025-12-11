@@ -1,3 +1,19 @@
+const std = @import("std");
+const math = std.math;
+const dvui = @import("dvui");
+const pixi = @import("../../pixi.zig");
+const builtin = @import("builtin");
+
+const Options = dvui.Options;
+const Rect = dvui.Rect;
+const Point = dvui.Point;
+
+const BoxWidget = dvui.BoxWidget;
+const ButtonWidget = dvui.ButtonWidget;
+const ScrollAreaWidget = dvui.ScrollAreaWidget;
+const ScrollContainerWidget = dvui.ScrollContainerWidget;
+const ScaleWidget = dvui.ScaleWidget;
+
 pub const FileWidget = @This();
 const CanvasWidget = @import("CanvasWidget.zig");
 const icons = @import("icons");
@@ -2420,7 +2436,6 @@ pub fn processEvents(self: *FileWidget) void {
     }
 
     // Draw layers first, so that the scrolling bounding box is updated
-
     self.drawLayers();
 
     self.drawSpriteBubbles();
@@ -2456,22 +2471,6 @@ pub fn deinit(self: *FileWidget) void {
 pub fn hovered(self: *FileWidget) ?dvui.Point {
     return self.init_options.canvas.hovered();
 }
-
-const Options = dvui.Options;
-const Rect = dvui.Rect;
-const Point = dvui.Point;
-
-const BoxWidget = dvui.BoxWidget;
-const ButtonWidget = dvui.ButtonWidget;
-const ScrollAreaWidget = dvui.ScrollAreaWidget;
-const ScrollContainerWidget = dvui.ScrollContainerWidget;
-const ScaleWidget = dvui.ScaleWidget;
-
-const std = @import("std");
-const math = std.math;
-const dvui = @import("dvui");
-const pixi = @import("../../pixi.zig");
-const builtin = @import("builtin");
 
 test {
     @import("std").testing.refAllDecls(@This());

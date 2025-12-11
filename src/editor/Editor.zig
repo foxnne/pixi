@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const icons = @import("icons");
 
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
@@ -337,7 +338,6 @@ pub fn drawRadialMenu(editor: *Editor) !void {
     var fw: dvui.FloatingWidget = undefined;
     fw.init(@src(), .{}, .{
         .rect = .cast(dvui.windowRect()),
-        .background = false,
     });
     defer fw.deinit();
 
@@ -355,6 +355,35 @@ pub fn drawRadialMenu(editor: *Editor) !void {
     const step: f32 = (2.0 * std.math.pi) / @as(f32, @floatFromInt(tool_count));
 
     var angle: f32 = 180.0;
+
+    var outer_rect = dvui.Rect.fromPoint(center);
+    outer_rect.w = radius * 3.0;
+    outer_rect.h = radius * 3.0;
+    outer_rect.x -= outer_rect.w / 2.0;
+    outer_rect.y -= outer_rect.h / 2.0;
+
+    var outer_anim = dvui.animate(@src(), .{ .duration = 100_000, .kind = .alpha, .easing = dvui.easing.linear }, .{});
+
+    var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .rect = outer_rect,
+        .expand = .none,
+        .background = true,
+        //.color_fill = .transparent,
+        .corner_radius = dvui.Rect.all(100000),
+        .box_shadow = .{
+            .color = .black,
+            .offset = .{ .x = -4.0, .y = 4.0 },
+            .fade = 8.0,
+            .alpha = 0.25,
+        },
+        .border = dvui.Rect.all(1.0),
+        //.color_border = dvui.themeGet().color(.control, .text),
+    });
+
+    //const scale = box.data().rectScale().s;
+    box.deinit();
+
+    outer_anim.deinit();
 
     for (0..tool_count) |i| {
         var anim = dvui.animate(@src(), .{ .duration = 100_000 + 50_000 * @as(i32, @intCast(i)), .kind = .alpha, .easing = dvui.easing.linear }, .{
@@ -376,6 +405,18 @@ pub fn drawRadialMenu(editor: *Editor) !void {
 
         const new_center = center.plus(.{ .x = x, .y = y });
 
+        { // Draw line along pie slice
+            // const line_x: f32 = std.math.round(width / 2.0 + radius * std.math.cos(angle + step / 2.0) - width / 2.0);
+            // const line_y: f32 = std.math.round(height / 2.0 + radius * std.math.sin(angle + step / 2.0) - height / 2.0);
+
+            // const new_line_center = center.plus((dvui.Point{ .x = line_x, .y = line_y }).normalize().scale(radius * 1.5, dvui.Point));
+
+            // dvui.Path.stroke(.{ .points = &.{ center.scale(scale, dvui.Point.Physical), new_line_center.scale(scale, dvui.Point.Physical) } }, .{
+            //     .color = dvui.themeGet().color(.control, .text),
+            //     .thickness = 1.0,
+            // });
+        }
+
         var rect = dvui.Rect.fromPoint(new_center);
 
         rect.w = 48.0;
@@ -391,12 +432,12 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .id_extra = i,
             .corner_radius = dvui.Rect.all(1000.0),
             .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
-            .box_shadow = .{
-                .color = .black,
-                .offset = .{ .x = -4.0, .y = 4.0 },
-                .fade = 8.0,
-                .alpha = 0.25,
-            },
+            // .box_shadow = .{
+            //     .color = .black,
+            //     .offset = .{ .x = -4.0, .y = 4.0 },
+            //     .fade = 8.0,
+            //     .alpha = 0.25,
+            // },
             .border = dvui.Rect.all(1.0),
             .color_border = if (tool == editor.tools.current) color else dvui.themeGet().color(.control, .fill),
         });
@@ -443,6 +484,41 @@ pub fn drawRadialMenu(editor: *Editor) !void {
         }
 
         button.deinit();
+    }
+
+    { // Center play/pause button
+
+        var anim = dvui.animate(@src(), .{ .duration = 100_000, .kind = .alpha, .easing = dvui.easing.linear }, .{
+            .id_extra = tool_count + 1,
+        });
+        defer anim.deinit();
+
+        var rect = dvui.Rect.fromPoint(center);
+
+        rect.w = 36.0;
+        rect.h = 36.0;
+        rect.x -= rect.w / 2.0;
+        rect.y -= rect.h / 2.0;
+
+        {
+            if (editor.activeFile()) |file| {
+                if (dvui.buttonIcon(@src(), "Play", if (file.editor.playing) icons.tvg.entypo.pause else icons.tvg.entypo.play, .{}, .{}, .{
+                    .expand = .none,
+                    .corner_radius = dvui.Rect.all(1000),
+                    .box_shadow = .{
+                        .color = .black,
+                        .offset = .{ .x = -2.0, .y = 2.0 },
+                        .fade = 4.0,
+                        .alpha = 0.25,
+                        .corner_radius = dvui.Rect.all(1000),
+                    },
+                    .color_fill = dvui.themeGet().color(.control, .fill),
+                    .rect = rect,
+                })) {
+                    file.editor.playing = !file.editor.playing;
+                }
+            }
+        }
     }
 }
 
