@@ -356,13 +356,15 @@ pub fn drawRadialMenu(editor: *Editor) !void {
 
     var angle: f32 = 180.0;
 
+    var outer_anim = dvui.animate(@src(), .{ .duration = 300_000, .kind = .horizontal, .easing = dvui.easing.outBack }, .{});
+
+    const temp_radius: f32 = 3.0 * radius * (outer_anim.val orelse 1.0);
+
     var outer_rect = dvui.Rect.fromPoint(center);
-    outer_rect.w = radius * 3.0;
-    outer_rect.h = radius * 3.0;
+    outer_rect.w = temp_radius;
+    outer_rect.h = temp_radius;
     outer_rect.x -= outer_rect.w / 2.0;
     outer_rect.y -= outer_rect.h / 2.0;
-
-    var outer_anim = dvui.animate(@src(), .{ .duration = 100_000, .kind = .alpha, .easing = dvui.easing.linear }, .{});
 
     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .rect = outer_rect,
