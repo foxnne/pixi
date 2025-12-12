@@ -513,12 +513,16 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             }
 
             @memcpy(animation_order.order, new_order);
+
+            file.selected_animation_index = animation_order.selected;
         },
         .animation_frames => |*animation_frames| {
             const history_frames = &animation_frames.frames;
             const current_frames = &file.animations.items(.frames)[animation_frames.index];
 
             std.mem.swap([]usize, history_frames, current_frames);
+
+            file.selected_animation_index = animation_frames.index;
         },
         // .heightmap_restore_delete => |*heightmap_restore_delete| {
         //     const a = heightmap_restore_delete.action;
