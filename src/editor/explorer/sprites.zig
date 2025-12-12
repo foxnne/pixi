@@ -140,6 +140,15 @@ pub fn drawAnimationControls(self: *Sprites) !void {
             file.selected_animation_index = anim_index;
             file.editor.animations_scroll_to_index = anim_index;
             self.edit_anim_id = file.animations.items(.id)[anim_index];
+
+            file.history.append(.{
+                .animation_restore_delete = .{
+                    .action = .delete,
+                    .index = anim_index,
+                },
+            }) catch {
+                dvui.log.err("Failed to append history", .{});
+            };
         }
 
         if (file.animations.len > 0) {
@@ -161,6 +170,15 @@ pub fn drawAnimationControls(self: *Sprites) !void {
                     file.selected_animation_index = anim_index;
                     file.editor.animations_scroll_to_index = anim_index;
                     self.edit_anim_id = file.animations.items(.id)[anim_index];
+
+                    file.history.append(.{
+                        .animation_restore_delete = .{
+                            .action = .delete,
+                            .index = anim_index,
+                        },
+                    }) catch {
+                        dvui.log.err("Failed to append history", .{});
+                    };
                 }
 
                 if (dvui.buttonIcon(@src(), "DeleteAnimation", icons.tvg.lucide.trash, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{

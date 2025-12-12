@@ -19,7 +19,6 @@ pub const ChangeType = enum {
     layer_restore_delete,
     layer_name,
     layer_settings,
-    heightmap_restore_delete,
 };
 
 pub const Change = union(ChangeType) {
@@ -78,9 +77,6 @@ pub const Change = union(ChangeType) {
         visible: bool,
         collapse: bool,
     };
-    pub const HeightmapRestoreDelete = struct {
-        action: RestoreDelete,
-    };
 
     pixels: Pixels,
     origins: Origins,
@@ -93,7 +89,6 @@ pub const Change = union(ChangeType) {
     layer_restore_delete: LayerRestoreDelete,
     layer_name: LayerName,
     layer_settings: LayerSettings,
-    heightmap_restore_delete: HeightmapRestoreDelete,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -228,9 +223,6 @@ pub fn append(self: *History, change: Change) !void {
                 .layer_settings => {
                     equal = false;
                 },
-                .heightmap_restore_delete => {
-                    equal = false;
-                },
             }
         } else equal = false;
     }
@@ -309,13 +301,13 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             .animation_restore_delete => |*animation_restore_delete| {
                 switch (animation_restore_delete.action) {
                     .restore => {
-                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animation {s} created", .{
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animation {s} deleted", .{
                             action_text,
-                            file.animations.items(.name)[animation_restore_delete.index],
+                            file.deleted_animations.items(.name)[file.deleted_animations.len - 1],
                         }) catch "Invalid change";
                     },
                     .delete => {
-                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animation {s} deleted", .{
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animation {s} created", .{
                             action_text,
                             file.animations.items(.name)[animation_restore_delete.index],
                         }) catch "Invalid change";
@@ -328,13 +320,13 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             .layer_restore_delete => |*layer_restore_delete| {
                 switch (layer_restore_delete.action) {
                     .restore => {
-                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} created", .{
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} deleted", .{
                             action_text,
-                            file.layers.items(.name)[layer_restore_delete.index],
+                            file.deleted_animations.items(.name)[file.deleted_animations.len - 1],
                         }) catch "Invalid change";
                     },
                     .delete => {
-                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} deleted", .{
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} created", .{
                             action_text,
                             file.layers.items(.name)[layer_restore_delete.index],
                         }) catch "Invalid change";
@@ -354,7 +346,6 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     file.layers.items(.name)[layer_settings.index],
                 }) catch "Invalid change";
             },
-            else => {},
         }
 
         dvui.dataSetSlice(dvui.currentWindow(), id, "_message", message);
@@ -460,6 +451,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     const animation = file.deleted_animations.pop().?;
                     try file.animations.insert(pixi.app.allocator, animation_restore_delete.index, animation);
                     animation_restore_delete.action = .delete;
+                    file.selected_animation_index = animation_restore_delete.index;
                 },
                 .delete => {
                     const animation = file.animations.slice().get(animation_restore_delete.index);
@@ -467,8 +459,11 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     try file.deleted_animations.append(pixi.app.allocator, animation);
                     animation_restore_delete.action = .restore;
 
-                    // if (file.sele == animation_restore_delete.index)
-                    //     file.selected_animation_index = 0;
+                    if (file.selected_animation_index) |selected_animation_index| {
+                        if (selected_animation_index >= file.animations.len) {
+                            file.selected_animation_index = file.animations.len - 1;
+                        }
+                    }
                 },
             }
             pixi.editor.explorer.pane = .sprites;
@@ -524,24 +519,6 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
 
             file.selected_animation_index = animation_frames.index;
         },
-        // .heightmap_restore_delete => |*heightmap_restore_delete| {
-        //     const a = heightmap_restore_delete.action;
-        //     switch (a) {
-        //         .restore => {
-        //             file.heightmap.layer = file.deleted_heightmap_layers.pop();
-        //             heightmap_restore_delete.action = .delete;
-        //         },
-        //         .delete => {
-        //             try file.deleted_heightmap_layers.append(pixi.app.allocator, file.heightmap.layer.?);
-        //             file.heightmap.layer = null;
-        //             heightmap_restore_delete.action = .restore;
-        //             if (pixi.editor.tools.current == .heightmap) {
-        //                 pixi.editor.tools.set(.pointer);
-        //             }
-        //         },
-        //     }
-        // },
-        else => {},
     }
 
     if (!temporary) {
