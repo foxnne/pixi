@@ -517,18 +517,8 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
         .animation_frames => |*animation_frames| {
             const history_frames = &animation_frames.frames;
             const current_frames = &file.animations.items(.frames)[animation_frames.index];
-            if (current_frames.len == history_frames.len) {
-                std.mem.swap([]usize, current_frames, history_frames);
-            } else {
-                current_frames.* = pixi.app.allocator.realloc(current_frames.*, history_frames.len) catch |err| {
-                    dvui.log.err("Failed to realloc frames", .{});
-                    return err;
-                };
-                for (0..current_frames.len) |i| {
-                    if (current_frames.*[i] == history_frames.*[i]) continue;
-                    std.mem.swap(usize, &current_frames.*[i], &history_frames.*[i]);
-                }
-            }
+
+            std.mem.swap([]usize, history_frames, current_frames);
         },
         // .heightmap_restore_delete => |*heightmap_restore_delete| {
         //     const a = heightmap_restore_delete.action;

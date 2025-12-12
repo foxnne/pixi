@@ -670,13 +670,27 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                     }
                 }
 
-                pixi.app.allocator.free(anim.frames);
-                anim.frames = frames.toOwnedSlice() catch {
-                    dvui.log.err("Failed to free frames", .{});
-                    return;
-                };
+                if (!std.mem.eql(usize, anim.frames, frames.items)) {
+                    self.init_options.file.history.append(.{
+                        .animation_frames = .{
+                            .index = anim_index,
+                            .frames = pixi.app.allocator.dupe(usize, anim.frames) catch {
+                                dvui.log.err("Failed to dupe frames", .{});
+                                return;
+                            },
+                        },
+                    }) catch {
+                        dvui.log.err("Failed to append history", .{});
+                    };
 
-                self.init_options.file.animations.set(anim_index, anim);
+                    pixi.app.allocator.free(anim.frames);
+                    anim.frames = frames.toOwnedSlice() catch {
+                        dvui.log.err("Failed to free frames", .{});
+                        return;
+                    };
+
+                    self.init_options.file.animations.set(anim_index, anim);
+                }
             }
         }
 

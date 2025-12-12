@@ -356,7 +356,7 @@ pub fn drawRadialMenu(editor: *Editor) !void {
 
     var angle: f32 = 180.0;
 
-    var outer_anim = dvui.animate(@src(), .{ .duration = 300_000, .kind = .horizontal, .easing = dvui.easing.outBack }, .{});
+    var outer_anim = dvui.animate(@src(), .{ .duration = 400_000, .kind = .horizontal, .easing = dvui.easing.outBack }, .{});
 
     const temp_radius: f32 = 3.0 * radius * (outer_anim.val orelse 1.0);
 
@@ -370,7 +370,6 @@ pub fn drawRadialMenu(editor: *Editor) !void {
         .rect = outer_rect,
         .expand = .none,
         .background = true,
-        //.color_fill = .transparent,
         .corner_radius = dvui.Rect.all(100000),
         .box_shadow = .{
             .color = .black,
@@ -379,10 +378,8 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .alpha = 0.25,
         },
         .border = dvui.Rect.all(1.0),
-        //.color_border = dvui.themeGet().color(.control, .text),
     });
 
-    //const scale = box.data().rectScale().s;
     box.deinit();
 
     outer_anim.deinit();
