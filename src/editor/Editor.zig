@@ -377,6 +377,7 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .fade = 8.0,
             .alpha = 0.25,
         },
+        .color_fill = dvui.themeGet().color(.control, .fill),
         .border = dvui.Rect.all(1.0),
     });
 
