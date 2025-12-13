@@ -78,6 +78,7 @@ pub fn drawTools() !void {
     const toolbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
         .gravity_x = 0.5,
+        .padding = .{ .h = 10.0, .w = 4.0, .x = 4.0, .y = 4.0 },
     });
     defer toolbox.deinit();
     for (0..std.meta.fields(pixi.Editor.Tools.Tool).len) |i| {
@@ -101,20 +102,20 @@ pub fn drawTools() !void {
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{
             .expand = .none,
-            .min_size_content = .{ .w = 24, .h = 24 },
+            .min_size_content = .{ .w = 40, .h = 40 },
             .id_extra = id_extra,
             .background = true,
             .corner_radius = dvui.Rect.all(1000),
-            .color_fill = if (selected) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
-            .box_shadow = .{
+            .color_fill = if (selected) dvui.themeGet().color(.control, .fill).lighten(4.0) else dvui.themeGet().color(.control, .fill),
+            .box_shadow = if (selected) .{
                 .color = .black,
                 .offset = .{ .x = -4.0, .y = 4.0 },
                 .fade = 8.0,
                 .alpha = 0.25,
-            },
-            .border = dvui.Rect.all(1.0),
-            .color_border = if (selected) color else dvui.themeGet().color(.control, .fill),
-            .margin = .{ .h = 10.0, .w = 4, .x = 4, .y = 4 },
+            } else null,
+            .padding = .all(0),
+            //.border = dvui.Rect.all(1.0),
+            //.color_border = if (selected) color else dvui.themeGet().color(.control, .fill),
         });
         defer button.deinit();
 

@@ -377,7 +377,7 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .fade = 8.0,
             .alpha = 0.25,
         },
-        .color_fill = dvui.themeGet().color(.control, .fill),
+        .color_fill = dvui.themeGet().color(.control, .fill).lighten(4.0),
         .border = dvui.Rect.all(1.0),
     });
 
@@ -419,8 +419,8 @@ pub fn drawRadialMenu(editor: *Editor) !void {
 
         var rect = dvui.Rect.fromPoint(new_center);
 
-        rect.w = 48.0;
-        rect.h = 48.0;
+        rect.w = 40.0;
+        rect.h = 40.0;
         rect.x -= rect.w / 2.0;
         rect.y -= rect.h / 2.0;
 
@@ -431,15 +431,17 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .rect = rect,
             .id_extra = i,
             .corner_radius = dvui.Rect.all(1000.0),
-            .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
-            // .box_shadow = .{
-            //     .color = .black,
-            //     .offset = .{ .x = -4.0, .y = 4.0 },
-            //     .fade = 8.0,
-            //     .alpha = 0.25,
-            // },
-            .border = dvui.Rect.all(1.0),
-            .color_border = if (tool == editor.tools.current) color else dvui.themeGet().color(.control, .fill),
+            .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill).lighten(4.0),
+            .box_shadow = if (tool == editor.tools.current) .{
+                .color = .black,
+                .offset = .{ .x = -4.0, .y = 4.0 },
+                .fade = 8.0,
+                .alpha = 0.25,
+            } else null,
+            .padding = .all(0),
+            .margin = .all(0),
+            //.border = dvui.Rect.all(1.0),
+            //.color_border = if (tool == editor.tools.current) color else dvui.themeGet().color(.control, .fill),
         });
 
         const sprite = switch (@as(Editor.Tools.Tool, @enumFromInt(i))) {

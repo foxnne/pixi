@@ -471,7 +471,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 /// and if its equal to the currently selected animation index, we need to draw a checkmark in the bubble because its part of the currently selected animation.
 pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, color: dvui.Color, animation_index: ?usize) void {
     const t = progress;
-    const fill_color: dvui.Color = dvui.themeGet().color(.window, .fill);
+    const fill_color: dvui.Color = dvui.themeGet().color(.control, .fill);
 
     const sprite_rect = self.init_options.file.spriteRect(sprite_index);
 
@@ -491,6 +491,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
     var multiplier: f32 = 0.5;
     const max_height: f32 = @min(sprite_rect.h, sprite_rect.w);
+    var shadow_mult: f32 = 1.5;
 
     if (self.init_options.file.selected_animation_index) |ai| {
         if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
@@ -498,6 +499,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             if (frame != sprite_index and animation_index == ai) {
                 //max_height = max_height * 0.8;
                 multiplier *= 0.75;
+                shadow_mult *= 1.5;
             }
         }
     }
@@ -536,9 +538,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         if (sprite_hovered) {
             if (self.init_options.file.editor.canvas.scale < 2.0) {
-                built.fillConvex(.{ .color = fill_color.lighten(11.0), .fade = 1.5 });
+                built.fillConvex(.{ .color = fill_color, .fade = 1.5 });
             } else {
-                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(12.0), .fade = 1.5 }) catch {
+                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0), .fade = 1.5 }) catch {
                     dvui.log.err("Failed to fill convex triangles", .{});
                     return;
                 };
@@ -556,7 +558,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 };
             }
         } else {
-            built.fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 1.5 });
+            built.fillConvex(.{ .color = dvui.themeGet().color(.window, .fill), .fade = 1.5 });
         }
 
         const center = box.data().rect.center();
@@ -576,7 +578,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             .id_extra = sprite_index,
             .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = -0.1 * button_size, .y = 0.1 * button_size },
+                .offset = .{ .x = -0.1 * button_size, .y = 0.1 * button_size * shadow_mult },
                 .fade = (button_size / 10) * (1.0 - t),
                 .alpha = 0.35 * (1.0 - t),
             },
@@ -2307,10 +2309,10 @@ pub fn drawLayers(self: *FileWidget) void {
         };
 
         if (self.init_options.file.editor.canvas.scale < 2.0) {
-            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.window, .fill).lighten(11.0), .fade = 1.5 });
+            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
         } else {
             dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                .colormod = dvui.themeGet().color(.window, .fill).lighten(12.0),
+                .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0),
             }) catch {
                 std.log.err("Failed to render checkerboard", .{});
             };
