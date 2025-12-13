@@ -594,7 +594,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         button.drawBackground();
 
         if (button.clicked()) { // Toggle animation frame on or off for this selection/animation
-            if (self.init_options.file.selected_animation_index) |anim_index| {
+            var anim_index_opt: ?usize = self.init_options.file.selected_animation_index;
+
+            if (anim_index_opt) |anim_index| {
                 // TODO: Efficiently resize the animation frames array instead of duplicating it
 
                 if (self.init_options.file.selected_animation_frame_index == sprite_index) {
@@ -602,6 +604,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 }
 
                 var anim = self.init_options.file.animations.get(anim_index);
+
+                std.debug.print("anim: {s}\n", .{anim.name});
 
                 var frames = std.array_list.Managed(usize).init(pixi.app.allocator);
                 frames.appendSlice(anim.frames) catch {
@@ -697,6 +701,23 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                         return;
                     };
 
+                    self.init_options.file.animations.set(anim_index, anim);
+                }
+            } else {
+                anim_index_opt = self.init_options.file.createAnimation() catch null;
+                if (anim_index_opt) |anim_index| {
+                    self.init_options.file.selected_animation_index = anim_index;
+                    self.init_options.file.editor.animations_scroll_to_index = anim_index;
+                    pixi.editor.explorer.sprites.edit_anim_id = self.init_options.file.animations.items(.id)[anim_index];
+                    pixi.editor.explorer.pane = .sprites;
+
+                    var anim = self.init_options.file.animations.get(anim_index);
+                    if (anim.frames.len == 0) {
+                        anim.appendFrame(pixi.app.allocator, sprite_index) catch {
+                            dvui.log.err("Failed to append frame", .{});
+                            return;
+                        };
+                    }
                     self.init_options.file.animations.set(anim_index, anim);
                 }
             }
