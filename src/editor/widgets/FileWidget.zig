@@ -74,8 +74,10 @@ pub fn processKeybinds(self: *FileWidget) void {
                     if (self.init_options.file.editor.transform) |*transform| {
                         transform.cancel();
                         e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                    } else if (pixi.editor.tools.current == .pointer) {
+                    } else {
                         self.init_options.file.clearSelectedSprites();
+                        self.init_options.file.selected_animation_index = null;
+                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
                     }
                 }
             },
@@ -533,22 +535,26 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         built.stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 2.5 * dvui.currentWindow().natural_scale });
 
         if (sprite_hovered) {
-            var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(12.0), .fade = 1.5 }) catch {
-                dvui.log.err("Failed to fill convex triangles", .{});
-                return;
-            };
+            if (self.init_options.file.editor.canvas.scale < 2.0) {
+                built.fillConvex(.{ .color = fill_color.lighten(11.0), .fade = 1.5 });
+            } else {
+                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(12.0), .fade = 1.5 }) catch {
+                    dvui.log.err("Failed to fill convex triangles", .{});
+                    return;
+                };
 
-            const uv_rect = dvui.Rect{
-                .x = 0.0,
-                .y = ((t / 2.0) * multiplier) * (1.0 / multiplier), // adjust in case y grows up
-                .w = 1.0,
-                .h = ((scaled_h / max_height) * multiplier) * (1.0 / multiplier),
-            };
-            triangles.uvFromRectuv(r, uv_rect);
+                const uv_rect = dvui.Rect{
+                    .x = 0.0,
+                    .y = ((t / 2.0) * multiplier) * (1.0 / multiplier), // adjust in case y grows up
+                    .w = 1.0,
+                    .h = ((scaled_h / max_height) * multiplier) * (1.0 / multiplier),
+                };
+                triangles.uvFromRectuv(r, uv_rect);
 
-            dvui.renderTriangles(triangles, self.init_options.file.editor.checkerboard_tile.getTexture() catch null) catch {
-                dvui.log.err("Failed to render triangles", .{});
-            };
+                dvui.renderTriangles(triangles, self.init_options.file.editor.checkerboard_tile.getTexture() catch null) catch {
+                    dvui.log.err("Failed to render triangles", .{});
+                };
+            }
         } else {
             built.fillConvex(.{ .color = .{ .r = fill_color.r, .g = fill_color.g, .b = fill_color.b, .a = fill_color.a }, .fade = 1.5 });
         }
@@ -2300,11 +2306,15 @@ pub fn drawLayers(self: *FileWidget) void {
             .s = self.init_options.canvas.scale,
         };
 
-        dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-            .colormod = dvui.themeGet().color(.window, .fill).lighten(12.0),
-        }) catch {
-            std.log.err("Failed to render checkerboard", .{});
-        };
+        if (self.init_options.file.editor.canvas.scale < 2.0) {
+            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.window, .fill).lighten(11.0), .fade = 1.5 });
+        } else {
+            dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
+                .colormod = dvui.themeGet().color(.window, .fill).lighten(12.0),
+            }) catch {
+                std.log.err("Failed to render checkerboard", .{});
+            };
+        }
     }
 
     const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
