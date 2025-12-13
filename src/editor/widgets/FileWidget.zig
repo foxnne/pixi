@@ -605,8 +605,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
                 var anim = self.init_options.file.animations.get(anim_index);
 
-                std.debug.print("anim: {s}\n", .{anim.name});
-
                 var frames = std.array_list.Managed(usize).init(pixi.app.allocator);
                 frames.appendSlice(anim.frames) catch {
                     dvui.log.err("Failed to append frames", .{});
