@@ -426,6 +426,19 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             }
         }
 
+        var hide_distance_bubbles: bool = false;
+
+        if (dvui.dragName("sprite_selection_drag")) {
+            hide_distance_bubbles = true;
+        }
+
+        if (pixi.editor.tools.current != .pointer) {
+            hide_distance_bubbles = true;
+        }
+        if (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd")) {
+            hide_distance_bubbles = true;
+        }
+
         if (automatic_animation) {
             const total_duration: i32 = 1_000_000;
             const max_step_duration: i32 = @divTrunc(total_duration, 3);
@@ -449,12 +462,12 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const t = anim.val orelse 1.0;
             drawSpriteBubble(self, index, 1.0 - t, color, animation_index);
-        } else if (!dvui.dragName("sprite_selection_drag") and pixi.editor.tools.current == .pointer) {
+        } else if (!hide_distance_bubbles) {
             const sprite_rect = self.init_options.file.spriteRect(index);
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-            const max_distance: f32 = sprite_rect.h * 2;
+            const max_distance: f32 = sprite_rect.h * 1.5;
 
             const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
             const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
