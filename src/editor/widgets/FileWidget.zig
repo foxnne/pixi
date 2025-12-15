@@ -516,7 +516,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
             const dy = @abs(current_point.y - (sprite_rect.y));
-            const distance = @sqrt(dx * dx + dy * dy);
+            const distance = @sqrt((dx * dx) * 0.5 + dy * dy);
 
             if (distance < max_distance and hide and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
                 t = std.math.clamp(t * (distance / max_distance), 0.0, 2.0);
@@ -812,7 +812,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             //     .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a },
             // });
 
-            const check_t = std.math.clamp(t, 0.5, 1.5);
+            const check_t = std.math.clamp(dvui.easing.outQuad(t), 0.5, 1.5);
 
             var checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
             checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -(button.data().contentRectScale().r.w / 3.25) * check_t, .y = 0.0 }));
