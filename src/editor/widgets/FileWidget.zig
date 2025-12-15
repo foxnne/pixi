@@ -632,7 +632,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
                 const uv_rect = dvui.Rect{
                     .x = 0.0,
-                    .y = ((t / 2.0) * multiplier) * (1.0 / multiplier), // adjust in case y grows up
+                    .y = (((1.0 - t) / 2.0) * multiplier) * (1.0 / multiplier), // adjust in case y grows up
                     .w = 1.0,
                     .h = ((scaled_h / max_height) * multiplier) * (1.0 / multiplier),
                 };
