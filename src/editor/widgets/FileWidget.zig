@@ -428,55 +428,61 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             }
         }
 
-        //var hide_distance_bubble: bool = false;
-
         const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
+        const hide: bool = if (dvui.dragName("sprite_selection_drag") or
+            (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd")))
+            true
+        else
+            false;
 
-        if ((dvui.dragName("sprite_selection_drag") or
-            (pixi.editor.tools.current != .pointer and !self.hide_distance_bubble) or
-            (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))))
-        {
-            if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
-                if (anim.done()) {
-                    self.hide_distance_bubble = true;
-                }
-            } else if (dvui.animationGet(animation_id, "bubble_open")) |_| {
-                _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_open"));
-                dvui.animation(animation_id, "bubble_close", .{
-                    .easing = dvui.easing.outElastic,
-                    .end_time = 900_000,
-                    .start_val = 1.0,
-                    .end_val = 0.0,
-                });
-            } else if (!self.hide_distance_bubble) {
-                dvui.animation(animation_id, "bubble_close", .{
-                    .easing = dvui.easing.outElastic,
-                    .end_time = 900_000,
-                    .start_val = 1.0,
-                    .end_val = 0.0,
-                });
-            }
-        } else {
-            if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
-                if (anim.done()) {
-                    self.hide_distance_bubble = false;
-                }
-            } else if (dvui.animationGet(animation_id, "bubble_close")) |_| {
-                _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_close"));
+        { // Create animations for closing or opening bubbles
 
-                dvui.animation(animation_id, "bubble_open", .{
-                    .easing = dvui.easing.outElastic,
-                    .end_time = 900_000,
-                    .start_val = 0.0,
-                    .end_val = 1.0,
-                });
-            } else if (self.hide_distance_bubble) {
-                dvui.animation(animation_id, "bubble_open", .{
-                    .easing = dvui.easing.outElastic,
-                    .end_time = 900_000,
-                    .start_val = 0.0,
-                    .end_val = 1.0,
-                });
+            if ((dvui.dragName("sprite_selection_drag") or
+                (pixi.editor.tools.current != .pointer) or
+                (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))))
+            {
+                if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+                    if (anim.done()) {
+                        self.hide_distance_bubble = true;
+                    }
+                } else if (dvui.animationGet(animation_id, "bubble_open")) |_| {
+                    _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_open"));
+                    dvui.animation(animation_id, "bubble_close", .{
+                        .easing = dvui.easing.outElastic,
+                        .end_time = 900_000,
+                        .start_val = 1.0,
+                        .end_val = 0.0,
+                    });
+                } else if (!self.hide_distance_bubble) {
+                    dvui.animation(animation_id, "bubble_close", .{
+                        .easing = dvui.easing.outElastic,
+                        .end_time = 900_000,
+                        .start_val = 1.0,
+                        .end_val = 0.0,
+                    });
+                }
+            } else {
+                if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+                    if (anim.done()) {
+                        self.hide_distance_bubble = false;
+                    }
+                } else if (dvui.animationGet(animation_id, "bubble_close")) |_| {
+                    _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_close"));
+
+                    dvui.animation(animation_id, "bubble_open", .{
+                        .easing = dvui.easing.outElastic,
+                        .end_time = 900_000,
+                        .start_val = 0.0,
+                        .end_val = 1.0,
+                    });
+                } else if (self.hide_distance_bubble) {
+                    dvui.animation(animation_id, "bubble_open", .{
+                        .easing = dvui.easing.outElastic,
+                        .end_time = 900_000,
+                        .start_val = 0.0,
+                        .end_val = 1.0,
+                    });
+                }
             }
         }
 
@@ -501,11 +507,21 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             });
             defer anim.deinit();
 
-            const t: f32 = anim.val orelse 1.0;
+            var t: f32 = anim.val orelse 1.0;
 
-            // if (dvui.animationGet(self.init_options.file.editor.canvas.scroll_container.data().id, "bubble_open")) |open_anim| {
-            //     t = open_anim.value() * t;
-            // }
+            const sprite_rect = self.init_options.file.spriteRect(index);
+
+            const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+
+            const max_distance: f32 = sprite_rect.h * 1.5;
+
+            const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
+            const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
+            const distance = @sqrt(dx * dx + dy * dy);
+
+            if (distance < max_distance and hide) {
+                t = std.math.clamp(t * (distance / max_distance), 0.0, 2.0);
+            }
 
             drawSpriteBubble(self, index, t, color, animation_index);
         } else {
@@ -649,8 +665,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             .box_shadow = .{
                 .color = .black,
                 .offset = .{ .x = -0.1 * button_size, .y = 0.1 * button_size * shadow_mult },
-                .fade = (button_size / 10) * (t),
-                .alpha = 0.35 * (t),
+                .fade = (button_size / 10) * t,
+                .alpha = 0.35 * t,
             },
             .corner_radius = dvui.Rect.all(1000000),
             //.border = dvui.Rect.all(0.0),
@@ -797,11 +813,13 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             //     .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a },
             // });
 
+            const check_t = std.math.clamp(t, 0.5, 1.5);
+
             var checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -(button.data().contentRectScale().r.w / 3.25) * t, .y = 0.0 }));
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.h / 4.0) * t }));
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = (button.data().contentRectScale().r.w / 2) * t, .y = -(button.data().contentRectScale().r.h / 2.5) * t }));
-            checkmark_path.build().stroke(.{ .thickness = button.data().contentRectScale().r.w / 9, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -(button.data().contentRectScale().r.w / 3.25) * check_t, .y = 0.0 }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.h / 4.0) * check_t }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = (button.data().contentRectScale().r.w / 2) * check_t, .y = -(button.data().contentRectScale().r.h / 2.5) * check_t }));
+            checkmark_path.build().stroke(.{ .thickness = (button.data().contentRectScale().r.w / 9) * check_t, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
         }
     } else {
         box.deinit();
