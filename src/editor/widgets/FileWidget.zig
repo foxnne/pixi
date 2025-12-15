@@ -79,7 +79,6 @@ pub fn processKeybinds(self: *FileWidget) void {
                     } else {
                         self.init_options.file.clearSelectedSprites();
                         self.init_options.file.selected_animation_index = null;
-                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
                     }
                 }
             },
@@ -513,13 +512,13 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-            const max_distance: f32 = sprite_rect.h * 1.5;
+            const max_distance: f32 = if (hide) sprite_rect.h * 2.0 else sprite_rect.h * 1.5;
 
             const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
-            const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
+            const dy = @abs(current_point.y - (sprite_rect.y));
             const distance = @sqrt(dx * dx + dy * dy);
 
-            if (distance < max_distance and hide) {
+            if (distance < max_distance and hide and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
                 t = std.math.clamp(t * (distance / max_distance), 0.0, 2.0);
             }
 
