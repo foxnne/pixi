@@ -27,6 +27,7 @@ left_mouse_down: bool = false,
 right_mouse_down: bool = false,
 sample_key_down: bool = false,
 shift_key_down: bool = false,
+hide_distance_bubble: bool = false,
 
 pub const InitOptions = struct {
     canvas: *CanvasWidget,
@@ -42,6 +43,7 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
         .sample_key_down = if (dvui.dataGet(null, init_opts.canvas.id, "sample_key_down", bool)) |key| key else false,
         .right_mouse_down = if (dvui.dataGet(null, init_opts.canvas.id, "right_mouse_down", bool)) |key| key else false,
         .left_mouse_down = if (dvui.dataGet(null, init_opts.canvas.id, "left_mouse_down", bool)) |key| key else false,
+        .hide_distance_bubble = if (dvui.dataGet(null, init_opts.canvas.id, "hide_distance_bubble", bool)) |key| key else false,
     };
 
     init_opts.canvas.install(src, .{
@@ -426,17 +428,56 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             }
         }
 
-        var hide_distance_bubbles: bool = false;
+        //var hide_distance_bubble: bool = false;
 
-        if (dvui.dragName("sprite_selection_drag")) {
-            hide_distance_bubbles = true;
-        }
+        const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
 
-        if (pixi.editor.tools.current != .pointer) {
-            hide_distance_bubbles = true;
-        }
-        if (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd")) {
-            hide_distance_bubbles = true;
+        if ((dvui.dragName("sprite_selection_drag") or
+            (pixi.editor.tools.current != .pointer and !self.hide_distance_bubble) or
+            (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))))
+        {
+            if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+                if (anim.done()) {
+                    self.hide_distance_bubble = true;
+                }
+            } else if (dvui.animationGet(animation_id, "bubble_open")) |_| {
+                _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_open"));
+                dvui.animation(animation_id, "bubble_close", .{
+                    .easing = dvui.easing.outElastic,
+                    .end_time = 900_000,
+                    .start_val = 1.0,
+                    .end_val = 0.0,
+                });
+            } else if (!self.hide_distance_bubble) {
+                dvui.animation(animation_id, "bubble_close", .{
+                    .easing = dvui.easing.outElastic,
+                    .end_time = 900_000,
+                    .start_val = 1.0,
+                    .end_val = 0.0,
+                });
+            }
+        } else {
+            if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+                if (anim.done()) {
+                    self.hide_distance_bubble = false;
+                }
+            } else if (dvui.animationGet(animation_id, "bubble_close")) |_| {
+                _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_close"));
+
+                dvui.animation(animation_id, "bubble_open", .{
+                    .easing = dvui.easing.outElastic,
+                    .end_time = 900_000,
+                    .start_val = 0.0,
+                    .end_val = 1.0,
+                });
+            } else if (self.hide_distance_bubble) {
+                dvui.animation(animation_id, "bubble_open", .{
+                    .easing = dvui.easing.outElastic,
+                    .end_time = 900_000,
+                    .start_val = 0.0,
+                    .end_val = 1.0,
+                });
+            }
         }
 
         if (automatic_animation) {
@@ -460,9 +501,14 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             });
             defer anim.deinit();
 
-            const t = anim.val orelse 1.0;
-            drawSpriteBubble(self, index, 1.0 - t, color, animation_index);
-        } else if (!hide_distance_bubbles) {
+            const t: f32 = anim.val orelse 1.0;
+
+            // if (dvui.animationGet(self.init_options.file.editor.canvas.scroll_container.data().id, "bubble_open")) |open_anim| {
+            //     t = open_anim.value() * t;
+            // }
+
+            drawSpriteBubble(self, index, t, color, animation_index);
+        } else {
             const sprite_rect = self.init_options.file.spriteRect(index);
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
@@ -473,9 +519,20 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
             const distance = @sqrt(dx * dx + dy * dy);
 
-            const t = distance / max_distance;
+            if (distance < max_distance) {
+                var t: f32 = distance / max_distance;
 
-            drawSpriteBubble(self, index, t, color, animation_index);
+                if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+                    t = (1.0 - t) * anim.value();
+                } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+                    t = (1.0 - t) * anim.value();
+                } else {
+                    t = (1.0 - t) * if (self.hide_distance_bubble) @as(f32, @floatFromInt(0)) else @as(f32, 1.0);
+                }
+                if (t != 0.0) {
+                    drawSpriteBubble(self, index, t, color, animation_index);
+                }
+            }
         }
     }
 }
@@ -517,7 +574,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
     }
 
-    const scaled_h = (max_height * multiplier) * (1 - t);
+    const scaled_h = (max_height * multiplier) * (t);
 
     new_rect.h = scaled_h;
     new_rect.y = sprite_rect.y - scaled_h;
@@ -578,7 +635,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         box.deinit();
 
-        const button_size = (@min(sprite_rect.h, sprite_rect.w) / 4.0) * dvui.easing.outBack(1 - t);
+        const button_size = (@min(sprite_rect.h, sprite_rect.w) / 4.0) * dvui.easing.outBack(t);
 
         const button_rect = dvui.Rect{ .x = center.x - button_size / 2, .y = center.y - (button_size / 2), .w = button_size, .h = button_size };
 
@@ -592,8 +649,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             .box_shadow = .{
                 .color = .black,
                 .offset = .{ .x = -0.1 * button_size, .y = 0.1 * button_size * shadow_mult },
-                .fade = (button_size / 10) * (1.0 - t),
-                .alpha = 0.35 * (1.0 - t),
+                .fade = (button_size / 10) * (t),
+                .alpha = 0.35 * (t),
             },
             .corner_radius = dvui.Rect.all(1000000),
             //.border = dvui.Rect.all(0.0),
@@ -741,9 +798,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             // });
 
             var checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -(button.data().contentRectScale().r.w / 3.25) * (1.0 - t), .y = 0.0 }));
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.h / 4.0) * (1.0 - t) }));
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = (button.data().contentRectScale().r.w / 2) * (1.0 - t), .y = -(button.data().contentRectScale().r.h / 2.5) * (1.0 - t) }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -(button.data().contentRectScale().r.w / 3.25) * t, .y = 0.0 }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.h / 4.0) * t }));
+            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = (button.data().contentRectScale().r.w / 2) * t, .y = -(button.data().contentRectScale().r.h / 2.5) * t }));
             checkmark_path.build().stroke(.{ .thickness = button.data().contentRectScale().r.w / 9, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
         }
     } else {
@@ -2463,6 +2520,12 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataSet(null, self.init_options.canvas.id, "left_mouse_down", self.left_mouse_down);
     } else {
         dvui.dataRemove(null, self.init_options.canvas.id, "left_mouse_down");
+    };
+
+    defer if (self.hide_distance_bubble) {
+        dvui.dataSet(null, self.init_options.canvas.id, "hide_distance_bubble", self.hide_distance_bubble);
+    } else {
+        dvui.dataRemove(null, self.init_options.canvas.id, "hide_distance_bubble");
     };
 
     if (self.active() or self.hovered() != null) {
