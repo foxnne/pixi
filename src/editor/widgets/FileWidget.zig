@@ -447,15 +447,15 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                 } else if (dvui.animationGet(animation_id, "bubble_open")) |_| {
                     _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_open"));
                     dvui.animation(animation_id, "bubble_close", .{
-                        .easing = dvui.easing.outElastic,
-                        .end_time = 900_000,
+                        .easing = dvui.easing.outQuad,
+                        .end_time = 100_000,
                         .start_val = 1.0,
                         .end_val = 0.0,
                     });
                 } else if (!self.hide_distance_bubble) {
                     dvui.animation(animation_id, "bubble_close", .{
-                        .easing = dvui.easing.outElastic,
-                        .end_time = 900_000,
+                        .easing = dvui.easing.outQuad,
+                        .end_time = 100_000,
                         .start_val = 1.0,
                         .end_val = 0.0,
                     });
@@ -512,7 +512,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-            const max_distance: f32 = if (hide) sprite_rect.h * 2.0 else sprite_rect.h * 1.5;
+            const max_distance: f32 = if (hide) sprite_rect.h * 1.0 else sprite_rect.h * 1.5;
 
             const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
             const dy = @abs(current_point.y - (sprite_rect.y));
