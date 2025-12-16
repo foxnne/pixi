@@ -399,7 +399,7 @@ pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, enabl
     second_opts.color_text = dvui.themeGet().color(.control, .text);
     second_opts.gravity_y = 0.5;
     second_opts.gravity_x = 1.0;
-    second_opts.font_style = .heading;
+    second_opts.font = dvui.Font.theme(.heading);
 
     keybindLabels(&hotkey, enabled, second_opts);
 }

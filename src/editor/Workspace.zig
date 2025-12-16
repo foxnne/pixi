@@ -49,7 +49,13 @@ var dragging: bool = false;
 
 pub fn draw(self: *Workspace) !dvui.App.Result {
     // Canvas Area
-    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0, .id_extra = self.grouping });
+    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+        .background = true,
+        .gravity_y = 0.0,
+        .id_extra = self.grouping,
+        .color_fill = dvui.themeGet().color(.window, .fill),
+    });
     defer vbox.deinit();
 
     // Set the active workspace grouping when the user clicks on the workspace rect
@@ -472,7 +478,7 @@ pub fn drawTransformDialog(self: *Workspace, canvas_vbox: *dvui.BoxWidget) void 
         dvui.labelNoFmt(@src(), "TRANSFORM", .{ .align_x = 0.5 }, .{
             .padding = dvui.Rect.all(4),
             .expand = .horizontal,
-            .font_style = .title_4,
+            .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold),
         });
         _ = dvui.separator(@src(), .{ .expand = .horizontal });
 
@@ -501,8 +507,8 @@ pub fn drawTransformDialog(self: *Workspace, canvas_vbox: *dvui.BoxWidget) void 
                 .background = false,
             });
             defer box.deinit();
-            dvui.label(@src(), "Width: {d:0.0}", .{transform.point(.bottom_left).diff(transform.point(.bottom_right).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
-            dvui.label(@src(), "Height: {d:0.0}", .{transform.point(.top_left).diff(transform.point(.bottom_left).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
+            dvui.label(@src(), "Width: {d:0.0}", .{transform.point(.bottom_left).diff(transform.point(.bottom_right).*).length()}, .{ .expand = .horizontal, .font = dvui.Font.theme(.heading) });
+            dvui.label(@src(), "Height: {d:0.0}", .{transform.point(.top_left).diff(transform.point(.bottom_left).*).length()}, .{ .expand = .horizontal, .font = dvui.Font.theme(.heading) });
         }
 
         {
@@ -679,7 +685,7 @@ pub fn drawLogo(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
                     .draw_focus = false,
                 }, .{
                     .expand = .horizontal,
-                    .font_style = .heading,
+                    .font = dvui.Font.theme(.mono).larger(-2.0),
                     .id_extra = i,
                     .margin = dvui.Rect.all(1),
                     .padding = dvui.Rect.all(2),

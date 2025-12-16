@@ -107,9 +107,6 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     dvui.addFont("CozetteVector", cozette_ttf, null) catch {};
     dvui.addFont("CozetteVectorBold", cozette_bold_ttf, null) catch {};
-    dvui.addFont("Vera", dvui.Font.builtin.Vera, null) catch {};
-    dvui.addFont("VeraBd", dvui.Font.builtin.VeraBd, null) catch {};
-    dvui.addFont("VeraMono", dvui.Font.builtin.VeraMono, null) catch {};
 
     var theme = dvui.themeGet();
 
@@ -160,15 +157,10 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     theme.dark = true;
     theme.name = "Pixi Dark";
-    theme.font_body = .{ .id = .fromName("Vera"), .size = 13 };
-    theme.font_caption = .{ .id = .fromName("Vera"), .size = 11 };
-    theme.font_caption_heading = .{ .id = .fromName("VeraMono"), .size = 11 };
-    theme.font_title = .{ .id = .fromName("Vera"), .size = 14 };
-    theme.font_title_1 = .{ .id = .fromName("VeraBd"), .size = 15 };
-    theme.font_title_2 = .{ .id = .fromName("VeraBd"), .size = 14 };
-    theme.font_title_3 = .{ .id = .fromName("VeraMono"), .size = 13 };
-    theme.font_title_4 = .{ .id = .fromName("VeraBd"), .size = 12 };
-    theme.font_heading = .{ .id = .fromName("CozetteVector"), .size = 13 };
+    theme.font_body = .find(.{ .family = "Vera Sans", .size = 13 });
+    theme.font_title = .find(.{ .family = "Vera Sans", .size = 16 });
+    theme.font_heading = .find(.{ .family = "Vera Sans", .size = 14 });
+    theme.font_mono = .find(.{ .family = "Vera Sans Mono", .size = 14 });
 
     dvui.themeSet(theme);
 }

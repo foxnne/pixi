@@ -216,7 +216,7 @@ pub fn drawAnimations(self: *Sprites) !void {
     });
     defer controls_box.deinit();
 
-    dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font_style = .title_4 });
+    dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold) });
 
     self.drawAnimationControls() catch {};
 
@@ -373,7 +373,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                 if (file.selected_animation_index == anim_index) {
                     if (dvui.labelClick(@src(), "{s}", .{file.animations.items(.name)[anim_index]}, .{}, .{
                         .gravity_y = 0.5,
-                        .font_style = .body,
+                        .font = dvui.Font.theme(.mono),
                         .margin = dvui.Rect.all(2),
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
@@ -384,7 +384,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                     dvui.labelNoFmt(@src(), file.animations.items(.name)[anim_index], .{}, .{
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(2),
-                        .font_style = .body,
+                        .font = dvui.Font.theme(.mono),
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     });
@@ -395,7 +395,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                     .background = false,
                     .padding = dvui.Rect.all(0),
                     .margin = dvui.Rect.all(0),
-                    .font_style = .body,
+                    .font = dvui.Font.theme(.mono),
                     .gravity_y = 0.5,
                 });
                 defer te.deinit();
@@ -666,7 +666,7 @@ pub fn drawFrames(self: *Sprites) !void {
         });
         defer controls_box.deinit();
 
-        dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font_style = .title_4 });
+        dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold) });
 
         self.drawFrameControls() catch {};
 
@@ -829,7 +829,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 dvui.labelNoFmt(@src(), try file.spriteName(pixi.app.allocator, frame, false), .{}, .{
                     .gravity_y = 0.5,
                     .margin = dvui.Rect.all(2),
-                    .font_style = .body,
+                    .font = dvui.Font.theme(.mono),
                     .padding = dvui.Rect.all(0),
                     .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
                 });

@@ -99,7 +99,7 @@ pub fn draw() !dvui.App.Result {
                 const folder = pixi.editor.recents.folders.items[i - 1];
                 if (menuItem(@src(), folder, .{}, .{
                     .expand = .horizontal,
-                    .font_style = .heading,
+                    .font = dvui.Font.theme(.mono),
                     .id_extra = i,
                     .margin = dvui.Rect.all(1),
                     .padding = dvui.Rect.all(2),

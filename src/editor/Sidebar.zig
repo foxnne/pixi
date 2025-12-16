@@ -117,7 +117,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
                 .padding = dvui.Rect.all(4),
             });
             tl2.format("{s}", .{pixi.Editor.Explorer.title(option, false)}, .{
-                .font_style = .caption_heading,
+                .font = dvui.Font.theme(.heading),
             });
             tl2.deinit();
         }
