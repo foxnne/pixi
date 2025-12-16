@@ -160,7 +160,7 @@ pub fn AppInit(win: *dvui.Window) !void {
     theme.font_body = .find(.{ .family = "Vera Sans", .size = 13 });
     theme.font_title = .find(.{ .family = "Vera Sans", .size = 16 });
     theme.font_heading = .find(.{ .family = "Vera Sans", .size = 14 });
-    theme.font_mono = .find(.{ .family = "Vera Sans Mono", .size = 14 });
+    theme.font_mono = .find(.{ .family = "Vera Sans Mono", .size = 13 });
 
     dvui.themeSet(theme);
 }

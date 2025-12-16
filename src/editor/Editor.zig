@@ -769,18 +769,37 @@ pub fn copy(editor: *Editor) !void {
         var selected_layer = file.layers.get(file.selected_layer_index);
         switch (editor.tools.current) {
             .pointer => {
-                var sprite_iterator = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-                while (sprite_iterator.next()) |index| {
-                    const source_rect = file.spriteRect(index);
-                    if (selected_layer.pixelsFromRect(
-                        dvui.currentWindow().arena(),
-                        source_rect,
-                    )) |source_pixels| {
-                        file.editor.transform_layer.blit(
-                            source_pixels,
+                if (file.editor.selected_sprites.count() > 0) {
+                    var sprite_iterator = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                    while (sprite_iterator.next()) |index| {
+                        const source_rect = file.spriteRect(index);
+                        if (selected_layer.pixelsFromRect(
+                            dvui.currentWindow().arena(),
                             source_rect,
-                            .{ .transparent = true, .mask = true },
-                        );
+                        )) |source_pixels| {
+                            file.editor.transform_layer.blit(
+                                source_pixels,
+                                source_rect,
+                                .{ .transparent = true, .mask = true },
+                            );
+                        }
+                    }
+                } else {
+                    if (file.selected_animation_index) |animation_index| {
+                        const animation = file.animations.get(animation_index);
+                        if (file.selected_animation_frame_index < animation.frames.len) {
+                            const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+                            if (selected_layer.pixelsFromRect(
+                                dvui.currentWindow().arena(),
+                                rect,
+                            )) |source_pixels| {
+                                file.editor.transform_layer.blit(
+                                    source_pixels,
+                                    rect,
+                                    .{ .transparent = true, .mask = true },
+                                );
+                            }
+                        }
                     }
                 }
             },
@@ -860,6 +879,39 @@ pub fn paste(editor: *Editor) !void {
                 return;
             }
 
+            if (file.selected_animation_index) |animation_index| {
+                const animation = file.animations.get(animation_index);
+
+                if (file.selected_animation_frame_index < animation.frames.len) {
+                    const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+                    dst_rect.x = rect.x + clipboard.offset.x;
+                    dst_rect.y = rect.y + clipboard.offset.y;
+
+                    file.editor.transform = .{
+                        .file_id = file.id,
+                        .layer_id = active_layer.id,
+                        .data_points = .{
+                            dst_rect.topLeft(),
+                            dst_rect.topRight(),
+                            dst_rect.bottomRight(),
+                            dst_rect.bottomLeft(),
+                            dst_rect.center(),
+                            dst_rect.center(),
+                        },
+                        .source = clipboard.source,
+                    };
+
+                    for (file.editor.transform.?.data_points[0..4]) |*point| {
+                        const d = point.diff(file.editor.transform.?.point(.pivot).*);
+                        if (d.length() > file.editor.transform.?.radius) {
+                            file.editor.transform.?.radius = d.length() + 4;
+                        }
+                    }
+
+                    return;
+                }
+            }
+
             dst_rect.x = clipboard.offset.x;
             dst_rect.y = clipboard.offset.y;
 
@@ -908,20 +960,40 @@ pub fn transform(editor: *Editor) !void {
                 // Current tool is the pointer, so we potentially have a sprite selection in
                 // selected sprites that we need to copy to the selection layer.
                 file.editor.transform_layer.clear();
-                var sprite_iterator = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
 
-                while (sprite_iterator.next()) |index| {
-                    const source_rect = file.spriteRect(index);
-                    if (selected_layer.pixelsFromRect(
-                        dvui.currentWindow().arena(),
-                        source_rect,
-                    )) |source_pixels| {
-                        file.editor.transform_layer.blit(
-                            source_pixels,
+                if (file.editor.selected_sprites.count() > 0) {
+                    var sprite_iterator = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+
+                    while (sprite_iterator.next()) |index| {
+                        const source_rect = file.spriteRect(index);
+                        if (selected_layer.pixelsFromRect(
+                            dvui.currentWindow().arena(),
                             source_rect,
-                            .{ .transparent = true, .mask = true },
-                        );
-                        selected_layer.clearRect(source_rect);
+                        )) |source_pixels| {
+                            file.editor.transform_layer.blit(
+                                source_pixels,
+                                source_rect,
+                                .{ .transparent = true, .mask = true },
+                            );
+                            selected_layer.clearRect(source_rect);
+                        }
+                    }
+                } else {
+                    if (file.selected_animation_index) |animation_index| {
+                        const animation = file.animations.get(animation_index);
+                        if (file.selected_animation_frame_index < animation.frames.len) {
+                            const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+                            if (selected_layer.pixelsFromRect(
+                                dvui.currentWindow().arena(),
+                                rect,
+                            )) |source_pixels| {
+                                file.editor.transform_layer.blit(
+                                    source_pixels,
+                                    rect,
+                                    .{ .transparent = true, .mask = true },
+                                );
+                            }
+                        }
                     }
                 }
             },

@@ -385,7 +385,8 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
         if ((dvui.dragName("sprite_selection_drag") or
             (pixi.editor.tools.current != .pointer) or
-            (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))))
+            (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))) or
+            pixi.editor.tools.radial_menu.visible)
         {
             if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
                 if (anim.done()) {
@@ -567,7 +568,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         .s = self.init_options.canvas.scale,
     };
 
-    const sprite_hovered: bool = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
+    const sprite_hovered: bool = if (self.init_options.file.selected_animation_index) |ai| self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index else sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
 
     var new_rect = dvui.Rect{
         .x = sprite_rect.x,
@@ -2406,8 +2407,26 @@ pub fn drawLayers(self: *FileWidget) void {
     shadow_box.deinit();
 
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-    // Draw the checkerboard texture at the hovered sprite position
-    if (file.spriteIndex(mouse_data_point)) |sprite_index| {
+
+    if (self.init_options.file.selected_animation_index) |animation_index| {
+        const animation = file.animations.get(animation_index);
+        const image_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+
+        const image_rect_scale: dvui.RectScale = .{
+            .r = self.init_options.canvas.screenFromDataRect(image_rect),
+            .s = self.init_options.canvas.scale,
+        };
+
+        if (self.init_options.file.editor.canvas.scale < 2.0) {
+            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+        } else {
+            dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
+                .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0),
+            }) catch {
+                std.log.err("Failed to render checkerboard", .{});
+            };
+        }
+    } else if (file.spriteIndex(mouse_data_point)) |sprite_index| {
         const image_rect = file.spriteRect(sprite_index);
 
         const image_rect_scale: dvui.RectScale = .{

@@ -287,15 +287,15 @@ pub fn animateSplit(self: *PanedWidget, end_val: f32) void {
                 .start_val = self.split_ratio.*,
                 .end_val = end_val,
                 .end_time = @as(i32, @intFromFloat(@as(f32, @floatFromInt(a.end_time)) - @as(f32, @floatFromInt(a.start_time)) * a.value())),
-                .easing = dvui.easing.outBack,
+                .easing = if (end_val < 0.1) dvui.easing.outExpo else dvui.easing.outBack,
             });
         }
     } else {
         dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
             .start_val = self.split_ratio.*,
             .end_val = end_val,
-            .end_time = 500_000,
-            .easing = dvui.easing.outBack,
+            .end_time = if (end_val < 0.1) 200_000 else 300_000,
+            .easing = if (end_val < 0.1) dvui.easing.outExpo else dvui.easing.outBack,
         });
     }
 }
