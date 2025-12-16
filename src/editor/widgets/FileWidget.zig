@@ -625,9 +625,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         if (sprite_hovered) {
             if (self.init_options.file.editor.canvas.scale < 2.0) {
-                built.fillConvex(.{ .color = fill_color, .fade = 1.5 });
+                built.fillConvex(.{ .color = fill_color, .fade = 2 });
             } else {
-                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0), .fade = 1.5 }) catch {
+                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0), .fade = 2 }) catch {
                     dvui.log.err("Failed to fill convex triangles", .{});
                     return;
                 };
@@ -645,7 +645,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 };
             }
         } else {
-            built.fillConvex(.{ .color = dvui.themeGet().color(.window, .fill), .fade = 1.5 });
+            built.fillConvex(.{ .color = dvui.themeGet().color(.window, .fill), .fade = 2 });
         }
 
         const center = box.data().rect.center();
