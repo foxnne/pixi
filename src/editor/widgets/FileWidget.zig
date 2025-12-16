@@ -379,8 +379,64 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
     var index: usize = self.init_options.file.spriteCount();
 
+    const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
+
+    { // Create animations for closing or opening bubbles
+
+        if ((dvui.dragName("sprite_selection_drag") or
+            (pixi.editor.tools.current != .pointer) or
+            (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))))
+        {
+            if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+                if (anim.done()) {
+                    self.hide_distance_bubble = true;
+                }
+            } else if (dvui.animationGet(animation_id, "bubble_open")) |_| {
+                _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_open"));
+                dvui.animation(animation_id, "bubble_close", .{
+                    .easing = dvui.easing.outQuad,
+                    .end_time = 100_000,
+                    .start_val = 1.0,
+                    .end_val = 0.0,
+                });
+            } else if (!self.hide_distance_bubble) {
+                dvui.animation(animation_id, "bubble_close", .{
+                    .easing = dvui.easing.outQuad,
+                    .end_time = 100_000,
+                    .start_val = 1.0,
+                    .end_val = 0.0,
+                });
+            }
+        } else {
+            if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+                if (anim.done()) {
+                    self.hide_distance_bubble = false;
+                }
+            } else if (dvui.animationGet(animation_id, "bubble_close")) |_| {
+                _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_close"));
+
+                dvui.animation(animation_id, "bubble_open", .{
+                    .easing = dvui.easing.outElastic,
+                    .end_time = 900_000,
+                    .start_val = 0.0,
+                    .end_val = 1.0,
+                });
+            } else if (self.hide_distance_bubble) {
+                dvui.animation(animation_id, "bubble_open", .{
+                    .easing = dvui.easing.outElastic,
+                    .end_time = 900_000,
+                    .start_val = 0.0,
+                    .end_val = 1.0,
+                });
+            }
+        }
+    }
+
     while (index > 0) {
         index -= 1;
+
+        const sprite_rect = self.init_options.file.spriteRect(index);
+
         // Set the default bubble color, which will be the highlight color
         var color = dvui.themeGet().color(.control, .text);
 
@@ -427,63 +483,11 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             }
         }
 
-        const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
         const hide: bool = if (dvui.dragName("sprite_selection_drag") or
             (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd")))
             true
         else
             false;
-
-        { // Create animations for closing or opening bubbles
-
-            if ((dvui.dragName("sprite_selection_drag") or
-                (pixi.editor.tools.current != .pointer) or
-                (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))))
-            {
-                if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
-                    if (anim.done()) {
-                        self.hide_distance_bubble = true;
-                    }
-                } else if (dvui.animationGet(animation_id, "bubble_open")) |_| {
-                    _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_open"));
-                    dvui.animation(animation_id, "bubble_close", .{
-                        .easing = dvui.easing.outQuad,
-                        .end_time = 100_000,
-                        .start_val = 1.0,
-                        .end_val = 0.0,
-                    });
-                } else if (!self.hide_distance_bubble) {
-                    dvui.animation(animation_id, "bubble_close", .{
-                        .easing = dvui.easing.outQuad,
-                        .end_time = 100_000,
-                        .start_val = 1.0,
-                        .end_val = 0.0,
-                    });
-                }
-            } else {
-                if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
-                    if (anim.done()) {
-                        self.hide_distance_bubble = false;
-                    }
-                } else if (dvui.animationGet(animation_id, "bubble_close")) |_| {
-                    _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_close"));
-
-                    dvui.animation(animation_id, "bubble_open", .{
-                        .easing = dvui.easing.outElastic,
-                        .end_time = 900_000,
-                        .start_val = 0.0,
-                        .end_val = 1.0,
-                    });
-                } else if (self.hide_distance_bubble) {
-                    dvui.animation(animation_id, "bubble_open", .{
-                        .easing = dvui.easing.outElastic,
-                        .end_time = 900_000,
-                        .start_val = 0.0,
-                        .end_val = 1.0,
-                    });
-                }
-            }
-        }
 
         if (automatic_animation) {
             const total_duration: i32 = 1_000_000;
@@ -508,24 +512,22 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             var t: f32 = anim.val orelse 1.0;
 
-            const sprite_rect = self.init_options.file.spriteRect(index);
+            {
+                const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-            const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                const max_distance: f32 = if (hide) sprite_rect.h * 0.5 else sprite_rect.h * 1.5;
 
-            const max_distance: f32 = if (hide) sprite_rect.h * 1.0 else sprite_rect.h * 1.5;
+                const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
+                const dy = @abs(current_point.y - (sprite_rect.y) + sprite_rect.h * 0.5);
+                const distance = @sqrt((dx * dx) * 0.2 + dy * dy);
 
-            const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
-            const dy = @abs(current_point.y - (sprite_rect.y));
-            const distance = @sqrt((dx * dx) * 0.5 + dy * dy);
-
-            if (distance < max_distance and hide and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
-                t = std.math.clamp(t * (distance / max_distance), 0.0, 2.0);
+                if (distance < max_distance and hide and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
+                    t = std.math.clamp(t * (distance / max_distance), 0.0, 2.0);
+                }
             }
 
             drawSpriteBubble(self, index, t, color, animation_index);
         } else {
-            const sprite_rect = self.init_options.file.spriteRect(index);
-
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
             const max_distance: f32 = sprite_rect.h * 1.5;
