@@ -430,6 +430,14 @@ pub fn drawAnimations(self: *Sprites) !void {
             // This consumes the click event, so we need to do this last
             if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
                 file.selected_animation_index = anim_index;
+                const anim = file.animations.get(anim_index);
+                if (anim.frames.len > 0) {
+                    if (file.selected_animation_frame_index >= anim.frames.len) {
+                        file.selected_animation_frame_index = anim.frames.len - 1;
+                    }
+                } else {
+                    file.selected_animation_frame_index = 0;
+                }
             }
 
             if (file.editor.animations_scroll_to_index != null and dvui.timerGet(hbox.data().id) == null) {

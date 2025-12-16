@@ -982,16 +982,17 @@ pub fn transform(editor: *Editor) !void {
                     if (file.selected_animation_index) |animation_index| {
                         const animation = file.animations.get(animation_index);
                         if (file.selected_animation_frame_index < animation.frames.len) {
-                            const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+                            const source_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
                             if (selected_layer.pixelsFromRect(
                                 dvui.currentWindow().arena(),
-                                rect,
+                                source_rect,
                             )) |source_pixels| {
                                 file.editor.transform_layer.blit(
                                     source_pixels,
-                                    rect,
+                                    source_rect,
                                     .{ .transparent = true, .mask = true },
                                 );
+                                selected_layer.clearRect(source_rect);
                             }
                         }
                     }

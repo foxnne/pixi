@@ -2410,21 +2410,24 @@ pub fn drawLayers(self: *FileWidget) void {
 
     if (self.init_options.file.selected_animation_index) |animation_index| {
         const animation = file.animations.get(animation_index);
-        const image_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
 
-        const image_rect_scale: dvui.RectScale = .{
-            .r = self.init_options.canvas.screenFromDataRect(image_rect),
-            .s = self.init_options.canvas.scale,
-        };
+        if (file.selected_animation_frame_index < animation.frames.len) {
+            const image_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
 
-        if (self.init_options.file.editor.canvas.scale < 2.0) {
-            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
-        } else {
-            dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0),
-            }) catch {
-                std.log.err("Failed to render checkerboard", .{});
+            const image_rect_scale: dvui.RectScale = .{
+                .r = self.init_options.canvas.screenFromDataRect(image_rect),
+                .s = self.init_options.canvas.scale,
             };
+
+            if (self.init_options.file.editor.canvas.scale < 2.0) {
+                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+            } else {
+                dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
+                    .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0),
+                }) catch {
+                    std.log.err("Failed to render checkerboard", .{});
+                };
+            }
         }
     } else if (file.spriteIndex(mouse_data_point)) |sprite_index| {
         const image_rect = file.spriteRect(sprite_index);
