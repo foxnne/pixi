@@ -133,23 +133,18 @@ pub fn tick() !void {
                 }
 
                 if (ke.matchBind("pencil") and ke.action == .down) {
-                    std.log.debug("pencil tool selected", .{});
                     pixi.editor.tools.set(.pencil);
                 }
                 if (ke.matchBind("eraser") and ke.action == .down) {
-                    std.log.debug("eraser tool selected", .{});
                     pixi.editor.tools.set(.eraser);
                 }
                 if (ke.matchBind("bucket") and ke.action == .down) {
-                    std.log.debug("bucket tool selected", .{});
                     pixi.editor.tools.set(.bucket);
                 }
                 if (ke.matchBind("pointer") and ke.action == .down) {
-                    std.log.debug("pointer tool selected", .{});
                     pixi.editor.tools.set(.pointer);
                 }
                 if (ke.matchBind("selection") and ke.action == .down) {
-                    std.log.debug("selection tool selected", .{});
                     pixi.editor.tools.set(.selection);
                 }
             },

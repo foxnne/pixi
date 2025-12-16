@@ -519,7 +519,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
                 const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
                 const dy = @abs(current_point.y - (sprite_rect.y) + sprite_rect.h * 0.5);
-                const distance = @sqrt((dx * dx) * 0.2 + dy * dy);
+                const distance = @sqrt((dx * dx) * 0.1 + dy * dy);
 
                 if (distance < max_distance and hide and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
                     t = std.math.clamp(t * (distance / max_distance), 0.0, 2.0);
@@ -1317,8 +1317,24 @@ pub fn processStroke(self: *FileWidget) void {
 /// or without modifiers to flood fill the layer with the new color.
 pub fn processFill(self: *FileWidget) void {
     if (pixi.editor.tools.current != .bucket) return;
+    if (self.sample_key_down) return;
     const file = self.init_options.file;
     const color = pixi.editor.colors.primary;
+
+    if (self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt) and self.sample_data_point == null) {
+        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+        file.drawPoint(
+            self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt),
+            .temporary,
+            .{
+                .invalidate = true,
+                .to_change = false,
+                .stroke_size = 1,
+                .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
+            },
+        );
+    }
 
     for (dvui.events()) |*e| {
         if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
@@ -1339,23 +1355,6 @@ pub fn processFill(self: *FileWidget) void {
                         .to_change = true,
                         .replace = me.mod.matchBind("ctrl/cmd"),
                     });
-                }
-
-                if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
-                    if (self.init_options.canvas.rect.contains(me.p) and self.sample_data_point == null) {
-                        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                        const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
-                        file.drawPoint(
-                            current_point,
-                            .temporary,
-                            .{
-                                .invalidate = true,
-                                .to_change = false,
-                                .stroke_size = 1,
-                                .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
-                            },
-                        );
-                    }
                 }
             },
             else => {},
