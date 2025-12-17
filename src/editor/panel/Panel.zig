@@ -30,10 +30,15 @@ pub fn init() Panel {
 pub fn deinit(_: *Panel) void {}
 
 pub fn draw(panel: *Panel) !dvui.App.Result {
-    var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &panel.scroll_info }, .{
+    // var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &panel.scroll_info }, .{
+    //     .expand = .both,
+    // });
+    // defer scroll_area.deinit();
+
+    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
     });
-    defer scroll_area.deinit();
+    defer vbox.deinit();
 
     switch (panel.pane) {
         .sprites => try panel.sprites.draw(),

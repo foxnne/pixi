@@ -10,6 +10,8 @@ pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         self.drawAnimationControlsDialog();
 
+        const parent_height = dvui.parentGet().data().rect.h;
+
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
             .gravity_x = 0.5,
@@ -65,7 +67,7 @@ pub fn draw(self: *Sprites) !void {
             },
             .scale = blk: {
                 const steps = pixi.editor.settings.zoom_steps;
-                const target_h = pixi.editor.panel.scroll_info.viewport.h;
+                const target_h = parent_height;
                 const sprite_h = src_rect.h;
                 var chosen_scale: f32 = 1.0;
                 // var found = false;

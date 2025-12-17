@@ -812,6 +812,15 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                         };
                     }
                     self.init_options.file.animations.set(anim_index, anim);
+
+                    self.init_options.file.history.append(.{
+                        .animation_restore_delete = .{
+                            .action = .delete,
+                            .index = anim_index,
+                        },
+                    }) catch {
+                        dvui.log.err("Failed to append history", .{});
+                    };
                 }
             }
         }
