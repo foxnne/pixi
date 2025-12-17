@@ -89,7 +89,7 @@ pub fn tick() !void {
                 }
 
                 if (ke.matchBind("explorer") and ke.action == .down) {
-                    if (pixi.editor.explorer.paned.split_ratio.* == 0.0) {
+                    if (pixi.editor.explorer.closed) {
                         pixi.editor.explorer.open();
                     } else {
                         pixi.editor.explorer.close();

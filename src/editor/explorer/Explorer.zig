@@ -31,6 +31,7 @@ open_branches: std.AutoHashMap(dvui.Id, void) = undefined,
 pinned_palettes: bool = false,
 layers_ratio: f32 = 0.5,
 animations_ratio: f32 = 0.5,
+closed: bool = false,
 
 pub const Pane = enum(u32) {
     files,
@@ -67,6 +68,7 @@ pub fn title(pane: Pane, all_caps: bool) []const u8 {
 
 pub fn close(explorer: *Explorer) void {
     explorer.paned.animateSplit(0.0);
+    explorer.closed = true;
 }
 
 pub fn open(explorer: *Explorer) void {
@@ -77,6 +79,8 @@ pub fn open(explorer: *Explorer) void {
     } else {
         explorer.paned.animateSplit(0.2);
     }
+
+    explorer.closed = false;
 }
 
 pub fn draw(explorer: *Explorer) !dvui.App.Result {

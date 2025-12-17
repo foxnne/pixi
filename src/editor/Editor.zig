@@ -225,6 +225,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         if (dvui.firstFrame(editor.explorer.paned.wd.id)) {
             editor.explorer.paned.split_ratio.* = 0.0;
             editor.explorer.paned.animateSplit(pixi.editor.settings.explorer_ratio);
+
+            if (pixi.editor.settings.explorer_ratio < 0.01) {
+                editor.explorer.closed = true;
+            }
         } else if (editor.explorer.paned.dragging) {
             editor.settings.explorer_ratio = editor.explorer.paned.split_ratio.*;
         }
