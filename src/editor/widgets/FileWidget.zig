@@ -395,15 +395,15 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             } else if (dvui.animationGet(animation_id, "bubble_open")) |_| {
                 _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_open"));
                 dvui.animation(animation_id, "bubble_close", .{
-                    .easing = dvui.easing.outQuad,
-                    .end_time = 100_000,
+                    .easing = dvui.easing.outQuint,
+                    .end_time = 200_000,
                     .start_val = 1.0,
                     .end_val = 0.0,
                 });
             } else if (!self.hide_distance_bubble) {
                 dvui.animation(animation_id, "bubble_close", .{
-                    .easing = dvui.easing.outQuad,
-                    .end_time = 100_000,
+                    .easing = dvui.easing.outQuint,
+                    .end_time = 200_000,
                     .start_val = 1.0,
                     .end_val = 0.0,
                 });

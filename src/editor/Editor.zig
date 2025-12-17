@@ -295,15 +295,6 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 if (result != .ok) {
                     return result;
                 }
-
-                if (editor.activeFile()) |file| {
-                    if (file.selected_animation_index != null) {
-                        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .top, .{ .opacity = 0.15 });
-                        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .bottom, .{ .opacity = 0.15 });
-                        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .left, .{ .opacity = 0.15 });
-                        pixi.dvui.drawEdgeShadow(vbox.data().rectScale(), .right, .{ .opacity = 0.15 });
-                    }
-                }
             }
         }
 

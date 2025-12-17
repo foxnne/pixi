@@ -46,6 +46,7 @@ pub fn draw(self: *Sprites) !void {
         const hbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
             .expand = .horizontal,
             .background = false,
+            .max_size_content = .{ .h = dvui.parentGet().data().rect.h, .w = std.math.floatMax(f32) },
         });
         defer hbox.deinit();
 
@@ -220,24 +221,22 @@ pub fn drawAnimations(self: *Sprites) !void {
 
     self.drawAnimationControls() catch {};
 
-    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .both,
-        .background = false,
-        .color_fill = dvui.themeGet().color(.content, .fill),
-        .max_size_content = .{ .w = pixi.editor.explorer.rect.w / 2.0, .h = std.math.floatMax(f32) },
-    });
-    defer vbox.deinit();
+    // const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+    //     .expand = .both,
+    //     .background = false,
+    //     .color_fill = dvui.themeGet().color(.content, .fill),
+    //     .max_size_content = .{ .w = pixi.editor.explorer.rect.w / 2.0, .h = std.math.floatMax(f32) },
+    // });
+    // defer vbox.deinit();
 
     if (pixi.editor.activeFile()) |file| {
         // Make sure to update the prev anim count!
         defer self.prev_anim_count = file.animations.len;
 
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.animations_scroll_info }, .{
-            .expand = .both,
+            .expand = .horizontal,
             .background = false,
-            .corner_radius = dvui.Rect.all(1000),
         });
-
         defer scroll_area.deinit();
 
         const vertical_scroll = file.editor.animations_scroll_info.offset(.vertical);

@@ -12,6 +12,15 @@ pub fn draw(self: *Sprites) !void {
 
         const parent_height = dvui.parentGet().data().rect.h;
 
+        // Since not all panel screens will likely want shadows, which should be reserved for canvases?
+        // Text editors, consoles, etc would likely want flat panels or to handle shadows themselves.
+        defer {
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .top, .{ .opacity = 0.15 });
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .bottom, .{ .opacity = 0.15 });
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .left, .{ .opacity = 0.15 });
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .right, .{ .opacity = 0.15 });
+        }
+
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
             .gravity_x = 0.5,

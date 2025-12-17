@@ -281,22 +281,15 @@ pub fn showSecond(self: *PanedWidget) bool {
 }
 
 pub fn animateSplit(self: *PanedWidget, end_val: f32) void {
-    if (dvui.animationGet(self.data().id, "_split_ratio")) |_| {
+    if (dvui.animationGet(self.data().id, "_split_ratio")) |_|
         _ = dvui.currentWindow().animations.remove(dvui.Id.update(self.data().id, "_split_ratio"));
-        dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
-            .start_val = self.split_ratio.*,
-            .end_val = end_val,
-            .end_time = 500_000,
-            .easing = if (end_val < 0.1) dvui.easing.outQuint else dvui.easing.outBack,
-        });
-    } else {
-        dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
-            .start_val = self.split_ratio.*,
-            .end_val = end_val,
-            .end_time = 500_000,
-            .easing = if (end_val < 0.1) dvui.easing.outQuint else dvui.easing.outBack,
-        });
-    }
+
+    dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
+        .start_val = self.split_ratio.*,
+        .end_val = end_val,
+        .end_time = 500_000,
+        .easing = if (end_val < 0.1) dvui.easing.outQuint else dvui.easing.outBack,
+    });
 }
 
 pub fn widget(self: *PanedWidget) Widget {

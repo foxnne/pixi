@@ -104,7 +104,6 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     var scroll = dvui.scrollArea(@src(), .{ .scroll_info = &explorer.scroll_info }, .{
         .expand = .both,
         .background = false,
-        .color_fill = dvui.themeGet().color(.window, .fill),
     });
 
     switch (explorer.pane) {
