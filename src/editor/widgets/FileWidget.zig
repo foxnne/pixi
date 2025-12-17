@@ -568,8 +568,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         .s = self.init_options.canvas.scale,
     };
 
-    const sprite_hovered: bool = if (self.init_options.file.selected_animation_index) |ai| self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index else sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
-
     var new_rect = dvui.Rect{
         .x = sprite_rect.x,
         .y = sprite_rect.y - sprite_rect.h,
@@ -624,7 +622,16 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         built.stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 2.5 * dvui.currentWindow().natural_scale });
 
-        if (sprite_hovered) {
+        var draw_transparency: bool = false;
+        if (self.init_options.file.editor.playing) {
+            if (self.init_options.file.selected_animation_index) |ai| {
+                draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index;
+            }
+        } else {
+            draw_transparency = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
+        }
+
+        if (draw_transparency) {
             if (self.init_options.file.editor.canvas.scale < 2.0) {
                 built.fillConvex(.{ .color = fill_color, .fade = 2 });
             } else {
@@ -2408,25 +2415,27 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-    if (self.init_options.file.selected_animation_index) |animation_index| {
-        const animation = file.animations.get(animation_index);
+    if (self.init_options.file.editor.playing) {
+        if (self.init_options.file.selected_animation_index) |animation_index| {
+            const animation = file.animations.get(animation_index);
 
-        if (file.selected_animation_frame_index < animation.frames.len) {
-            const image_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+            if (file.selected_animation_frame_index < animation.frames.len) {
+                const image_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
 
-            const image_rect_scale: dvui.RectScale = .{
-                .r = self.init_options.canvas.screenFromDataRect(image_rect),
-                .s = self.init_options.canvas.scale,
-            };
-
-            if (self.init_options.file.editor.canvas.scale < 2.0) {
-                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
-            } else {
-                dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                    .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0),
-                }) catch {
-                    std.log.err("Failed to render checkerboard", .{});
+                const image_rect_scale: dvui.RectScale = .{
+                    .r = self.init_options.canvas.screenFromDataRect(image_rect),
+                    .s = self.init_options.canvas.scale,
                 };
+
+                if (self.init_options.file.editor.canvas.scale < 2.0) {
+                    image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+                } else {
+                    dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
+                        .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0),
+                    }) catch {
+                        std.log.err("Failed to render checkerboard", .{});
+                    };
+                }
             }
         }
     } else if (file.spriteIndex(mouse_data_point)) |sprite_index| {

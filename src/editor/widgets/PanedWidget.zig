@@ -294,7 +294,7 @@ pub fn animateSplit(self: *PanedWidget, end_val: f32) void {
         dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
             .start_val = self.split_ratio.*,
             .end_val = end_val,
-            .end_time = if (end_val < 0.1) 500_000 else 500_000,
+            .end_time = 500_000,
             .easing = if (end_val < 0.1) dvui.easing.outQuint else dvui.easing.outBack,
         });
     }
