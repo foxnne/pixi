@@ -22,6 +22,7 @@ pub fn init() Sprites {
 
 pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
+        const parent_width = dvui.parentGet().data().rect.w;
 
         // Collect layers length to trigger a refit of the panel
         // const anim_count: usize = file.animations.len;
@@ -48,7 +49,7 @@ pub fn draw(self: *Sprites) !void {
         });
         defer hbox.deinit();
 
-        self.drawAnimations() catch {
+        self.drawAnimations(parent_width) catch {
             dvui.log.err("Failed to draw layers", .{});
         };
 
@@ -208,7 +209,7 @@ pub fn drawAnimationControls(self: *Sprites) !void {
     }
 }
 
-pub fn drawAnimations(self: *Sprites) !void {
+pub fn drawAnimations(self: *Sprites, parent_width: f32) !void {
     const controls_box = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .horizontal,
         .background = false,
@@ -219,13 +220,13 @@ pub fn drawAnimations(self: *Sprites) !void {
 
     self.drawAnimationControls() catch {};
 
-    // const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-    //     .expand = .both,
-    //     .background = false,
-    //     .color_fill = dvui.themeGet().color(.content, .fill),
-    //     .max_size_content = .{ .w = pixi.editor.explorer.rect.w / 2.0, .h = std.math.floatMax(f32) },
-    // });
-    // defer vbox.deinit();
+    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+        .background = false,
+        .color_fill = dvui.themeGet().color(.content, .fill),
+        .max_size_content = .{ .w = parent_width / 2.0, .h = std.math.floatMax(f32) },
+    });
+    defer vbox.deinit();
 
     if (pixi.editor.activeFile()) |file| {
         // Make sure to update the prev anim count!

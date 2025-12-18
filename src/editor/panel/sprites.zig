@@ -29,10 +29,10 @@ pub fn draw(self: *Sprites) !void {
             .color_border = dvui.themeGet().color(.control, .text),
             .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = -4.0, .y = 4.0 },
+                .offset = .{ .x = 0.0, .y = 8.0 },
                 .fade = 12.0,
                 .alpha = 0.25,
-                .corner_radius = dvui.Rect.all(0),
+                .corner_radius = dvui.Rect.all(parent_height / 32.0),
             },
         });
         defer hbox.deinit();

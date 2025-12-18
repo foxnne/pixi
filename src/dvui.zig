@@ -194,10 +194,12 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
         path2.addPoint(bottom_right);
         path2.addPoint(bottom_left);
 
-        const reflection_triangles = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 4, .uv = uv, .vertical_fade = true }) catch unreachable;
-        dvui.renderTriangles(reflection_triangles, init_opts.source.getTexture() catch null) catch {
-            dvui.log.err("Failed to render triangles", .{});
-        };
+        if (init_opts.alpha_source) |alpha_source| {
+            const reflection_triangles = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 4, .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0), .vertical_fade = true }) catch unreachable;
+            dvui.renderTriangles(reflection_triangles, alpha_source.getTexture() catch null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
+        }
     }
 
     const triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv }) catch unreachable;
