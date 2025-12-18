@@ -180,6 +180,12 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             }
         }
 
+        // Always reset the peek layer index back, but we need to do this outside of the file widget so
+        // other editor windows can use it
+        defer for (editor.open_files.values()) |*file| {
+            file.peek_layer_index = null;
+        };
+
         // Sidebar area
         // Since sidebar is drawn before the explorer, and we want to allow expanding the explorer
         // from clicking a sidebar option, we need to check if the sidebar was pressed

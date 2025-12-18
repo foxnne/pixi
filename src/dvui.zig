@@ -200,12 +200,14 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
                 dvui.log.err("Failed to render triangles", .{});
             };
 
-            const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true }) catch unreachable;
-
             if (init_opts.file) |file| {
                 var index: usize = file.layers.len;
                 while (index > 0) {
                     index -= 1;
+
+                    const alpha: f32 = if (file.peek_layer_index != null and file.peek_layer_index != index) 0.2 else 1.0;
+
+                    const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true, .color_mod = dvui.Color.white.opacity(alpha) }) catch unreachable;
 
                     if (file.layers.items(.visible)[index]) {
                         dvui.renderTriangles(reflection_triangles_layers, file.layers.items(.source)[index].getTexture() catch null) catch {
@@ -214,14 +216,14 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
                     }
                 }
             } else {
+                const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true }) catch unreachable;
+
                 dvui.renderTriangles(reflection_triangles_layers, init_opts.source.getTexture() catch null) catch {
                     dvui.log.err("Failed to render triangles", .{});
                 };
             }
         }
     }
-
-    const triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv }) catch unreachable;
 
     if (init_opts.alpha_source) |alpha_source| {
         const alpha_triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
@@ -234,17 +236,30 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
     }
 
     if (init_opts.file) |file| {
-        var index: usize = file.layers.len;
-        while (index > 0) {
-            index -= 1;
+        var layer_index: usize = file.layers.len;
+        while (layer_index > 0) {
+            layer_index -= 1;
 
-            if (file.layers.items(.visible)[index]) {
-                dvui.renderTriangles(triangles, file.layers.items(.source)[index].getTexture() catch null) catch {
+            const alpha: f32 = if (file.peek_layer_index != null and file.peek_layer_index != layer_index) 0.2 else 1.0;
+
+            const triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
+                .subdivisions = 8,
+                .uv = uv,
+                .color_mod = dvui.Color.white.opacity(alpha),
+            }) catch unreachable;
+
+            if (file.layers.items(.visible)[layer_index]) {
+                dvui.renderTriangles(triangles, file.layers.items(.source)[layer_index].getTexture() catch null) catch {
                     dvui.log.err("Failed to render triangles", .{});
                 };
             }
         }
     } else {
+        const triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
+            .subdivisions = 8,
+            .uv = uv,
+        }) catch unreachable;
+
         dvui.renderTriangles(triangles, init_opts.source.getTexture() catch null) catch {
             dvui.log.err("Failed to render triangles", .{});
         };
@@ -314,12 +329,11 @@ pub fn pathToSubdividedQuad(path: dvui.Path, allocator: std.mem.Allocator, optio
                 base_uv.y + base_uv.h * t,
             };
 
-            const col: dvui.Color = if (options.vertical_fade) dvui.Color.white.opacity(0.5 * (1.0 - (1.0 - t))) else .white;
-            const opacity = col.a;
-
+            var col: dvui.Color = options.color_mod;
+            if (options.vertical_fade) col = col.opacity(0.5 * (1.0 - (1.0 - t)));
             builder.appendVertex(.{
                 .pos = pos,
-                .col = dvui.Color.PMA.fromColor(col.lerp(options.color_mod, 1.0).opacity(@as(f32, @floatFromInt(opacity)) / 255.0)),
+                .col = dvui.Color.PMA.fromColor(col),
                 .uv = uv,
             });
         }

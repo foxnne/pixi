@@ -201,6 +201,7 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
                 color = c;
                 if (change_layer) {
                     file.selected_layer_index = layer_index;
+                    file.peek_layer_index = layer_index;
                 }
             }
         }
@@ -2473,6 +2474,9 @@ pub fn drawLayers(self: *FileWidget) void {
 
         if (!file.layers.items(.visible)[layer_index]) continue;
 
+        const alpha = dvui.alpha(if (file.peek_layer_index != null and file.peek_layer_index != layer_index) 0.2 else 1.0);
+        defer dvui.alphaSet(alpha);
+
         const image = dvui.image(@src(), .{ .source = file.layers.items(.source)[layer_index] }, .{
             .rect = image_rect,
             .border = dvui.Rect.all(0),
@@ -2548,6 +2552,9 @@ pub fn drawLayers(self: *FileWidget) void {
 }
 
 pub fn processEvents(self: *FileWidget) void {
+    // Always set the peek layer index back to null at the end of the frame
+    //defer self.init_options.file.peek_layer_index = null;
+
     defer self.previous_mods = dvui.currentWindow().modifiers;
 
     defer if (self.drag_data_point) |drag_data_point| {

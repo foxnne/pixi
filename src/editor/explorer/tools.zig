@@ -355,6 +355,10 @@ pub fn drawLayers() !void {
 
             const hovered = pixi.dvui.hovered(r.data());
 
+            if (hovered) {
+                file.peek_layer_index = layer_index;
+            }
+
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,

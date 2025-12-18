@@ -20,6 +20,7 @@ tile_width: u32 = 0,
 tile_height: u32 = 0,
 
 selected_layer_index: usize = 0,
+peek_layer_index: ?usize = null,
 layers: std.MultiArrayList(Layer) = .{},
 deleted_layers: std.MultiArrayList(Layer) = .{},
 

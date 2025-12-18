@@ -305,9 +305,9 @@ fn pathTextEntry(path_type: PathType) !void {
             };
 
             if (dvui.dialogNativeFileSave(pixi.app.allocator, .{
-                .title = "Select Atlas Data Output",
-                .filters = &.{".atlas"},
-                .filter_description = "Atlas file",
+                .title = if (path_type == .atlas) "Select Atlas Data Output" else "Select Atlas Image Output",
+                .filters = if (path_type == .atlas) &.{"*.atlas"} else &.{"*.png"},
+                .filter_description = if (path_type == .atlas) "Atlas file" else "Image file",
                 .path = if (valid_path) output_path.* else null,
             }) catch null) |new_path| {
                 output_path.* = pixi.app.allocator.dupe(u8, new_path[0..]) catch null;
