@@ -336,6 +336,8 @@ pub fn drawRadialMenu(editor: *Editor) !void {
     });
     defer fw.deinit();
 
+    const menu_color = dvui.themeGet().color(.control, .fill).lighten(4.0);
+
     if (dvui.firstFrame(fw.data().id)) {
         editor.tools.radial_menu.center = editor.tools.radial_menu.mouse_position;
     }
@@ -372,7 +374,7 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .fade = 8.0,
             .alpha = 0.25,
         },
-        .color_fill = dvui.themeGet().color(.control, .fill).lighten(4.0),
+        .color_fill = menu_color,
         .border = dvui.Rect.all(1.0),
     });
 
@@ -426,12 +428,13 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .rect = rect,
             .id_extra = i,
             .corner_radius = dvui.Rect.all(1000.0),
-            .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill).lighten(4.0),
+            .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill_hover) else menu_color,
             .box_shadow = if (tool == editor.tools.current) .{
                 .color = .black,
-                .offset = .{ .x = -4.0, .y = 4.0 },
-                .fade = 8.0,
+                .offset = .{ .x = -2.5, .y = 2.5 },
+                .fade = 4.0,
                 .alpha = 0.25,
+                .corner_radius = dvui.Rect.all(1000),
             } else null,
             .padding = .all(0),
             .margin = .all(0),
@@ -492,8 +495,8 @@ pub fn drawRadialMenu(editor: *Editor) !void {
 
         var rect = dvui.Rect.fromPoint(center);
 
-        rect.w = 36.0;
-        rect.h = 36.0;
+        rect.w = 40.0;
+        rect.h = 40.0;
         rect.x -= rect.w / 2.0;
         rect.y -= rect.h / 2.0;
 
@@ -504,12 +507,12 @@ pub fn drawRadialMenu(editor: *Editor) !void {
                     .corner_radius = dvui.Rect.all(1000),
                     .box_shadow = .{
                         .color = .black,
-                        .offset = .{ .x = -2.0, .y = 2.0 },
+                        .offset = .{ .x = -2.5, .y = 2.5 },
                         .fade = 4.0,
                         .alpha = 0.25,
                         .corner_radius = dvui.Rect.all(1000),
                     },
-                    .color_fill = dvui.themeGet().color(.control, .fill),
+                    .color_fill = dvui.themeGet().color(.control, .fill_hover),
                     .rect = rect,
                 })) {
                     file.editor.playing = !file.editor.playing;

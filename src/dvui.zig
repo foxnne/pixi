@@ -189,8 +189,8 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
         var path2: dvui.Path.Builder = .init(dvui.currentWindow().arena());
         defer path2.deinit();
 
-        path2.addPoint(bottom_left.plus(.{ .y = bottom_left.y - top_left.y }));
-        path2.addPoint(bottom_right.plus(.{ .y = bottom_left.y - top_left.y }));
+        path2.addPoint(bottom_left.plus(.{ .x = -(top_right.x - top_left.x) * 0.5, .y = (bottom_left.y - top_left.y) * 0.75 }));
+        path2.addPoint(bottom_right.plus(.{ .x = (bottom_right.x - bottom_left.x) * 0.5, .y = (bottom_left.y - top_left.y) * 0.75 }));
         path2.addPoint(bottom_right);
         path2.addPoint(bottom_left);
 
@@ -199,6 +199,25 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
             dvui.renderTriangles(reflection_triangles, alpha_source.getTexture() catch null) catch {
                 dvui.log.err("Failed to render triangles", .{});
             };
+
+            const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true }) catch unreachable;
+
+            if (init_opts.file) |file| {
+                var index: usize = file.layers.len;
+                while (index > 0) {
+                    index -= 1;
+
+                    if (file.layers.items(.visible)[index]) {
+                        dvui.renderTriangles(reflection_triangles_layers, file.layers.items(.source)[index].getTexture() catch null) catch {
+                            dvui.log.err("Failed to render triangles", .{});
+                        };
+                    }
+                }
+            } else {
+                dvui.renderTriangles(reflection_triangles_layers, init_opts.source.getTexture() catch null) catch {
+                    dvui.log.err("Failed to render triangles", .{});
+                };
+            }
         }
     }
 

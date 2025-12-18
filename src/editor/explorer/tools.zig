@@ -109,8 +109,8 @@ pub fn drawTools() !void {
             .color_fill = if (selected) dvui.themeGet().color(.control, .fill).lighten(4.0) else dvui.themeGet().color(.control, .fill),
             .box_shadow = if (selected) .{
                 .color = .black,
-                .offset = .{ .x = -4.0, .y = 4.0 },
-                .fade = 8.0,
+                .offset = .{ .x = -2.5, .y = 2.5 },
+                .fade = 4.0,
                 .alpha = 0.25,
             } else null,
             .padding = .all(0),
@@ -708,26 +708,22 @@ pub fn drawPalettes() !void {
                         .kind = .horizontal,
                         .easing = dvui.easing.outBack,
                     },
-                    .{ .expand = .none, .id_extra = i },
+                    .{
+                        .expand = .none,
+                        .id_extra = dvui.Id.extendId(flex_box.data().id, @src(), i).update(palette.name).asUsize(),
+                    },
                 );
                 defer anim.deinit();
 
-                var button_widget: dvui.ButtonWidget = undefined;
-                button_widget.init(@src(), .{}, .{
+                var box_widget = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .none,
-                    .min_size_content = .{ .w = 24, .h = 24 },
+                    .min_size_content = .{ .w = 24.0, .h = 24.0 },
                     .id_extra = i,
-                    .background = true,
+                    .background = false,
                     .corner_radius = dvui.Rect.all(1000),
-                    .color_fill = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                    .margin = .all(1),
-                    .padding = .all(0),
                 });
 
-                // Events should not be consumed here
-                //button_widget.processEvents();
-
-                const button_center = button_widget.data().rectScale().r.center();
+                const button_center = box_widget.data().rectScale().r.center();
                 const dist = dvui.currentWindow().mouse_pt.diff(button_center).length();
 
                 // Calculate scale based on mouse distance (closer = larger)
@@ -737,12 +733,44 @@ pub fn drawPalettes() !void {
                 else
                     1.0;
 
-                const rect = button_widget.data().contentRectScale().r.outsetAll((scale_factor - 1) * button_widget.data().rectScale().r.w / 2);
+                var rect = box_widget.data().rect.scale(scale_factor, dvui.Rect);
+                rect.x = box_widget.data().rect.center().x - rect.w / 2.0;
+                rect.y = box_widget.data().rect.center().y - rect.h / 2.0;
 
-                rect.fill(.all(1000), .{
-                    .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                    .fade = 1.0,
+                box_widget.deinit();
+
+                var button_widget: dvui.ButtonWidget = undefined;
+                button_widget.init(@src(), .{}, .{
+                    .expand = .none,
+                    .rect = rect,
+                    .id_extra = i,
+                    .background = true,
+                    .corner_radius = dvui.Rect.all(1000),
+                    .color_fill = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
+                    .margin = .all(1),
+                    .padding = .all(0),
+                    .box_shadow = .{
+                        .color = .black,
+                        .offset = .{ .x = -1.0 * scale_factor, .y = 1.0 * scale_factor },
+                        .fade = 3.0 * scale_factor,
+                        .alpha = 0.2 * scale_factor,
+                        .corner_radius = dvui.Rect.all(1000),
+                    },
                 });
+
+                // Events should not be consumed here
+                //button_widget.processEvents();
+
+                // const rect = button_widget.data().contentRectScale().r.outsetAll((scale_factor - 1) * button_widget.data().rectScale().r.w / 2);
+
+                // button_widget.data().rect = button_widget.data().rectScale().rectFromPhysical(rect);
+
+                button_widget.drawBackground();
+
+                // rect.fill(.all(1000), .{
+                //     .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
+                //     .fade = 1.0,
+                // });
 
                 if (dvui.clickedEx(button_widget.data(), .{ .buttons = .any })) |evt| {
                     switch (evt) {
