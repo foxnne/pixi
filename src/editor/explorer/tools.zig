@@ -313,6 +313,8 @@ pub fn drawLayers() !void {
 
         for (file.layers.items(.id), 0..) |layer_id, layer_index| {
             const selected = if (edit_layer_id) |id| id == layer_id else file.selected_layer_index == layer_index;
+            const visible = file.layers.items(.visible)[layer_index];
+            const font = if (visible) dvui.Font.theme(.mono) else dvui.Font.theme(.mono).withStyle(.italic);
 
             var color = dvui.themeGet().color(.control, .fill_hover);
             if (pixi.editor.colors.file_tree_palette) |*palette| {
@@ -362,12 +364,12 @@ pub fn drawLayers() !void {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected or hovered) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
+                .color_fill = if (selected or hovered) dvui.themeGet().color(.control, .fill_hover) else if (!visible) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
                 .corner_radius = dvui.Rect.all(1000),
                 .margin = dvui.Rect.all(2),
                 .padding = dvui.Rect.all(0),
                 .border = dvui.Rect.all(1.0),
-                .color_border = if (selected) color else dvui.themeGet().color(.control, .fill),
+                .color_border = if (selected) color else if (!visible) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
                 .box_shadow = .{
                     .color = .black,
                     .offset = .{ .x = -2.0, .y = 2.0 },
@@ -392,7 +394,7 @@ pub fn drawLayers() !void {
                 if (file.selected_layer_index == layer_index) {
                     if (dvui.labelClick(@src(), "{s}", .{file.layers.items(.name)[layer_index]}, .{}, .{
                         .gravity_y = 0.5,
-                        .font = dvui.Font.theme(.mono),
+                        .font = font,
                         .margin = dvui.Rect.all(2),
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
@@ -403,7 +405,7 @@ pub fn drawLayers() !void {
                     dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(2),
-                        .font = dvui.Font.theme(.mono),
+                        .font = font,
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     });
@@ -414,7 +416,7 @@ pub fn drawLayers() !void {
                     .background = false,
                     .padding = dvui.Rect.all(0),
                     .margin = dvui.Rect.all(0),
-                    .font = dvui.Font.theme(.mono),
+                    .font = font,
                     .gravity_y = 0.5,
                 });
                 defer te.deinit();

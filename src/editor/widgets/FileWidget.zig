@@ -624,7 +624,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         built.stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 2.5 * dvui.currentWindow().natural_scale });
 
         var draw_transparency: bool = false;
-        if (self.init_options.file.editor.playing) {
+        if (self.init_options.file.editor.playing or self.init_options.file.editor.canvas.hovered() == null) {
             if (self.init_options.file.selected_animation_index) |ai| {
                 draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index;
             }
@@ -2425,7 +2425,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-    if (self.init_options.file.editor.playing) {
+    if (self.init_options.file.editor.playing or self.init_options.file.editor.canvas.hovered() == null) {
         if (self.init_options.file.selected_animation_index) |animation_index| {
             const animation = file.animations.get(animation_index);
 
@@ -2472,9 +2472,16 @@ pub fn drawLayers(self: *FileWidget) void {
     while (layer_index > 0) {
         layer_index -= 1;
 
-        if (!file.layers.items(.visible)[layer_index]) continue;
+        const visible = file.layers.items(.visible)[layer_index];
 
-        const alpha = dvui.alpha(if (file.peek_layer_index != null and file.peek_layer_index != layer_index) 0.2 else 1.0);
+        if (!visible) continue;
+
+        var alpha: f32 = dvui.alpha(1.0);
+        if (file.peek_layer_index) |peek_layer_index| {
+            if (peek_layer_index != layer_index) {
+                alpha = dvui.alpha(0.2);
+            }
+        }
         defer dvui.alphaSet(alpha);
 
         const image = dvui.image(@src(), .{ .source = file.layers.items(.source)[layer_index] }, .{

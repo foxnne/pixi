@@ -42,7 +42,7 @@ pub fn draw(self: *Sprites) !void {
         var index: usize = 0;
         var src_rect = file.spriteRect(index); // Default to the first sprite
 
-        if (file.editor.playing) {
+        if (file.editor.playing or file.editor.canvas.hovered() == null) {
             if (file.selected_animation_index) |i| {
                 index = i;
                 const animation = file.animations.get(index);
