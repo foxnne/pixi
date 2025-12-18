@@ -12,11 +12,9 @@ animation_insert_before_index: ?usize = null,
 sprite_removed_index: ?usize = null,
 sprite_insert_before_index: ?usize = null,
 edit_anim_id: ?u64 = null,
-edit_sprite_id: ?u64 = null,
 prev_anim_count: usize = 0,
 prev_anim_id: u64 = 0,
 prev_sprite_count: usize = 0,
-max_split_ratio: f32 = 0.4,
 
 pub fn init() Sprites {
     return .{};

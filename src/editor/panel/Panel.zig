@@ -37,6 +37,8 @@ pub fn draw(panel: *Panel) !dvui.App.Result {
 
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
+        .background = true,
+        .color_fill = dvui.themeGet().color(.window, .fill),
     });
     defer vbox.deinit();
 

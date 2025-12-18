@@ -283,27 +283,29 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         selected_id = inner_id_extra.*;
 
-                        if ((dvui.menuItemLabel(@src(), "Open", .{}, .{
-                            .expand = .horizontal,
-                        })) != null) {
-                            _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch |err| {
-                                dvui.log.err("Failed to open file: {any}", .{err});
-                            };
+                        if (entry.kind == .file) {
+                            if ((dvui.menuItemLabel(@src(), "Open", .{}, .{
+                                .expand = .horizontal,
+                            })) != null) {
+                                _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch |err| {
+                                    dvui.log.err("Failed to open file: {any}", .{err});
+                                };
 
-                            fw2.close();
+                                fw2.close();
+                            }
+
+                            if ((dvui.menuItemLabel(@src(), "Open to the side", .{}, .{
+                                .expand = .horizontal,
+                            })) != null) {
+                                _ = pixi.editor.openFilePath(abs_path, pixi.editor.newGroupingID()) catch {
+                                    dvui.log.err("Failed to open file: {s}", .{abs_path});
+                                };
+
+                                fw2.close();
+                            }
+
+                            _ = dvui.separator(@src(), .{ .expand = .horizontal });
                         }
-
-                        if ((dvui.menuItemLabel(@src(), "Open to the side", .{}, .{
-                            .expand = .horizontal,
-                        })) != null) {
-                            _ = pixi.editor.openFilePath(abs_path, pixi.editor.newGroupingID()) catch {
-                                dvui.log.err("Failed to open file: {s}", .{abs_path});
-                            };
-
-                            fw2.close();
-                        }
-
-                        _ = dvui.separator(@src(), .{ .expand = .horizontal });
 
                         if ((dvui.menuItemLabel(@src(), "New File...", .{}, .{ .expand = .horizontal })) != null) {
                             fw2.close();
