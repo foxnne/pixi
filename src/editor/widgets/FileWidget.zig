@@ -593,11 +593,14 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
     if (self.init_options.file.selected_animation_index) |ai| {
         if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
-            const frame = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index];
-            if (frame != sprite_index and animation_index == ai) {
-                //max_height = max_height * 0.8;
-                multiplier *= 0.75;
-                shadow_mult *= 1.5;
+            const animation = self.init_options.file.animations.get(ai);
+            if (animation.frames.len > 0) {
+                const frame = animation.frames[self.init_options.file.selected_animation_frame_index];
+                if (frame != sprite_index and animation_index == ai) {
+                    //max_height = max_height * 0.8;
+                    multiplier *= 0.75;
+                    shadow_mult *= 1.5;
+                }
             }
         }
     }
@@ -637,7 +640,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         var draw_transparency: bool = false;
         if (self.init_options.file.editor.playing or self.init_options.file.editor.canvas.hovered() == null) {
             if (self.init_options.file.selected_animation_index) |ai| {
-                draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index;
+                if (self.init_options.file.animations.get(ai).frames.len > 0) {
+                    draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index;
+                }
             }
         } else {
             draw_transparency = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
@@ -757,10 +762,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                             }
                         }
                     }
-                }
-
-                if (self.init_options.file.selected_animation_frame_index >= frames.items.len and frames.items.len > 0) {
-                    self.init_options.file.selected_animation_frame_index = frames.items.len - 1;
                 }
 
                 if (!remove) {
@@ -2565,9 +2566,19 @@ pub fn drawLayers(self: *FileWidget) void {
 }
 
 pub fn processEvents(self: *FileWidget) void {
-    // Always set the peek layer index back to null at the end of the frame
-    //defer self.init_options.file.peek_layer_index = null;
 
+    // Try to ensure that selected animation frame index is valid
+    if (self.init_options.file.selected_animation_index) |ai| {
+        if (self.init_options.file.animations.get(ai).frames.len > 0) {
+            if (self.init_options.file.selected_animation_frame_index >= self.init_options.file.animations.get(ai).frames.len) {
+                self.init_options.file.selected_animation_frame_index = self.init_options.file.animations.get(ai).frames.len - 1;
+            }
+        } else {
+            self.init_options.file.selected_animation_frame_index = 0;
+        }
+    }
+
+    // Always set the peek layer index back to null at the end of the frame
     defer self.previous_mods = dvui.currentWindow().modifiers;
 
     defer if (self.drag_data_point) |drag_data_point| {
