@@ -149,6 +149,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer base_box.deinit();
 
+        // Advance the animation frame if we are in play mode
         if (editor.activeFile()) |file| {
             if (file.editor.playing) {
                 if (file.selected_animation_index) |index| {

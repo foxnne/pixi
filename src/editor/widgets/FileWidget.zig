@@ -293,9 +293,6 @@ pub fn processSpriteSelection(self: *FileWidget) void {
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
-                // if (self.init_options.canvas.hovered() != null)
-                //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
-
                 if (me.action == .press and me.button.pointer()) {
                     if (me.mod.matchBind("shift")) {
                         self.shift_key_down = true;
@@ -387,7 +384,8 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         if ((dvui.dragName("sprite_selection_drag") or
             (pixi.editor.tools.current != .pointer) or
             (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))) or
-            pixi.editor.tools.radial_menu.visible)
+            pixi.editor.tools.radial_menu.visible or
+            self.init_options.file.editor.transform != null)
         {
             if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
                 if (anim.done()) {
@@ -485,6 +483,12 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             }
         }
 
+        if (self.init_options.file.editor.selected_sprites.count() > 0) {
+            if (self.init_options.file.editor.selected_sprites.isSet(index)) {
+                automatic_animation = true;
+            }
+        }
+
         const hide: bool = if (dvui.dragName("sprite_selection_drag") or
             (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd")))
             true
@@ -508,7 +512,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                 .kind = .vertical,
                 .easing = dvui.easing.outElastic,
             }, .{
-                .id_extra = index,
+                .id_extra = if (animation_index) |ai| dvui.Id.extendId(@enumFromInt(index), @src(), ai).asUsize() else index,
             });
             defer anim.deinit();
 
@@ -530,6 +534,13 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             drawSpriteBubble(self, index, t, color, animation_index);
         } else {
+            // Only draw bubbles over sprites that are part of the selected sprites if there is a selection
+            if (self.init_options.file.editor.selected_sprites.count() > 0) {
+                if ((!self.init_options.file.editor.selected_sprites.isSet(index) or (animation_index != self.init_options.file.selected_animation_index and !self.init_options.file.editor.selected_sprites.isSet(index)))) {
+                    continue;
+                }
+            }
+
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
             const max_distance: f32 = sprite_rect.h * 1.5;
@@ -661,7 +672,17 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         box.deinit();
 
-        const button_size = (@min(sprite_rect.h, sprite_rect.w) / 4.0) * dvui.easing.outBack(t);
+        var button_size = (@min(sprite_rect.h, sprite_rect.w) / 4.0) * dvui.easing.outBack(t);
+
+        const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
+
+        if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+            button_size *= anim.value();
+        } else if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+            button_size *= anim.value();
+        } else if (pixi.editor.tools.current != .pointer or self.hide_distance_bubble) {
+            button_size = 0.0;
+        }
 
         const button_rect = dvui.Rect{ .x = center.x - button_size / 2, .y = center.y - (button_size / 2), .w = button_size, .h = button_size };
 
@@ -694,10 +715,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
             if (anim_index_opt) |anim_index| {
                 // TODO: Efficiently resize the animation frames array instead of duplicating it
-
-                if (self.init_options.file.selected_animation_frame_index == sprite_index) {
-                    self.init_options.file.selected_animation_frame_index = 0;
-                }
 
                 var anim = self.init_options.file.animations.get(anim_index);
 
@@ -740,6 +757,10 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                             }
                         }
                     }
+                }
+
+                if (self.init_options.file.selected_animation_frame_index >= frames.items.len and frames.items.len > 0) {
+                    self.init_options.file.selected_animation_frame_index = frames.items.len - 1;
                 }
 
                 if (!remove) {
@@ -826,7 +847,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             }
         }
 
-        if (animation_index == self.init_options.file.selected_animation_index and animation_index != null) {
+        if (animation_index == self.init_options.file.selected_animation_index and animation_index != null and button.data().contentRectScale().r.w > 2.0) {
             // circle
             // button.data().contentRectScale().r.inset(.all(button.data().contentRectScale().r.w / 3.0)).fill(.all(10000000), .{
             //     .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a },
@@ -1026,9 +1047,6 @@ pub fn processSelection(self: *FileWidget) void {
                     file.editor.temporary_layer.setColorFromMask(if (default) selection_color_secondary_stroke else selection_color_primary_stroke);
                 }
 
-                // if (self.init_options.canvas.hovered() != null)
-                //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
-
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
                     dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
@@ -1169,9 +1187,6 @@ pub fn processStroke(self: *FileWidget) void {
             },
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
-
-                // if (self.init_options.canvas.hovered() != null)
-                //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), self.init_options.canvas.scroll_container.data());
@@ -1363,9 +1378,6 @@ pub fn processFill(self: *FileWidget) void {
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
-                // if (self.init_options.canvas.hovered() != null)
-                //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
-
                 if (me.action == .press and me.button.pointer()) {
                     file.fillPoint(current_point, .selected, .{
                         .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
@@ -1473,9 +1485,6 @@ pub fn processTransform(self: *FileWidget) void {
                         },
                         .mouse => |me| {
                             const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
-
-                            // if (self.init_options.canvas.hovered() != null)
-                            //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
 
                             if (me.action == .press and me.button.pointer()) {
                                 if (screen_rect.contains(me.p)) {
@@ -1652,9 +1661,6 @@ pub fn processTransform(self: *FileWidget) void {
 
                     switch (e.evt) {
                         .mouse => |me| {
-                            // if (self.init_options.canvas.hovered() != null)
-                            //     dvui.focusWidget(self.init_options.canvas.scroll_container.data().id, null, e.num);
-
                             if (me.action == .press and me.button.pointer()) {
                                 //if (is_hovered or me.mod.matchBind("ctrl/cmd")) {
                                 e.handle(@src(), self.init_options.canvas.scroll_container.data());
@@ -2643,10 +2649,10 @@ pub fn processEvents(self: *FileWidget) void {
     pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .right, .{});
 
     // Only process draw cursor on the hovered widget
-    if (self.hovered() != null) {
-        self.drawCursor();
-        self.drawSample();
-    }
+    //if (self.hovered() != null) {
+    self.drawCursor();
+    self.drawSample();
+    //}
 
     self.processKeybinds();
     self.drawTransform();

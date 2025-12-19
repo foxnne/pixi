@@ -122,9 +122,9 @@ pub fn draw(self: *Sprites) !void {
                                     .start_val = a.value(),
                                     .end_val = target_scale,
                                 });
+                            } else {
+                                current_scale = a.value();
                             }
-
-                            current_scale = a.value();
                         }
                     } else {
                         prev_scale = current_scale;
