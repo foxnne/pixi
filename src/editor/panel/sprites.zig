@@ -13,6 +13,9 @@ pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         self.drawAnimationControlsDialog();
 
+        const prev_clip = dvui.clip(dvui.parentGet().data().rectScale().r);
+        defer dvui.clipSet(prev_clip);
+
         // Since not all panel screens will likely want shadows, which should be reserved for canvases?
         // Text editors, consoles, etc would likely want flat panels or to handle shadows themselves.
         defer {
