@@ -48,26 +48,14 @@ pub fn draw(self: *Sprites) !void {
 
         const scale = blk: {
             const steps = pixi.editor.settings.zoom_steps;
-            const target_size = @min(parent.h, parent.w);
-            const sprite_size = @max(src_rect.h, src_rect.w);
+            const sprite_width = src_rect.w * 1.2;
+            const sprite_height = src_rect.h * 1.2;
+            const target_width = if (sprite_width < parent.w) parent.w else sprite_width;
+            const target_height = if (sprite_height < parent.h) parent.h else sprite_height;
             var target_scale: f32 = 1.0;
-            // var found = false;
-            // var i: usize = 0;
-            // while (i > steps.len) {
-            //     const scale = steps[i];
-            //     if ((sprite_h * scale) > target_h) {
-            //         chosen_scale = if (i == 0) 1.0 else steps[i - 1];
-            //         found = true;
-            //         break;
-            //     }
-            //     i += 1;
-            // }
-            // if (!found) {
-            //     chosen_scale = steps[0];
-            // }
 
             for (steps, 0..) |zoom, i| {
-                if ((sprite_size * 1.2 * zoom) >= target_size) {
+                if ((sprite_width * zoom) >= target_width or (sprite_height * zoom) >= target_height) {
                     if (i > 0) {
                         target_scale = steps[i - 1];
                         break;
@@ -168,113 +156,6 @@ pub fn draw(self: *Sprites) !void {
             //.color_border = dvui.themeGet().color(.control, .text),
         });
     }
-
-    //     if (file.editor.selected_sprites.count() > 0) {
-    //         var iterator = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-    //         while (iterator.next()) |index| {
-    //             const src_rect = file.spriteRect(index);
-
-    //             _ = pixi.dvui.sprite(@src(), .{
-    //                 .source = file.layers.items(.source)[file.selected_layer_index],
-    //                 .alpha_source = file.editor.checkerboard_tile,
-    //                 .sprite = .{
-    //                     .source = .{
-    //                         @intFromFloat(src_rect.x),
-    //                         @intFromFloat(src_rect.y),
-    //                         @intFromFloat(src_rect.w),
-    //                         @intFromFloat(src_rect.h),
-    //                     },
-    //                     .origin = .{
-    //                         0,
-    //                         0,
-    //                     },
-    //                 },
-    //                 .scale = blk: {
-    //                     const steps = pixi.editor.settings.zoom_steps;
-    //                     const target_h = pixi.editor.panel.scroll_info.viewport.h;
-    //                     const sprite_h = src_rect.h;
-    //                     var chosen_scale: f32 = 1.0;
-    //                     var found = false;
-    //                     var i: usize = steps.len;
-    //                     while (i > 0) : (i -= 1) {
-    //                         const scale = steps[i - 1];
-    //                         if (sprite_h * scale <= target_h) {
-    //                             chosen_scale = scale;
-    //                             found = true;
-    //                             break;
-    //                         }
-    //                     }
-    //                     if (!found) {
-    //                         chosen_scale = steps[0];
-    //                     }
-    //                     break :blk chosen_scale;
-    //                 },
-    //                 // Compute a normalized depth in [-1.0, 1.0] where 0.0 is the center of the viewport
-    //                 .depth = blk: {
-    //                     const viewport = pixi.editor.panel.scroll_info.viewport;
-    //                     const cx = viewport.x + viewport.w / 2.0;
-    //                     const px = hbox.data().rectScale().r.center().x;
-    //                     break :blk (px - cx) / (viewport.w / 2.0);
-    //                 },
-    //                 .overlap = 0.8,
-    //                 .reflection = true,
-    //             }, .{
-    //                 .id_extra = index,
-    //                 .margin = .all(0),
-    //                 .padding = .all(0),
-    //                 //.border = .all(1),
-    //                 //.color_border = dvui.themeGet().color(.control, .text),
-    //             });
-    //         }
-    //     } else {
-    //         var index: usize = 0;
-    //         while (index < file.spriteCount()) : (index += 1) {
-    //             const src_rect = file.spriteRect(index);
-
-    //             _ = pixi.dvui.sprite(@src(), .{
-    //                 .source = file.layers.items(.source)[file.selected_layer_index],
-    //                 .sprite = .{
-    //                     .source = .{
-    //                         @intFromFloat(src_rect.x),
-    //                         @intFromFloat(src_rect.y),
-    //                         @intFromFloat(src_rect.w),
-    //                         @intFromFloat(src_rect.h),
-    //                     },
-    //                     .origin = .{
-    //                         0,
-    //                         0,
-    //                     },
-    //                 },
-    //                 .scale = blk: {
-    //                     const steps = pixi.editor.settings.zoom_steps;
-    //                     const target_h = pixi.editor.panel.scroll_info.viewport.h;
-    //                     const sprite_h = src_rect.h;
-    //                     var chosen_scale: f32 = 1.0;
-    //                     var found = false;
-    //                     var i: usize = steps.len;
-    //                     while (i > 0) : (i -= 1) {
-    //                         const scale = steps[i - 1];
-    //                         if (sprite_h * scale <= target_h) {
-    //                             chosen_scale = scale;
-    //                             found = true;
-    //                             break;
-    //                         }
-    //                     }
-    //                     if (!found) {
-    //                         chosen_scale = steps[0];
-    //                     }
-    //                     break :blk chosen_scale;
-    //                 },
-    //                 .depth = 0.25,
-    //             }, .{
-    //                 .id_extra = index,
-    //                 .padding = .all(0),
-    //                 .margin = .all(0),
-    //             });
-    //         }
-    //     }
-    // }
-
 }
 
 pub fn drawAnimationControlsDialog(_: *Sprites) void {
@@ -328,56 +209,6 @@ pub fn drawAnimationControlsDialog(_: *Sprites) void {
                     file.editor.playing = !file.editor.playing;
                 }
             }
-
-            // dvui.labelNoFmt(@src(), "TRANSFORM", .{ .align_x = 0.5 }, .{
-            //     .padding = dvui.Rect.all(4),
-            //     .expand = .horizontal,
-            //     .font_style = .title_4,
-            // });
-            // _ = dvui.separator(@src(), .{ .expand = .horizontal });
-
-            // _ = dvui.spacer(@src(), .{ .expand = .horizontal });
-
-            // var degrees: f32 = std.math.radiansToDegrees(transform.rotation);
-
-            // var slider_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            //     .expand = .horizontal,
-            //     .background = false,
-            // });
-
-            // if (dvui.sliderEntry(@src(), "{d:0.0}°", .{
-            //     .value = &degrees,
-            //     .min = 0,
-            //     .max = 360,
-            //     .interval = 1,
-            // }, .{ .expand = .horizontal, .color_fill = dvui.themeGet().color(.window, .fill) })) {
-            //     transform.rotation = std.math.degreesToRadians(degrees);
-            // }
-            // slider_box.deinit();
-
-            // if (transform.ortho) {
-            //     var box = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
-            //         .expand = .horizontal,
-            //         .background = false,
-            //     });
-            //     defer box.deinit();
-            //     dvui.label(@src(), "Width: {d:0.0}", .{transform.point(.bottom_left).diff(transform.point(.bottom_right).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
-            //     dvui.label(@src(), "Height: {d:0.0}", .{transform.point(.top_left).diff(transform.point(.bottom_left).*).length()}, .{ .expand = .horizontal, .font_style = .heading });
-            // }
-
-            // {
-            //     var box = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
-            //         .expand = .horizontal,
-            //         .background = false,
-            //     });
-            //     defer box.deinit();
-            //     if (dvui.buttonIcon(@src(), "transform_cancel", icons.tvg.lucide.@"trash-2", .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .err, .expand = .horizontal })) {
-            //         transform.cancel();
-            //     }
-            //     if (dvui.buttonIcon(@src(), "transform_accept", icons.tvg.lucide.check, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .highlight, .expand = .horizontal })) {
-            //         transform.accept();
-            //     }
-            // }
         }
     }
 }
