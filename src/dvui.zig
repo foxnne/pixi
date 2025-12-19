@@ -153,10 +153,6 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
     // rect is the content rect, so expand to the whole rect
     wd.rect = rect.outset(wd.options.paddingGet()).outset(wd.options.borderGet()).outset(wd.options.marginGet());
 
-    const parent_rect = dvui.parentGet().data().rect;
-    wd.rect.x = parent_rect.center().x - wd.rect.w * 0.5;
-    wd.rect.y = parent_rect.center().y - wd.rect.h * 0.5;
-
     var renderBackground: ?dvui.Color = if (wd.options.backgroundGet()) wd.options.color(.fill) else null;
 
     if (wd.options.rotationGet() == 0.0) {

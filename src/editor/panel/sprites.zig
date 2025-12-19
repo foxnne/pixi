@@ -13,10 +13,18 @@ pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         self.drawAnimationControlsDialog();
 
+        // Since not all panel screens will likely want shadows, which should be reserved for canvases?
+        // Text editors, consoles, etc would likely want flat panels or to handle shadows themselves.
+        defer {
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .top, .{ .opacity = 0.15 });
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .bottom, .{ .opacity = 0.15 });
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .left, .{ .opacity = 0.15 });
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .right, .{ .opacity = 0.15 });
+        }
+
         const mouse_data_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
         const parent = dvui.parentGet().data().rect;
-
         const parent_height = parent.h;
 
         var index: usize = 0;
@@ -40,8 +48,8 @@ pub fn draw(self: *Sprites) !void {
 
         const scale = blk: {
             const steps = pixi.editor.settings.zoom_steps;
-            const target_h = parent_height;
-            const sprite_h = src_rect.h;
+            const target_size = @min(parent.h, parent.w);
+            const sprite_size = @max(src_rect.h, src_rect.w);
             var target_scale: f32 = 1.0;
             // var found = false;
             // var i: usize = 0;
@@ -59,7 +67,7 @@ pub fn draw(self: *Sprites) !void {
             // }
 
             for (steps, 0..) |zoom, i| {
-                if ((sprite_h * zoom) >= target_h - 10.0) {
+                if ((sprite_size * 1.2 * zoom) >= target_size) {
                     if (i > 0) {
                         target_scale = steps[i - 1];
                         break;
@@ -110,15 +118,6 @@ pub fn draw(self: *Sprites) !void {
 
         rect.x -= rect.w / 2.0;
         rect.y -= rect.h / 2.0;
-
-        // Since not all panel screens will likely want shadows, which should be reserved for canvases?
-        // Text editors, consoles, etc would likely want flat panels or to handle shadows themselves.
-        defer {
-            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .top, .{ .opacity = 0.15 });
-            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .bottom, .{ .opacity = 0.15 });
-            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .left, .{ .opacity = 0.15 });
-            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .right, .{ .opacity = 0.15 });
-        }
 
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
