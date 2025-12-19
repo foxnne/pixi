@@ -6,6 +6,9 @@ const Editor = pixi.Editor;
 
 const Sprites = @This();
 
+var prev_scale: f32 = 1.0;
+var current_scale: f32 = 1.0;
+
 pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         self.drawAnimationControlsDialog();
@@ -78,7 +81,7 @@ pub fn draw(self: *Sprites) !void {
                 const steps = pixi.editor.settings.zoom_steps;
                 const target_h = parent_height;
                 const sprite_h = src_rect.h;
-                var chosen_scale: f32 = 1.0;
+                var target_scale: f32 = 1.0;
                 // var found = false;
                 // var i: usize = 0;
                 // while (i > steps.len) {
@@ -97,14 +100,44 @@ pub fn draw(self: *Sprites) !void {
                 for (steps, 0..) |zoom, i| {
                     if ((sprite_h * zoom) >= target_h - 10.0) {
                         if (i > 0) {
-                            chosen_scale = steps[i - 1];
+                            target_scale = steps[i - 1];
                             break;
                         }
-                        chosen_scale = steps[i];
+                        target_scale = steps[i];
                         break;
                     }
                 }
-                break :blk chosen_scale;
+
+                if (target_scale != current_scale) {
+                    if (dvui.animationGet(hbox.data().id, "scale")) |a| {
+                        if (a.done()) {
+                            current_scale = target_scale;
+                            prev_scale = current_scale;
+                        } else {
+                            if (a.end_val != target_scale) {
+                                _ = dvui.currentWindow().animations.remove(hbox.data().id.update("scale"));
+                                dvui.animation(hbox.data().id, "scale", .{
+                                    .end_time = 600_000,
+                                    .easing = dvui.easing.outBack,
+                                    .start_val = a.value(),
+                                    .end_val = target_scale,
+                                });
+                            }
+
+                            current_scale = a.value();
+                        }
+                    } else {
+                        prev_scale = current_scale;
+                        dvui.animation(hbox.data().id, "scale", .{
+                            .end_time = 600_000,
+                            .easing = dvui.easing.outBack,
+                            .start_val = prev_scale,
+                            .end_val = target_scale,
+                        });
+                    }
+                }
+
+                break :blk current_scale;
             },
             // Compute a normalized depth in [-1.0, 1.0] where 0.0 is the center of the viewport
             // .depth = blk: {
