@@ -13,34 +13,11 @@ pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         self.drawAnimationControlsDialog();
 
-        const parent_height = dvui.parentGet().data().rect.h;
-
-        // Since not all panel screens will likely want shadows, which should be reserved for canvases?
-        // Text editors, consoles, etc would likely want flat panels or to handle shadows themselves.
-        defer {
-            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .top, .{ .opacity = 0.15 });
-            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .bottom, .{ .opacity = 0.15 });
-            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .left, .{ .opacity = 0.15 });
-            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .right, .{ .opacity = 0.15 });
-        }
-
-        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .none,
-            .gravity_x = 0.5,
-            .gravity_y = 0.5,
-            .border = .all(0),
-            .color_border = dvui.themeGet().color(.control, .text),
-            .box_shadow = .{
-                .color = .black,
-                .offset = .{ .x = 0.0, .y = 8.0 },
-                .fade = 12.0,
-                .alpha = 0.25,
-                .corner_radius = dvui.Rect.all(parent_height / 32.0),
-            },
-        });
-        defer hbox.deinit();
-
         const mouse_data_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+
+        const parent = dvui.parentGet().data().rect;
+
+        const parent_height = parent.h;
 
         var index: usize = 0;
         var src_rect = file.spriteRect(index); // Default to the first sprite
@@ -61,6 +38,103 @@ pub fn draw(self: *Sprites) !void {
             index = sprite_index;
         }
 
+        const scale = blk: {
+            const steps = pixi.editor.settings.zoom_steps;
+            const target_h = parent_height;
+            const sprite_h = src_rect.h;
+            var target_scale: f32 = 1.0;
+            // var found = false;
+            // var i: usize = 0;
+            // while (i > steps.len) {
+            //     const scale = steps[i];
+            //     if ((sprite_h * scale) > target_h) {
+            //         chosen_scale = if (i == 0) 1.0 else steps[i - 1];
+            //         found = true;
+            //         break;
+            //     }
+            //     i += 1;
+            // }
+            // if (!found) {
+            //     chosen_scale = steps[0];
+            // }
+
+            for (steps, 0..) |zoom, i| {
+                if ((sprite_h * zoom) >= target_h - 10.0) {
+                    if (i > 0) {
+                        target_scale = steps[i - 1];
+                        break;
+                    }
+                    target_scale = steps[i];
+                    break;
+                }
+            }
+
+            if (target_scale != current_scale) {
+                if (dvui.animationGet(dvui.parentGet().data().id, "scale")) |a| {
+                    if (a.done()) {
+                        current_scale = target_scale;
+                        prev_scale = current_scale;
+                    } else {
+                        if (a.end_val != target_scale) {
+                            _ = dvui.currentWindow().animations.remove(dvui.parentGet().data().id.update("scale"));
+                            dvui.animation(dvui.parentGet().data().id, "scale", .{
+                                .end_time = 600_000,
+                                .easing = dvui.easing.outBack,
+                                .start_val = a.value(),
+                                .end_val = target_scale,
+                            });
+                        } else {
+                            current_scale = a.value();
+                        }
+                    }
+                } else {
+                    prev_scale = current_scale;
+                    dvui.animation(dvui.parentGet().data().id, "scale", .{
+                        .end_time = 600_000,
+                        .easing = dvui.easing.outBack,
+                        .start_val = prev_scale,
+                        .end_val = target_scale,
+                    });
+                }
+            }
+
+            break :blk current_scale;
+        };
+
+        var rect = dvui.Rect{
+            .x = parent.center().x,
+            .y = parent.center().y,
+            .w = @as(f32, @floatFromInt(file.tile_width)) * scale,
+            .h = @as(f32, @floatFromInt(file.tile_height)) * scale,
+        };
+
+        rect.x -= rect.w / 2.0;
+        rect.y -= rect.h / 2.0;
+
+        // Since not all panel screens will likely want shadows, which should be reserved for canvases?
+        // Text editors, consoles, etc would likely want flat panels or to handle shadows themselves.
+        defer {
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .top, .{ .opacity = 0.15 });
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .bottom, .{ .opacity = 0.15 });
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .left, .{ .opacity = 0.15 });
+            pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .right, .{ .opacity = 0.15 });
+        }
+
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .none,
+            .rect = rect,
+            .border = .all(0),
+            .color_border = dvui.themeGet().color(.control, .text),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = 0.0, .y = 8.0 },
+                .fade = 12.0,
+                .alpha = 0.25,
+                .corner_radius = dvui.Rect.all(parent_height / 32.0),
+            },
+        });
+        defer hbox.deinit();
+
         _ = pixi.dvui.sprite(@src(), .{
             .source = file.layers.items(.source)[file.selected_layer_index],
             .file = file,
@@ -77,68 +151,7 @@ pub fn draw(self: *Sprites) !void {
                     0,
                 },
             },
-            .scale = blk: {
-                const steps = pixi.editor.settings.zoom_steps;
-                const target_h = parent_height;
-                const sprite_h = src_rect.h;
-                var target_scale: f32 = 1.0;
-                // var found = false;
-                // var i: usize = 0;
-                // while (i > steps.len) {
-                //     const scale = steps[i];
-                //     if ((sprite_h * scale) > target_h) {
-                //         chosen_scale = if (i == 0) 1.0 else steps[i - 1];
-                //         found = true;
-                //         break;
-                //     }
-                //     i += 1;
-                // }
-                // if (!found) {
-                //     chosen_scale = steps[0];
-                // }
-
-                for (steps, 0..) |zoom, i| {
-                    if ((sprite_h * zoom) >= target_h - 10.0) {
-                        if (i > 0) {
-                            target_scale = steps[i - 1];
-                            break;
-                        }
-                        target_scale = steps[i];
-                        break;
-                    }
-                }
-
-                if (target_scale != current_scale) {
-                    if (dvui.animationGet(hbox.data().id, "scale")) |a| {
-                        if (a.done()) {
-                            current_scale = target_scale;
-                            prev_scale = current_scale;
-                        } else {
-                            if (a.end_val != target_scale) {
-                                _ = dvui.currentWindow().animations.remove(hbox.data().id.update("scale"));
-                                dvui.animation(hbox.data().id, "scale", .{
-                                    .end_time = 600_000,
-                                    .easing = dvui.easing.outBack,
-                                    .start_val = a.value(),
-                                    .end_val = target_scale,
-                                });
-                            } else {
-                                current_scale = a.value();
-                            }
-                        }
-                    } else {
-                        prev_scale = current_scale;
-                        dvui.animation(hbox.data().id, "scale", .{
-                            .end_time = 600_000,
-                            .easing = dvui.easing.outBack,
-                            .start_val = prev_scale,
-                            .end_val = target_scale,
-                        });
-                    }
-                }
-
-                break :blk current_scale;
-            },
+            .scale = scale,
             // Compute a normalized depth in [-1.0, 1.0] where 0.0 is the center of the viewport
             // .depth = blk: {
             //     const viewport = pixi.editor.panel.scroll_info.viewport;
