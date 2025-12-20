@@ -562,13 +562,13 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-            const max_distance: f32 = sprite_rect.h * 1.5;
+            const max_distance: f32 = sprite_rect.h * 2.0;
 
             const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
             const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
             const distance = @sqrt(dx * dx + dy * dy);
 
-            if (distance < max_distance) {
+            if (distance < max_distance and pixi.editor.tools.current == .pointer) {
                 var t: f32 = distance / max_distance;
 
                 if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
@@ -576,11 +576,18 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                 } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
                     t = (1.0 - t) * anim.value();
                 } else {
-                    t = (1.0 - t) * if (self.hide_distance_bubble) @as(f32, @floatFromInt(0)) else @as(f32, 1.0);
+                    t = (1.0 - t) * if (self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
                 }
-                if (t != 0.0) {
-                    drawSpriteBubble(self, index, t, color, animation_index);
-                }
+
+                t = std.math.clamp(t, 0.0, 2.0);
+
+                drawSpriteBubble(
+                    self,
+                    index,
+                    t,
+                    color,
+                    animation_index,
+                );
             }
         }
     }
@@ -664,7 +671,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         built.stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 2.5 * dvui.currentWindow().natural_scale });
 
         var draw_transparency: bool = false;
-        if (self.init_options.file.editor.playing or self.init_options.file.editor.canvas.hovered() == null) {
+        if (self.init_options.file.editor.playing) {
             if (self.init_options.file.selected_animation_index) |ai| {
                 if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
                     draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index;
@@ -2451,7 +2458,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-    if (self.init_options.file.editor.playing or self.init_options.file.editor.canvas.hovered() == null) {
+    if (self.init_options.file.editor.playing) {
         if (self.init_options.file.selected_animation_index) |animation_index| {
             const animation = file.animations.get(animation_index);
 
@@ -2636,7 +2643,17 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataRemove(null, self.init_options.canvas.id, "hide_distance_bubble");
     };
 
-    if (self.active() or self.hovered() != null) {
+    if (self.active() or self.hovered()) {
+        for (dvui.events()) |*e| {
+            if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+                continue;
+            }
+
+            if (e.evt == .mouse and e.evt.mouse.action == .position) {
+                self.init_options.file.editor.sprites_hovered_index = self.init_options.file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(e.evt.mouse.p)) orelse 0;
+            }
+        }
+
         defer self.init_options.file.editor.temporary_layer.invalidate();
         // If we are processing, we need to always ensure the temporary layer is cleared
         @memset(self.init_options.file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
@@ -2667,6 +2684,7 @@ pub fn processEvents(self: *FileWidget) void {
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
 
+    // Only process draw cursor on the hovered widget
     self.drawSpriteBubbles();
     self.processAnimationSelection();
     self.processSpriteSelection();
@@ -2697,8 +2715,8 @@ pub fn deinit(self: *FileWidget) void {
     self.* = undefined;
 }
 
-pub fn hovered(self: *FileWidget) ?dvui.Point {
-    return self.init_options.canvas.hovered();
+pub fn hovered(self: *FileWidget) bool {
+    return self.init_options.canvas.hovered;
 }
 
 test {

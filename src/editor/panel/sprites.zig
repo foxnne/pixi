@@ -11,10 +11,10 @@ var current_scale: f32 = 1.0;
 
 pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
-        self.drawAnimationControlsDialog();
-
         const prev_clip = dvui.clip(dvui.parentGet().data().rectScale().r);
         defer dvui.clipSet(prev_clip);
+
+        self.drawAnimationControlsDialog();
 
         // Since not all panel screens will likely want shadows, which should be reserved for canvases?
         // Text editors, consoles, etc would likely want flat panels or to handle shadows themselves.
@@ -25,15 +25,13 @@ pub fn draw(self: *Sprites) !void {
             pixi.dvui.drawEdgeShadow(dvui.parentGet().data().rectScale(), .right, .{ .opacity = 0.15 });
         }
 
-        const mouse_data_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-
         const parent = dvui.parentGet().data().rect;
         const parent_height = parent.h;
 
         var index: usize = 0;
         var src_rect = file.spriteRect(index); // Default to the first sprite
 
-        if (file.editor.playing or file.editor.canvas.hovered() == null) {
+        if (file.editor.playing) {
             if (file.selected_animation_index) |i| {
                 index = i;
                 const animation = file.animations.get(index);
@@ -44,9 +42,9 @@ pub fn draw(self: *Sprites) !void {
                     src_rect = file.spriteRect(sprite_index);
                 }
             }
-        } else if (file.spriteIndex(mouse_data_point)) |sprite_index| {
-            src_rect = file.spriteRect(sprite_index);
-            index = sprite_index;
+        } else {
+            src_rect = file.spriteRect(file.editor.sprites_hovered_index);
+            index = file.editor.sprites_hovered_index;
         }
 
         const scale = blk: {

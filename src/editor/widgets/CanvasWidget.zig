@@ -15,6 +15,7 @@ scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
 origin: dvui.Point = .{},
 scale: f32 = 1.0,
 bounding_box: ?dvui.Rect.Physical = null,
+hovered: bool = false,
 
 pub const InitOptions = struct {
     id: dvui.Id,
@@ -74,28 +75,21 @@ pub fn screenFromViewportRect(self: *CanvasWidget, viewport: dvui.Rect) dvui.Rec
 /// If the mouse position is currently contained within the canvas rect,
 /// Returns the data/world point of the mouse, which corresponds to the pixel input of
 /// Layer functions
-pub fn hovered(self: *CanvasWidget) ?dvui.Point {
-    if (dvui.focusedWidgetId() == self.id) {
-        if (self.rect.contains(dvui.currentWindow().mouse_pt)) {
-            return self.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-        }
-    }
+// pub fn hovered(self: *CanvasWidget) ?dvui.Point {
+//     for (dvui.events()) |*e| {
+//         if (!self.scroll_container.matchEvent(e)) {
+//             continue;
+//         }
 
-    return null;
-}
+//         if (e.evt == .mouse and e.evt.mouse.action == .position) {
+//             if (self.rect.contains(e.evt.mouse.p)) {
+//                 return self.dataFromScreenPoint(e.evt.mouse.p);
+//             }
+//         }
+//     }
 
-/// Returns the data/world point of the mouse if it was clicked on the canvas
-/// Be aware that this consumes the mouse click event
-pub fn clicked(self: *CanvasWidget) ?dvui.Point {
-    if (self.hovered()) |p| {
-        if (dvui.clicked(
-            self.scroll_container.data().id,
-            .{ .rect = self.rect },
-        )) {
-            return p;
-        }
-    }
-}
+//     return null;
+// }
 
 /// Returns the mouse event if one occured this frame
 pub fn mouse(self: *CanvasWidget) ?dvui.Event.Mouse {
@@ -128,6 +122,11 @@ pub fn processEvents(self: *CanvasWidget) void {
 
         switch (e.evt) {
             .mouse => |me| {
+                if (me.action == .position) {
+                    if (self.rect.contains(me.p))
+                        self.hovered = true;
+                }
+
                 if (me.action == .press and me.button == .middle) {
                     e.handle(@src(), self.scroll_container.data());
                     dvui.captureMouse(self.scroll_container.data(), e.num);

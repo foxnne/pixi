@@ -287,18 +287,18 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 pixi.editor.settings.panel_ratio = editor.panel.paned.split_ratio.*;
             }
 
-            if (editor.panel.paned.showFirst()) {
-                const result = try editor.drawWorkspaces(0);
-                if (result != .ok) {
-                    return result;
-                }
-            }
-
             if (editor.panel.paned.showSecond()) {
                 const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
                 defer vbox.deinit();
 
                 const result = try editor.panel.draw();
+                if (result != .ok) {
+                    return result;
+                }
+            }
+
+            if (editor.panel.paned.showFirst()) {
+                const result = try editor.drawWorkspaces(0);
                 if (result != .ok) {
                     return result;
                 }
