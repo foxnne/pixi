@@ -485,8 +485,13 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
         if (self.init_options.file.editor.selected_sprites.count() > 0) {
             if (self.init_options.file.editor.selected_sprites.isSet(index)) {
-                automatic_animation = true;
-                color = dvui.themeGet().color(.control, .text);
+                //automatic_animation = true;
+
+                if (animation_index) |ai| {
+                    if (ai != self.init_options.file.selected_animation_index) {
+                        color = dvui.themeGet().color(.control, .text);
+                    }
+                }
             }
         }
 
@@ -509,7 +514,12 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const duration = max_step_duration + (duration_step * @as(i32, @intCast(automatic_animation_frame_i + 1)));
 
-            var do_anim: bool = true;
+            var open: bool = true;
+            var id_extra: usize = index;
+
+            if (animation_index) |ai| {
+                id_extra = dvui.Id.extendId(@enumFromInt(index), @src(), ai).asUsize();
+            }
 
             {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
@@ -521,31 +531,25 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                 const distance = @sqrt(dx * dx + dy * dy);
 
                 if (distance < max_distance and peek and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
-                    // LETS GO ANOTHER LAYER DEEP
-                    do_anim = false;
-
-                    // if (dvui.animationGet(anim.data().id, "sec_bubble_close")) |sec_anim| {
-                    //     t *= sec_anim.value();
-                    // }
+                    open = false;
+                    id_extra = dvui.Id.update(@enumFromInt(index), "peek").asUsize();
                 } else {
-                    // RETURN BACK TO PREVIOUS LEVEL
+                    id_extra = dvui.Id.update(@enumFromInt(index), "unpeek").asUsize();
                 }
             }
 
             var t: f32 = 0.0;
 
-            if (do_anim) {
-                const anim = dvui.animate(@src(), .{
-                    .duration = duration,
-                    .kind = .vertical,
-                    .easing = dvui.easing.outElastic,
-                }, .{
-                    .id_extra = if (animation_index) |ai| dvui.Id.extendId(@enumFromInt(index), @src(), ai).asUsize() else index,
-                });
-                defer anim.deinit();
+            const anim = dvui.animate(@src(), .{
+                .duration = duration,
+                .kind = .vertical,
+                .easing = dvui.easing.outElastic,
+            }, .{
+                .id_extra = id_extra,
+            });
+            defer anim.deinit();
 
-                t = anim.val orelse 1.0;
-            }
+            t = if (open) anim.val orelse 1.0 else std.math.clamp(1.0 - (anim.val orelse 1.0), 0.0, 2.0);
 
             drawSpriteBubble(self, index, t, color, animation_index);
         } else {
@@ -662,7 +666,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         var draw_transparency: bool = false;
         if (self.init_options.file.editor.playing or self.init_options.file.editor.canvas.hovered() == null) {
             if (self.init_options.file.selected_animation_index) |ai| {
-                if (self.init_options.file.animations.get(ai).frames.len > 0) {
+                if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
                     draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index;
                 }
             }
@@ -871,11 +875,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
 
         if (animation_index == self.init_options.file.selected_animation_index and animation_index != null and button.data().contentRectScale().r.w > 2.0) {
-            // circle
-            // button.data().contentRectScale().r.inset(.all(button.data().contentRectScale().r.w / 3.0)).fill(.all(10000000), .{
-            //     .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a },
-            // });
-
             const check_t = std.math.clamp(dvui.easing.outQuad(t), 0.5, 1.5);
 
             var checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
