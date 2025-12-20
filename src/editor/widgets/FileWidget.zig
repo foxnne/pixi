@@ -486,10 +486,11 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         if (self.init_options.file.editor.selected_sprites.count() > 0) {
             if (self.init_options.file.editor.selected_sprites.isSet(index)) {
                 automatic_animation = true;
+                color = dvui.themeGet().color(.control, .text);
             }
         }
 
-        const hide: bool = if (dvui.dragName("sprite_selection_drag") or
+        const peek: bool = if (dvui.dragName("sprite_selection_drag") or
             (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd")) or
             pixi.editor.tools.current != .pointer)
             true
@@ -513,13 +514,13 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-                const max_distance: f32 = if (hide) sprite_rect.h * 0.5 else sprite_rect.h * 1.5;
+                const max_distance: f32 = if (peek) @max(sprite_rect.h, sprite_rect.w) * 1.5 else @max(sprite_rect.h, sprite_rect.w) * 1.5;
 
                 const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
                 const dy = @abs(current_point.y - (sprite_rect.y) + sprite_rect.h * 0.5);
-                const distance = @sqrt((dx * dx) * 0.085 + dy * dy);
+                const distance = @sqrt(dx * dx + dy * dy);
 
-                if (distance < max_distance and hide and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
+                if (distance < max_distance and peek and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
                     // LETS GO ANOTHER LAYER DEEP
                     do_anim = false;
 
@@ -642,7 +643,14 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + box.data().contentRectScale().r.h };
     const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + box.data().contentRectScale().r.h };
 
-    if (new_rect.h > 1) {
+    if (new_rect.h < 1) {
+        path.addPoint(tr);
+        path.addPoint(tl);
+
+        path.build().stroke(.{ .thickness = 1.0 * dvui.currentWindow().natural_scale, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
+
+        box.deinit();
+    } else {
         path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
         path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
 
@@ -876,13 +884,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = (button.data().contentRectScale().r.w / 2) * check_t, .y = -(button.data().contentRectScale().r.h / 2.5) * check_t }));
             checkmark_path.build().stroke(.{ .thickness = (button.data().contentRectScale().r.w / 9) * check_t, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
         }
-    } else {
-        path.addPoint(tr);
-        path.addPoint(tl);
-
-        path.build().stroke(.{ .thickness = 1.0 * dvui.currentWindow().natural_scale, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
-
-        box.deinit();
     }
 }
 
