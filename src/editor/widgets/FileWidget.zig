@@ -568,7 +568,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
             const distance = @sqrt(dx * dx + dy * dy);
 
-            if (distance < max_distance and pixi.editor.tools.current == .pointer) {
+            if (distance < (max_distance * 2.0)) {
                 var t: f32 = distance / max_distance;
 
                 if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
@@ -585,7 +585,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                     self,
                     index,
                     t,
-                    color,
+                    dvui.themeGet().color(.window, .fill).lerp(color, 1.0 - (distance / (max_distance * 2.0))),
                     animation_index,
                 );
             }
@@ -658,7 +658,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         path.addPoint(tr);
         path.addPoint(tl);
 
-        path.build().stroke(.{ .thickness = 1.0 * dvui.currentWindow().natural_scale, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
+        path.build().stroke(.{ .thickness = 1.0 * dvui.currentWindow().natural_scale, .color = color });
 
         box.deinit();
     } else {
@@ -668,7 +668,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         var built = path.build();
         defer path.deinit();
 
-        built.stroke(.{ .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a }, .thickness = 2.5 * dvui.currentWindow().natural_scale });
+        built.stroke(.{ .color = color, .thickness = 2.5 * dvui.currentWindow().natural_scale });
 
         var draw_transparency: bool = false;
         if (self.init_options.file.editor.playing) {
@@ -2552,18 +2552,20 @@ pub fn drawLayers(self: *FileWidget) void {
         .background = false,
     });
 
-    for (1..tiles_wide) |x| {
-        dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
-        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text) });
-    }
+    if (true) {
+        for (1..tiles_wide) |x| {
+            dvui.Path.stroke(.{ .points = &.{
+                self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
+                self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
+            } }, .{ .thickness = 1 * dvui.currentWindow().natural_scale, .color = dvui.themeGet().color(.control, .fill) });
+        }
 
-    for (1..tiles_high) |y| {
-        dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
-        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text) });
+        for (1..tiles_high) |y| {
+            dvui.Path.stroke(.{ .points = &.{
+                self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
+                self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
+            } }, .{ .thickness = 1 * dvui.currentWindow().natural_scale, .color = dvui.themeGet().color(.control, .fill) });
+        }
     }
 
     self.init_options.canvas.bounding_box = image.rectScale().r;
