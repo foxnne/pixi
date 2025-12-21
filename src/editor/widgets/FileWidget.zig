@@ -562,7 +562,15 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-            const max_distance: f32 = sprite_rect.h * 2.0;
+            var max_distance: f32 = sprite_rect.h * 1.5;
+
+            if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+                max_distance += (max_distance * 0.5) * (1.0 - anim.value());
+            } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+                max_distance += (max_distance * 0.5) * (1.0 - anim.value());
+            } else {
+                max_distance += (max_distance * 0.5) * if (!self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
+            }
 
             const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
             const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
