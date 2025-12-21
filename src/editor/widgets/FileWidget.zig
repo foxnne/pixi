@@ -920,7 +920,7 @@ pub fn drawSpriteSelection(self: *FileWidget) void {
         };
 
         const screen_selection_rect = self.init_options.canvas.screenFromDataRect(span_rect);
-        const selection_color = if (self.shift_key_down) dvui.themeGet().color(.err, .fill).opacity(0.5) else dvui.themeGet().color(.highlight, .fill).opacity(0.5);
+        const selection_color = if (dvui.currentWindow().modifiers.matchBind("shift")) dvui.themeGet().color(.err, .fill).opacity(0.5) else dvui.themeGet().color(.highlight, .fill).opacity(0.5);
         screen_selection_rect.fill(
             dvui.Rect.Physical.all(6 * dvui.currentWindow().natural_scale),
             .{
