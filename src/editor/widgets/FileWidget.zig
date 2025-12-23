@@ -94,13 +94,15 @@ pub fn processSample(self: *FileWidget) void {
 
     if (!current_mods.matchBind("sample") and self.sample_key_down) {
         self.sample_key_down = false;
+        const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+        self.sample(file, current_point, self.right_mouse_down or self.left_mouse_down, true);
         if (!self.right_mouse_down) {
             self.sample_data_point = null;
         }
     } else if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
         self.sample_key_down = true;
         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-        self.sample(file, current_point, self.right_mouse_down or self.left_mouse_down);
+        self.sample(file, current_point, self.right_mouse_down or self.left_mouse_down, false);
 
         @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
         file.editor.temporary_layer.invalidate();
@@ -119,7 +121,7 @@ pub fn processSample(self: *FileWidget) void {
                 if (me.action == .press and me.button.pointer()) {
                     self.left_mouse_down = true;
                     if (dvui.dragging(me.p, "sample_drag")) |_| {
-                        self.sample(file, current_point, true);
+                        self.sample(file, current_point, true, false);
                     }
                     dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                 } else if (me.action == .release and me.button.pointer()) {
@@ -133,13 +135,14 @@ pub fn processSample(self: *FileWidget) void {
                     dvui.dragPreStart(me.p, .{ .name = "sample_drag" });
                     self.drag_data_point = current_point;
 
-                    self.sample(file, current_point, self.sample_key_down or self.left_mouse_down);
+                    self.sample(file, current_point, self.sample_key_down or self.left_mouse_down, false);
 
                     @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                     file.editor.temporary_layer.invalidate();
                     file.editor.temporary_layer.dirty = false;
                 } else if (me.action == .release and me.button == .right) {
                     self.right_mouse_down = false;
+                    self.sample(file, current_point, self.sample_key_down or self.left_mouse_down, true);
                     if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
                         e.handle(@src(), self.init_options.canvas.scroll_container.data());
                         dvui.captureMouse(null, e.num);
@@ -173,11 +176,11 @@ pub fn processSample(self: *FileWidget) void {
                                 .screen_rect = screen_rect,
                             });
 
-                            self.sample(file, current_point, self.sample_key_down or self.left_mouse_down);
+                            self.sample(file, current_point, self.sample_key_down or self.left_mouse_down, false);
                             e.handle(@src(), self.init_options.canvas.scroll_container.data());
                         }
                     } else if (self.right_mouse_down or self.sample_key_down) {
-                        self.sample(file, current_point, self.right_mouse_down and (self.sample_key_down or self.left_mouse_down));
+                        self.sample(file, current_point, self.right_mouse_down and (self.sample_key_down or self.left_mouse_down), false);
                     }
                 }
             },
@@ -186,7 +189,7 @@ pub fn processSample(self: *FileWidget) void {
     }
 }
 
-fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, change_layer: bool) void {
+fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, change_layer: bool, change_tool: bool) void {
     self.sample_data_point = point;
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 
@@ -207,17 +210,19 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
         }
     }
 
-    if (color[3] == 0) {
-        if (pixi.editor.tools.current != .eraser) {
-            pixi.editor.tools.set(.eraser);
+    if (change_tool) {
+        if (color[3] == 0) {
+            if (pixi.editor.tools.current != .eraser) {
+                pixi.editor.tools.set(.eraser);
+            }
+        } else {
+            pixi.editor.colors.primary = color;
+            if (switch (pixi.editor.tools.current) {
+                .pencil, .bucket => false,
+                else => true,
+            })
+                pixi.editor.tools.set(pixi.editor.tools.previous_drawing_tool);
         }
-    } else {
-        pixi.editor.colors.primary = color;
-        if (switch (pixi.editor.tools.current) {
-            .pencil, .bucket => false,
-            else => true,
-        })
-            pixi.editor.tools.set(pixi.editor.tools.previous_drawing_tool);
     }
 }
 
@@ -269,6 +274,7 @@ pub fn processAnimationSelection(self: *FileWidget) void {
 pub fn processSpriteSelection(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
+    if (self.sample_data_point != null) return;
 
     const file = self.init_options.file;
 
@@ -385,7 +391,8 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             (pixi.editor.tools.current != .pointer) or
             (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))) or
             pixi.editor.tools.radial_menu.visible or
-            self.init_options.file.editor.transform != null)
+            self.init_options.file.editor.transform != null or
+            self.sample_data_point != null)
         {
             if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
                 if (anim.done()) {
@@ -497,7 +504,8 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
         const peek: bool = if (dvui.dragName("sprite_selection_drag") or
             (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd")) or
-            pixi.editor.tools.current != .pointer)
+            pixi.editor.tools.current != .pointer or
+            self.sample_data_point != null)
             true
         else
             false;
@@ -541,9 +549,9 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             var t: f32 = 0.0;
 
             const anim = dvui.animate(@src(), .{
-                .duration = duration,
+                .duration = if (open) duration else @divTrunc(duration, 4),
                 .kind = .vertical,
-                .easing = dvui.easing.outElastic,
+                .easing = if (open) dvui.easing.outElastic else dvui.easing.outQuint,
             }, .{
                 .id_extra = id_extra,
             });
@@ -685,8 +693,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         box.deinit();
     } else {
-        path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale / self.init_options.canvas.scale * baseline_scale }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
-        path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale / self.init_options.canvas.scale * baseline_scale }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
+        path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = dvui.currentWindow().natural_scale * 1 / (self.init_options.canvas.scale) }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+        path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = dvui.currentWindow().natural_scale * 1 / (self.init_options.canvas.scale) }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
 
         var built = path.build();
         defer path.deinit();
@@ -713,7 +721,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                     return;
                 };
 
-                const h = (t) / (self.init_options.canvas.scale * baseline_scale);
+                const h = t / (self.init_options.canvas.scale * baseline_scale);
 
                 const uv_rect = dvui.Rect{
                     .x = 0.0,
@@ -934,6 +942,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 pub fn drawSpriteSelection(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
+    if (self.sample_data_point != null) return;
 
     if (self.drag_data_point) |previous_point| {
         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
@@ -2214,7 +2223,7 @@ pub fn active(self: *FileWidget) bool {
 }
 
 pub fn drawCursor(self: *FileWidget) void {
-    if (pixi.editor.tools.current == .pointer) return;
+    if (pixi.editor.tools.current == .pointer and self.sample_data_point == null) return;
     if (pixi.editor.tools.radial_menu.visible) return;
 
     var subtract = false;
