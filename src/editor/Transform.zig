@@ -29,6 +29,7 @@ pub fn point(self: *Transform, transform_point: TransformPoint) *dvui.Point {
 /// Transform layer contains the pixels being transformed prior to transformation,
 /// and the active layer has had those pixels removed.
 pub fn accept(self: *Transform) void {
+    defer pixi.editor.tools.set(pixi.editor.tools.previous);
     if (pixi.editor.open_files.getPtr(self.file_id)) |file| {
         var layer = file.getLayer(self.layer_id) orelse return;
 
@@ -67,6 +68,7 @@ pub fn accept(self: *Transform) void {
 
 /// Cancels the transform and restores the layer to its original state
 pub fn cancel(self: *Transform) void {
+    defer pixi.editor.tools.set(pixi.editor.tools.previous);
     if (pixi.editor.open_files.getPtr(self.file_id)) |file| {
         var layer = file.getLayer(self.layer_id) orelse return;
         var iterator = file.editor.transform_layer.mask.iterator(.{ .kind = .set, .direction = .forward });

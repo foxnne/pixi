@@ -609,6 +609,20 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
     const sprite_rect = self.init_options.file.spriteRect(sprite_index);
 
+    const target_button_height: f32 = 24.0;
+    // Figure out artwork's baseline size (width or height, whichever is smaller)
+    const baseline_sprite_size: f32 = 64.0;
+    const baseline_scale: f32 = @min(sprite_rect.w, sprite_rect.h) / baseline_sprite_size;
+    // Compensate the button size so that it stays visually consistent even if the tile is smaller/larger than 64x64
+    var button_height = std.math.clamp(target_button_height * dvui.easing.outBack(t) / (self.init_options.canvas.scale), 0.0, (@min(sprite_rect.h, sprite_rect.w) / 3.0));
+
+    // const label_text = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{sprite_index}) catch {
+    //     dvui.log.err("Failed to allocate label text", .{});
+    //     return;
+    // };
+
+    //const label_text_size = dvui.themeGet().font_mono.textSize(label_text);
+
     const sprite_rect_scale: dvui.RectScale = .{
         .r = self.init_options.canvas.screenFromDataRect(sprite_rect),
         .s = self.init_options.canvas.scale,
@@ -631,15 +645,16 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             if (animation.frames.len > 0) {
                 const frame = animation.frames[self.init_options.file.selected_animation_frame_index];
                 if (frame != sprite_index and animation_index == ai) {
-                    //max_height = max_height * 0.8;
-                    multiplier *= 0.75;
+                    multiplier *= 0.65;
                     shadow_mult *= 1.5;
                 }
             }
         }
     }
 
-    const scaled_h = (max_height * multiplier) * (t);
+    const scaled_h = std.math.clamp(((max_height * multiplier) * t) / (self.init_options.canvas.scale * baseline_scale), 0.0, (sprite_rect.h / 2.0));
+
+    //button_size = scaled_h * 1.2;
 
     new_rect.h = scaled_h;
     new_rect.y = sprite_rect.y - scaled_h;
@@ -700,9 +715,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
                 const uv_rect = dvui.Rect{
                     .x = 0.0,
-                    .y = (((1.0 - t) / 2.0) * multiplier) * (1.0 / multiplier), // adjust in case y grows up
+                    .y = (1.0 - t * multiplier) * std.math.clamp((1.0 / self.init_options.canvas.scale), 0.0, 1.0), // adjust in case y grows up
                     .w = 1.0,
-                    .h = ((scaled_h / max_height) * multiplier) * (1.0 / multiplier),
+                    .h = scaled_h / max_height,
                 };
                 triangles.uvFromRectuv(r, uv_rect);
 
@@ -718,19 +733,19 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         box.deinit();
 
-        var button_size = (@min(sprite_rect.h, sprite_rect.w) / 4.0) * dvui.easing.outBack(t);
-
         const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
 
         if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
-            button_size *= anim.value();
+            button_height *= anim.value();
         } else if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
-            button_size *= anim.value();
+            button_height *= anim.value();
         } else if (pixi.editor.tools.current != .pointer or self.hide_distance_bubble) {
-            button_size = 0.0;
+            button_height = 0.0;
         }
 
-        const button_rect = dvui.Rect{ .x = center.x - button_size / 2, .y = center.y - (button_size / 2), .w = button_size, .h = button_size };
+        //button_size = std.math.clamp(button_size, 0.0, @min(sprite_rect.h, sprite_rect.w) / 3.0);
+
+        const button_rect = dvui.Rect{ .x = center.x - button_height / 2, .y = center.y - (button_height / 2), .w = button_height, .h = button_height };
 
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{
@@ -741,8 +756,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             .id_extra = sprite_index,
             .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = -0.05 * button_size, .y = 0.08 * button_size * shadow_mult },
-                .fade = (button_size / 10) * t,
+                .offset = .{ .x = -0.05 * button_height, .y = 0.08 * button_height * shadow_mult },
+                .fade = (button_height / 10) * t,
                 .alpha = 0.35 * t,
             },
             .corner_radius = dvui.Rect.all(1000000),
@@ -893,10 +908,22 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             const check_t = std.math.clamp(dvui.easing.outQuad(t), 0.5, 1.5);
 
             var checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = -(button.data().contentRectScale().r.w / 3.25) * check_t, .y = 0.0 }));
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.h / 4.0) * check_t }));
-            checkmark_path.addPoint(button.data().contentRectScale().r.center().plus(.{ .x = (button.data().contentRectScale().r.w / 2) * check_t, .y = -(button.data().contentRectScale().r.h / 2.5) * check_t }));
-            checkmark_path.build().stroke(.{ .thickness = (button.data().contentRectScale().r.w / 9) * check_t, .color = .{ .r = color.r, .g = color.g, .b = color.b, .a = color.a } });
+
+            const point1 = button.data().contentRectScale().r.center().plus(.{ .x = -(button.data().contentRectScale().r.w / 3.25) * check_t, .y = 0.0 });
+            const point2 = button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.h / 4.0) * check_t });
+            const point3 = button.data().contentRectScale().r.center().plus(.{ .x = (button.data().contentRectScale().r.w / 2) * check_t, .y = -(button.data().contentRectScale().r.h / 2.5) * check_t });
+
+            checkmark_path.addPoint(point1.plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.w / 18) * check_t }));
+            checkmark_path.addPoint(point2.plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.w / 18) * check_t }));
+            checkmark_path.addPoint(point3.plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.w / 18) * check_t }));
+            checkmark_path.build().stroke(.{ .thickness = (button.data().contentRectScale().r.w / 9) * check_t, .color = dvui.Color.black.opacity(0.5) });
+
+            checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            checkmark_path.addPoint(point1);
+            checkmark_path.addPoint(point2);
+            checkmark_path.addPoint(point3);
+
+            checkmark_path.build().stroke(.{ .thickness = (button.data().contentRectScale().r.w / 9) * check_t, .color = color });
         }
     }
 }
