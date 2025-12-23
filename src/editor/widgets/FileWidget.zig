@@ -693,8 +693,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         box.deinit();
     } else {
-        path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = dvui.currentWindow().natural_scale * 1 / (self.init_options.canvas.scale) }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
-        path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = dvui.currentWindow().natural_scale * 1 / (self.init_options.canvas.scale) }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
+        path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = 0 }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+        path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = 0 }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
 
         var built = path.build();
         defer path.deinit();
@@ -714,7 +714,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         if (draw_transparency) {
             if (self.init_options.file.editor.canvas.scale < 2.0) {
-                built.fillConvex(.{ .color = fill_color, .fade = 2 });
+                built.fillConvex(.{ .color = fill_color, .fade = 3.0 });
             } else {
                 var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0), .fade = 2 }) catch {
                     dvui.log.err("Failed to fill convex triangles", .{});
@@ -736,7 +736,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 };
             }
         } else {
-            built.fillConvex(.{ .color = dvui.themeGet().color(.window, .fill), .fade = 2 });
+            built.fillConvex(.{ .color = dvui.themeGet().color(.window, .fill), .fade = 3.0 });
         }
 
         const center = box.data().rect.center();
@@ -2603,14 +2603,14 @@ pub fn drawLayers(self: *FileWidget) void {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = 0 }),
                 self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(x * file.tile_width)), .y = @as(f32, @floatFromInt(file.height)) }),
-            } }, .{ .thickness = 1 * dvui.currentWindow().natural_scale, .color = dvui.themeGet().color(.control, .fill) });
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
         }
 
         for (1..tiles_high) |y| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
                 self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width)), .y = @as(f32, @floatFromInt(y * file.tile_height)) }),
-            } }, .{ .thickness = 1 * dvui.currentWindow().natural_scale, .color = dvui.themeGet().color(.control, .fill) });
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
         }
     }
 
