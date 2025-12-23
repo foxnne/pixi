@@ -485,7 +485,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
         if (self.init_options.file.editor.selected_sprites.count() > 0) {
             if (self.init_options.file.editor.selected_sprites.isSet(index)) {
-                //automatic_animation = true;
+                automatic_animation = true;
 
                 if (animation_index) |ai| {
                     if (ai != self.init_options.file.selected_animation_index) {
@@ -532,9 +532,9 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
                 if (distance < max_distance and peek and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
                     open = false;
-                    id_extra = dvui.Id.update(@enumFromInt(index), "peek").asUsize();
+                    id_extra = dvui.Id.update(@enumFromInt(id_extra), "peek").asUsize();
                 } else {
-                    id_extra = dvui.Id.update(@enumFromInt(index), "unpeek").asUsize();
+                    id_extra = dvui.Id.update(@enumFromInt(id_extra), "unpeek").asUsize();
                 }
             }
 
@@ -646,7 +646,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 const frame = animation.frames[self.init_options.file.selected_animation_frame_index];
                 if (frame != sprite_index and animation_index == ai) {
                     multiplier *= 0.65;
-                    shadow_mult *= 1.5;
+                    shadow_mult *= 0.5;
                 }
             }
         }
@@ -758,7 +758,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             .id_extra = sprite_index,
             .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = -0.05 * button_height, .y = 0.08 * button_height * shadow_mult },
+                .offset = .{ .x = -0.05 * button_height * shadow_mult, .y = 0.08 * button_height * shadow_mult },
                 .fade = (button_height / 10) * t,
                 .alpha = 0.35 * t,
             },
