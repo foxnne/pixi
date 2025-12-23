@@ -685,8 +685,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         box.deinit();
     } else {
-        path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
-        path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
+        path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale / self.init_options.canvas.scale * baseline_scale }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+        path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = 1 * dvui.currentWindow().natural_scale / self.init_options.canvas.scale * baseline_scale }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
 
         var built = path.build();
         defer path.deinit();
@@ -713,11 +713,13 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                     return;
                 };
 
+                const h = (t) / (self.init_options.canvas.scale * baseline_scale);
+
                 const uv_rect = dvui.Rect{
                     .x = 0.0,
-                    .y = (1.0 - t * multiplier) * std.math.clamp((1.0 / self.init_options.canvas.scale), 0.0, 1.0), // adjust in case y grows up
                     .w = 1.0,
-                    .h = scaled_h / max_height,
+                    .y = 1.0 - h * multiplier,
+                    .h = h * multiplier, // adjust so text stays fixed on screen regardless of scale
                 };
                 triangles.uvFromRectuv(r, uv_rect);
 
