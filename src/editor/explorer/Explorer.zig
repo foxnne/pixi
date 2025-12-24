@@ -150,5 +150,5 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
 pub fn drawHeader(explorer: *Explorer) !void {
     const header_title = title(explorer.pane, true);
 
-    dvui.labelNoFmt(@src(), header_title, .{}, .{ .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold) });
+    dvui.labelNoFmt(@src(), header_title, .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
 }

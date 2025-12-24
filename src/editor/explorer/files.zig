@@ -134,7 +134,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
 
     dvui.labelNoFmt(@src(), fmt_string, .{}, .{
         .color_fill = color,
-        .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold),
+        .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold),
         .gravity_y = 0.5,
     });
 

@@ -16,7 +16,7 @@ pub fn deinit() void {
 }
 
 pub fn draw(_: Infobar) !void {
-    const font = dvui.Font.theme(.mono).larger(-3.0);
+    const font = dvui.Font.theme(.mono).larger(-5.0);
 
     var scrollarea = dvui.scrollArea(@src(), .{}, .{
         .expand = .horizontal,

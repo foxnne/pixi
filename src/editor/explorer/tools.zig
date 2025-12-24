@@ -164,7 +164,7 @@ pub fn drawLayerControls() !void {
         .background = false,
     });
     defer box.deinit();
-    dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold), .gravity_y = 0.5 });
+    dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold), .gravity_y = 0.5 });
 
     if (pixi.editor.activeFile()) |file| {
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -311,10 +311,17 @@ pub fn drawLayers() !void {
         });
         defer box.deinit();
 
+        const total_duration: i32 = 600_000;
+        const max_step_duration: i32 = @divTrunc(total_duration, 3);
+
+        const duration_step: i32 = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(file.layers.len))), 0, max_step_duration);
+
         for (file.layers.items(.id), 0..) |layer_id, layer_index| {
+            const duration = max_step_duration + (duration_step * @as(i32, @intCast(layer_index + 1)));
+
             const selected = if (edit_layer_id) |id| id == layer_id else file.selected_layer_index == layer_index;
             const visible = file.layers.items(.visible)[layer_index];
-            const font = if (visible) dvui.Font.theme(.mono) else dvui.Font.theme(.mono).withStyle(.italic);
+            const font = if (visible) dvui.Font.theme(.mono).larger(-2.0) else dvui.Font.theme(.mono).withStyle(.italic).larger(-2.0);
 
             var color = dvui.themeGet().color(.control, .fill_hover);
             if (pixi.editor.colors.file_tree_palette) |*palette| {
@@ -333,8 +340,8 @@ pub fn drawLayers() !void {
                 dvui.animation(r.data().id, "expand", .{
                     .start_val = 0.2,
                     .end_val = 1.0,
-                    .end_time = 150_000 + (50_000 * @as(i32, @intCast(layer_index))),
-                    .easing = dvui.easing.outQuad,
+                    .end_time = duration,
+                    .easing = dvui.easing.outBack,
                 });
             }
 
@@ -507,7 +514,7 @@ pub fn drawLayers() !void {
 }
 
 pub fn drawColors() !void {
-    dvui.labelNoFmt(@src(), "COLORS", .{}, .{ .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold) });
+    dvui.labelNoFmt(@src(), "COLORS", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
 
     var hbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
         .expand = .horizontal,
@@ -621,7 +628,7 @@ pub fn drawPaletteControls() !void {
     });
     defer box.deinit();
 
-    dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold) });
+    dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
 
     if (dvui.buttonIcon(@src(), "PinPalettes", dvui.entypo.pin, .{ .draw_focus = false }, .{}, .{
         .expand = .none,

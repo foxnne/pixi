@@ -216,7 +216,7 @@ pub fn drawAnimations(self: *Sprites, parent_width: f32) !void {
     });
     defer controls_box.deinit();
 
-    dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold) });
+    dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
 
     self.drawAnimationControls() catch {};
 
@@ -294,7 +294,14 @@ pub fn drawAnimations(self: *Sprites, parent_width: f32) !void {
         });
         defer box.deinit();
 
+        const total_duration: i32 = 600_000;
+        const max_step_duration: i32 = @divTrunc(total_duration, 3);
+
+        const duration_step: i32 = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(file.animations.len))), 0, max_step_duration);
+
         for (file.animations.items(.id), 0..) |anim_id, anim_index| {
+            const duration = max_step_duration + (duration_step * @as(i32, @intCast(anim_index + 1)));
+
             const selected = if (self.edit_anim_id) |id| id == anim_id else file.selected_animation_index == anim_index;
 
             var color = dvui.themeGet().color(.control, .fill_hover);
@@ -314,8 +321,8 @@ pub fn drawAnimations(self: *Sprites, parent_width: f32) !void {
                 dvui.animation(r.data().id, "anim_expand", .{
                     .start_val = 0.2,
                     .end_val = 1.0,
-                    .end_time = 150_000 + (50_000 * @as(i32, @intCast(anim_index))),
-                    .easing = dvui.easing.inOutQuad,
+                    .end_time = duration,
+                    .easing = dvui.easing.outBack,
                 });
             }
 
@@ -367,11 +374,13 @@ pub fn drawAnimations(self: *Sprites, parent_width: f32) !void {
                 .margin = .{ .x = 4, .w = 4 },
             });
 
+            const font = dvui.Font.theme(.mono).larger(-2.0);
+
             if (self.edit_anim_id != anim_id) {
                 if (file.selected_animation_index == anim_index) {
                     if (dvui.labelClick(@src(), "{s}", .{file.animations.items(.name)[anim_index]}, .{}, .{
                         .gravity_y = 0.5,
-                        .font = dvui.Font.theme(.mono),
+                        .font = font,
                         .margin = dvui.Rect.all(2),
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
@@ -382,7 +391,7 @@ pub fn drawAnimations(self: *Sprites, parent_width: f32) !void {
                     dvui.labelNoFmt(@src(), file.animations.items(.name)[anim_index], .{}, .{
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(2),
-                        .font = dvui.Font.theme(.mono),
+                        .font = font,
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     });
@@ -393,7 +402,7 @@ pub fn drawAnimations(self: *Sprites, parent_width: f32) !void {
                     .background = false,
                     .padding = dvui.Rect.all(0),
                     .margin = dvui.Rect.all(0),
-                    .font = dvui.Font.theme(.mono),
+                    .font = font,
                     .gravity_y = 0.5,
                 });
                 defer te.deinit();
@@ -672,7 +681,7 @@ pub fn drawFrames(self: *Sprites) !void {
         });
         defer controls_box.deinit();
 
-        dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold) });
+        dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
 
         self.drawFrameControls() catch {};
 
@@ -760,7 +769,13 @@ pub fn drawFrames(self: *Sprites) !void {
             });
             defer box.deinit();
 
+            const total_duration: i32 = 600_000;
+            const max_step_duration: i32 = @divTrunc(total_duration, 3);
+
+            const duration_step: i32 = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(animation.frames.len))), 0, max_step_duration);
+
             for (animation.frames, 0..) |frame, frame_index| {
+                const duration = max_step_duration + (duration_step * @as(i32, @intCast(frame_index + 1)));
                 var color = dvui.themeGet().color(.control, .fill_hover);
                 if (pixi.editor.colors.file_tree_palette) |*palette| {
                     color = palette.getDVUIColor(animation.id);
@@ -778,8 +793,8 @@ pub fn drawFrames(self: *Sprites) !void {
                     dvui.animation(r.data().id, "sprite_expand", .{
                         .start_val = 0.2,
                         .end_val = 1.0,
-                        .end_time = 150_000 + (50_000 * @as(i32, @intCast(frame_index))),
-                        .easing = dvui.easing.inOutQuad,
+                        .end_time = duration,
+                        .easing = dvui.easing.outBack,
                     });
                 }
 
@@ -835,7 +850,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 dvui.labelNoFmt(@src(), try file.spriteName(pixi.app.allocator, frame, false), .{}, .{
                     .gravity_y = 0.5,
                     .margin = dvui.Rect.all(2),
-                    .font = dvui.Font.theme(.mono),
+                    .font = dvui.Font.theme(.mono).larger(-2.0),
                     .padding = dvui.Rect.all(0),
                     .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
                 });
