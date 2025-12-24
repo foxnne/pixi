@@ -57,36 +57,6 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
     return fw;
 }
 
-pub fn processKeybinds(self: *FileWidget) void {
-    for (dvui.events()) |*e| {
-        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
-            continue;
-        }
-
-        switch (e.evt) {
-            .key => |ke| {
-                if (ke.matchBind("activate") and (ke.action == .down or ke.action == .repeat)) {
-                    if (self.init_options.file.editor.transform) |*transform| {
-                        transform.accept();
-                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                    }
-                }
-
-                if (ke.matchBind("cancel") and ke.action == .down) {
-                    if (self.init_options.file.editor.transform) |*transform| {
-                        transform.cancel();
-                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                    } else {
-                        self.init_options.file.clearSelectedSprites();
-                        self.init_options.file.selected_animation_index = null;
-                    }
-                }
-            },
-            else => {},
-        }
-    }
-}
-
 pub fn processSample(self: *FileWidget) void {
     const file = self.init_options.file;
 
@@ -445,7 +415,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         const sprite_rect = self.init_options.file.spriteRect(index);
 
         // Set the default bubble color, which will be the highlight color
-        var color = dvui.themeGet().color(.control, .text);
+        var color = dvui.themeGet().color(.control, .fill_hover);
 
         var automatic_animation: bool = false;
         var automatic_animation_frame_i: usize = 0;
@@ -496,7 +466,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
                 if (animation_index) |ai| {
                     if (ai != self.init_options.file.selected_animation_index) {
-                        color = dvui.themeGet().color(.control, .text);
+                        color = dvui.themeGet().color(.control, .fill_hover);
                     }
                 }
             }
@@ -2750,7 +2720,6 @@ pub fn processEvents(self: *FileWidget) void {
     self.drawSample();
     //}
 
-    self.processKeybinds();
     self.drawTransform();
 
     // Then process the scroll and zoom events last

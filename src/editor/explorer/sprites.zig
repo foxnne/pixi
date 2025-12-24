@@ -297,7 +297,11 @@ pub fn drawAnimations(self: *Sprites, parent_width: f32) !void {
         const total_duration: i32 = 600_000;
         const max_step_duration: i32 = @divTrunc(total_duration, 3);
 
-        const duration_step: i32 = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(file.animations.len))), 0, max_step_duration);
+        var duration_step: i32 = max_step_duration;
+
+        if (file.animations.len > 0) {
+            duration_step = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(file.animations.len))), 0, max_step_duration);
+        }
 
         for (file.animations.items(.id), 0..) |anim_id, anim_index| {
             const duration = max_step_duration + (duration_step * @as(i32, @intCast(anim_index + 1)));
@@ -772,7 +776,10 @@ pub fn drawFrames(self: *Sprites) !void {
             const total_duration: i32 = 600_000;
             const max_step_duration: i32 = @divTrunc(total_duration, 3);
 
-            const duration_step: i32 = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(animation.frames.len))), 0, max_step_duration);
+            var duration_step: i32 = max_step_duration;
+            if (animation.frames.len > 0) {
+                duration_step = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(animation.frames.len))), 0, max_step_duration);
+            }
 
             for (animation.frames, 0..) |frame, frame_index| {
                 const duration = max_step_duration + (duration_step * @as(i32, @intCast(frame_index + 1)));

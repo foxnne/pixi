@@ -65,7 +65,7 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
         }
 
         if (e.evt == .mouse) {
-            if (e.evt.mouse.action == .press) {
+            if (e.evt.mouse.action == .press or (e.evt.mouse.action == .position and e.evt.mouse.mod.matchBind("ctrl/cmd"))) {
                 pixi.editor.open_workspace_grouping = self.grouping;
             }
         }

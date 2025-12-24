@@ -753,6 +753,36 @@ pub fn forceCloseFile(editor: *Editor, index: usize) !void {
     }
 }
 
+pub fn accept(editor: *Editor) !void {
+    if (editor.activeFile()) |file| {
+        if (file.editor.transform) |*t| {
+            t.accept();
+        }
+    }
+}
+
+pub fn cancel(editor: *Editor) !void {
+    if (editor.activeFile()) |file| {
+        // First press will clear transform
+        if (file.editor.transform) |*t| {
+            t.cancel();
+            return;
+        }
+
+        // Second press will clear selected sprites
+        if (file.editor.selected_sprites.count() > 0) {
+            file.clearSelectedSprites();
+            return;
+        }
+
+        // Third press will clear animation
+        if (file.selected_animation_index != null) {
+            file.selected_animation_index = null;
+            return;
+        }
+    }
+}
+
 pub fn copy(editor: *Editor) !void {
     if (switch (editor.tools.current) {
         .selection, .pointer => false,
@@ -790,7 +820,19 @@ pub fn copy(editor: *Editor) !void {
                         }
                     }
                 } else {
-                    if (file.selected_animation_index) |animation_index| {
+                    if (file.editor.canvas.hovered) {
+                        const rect = file.spriteRect(file.editor.sprites_hovered_index);
+                        if (selected_layer.pixelsFromRect(
+                            dvui.currentWindow().arena(),
+                            rect,
+                        )) |source_pixels| {
+                            file.editor.transform_layer.blit(
+                                source_pixels,
+                                rect,
+                                .{ .transparent = true, .mask = true },
+                            );
+                        }
+                    } else if (file.selected_animation_index) |animation_index| {
                         const animation = file.animations.get(animation_index);
                         if (file.selected_animation_frame_index < animation.frames.len) {
                             const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
@@ -883,8 +925,34 @@ pub fn paste(editor: *Editor) !void {
 
                 return;
             }
+            if (file.editor.canvas.hovered) {
+                const rect = file.spriteRect(file.editor.sprites_hovered_index);
+                dst_rect.x = rect.x + clipboard.offset.x;
+                dst_rect.y = rect.y + clipboard.offset.y;
 
-            if (file.selected_animation_index) |animation_index| {
+                file.editor.transform = .{
+                    .file_id = file.id,
+                    .layer_id = active_layer.id,
+                    .data_points = .{
+                        dst_rect.topLeft(),
+                        dst_rect.topRight(),
+                        dst_rect.bottomRight(),
+                        dst_rect.bottomLeft(),
+                        dst_rect.center(),
+                        dst_rect.center(),
+                    },
+                    .source = clipboard.source,
+                };
+
+                for (file.editor.transform.?.data_points[0..4]) |*point| {
+                    const d = point.diff(file.editor.transform.?.point(.pivot).*);
+                    if (d.length() > file.editor.transform.?.radius) {
+                        file.editor.transform.?.radius = d.length() + 4;
+                    }
+                }
+
+                return;
+            } else if (file.selected_animation_index) |animation_index| {
                 const animation = file.animations.get(animation_index);
 
                 if (file.selected_animation_frame_index < animation.frames.len) {
@@ -984,7 +1052,20 @@ pub fn transform(editor: *Editor) !void {
                         }
                     }
                 } else {
-                    if (file.selected_animation_index) |animation_index| {
+                    if (file.editor.canvas.hovered) {
+                        const source_rect = file.spriteRect(file.editor.sprites_hovered_index);
+                        if (selected_layer.pixelsFromRect(
+                            dvui.currentWindow().arena(),
+                            source_rect,
+                        )) |source_pixels| {
+                            file.editor.transform_layer.blit(
+                                source_pixels,
+                                source_rect,
+                                .{ .transparent = true, .mask = true },
+                            );
+                            selected_layer.clearRect(source_rect);
+                        }
+                    } else if (file.selected_animation_index) |animation_index| {
                         const animation = file.animations.get(animation_index);
                         if (file.selected_animation_frame_index < animation.frames.len) {
                             const source_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);

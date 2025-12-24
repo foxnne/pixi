@@ -96,6 +96,18 @@ pub fn tick() !void {
                     }
                 }
 
+                if (ke.matchBind("activate") and ke.action == .down) {
+                    pixi.editor.accept() catch {
+                        std.log.err("Failed to accept", .{});
+                    };
+                }
+
+                if (ke.matchBind("cancel") and ke.action == .down) {
+                    pixi.editor.cancel() catch {
+                        std.log.err("Failed to cancel", .{});
+                    };
+                }
+
                 if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
                     pixi.editor.undo() catch {
                         std.log.err("Failed to undo", .{});
