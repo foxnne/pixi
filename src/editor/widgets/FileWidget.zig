@@ -630,7 +630,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
     }
 
-    const scaled_h = std.math.clamp(((max_height * multiplier) * t) / (self.init_options.canvas.scale * baseline_scale), 0.0, (sprite_rect.h / 2.0));
+    const scaled_h = std.math.clamp(((max_height * multiplier / (self.init_options.canvas.scale * baseline_scale)) * t), 0.0, (max_height * multiplier * t));
 
     //button_size = scaled_h * 1.2;
 
@@ -655,7 +655,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + box.data().contentRectScale().r.h };
     const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + box.data().contentRectScale().r.h };
 
-    if (new_rect.h < 1) {
+    if (new_rect.h < 0.001) {
         path.addPoint(tr);
         path.addPoint(tl);
 
@@ -672,7 +672,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         built.stroke(.{ .color = color, .thickness = 2.5 * dvui.currentWindow().natural_scale });
 
         var draw_transparency: bool = false;
-        if (self.init_options.file.editor.playing) {
+        if (!self.hovered()) {
             if (self.init_options.file.selected_animation_index) |ai| {
                 if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
                     draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index;
@@ -2474,7 +2474,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-    if (self.init_options.file.editor.playing) {
+    if (!self.hovered()) {
         if (self.init_options.file.selected_animation_index) |animation_index| {
             const animation = file.animations.get(animation_index);
 
@@ -2733,7 +2733,7 @@ pub fn deinit(self: *FileWidget) void {
 }
 
 pub fn hovered(self: *FileWidget) bool {
-    return self.init_options.canvas.hovered;
+    return self.init_options.canvas.hovered and self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt);
 }
 
 test {
