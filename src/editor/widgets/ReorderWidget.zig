@@ -49,7 +49,13 @@ fn dragging(self: *ReorderWidget) bool {
 }
 
 pub fn needFinalSlot(self: *ReorderWidget) bool {
-    if (self.dragging() and self.data().borderRectScale().r.contains(dvui.currentWindow().mouse_pt)) {
+    // if (self.dragging() and self.data().borderRectScale().r.contains(dvui.currentWindow().mouse_pt)) {
+    //     return !self.found_slot;
+    // }
+
+    // Here we always draw a final slot if we are dragging, such that the scroll area beneath is always updated
+
+    if (self.dragging()) {
         return !self.found_slot;
     }
 
@@ -129,16 +135,6 @@ pub fn processEvents(self: *ReorderWidget) void {
 pub fn processEvent(self: *ReorderWidget, e: *dvui.Event) void {
     switch (e.evt) {
         .mouse => |me| {
-            // if we are the drag source, update where the mouse is and possibly scroll
-            if (self.drag_point != null and me.action == .motion) {
-                self.drag_point = e.evt.mouse.p;
-
-                dvui.scrollDrag(.{
-                    .mouse_pt = e.evt.mouse.p,
-                    .screen_rect = self.wd.rectScale().r,
-                });
-            }
-
             // detect a drag end that is over us
             // if nobody catches it, dvui.Window will end the drag on an unhandled mouse up
             if (self.dragging() and self.data().borderRectScale().r.contains(dvui.currentWindow().mouse_pt)) {
@@ -332,10 +328,6 @@ pub const Reorderable = struct {
 
                     if (self.init_options.reinstall and !self.init_options.last_slot) {
                         self.reinstall();
-                    }
-
-                    if (self.init_options.last_slot) {
-                        dvui.scrollTo(.{ .screen_rect = rs.r });
                     }
                 }
 
