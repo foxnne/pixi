@@ -115,7 +115,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         selected_id = null;
     }
 
-    const color: dvui.Color = if (pixi.editor.colors.palette) |*palette| palette.getDVUIColor(0) else dvui.themeGet().color(.control, .fill);
+    const color = dvui.themeGet().color(.control, .fill_hover);
 
     _ = dvui.icon(
         @src(),
@@ -230,6 +230,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                 const branch_id = tree.data().id.update(abs_path);
 
                 var expanded = false;
+                const expanded_indent: f32 = 14.0;
 
                 if (pixi.editor.explorer.open_branches.get(branch_id) != null) {
                     expanded = true;
@@ -250,14 +251,14 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                 const current_point = dvui.currentWindow().mouse_pt;
 
-                const max_distance = if (!expanded) branch.data().borderRectScale().r.h * 6 else branch.data().borderRectScale().r.h;
+                const max_distance = if (!expanded) branch.data().borderRectScale().r.h * 3.0 else branch.data().borderRectScale().r.w / 8.0;
 
                 var dx: f32 = std.math.floatMax(f32);
 
-                if (current_point.x < branch.data().borderRectScale().r.x) {
+                if (current_point.x < branch.data().borderRectScale().r.x + if (expanded) (expanded_indent * dvui.currentWindow().natural_scale) else 0.0) {
                     dx = std.math.floatMax(f32);
-                } else if (current_point.x > (branch.data().borderRectScale().r.x + branch.data().borderRectScale().r.w)) {
-                    dx = @abs(current_point.x - (branch.data().borderRectScale().r.x + branch.data().borderRectScale().r.w));
+                } else if (current_point.x > branch.data().borderRectScale().r.bottomRight().x) {
+                    dx = @abs(current_point.x - branch.data().borderRectScale().r.bottomRight().x);
                 } else {
                     dx = 0.0;
                 }
@@ -266,8 +267,8 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                 if (current_point.y < branch.data().borderRectScale().r.y) {
                     dy = @abs(current_point.y - branch.data().borderRectScale().r.y);
-                } else if (current_point.y > (branch.data().borderRectScale().r.y + branch.data().borderRectScale().r.h)) {
-                    dy = @abs(current_point.y - (branch.data().borderRectScale().r.y + branch.data().borderRectScale().r.h));
+                } else if (current_point.y > branch.data().borderRectScale().r.bottomRight().y) {
+                    dy = @abs(current_point.y - branch.data().borderRectScale().r.bottomRight().y);
                 } else {
                     dy = 0.0;
                 }
@@ -501,7 +502,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         //     },
                         // );
 
-                        if (branch.expander(@src(), .{ .indent = 14 }, .{
+                        if (branch.expander(@src(), .{ .indent = expanded_indent }, .{
                             .color_fill = dvui.themeGet().color(.control, .fill),
                             .color_border = color.lerp(dvui.themeGet().color(.control, .fill), 1.0 - t),
                             .background = true,
