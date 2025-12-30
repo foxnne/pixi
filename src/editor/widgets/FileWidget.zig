@@ -655,7 +655,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     const tl = dvui.Point.Physical{ .x = r.x + rad.x, .y = r.y + box.data().contentRectScale().r.h };
     const tr = dvui.Point.Physical{ .x = r.x + r.w - rad.y, .y = r.y + box.data().contentRectScale().r.h };
 
-    if (new_rect.h < 0.001) {
+    if (r.h < dvui.currentWindow().natural_scale) {
         path.addPoint(tr);
         path.addPoint(tl);
 
