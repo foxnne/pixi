@@ -248,29 +248,35 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                 });
                 defer branch.deinit();
 
-                {
-                    const current_point = dvui.currentWindow().mouse_pt;
+                const current_point = dvui.currentWindow().mouse_pt;
 
-                    const max_distance = if (!expanded) branch.data().borderRectScale().r.h * 6 else branch.data().borderRectScale().r.h;
+                const max_distance = if (!expanded) branch.data().borderRectScale().r.h * 6 else branch.data().borderRectScale().r.h;
 
-                    var dx: f32 = std.math.floatMax(f32);
+                var dx: f32 = std.math.floatMax(f32);
 
-                    if (current_point.x < branch.data().borderRectScale().r.x) {
-                        dx = std.math.floatMax(f32);
-                    } else if (current_point.x > (branch.data().borderRectScale().r.x + branch.data().borderRectScale().r.w)) {
-                        dx = @abs(current_point.x - (branch.data().borderRectScale().r.x + branch.data().borderRectScale().r.w));
-                    } else {
-                        dx = 0.0;
-                    }
-
-                    const dy = @abs(current_point.y - branch.data().borderRectScale().r.center().y);
-
-                    const distance = @sqrt(dx * dx + dy * dy);
-
-                    const t = 1.0 - (distance / max_distance);
-
-                    color = dvui.themeGet().color(.control, .fill_hover).lerp(color, t);
+                if (current_point.x < branch.data().borderRectScale().r.x) {
+                    dx = std.math.floatMax(f32);
+                } else if (current_point.x > (branch.data().borderRectScale().r.x + branch.data().borderRectScale().r.w)) {
+                    dx = @abs(current_point.x - (branch.data().borderRectScale().r.x + branch.data().borderRectScale().r.w));
+                } else {
+                    dx = 0.0;
                 }
+
+                var dy: f32 = std.math.floatMax(f32);
+
+                if (current_point.y < branch.data().borderRectScale().r.y) {
+                    dy = @abs(current_point.y - branch.data().borderRectScale().r.y);
+                } else if (current_point.y > (branch.data().borderRectScale().r.y + branch.data().borderRectScale().r.h)) {
+                    dy = @abs(current_point.y - (branch.data().borderRectScale().r.y + branch.data().borderRectScale().r.h));
+                } else {
+                    dy = 0.0;
+                }
+
+                const distance = @sqrt(dx * dx + dy * dy);
+
+                const t = 1.0 - (distance / max_distance);
+
+                color = dvui.themeGet().color(.control, .fill_hover).lerp(color, t);
 
                 if (branch.floating()) {
                     if (dvui.dataGetSlice(null, inner_unique_id, "removed_path", []u8) == null)
@@ -497,17 +503,17 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         if (branch.expander(@src(), .{ .indent = 14 }, .{
                             .color_fill = dvui.themeGet().color(.control, .fill),
-                            .color_border = color,
+                            .color_border = color.lerp(dvui.themeGet().color(.control, .fill), 1.0 - t),
                             .background = true,
                             .border = .{ .x = 1, .w = 0 },
                             .expand = .horizontal,
                             .corner_radius = .all(8),
                             .box_shadow = .{
                                 .color = .black,
-                                .offset = .{ .x = -5, .y = 5 },
-                                .shrink = 5,
+                                .offset = .{ .x = -10, .y = 0 },
+                                .shrink = 10,
                                 .fade = 10,
-                                .alpha = 0.15,
+                                .alpha = 0.25 * t,
                             },
                         })) {
                             pixi.editor.explorer.open_branches.put(branch_id, {}) catch {
