@@ -94,8 +94,8 @@ pub fn init(
         return err;
     };
 
-    editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
-    editor.colors.palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pear36.hex");
+    editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pixi.hex");
+    editor.colors.palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pixi.hex");
 
     try Keybinds.register();
 

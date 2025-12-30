@@ -8,6 +8,4 @@ recents.json
 .temp/
 *.code-workspace
 
-src/generated/
-
 .zig-cache/
