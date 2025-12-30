@@ -115,7 +115,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         selected_id = null;
     }
 
-    const color: dvui.Color = if (pixi.editor.colors.file_tree_palette) |*palette| palette.getDVUIColor(0) else dvui.themeGet().color(.control, .fill_hover);
+    const color: dvui.Color = if (pixi.editor.colors.palette) |*palette| palette.getDVUIColor(0) else dvui.themeGet().color(.control, .fill);
 
     _ = dvui.icon(
         @src(),
@@ -139,7 +139,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     });
 
     if (branch.expander(@src(), .{ .indent = 24 }, .{
-        .color_border = color,
+        //.color_border = color,
         .color_fill = dvui.themeGet().color(.control, .fill),
         .corner_radius = .all(8),
         // .box_shadow = .{
@@ -152,7 +152,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
         .expand = .both,
         .margin = .{ .x = 10, .w = 5 },
         .background = true,
-        .border = .{ .x = 1, .w = 0 },
+        //.border = .{ .x = 1, .w = 0 },
     })) {
         var box = dvui.box(@src(), .{
             .dir = .vertical,
@@ -218,8 +218,8 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                 inner_id_extra.* = dvui.Id.update(tree.data().id, abs_path).asUsize();
 
-                var color = dvui.themeGet().color(.control, .fill_hover);
-                if (pixi.editor.colors.file_tree_palette) |*palette| {
+                var color = dvui.themeGet().color(.control, .fill);
+                if (pixi.editor.colors.palette) |*palette| {
                     color = palette.getDVUIColor(color_id.*);
                 }
 
@@ -247,6 +247,30 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                     .padding = dvui.Rect.all(1),
                 });
                 defer branch.deinit();
+
+                {
+                    const current_point = dvui.currentWindow().mouse_pt;
+
+                    const max_distance = if (!expanded) branch.data().borderRectScale().r.h * 6 else branch.data().borderRectScale().r.h;
+
+                    var dx: f32 = std.math.floatMax(f32);
+
+                    if (current_point.x < branch.data().borderRectScale().r.x) {
+                        dx = std.math.floatMax(f32);
+                    } else if (current_point.x > (branch.data().borderRectScale().r.x + branch.data().borderRectScale().r.w)) {
+                        dx = @abs(current_point.x - (branch.data().borderRectScale().r.x + branch.data().borderRectScale().r.w));
+                    } else {
+                        dx = 0.0;
+                    }
+
+                    const dy = @abs(current_point.y - branch.data().borderRectScale().r.center().y);
+
+                    const distance = @sqrt(dx * dx + dy * dy);
+
+                    const t = 1.0 - (distance / max_distance);
+
+                    color = dvui.themeGet().color(.control, .fill_hover).lerp(color, t);
+                }
 
                 if (branch.floating()) {
                     if (dvui.dataGetSlice(null, inner_unique_id, "removed_path", []u8) == null)
