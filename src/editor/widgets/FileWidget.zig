@@ -686,7 +686,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             if (self.init_options.file.editor.canvas.scale < 2.0) {
                 built.fillConvex(.{ .color = fill_color, .fade = 3.0 });
             } else {
-                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0), .fade = 2 }) catch {
+                built.fillConvex(.{ .color = fill_color, .fade = 3.0 });
+                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0).opacity(0.5), .fade = 2 }) catch {
                     dvui.log.err("Failed to fill convex triangles", .{});
                     return;
                 };
@@ -2489,8 +2490,9 @@ pub fn drawLayers(self: *FileWidget) void {
                 if (self.init_options.file.editor.canvas.scale < 2.0) {
                     image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
                 } else {
+                    image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
                     dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                        .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0),
+                        .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
                     }) catch {
                         std.log.err("Failed to render checkerboard", .{});
                     };
@@ -2508,8 +2510,9 @@ pub fn drawLayers(self: *FileWidget) void {
         if (self.init_options.file.editor.canvas.scale < 2.0) {
             image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
         } else {
+            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
             dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0),
+                .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
             }) catch {
                 std.log.err("Failed to render checkerboard", .{});
             };

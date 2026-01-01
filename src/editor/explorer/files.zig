@@ -514,7 +514,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                 .offset = .{ .x = -10, .y = 0 },
                                 .shrink = 10,
                                 .fade = 10,
-                                .alpha = 0.25 * t,
+                                .alpha = 0.15 * t,
                             },
                         })) {
                             pixi.editor.explorer.open_branches.put(branch_id, {}) catch {
