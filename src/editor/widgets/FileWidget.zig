@@ -637,7 +637,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     new_rect.h = scaled_h;
     new_rect.y = sprite_rect.y - scaled_h;
 
-    const radius = std.math.clamp(scaled_h, -@min(sprite_rect.h, sprite_rect.w) / 2.0, @min(sprite_rect.h, sprite_rect.w) / 2.0);
+    const radius = std.math.clamp(scaled_h, -@min(sprite_rect.h, sprite_rect.w) / 2.0 + 1.0, @min(sprite_rect.h, sprite_rect.w) / 2.0) - 1.0;
 
     const corner_radius: dvui.Rect = .{ .x = radius, .y = radius };
 
@@ -697,8 +697,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             const shadow_fade = r.h * 0.25;
             const shadow_color = dvui.Color.black.opacity(0.15 * t);
             var shadow_path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
-            shadow_path.addArc(tr.plus(.{ .x = -shadow_fade / 8.0, .y = -shadow_fade }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
-            shadow_path.addArc(tl.plus(.{ .x = shadow_fade / 8.0, .y = -shadow_fade }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
+            shadow_path.addArc(tr.plus(.{ .x = 0.0, .y = -shadow_fade }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+            shadow_path.addArc(tl.plus(.{ .x = 0.0, .y = -shadow_fade }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
             shadow_path.build().fillConvex(.{ .color = shadow_color, .fade = shadow_fade });
         }
 
