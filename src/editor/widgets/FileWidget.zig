@@ -641,10 +641,23 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
     const corner_radius: dvui.Rect = .{ .x = radius, .y = radius };
 
+    //const shadow_fade = (8 * 1 / self.init_options.canvas.scale) * t;
+
+    // TODO: Draw a custom box shadow that matches the radius of the bubble
     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .rect = new_rect,
         .id_extra = sprite_index,
-        .corner_radius = corner_radius,
+        //.corner_radius = .all(100000000.0),
+        // .box_shadow = .{
+        //     .fade = shadow_fade,
+        //     .shrink = shadow_fade / 2.0,
+        //     .corner_radius = .all(100000000.0),
+        //     .alpha = 0.15 * t,
+        //     .offset = .{
+        //         .x = 0.0,
+        //         .y = -shadow_fade,
+        //     },
+        // },
     });
 
     var path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
@@ -663,13 +676,11 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         box.deinit();
     } else {
-        path.addArc(tr.plus(.{ .x = -1 * dvui.currentWindow().natural_scale, .y = 0 }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
-        path.addArc(tl.plus(.{ .x = 1 * dvui.currentWindow().natural_scale, .y = 0 }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
+        path.addArc(tr, rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+        path.addArc(tl, rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
 
         var built = path.build();
         defer path.deinit();
-
-        built.stroke(.{ .color = color, .thickness = 2.5 * dvui.currentWindow().natural_scale });
 
         var draw_transparency: bool = false;
         if (!self.hovered()) {
@@ -682,12 +693,21 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             draw_transparency = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
         }
 
+        { // Draw drop shadow
+            const shadow_fade = r.h * 0.25;
+            const shadow_color = dvui.Color.black.opacity(0.15 * t);
+            var shadow_path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
+            shadow_path.addArc(tr.plus(.{ .x = -shadow_fade / 8.0, .y = -shadow_fade }), rad.y, dvui.math.pi * 2.0, dvui.math.pi * 1.5, false);
+            shadow_path.addArc(tl.plus(.{ .x = shadow_fade / 8.0, .y = -shadow_fade }), rad.x, dvui.math.pi * 1.5, dvui.math.pi, false);
+            shadow_path.build().fillConvex(.{ .color = shadow_color, .fade = shadow_fade });
+        }
+
         if (draw_transparency) {
             if (self.init_options.file.editor.canvas.scale < 2.0) {
                 built.fillConvex(.{ .color = fill_color, .fade = 3.0 });
             } else {
-                built.fillConvex(.{ .color = fill_color, .fade = 3.0 });
-                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0).opacity(0.5), .fade = 2 }) catch {
+                built.fillConvex(.{ .color = fill_color, .fade = 0.0 });
+                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0).opacity(0.5), .fade = 0.0 }) catch {
                     dvui.log.err("Failed to fill convex triangles", .{});
                     return;
                 };
@@ -707,8 +727,20 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 };
             }
         } else {
+            dvui.Path.stroke(.{
+                .points = &[_]dvui.Point.Physical{
+                    r.bottomLeft(),
+                    r.bottomRight(),
+                },
+            }, .{
+                .color = dvui.themeGet().color(.window, .fill),
+                .thickness = 1.0,
+            });
             built.fillConvex(.{ .color = dvui.themeGet().color(.window, .fill), .fade = 3.0 });
         }
+
+        // Draw bubble outline
+        built.stroke(.{ .color = color, .thickness = 1.0 });
 
         const center = box.data().rect.center();
 
