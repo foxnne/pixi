@@ -637,7 +637,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     new_rect.h = scaled_h;
     new_rect.y = sprite_rect.y - scaled_h;
 
-    const radius = std.math.clamp(scaled_h, 0.0, @min(sprite_rect.h, sprite_rect.w) / 2.0) - 1.0;
+    const radius = std.math.clamp(scaled_h, 0.0, @max(0.0, @min(sprite_rect.h, sprite_rect.w) / 2.0) - 1.0);
 
     const corner_radius: dvui.Rect = .{ .x = radius, .y = radius };
 
