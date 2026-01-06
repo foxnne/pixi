@@ -481,7 +481,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             false;
 
         if (automatic_animation) {
-            const total_duration: i32 = 1_000_000;
+            const total_duration: i32 = 1_500_000;
             const max_step_duration: i32 = @divTrunc(total_duration, 3);
 
             var duration_step = max_step_duration;
@@ -552,7 +552,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
             const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
-            const distance = @sqrt(dx * dx + dy * dy);
+            const distance = @sqrt((dx * dx) * 2 + dy * dy);
 
             if (distance < (max_distance * 2.0)) {
                 var t: f32 = distance / max_distance;
@@ -695,7 +695,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         //const min_radius: f32 = @max(max_height * (self.init_options.canvas.scale * baseline_scale), max_height * baseline_scale);
         //const max_radius: f32 = min_radius * 32.0;
 
-        const arc_height = std.math.clamp(bubble_rect_scale.r.h, 0.1, @min(sprite_rect_scale.r.h, sprite_rect_scale.r.w) * 0.5) - 0.1;
+        const arc_height = std.math.clamp(bubble_rect_scale.r.h, dvui.currentWindow().natural_scale, @min(sprite_rect_scale.r.h, sprite_rect_scale.r.w) * 0.5) - dvui.currentWindow().natural_scale;
 
         // Solve for r:
         // arc_height = r - sqrt(r^2 - (w/2)^2)
@@ -741,11 +741,13 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
 
         { // Draw drop shadow
-            const shadow_fade = (arc_height * 0.33) * t;
-            const shadow_offset = (dvui.math.pi / 8.0);
+            const shadow_fade = arc_height * 0.33 * dvui.easing.outExpo(t);
+            const clip = dvui.clip(bubble_rect_scale.r.outset(.{ .x = shadow_fade, .y = shadow_fade, .w = shadow_fade }).offsetPoint(.{ .x = 0.0, .y = -dvui.currentWindow().natural_scale }));
+            defer dvui.clipSet(clip);
+
             const shadow_color = dvui.Color.black.opacity(0.25);
             var shadow_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            shadow_path.addArc(arc_center.plus(.{ .x = 0.0, .y = shadow_fade * (1.0 - t) }), radius, dvui.math.pi + start_angle - shadow_offset, dvui.math.pi + end_angle + shadow_offset, false);
+            shadow_path.addArc(arc_center.plus(.{ .x = 0.0, .y = 0.0 }), radius, dvui.math.pi + start_angle, dvui.math.pi + end_angle, false);
             shadow_path.build().fillConvex(.{ .color = shadow_color, .fade = shadow_fade });
         }
 
@@ -759,14 +761,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                     return;
                 };
 
-                // const parent_rect: dvui.Rect.Physical = .{
-                //     .x = sprite_rect_scale.r.x,
-                //     .y = sprite_rect_scale.r.y - offset_y,
-                //     .w = sprite_rect_scale.r.w,
-                //     .h = offset_y,
-                // };
-
-                const h = t / (self.init_options.canvas.scale * baseline_scale);
+                const h = arc_height / sprite_rect_scale.r.h;
 
                 const uv_rect = dvui.Rect{
                     .x = 0.0,
@@ -808,8 +803,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             button_size = 0.0;
         }
 
-        //button_size = std.math.clamp(button_size, 0.0, @min(sprite_rect.h, sprite_rect.w) / 3.0);
-
         const button_rect = dvui.Rect{ .x = center.x - button_size / 2, .y = center.y - (button_size / 2), .w = button_size, .h = button_size };
 
         var button: dvui.ButtonWidget = undefined;
@@ -826,8 +819,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 .alpha = 0.35 * t,
             },
             .corner_radius = dvui.Rect.all(1000000),
-            //.border = dvui.Rect.all(0.0),
-            //.color_border = dvui.themeGet().color(.highlight, .fill),
+
             .gravity_x = 0.5,
             .gravity_y = 0.5,
         });
