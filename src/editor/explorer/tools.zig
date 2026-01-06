@@ -3,13 +3,21 @@ const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 const icons = @import("icons");
 
+const Tools = @This();
+
 var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
 var edit_layer_id: ?u64 = null;
 var prev_layer_count: usize = 0;
 var max_split_ratio: f32 = 0.4;
 
-pub fn draw() !void {
+layers_rect: dvui.Rect.Physical = .{},
+
+pub fn init() Tools {
+    return .{};
+}
+
+pub fn draw(self: *Tools) !void {
     drawTools() catch {};
     drawColors() catch {};
     drawLayerControls() catch {};
@@ -32,8 +40,9 @@ pub fn draw() !void {
     }
 
     if (paned.showFirst()) {
-        drawLayers() catch {
+        self.layers_rect = drawLayers() catch {
             dvui.log.err("Failed to draw layers", .{});
+            return;
         };
     }
 
@@ -174,6 +183,22 @@ pub fn drawLayerControls() !void {
         });
         defer hbox.deinit();
 
+        if (dvui.buttonIcon(@src(), "TogglePeek", if (file.editor.isolate_layer) icons.tvg.lucide.@"layers-2" else icons.tvg.lucide.layers, .{}, .{}, .{
+            .expand = .none,
+            .gravity_y = 0.5,
+            .corner_radius = dvui.Rect.all(1000),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -2.0, .y = 2.0 },
+                .fade = 6.0,
+                .alpha = 0.15,
+                .corner_radius = dvui.Rect.all(1000),
+            },
+            .color_fill = dvui.themeGet().color(.control, .fill),
+        })) {
+            file.editor.isolate_layer = !file.editor.isolate_layer;
+        }
+
         if (dvui.buttonIcon(@src(), "AddLayer", icons.tvg.lucide.plus, .{}, .{}, .{
             .expand = .none,
             .gravity_y = 0.5,
@@ -232,7 +257,7 @@ pub fn drawLayerControls() !void {
     }
 }
 
-pub fn drawLayers() !void {
+pub fn drawLayers() !dvui.Rect.Physical {
     const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = false,
@@ -511,6 +536,7 @@ pub fn drawLayers() !void {
         if (file.editor.layers_scroll_info.virtual_size.h > file.editor.layers_scroll_info.viewport.h and vertical_scroll < file.editor.layers_scroll_info.scrollMax(.vertical))
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
     }
+    return vbox.data().contentRectScale().r;
 }
 
 pub fn drawColors() !void {

@@ -184,7 +184,11 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         // Always reset the peek layer index back, but we need to do this outside of the file widget so
         // other editor windows can use it
         defer for (editor.open_files.values()) |*file| {
-            file.peek_layer_index = null;
+            if (file.editor.isolate_layer) {
+                file.peek_layer_index = file.selected_layer_index;
+            } else {
+                file.peek_layer_index = null;
+            }
         };
 
         // Sidebar area

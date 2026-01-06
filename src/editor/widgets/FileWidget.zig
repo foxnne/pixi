@@ -62,21 +62,20 @@ pub fn processSample(self: *FileWidget) void {
 
     const current_mods = dvui.currentWindow().modifiers;
 
-    if (!current_mods.matchBind("sample") and self.sample_key_down) {
-        self.sample_key_down = false;
+    if (current_mods.matchBind("ctrl/cmd") and !self.previous_mods.matchBind("ctrl/cmd") and (self.right_mouse_down or self.sample_key_down)) {
         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-        self.sample(file, current_point, self.right_mouse_down or self.left_mouse_down, true);
-        if (!self.right_mouse_down) {
-            self.sample_data_point = null;
-        }
-    } else if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
+        self.sample(file, current_point, true, true);
+    }
+
+    if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
         self.sample_key_down = true;
         const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
         self.sample(file, current_point, self.right_mouse_down or self.left_mouse_down, false);
-
-        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-        file.editor.temporary_layer.invalidate();
-        file.editor.temporary_layer.dirty = false;
+    } else if (!current_mods.matchBind("sample") and self.sample_key_down) {
+        self.sample_key_down = false;
+        if (!self.right_mouse_down) {
+            self.sample_data_point = null;
+        }
     }
 
     for (dvui.events()) |*e| {
@@ -146,11 +145,11 @@ pub fn processSample(self: *FileWidget) void {
                                 .screen_rect = screen_rect,
                             });
 
-                            self.sample(file, current_point, self.sample_key_down or self.left_mouse_down, false);
+                            self.sample(file, current_point, self.sample_key_down or self.left_mouse_down or current_mods.matchBind("ctrl/cmd"), false);
                             e.handle(@src(), self.init_options.canvas.scroll_container.data());
                         }
                     } else if (self.right_mouse_down or self.sample_key_down) {
-                        self.sample(file, current_point, self.right_mouse_down and (self.sample_key_down or self.left_mouse_down), false);
+                        self.sample(file, current_point, self.right_mouse_down and (self.sample_key_down or self.left_mouse_down or current_mods.matchBind("ctrl/cmd")), false);
                     }
                 }
             },
@@ -164,7 +163,7 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 
     var layer_index: usize = file.layers.len;
-    while (layer_index > 0) {
+    while (layer_index > if (file.editor.isolate_layer) file.selected_layer_index else 0) {
         layer_index -= 1;
         var layer = file.layers.get(layer_index);
         if (!layer.visible) continue;
@@ -2410,9 +2409,18 @@ pub fn drawSample(self: *FileWidget) void {
         };
 
         var i: usize = file.layers.len;
-        while (i > 0) {
+        while (i > if (file.editor.isolate_layer) file.selected_layer_index else 0) {
             i -= 1;
             if (!file.layers.items(.visible)[i]) continue;
+
+            var alpha: f32 = dvui.alpha(1.0);
+            if (file.peek_layer_index) |peek_layer_index| {
+                if (peek_layer_index != i) {
+                    alpha = dvui.alpha(0.2);
+                }
+            }
+
+            defer dvui.alphaSet(alpha);
             const source = file.layers.items(.source)[i];
             dvui.renderImage(source, rs, .{
                 .uv = uv_rect,
@@ -2533,7 +2541,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
 
-    while (layer_index > 0) {
+    while (layer_index > if (file.editor.isolate_layer and !pixi.editor.explorer.tools.layers_rect.contains(dvui.currentWindow().mouse_pt)) file.selected_layer_index else 0) {
         layer_index -= 1;
 
         const visible = file.layers.items(.visible)[layer_index];
@@ -2601,14 +2609,6 @@ pub fn drawLayers(self: *FileWidget) void {
 
     self.init_options.canvas.bounding_box = image.rectScale().r;
 
-    // // Outline the image with a rectangle
-    // dvui.Path.stroke(.{ .points = &.{
-    //     self.init_options.canvas.rect.topLeft(),
-    //     self.init_options.canvas.rect.topRight(),
-    //     self.init_options.canvas.rect.bottomRight(),
-    //     self.init_options.canvas.rect.bottomLeft(),
-    // } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .text), .closed = true });
-
     // Draw the selection box for the selected sprites
     if (pixi.editor.tools.current == .pointer and file.editor.transform == null) {
         var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
@@ -2637,7 +2637,6 @@ pub fn processEvents(self: *FileWidget) void {
         }
     }
 
-    // Always set the peek layer index back to null at the end of the frame
     defer self.previous_mods = dvui.currentWindow().modifiers;
 
     defer if (self.drag_data_point) |drag_data_point| {

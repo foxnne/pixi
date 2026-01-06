@@ -60,6 +60,7 @@ pub const EditorData = struct {
     grouping: u64 = 0,
 
     // Internal layers for editor
+    isolate_layer: bool = false,
     temporary_layer: Layer = undefined,
     selection_layer: Layer = undefined,
     transform_layer: Layer = undefined,
