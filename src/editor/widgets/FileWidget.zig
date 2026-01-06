@@ -741,12 +741,12 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
 
         { // Draw drop shadow
-            const shadow_fade = 20 * (1.0 / (self.init_options.canvas.scale * baseline_scale)) * t;
-            const shadow_offset = (dvui.math.pi / 12.0) * t;
-            //const shadow_color = dvui.Color.black.opacity(0.15 * t);
+            const shadow_fade = (arc_height * 0.33) * t;
+            const shadow_offset = (dvui.math.pi / 8.0);
+            const shadow_color = dvui.Color.black.opacity(0.25);
             var shadow_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            shadow_path.addArc(arc_center.plus(.{ .x = 0.0, .y = 0.0 }), radius, dvui.math.pi + start_angle - shadow_offset, dvui.math.pi + end_angle + shadow_offset, false);
-            shadow_path.build().fillConvex(.{ .color = .red, .fade = shadow_fade });
+            shadow_path.addArc(arc_center.plus(.{ .x = 0.0, .y = shadow_fade * (1.0 - t) }), radius, dvui.math.pi + start_angle - shadow_offset, dvui.math.pi + end_angle + shadow_offset, false);
+            shadow_path.build().fillConvex(.{ .color = shadow_color, .fade = shadow_fade });
         }
 
         if (draw_transparency) {
