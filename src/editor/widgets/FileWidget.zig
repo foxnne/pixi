@@ -540,7 +540,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
             const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-            var max_distance: f32 = sprite_rect.h * 2.5;
+            var max_distance: f32 = sprite_rect.h * 1.5;
 
             if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
                 max_distance += (max_distance * 0.5) * (1.0 - anim.value());
@@ -600,23 +600,21 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         .s = self.init_options.canvas.scale,
     };
 
-    const bubble_max_height: f32 = @min(sprite_rect.h, sprite_rect.w) * 0.5;
-    const bubble_max_height_unselected: f32 = bubble_max_height * 0.5;
-
-    var bubble_height = std.math.clamp(bubble_max_height_unselected * t / self.init_options.canvas.scale, 0.0, bubble_max_height_unselected * t);
+    var bubble_max_height: f32 = @min(sprite_rect.h, sprite_rect.w) * 0.5;
 
     if (self.init_options.file.selected_animation_index) |ai| {
         if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
             const animation = self.init_options.file.animations.get(ai);
             if (animation.frames.len > 0) {
                 const frame = animation.frames[self.init_options.file.selected_animation_frame_index];
-                if (frame == sprite_index and animation_index == ai) {
-                    bubble_height = std.math.clamp(bubble_max_height * t / self.init_options.canvas.scale, 0.0, bubble_max_height * t);
+                if (frame != sprite_index and animation_index == ai) {
+                    bubble_max_height = @min(sprite_rect.h, sprite_rect.w) * 0.3333;
                 }
             }
         }
     }
 
+    const bubble_height = std.math.clamp((bubble_max_height * t) / (self.init_options.canvas.scale * baseline_scale), 0.0, bubble_max_height * t);
     const bubble_rect = dvui.Rect{
         .x = sprite_rect.x,
         .y = sprite_rect.y - bubble_height,
@@ -624,7 +622,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         .h = bubble_height,
     };
 
-    const bubble_rect_scale: dvui.RectScale = .{
+    var bubble_rect_scale: dvui.RectScale = .{
         .r = self.init_options.canvas.screenFromDataRect(bubble_rect),
         .s = self.init_options.canvas.scale,
     };
@@ -693,21 +691,40 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         path.build().stroke(.{ .thickness = 1.0 * dvui.currentWindow().natural_scale, .color = color });
     } else {
-        const min_radius: f32 = @max(@min(sprite_rect_scale.r.h, sprite_rect_scale.r.w) * 0.5 * (t * self.init_options.canvas.scale * baseline_scale), @min(sprite_rect_scale.r.h, sprite_rect_scale.r.w) * 0.5);
-        const max_radius: f32 = min_radius * 16.0;
+        //const max_height: f32 = @min(sprite_rect_scale.r.h, sprite_rect_scale.r.w) * 0.5;
+        //const min_radius: f32 = @max(max_height * (self.init_options.canvas.scale * baseline_scale), max_height * baseline_scale);
+        //const max_radius: f32 = min_radius * 32.0;
 
-        const radius: f32 = std.math.lerp(max_radius, min_radius, dvui.easing.outExpo(t));
+        const arc_height = std.math.clamp(bubble_rect_scale.r.h, 0.1, @min(sprite_rect_scale.r.h, sprite_rect_scale.r.w) * 0.5) - 0.1;
+
+        // Solve for r:
+        // arc_height = r - sqrt(r^2 - (w/2)^2)
+        // arc_height = r - sqrt(r^2 - d^2)
+        // sqrt(r^2 - d^2) = r - arc_height
+        // r^2 - d^2 = (r - arc_height)^2
+        // r^2 - d^2 = r^2 - 2*r*arc_height + arc_height^2
+        // -d^2 = -2*r*arc_height + arc_height^2
+        // 2*r*arc_height = d^2 + arc_height^2
+        // r = (d^2 + arc_height^2) / (2 * arc_height)
+
+        const d = bubble_rect_scale.r.w / 2;
+
+        const radius: f32 = (d * d + arc_height * arc_height) / (2 * arc_height);
 
         const center_x: f32 = sprite_rect_scale.r.x + (sprite_rect_scale.r.w / 2);
 
-        const offset_y = radius - @sqrt((radius * radius) - (bubble_rect_scale.r.w / 2) * (bubble_rect_scale.r.w / 2));
+        // const offset_y = radius - @sqrt((radius * radius) - (bubble_rect_scale.r.w / 2) * (bubble_rect_scale.r.w / 2));
 
-        const arc_center: dvui.Point.Physical = .{ .x = center_x, .y = sprite_rect_scale.r.y + radius - offset_y };
+        // const diff = bubble_rect_scale.r.h - offset_y;
+        // bubble_rect_scale.r.h += diff;
+        // bubble_rect_scale.r.y -= diff;
 
-        const start_angle: f32 = std.math.pi + std.math.atan2(arc_center.y - sprite_rect_scale.r.topLeft().y, arc_center.x - sprite_rect_scale.r.topLeft().x);
-        const end_angle: f32 = std.math.pi + std.math.atan2(arc_center.y - sprite_rect_scale.r.topRight().y, arc_center.x - sprite_rect_scale.r.topRight().x);
+        const arc_center: dvui.Point.Physical = .{ .x = center_x, .y = sprite_rect_scale.r.y + radius - arc_height };
 
-        path.addArc(arc_center, radius, end_angle, start_angle, false);
+        const end_angle: f32 = std.math.atan2(arc_center.y - sprite_rect_scale.r.topLeft().y, arc_center.x - sprite_rect_scale.r.topLeft().x);
+        const start_angle: f32 = std.math.atan2(arc_center.y - sprite_rect_scale.r.topRight().y, arc_center.x - sprite_rect_scale.r.topRight().x);
+
+        path.addArc(arc_center, radius, dvui.math.pi + start_angle, dvui.math.pi + end_angle, false);
 
         var built = path.build();
         defer path.deinit();
@@ -724,10 +741,11 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
 
         { // Draw drop shadow
-            const shadow_fade = 20;
+            const shadow_fade = 20 * (1.0 / (self.init_options.canvas.scale * baseline_scale)) * t;
+            const shadow_offset = (dvui.math.pi / 12.0) * t;
             //const shadow_color = dvui.Color.black.opacity(0.15 * t);
-            var shadow_path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
-            shadow_path.addArc(arc_center.plus(.{ .x = 0.0, .y = -shadow_fade }), radius, start_angle, end_angle, false);
+            var shadow_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            shadow_path.addArc(arc_center.plus(.{ .x = 0.0, .y = 0.0 }), radius, dvui.math.pi + start_angle - shadow_offset, dvui.math.pi + end_angle + shadow_offset, false);
             shadow_path.build().fillConvex(.{ .color = .red, .fade = shadow_fade });
         }
 
@@ -741,7 +759,14 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                     return;
                 };
 
-                const h = dvui.easing.outExpo(t) / (self.init_options.canvas.scale * baseline_scale);
+                // const parent_rect: dvui.Rect.Physical = .{
+                //     .x = sprite_rect_scale.r.x,
+                //     .y = sprite_rect_scale.r.y - offset_y,
+                //     .w = sprite_rect_scale.r.w,
+                //     .h = offset_y,
+                // };
+
+                const h = t / (self.init_options.canvas.scale * baseline_scale);
 
                 const uv_rect = dvui.Rect{
                     .x = 0.0,
