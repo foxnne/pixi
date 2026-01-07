@@ -591,9 +591,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     // Figure out artwork's baseline size (width or height, whichever is smaller)
     const baseline_sprite_size: f32 = 64.0;
     const min_sprite_size: f32 = @min(sprite_rect.w, sprite_rect.h);
-    const baseline_scale: f32 = min_sprite_size / baseline_sprite_size;
+    const baseline_scale: f32 = baseline_sprite_size / min_sprite_size;
     // Compensate the button size so that it stays visually consistent even if the tile is smaller/larger than 64x64
-    var button_size = std.math.clamp(target_button_height * dvui.easing.outBack(t) / (self.init_options.canvas.scale), 0.0, min_sprite_size / 3.0);
+    var button_size = std.math.clamp(target_button_height * dvui.easing.outBack(t) / self.init_options.canvas.scale, 0.0, min_sprite_size / 3.0);
 
     const sprite_rect_scale: dvui.RectScale = .{
         .r = self.init_options.canvas.screenFromDataRect(sprite_rect),
@@ -614,7 +614,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
     }
 
-    const bubble_height = std.math.clamp((bubble_max_height * t) / (self.init_options.canvas.scale * baseline_scale), 0.0, bubble_max_height * t);
+    const bubble_height = std.math.clamp((bubble_max_height * t / self.init_options.canvas.scale) * baseline_scale, 0.0, bubble_max_height * t);
     const bubble_rect = dvui.Rect{
         .x = sprite_rect.x,
         .y = sprite_rect.y - bubble_height,
