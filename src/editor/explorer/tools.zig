@@ -11,7 +11,7 @@ var edit_layer_id: ?u64 = null;
 var prev_layer_count: usize = 0;
 var max_split_ratio: f32 = 0.4;
 
-layers_rect: dvui.Rect.Physical = .{},
+layers_rect: ?dvui.Rect.Physical = null,
 
 pub fn init() Tools {
     return .{};
@@ -40,7 +40,7 @@ pub fn draw(self: *Tools) !void {
     }
 
     if (paned.showFirst()) {
-        self.layers_rect = drawLayers() catch {
+        self.layers_rect = self.drawLayers() catch {
             dvui.log.err("Failed to draw layers", .{});
             return;
         };
@@ -81,6 +81,14 @@ pub fn draw(self: *Tools) !void {
         drawPaletteControls() catch {};
         drawPalettes() catch {};
     }
+}
+
+pub fn layersHovered(self: *Tools) bool {
+    if (self.layers_rect) |rect| {
+        return rect.contains(dvui.currentWindow().mouse_pt);
+    }
+
+    return false;
 }
 
 pub fn drawTools() !void {
@@ -183,19 +191,26 @@ pub fn drawLayerControls() !void {
         });
         defer hbox.deinit();
 
-        if (dvui.buttonIcon(@src(), "TogglePeek", if (file.editor.isolate_layer) icons.tvg.lucide.@"layers-2" else icons.tvg.lucide.layers, .{}, .{}, .{
-            .expand = .none,
-            .gravity_y = 0.5,
-            .corner_radius = dvui.Rect.all(1000),
-            .box_shadow = .{
-                .color = .black,
-                .offset = .{ .x = -2.0, .y = 2.0 },
-                .fade = 6.0,
-                .alpha = 0.15,
+        if (dvui.buttonIcon(
+            @src(),
+            "TogglePeek",
+            if (file.editor.isolate_layer) icons.tvg.lucide.@"layers-2" else icons.tvg.lucide.layers,
+            .{},
+            .{},
+            .{
+                .expand = .none,
+                .gravity_y = 0.5,
                 .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .style = if (file.editor.isolate_layer) .highlight else .control,
             },
-            .color_fill = dvui.themeGet().color(.control, .fill),
-        })) {
+        )) {
             file.editor.isolate_layer = !file.editor.isolate_layer;
         }
 
@@ -257,7 +272,7 @@ pub fn drawLayerControls() !void {
     }
 }
 
-pub fn drawLayers() !dvui.Rect.Physical {
+pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
     const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = false,
@@ -392,6 +407,23 @@ pub fn drawLayers() !dvui.Rect.Physical {
             if (hovered) {
                 file.peek_layer_index = layer_index;
             }
+
+            var min_layer_index: usize = 0;
+            if (file.editor.isolate_layer) {
+                if (file.peek_layer_index) |peek_layer_index| {
+                    min_layer_index = peek_layer_index;
+                } else if (!pixi.editor.explorer.tools.layersHovered()) {
+                    min_layer_index = file.selected_layer_index;
+                }
+            }
+
+            const below_mouse = dvui.currentWindow().mouse_pt.y > r.data().contentRectScale().r.y + r.data().contentRectScale().r.h;
+
+            var alpha: f32 = dvui.alpha(1.0);
+            if (file.editor.isolate_layer and (layer_index < min_layer_index or (below_mouse and tools.layersHovered()))) {
+                alpha = dvui.alpha(0.5);
+            }
+            defer dvui.alphaSet(alpha);
 
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
@@ -536,7 +568,12 @@ pub fn drawLayers() !dvui.Rect.Physical {
         if (file.editor.layers_scroll_info.virtual_size.h > file.editor.layers_scroll_info.viewport.h and vertical_scroll < file.editor.layers_scroll_info.scrollMax(.vertical))
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
     }
-    return vbox.data().contentRectScale().r;
+
+    if (pixi.dvui.hovered(vbox.data())) {
+        return vbox.data().contentRectScale().r;
+    }
+
+    return null;
 }
 
 pub fn drawColors() !void {

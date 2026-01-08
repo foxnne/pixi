@@ -162,8 +162,18 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
     self.sample_data_point = point;
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 
+    var min_layer_index: usize = 0;
+
+    if (file.editor.isolate_layer) {
+        if (file.peek_layer_index) |peek_layer_index| {
+            min_layer_index = peek_layer_index;
+        } else if (!pixi.editor.explorer.tools.layersHovered()) {
+            min_layer_index = file.selected_layer_index;
+        }
+    }
+
     var layer_index: usize = file.layers.len;
-    while (layer_index > if (file.editor.isolate_layer) file.selected_layer_index else 0) {
+    while (layer_index > min_layer_index) {
         layer_index -= 1;
         var layer = file.layers.get(layer_index);
         if (!layer.visible) continue;
@@ -171,7 +181,7 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
             const c = layer.pixels()[index];
             if (c[3] > 0) {
                 color = c;
-                if (change_layer) {
+                if (change_layer and !file.editor.isolate_layer) {
                     file.selected_layer_index = layer_index;
                     file.peek_layer_index = layer_index;
                 }
@@ -2541,7 +2551,17 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
 
-    while (layer_index > if (file.editor.isolate_layer and !pixi.editor.explorer.tools.layers_rect.contains(dvui.currentWindow().mouse_pt)) file.selected_layer_index else 0) {
+    var min_layer_index: usize = 0;
+
+    if (file.editor.isolate_layer) {
+        if (file.peek_layer_index) |peek_layer_index| {
+            min_layer_index = peek_layer_index;
+        } else if (!pixi.editor.explorer.tools.layersHovered()) {
+            min_layer_index = file.selected_layer_index;
+        }
+    }
+
+    while (layer_index > min_layer_index) {
         layer_index -= 1;
 
         const visible = file.layers.items(.visible)[layer_index];

@@ -236,8 +236,18 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
     }
 
     if (init_opts.file) |file| {
+        var min_layer_index: usize = 0;
+
+        if (file.editor.isolate_layer) {
+            if (file.peek_layer_index) |peek_layer_index| {
+                min_layer_index = peek_layer_index;
+            } else if (!pixi.editor.explorer.tools.layersHovered()) {
+                min_layer_index = file.selected_layer_index;
+            }
+        }
+
         var layer_index: usize = file.layers.len;
-        while (layer_index > 0) {
+        while (layer_index > min_layer_index) {
             layer_index -= 1;
 
             const alpha: f32 = if (file.peek_layer_index != null and file.peek_layer_index != layer_index) 0.2 else 1.0;
