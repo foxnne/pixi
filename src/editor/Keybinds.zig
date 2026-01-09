@@ -88,6 +88,20 @@ pub fn tick() !void {
                     dvui.refresh(null, @src(), dvui.currentWindow().data().id);
                 }
 
+                if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
+                    if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.max_brush_size - 1)
+                        pixi.editor.tools.stroke_size += 1;
+
+                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                }
+
+                if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
+                    if (pixi.editor.tools.stroke_size > 1)
+                        pixi.editor.tools.stroke_size -= 1;
+
+                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                }
+
                 if (ke.matchBind("explorer") and ke.action == .down) {
                     if (pixi.editor.explorer.closed) {
                         pixi.editor.explorer.open();

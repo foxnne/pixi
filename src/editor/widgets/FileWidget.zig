@@ -1217,39 +1217,6 @@ pub fn processStroke(self: *FileWidget) void {
         }
 
         switch (e.evt) {
-            .key => |ke| {
-                var update: bool = false;
-                if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.max_brush_size - 1)
-                        pixi.editor.tools.stroke_size += 1;
-
-                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
-                    update = true;
-                }
-
-                if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.tools.stroke_size > 1)
-                        pixi.editor.tools.stroke_size -= 1;
-
-                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
-                    update = true;
-                }
-
-                if (update) {
-                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-                    file.drawPoint(
-                        current_point,
-                        .temporary,
-                        .{
-                            .color = if (pixi.editor.tools.current != .eraser) .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } else .white,
-                            .invalidate = true,
-                            .to_change = false,
-                            .stroke_size = pixi.editor.tools.stroke_size,
-                        },
-                    );
-                }
-            },
             .mouse => |me| {
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
