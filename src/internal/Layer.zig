@@ -316,14 +316,14 @@ pub const BlitOptions = struct {
 };
 
 pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: dvui.Rect, options: BlitOptions) void {
+    const self_size = self.size();
+
     const x = @as(usize, @intFromFloat(dst_rect.x));
     const y = @as(usize, @intFromFloat(dst_rect.y));
     const width = @as(usize, @intFromFloat(dst_rect.w));
     const height = @as(usize, @intFromFloat(dst_rect.h));
 
-    const image_size = self.size();
-
-    const tex_width = @as(usize, @intFromFloat(image_size.w));
+    const tex_width = @as(usize, @intFromFloat(self_size.w));
 
     var yy = y;
     var h = height;
@@ -382,6 +382,31 @@ pub fn writeSourceToZip(
 
 pub fn writeSourceToPng(layer: *const Layer, path: []const u8) !void {
     return pixi.fs.writeSourceToPng(layer.source, path);
+}
+
+pub fn resize(layer: *Layer, new_size: dvui.Size) !void {
+    const layer_size = layer.size();
+    if (layer_size.w == new_size.w and layer_size.h == new_size.h) return;
+
+    var new_layer = Layer.init(
+        layer.id,
+        pixi.app.allocator.dupe(u8, layer.name) catch return error.MemoryAllocationFailed,
+        @as(u32, @intFromFloat(new_size.w)),
+        @as(u32, @intFromFloat(new_size.h)),
+        .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+        .ptr,
+    ) catch return error.MemoryAllocationFailed;
+
+    if (new_size.w < layer_size.w) {
+        new_layer.blit(layer.pixelsFromRect(pixi.app.allocator, .{ .x = 0, .y = 0, .w = new_size.w, .h = new_size.h }) orelse return error.MemoryAllocationFailed, .{ .x = 0, .y = 0, .w = new_size.w, .h = new_size.h }, .{});
+    } else {
+        new_layer.blit(layer.pixelsFromRect(pixi.app.allocator, .{ .x = 0, .y = 0, .w = new_size.w, .h = new_size.h }) orelse return error.MemoryAllocationFailed, .{ .x = 0, .y = 0, .w = new_size.w, .h = new_size.h }, .{});
+    }
+
+    new_layer.invalidate();
+
+    layer.deinit();
+    layer.* = new_layer;
 }
 
 /// Takes a texture and a src rect and reduces the rect removing all fully transparent pixels

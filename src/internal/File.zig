@@ -488,6 +488,43 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
     return internal;
 }
 
+pub const ResizeOptions = struct {
+    tiles_wide: u32,
+    tiles_high: u32,
+};
+
+pub fn resize(file: *File, options: ResizeOptions) !void {
+    const current_tiles_wide = @divExact(file.width, file.tile_width);
+    const current_tiles_high = @divExact(file.height, file.tile_height);
+
+    if (options.tiles_wide == current_tiles_wide and
+        options.tiles_high == current_tiles_high) return;
+
+    const new_width = options.tiles_wide * file.tile_width;
+    const new_height = options.tiles_high * file.tile_height;
+
+    for (0..file.layers.len) |layer_index| {
+        var layer = file.layers.get(layer_index);
+        layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
+        file.layers.set(layer_index, layer);
+    }
+
+    file.editor.temporary_layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
+    file.editor.selection_layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
+    file.editor.transform_layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
+
+    file.editor.selected_sprites.resize(options.tiles_wide * options.tiles_high, false) catch return error.MemoryAllocationFailed;
+
+    file.editor.checkerboard.resize(new_width * new_height, false) catch return error.MemoryAllocationFailed;
+    for (0..new_width * new_height) |i| {
+        const value = pixi.math.checker(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }, i);
+        file.editor.checkerboard.setValue(i, value);
+    }
+
+    file.width = new_width;
+    file.height = new_height;
+}
+
 pub fn deinit(file: *File) void {
     file.history.deinit();
     file.buffers.deinit();
