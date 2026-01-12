@@ -491,6 +491,7 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
 pub const ResizeOptions = struct {
     tiles_wide: u32,
     tiles_high: u32,
+    history: bool = true,
 };
 
 pub fn resize(file: *File, options: ResizeOptions) !void {
@@ -519,6 +520,10 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     for (0..new_width * new_height) |i| {
         const value = pixi.math.checker(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }, i);
         file.editor.checkerboard.setValue(i, value);
+    }
+
+    if (options.history) {
+        file.history.append(.{ .resize = .{ .width = file.width, .height = file.height } }) catch return error.HistoryAppendError;
     }
 
     file.width = new_width;

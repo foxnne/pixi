@@ -19,6 +19,7 @@ pub const ChangeType = enum {
     layer_restore_delete,
     layer_name,
     layer_settings,
+    resize,
 };
 
 pub const Change = union(ChangeType) {
@@ -78,6 +79,11 @@ pub const Change = union(ChangeType) {
         collapse: bool,
     };
 
+    pub const Resize = struct {
+        width: u32,
+        height: u32,
+    };
+
     pixels: Pixels,
     origins: Origins,
     animation_name: AnimationName,
@@ -89,6 +95,7 @@ pub const Change = union(ChangeType) {
     layer_restore_delete: LayerRestoreDelete,
     layer_name: LayerName,
     layer_settings: LayerSettings,
+    resize: Resize,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -223,6 +230,9 @@ pub fn append(self: *History, change: Change) !void {
                 .layer_settings => {
                     equal = false;
                 },
+                .resize => {
+                    equal = false;
+                },
             }
         } else equal = false;
     }
@@ -344,6 +354,13 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} settings modified", .{
                     action_text,
                     file.layers.items(.name)[layer_settings.index],
+                }) catch "Invalid change";
+            },
+            .resize => |*resize| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} File resized to {d}x{d}", .{
+                    action_text,
+                    resize.width,
+                    resize.height,
                 }) catch "Invalid change";
             },
         }
@@ -518,6 +535,17 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             std.mem.swap([]usize, history_frames, current_frames);
 
             file.selected_animation_index = animation_frames.index;
+        },
+        .resize => |*resize| {
+            const new_size_wide = resize.width;
+            const new_size_high = resize.height;
+            resize.width = file.width;
+            resize.height = file.height;
+            file.resize(.{
+                .tiles_wide = @divTrunc(new_size_wide, file.tile_width),
+                .tiles_high = @divTrunc(new_size_high, file.tile_height),
+                .history = false,
+            }) catch return error.ResizeError;
         },
     }
 
