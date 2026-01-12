@@ -2486,23 +2486,21 @@ pub fn drawLayers(self: *FileWidget) void {
         resize_rect.w = resize_data_point.x;
         resize_rect.h = resize_data_point.y;
 
-        self.init_options.canvas.screenFromDataRect(layer_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 1.5 });
-
         if (resize_data_point.x < layer_rect.x + layer_rect.w or resize_data_point.y < layer_rect.y + layer_rect.h) {
-            if (true) {
-                for (1..tiles_wide) |i| {
-                    dvui.Path.stroke(.{ .points = &.{
-                        self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = 0 }),
-                        self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = layer_rect.h }),
-                    } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
-                }
+            self.init_options.canvas.screenFromDataRect(layer_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 1.5 });
+            // Draw grid lines for the original layer_rect
+            for (1..tiles_wide) |i| {
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = 0 }),
+                    self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = layer_rect.h }),
+                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
+            }
 
-                for (1..tiles_high) |i| {
-                    dvui.Path.stroke(.{ .points = &.{
-                        self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
-                        self.init_options.canvas.screenFromDataPoint(.{ .x = layer_rect.w, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
-                    } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
-                }
+            for (1..tiles_high) |i| {
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
+                    self.init_options.canvas.screenFromDataPoint(.{ .x = layer_rect.w, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
+                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
             }
         }
 
@@ -2514,7 +2512,7 @@ pub fn drawLayers(self: *FileWidget) void {
         .expand = .none,
         .rect = resize_rect,
         .border = dvui.Rect.all(0),
-        .background = true,
+        .background = false,
         .box_shadow = .{
             .fade = 20 * 1 / self.init_options.canvas.scale,
             .corner_radius = dvui.Rect.all(2 * 1 / self.init_options.canvas.scale),
@@ -2527,6 +2525,15 @@ pub fn drawLayers(self: *FileWidget) void {
         .color_fill = dvui.themeGet().color(.window, .fill),
     });
     shadow_box.deinit();
+
+    const fill_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .none,
+        .rect = .{ .x = layer_rect.x, .y = layer_rect.y, .w = @min(resize_rect.w, layer_rect.w), .h = @min(resize_rect.h, layer_rect.h) },
+        .border = dvui.Rect.all(0),
+        .background = true,
+        .color_fill = dvui.themeGet().color(.window, .fill),
+    });
+    fill_box.deinit();
 
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
@@ -2643,32 +2650,53 @@ pub fn drawLayers(self: *FileWidget) void {
         .background = false,
     });
 
-    if (true) {
-        for (1..tiles_wide) |i| {
-            dvui.Path.stroke(.{ .points = &.{
-                self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = 0 }),
-                self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = resize_rect.h }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
-        }
+    if (self.resize_data_point) |resize_data_point| {
+        if (resize_data_point.x > layer_rect.x + layer_rect.w) {
+            const new_tiles_rect = dvui.Rect{
+                .x = layer_rect.topRight().x,
+                .y = layer_rect.topRight().y,
+                .w = resize_data_point.x - layer_rect.topRight().x,
+                .h = @min(resize_data_point.y - layer_rect.topRight().y, layer_rect.h),
+            };
 
-        for (1..tiles_high) |i| {
-            dvui.Path.stroke(.{ .points = &.{
-                self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
-                self.init_options.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            self.init_options.canvas.screenFromDataRect(new_tiles_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
         }
+        if (resize_data_point.y > layer_rect.y + layer_rect.h) {
+            const new_tiles_rect = dvui.Rect{
+                .x = layer_rect.topLeft().x,
+                .y = layer_rect.bottomLeft().y,
+                .w = resize_data_point.x,
+                .h = resize_data_point.y - layer_rect.bottomLeft().y,
+            };
 
-        if (self.resize_data_point) |resize_data_point| {
-            dvui.Path.stroke(.{ .points = &.{
-                self.init_options.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
-                self.init_options.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = resize_rect.h }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
-
-            dvui.Path.stroke(.{ .points = &.{
-                self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
-                self.init_options.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = resize_data_point.y }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            self.init_options.canvas.screenFromDataRect(new_tiles_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
         }
+    }
+
+    for (1..tiles_wide) |i| {
+        dvui.Path.stroke(.{ .points = &.{
+            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = 0 }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = resize_rect.h }),
+        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+    }
+
+    for (1..tiles_high) |i| {
+        dvui.Path.stroke(.{ .points = &.{
+            self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
+        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+    }
+
+    if (self.resize_data_point) |resize_data_point| {
+        dvui.Path.stroke(.{ .points = &.{
+            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = resize_rect.h }),
+        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+
+        dvui.Path.stroke(.{ .points = &.{
+            self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = resize_data_point.y }),
+        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
     }
 
     self.init_options.canvas.bounding_box = image.rectScale().r;
@@ -2717,14 +2745,67 @@ pub fn processResize(self: *FileWidget) void {
         const dragging = dvui.dragging(dvui.currentWindow().mouse_pt, "resize_drag") != null and self.active();
 
         if (self.resize_data_point != null or dragging) {
+            const current_point: dvui.Point = self.resize_data_point orelse .{ .x = 0.0, .y = 0.0 };
             var new_point = self.init_options.file.spritePoint(offset_data_point);
-            new_point.x = std.math.clamp(new_point.x, @as(f32, @floatFromInt(file.tile_width)), std.math.floatMax(f32));
-            new_point.y = std.math.clamp(new_point.y, @as(f32, @floatFromInt(file.tile_height)), std.math.floatMax(f32));
 
-            self.resize_data_point = new_point;
+            if (current_point.x != new_point.x or current_point.y != new_point.y) {
+                new_point.x = std.math.clamp(new_point.x, @as(f32, @floatFromInt(file.tile_width)), std.math.floatMax(f32));
+                new_point.y = std.math.clamp(new_point.y, @as(f32, @floatFromInt(file.tile_height)), std.math.floatMax(f32));
 
-            resize_button_rect.x = new_point.x - button_size / 2.0;
-            resize_button_rect.y = new_point.y - button_size / 2.0;
+                if (self.resize_data_point != null) {
+                    if (dvui.animationGet(self.init_options.canvas.id, "resize_button_rect_x")) |anim| {
+                        _ = dvui.currentWindow().animations.remove(self.init_options.canvas.id.update("resize_button_rect_x"));
+                        dvui.animation(self.init_options.canvas.id, "resize_button_rect_x", .{
+                            .start_val = anim.value(),
+                            .end_val = new_point.x,
+                            .end_time = 250_000,
+                            .easing = dvui.easing.outBack,
+                        });
+                    } else {
+
+                        // If we are here, we need to trigger a new animation to move the resize button rect to the new point
+                        dvui.animation(self.init_options.canvas.id, "resize_button_rect_x", .{
+                            .start_val = current_point.x,
+                            .end_val = new_point.x,
+                            .end_time = 250_000,
+                            .easing = dvui.easing.outBack,
+                        });
+                    }
+
+                    if (dvui.animationGet(self.init_options.canvas.id, "resize_button_rect_y")) |anim| {
+                        _ = dvui.currentWindow().animations.remove(self.init_options.canvas.id.update("resize_button_rect_y"));
+                        dvui.animation(self.init_options.canvas.id, "resize_button_rect_y", .{
+                            .start_val = anim.value(),
+                            .end_val = new_point.y,
+                            .end_time = 250_000,
+                            .easing = dvui.easing.outBack,
+                        });
+                    } else {
+
+                        // If we are here, we need to trigger a new animation to move the resize button rect to the new point
+                        dvui.animation(self.init_options.canvas.id, "resize_button_rect_y", .{
+                            .start_val = current_point.y,
+                            .end_val = new_point.y,
+                            .end_time = 250_000,
+                            .easing = dvui.easing.outBack,
+                        });
+                    }
+                }
+
+                self.resize_data_point = new_point;
+            }
+
+            if (dvui.animationGet(self.init_options.canvas.id, "resize_button_rect_x")) |anim| {
+                resize_button_rect.x = anim.value();
+            } else {
+                resize_button_rect.x = new_point.x;
+            }
+
+            if (dvui.animationGet(self.init_options.canvas.id, "resize_button_rect_y")) |anim| {
+                resize_button_rect.y = anim.value();
+            } else {
+                resize_button_rect.y = new_point.y;
+            }
         }
 
         var icon_button: dvui.ButtonWidget = undefined;
@@ -2738,18 +2819,50 @@ pub fn processResize(self: *FileWidget) void {
         defer icon_button.deinit();
         icon_button.processEvents();
 
-        dvui.icon(@src(), "resize", if (dragging) icons.tvg.lucide.move else icons.tvg.lucide.@"move-diagonal-2", .{
-            .stroke_color = if (icon_button.hover) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.control, .text),
-        }, .{
-            .expand = .ratio,
-            .gravity_x = 0.5,
-            .gravity_y = 0.5,
-            .border = dvui.Rect.all(0),
-            .margin = .all(0),
-            .padding = .all(0),
-            .background = false,
-            .rotation = dvui.math.degreesToRadians(0.0),
-        });
+        if (dragging) {
+            var bounds_rect = dvui.Rect.Physical.fromSize(.{ .w = @as(f32, @floatFromInt(file.tile_width)), .h = @as(f32, @floatFromInt(file.tile_height)) });
+            bounds_rect = bounds_rect.scale(self.init_options.canvas.scale * dvui.currentWindow().natural_scale, dvui.Rect.Physical);
+            bounds_rect.x = icon_button.data().contentRectScale().r.topLeft().x - bounds_rect.w / 2.0;
+            bounds_rect.y = icon_button.data().contentRectScale().r.topLeft().y - bounds_rect.h / 2.0;
+
+            var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            path.addRect(bounds_rect, .{ .x = bounds_rect.w / 2.0, .y = bounds_rect.h / 2.0, .w = bounds_rect.w / 2.0, .h = bounds_rect.h / 2.0 });
+            const built = path.build();
+            built.fillConvex(.{ .color = dvui.themeGet().color(.window, .fill).opacity(0.5), .fade = 1.5 });
+            built.stroke(.{ .color = dvui.themeGet().color(.control, .text).opacity(0.5), .thickness = 1.0, .closed = true });
+
+            path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            path.addPoint(icon_button.data().contentRectScale().r.topLeft());
+            path.addRect(.{
+                .x = dvui.currentWindow().mouse_pt.x - icon_button.data().contentRectScale().r.w / 8.0,
+                .y = dvui.currentWindow().mouse_pt.y - icon_button.data().contentRectScale().r.h / 8.0,
+                .w = icon_button.data().contentRectScale().r.w / 4.0,
+                .h = icon_button.data().contentRectScale().r.h / 4.0,
+            }, .all(icon_button.data().contentRectScale().r.w / 8.0));
+            path.build().fillConvex(.{ .color = dvui.themeGet().color(.control, .text).opacity(0.5), .fade = 1.5 });
+
+            path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            path.addRect(.{
+                .x = dvui.currentWindow().mouse_pt.x - icon_button.data().contentRectScale().r.w / 8.0,
+                .y = dvui.currentWindow().mouse_pt.y - icon_button.data().contentRectScale().r.h / 8.0,
+                .w = icon_button.data().contentRectScale().r.w / 4.0,
+                .h = icon_button.data().contentRectScale().r.h / 4.0,
+            }, .all(icon_button.data().contentRectScale().r.w / 8.0));
+            path.build().fillConvex(.{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 1.5 });
+        } else {
+            dvui.icon(@src(), "resize", if (dragging) icons.tvg.lucide.move else icons.tvg.lucide.@"move-diagonal-2", .{
+                .stroke_color = if (icon_button.hover) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.control, .text),
+            }, .{
+                .expand = .ratio,
+                .gravity_x = 0.5,
+                .gravity_y = 0.5,
+                .border = dvui.Rect.all(0),
+                .margin = .all(0),
+                .padding = .all(0),
+                .background = false,
+                .rotation = dvui.math.degreesToRadians(0.0),
+            });
+        }
 
         if (icon_button.pressed()) {
             dvui.dragStart(
