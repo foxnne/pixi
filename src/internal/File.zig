@@ -500,8 +500,8 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
 pub const ResizeOptions = struct {
     tiles_wide: u32,
     tiles_high: u32,
-    history: bool = true,
-    layer_data: ?[][][4]u8 = null,
+    history: bool = true, // If true, layer data will be recorded for undo/redo
+    layer_data: ?[][][4]u8 = null, // If provided, the layer data will be applied to the layers after resizing
 };
 
 pub fn resize(file: *File, options: ResizeOptions) !void {
@@ -514,6 +514,7 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     const new_width = options.tiles_wide * file.tile_width;
     const new_height = options.tiles_high * file.tile_height;
 
+    // First, record the current layer data for undo/redo
     if (options.history) {
         file.history.append(.{ .resize = .{ .width = file.width, .height = file.height } }) catch return error.HistoryAppendError;
 
@@ -525,6 +526,7 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
         file.editor.resized_layer_data_undo.append(layer_data) catch return error.MemoryAllocationFailed;
     }
 
+    // Now, resize the layers, and apply any layer data if needed
     for (0..file.layers.len) |layer_index| {
         var layer = file.layers.get(layer_index);
 

@@ -550,7 +550,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                         file.editor.resized_layer_data_redo.append(ld) catch {
                             dvui.log.err("Failed to append resized layer data to redo stack", .{});
                         };
-                        layer_data = file.editor.resized_layer_data_redo.getLast();
+                        layer_data = ld;
                     }
                 },
                 .redo => {
@@ -558,7 +558,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                         file.editor.resized_layer_data_undo.append(ld) catch {
                             dvui.log.err("Failed to append resized layer data to undo stack", .{});
                         };
-                        layer_data = file.editor.resized_layer_data_undo.getLast();
+                        layer_data = ld;
                     }
                 },
             }

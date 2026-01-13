@@ -401,31 +401,17 @@ pub fn resize(layer: *Layer, new_size: dvui.Size) !void {
         .ptr,
     ) catch return error.MemoryAllocationFailed;
 
-    if (new_size.w < layer_size.w) {
-        new_layer.blit(layer.pixelsFromRect(dvui.currentWindow().arena(), .{
-            .x = 0,
-            .y = 0,
-            .w = new_size.w,
-            .h = new_size.h,
-        }) orelse return error.MemoryAllocationFailed, .{
-            .x = 0,
-            .y = 0,
-            .w = new_size.w,
-            .h = new_size.h,
-        }, .{});
-    } else {
-        new_layer.blit(layer.pixelsFromRect(dvui.currentWindow().arena(), .{
-            .x = 0,
-            .y = 0,
-            .w = layer_size.w,
-            .h = layer_size.h,
-        }) orelse return error.MemoryAllocationFailed, .{
-            .x = 0,
-            .y = 0,
-            .w = layer_size.w,
-            .h = layer_size.h,
-        }, .{});
-    }
+    new_layer.blit(layer.pixelsFromRect(dvui.currentWindow().arena(), .{
+        .x = 0,
+        .y = 0,
+        .w = new_size.w,
+        .h = new_size.h,
+    }) orelse return error.MemoryAllocationFailed, .{
+        .x = 0,
+        .y = 0,
+        .w = new_size.w,
+        .h = new_size.h,
+    }, .{});
 
     new_layer.invalidate();
 
