@@ -332,7 +332,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     .restore => {
                         message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer {s} deleted", .{
                             action_text,
-                            file.deleted_animations.items(.name)[file.deleted_animations.len - 1],
+                            file.deleted_layers.items(.name)[file.deleted_layers.len - 1],
                         }) catch "Invalid change";
                     },
                     .delete => {

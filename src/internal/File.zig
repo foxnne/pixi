@@ -1105,6 +1105,10 @@ pub fn deleteLayer(self: *File, index: usize) !void {
         .action = .restore,
         .index = index,
     } });
+
+    if (index > 0) {
+        self.selected_layer_index = index - 1;
+    }
 }
 
 pub fn duplicateLayer(self: *File, index: usize) !u64 {
