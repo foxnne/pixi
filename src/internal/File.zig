@@ -514,17 +514,25 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     const new_width = options.tiles_wide * file.tile_width;
     const new_height = options.tiles_high * file.tile_height;
 
+    if (options.history) {
+        file.history.append(.{ .resize = .{ .width = file.width, .height = file.height } }) catch return error.HistoryAppendError;
+
+        var layer_data = try pixi.app.allocator.alloc([][4]u8, file.layers.len);
+        for (0..file.layers.len) |layer_index| {
+            var layer = file.layers.get(layer_index);
+            layer_data[layer_index] = pixi.app.allocator.dupe([4]u8, layer.pixels()) catch return error.MemoryAllocationFailed;
+        }
+        file.editor.resized_layer_data_undo.append(layer_data) catch return error.MemoryAllocationFailed;
+    }
+
     for (0..file.layers.len) |layer_index| {
         var layer = file.layers.get(layer_index);
 
+        layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
+
         if (options.layer_data) |data| {
-            if (data[layer_index].len >= new_width * new_height) {
-                layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
-                layer.blit(data[layer_index], .{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }, .{});
-            } else if (data[layer_index].len < new_width * new_height) {
-                layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
-                layer.blit(data[layer_index], .{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) }, .{});
-            }
+            if (data[layer_index].len == new_width * new_height)
+                layer.blit(data[layer_index], .fromSize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }), .{});
         }
         file.layers.set(layer_index, layer);
     }
@@ -539,17 +547,6 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     for (0..new_width * new_height) |i| {
         const value = pixi.math.checker(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }, i);
         file.editor.checkerboard.setValue(i, value);
-    }
-
-    if (options.history) {
-        file.history.append(.{ .resize = .{ .width = file.width, .height = file.height } }) catch return error.HistoryAppendError;
-
-        var layer_data = try pixi.app.allocator.alloc([][4]u8, file.layers.len);
-        for (0..file.layers.len) |layer_index| {
-            var layer = file.layers.get(layer_index);
-            layer_data[layer_index] = pixi.app.allocator.dupe([4]u8, layer.pixels()) catch return error.MemoryAllocationFailed;
-        }
-        file.editor.resized_layer_data_undo.append(layer_data) catch return error.MemoryAllocationFailed;
     }
 
     file.width = new_width;

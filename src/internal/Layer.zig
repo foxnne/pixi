@@ -317,7 +317,7 @@ pub const BlitOptions = struct {
 
 pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: dvui.Rect, options: BlitOptions) void {
     if (src_pixels.len != @as(usize, @intFromFloat(dst_rect.w)) * @as(usize, @intFromFloat(dst_rect.h))) {
-        dvui.log.err("Source pixel length {d} does not match destination rectangle size {d}", .{ src_pixels.len, @as(usize, @intFromFloat(dst_rect.w)) * @as(usize, @intFromFloat(dst_rect.h)) });
+        dvui.log.err("Source pixel length {d} does not match destination rectangle size {any}", .{ src_pixels.len, dst_rect });
         return;
     }
     const self_size = self.size();
@@ -402,9 +402,29 @@ pub fn resize(layer: *Layer, new_size: dvui.Size) !void {
     ) catch return error.MemoryAllocationFailed;
 
     if (new_size.w < layer_size.w) {
-        new_layer.blit(layer.pixelsFromRect(pixi.app.allocator, .{ .x = 0, .y = 0, .w = new_size.w, .h = new_size.h }) orelse return error.MemoryAllocationFailed, .{ .x = 0, .y = 0, .w = new_size.w, .h = new_size.h }, .{});
+        new_layer.blit(layer.pixelsFromRect(dvui.currentWindow().arena(), .{
+            .x = 0,
+            .y = 0,
+            .w = new_size.w,
+            .h = new_size.h,
+        }) orelse return error.MemoryAllocationFailed, .{
+            .x = 0,
+            .y = 0,
+            .w = new_size.w,
+            .h = new_size.h,
+        }, .{});
     } else {
-        new_layer.blit(layer.pixelsFromRect(pixi.app.allocator, .{ .x = 0, .y = 0, .w = new_size.w, .h = new_size.h }) orelse return error.MemoryAllocationFailed, .{ .x = 0, .y = 0, .w = new_size.w, .h = new_size.h }, .{});
+        new_layer.blit(layer.pixelsFromRect(dvui.currentWindow().arena(), .{
+            .x = 0,
+            .y = 0,
+            .w = layer_size.w,
+            .h = layer_size.h,
+        }) orelse return error.MemoryAllocationFailed, .{
+            .x = 0,
+            .y = 0,
+            .w = layer_size.w,
+            .h = layer_size.h,
+        }, .{});
     }
 
     new_layer.invalidate();
