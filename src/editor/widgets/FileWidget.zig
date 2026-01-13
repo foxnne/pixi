@@ -2702,7 +2702,7 @@ pub fn drawLayers(self: *FileWidget) void {
     self.init_options.canvas.bounding_box = image.rectScale().r;
 
     // Draw the selection box for the selected sprites
-    if (pixi.editor.tools.current == .pointer and file.editor.transform == null) {
+    if (pixi.editor.tools.current == .pointer and file.editor.transform == null and self.resize_data_point == null) {
         var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
         while (iter.next()) |i| {
             const sprite_rect = file.spriteRect(i);

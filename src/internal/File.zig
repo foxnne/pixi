@@ -66,9 +66,6 @@ pub const EditorData = struct {
     transform_layer: Layer = undefined,
     selected_sprites: std.DynamicBitSet = undefined,
 
-    resized_layer_data_undo: std.array_list.Managed([][][4]u8) = undefined,
-    resized_layer_data_redo: std.array_list.Managed([][][4]u8) = undefined,
-
     checkerboard: std.DynamicBitSet = undefined,
     checkerboard_tile: dvui.ImageSource = undefined,
 };
@@ -91,9 +88,6 @@ pub fn init(path: []const u8, width: u32, height: u32) !pixi.Internal.File {
     internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
-
-    internal.editor.resized_layer_data_undo = std.array_list.Managed([][][4]u8).init(pixi.app.allocator);
-    internal.editor.resized_layer_data_redo = std.array_list.Managed([][][4]u8).init(pixi.app.allocator);
 
     internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
     // Create a layer-sized checkerboard pattern for selection tools
@@ -227,9 +221,6 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
         internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
-
-        internal.editor.resized_layer_data_undo = std.array_list.Managed([][][4]u8).init(pixi.app.allocator);
-        internal.editor.resized_layer_data_redo = std.array_list.Managed([][][4]u8).init(pixi.app.allocator);
 
         internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
         // Create a layer-sized checkerboard pattern for selection tools
@@ -523,7 +514,7 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
             var layer = file.layers.get(layer_index);
             layer_data[layer_index] = pixi.app.allocator.dupe([4]u8, layer.pixels()) catch return error.MemoryAllocationFailed;
         }
-        file.editor.resized_layer_data_undo.append(layer_data) catch return error.MemoryAllocationFailed;
+        file.history.undo_layer_data_stack.append(layer_data) catch return error.MemoryAllocationFailed;
     }
 
     // Now, resize the layers, and apply any layer data if needed
@@ -570,23 +561,6 @@ pub fn deinit(file: *File) void {
     for (file.animations.items(.frames)) |frames| {
         pixi.app.allocator.free(frames);
     }
-
-    for (file.editor.resized_layer_data_undo.items) |data| {
-        for (data) |layer| {
-            pixi.app.allocator.free(layer);
-        }
-        pixi.app.allocator.free(data);
-    }
-
-    for (file.editor.resized_layer_data_redo.items) |data| {
-        for (data) |layer| {
-            pixi.app.allocator.free(layer);
-        }
-        pixi.app.allocator.free(data);
-    }
-
-    file.editor.resized_layer_data_undo.deinit();
-    file.editor.resized_layer_data_redo.deinit();
 
     file.layers.deinit(pixi.app.allocator);
     file.deleted_layers.deinit(pixi.app.allocator);

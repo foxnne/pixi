@@ -156,10 +156,16 @@ bookmark: i32 = 0,
 undo_stack: std.array_list.Managed(Change),
 redo_stack: std.array_list.Managed(Change),
 
+undo_layer_data_stack: std.array_list.Managed([][][4]u8),
+redo_layer_data_stack: std.array_list.Managed([][][4]u8),
+
 pub fn init(allocator: std.mem.Allocator) History {
     return .{
         .undo_stack = std.array_list.Managed(Change).init(allocator),
         .redo_stack = std.array_list.Managed(Change).init(allocator),
+
+        .undo_layer_data_stack = std.array_list.Managed([][][4]u8).init(allocator),
+        .redo_layer_data_stack = std.array_list.Managed([][][4]u8).init(allocator),
     };
 }
 
@@ -546,18 +552,14 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
 
             switch (action) {
                 .undo => {
-                    if (file.editor.resized_layer_data_undo.pop()) |ld| {
-                        file.editor.resized_layer_data_redo.append(ld) catch {
-                            dvui.log.err("Failed to append resized layer data to redo stack", .{});
-                        };
+                    if (self.undo_layer_data_stack.pop()) |ld| {
+                        try self.redo_layer_data_stack.append(ld);
                         layer_data = ld;
                     }
                 },
                 .redo => {
-                    if (file.editor.resized_layer_data_redo.pop()) |ld| {
-                        file.editor.resized_layer_data_undo.append(ld) catch {
-                            dvui.log.err("Failed to append resized layer data to undo stack", .{});
-                        };
+                    if (self.redo_layer_data_stack.pop()) |ld| {
+                        try self.undo_layer_data_stack.append(ld);
                         layer_data = ld;
                     }
                 },
@@ -605,6 +607,22 @@ pub fn clearRetainingCapacity(self: *History) void {
 }
 
 pub fn deinit(self: *History) void {
+    for (self.undo_layer_data_stack.items) |data| {
+        for (data) |layer| {
+            pixi.app.allocator.free(layer);
+        }
+        pixi.app.allocator.free(data);
+    }
+
+    for (self.redo_layer_data_stack.items) |data| {
+        for (data) |layer| {
+            pixi.app.allocator.free(layer);
+        }
+        pixi.app.allocator.free(data);
+    }
+
+    self.undo_layer_data_stack.deinit();
+    self.redo_layer_data_stack.deinit();
     self.clearAndFree();
     self.undo_stack.deinit();
     self.redo_stack.deinit();
