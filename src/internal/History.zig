@@ -177,6 +177,16 @@ pub fn append(self: *History, change: Change) !void {
         self.redo_stack.clearRetainingCapacity();
     }
 
+    if (self.redo_layer_data_stack.items.len > 0) {
+        for (self.redo_layer_data_stack.items) |data| {
+            for (data) |layer| {
+                pixi.app.allocator.free(layer);
+            }
+            pixi.app.allocator.free(data);
+        }
+        self.redo_layer_data_stack.clearRetainingCapacity();
+    }
+
     // Equality check, don't append if equal
     var equal: bool = self.undo_stack.items.len > 0;
     if (self.undo_stack.getLastOrNull()) |last| {
