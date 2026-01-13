@@ -66,6 +66,9 @@ pub const EditorData = struct {
     transform_layer: Layer = undefined,
     selected_sprites: std.DynamicBitSet = undefined,
 
+    resized_layer_data_undo: std.array_list.Managed([][][4]u8) = undefined,
+    resized_layer_data_redo: std.array_list.Managed([][][4]u8) = undefined,
+
     checkerboard: std.DynamicBitSet = undefined,
     checkerboard_tile: dvui.ImageSource = undefined,
 };
@@ -88,6 +91,9 @@ pub fn init(path: []const u8, width: u32, height: u32) !pixi.Internal.File {
     internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
+
+    internal.editor.resized_layer_data_undo = std.array_list.Managed([][][4]u8).init(pixi.app.allocator);
+    internal.editor.resized_layer_data_redo = std.array_list.Managed([][][4]u8).init(pixi.app.allocator);
 
     internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
     // Create a layer-sized checkerboard pattern for selection tools
@@ -221,6 +227,9 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
         internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
+
+        internal.editor.resized_layer_data_undo = std.array_list.Managed([][][4]u8).init(pixi.app.allocator);
+        internal.editor.resized_layer_data_redo = std.array_list.Managed([][][4]u8).init(pixi.app.allocator);
 
         internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
         // Create a layer-sized checkerboard pattern for selection tools
@@ -492,6 +501,7 @@ pub const ResizeOptions = struct {
     tiles_wide: u32,
     tiles_high: u32,
     history: bool = true,
+    layer_data: ?[][][4]u8 = null,
 };
 
 pub fn resize(file: *File, options: ResizeOptions) !void {
@@ -506,7 +516,16 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
 
     for (0..file.layers.len) |layer_index| {
         var layer = file.layers.get(layer_index);
-        layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
+
+        if (options.layer_data) |data| {
+            if (data[layer_index].len >= new_width * new_height) {
+                layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
+                layer.blit(data[layer_index], .{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }, .{});
+            } else if (data[layer_index].len < new_width * new_height) {
+                layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
+                layer.blit(data[layer_index], .{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) }, .{});
+            }
+        }
         file.layers.set(layer_index, layer);
     }
 
@@ -524,6 +543,13 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
 
     if (options.history) {
         file.history.append(.{ .resize = .{ .width = file.width, .height = file.height } }) catch return error.HistoryAppendError;
+
+        var layer_data = try pixi.app.allocator.alloc([][4]u8, file.layers.len);
+        for (0..file.layers.len) |layer_index| {
+            var layer = file.layers.get(layer_index);
+            layer_data[layer_index] = pixi.app.allocator.dupe([4]u8, layer.pixels()) catch return error.MemoryAllocationFailed;
+        }
+        file.editor.resized_layer_data_undo.append(layer_data) catch return error.MemoryAllocationFailed;
     }
 
     file.width = new_width;

@@ -316,6 +316,10 @@ pub const BlitOptions = struct {
 };
 
 pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: dvui.Rect, options: BlitOptions) void {
+    if (src_pixels.len != @as(usize, @intFromFloat(dst_rect.w)) * @as(usize, @intFromFloat(dst_rect.h))) {
+        dvui.log.err("Source pixel length {d} does not match destination rectangle size {d}", .{ src_pixels.len, @as(usize, @intFromFloat(dst_rect.w)) * @as(usize, @intFromFloat(dst_rect.h)) });
+        return;
+    }
     const self_size = self.size();
 
     const x = @as(usize, @intFromFloat(dst_rect.x));

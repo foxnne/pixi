@@ -541,10 +541,33 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             const new_size_high = resize.height;
             resize.width = file.width;
             resize.height = file.height;
+
+            var layer_data: ?[][][4]u8 = null;
+
+            switch (action) {
+                .undo => {
+                    if (file.editor.resized_layer_data_undo.pop()) |ld| {
+                        file.editor.resized_layer_data_redo.append(ld) catch {
+                            dvui.log.err("Failed to append resized layer data to redo stack", .{});
+                        };
+                        layer_data = ld;
+                    }
+                },
+                .redo => {
+                    if (file.editor.resized_layer_data_redo.pop()) |ld| {
+                        file.editor.resized_layer_data_undo.append(ld) catch {
+                            dvui.log.err("Failed to append resized layer data to undo stack", .{});
+                        };
+                        layer_data = ld;
+                    }
+                },
+            }
+
             file.resize(.{
                 .tiles_wide = @divTrunc(new_size_wide, file.tile_width),
                 .tiles_high = @divTrunc(new_size_high, file.tile_height),
                 .history = false,
+                .layer_data = layer_data,
             }) catch return error.ResizeError;
         },
     }
