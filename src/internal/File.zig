@@ -571,6 +571,23 @@ pub fn deinit(file: *File) void {
         pixi.app.allocator.free(frames);
     }
 
+    for (file.editor.resized_layer_data_undo.items) |data| {
+        for (data) |layer| {
+            pixi.app.allocator.free(layer);
+        }
+        pixi.app.allocator.free(data);
+    }
+
+    for (file.editor.resized_layer_data_redo.items) |data| {
+        for (data) |layer| {
+            pixi.app.allocator.free(layer);
+        }
+        pixi.app.allocator.free(data);
+    }
+
+    file.editor.resized_layer_data_undo.deinit();
+    file.editor.resized_layer_data_redo.deinit();
+
     file.layers.deinit(pixi.app.allocator);
     file.deleted_layers.deinit(pixi.app.allocator);
     file.sprites.deinit(pixi.app.allocator);
