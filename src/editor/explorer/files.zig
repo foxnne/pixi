@@ -339,7 +339,9 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         }
 
                         if ((dvui.menuItemLabel(@src(), "New File...", .{}, .{ .expand = .horizontal })) != null) {
-                            fw2.close();
+                            defer fw2.close();
+
+                            pixi.Editor.Dialogs.newFile(@src(), .{ .parent_path = abs_path });
                         }
 
                         if ((dvui.menuItemLabel(@src(), "New Folder...", .{}, .{ .expand = .horizontal })) != null) {

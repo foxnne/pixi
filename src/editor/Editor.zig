@@ -13,6 +13,7 @@ pub const Project = @import("Project.zig");
 pub const Recents = @import("Recents.zig");
 pub const Settings = @import("Settings.zig");
 pub const Tools = @import("Tools.zig");
+pub const Dialogs = @import("dialogs/Dialogs.zig");
 
 pub const Transform = @import("Transform.zig");
 pub const Keybinds = @import("Keybinds.zig");
@@ -37,6 +38,7 @@ explorer: *Explorer,
 panel: *Panel,
 
 last_titlebar_color: dvui.Color,
+dim_titlebar: bool = false,
 
 /// Workspaces stored by their grouping ID
 workspaces: std.AutoArrayHashMap(u64, Workspace) = undefined,
@@ -120,10 +122,8 @@ const handle_size = 10;
 const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
-    if (!std.mem.eql(u8, &editor.last_titlebar_color.toRGBA(), &dvui.themeGet().color(.control, .fill).toRGBA())) {
-        editor.last_titlebar_color = dvui.themeGet().color(.control, .fill);
-        App.setTitlebarColor(dvui.currentWindow(), editor.last_titlebar_color);
-    }
+    defer editor.dim_titlebar = false;
+    editor.setTitlebarColor();
 
     editor.rebuildWorkspaces() catch {
         dvui.log.err("Failed to rebuild workspaces", .{});
@@ -338,6 +338,15 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     _ = editor.arena.reset(.retain_capacity);
 
     return .ok;
+}
+
+pub fn setTitlebarColor(editor: *Editor) void {
+    const color = if (editor.dim_titlebar) dvui.themeGet().color(.control, .fill).lerp(.black, if (dvui.themeGet().dark) 60.0 / 255.0 else 80.0 / 255.0) else dvui.themeGet().color(.control, .fill);
+
+    if (!std.mem.eql(u8, &editor.last_titlebar_color.toRGBA(), &color.toRGBA())) {
+        editor.last_titlebar_color = color;
+        App.setTitlebarColor(dvui.currentWindow(), color);
+    }
 }
 
 pub fn drawRadialMenu(editor: *Editor) !void {

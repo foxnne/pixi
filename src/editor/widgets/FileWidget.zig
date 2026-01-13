@@ -2874,7 +2874,11 @@ pub fn processResize(self: *FileWidget) void {
 
         if (dragging == false) {
             if (self.resize_data_point) |resize_data_point| {
-                self.init_options.file.resize(.{ .tiles_wide = @divExact(@as(u32, @intFromFloat(resize_data_point.x)), self.init_options.file.tile_width), .tiles_high = @divExact(@as(u32, @intFromFloat(resize_data_point.y)), self.init_options.file.tile_height) }) catch |err| {
+                self.init_options.file.resize(.{
+                    .tiles_wide = @divExact(@as(u32, @intFromFloat(resize_data_point.x)), self.init_options.file.tile_width),
+                    .tiles_high = @divExact(@as(u32, @intFromFloat(resize_data_point.y)), self.init_options.file.tile_height),
+                    .history = true,
+                }) catch |err| {
                     std.log.err("Failed to resize file: {s}", .{@errorName(err)});
                 };
                 self.resize_data_point = null;

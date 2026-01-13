@@ -3,15 +3,15 @@ const pixi = @import("pixi.zig");
 const dvui = @import("dvui");
 const builtin = @import("builtin");
 const icons = @import("icons");
-const Widgets = @import("editor/Widgets.zig");
+const Widgets = @import("editor/widgets/Widgets.zig");
 
 pub const FileWidget = Widgets.FileWidget;
 pub const TabsWidget = Widgets.TabsWidget;
 pub const ImageWidget = Widgets.ImageWidget;
 pub const CanvasWidget = Widgets.CanvasWidget;
 pub const ReorderWidget = Widgets.ReorderWidget;
-pub const EditorPanedWidget = Widgets.EditorPanedWidget;
 pub const PanedWidget = Widgets.PanedWidget;
+pub const FloatingWindowWidget = Widgets.FloatingWindowWidget;
 
 /// Currently this is specialized for the layers paned widget, just includes icon and dragging flag so we know when the pane is dragging
 pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions, opts: dvui.Options) *PanedWidget {
@@ -20,6 +20,16 @@ pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions
     ret.data().was_allocated_on_widget_stack = true;
     ret.install();
     ret.processEvents();
+    return ret;
+}
+
+pub fn floatingWindow(src: std.builtin.SourceLocation, floating_opts: FloatingWindowWidget.InitOptions, opts: dvui.Options) *FloatingWindowWidget {
+    var ret = dvui.widgetAlloc(FloatingWindowWidget);
+    ret.init(src, floating_opts, opts);
+    ret.data().was_allocated_on_widget_stack = true;
+    ret.processEventsBefore();
+    ret.drawBackground();
+    pixi.editor.dim_titlebar = true;
     return ret;
 }
 
