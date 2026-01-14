@@ -58,12 +58,15 @@ pub fn reorder(src: std.builtin.SourceLocation, init_opts: ReorderWidget.InitOpt
     return ret;
 }
 
+pub const DisplayFn = *const fn (dvui.Id) anyerror!bool;
+
 pub const DialogOptions = struct {
     window: ?*dvui.Window = null,
     id_extra: usize = 0,
     windowFn: dvui.Dialog.DisplayFn = dialogWindow,
-    displayFn: dvui.Dialog.DisplayFn = defaultDialogDisplay,
+    displayFn: DisplayFn = defaultDialogDisplay,
     callafterFn: dvui.DialogCallAfterFn = defaultDialogCallAfter,
+    resizeable: bool = true,
     modal: bool = true,
     title: []const u8 = "",
     ok_label: []const u8 = "Ok",
@@ -72,7 +75,9 @@ pub const DialogOptions = struct {
     max_size: dvui.Options.MaxSize = .{ .w = 400, .h = 200 },
 };
 
-pub fn defaultDialogDisplay(id: dvui.Id) anyerror!void {
+pub fn defaultDialogDisplay(id: dvui.Id) anyerror!bool {
+    const valid: bool = true;
+
     _ = id;
 
     _ = pixi.dvui.sprite(@src(), .{
@@ -80,6 +85,8 @@ pub fn defaultDialogDisplay(id: dvui.Id) anyerror!void {
         .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.fox_default_0],
         .scale = 2.0,
     }, .{ .gravity_y = 0.5, .gravity_x = 0.5, .background = false });
+
+    return valid;
 }
 
 pub fn defaultDialogCallAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
@@ -108,6 +115,7 @@ pub fn dialog(src: std.builtin.SourceLocation, opts: DialogOptions) dvui.IdMutex
     dvui.dataSet(opts.window, id, "_default", opts.default);
     dvui.dataSet(opts.window, id, "_callafter", opts.callafterFn);
     dvui.dataSet(opts.window, id, "_displayFn", opts.displayFn);
+    dvui.dataSet(opts.window, id, "_resizeable", opts.resizeable);
     //dvui.dataSet(opts.window, id, "_max_size", null);
 
     return id_mutex;
@@ -132,30 +140,31 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         return;
     };
 
+    const resizeable = dvui.dataGet(null, id, "_resizeable", bool) orelse false;
+
     const center_on = dvui.currentWindow().subwindows.current_rect;
 
     const cancel_label = dvui.dataGetSlice(null, id, "_cancel_label", []u8);
     const default = dvui.dataGet(null, id, "_default", dvui.enums.DialogResponse);
 
     const callafter = dvui.dataGet(null, id, "_callafter", dvui.DialogCallAfterFn);
-    const displayFn = dvui.dataGet(null, id, "_displayFn", dvui.Dialog.DisplayFn);
+    const displayFn = dvui.dataGet(null, id, "_displayFn", DisplayFn);
 
     const maxSize = dvui.dataGet(null, id, "_max_size", dvui.Options.MaxSize);
-
-    //const id_extra = dvui.dataGet(null, id, "_id_extra", usize) orelse id.asUsize();
 
     var win = pixi.dvui.floatingWindow(@src(), .{
         .modal = modal,
         .center_on = center_on,
         .window_avoid = .nudge,
         .process_events_in_deinit = true,
+        .resize = if (resizeable) .all else .none,
     }, .{
         .id_extra = id.asUsize(),
         .color_text = .black,
         .corner_radius = dvui.Rect.all(10),
         .max_size_content = maxSize,
         .border = .all(0),
-        .color_fill = dvui.themeGet().color(.control, .fill).opacity(0.75),
+        .color_fill = dvui.themeGet().color(.control, .fill).opacity(0.85),
         .box_shadow = .{
             .color = .black,
             .alpha = 0.25,
@@ -169,22 +178,43 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         win.autoSize();
     }
 
-    var header_openflag = true;
-    win.dragAreaSet(pixi.dvui.windowHeader(title, "", &header_openflag));
-    if (!header_openflag) {
-        dvui.dialogRemove(id);
-        if (callafter) |ca| {
-            ca(id, .cancel) catch |err| {
-                dvui.log.debug("Dialog callafter for {x} returned {any}", .{ id, err });
-            };
+    { // Common window header
+        var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
+        defer vbox.deinit();
+
+        var header_openflag = true;
+        win.dragAreaSet(pixi.dvui.windowHeader(title, "", &header_openflag));
+        if (!header_openflag) {
+            dvui.dialogRemove(id);
+            if (callafter) |ca| {
+                ca(id, .cancel) catch |err| {
+                    dvui.log.debug("Dialog callafter for {x} returned {any}", .{ id, err });
+                };
+            }
+            return;
         }
-        return;
     }
 
-    {
-        // Add the buttons at the bottom first, so that they are guaranteed to be shown
+    var valid: bool = true;
 
-        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .gravity_x = 0.5, .gravity_y = 1.0 });
+    { // Actual dialog content
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .padding = .all(8),
+            .expand = .horizontal,
+            .gravity_x = 0.5,
+        });
+        defer hbox.deinit();
+
+        const clip = dvui.clip(hbox.data().contentRectScale().r);
+        defer dvui.clipSet(clip);
+
+        if (displayFn) |df| {
+            valid = df(id) catch false;
+        }
+    }
+
+    { // OK and Cancel buttons
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .gravity_x = 0.5 });
         defer hbox.deinit();
 
         if (cancel_label) |cl| {
@@ -217,17 +247,33 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
             }
         }
 
+        const alpha = dvui.alpha(if (valid) 1.0 else 0.5);
+        defer dvui.alphaSet(alpha);
+
         var ok_data: dvui.WidgetData = undefined;
-        if (dvui.button(@src(), ok_label, .{}, .{
+        const ok_opts: dvui.Options = .{
             .tab_index = 2,
             .data_out = &ok_data,
+            .style = if (valid) .highlight else .control,
             .box_shadow = .{
                 .color = .black,
                 .alpha = 0.25,
                 .offset = .{ .x = -4, .y = 4 },
                 .fade = 8,
             },
-        })) {
+        };
+        var ok_button: dvui.ButtonWidget = undefined;
+        ok_button.init(@src(), .{}, ok_opts);
+
+        if (valid) ok_button.processEvents();
+        ok_button.drawBackground();
+
+        dvui.labelNoFmt(@src(), ok_label, .{}, ok_opts.strip().override(ok_button.style()).override(.{ .gravity_x = 0.5, .gravity_y = 0.5 }));
+
+        defer ok_button.deinit();
+
+        if (ok_button.clicked()) {
+            if (!valid) return;
             dvui.dialogRemove(id);
             if (callafter) |ca| {
                 ca(id, .ok) catch |err| {
@@ -239,37 +285,6 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .ok) {
             dvui.focusWidget(ok_data.id, null, null);
         }
-    }
-
-    var vert_anim = dvui.animate(@src(), .{
-        .kind = .vertical,
-        .duration = 300_000,
-        .easing = dvui.easing.outBack,
-    }, .{ .expand = .none, .id_extra = id.asUsize(), .gravity_x = 0.5 });
-    defer vert_anim.deinit();
-
-    // var horiz_anim = dvui.animate(@src(), .{
-    //     .kind = .horizontal,
-    //     .duration = 300_000,
-    //     .easing = dvui.easing.outQuint,
-    // }, .{ .expand = .none, .id_extra = id_extra, .gravity_x = 0.5 });
-    // defer horiz_anim.deinit();
-
-    var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .padding = .all(8),
-        .expand = .horizontal,
-        .gravity_x = 0.5,
-        .gravity_y = 0.5,
-    });
-    defer hbox.deinit();
-
-    const clip = dvui.clip(hbox.data().contentRectScale().r);
-    defer dvui.clipSet(clip);
-
-    if (displayFn) |df| {
-        df(id) catch |err| {
-            dvui.log.debug("Dialog display for {x} returned {any}", .{ id, err });
-        };
     }
 }
 
