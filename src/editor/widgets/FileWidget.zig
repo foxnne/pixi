@@ -86,7 +86,6 @@ pub fn processSample(self: *FileWidget) void {
                 if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
                     continue;
                 }
-
                 const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button.pointer()) {
@@ -94,7 +93,6 @@ pub fn processSample(self: *FileWidget) void {
                     if (dvui.dragging(me.p, "sample_drag")) |_| {
                         self.sample(file, current_point, true, false);
                     }
-                    dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
                 } else if (me.action == .release and me.button.pointer()) {
                     self.left_mouse_down = false;
                 }
@@ -161,6 +159,7 @@ pub fn processSample(self: *FileWidget) void {
 }
 
 fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, change_layer: bool, change_tool: bool) void {
+    defer dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
     self.sample_data_point = point;
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 

@@ -378,7 +378,7 @@ pub fn drawAnimations(self: *Sprites, parent_width: f32) !void {
                 .margin = .{ .x = 4, .w = 4 },
             });
 
-            const font = dvui.Font.theme(.mono).larger(-2.0);
+            const font = dvui.Font.theme(.mono).larger(-4.0);
 
             if (self.edit_anim_id != anim_id) {
                 if (file.selected_animation_index == anim_index) {
@@ -857,7 +857,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 dvui.labelNoFmt(@src(), try file.spriteName(pixi.app.allocator, frame, false), .{}, .{
                     .gravity_y = 0.5,
                     .margin = dvui.Rect.all(2),
-                    .font = dvui.Font.theme(.mono).larger(-2.0),
+                    .font = dvui.Font.theme(.mono).larger(-4.0),
                     .padding = dvui.Rect.all(0),
                     .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
                 });

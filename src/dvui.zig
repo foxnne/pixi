@@ -58,6 +58,296 @@ pub fn reorder(src: std.builtin.SourceLocation, init_opts: ReorderWidget.InitOpt
     return ret;
 }
 
+pub const DialogOptions = struct {
+    window: ?*dvui.Window = null,
+    id_extra: usize = 0,
+    windowFn: dvui.Dialog.DisplayFn = dialogWindow,
+    displayFn: dvui.Dialog.DisplayFn = defaultDialogDisplay,
+    callafterFn: dvui.DialogCallAfterFn = defaultDialogCallAfter,
+    modal: bool = true,
+    title: []const u8 = "",
+    ok_label: []const u8 = "Ok",
+    cancel_label: []const u8 = "Cancel",
+    default: dvui.enums.DialogResponse = .ok,
+    max_size: dvui.Options.MaxSize = .{ .w = 400, .h = 200 },
+};
+
+pub fn defaultDialogDisplay(id: dvui.Id) anyerror!void {
+    _ = id;
+
+    _ = pixi.dvui.sprite(@src(), .{
+        .source = pixi.editor.atlas.source,
+        .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.fox_default_0],
+        .scale = 2.0,
+    }, .{ .gravity_y = 0.5, .gravity_x = 0.5, .background = false });
+}
+
+pub fn defaultDialogCallAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
+    switch (response) {
+        .ok => {
+            dvui.log.info("Dialog callafter for {d} returned {any}", .{ id, response });
+        },
+        .cancel => {
+            dvui.log.info("Dialog callafter for {d} returned {any}", .{ id, response });
+        },
+        else => {},
+    }
+}
+
+/// Creates a new file dialog with necessary data set and returns the id mutex.
+/// Caller must unlock the mutex after setting any additional data on the id.
+pub fn dialog(src: std.builtin.SourceLocation, opts: DialogOptions) dvui.IdMutex {
+    const id_mutex = dvui.dialogAdd(opts.window, src, opts.id_extra, opts.windowFn);
+    const id = id_mutex.id;
+
+    dvui.dataSet(opts.window, id, "_modal", opts.modal);
+    dvui.dataSetSlice(opts.window, id, "_title", opts.title);
+    //dvui.dataSet(opts.window, id, "_center_on", (opts.window orelse dvui.currentWindow()).subwindows.current_rect);
+    dvui.dataSetSlice(opts.window, id, "_ok_label", opts.ok_label);
+    dvui.dataSetSlice(opts.window, id, "_cancel_label", opts.cancel_label);
+    dvui.dataSet(opts.window, id, "_default", opts.default);
+    dvui.dataSet(opts.window, id, "_callafter", opts.callafterFn);
+    dvui.dataSet(opts.window, id, "_displayFn", opts.displayFn);
+    //dvui.dataSet(opts.window, id, "_max_size", null);
+
+    return id_mutex;
+}
+
+pub fn dialogWindow(id: dvui.Id) anyerror!void {
+    const modal = dvui.dataGet(null, id, "_modal", bool) orelse {
+        dvui.log.err("dialogDisplay lost data for dialog {x}\n", .{id});
+        dvui.dialogRemove(id);
+        return;
+    };
+
+    const title = dvui.dataGetSlice(null, id, "_title", []u8) orelse {
+        dvui.log.err("dialogDisplay lost data for dialog {x}\n", .{id});
+        dvui.dialogRemove(id);
+        return;
+    };
+
+    const ok_label = dvui.dataGetSlice(null, id, "_ok_label", []u8) orelse {
+        dvui.log.err("dialogDisplay lost data for dialog {x}\n", .{id});
+        dvui.dialogRemove(id);
+        return;
+    };
+
+    const center_on = dvui.currentWindow().subwindows.current_rect;
+
+    const cancel_label = dvui.dataGetSlice(null, id, "_cancel_label", []u8);
+    const default = dvui.dataGet(null, id, "_default", dvui.enums.DialogResponse);
+
+    const callafter = dvui.dataGet(null, id, "_callafter", dvui.DialogCallAfterFn);
+    const displayFn = dvui.dataGet(null, id, "_displayFn", dvui.Dialog.DisplayFn);
+
+    const maxSize = dvui.dataGet(null, id, "_max_size", dvui.Options.MaxSize);
+
+    //const id_extra = dvui.dataGet(null, id, "_id_extra", usize) orelse id.asUsize();
+
+    var win = pixi.dvui.floatingWindow(@src(), .{
+        .modal = modal,
+        .center_on = center_on,
+        .window_avoid = .nudge,
+        .process_events_in_deinit = true,
+    }, .{
+        .id_extra = id.asUsize(),
+        .color_text = .black,
+        .corner_radius = dvui.Rect.all(10),
+        .max_size_content = maxSize,
+        .border = .all(0),
+        .color_fill = dvui.themeGet().color(.control, .fill).opacity(0.75),
+        .box_shadow = .{
+            .color = .black,
+            .alpha = 0.25,
+            .offset = .{ .x = -4, .y = 4 },
+            .fade = 8,
+        },
+    });
+    defer win.deinit();
+
+    defer {
+        win.autoSize();
+    }
+
+    var header_openflag = true;
+    win.dragAreaSet(pixi.dvui.windowHeader(title, "", &header_openflag));
+    if (!header_openflag) {
+        dvui.dialogRemove(id);
+        if (callafter) |ca| {
+            ca(id, .cancel) catch |err| {
+                dvui.log.debug("Dialog callafter for {x} returned {any}", .{ id, err });
+            };
+        }
+        return;
+    }
+
+    {
+        // Add the buttons at the bottom first, so that they are guaranteed to be shown
+
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .gravity_x = 0.5, .gravity_y = 1.0 });
+        defer hbox.deinit();
+
+        if (cancel_label) |cl| {
+            var cancel_data: dvui.WidgetData = undefined;
+            const gravx: f32, const tindex: u16 = switch (dvui.currentWindow().button_order) {
+                .cancel_ok => .{ 0.0, 1 },
+                .ok_cancel => .{ 1.0, 3 },
+            };
+            if (dvui.button(@src(), cl, .{}, .{
+                .tab_index = tindex,
+                .data_out = &cancel_data,
+                .gravity_x = gravx,
+                .box_shadow = .{
+                    .color = .black,
+                    .alpha = 0.25,
+                    .offset = .{ .x = -4, .y = 4 },
+                    .fade = 8,
+                },
+            })) {
+                dvui.dialogRemove(id);
+                if (callafter) |ca| {
+                    ca(id, .cancel) catch |err| {
+                        dvui.log.debug("Dialog callafter for {x} returned {any}", .{ id, err });
+                    };
+                }
+                return;
+            }
+            if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .cancel) {
+                dvui.focusWidget(cancel_data.id, null, null);
+            }
+        }
+
+        var ok_data: dvui.WidgetData = undefined;
+        if (dvui.button(@src(), ok_label, .{}, .{
+            .tab_index = 2,
+            .data_out = &ok_data,
+            .box_shadow = .{
+                .color = .black,
+                .alpha = 0.25,
+                .offset = .{ .x = -4, .y = 4 },
+                .fade = 8,
+            },
+        })) {
+            dvui.dialogRemove(id);
+            if (callafter) |ca| {
+                ca(id, .ok) catch |err| {
+                    dvui.log.debug("Dialog callafter for {x} returned {any}", .{ id, err });
+                };
+            }
+            return;
+        }
+        if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .ok) {
+            dvui.focusWidget(ok_data.id, null, null);
+        }
+    }
+
+    var vert_anim = dvui.animate(@src(), .{
+        .kind = .vertical,
+        .duration = 300_000,
+        .easing = dvui.easing.outBack,
+    }, .{ .expand = .none, .id_extra = id.asUsize(), .gravity_x = 0.5 });
+    defer vert_anim.deinit();
+
+    // var horiz_anim = dvui.animate(@src(), .{
+    //     .kind = .horizontal,
+    //     .duration = 300_000,
+    //     .easing = dvui.easing.outQuint,
+    // }, .{ .expand = .none, .id_extra = id_extra, .gravity_x = 0.5 });
+    // defer horiz_anim.deinit();
+
+    var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .padding = .all(8),
+        .expand = .horizontal,
+        .gravity_x = 0.5,
+        .gravity_y = 0.5,
+    });
+    defer hbox.deinit();
+
+    const clip = dvui.clip(hbox.data().contentRectScale().r);
+    defer dvui.clipSet(clip);
+
+    if (displayFn) |df| {
+        df(id) catch |err| {
+            dvui.log.debug("Dialog display for {x} returned {any}", .{ id, err });
+        };
+    }
+}
+
+pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool) dvui.Rect.Physical {
+    var over = dvui.overlay(@src(), .{ .expand = .horizontal, .name = "WindowHeader", .background = true, .color_fill = dvui.themeGet().color(.control, .fill), .corner_radius = .{ .x = 10, .y = 10 } });
+
+    dvui.labelNoFmt(@src(), str, .{ .align_x = 0.5 }, .{
+        .expand = .horizontal,
+        .font = .theme(.heading),
+        .padding = .{ .x = 4, .y = 4, .w = 4, .h = 4 },
+        .label = .{ .for_id = dvui.subwindowCurrentId() },
+    });
+
+    if (openflag) |of| {
+        const opts: dvui.Options = .{
+            .font = .theme(.heading),
+            .corner_radius = dvui.Rect.all(1000),
+            .padding = dvui.Rect.all(0),
+            .margin = dvui.Rect.all(6),
+            .gravity_y = 0.5,
+            .expand = .ratio,
+            .style = .err,
+            .box_shadow = .{
+                .color = .black,
+                .alpha = 0.25,
+                .offset = .{ .x = -2, .y = 2 },
+                .fade = 4,
+            },
+        };
+
+        var button: dvui.ButtonWidget = undefined;
+        button.init(@src(), .{}, opts);
+        defer button.deinit();
+
+        button.processEvents();
+        button.drawBackground();
+
+        if (button.hovered()) {
+            dvui.icon(@src(), "close", icons.tvg.lucide.x, .{
+                .stroke_color = dvui.themeGet().color(.err, .fill).lighten(if (dvui.themeGet().dark) -10 else 10),
+                .fill_color = dvui.themeGet().color(.err, .fill).lighten(if (dvui.themeGet().dark) -10 else 10),
+            }, .{
+                .expand = .ratio,
+                .gravity_x = 0.5,
+                .gravity_y = 0.5,
+            });
+        }
+
+        if (button.clicked()) {
+            of.* = false;
+        }
+    }
+
+    dvui.labelNoFmt(@src(), right_str, .{}, .{ .gravity_x = 1.0 });
+
+    const evts = dvui.events();
+    for (evts) |*e| {
+        if (!dvui.eventMatch(e, .{ .id = over.data().id, .r = over.data().contentRectScale().r }))
+            continue;
+
+        if (e.evt == .mouse and e.evt.mouse.action == .press and e.evt.mouse.button.pointer()) {
+            // raise this subwindow but let the press continue so the window
+            // will do the drag-move
+            dvui.raiseSubwindow(dvui.subwindowCurrentId());
+        } else if (e.evt == .mouse and e.evt.mouse.action == .focus) {
+            // our window will already be focused, but this prevents the window
+            // from clearing the focused widget
+            e.handle(@src(), over.data());
+        }
+    }
+
+    const ret = over.data().rectScale().r;
+
+    over.deinit();
+
+    return ret;
+}
+
 pub fn toastDisplay(id: dvui.Id) !void {
     const message = dvui.dataGetSlice(null, id, "_message", []u8) orelse {
         dvui.log.err("toastDisplay lost data for toast {x}\n", .{id});

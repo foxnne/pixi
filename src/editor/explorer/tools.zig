@@ -361,7 +361,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
 
             const selected = if (edit_layer_id) |id| id == layer_id else file.selected_layer_index == layer_index;
             const visible = file.layers.items(.visible)[layer_index];
-            const font = if (visible) dvui.Font.theme(.mono).larger(-2.0) else dvui.Font.theme(.mono).withStyle(.italic).larger(-2.0);
+            const font = if (visible) dvui.Font.theme(.mono).larger(-4.0) else dvui.Font.theme(.mono).withStyle(.italic).larger(-4.0);
 
             var color = dvui.themeGet().color(.control, .fill_hover);
             if (pixi.editor.colors.file_tree_palette) |*palette| {

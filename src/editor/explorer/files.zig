@@ -341,7 +341,22 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         if ((dvui.menuItemLabel(@src(), "New File...", .{}, .{ .expand = .horizontal })) != null) {
                             defer fw2.close();
 
-                            pixi.Editor.Dialogs.newFile(@src(), .{ .parent_path = abs_path });
+                            const dialog_id = if (pixi.Editor.Dialogs.new_file.mode == .single_tile) branch_id.update("single_tile") else branch_id.update("grid");
+
+                            // Create a generic dialog that contains typical okay and cancel buttons and header
+                            // The displayFn will be called during the drawing of the dialog, prior to ok and cancel buttons
+                            var mutex = pixi.dvui.dialog(@src(), .{
+                                .displayFn = pixi.Editor.Dialogs.new_file.dialog,
+                                .callafterFn = pixi.Editor.Dialogs.new_file.callAfter,
+                                .title = "New File...",
+                                .ok_label = "Create",
+                                .cancel_label = "Cancel",
+
+                                .default = .ok,
+                                .id_extra = dialog_id.asUsize(),
+                            });
+                            dvui.dataSetSlice(null, mutex.id, "_parent_path", abs_path);
+                            mutex.mutex.unlock();
                         }
 
                         if ((dvui.menuItemLabel(@src(), "New Folder...", .{}, .{ .expand = .horizontal })) != null) {

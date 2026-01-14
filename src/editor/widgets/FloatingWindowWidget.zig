@@ -142,6 +142,20 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
         self.auto_pos = (self.wd.rect.x == 0 and self.wd.rect.y == 0);
     }
 
+    var diff_x: f32 = 0;
+    var diff_y: f32 = 0;
+    if (dvui.animationGet(self.wd.id, "_auto_height")) |*a| {
+        diff_y = self.wd.rect.h - a.value();
+        self.wd.rect.h = a.value();
+        self.wd.rect.y += diff_y / 2;
+    }
+
+    if (dvui.animationGet(self.wd.id, "_auto_width")) |*a| {
+        diff_x = self.wd.rect.w - a.value();
+        self.wd.rect.w = a.value();
+        self.wd.rect.x += diff_x / 2;
+    }
+
     if (dvui.minSizeGet(self.wd.id)) |min_size| {
         if (self.auto_size) {
             // Track if any of our children called refresh(), and in deinit we
@@ -150,8 +164,20 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
             dvui.currentWindow().extra_frames_needed = 0;
 
             const ms = Size.min(Size.max(min_size, self.options.min_sizeGet()), .cast(dvui.windowRect().size()));
-            self.wd.rect.w = ms.w;
-            self.wd.rect.h = ms.h;
+
+            dvui.animation(self.wd.id, "_auto_width", .{
+                .start_val = self.wd.rect.w,
+                .end_val = ms.w,
+                .end_time = 300_000,
+                .easing = dvui.easing.outBack,
+            });
+
+            dvui.animation(self.wd.id, "_auto_height", .{
+                .start_val = self.wd.rect.h,
+                .end_val = ms.h,
+                .end_time = 300_000,
+                .easing = dvui.easing.outBack,
+            });
         }
 
         if (self.auto_pos) {
@@ -393,6 +419,7 @@ pub fn processEventsBefore(self: *FloatingWindowWidget) void {
                     dvui.captureMouse(null, e.num); // stop drag and capture
                     dvui.dragEnd();
                     e.handle(@src(), self.data());
+                    dvui.refresh(null, @src(), self.data().id);
                     continue;
                 }
             }
