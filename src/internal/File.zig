@@ -14,10 +14,12 @@ const Animation = @import("Animation.zig");
 id: u64,
 path: []const u8,
 
-width: u32,
-height: u32,
-tile_width: u32 = 0,
-tile_height: u32 = 0,
+//width: u32,
+//height: u32,
+columns: u32 = 1,
+rows: u32 = 1,
+column_width: u32 = 32,
+row_height: u32 = 32,
 
 selected_layer_index: usize = 0,
 peek_layer_index: ?usize = null,
@@ -73,12 +75,21 @@ pub const EditorData = struct {
 pub const History = @import("History.zig");
 pub const Buffers = @import("Buffers.zig");
 
-pub fn init(path: []const u8, width: u32, height: u32) !pixi.Internal.File {
+pub const InitOptions = struct {
+    columns: u32 = 1,
+    rows: u32 = 1,
+    column_width: u32 = 32,
+    row_height: u32 = 32,
+};
+
+pub fn init(path: []const u8, options: InitOptions) !pixi.Internal.File {
     var internal: pixi.Internal.File = .{
         .id = pixi.editor.newFileID(),
         .path = try pixi.app.allocator.dupe(u8, path),
-        .width = width,
-        .height = height,
+        .columns = options.columns,
+        .rows = options.rows,
+        .column_width = options.column_width,
+        .row_height = options.row_height,
         .history = pixi.Internal.File.History.init(pixi.app.allocator),
         .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
     };
@@ -118,6 +129,14 @@ pub fn init(path: []const u8, width: u32, height: u32) !pixi.Internal.File {
         dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
     }
     return internal;
+}
+
+pub fn width(file: *File) u32 {
+    return file.columns * file.column_width;
+}
+
+pub fn height(file: *File) u32 {
+    return file.rows * file.row_height;
 }
 
 /// Attempts to load a file from the given path to create a new file
@@ -177,25 +196,37 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
 
             // we now need to load the old animation format.
 
-            if (std.json.parseFromSlice(pixi.File.OldFile, pixi.app.allocator, content, options) catch null) |old_file| {
-                const animations = try pixi.app.allocator.alloc(pixi.Animation, old_file.value.animations.len);
-                for (animations, old_file.value.animations) |*animation, old_animation| {
-                    animation.name = try pixi.app.allocator.dupe(u8, old_animation.name);
-                    animation.frames = try pixi.app.allocator.alloc(usize, old_animation.length);
-                    for (animation.frames, 0..old_animation.length) |*frame, i| {
-                        frame.* = old_animation.start + i;
+            if (std.json.parseFromSlice(pixi.File.FileV2, pixi.app.allocator, content, options) catch null) |old_file| {
+                ext = .{
+                    .version = old_file.value.version,
+                    .columns = @divExact(old_file.value.width, old_file.value.tile_width),
+                    .rows = @divExact(old_file.value.height, old_file.value.tile_height),
+                    .column_width = old_file.value.tile_width,
+                    .row_height = old_file.value.tile_height,
+                    .layers = old_file.value.layers,
+                    .sprites = old_file.value.sprites,
+                    .animations = old_file.value.animations,
+                };
+            }
+
+            if (std.json.parseFromSlice(pixi.File.FileV1, pixi.app.allocator, content, options) catch null) |older_file| {
+                const animations = try pixi.app.allocator.alloc(pixi.Animation, older_file.value.animations.len);
+                for (animations, 0..) |*animation, i| {
+                    animation.name = try pixi.app.allocator.dupe(u8, older_file.value.animations[i].name);
+                    animation.frames = try pixi.app.allocator.alloc(usize, older_file.value.animations[i].length);
+                    for (animation.frames, 0..older_file.value.animations[i].length) |*frame, j| {
+                        frame.* = older_file.value.animations[i].start + j;
                     }
-                    animation.fps = old_animation.fps;
                 }
 
                 ext = .{
-                    .version = old_file.value.version,
-                    .width = old_file.value.width,
-                    .height = old_file.value.height,
-                    .tile_width = old_file.value.tile_width,
-                    .tile_height = old_file.value.tile_height,
-                    .layers = old_file.value.layers,
-                    .sprites = old_file.value.sprites,
+                    .version = older_file.value.version,
+                    .columns = @divExact(older_file.value.width, older_file.value.tile_width),
+                    .rows = @divExact(older_file.value.height, older_file.value.tile_height),
+                    .column_width = older_file.value.tile_width,
+                    .row_height = older_file.value.tile_height,
+                    .layers = older_file.value.layers,
+                    .sprites = older_file.value.sprites,
                     .animations = animations,
                 };
             }
@@ -208,32 +239,32 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
         var internal: pixi.Internal.File = .{
             .id = pixi.editor.newFileID(),
             .path = try pixi.app.allocator.dupe(u8, path),
-            .width = ext.width,
-            .height = ext.height,
-            .tile_width = ext.tile_width,
-            .tile_height = ext.tile_height,
+            .columns = ext.columns,
+            .rows = ext.rows,
+            .column_width = ext.column_width,
+            .row_height = ext.row_height,
             .history = pixi.Internal.File.History.init(pixi.app.allocator),
             .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
         };
 
         //Initialize editor layers and selected sprites
-        internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-        internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-        internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
-        internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
+        internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width() * internal.height());
         // Create a layer-sized checkerboard pattern for selection tools
-        for (0..internal.width * internal.height) |i| {
-            const value = pixi.math.checker(.{ .w = @floatFromInt(internal.width), .h = @floatFromInt(internal.height) }, i);
+        for (0..internal.width() * internal.height()) |i| {
+            const value = pixi.math.checker(.{ .w = @floatFromInt(internal.width()), .h = @floatFromInt(internal.height()) }, i);
             internal.editor.checkerboard.setValue(i, value);
         }
 
         // Initialize checkerboard tile image source
         {
             internal.editor.checkerboard_tile = pixi.image.init(
-                ext.tile_width * 2,
-                ext.tile_height * 2,
+                ext.column_width * 2,
+                ext.row_height * 2,
                 .{ .r = 0, .g = 0, .b = 0, .a = 0 },
                 .ptr,
             ) catch return error.LayerCreateError;
@@ -266,9 +297,9 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                 var new_layer: pixi.Internal.Layer = try .fromPixelsPMA(
                     internal.newLayerID(),
                     l.name,
-                    @as([*]dvui.Color.PMA, @ptrCast(@constCast(data)))[0..(internal.width * internal.height)],
-                    internal.width,
-                    internal.height,
+                    @as([*]dvui.Color.PMA, @ptrCast(@constCast(data)))[0..(internal.width() * internal.height())],
+                    internal.width(),
+                    internal.height(),
                     .ptr,
                 );
 
@@ -434,16 +465,16 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
 
     var png_layer: pixi.Internal.Layer = try pixi.Internal.Layer.fromImageFilePath(pixi.editor.newFileID(), "Layer", path, .ptr);
     const size = png_layer.size();
-    const width: u32 = @intFromFloat(size.w);
-    const height: u32 = @intFromFloat(size.h);
+    const column_width: u32 = @intFromFloat(size.w);
+    const row_height: u32 = @intFromFloat(size.h);
 
     var internal: pixi.Internal.File = .{
         .id = pixi.editor.newFileID(),
         .path = try pixi.app.allocator.dupe(u8, path),
-        .width = width,
-        .height = height,
-        .tile_width = width,
-        .tile_height = height,
+        .columns = 1,
+        .rows = 1,
+        .column_width = column_width,
+        .row_height = row_height,
         .history = pixi.Internal.File.History.init(pixi.app.allocator),
         .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
     };
@@ -451,23 +482,23 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
     internal.layers.append(pixi.app.allocator, png_layer) catch return error.LayerCreateError;
 
     // Initialize editor layers and selected sprites
-    internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-    internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-    internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
-    internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
+    internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width() * internal.height());
     // Create a layer-sized checkerboard pattern for selection tools
-    for (0..internal.width * internal.height) |i| {
-        const value = pixi.math.checker(.{ .w = @floatFromInt(internal.width), .h = @floatFromInt(internal.height) }, i);
+    for (0..internal.width() * internal.height()) |i| {
+        const value = pixi.math.checker(.{ .w = @floatFromInt(internal.width()), .h = @floatFromInt(internal.height()) }, i);
         internal.editor.checkerboard.setValue(i, value);
     }
 
     // Initialize checkerboard tile image source
     {
         internal.editor.checkerboard_tile = pixi.image.init(
-            width * 2,
-            height * 2,
+            column_width * 2,
+            row_height * 2,
             .{ .r = 0, .g = 0, .b = 0, .a = 0 },
             .ptr,
         ) catch return error.LayerCreateError;
@@ -489,25 +520,28 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
 }
 
 pub const ResizeOptions = struct {
-    tiles_wide: u32,
-    tiles_high: u32,
+    columns: u32,
+    rows: u32,
     history: bool = true, // If true, layer data will be recorded for undo/redo
     layer_data: ?[][][4]u8 = null, // If provided, the layer data will be applied to the layers after resizing
 };
 
 pub fn resize(file: *File, options: ResizeOptions) !void {
-    const current_tiles_wide = @divExact(file.width, file.tile_width);
-    const current_tiles_high = @divExact(file.height, file.tile_height);
+    const current_columns = file.columns;
+    const current_rows = file.rows;
 
-    if (options.tiles_wide == current_tiles_wide and
-        options.tiles_high == current_tiles_high) return;
+    if (options.columns == current_columns and
+        options.rows == current_rows) return;
 
-    const new_width = options.tiles_wide * file.tile_width;
-    const new_height = options.tiles_high * file.tile_height;
+    const new_columns = options.columns;
+    const new_rows = options.rows;
+
+    const new_width = new_columns * file.column_width;
+    const new_height = new_rows * file.row_height;
 
     // First, record the current layer data for undo/redo
     if (options.history) {
-        file.history.append(.{ .resize = .{ .width = file.width, .height = file.height } }) catch return error.HistoryAppendError;
+        file.history.append(.{ .resize = .{ .width = file.width(), .height = file.height() } }) catch return error.HistoryAppendError;
 
         var layer_data = try pixi.app.allocator.alloc([][4]u8, file.layers.len);
         for (0..file.layers.len) |layer_index| {
@@ -534,7 +568,7 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     file.editor.selection_layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
     file.editor.transform_layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
 
-    file.editor.selected_sprites.resize(options.tiles_wide * options.tiles_high, false) catch return error.MemoryAllocationFailed;
+    file.editor.selected_sprites.resize(options.columns * options.rows, false) catch return error.MemoryAllocationFailed;
 
     file.editor.checkerboard.resize(new_width * new_height, false) catch return error.MemoryAllocationFailed;
     for (0..new_width * new_height) |i| {
@@ -542,8 +576,8 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
         file.editor.checkerboard.setValue(i, value);
     }
 
-    file.width = new_width;
-    file.height = new_height;
+    file.columns = new_columns;
+    file.rows = new_rows;
 }
 
 pub fn deinit(file: *File) void {
@@ -585,25 +619,23 @@ pub fn newLayerID(file: *File) u64 {
 }
 
 pub fn spritePoint(file: *File, point: dvui.Point) dvui.Point {
-    const column = @divTrunc(@as(i32, @intFromFloat(point.x)), @as(i32, @intCast(file.tile_width)));
-    const row = @divTrunc(@as(i32, @intFromFloat(point.y)), @as(i32, @intCast(file.tile_height)));
+    const column = @divTrunc(@as(i32, @intFromFloat(point.x)), @as(i32, @intCast(file.column_width)));
+    const row = @divTrunc(@as(i32, @intFromFloat(point.y)), @as(i32, @intCast(file.row_height)));
 
-    return .{ .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width)), .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height)) };
+    return .{ .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width)), .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height)) };
 }
 
 pub fn spriteCount(file: *File) usize {
-    const tiles_wide = @divExact(file.width, file.tile_width);
-    const tiles_high = @divExact(file.height, file.tile_height);
-    return tiles_wide * tiles_high;
+    return file.columns * file.rows;
 }
 
 pub fn spriteIndex(file: *File, point: dvui.Point) ?usize {
     if (!file.editor.canvas.dataFromScreenRect(file.editor.canvas.rect).contains(point)) return null;
 
-    const tiles_wide = @divExact(file.width, file.tile_width);
+    const tiles_wide = @divExact(file.width(), file.column_width);
 
-    const column = @divTrunc(@as(u32, @intFromFloat(point.x)), file.tile_width);
-    const row = @divTrunc(@as(u32, @intFromFloat(point.y)), file.tile_height);
+    const column = @divTrunc(@as(u32, @intFromFloat(point.x)), file.column_width);
+    const row = @divTrunc(@as(u32, @intFromFloat(point.y)), file.row_height);
 
     return row * tiles_wide + column;
 }
@@ -628,15 +660,15 @@ pub fn spriteName(file: *File, allocator: std.mem.Allocator, index: usize, by_an
 }
 
 pub fn spriteRect(file: *File, index: usize) dvui.Rect {
-    const tiles_wide = @divExact(file.width, file.tile_width);
-    const column = @mod(@as(u32, @intCast(index)), tiles_wide);
-    const row = @divTrunc(@as(u32, @intCast(index)), tiles_wide);
+    const columns = file.columns;
+    const column = @mod(@as(u32, @intCast(index)), columns);
+    const row = @divTrunc(@as(u32, @intCast(index)), columns);
 
     const out: dvui.Rect = .{
-        .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width)),
-        .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height)),
-        .w = @as(f32, @floatFromInt(file.tile_width)),
-        .h = @as(f32, @floatFromInt(file.tile_height)),
+        .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width)),
+        .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height)),
+        .w = @as(f32, @floatFromInt(file.column_width)),
+        .h = @as(f32, @floatFromInt(file.row_height)),
     };
     return out;
 }
@@ -672,18 +704,18 @@ pub fn selectPoint(file: *File, point: dvui.Point, select_options: SelectOptions
         selection_layer.clearMask();
     }
 
-    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
+    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width())) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height()))) {
         return;
     }
 
-    const column = @as(u32, @intFromFloat(point.x)) / file.tile_width;
-    const row = @as(u32, @intFromFloat(point.y)) / file.tile_height;
+    const column = @as(u32, @intFromFloat(point.x)) / file.column_width;
+    const row = @as(u32, @intFromFloat(point.y)) / file.row_height;
 
-    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width));
-    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height));
+    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width));
+    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height));
 
-    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.tile_width));
-    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.tile_height));
+    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.column_width));
+    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.row_height));
 
     if (select_options.stroke_size < 10) {
         const size: usize = @intCast(select_options.stroke_size);
@@ -730,22 +762,22 @@ pub fn selectLine(file: *File, point1: dvui.Point, point2: dvui.Point, select_op
         selection_layer.clearMask();
     }
 
-    if (point1.x < 0 or point1.x >= @as(f32, @floatFromInt(file.width)) or point1.y < 0 or point1.y >= @as(f32, @floatFromInt(file.height))) {
+    if (point1.x < 0 or point1.x >= @as(f32, @floatFromInt(file.width())) or point1.y < 0 or point1.y >= @as(f32, @floatFromInt(file.height()))) {
         return;
     }
 
-    if (point2.x < 0 or point2.x >= @as(f32, @floatFromInt(file.width)) or point2.y < 0 or point2.y >= @as(f32, @floatFromInt(file.height))) {
+    if (point2.x < 0 or point2.x >= @as(f32, @floatFromInt(file.width())) or point2.y < 0 or point2.y >= @as(f32, @floatFromInt(file.height()))) {
         return;
     }
 
-    const column = @as(u32, @intFromFloat(point2.x)) / file.tile_width;
-    const row = @as(u32, @intFromFloat(point2.y)) / file.tile_height;
+    const column = @as(u32, @intFromFloat(point2.x)) / file.column_width;
+    const row = @as(u32, @intFromFloat(point2.y)) / file.row_height;
 
-    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width));
-    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height));
+    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width));
+    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height));
 
-    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.tile_width));
-    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.tile_height));
+    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.column_width));
+    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.row_height));
 
     const diff = point2.diff(point1).normalize().scale(4, dvui.Point);
     const stroke_size: usize = @intCast(pixi.Editor.Tools.max_brush_size);
@@ -818,20 +850,20 @@ pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options:
 
     defer active_layer.dirty = true;
 
-    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
+    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width())) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height()))) {
         return;
     }
 
     const mask_value: bool = draw_options.color.a != 0;
 
-    const column = @as(u32, @intFromFloat(point.x)) / file.tile_width;
-    const row = @as(u32, @intFromFloat(point.y)) / file.tile_height;
+    const column = @as(u32, @intFromFloat(point.x)) / file.column_width;
+    const row = @as(u32, @intFromFloat(point.y)) / file.row_height;
 
-    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width));
-    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height));
+    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width));
+    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height));
 
-    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.tile_width));
-    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.tile_height));
+    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.column_width));
+    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.row_height));
 
     if (draw_options.stroke_size < 10) {
         const size: usize = @intCast(draw_options.stroke_size);
@@ -913,24 +945,24 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
 
     defer active_layer.dirty = true;
 
-    if (point1.x < 0 or point1.x >= @as(f32, @floatFromInt(file.width)) or point1.y < 0 or point1.y >= @as(f32, @floatFromInt(file.height))) {
+    if (point1.x < 0 or point1.x >= @as(f32, @floatFromInt(file.width())) or point1.y < 0 or point1.y >= @as(f32, @floatFromInt(file.height()))) {
         return;
     }
 
-    if (point2.x < 0 or point2.x >= @as(f32, @floatFromInt(file.width)) or point2.y < 0 or point2.y >= @as(f32, @floatFromInt(file.height))) {
+    if (point2.x < 0 or point2.x >= @as(f32, @floatFromInt(file.width())) or point2.y < 0 or point2.y >= @as(f32, @floatFromInt(file.height()))) {
         return;
     }
 
     const mask_value: bool = draw_options.color.a != 0;
 
-    const column = @as(u32, @intFromFloat(point2.x)) / file.tile_width;
-    const row = @as(u32, @intFromFloat(point2.y)) / file.tile_height;
+    const column = @as(u32, @intFromFloat(point2.x)) / file.column_width;
+    const row = @as(u32, @intFromFloat(point2.y)) / file.row_height;
 
-    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.tile_width));
-    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.tile_height));
+    const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width));
+    const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height));
 
-    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.tile_width));
-    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.tile_height));
+    const max_x: f32 = min_x + @as(f32, @floatFromInt(file.column_width));
+    const max_y: f32 = min_y + @as(f32, @floatFromInt(file.row_height));
 
     const diff = point2.diff(point1).normalize().scale(4, dvui.Point);
     const stroke_size: usize = @intCast(pixi.Editor.Tools.max_brush_size);
@@ -1029,7 +1061,7 @@ pub fn fillPoint(file: *File, point: dvui.Point, layer: DrawLayer, fill_options:
         return;
     };
 
-    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width)) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height))) {
+    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width())) or point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height()))) {
         return;
     }
 
@@ -1040,7 +1072,7 @@ pub fn fillPoint(file: *File, point: dvui.Point, layer: DrawLayer, fill_options:
         }
     } else {
         active_layer.clearMask();
-        active_layer.floodMaskPoint(point, .fromSize(.{ .w = @as(f32, @floatFromInt(file.width)), .h = @as(f32, @floatFromInt(file.height)) }), true) catch {
+        active_layer.floodMaskPoint(point, .fromSize(.{ .w = @as(f32, @floatFromInt(file.width())), .h = @as(f32, @floatFromInt(file.height())) }), true) catch {
             dvui.log.err("Failed to fill point", .{});
         };
     }
@@ -1108,7 +1140,7 @@ pub fn duplicateLayer(self: *File, index: usize) !u64 {
     const new_name = try std.fmt.allocPrint(dvui.currentWindow().lifo(), "{s}_copy", .{layer.name});
     defer dvui.currentWindow().lifo().free(new_name);
 
-    var new_layer = Layer.init(self.newLayerID(), new_name, self.width, self.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.FailedToDuplicateLayer;
+    var new_layer = Layer.init(self.newLayerID(), new_name, self.width(), self.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.FailedToDuplicateLayer;
     new_layer.visible = layer.visible;
     new_layer.collapse = layer.collapse;
 
@@ -1133,7 +1165,7 @@ pub fn duplicateLayer(self: *File, index: usize) !u64 {
 }
 
 pub fn createLayer(self: *File) !u64 {
-    if (pixi.Internal.Layer.init(self.newLayerID(), "New Layer", self.width, self.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
+    if (pixi.Internal.Layer.init(self.newLayerID(), "New Layer", self.width(), self.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch null) |layer| {
         self.layers.insert(pixi.app.allocator, 0, layer) catch {
             dvui.log.err("Failed to append layer", .{});
         };
@@ -1364,10 +1396,10 @@ pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
 
     return .{
         .version = pixi.version,
-        .width = self.width,
-        .height = self.height,
-        .tile_width = self.tile_width,
-        .tile_height = self.tile_height,
+        .columns = self.columns,
+        .rows = self.rows,
+        .column_width = self.column_width,
+        .row_height = self.row_height,
         .layers = layers,
         .sprites = sprites,
         .animations = animations,

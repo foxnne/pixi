@@ -120,8 +120,8 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
             const current_layer = if (layer_opt) |carry_over_layer| carry_over_layer else try pixi.Internal.Layer.init(
                 0,
                 "",
-                file.width,
-                file.height,
+                file.width(),
+                file.height(),
                 .{ .r = 0, .g = 0, .b = 0, .a = 0 },
                 .ptr,
             );
@@ -149,15 +149,15 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
         var sprite_index: usize = 0;
         while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
             const sprite = file.sprites.slice().get(sprite_index);
-            const tiles_wide = @divExact(file.width, file.tile_width);
+            const columns = file.columns;
 
-            const column = @mod(@as(u32, @intCast(sprite_index)), tiles_wide);
-            const row = @divTrunc(@as(u32, @intCast(sprite_index)), tiles_wide);
+            const column = @mod(@as(u32, @intCast(sprite_index)), columns);
+            const row = @divTrunc(@as(u32, @intCast(sprite_index)), columns);
 
-            const src_x = std.math.clamp(column * file.tile_width, 0, file.width);
-            const src_y = std.math.clamp(row * file.tile_height, 0, file.height);
+            const src_x = std.math.clamp(column * file.column_width, 0, file.width());
+            const src_y = std.math.clamp(row * file.row_height, 0, file.height());
 
-            const src_rect: dvui.Rect = .{ .x = @floatFromInt(src_x), .y = @floatFromInt(src_y), .w = @floatFromInt(file.tile_width), .h = @floatFromInt(file.tile_height) };
+            const src_rect: dvui.Rect = .{ .x = @floatFromInt(src_x), .y = @floatFromInt(src_y), .w = @floatFromInt(file.column_width), .h = @floatFromInt(file.row_height) };
 
             if (current_layer.reduce(src_rect)) |reduced_rect| {
                 const reduced_src_x: usize = @intFromFloat(reduced_rect.x);

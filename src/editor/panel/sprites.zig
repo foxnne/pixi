@@ -101,8 +101,8 @@ pub fn draw(self: *Sprites) !void {
         var rect = dvui.Rect{
             .x = parent.center().x,
             .y = parent.center().y,
-            .w = @as(f32, @floatFromInt(file.tile_width)) * scale,
-            .h = @as(f32, @floatFromInt(file.tile_height)) * scale,
+            .w = @as(f32, @floatFromInt(file.column_width)) * scale,
+            .h = @as(f32, @floatFromInt(file.row_height)) * scale,
         };
 
         rect.x -= rect.w / 2.0;

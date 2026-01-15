@@ -91,7 +91,7 @@ pub fn draw(_: Infobar) !void {
             .{ .stroke_color = dvui.themeGet().color(.window, .text) },
             .{ .gravity_y = 0.5 },
         );
-        dvui.label(@src(), "{d}x{d} - {d}x{d}", .{ file.width, file.height, file.tile_width, file.tile_height }, .{ .font = font, .gravity_y = 0.5 });
+        dvui.label(@src(), "{d}x{d} - {d}x{d}", .{ file.width(), file.height(), file.column_width, file.row_height }, .{ .font = font, .gravity_y = 0.5 });
 
         _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 12 } });
 
@@ -106,6 +106,6 @@ pub fn draw(_: Infobar) !void {
         const mouse_pt = dvui.currentWindow().mouse_pt;
         const data_pt = file.editor.canvas.dataFromScreenPoint(mouse_pt);
         const sprite_pt = file.spritePoint(data_pt);
-        dvui.label(@src(), "{d:0.0},{d:0.0} - {d:0.0},{d:0.0}", .{ @floor(data_pt.x), @floor(data_pt.y), @floor(sprite_pt.x / @as(f32, @floatFromInt(file.tile_width))), @floor(sprite_pt.y / @as(f32, @floatFromInt(file.tile_height))) }, .{ .font = font, .gravity_y = 0.5 });
+        dvui.label(@src(), "{d:0.0},{d:0.0} - {d:0.0},{d:0.0}", .{ @floor(data_pt.x), @floor(data_pt.y), @floor(sprite_pt.x / @as(f32, @floatFromInt(file.column_width))), @floor(sprite_pt.y / @as(f32, @floatFromInt(file.row_height))) }, .{ .font = font, .gravity_y = 0.5 });
     }
 }

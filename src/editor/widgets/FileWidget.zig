@@ -51,8 +51,8 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
     init_opts.canvas.install(src, .{
         .id = init_opts.canvas.id,
         .data_size = .{
-            .w = @floatFromInt(init_opts.file.width),
-            .h = @floatFromInt(init_opts.file.height),
+            .w = @floatFromInt(init_opts.file.width()),
+            .h = @floatFromInt(init_opts.file.height()),
         },
     }, opts);
 
@@ -1462,7 +1462,7 @@ pub fn processTransform(self: *FileWidget) void {
     }) valid = false;
 
     const file = self.init_options.file;
-    const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
+    const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width()), .h = @floatFromInt(file.height()) });
     const image_rect_physical = dvui.Rect.Physical.fromSize(.{ .w = image_rect.w, .h = image_rect.h });
 
     if (file.editor.transform) |*transform| {
@@ -2382,10 +2382,10 @@ pub fn drawSample(self: *FileWidget) void {
 
         // Compute UVs for the region to sample, normalized to [0,1]
         const uv_rect = dvui.Rect{
-            .x = (data_point.x - sample_region_size / 2) / @as(f32, @floatFromInt(file.width)),
-            .y = (data_point.y - sample_region_size / 2) / @as(f32, @floatFromInt(file.height)),
-            .w = sample_region_size / @as(f32, @floatFromInt(file.width)),
-            .h = sample_region_size / @as(f32, @floatFromInt(file.height)),
+            .x = (data_point.x - sample_region_size / 2) / @as(f32, @floatFromInt(file.width())),
+            .y = (data_point.y - sample_region_size / 2) / @as(f32, @floatFromInt(file.height())),
+            .w = sample_region_size / @as(f32, @floatFromInt(file.width())),
+            .h = sample_region_size / @as(f32, @floatFromInt(file.height())),
         };
 
         var rs = box.data().borderRectScale();
@@ -2396,10 +2396,10 @@ pub fn drawSample(self: *FileWidget) void {
         dvui.renderImage(file.editor.checkerboard_tile, rs, .{
             .colormod = dvui.themeGet().color(.content, .fill).lighten(12.0),
             .uv = .{
-                .x = @mod(data_point.x - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_width * nat_scale))) / @as(f32, @floatFromInt(file.tile_width * nat_scale)),
-                .y = @mod(data_point.y - sample_region_size / 2, @as(f32, @floatFromInt(file.tile_height * nat_scale))) / @as(f32, @floatFromInt(file.tile_height * nat_scale)),
-                .w = sample_region_size / @as(f32, @floatFromInt(file.tile_width * nat_scale)),
-                .h = sample_region_size / @as(f32, @floatFromInt(file.tile_height * nat_scale)),
+                .x = @mod(data_point.x - sample_region_size / 2, @as(f32, @floatFromInt(file.column_width * nat_scale))) / @as(f32, @floatFromInt(file.column_width * nat_scale)),
+                .y = @mod(data_point.y - sample_region_size / 2, @as(f32, @floatFromInt(file.row_height * nat_scale))) / @as(f32, @floatFromInt(file.row_height * nat_scale)),
+                .w = sample_region_size / @as(f32, @floatFromInt(file.column_width * nat_scale)),
+                .h = sample_region_size / @as(f32, @floatFromInt(file.row_height * nat_scale)),
             },
             .corner_radius = .{
                 .x = corner_radius.x * rs.s,
@@ -2475,10 +2475,10 @@ pub fn updateActiveLayerMask(self: *FileWidget) void {
 pub fn drawLayers(self: *FileWidget) void {
     var file = self.init_options.file;
     var layer_index: usize = file.layers.len;
-    var tiles_wide: usize = @intCast(@divExact(file.width, file.tile_width));
-    var tiles_high: usize = @intCast(@divExact(file.height, file.tile_height));
+    var tiles_wide: usize = @intCast(@divExact(file.width(), file.column_width));
+    var tiles_high: usize = @intCast(@divExact(file.height(), file.row_height));
 
-    const layer_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
+    const layer_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width()), .h = @floatFromInt(file.height()) });
     var resize_rect = layer_rect;
 
     if (self.resize_data_point) |resize_data_point| {
@@ -2490,21 +2490,21 @@ pub fn drawLayers(self: *FileWidget) void {
             // Draw grid lines for the original layer_rect
             for (1..tiles_wide) |i| {
                 dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = 0 }),
-                    self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = layer_rect.h }),
+                    self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
+                    self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = layer_rect.h }),
                 } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
             }
 
             for (1..tiles_high) |i| {
                 dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
-                    self.init_options.canvas.screenFromDataPoint(.{ .x = layer_rect.w, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
+                    self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                    self.init_options.canvas.screenFromDataPoint(.{ .x = layer_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                 } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
             }
         }
 
-        tiles_wide = @divExact(@as(u32, @intFromFloat(resize_rect.w)), file.tile_width);
-        tiles_high = @divExact(@as(u32, @intFromFloat(resize_rect.h)), file.tile_height);
+        tiles_wide = @divExact(@as(u32, @intFromFloat(resize_rect.w)), file.column_width);
+        tiles_high = @divExact(@as(u32, @intFromFloat(resize_rect.h)), file.row_height);
     }
 
     const shadow_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -2674,15 +2674,15 @@ pub fn drawLayers(self: *FileWidget) void {
 
     for (1..tiles_wide) |i| {
         dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = 0 }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.tile_width)), .y = resize_rect.h }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = resize_rect.h }),
         } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
     }
 
     for (1..tiles_high) |i| {
         dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.tile_height)) }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
         } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
     }
 
@@ -2721,10 +2721,10 @@ pub fn processResize(self: *FileWidget) void {
     if (self.sample_data_point != null) return;
 
     const file = self.init_options.file;
-    const file_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width), .h = @floatFromInt(file.height) });
+    const file_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width()), .h = @floatFromInt(file.height()) });
 
     {
-        const min_size: f32 = @as(f32, @floatFromInt(@min(file.tile_width, file.tile_height)));
+        const min_size: f32 = @as(f32, @floatFromInt(@min(file.column_width, file.row_height)));
         const baseline_size: f32 = 64.0;
         const baseline_scale: f32 = baseline_size / min_size;
         const target_button_height: f32 = min_size / 3.0;
@@ -2737,8 +2737,8 @@ pub fn processResize(self: *FileWidget) void {
         };
 
         const offset_data_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt).plus(.{
-            .x = @as(f32, @floatFromInt(file.tile_width)) / 2.0,
-            .y = @as(f32, @floatFromInt(file.tile_height)) / 2.0,
+            .x = @as(f32, @floatFromInt(file.column_width)) / 2.0,
+            .y = @as(f32, @floatFromInt(file.row_height)) / 2.0,
         });
 
         const dragging = dvui.dragging(dvui.currentWindow().mouse_pt, "resize_drag") != null and self.active();
@@ -2748,8 +2748,8 @@ pub fn processResize(self: *FileWidget) void {
             var new_point = self.init_options.file.spritePoint(offset_data_point);
 
             if (current_point.x != new_point.x or current_point.y != new_point.y) {
-                new_point.x = std.math.clamp(new_point.x, @as(f32, @floatFromInt(file.tile_width)), std.math.floatMax(f32));
-                new_point.y = std.math.clamp(new_point.y, @as(f32, @floatFromInt(file.tile_height)), std.math.floatMax(f32));
+                new_point.x = std.math.clamp(new_point.x, @as(f32, @floatFromInt(file.column_width)), std.math.floatMax(f32));
+                new_point.y = std.math.clamp(new_point.y, @as(f32, @floatFromInt(file.row_height)), std.math.floatMax(f32));
 
                 if (self.resize_data_point != null) {
                     if (dvui.animationGet(self.init_options.canvas.id, "resize_button_rect_x")) |anim| {
@@ -2819,7 +2819,7 @@ pub fn processResize(self: *FileWidget) void {
         icon_button.processEvents();
 
         if (dragging) {
-            var bounds_rect = dvui.Rect.Physical.fromSize(.{ .w = @as(f32, @floatFromInt(file.tile_width)), .h = @as(f32, @floatFromInt(file.tile_height)) });
+            var bounds_rect = dvui.Rect.Physical.fromSize(.{ .w = @as(f32, @floatFromInt(file.column_width)), .h = @as(f32, @floatFromInt(file.row_height)) });
             bounds_rect = bounds_rect.scale(self.init_options.canvas.scale * dvui.currentWindow().natural_scale, dvui.Rect.Physical);
             bounds_rect.x = icon_button.data().contentRectScale().r.topLeft().x - bounds_rect.w / 2.0;
             bounds_rect.y = icon_button.data().contentRectScale().r.topLeft().y - bounds_rect.h / 2.0;
@@ -2874,8 +2874,8 @@ pub fn processResize(self: *FileWidget) void {
         if (dragging == false) {
             if (self.resize_data_point) |resize_data_point| {
                 self.init_options.file.resize(.{
-                    .tiles_wide = @divExact(@as(u32, @intFromFloat(resize_data_point.x)), self.init_options.file.tile_width),
-                    .tiles_high = @divExact(@as(u32, @intFromFloat(resize_data_point.y)), self.init_options.file.tile_height),
+                    .columns = @divExact(@as(u32, @intFromFloat(resize_data_point.x)), self.init_options.file.column_width),
+                    .rows = @divExact(@as(u32, @intFromFloat(resize_data_point.y)), self.init_options.file.row_height),
                     .history = true,
                 }) catch |err| {
                     std.log.err("Failed to resize file: {s}", .{@errorName(err)});

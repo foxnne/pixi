@@ -721,6 +721,23 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
     return error.FailedToOpenFile;
 }
 
+pub const NewFileOptions = struct {
+    row_width: u32 = 32,
+    column_height: u32 = 32,
+    columns: u32 = 1,
+    rows: u32 = 1,
+};
+
+pub fn newFile(editor: *Editor, path: []const u8, options: NewFileOptions) !void {
+    const file = pixi.Internal.File.init(path, options) catch {
+        dvui.log.err("Failed to create file: {s}", .{path});
+        return error.FailedToCreateFile;
+    };
+
+    try editor.open_files.put(file.id, file);
+    editor.setActiveFile(editor.open_files.count() - 1);
+}
+
 pub fn setActiveFile(editor: *Editor, index: usize) void {
     if (index >= editor.open_files.values().len) return;
     const file = editor.open_files.values()[index];

@@ -555,8 +555,8 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
         .resize => |*resize| {
             const new_size_wide = resize.width;
             const new_size_high = resize.height;
-            resize.width = file.width;
-            resize.height = file.height;
+            resize.width = file.width();
+            resize.height = file.height();
 
             var layer_data: ?[][][4]u8 = null;
 
@@ -576,8 +576,8 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             }
 
             file.resize(.{
-                .tiles_wide = @divTrunc(new_size_wide, file.tile_width),
-                .tiles_high = @divTrunc(new_size_high, file.tile_height),
+                .columns = @divTrunc(new_size_wide, file.column_width),
+                .rows = @divTrunc(new_size_high, file.row_height),
                 .history = false,
                 .layer_data = layer_data,
             }) catch return error.ResizeError;
