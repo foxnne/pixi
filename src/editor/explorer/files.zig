@@ -10,10 +10,8 @@ const zstbi = @import("zstbi");
 
 pub var tree_removed_path: ?[]const u8 = null;
 pub var selected_id: ?usize = null;
-
 pub var edit_id: ?usize = null;
 pub var selected_rect: ?dvui.Rect.Physical = null;
-pub var edit_path: ?[]const u8 = null;
 pub var input_widget: ?*dvui.TextEntryWidget = null;
 
 pub const Extension = enum {
@@ -37,7 +35,7 @@ pub const Extension = enum {
 };
 
 pub fn draw() !void {
-    var tree = dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{ .background = false, .expand = .both });
+    var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{ .background = false, .expand = .both });
     defer tree.deinit();
 
     if (pixi.editor.folder) |path| {
@@ -58,7 +56,7 @@ pub fn draw() !void {
     }
 }
 
-pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
+pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     const unique_id = dvui.parentGet().extendId(@src(), 0);
 
     var filter_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
@@ -209,13 +207,29 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             const parent_folder = std.fs.path.dirname(full_path);
             var new_path: []const u8 = undefined;
 
+            var valid_path = blk: {
+                std.fs.accessAbsolute(full_path, .{}) catch {
+                    break :blk false;
+                };
+
+                break :blk true;
+            };
+
             if (parent_folder) |folder| {
                 new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ folder, te.getText() });
             } else {
                 new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{te.getText()});
             }
 
-            if (!std.mem.eql(u8, label, te.getText()) and te.getText().len > 0) {
+            valid_path = blk: { // We want to reverse this on the new path, because we want to disallow overwriting existing files
+                std.fs.accessAbsolute(new_path, .{}) catch {
+                    break :blk true;
+                };
+
+                break :blk false;
+            };
+
+            if (!std.mem.eql(u8, label, te.getText()) and te.getText().len > 0 and valid_path) {
                 switch (kind) {
                     .directory => {
                         std.fs.renameAbsolute(full_path, new_path) catch dvui.log.err("Failed to rename folder: {s} to {s}", .{ label, te.getText() });
@@ -249,12 +263,12 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
     }
 }
 
-pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, unique_id: dvui.Id, outer_filter_text: []const u8) !void {
+pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidget, unique_id: dvui.Id, outer_filter_text: []const u8) !void {
     var color_i: usize = 0;
     var id_extra: usize = 0;
 
     const recursor = struct {
-        fn search(directory: []const u8, tree: *dvui.TreeWidget, inner_unique_id: dvui.Id, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8) !void {
+        fn search(directory: []const u8, tree: *pixi.dvui.TreeWidget, inner_unique_id: dvui.Id, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8) !void {
             var dir = std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true }) catch return;
             defer dir.close();
 
@@ -301,6 +315,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                 const padding = dvui.Rect.all(2);
 
                 const selected: bool = if (selected_id) |id| inner_id_extra.* == id else false;
+                const editing: bool = if (edit_id) |id| inner_id_extra.* == id else false;
 
                 const branch_id = tree.data().id.update(abs_path);
 
@@ -315,6 +330,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                     .expanded = expanded,
                     .animation_duration = 450_000,
                     .animation_easing = dvui.easing.outBack,
+                    .process_events = !editing,
                 }, .{
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
