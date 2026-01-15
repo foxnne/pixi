@@ -3,12 +3,15 @@ const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 
 pub var mode: enum(usize) {
-    single_tile,
+    single,
     grid,
-} = .single_tile;
+} = .single;
 
 pub var tile_size: [2]u32 = .{ 32, 32 };
 pub var grid_size: [2]u32 = .{ 1, 1 };
+
+pub const max_size: [2]u32 = .{ 4096, 4096 };
+pub const min_size: [2]u32 = .{ 1, 1 };
 
 pub fn dialog(id: dvui.Id) anyerror!bool {
 
@@ -19,6 +22,8 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
     defer outer_box.deinit();
 
     var valid: bool = true;
+
+    var unique_id = id.update(if (mode == .single) "single" else "grid");
 
     {
         const hbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{ .expand = .horizontal, .corner_radius = .all(100000) });
@@ -46,9 +51,9 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
             button.drawBackground();
 
             if (i == 0) {
-                dvui.labelNoFmt(@src(), "Single Tile", .{}, button_opts.strip().override(button.style()).override(.{ .gravity_x = 0.5, .gravity_y = 0.5 }));
+                dvui.labelNoFmt(@src(), "Single", .{}, button_opts.strip().override(button.style()).override(.{ .gravity_x = 0.5, .gravity_y = 0.5 }));
                 if (button.clicked()) {
-                    mode = .single_tile;
+                    mode = .single;
                     _ = dvui.dataSet(null, id, "_id_extra", id.update("single_tile").asUsize());
                 }
             } else {
@@ -66,11 +71,12 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
         defer hbox.deinit();
 
         {
-            dvui.label(@src(), "{s}", .{if (mode == .single_tile) "Width:" else "Column Width:"}, .{ .gravity_y = 0.5 });
-            const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = 4096, .value = &tile_size[0], .show_min_max = true }, .{
+            dvui.label(@src(), "{s}", .{if (mode == .single) "Width (x):" else "Column Width (x):"}, .{ .gravity_y = 0.5, .gravity_x = 0.0 });
+            const result = dvui.textEntryNumber(@src(), u32, .{ .min = min_size[0], .max = max_size[0], .value = &tile_size[0], .show_min_max = true }, .{
                 .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
                 .label = .{ .label_widget = .prev },
                 .gravity_x = 1.0,
+                .id_extra = unique_id.asUsize(),
             });
             if (result.value == .Valid) {
                 tile_size[0] = result.value.Valid;
@@ -85,11 +91,12 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
         defer hbox.deinit();
 
         {
-            dvui.label(@src(), "{s}", .{if (mode == .single_tile) "Height:" else "Row Height:"}, .{ .gravity_y = 0.5 });
-            const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = 4096, .value = &tile_size[1] }, .{
+            dvui.label(@src(), "{s}", .{if (mode == .single) "Height (y):" else "Row Height (y):"}, .{ .gravity_y = 0.5, .gravity_x = 0.0 });
+            const result = dvui.textEntryNumber(@src(), u32, .{ .min = min_size[1], .max = max_size[1], .value = &tile_size[1], .show_min_max = true }, .{
                 .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
                 .label = .{ .label_widget = .prev },
                 .gravity_x = 1.0,
+                .id_extra = unique_id.asUsize(),
             });
             if (result.value == .Valid) {
                 tile_size[1] = result.value.Valid;
@@ -105,11 +112,12 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
                 defer hbox.deinit();
 
-                dvui.label(@src(), "Columns:", .{}, .{ .gravity_y = 0.5 });
-                const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = @divTrunc(4096, tile_size[0]), .value = &grid_size[0] }, .{
+                dvui.label(@src(), "Columns (x):", .{}, .{ .gravity_y = 0.5 });
+                const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = @divTrunc(max_size[0], tile_size[0]), .value = &grid_size[0], .show_min_max = true }, .{
                     .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
                     .label = .{ .label_widget = .prev },
                     .gravity_x = 1.0,
+                    .id_extra = unique_id.asUsize(),
                 });
                 if (result.value == .Valid) {
                     grid_size[0] = result.value.Valid;
@@ -120,11 +128,12 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
             {
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
                 defer hbox.deinit();
-                dvui.label(@src(), "Rows:", .{}, .{ .gravity_y = 0.5 });
-                const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = @divTrunc(4096, tile_size[1]), .value = &grid_size[1] }, .{
+                dvui.label(@src(), "Rows (y):", .{}, .{ .gravity_y = 0.5 });
+                const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = @divTrunc(max_size[1], tile_size[1]), .value = &grid_size[1], .show_min_max = true }, .{
                     .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
                     .label = .{ .label_widget = .prev },
                     .gravity_x = 1.0,
+                    .id_extra = unique_id.asUsize(),
                 });
                 if (result.value == .Valid) {
                     grid_size[1] = result.value.Valid;
@@ -134,6 +143,23 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
             }
         }
     }
+    _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 10, .h = 10 } });
+
+    {
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
+        defer hbox.deinit();
+
+        dvui.label(
+            @src(),
+            "{d} px x {d} px",
+            .{ tile_size[0] * (if (mode == .single) 1 else grid_size[0]), tile_size[1] * (if (mode == .single) 1 else grid_size[1]) },
+            .{
+                .gravity_x = 0.5,
+                .font = dvui.themeGet().font_title.larger(-6),
+            },
+        );
+    }
+
     return valid;
 }
 

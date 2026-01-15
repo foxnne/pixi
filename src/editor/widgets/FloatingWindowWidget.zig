@@ -173,7 +173,7 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
 
             const ms = Size.min(Size.max(min_size, self.options.min_sizeGet()), .cast(dvui.windowRect().size()));
 
-            if (ms.w != self.wd.rect.w) {
+            if (ms.w != self.wd.rect.w and dvui.animationGet(self.wd.id, "_auto_width") == null) {
                 dvui.animation(self.wd.id, "_auto_width", .{
                     .start_val = self.wd.rect.w,
                     .end_val = ms.w,
@@ -182,13 +182,19 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
                 });
             }
 
-            if (ms.h != self.wd.rect.h) {
+            if (ms.h != self.wd.rect.h and dvui.animationGet(self.wd.id, "_auto_height") == null) {
                 dvui.animation(self.wd.id, "_auto_height", .{
                     .start_val = self.wd.rect.h,
                     .end_val = ms.h,
                     .end_time = 300_000,
                     .easing = dvui.easing.outBack,
                 });
+            }
+
+            if (dvui.snapToPixels()) {
+                const s = dvui.windowNaturalScale();
+                self.wd.rect.x = @round(self.wd.rect.x * s) / s;
+                self.wd.rect.y = @round(self.wd.rect.y * s) / s;
             }
         }
 
