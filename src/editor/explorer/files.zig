@@ -10,6 +10,8 @@ const zstbi = @import("zstbi");
 
 pub var tree_removed_path: ?[]const u8 = null;
 pub var selected_id: ?usize = null;
+
+pub var edit_id: ?usize = null;
 pub var selected_rect: ?dvui.Rect.Physical = null;
 pub var edit_path: ?[]const u8 = null;
 pub var input_widget: ?*dvui.TextEntryWidget = null;
@@ -178,6 +180,73 @@ fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
     if (lhs.kind == .file and rhs.kind == .directory) return false;
 
     return std.mem.order(u8, lhs.name, rhs.name) == .lt;
+}
+
+pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind: std.fs.Dir.Entry.Kind, full_path: []const u8) !void {
+    const padding = dvui.Rect.all(2);
+
+    const selected: bool = if (selected_id) |id| id_extra == id else false;
+    const editing: bool = if (edit_id) |id| id_extra == id else false;
+
+    if (editing) {
+        var te = dvui.textEntry(@src(), .{}, .{
+            .expand = .horizontal,
+            .background = false,
+            .padding = dvui.Rect.all(0),
+            .margin = dvui.Rect.all(0),
+            .color_text = color,
+            .gravity_y = 0.5,
+            .id_extra = id_extra,
+        });
+        defer te.deinit();
+
+        if (dvui.firstFrame(te.data().id)) {
+            te.textSet(label, true);
+            dvui.focusWidget(te.data().id, null, null);
+        }
+
+        if (te.enter_pressed or dvui.focusedWidgetId() != te.data().id) {
+            const parent_folder = std.fs.path.dirname(full_path);
+            var new_path: []const u8 = undefined;
+
+            if (parent_folder) |folder| {
+                new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ folder, te.getText() });
+            } else {
+                new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{te.getText()});
+            }
+
+            if (!std.mem.eql(u8, label, te.getText()) and te.getText().len > 0) {
+                switch (kind) {
+                    .directory => {
+                        std.fs.renameAbsolute(full_path, new_path) catch dvui.log.err("Failed to rename folder: {s} to {s}", .{ label, te.getText() });
+                    },
+                    .file => {
+                        std.fs.renameAbsolute(full_path, new_path) catch dvui.log.err("Failed to rename file: {s} to {s}", .{ label, te.getText() });
+                    },
+                    else => {},
+                }
+            }
+            edit_id = null;
+        }
+    } else {
+        if (selected) {
+            if (dvui.labelClick(@src(), "{s}", .{label}, .{}, .{
+                .gravity_y = 0.5,
+                //.margin = dvui.Rect.all(2),
+                .padding = padding,
+                .id_extra = id_extra,
+                .color_text = color,
+            })) {
+                edit_id = id_extra;
+            }
+        } else {
+            dvui.label(@src(), "{s}", .{label}, .{
+                .color_text = color,
+                .padding = padding,
+                .id_extra = id_extra,
+            });
+        }
+    }
 }
 
 pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, unique_id: dvui.Id, outer_filter_text: []const u8) !void {
@@ -384,8 +453,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         if ((dvui.menuItemLabel(@src(), "Rename", .{}, .{
                             .expand = .horizontal,
                         })) != null) {
-                            // if (edit_path == null)
-                            //     edit_path = alloc.dupe(u8, abs_path) catch null;
+                            edit_id = inner_id_extra.*;
                             fw2.close();
                         }
 
@@ -435,17 +503,15 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                             );
                         }
 
-                        dvui.label(
-                            @src(),
-                            "{s}",
-                            .{if (filter_text.len > 0) std.fs.path.relative(dvui.currentWindow().arena(), pixi.editor.folder.?, abs_path) catch entry.name else entry.name},
-                            .{
-                                .color_text = if (pixi.editor.getFileFromPath(abs_path) != null) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
-                                .font = dvui.Font.theme(.body),
-                                .padding = padding,
-                                .gravity_y = 0.5,
-                            },
-                        );
+                        editableLabel(
+                            inner_id_extra.*,
+                            if (filter_text.len > 0) std.fs.path.relative(dvui.currentWindow().arena(), pixi.editor.folder.?, abs_path) catch entry.name else entry.name,
+                            if (pixi.editor.getFileFromPath(abs_path) != null) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
+                            entry.kind,
+                            abs_path,
+                        ) catch {
+                            dvui.log.err("Failed to draw editable label", .{});
+                        };
 
                         if (pixi.editor.getFileFromPath(abs_path)) |file| {
                             if (file.dirty()) {
@@ -505,27 +571,21 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                                 .padding = padding,
                             },
                         );
-                        dvui.label(@src(), "{s}", .{folder_name}, .{
-                            .color_text = dvui.themeGet().color(.control, .text),
-                            .font = dvui.Font.theme(.body),
-                            .padding = padding,
-                        });
+
+                        editableLabel(
+                            inner_id_extra.*,
+                            folder_name,
+                            dvui.themeGet().color(.control, .text),
+                            entry.kind,
+                            abs_path,
+                        ) catch {
+                            dvui.log.err("Failed to draw editable label", .{});
+                        };
 
                         if (branch.button.clicked()) {
                             selected_id = inner_id_extra.*;
                             selected_rect = branch.button.data().borderRectScale().r;
                         }
-                        // _ = dvui.icon(
-                        //     @src(),
-                        //     "DropIcon",
-                        //     if (branch.expanded) dvui.entypo.triangle_down else dvui.entypo.triangle_right,
-                        //     .{ .fill_color = icon_color },
-                        //     .{
-                        //         .gravity_y = 0.5,
-                        //         .gravity_x = 1.0,
-                        //         .padding = padding,
-                        //     },
-                        // );
 
                         if (branch.expander(@src(), .{ .indent = expanded_indent }, .{
                             .color_fill = dvui.themeGet().color(.control, .fill),
