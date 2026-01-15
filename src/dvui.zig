@@ -59,13 +59,14 @@ pub fn reorder(src: std.builtin.SourceLocation, init_opts: ReorderWidget.InitOpt
 }
 
 pub const DisplayFn = *const fn (dvui.Id) anyerror!bool;
+pub const CallAfterFn = *const fn (dvui.Id, dvui.enums.DialogResponse) anyerror!?dvui.Rect.Physical;
 
 pub const DialogOptions = struct {
     window: ?*dvui.Window = null,
     id_extra: usize = 0,
     windowFn: dvui.Dialog.DisplayFn = dialogWindow,
     displayFn: DisplayFn = defaultDialogDisplay,
-    callafterFn: dvui.DialogCallAfterFn = defaultDialogCallAfter,
+    callafterFn: CallAfterFn = defaultDialogCallAfter,
     resizeable: bool = true,
     modal: bool = true,
     title: []const u8 = "",
@@ -89,7 +90,7 @@ pub fn defaultDialogDisplay(id: dvui.Id) anyerror!bool {
     return valid;
 }
 
-pub fn defaultDialogCallAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
+pub fn defaultDialogCallAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!?dvui.Rect.Physical {
     switch (response) {
         .ok => {
             dvui.log.info("Dialog callafter for {d} returned {any}", .{ id, response });
@@ -99,6 +100,8 @@ pub fn defaultDialogCallAfter(id: dvui.Id, response: dvui.enums.DialogResponse) 
         },
         else => {},
     }
+
+    return null;
 }
 
 /// Creates a new file dialog with necessary data set and returns the id mutex.
@@ -116,6 +119,7 @@ pub fn dialog(src: std.builtin.SourceLocation, opts: DialogOptions) dvui.IdMutex
     dvui.dataSet(opts.window, id, "_callafter", opts.callafterFn);
     dvui.dataSet(opts.window, id, "_displayFn", opts.displayFn);
     dvui.dataSet(opts.window, id, "_resizeable", opts.resizeable);
+    dvui.dataSet(opts.window, id, "_open", true);
     //dvui.dataSet(opts.window, id, "_max_size", null);
 
     return id_mutex;
@@ -147,7 +151,7 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
     const cancel_label = dvui.dataGetSlice(null, id, "_cancel_label", []u8);
     const default = dvui.dataGet(null, id, "_default", dvui.enums.DialogResponse);
 
-    const callafter = dvui.dataGet(null, id, "_callafter", dvui.DialogCallAfterFn);
+    const callafter = dvui.dataGet(null, id, "_callafter", CallAfterFn);
     const displayFn = dvui.dataGet(null, id, "_displayFn", DisplayFn);
 
     const maxSize = dvui.dataGet(null, id, "_max_size", dvui.Options.MaxSize);
@@ -174,7 +178,11 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
     });
     defer win.deinit();
 
-    defer {
+    if (dvui.animationGet(win.data().id, "_close_x")) |a| {
+        if (a.done()) {
+            dvui.dialogRemove(id);
+        }
+    } else {
         win.autoSize();
     }
 
@@ -185,11 +193,12 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         var header_openflag = true;
         win.dragAreaSet(pixi.dvui.windowHeader(title, "", &header_openflag));
         if (!header_openflag) {
-            dvui.dialogRemove(id);
             if (callafter) |ca| {
-                ca(id, .cancel) catch |err| {
-                    dvui.log.debug("Dialog callafter for {x} returned {any}", .{ id, err });
-                };
+                if (ca(id, .cancel) catch null) |window_close_rect| {
+                    dvui.dataSet(null, win.data().id, "_close_rect", window_close_rect);
+                }
+            } else {
+                dvui.dialogRemove(id);
             }
             return;
         }
@@ -236,9 +245,11 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
             })) {
                 dvui.dialogRemove(id);
                 if (callafter) |ca| {
-                    ca(id, .cancel) catch |err| {
-                        dvui.log.debug("Dialog callafter for {x} returned {any}", .{ id, err });
-                    };
+                    if (ca(id, .cancel) catch null) |window_close_rect| {
+                        dvui.dataSet(null, win.data().id, "_close_rect", window_close_rect);
+                    } else {
+                        dvui.dialogRemove(id);
+                    }
                 }
                 return;
             }
@@ -274,11 +285,12 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
 
         if (ok_button.clicked()) {
             if (!valid) return;
-            dvui.dialogRemove(id);
             if (callafter) |ca| {
-                ca(id, .ok) catch |err| {
-                    dvui.log.debug("Dialog callafter for {x} returned {any}", .{ id, err });
-                };
+                if (ca(id, .ok) catch null) |window_close_rect| {
+                    dvui.dataSet(null, win.data().id, "_close_rect", window_close_rect);
+                }
+            } else {
+                dvui.dialogRemove(id);
             }
             return;
         }

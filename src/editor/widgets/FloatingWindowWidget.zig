@@ -150,6 +150,54 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
         self.auto_pos = (self.wd.rect.x == 0 and self.wd.rect.y == 0);
     }
 
+    if (dvui.dataGet(null, self.wd.id, "_close_rect", Rect.Physical)) |cr| {
+        const close_rect: dvui.Rect = .cast(cr.scale(1 / dvui.windowNaturalScale(), dvui.Rect));
+
+        if (dvui.animationGet(self.wd.id, "_close_width")) |a| {
+            self.wd.rect.w = a.value();
+        } else {
+            dvui.animation(self.wd.id, "_close_width", .{
+                .start_val = self.wd.rect.w,
+                .end_val = close_rect.w,
+                .end_time = 400_000,
+                .easing = dvui.easing.inBack,
+            });
+        }
+
+        if (dvui.animationGet(self.wd.id, "_close_height")) |a| {
+            self.wd.rect.h = a.value();
+        } else {
+            dvui.animation(self.wd.id, "_close_height", .{
+                .start_val = self.wd.rect.h,
+                .end_val = close_rect.h,
+                .end_time = 400_000,
+                .easing = dvui.easing.inBack,
+            });
+        }
+
+        if (dvui.animationGet(self.wd.id, "_close_x")) |a| {
+            self.wd.rect.x = a.value();
+        } else {
+            dvui.animation(self.wd.id, "_close_x", .{
+                .start_val = self.wd.rect.x,
+                .end_val = close_rect.x,
+                .end_time = 500_000,
+                .easing = dvui.easing.inBack,
+            });
+        }
+
+        if (dvui.animationGet(self.wd.id, "_close_y")) |a| {
+            self.wd.rect.y = a.value();
+        } else {
+            dvui.animation(self.wd.id, "_close_y", .{
+                .start_val = self.wd.rect.y,
+                .end_val = close_rect.y,
+                .end_time = 500_000,
+                .easing = dvui.easing.inBack,
+            });
+        }
+    }
+
     var diff_x: f32 = 0;
     var diff_y: f32 = 0;
     if (dvui.animationGet(self.wd.id, "_auto_height")) |*a| {

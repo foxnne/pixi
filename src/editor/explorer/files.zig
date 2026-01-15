@@ -8,10 +8,11 @@ const icons = @import("icons");
 const nfd = @import("nfd");
 const zstbi = @import("zstbi");
 
-var tree_removed_path: ?[]const u8 = null;
-var selected_id: ?usize = null;
-var edit_path: ?[]const u8 = null;
-var input_widget: ?*dvui.TextEntryWidget = null;
+pub var tree_removed_path: ?[]const u8 = null;
+pub var selected_id: ?usize = null;
+pub var selected_rect: ?dvui.Rect.Physical = null;
+pub var edit_path: ?[]const u8 = null;
+pub var input_widget: ?*dvui.TextEntryWidget = null;
 
 pub const Extension = enum {
     unsupported,
@@ -84,6 +85,10 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
     });
     defer branch.deinit();
 
+    if (selected_rect == null) {
+        selected_rect = branch.button.data().borderRectScale().r;
+    }
+
     { // Add right click context menu for item options
         var context = dvui.context(@src(), .{ .rect = branch.button.data().borderRectScale().r }, .{});
         defer context.deinit();
@@ -113,6 +118,7 @@ pub fn drawFiles(path: []const u8, tree: *dvui.TreeWidget) !void {
 
     if (branch.button.clicked()) {
         selected_id = null;
+        selected_rect = branch.button.data().borderRectScale().r;
     }
 
     const color = dvui.themeGet().color(.control, .fill_hover);
@@ -313,6 +319,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
                         defer fw2.deinit();
 
                         selected_id = inner_id_extra.*;
+                        selected_rect = branch.button.data().borderRectScale().r;
 
                         if (entry.kind == .file) {
                             if ((dvui.menuItemLabel(@src(), "Open", .{}, .{
@@ -454,6 +461,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         if (branch.button.clicked()) {
                             selected_id = inner_id_extra.*;
+                            selected_rect = branch.button.data().borderRectScale().r;
                             switch (ext) {
                                 .pixi, .png => {
                                     _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch |err| {
@@ -505,6 +513,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *dvui.TreeWidget, un
 
                         if (branch.button.clicked()) {
                             selected_id = inner_id_extra.*;
+                            selected_rect = branch.button.data().borderRectScale().r;
                         }
                         // _ = dvui.icon(
                         //     @src(),

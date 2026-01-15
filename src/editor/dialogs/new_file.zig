@@ -163,16 +163,27 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
     return valid;
 }
 
-pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
+/// Returns a physical rect that the dialog should animate into after closing, or null if the dialog should be removed without animation
+pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!?dvui.Rect.Physical {
     _ = dvui.dataGetSlice(null, id, "_parent_path", []u8) orelse {
         dvui.log.err("Lost data for dialog {x}\n", .{id});
         dvui.dialogRemove(id);
-        return;
+        return null;
     };
 
     switch (response) {
-        .ok => {},
+        .ok => {
+            if (pixi.Editor.Explorer.files.selected_rect) |rect| {
+                return rect;
+            } else {
+                dvui.log.err("No selected rect found for dialog {x}\n", .{id});
+                dvui.dialogRemove(id);
+                return null;
+            }
+        },
         .cancel => {},
         else => {},
     }
+
+    return null;
 }
