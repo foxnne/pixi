@@ -11,6 +11,7 @@ const zstbi = @import("zstbi");
 pub var tree_removed_path: ?[]const u8 = null;
 pub var selected_id: ?usize = null;
 pub var edit_id: ?usize = null;
+pub var set_focus_path: ?[]const u8 = null;
 pub var selected_rect: ?dvui.Rect.Physical = null;
 pub var input_widget: ?*dvui.TextEntryWidget = null;
 
@@ -37,6 +38,19 @@ pub const Extension = enum {
 pub fn draw() !void {
     var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{ .background = false, .expand = .both });
     defer tree.deinit();
+
+    // If we get a click outside of the tree, we know we need to clear the selected and edit ids
+    for (dvui.events()) |*event| {
+        switch (event.evt) {
+            .mouse => |mouse| {
+                if (!tree.matchEvent(event) and mouse.action == .press) {
+                    selected_id = null;
+                    edit_id = null;
+                }
+            },
+            else => {},
+        }
+    }
 
     if (pixi.editor.folder) |path| {
         try drawFiles(path, tree);
@@ -203,7 +217,7 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             dvui.focusWidget(te.data().id, null, null);
         }
 
-        if (te.enter_pressed or dvui.focusedWidgetId() != te.data().id) {
+        if (te.enter_pressed or !selected) {
             const parent_folder = std.fs.path.dirname(full_path);
             var new_path: []const u8 = undefined;
 
@@ -233,9 +247,25 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
                 switch (kind) {
                     .directory => {
                         std.fs.renameAbsolute(full_path, new_path) catch dvui.log.err("Failed to rename folder: {s} to {s}", .{ label, te.getText() });
+
+                        for (pixi.editor.open_files.values()) |*file| {
+                            if (std.mem.containsAtLeast(u8, file.path, 1, full_path)) {
+                                const file_name = dvui.currentWindow().arena().dupe(u8, std.fs.path.basename(file.path)) catch "Failed to duplicate path";
+                                pixi.app.allocator.free(file.path);
+                                file.path = try std.fs.path.join(pixi.app.allocator, &.{ new_path, file_name });
+                            }
+                        }
                     },
                     .file => {
                         std.fs.renameAbsolute(full_path, new_path) catch dvui.log.err("Failed to rename file: {s} to {s}", .{ label, te.getText() });
+
+                        if (pixi.editor.getFileFromPath(full_path)) |file| {
+                            pixi.app.allocator.free(file.path);
+                            file.path = pixi.app.allocator.dupe(u8, new_path) catch {
+                                dvui.log.err("Failed to duplicate path: {s}", .{new_path});
+                                return error.FailedToDuplicatePath;
+                            };
+                        }
                     },
                     else => {},
                 }
@@ -340,6 +370,17 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                 });
                 defer branch.deinit();
 
+                if (!dvui.firstFrame(branch.data().id)) {
+                    if (set_focus_path) |path| {
+                        if (std.mem.eql(u8, path, abs_path)) {
+                            edit_id = inner_id_extra.*;
+                            selected_id = inner_id_extra.*;
+                            selected_rect = branch.button.data().borderRectScale().r;
+                            set_focus_path = null;
+                        }
+                    }
+                }
+
                 const current_point = dvui.currentWindow().mouse_pt;
 
                 const max_distance = if (!expanded) branch.data().borderRectScale().r.h * 3.0 else branch.data().borderRectScale().r.w / 8.0;
@@ -383,6 +424,14 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
                         if (!std.mem.eql(u8, removed_path, new_path)) {
                             std.fs.renameAbsolute(removed_path, new_path) catch dvui.log.err("Failed to move {s} to {s}", .{ removed_path, new_path });
+
+                            if (pixi.editor.getFileFromPath(removed_path)) |file| {
+                                pixi.app.allocator.free(file.path);
+                                file.path = pixi.app.allocator.dupe(u8, new_path) catch {
+                                    dvui.log.err("Failed to duplicate path: {s}", .{new_path});
+                                    return error.FailedToDuplicatePath;
+                                };
+                            }
                         }
 
                         dvui.dataRemove(null, inner_unique_id, "removed_path");

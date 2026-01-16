@@ -179,7 +179,12 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
     });
     defer win.deinit();
 
-    if (dvui.animationGet(win.data().id, "_close_x")) |a| {
+    if (dvui.timerDone(id)) {
+        if (pixi.Editor.Explorer.files.selected_rect) |close_rect| {
+            dvui.dataSet(null, win.data().id, "_close_rect", close_rect);
+            dvui.refresh(null, @src(), win.data().id);
+        }
+    } else if (dvui.animationGet(win.data().id, "_close_x")) |a| {
         if (a.done()) {
             dvui.dialogRemove(id);
         }
@@ -246,10 +251,8 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
             })) {
                 dvui.dialogRemove(id);
                 if (callafter) |ca| {
-                    if (ca(id, .cancel) catch null) |window_close_rect| {
-                        dvui.dataSet(null, win.data().id, "_close_rect", window_close_rect);
-                    } else {
-                        dvui.dialogRemove(id);
+                    if (ca(id, .cancel) catch null) |_| {
+                        //dvui.dataSet(null, win.data().id, "_close_rect", window_close_rect);
                     }
                 }
                 return;
@@ -287,8 +290,8 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         if (ok_button.clicked()) {
             if (!valid) return;
             if (callafter) |ca| {
-                if (ca(id, .ok) catch null) |window_close_rect| {
-                    dvui.dataSet(null, win.data().id, "_close_rect", window_close_rect);
+                if (ca(id, .ok) catch null) |_| {
+                    //dvui.dataSet(null, id, "_close_rect", window_close_rect);
                 }
             } else {
                 dvui.dialogRemove(id);

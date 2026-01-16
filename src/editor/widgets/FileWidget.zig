@@ -777,7 +777,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         const button_rect = dvui.Rect{ .x = center.x - button_size / 2, .y = center.y - (button_size / 2), .w = button_size, .h = button_size };
 
         var button: dvui.ButtonWidget = undefined;
-        button.init(@src(), .{}, .{
+        button.init(@src(), .{
+            .draw_focus = false,
+        }, .{
             .rect = button_rect,
             .color_fill = dvui.themeGet().color(.control, .fill_hover),
             .margin = .all(0),

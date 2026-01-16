@@ -167,7 +167,7 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
 
 /// Returns a physical rect that the dialog should animate into after closing, or null if the dialog should be removed without animation
 pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!?dvui.Rect.Physical {
-    _ = dvui.dataGetSlice(null, id, "_parent_path", []u8) orelse {
+    const path = dvui.dataGetSlice(null, id, "_parent_path", []u8) orelse {
         dvui.log.err("Lost data for dialog {x}\n", .{id});
         dvui.dialogRemove(id);
         return null;
@@ -175,11 +175,35 @@ pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!?dvu
 
     switch (response) {
         .ok => {
+            const new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ path, "Untitled.pixi" });
+
+            var file = pixi.editor.newFile(new_path, .{
+                .column_width = column_width,
+                .row_height = row_height,
+                .columns = columns,
+                .rows = rows,
+            }) catch {
+                dvui.log.err("Failed to create file: {s}", .{path});
+                return error.FailedToCreateFile;
+            };
+
+            file.saveAsync() catch {
+                dvui.log.err("Failed to save file: {s}", .{new_path});
+                return error.FailedToSaveFile;
+            };
+
+            pixi.Editor.Explorer.files.set_focus_path = pixi.app.allocator.dupe(u8, new_path) catch {
+                dvui.log.err("Failed to duplicate path: {s}", .{new_path});
+                return error.FailedToDuplicatePath;
+            };
+
+            dvui.timer(id, 100_000);
+
             if (pixi.Editor.Explorer.files.selected_rect) |rect| {
                 return rect;
             } else {
-                dvui.log.err("No selected rect found for dialog {x}\n", .{id});
-                dvui.dialogRemove(id);
+                // dvui.log.err("No selected rect found for dialog {x}\n", .{id});
+                // dvui.dialogRemove(id);
                 return null;
             }
         },

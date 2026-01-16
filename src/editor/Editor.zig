@@ -722,6 +722,10 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
 }
 
 pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.InitOptions) !*pixi.Internal.File {
+    if (editor.getFileFromPath(path)) |file| {
+        return file;
+    }
+
     const file = pixi.Internal.File.init(path, options) catch {
         dvui.log.err("Failed to create file: {s}", .{path});
         return error.FailedToCreateFile;
