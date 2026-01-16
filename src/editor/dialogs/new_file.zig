@@ -7,8 +7,10 @@ pub var mode: enum(usize) {
     grid,
 } = .single;
 
-pub var tile_size: [2]u32 = .{ 32, 32 };
-pub var grid_size: [2]u32 = .{ 1, 1 };
+pub var columns: u32 = 1;
+pub var rows: u32 = 1;
+pub var column_width: u32 = 32;
+pub var row_height: u32 = 32;
 
 pub const max_size: [2]u32 = .{ 4096, 4096 };
 pub const min_size: [2]u32 = .{ 1, 1 };
@@ -72,14 +74,14 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
 
         {
             dvui.label(@src(), "{s}", .{if (mode == .single) "Width (x):" else "Column Width (x):"}, .{ .gravity_y = 0.5, .gravity_x = 0.0 });
-            const result = dvui.textEntryNumber(@src(), u32, .{ .min = min_size[0], .max = max_size[0], .value = &tile_size[0], .show_min_max = true }, .{
+            const result = dvui.textEntryNumber(@src(), u32, .{ .min = min_size[0], .max = max_size[0], .value = &column_width, .show_min_max = true }, .{
                 .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
                 .label = .{ .label_widget = .prev },
                 .gravity_x = 1.0,
                 .id_extra = unique_id.asUsize(),
             });
             if (result.value == .Valid) {
-                tile_size[0] = result.value.Valid;
+                column_width = result.value.Valid;
             } else {
                 valid = false;
             }
@@ -92,14 +94,14 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
 
         {
             dvui.label(@src(), "{s}", .{if (mode == .single) "Height (y):" else "Row Height (y):"}, .{ .gravity_y = 0.5, .gravity_x = 0.0 });
-            const result = dvui.textEntryNumber(@src(), u32, .{ .min = min_size[1], .max = max_size[1], .value = &tile_size[1], .show_min_max = true }, .{
+            const result = dvui.textEntryNumber(@src(), u32, .{ .min = min_size[1], .max = max_size[1], .value = &row_height, .show_min_max = true }, .{
                 .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
                 .label = .{ .label_widget = .prev },
                 .gravity_x = 1.0,
                 .id_extra = unique_id.asUsize(),
             });
             if (result.value == .Valid) {
-                tile_size[1] = result.value.Valid;
+                row_height = result.value.Valid;
             } else {
                 valid = false;
             }
@@ -113,14 +115,14 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
                 defer hbox.deinit();
 
                 dvui.label(@src(), "Columns (x):", .{}, .{ .gravity_y = 0.5 });
-                const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = @divTrunc(max_size[0], tile_size[0]), .value = &grid_size[0], .show_min_max = true }, .{
+                const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = @divTrunc(max_size[0], column_width), .value = &columns, .show_min_max = true }, .{
                     .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
                     .label = .{ .label_widget = .prev },
                     .gravity_x = 1.0,
                     .id_extra = unique_id.asUsize(),
                 });
                 if (result.value == .Valid) {
-                    grid_size[0] = result.value.Valid;
+                    columns = result.value.Valid;
                 } else {
                     valid = false;
                 }
@@ -129,14 +131,14 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
                 defer hbox.deinit();
                 dvui.label(@src(), "Rows (y):", .{}, .{ .gravity_y = 0.5 });
-                const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = @divTrunc(max_size[1], tile_size[1]), .value = &grid_size[1], .show_min_max = true }, .{
+                const result = dvui.textEntryNumber(@src(), u32, .{ .min = 1, .max = @divTrunc(max_size[1], row_height), .value = &rows, .show_min_max = true }, .{
                     .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
                     .label = .{ .label_widget = .prev },
                     .gravity_x = 1.0,
                     .id_extra = unique_id.asUsize(),
                 });
                 if (result.value == .Valid) {
-                    grid_size[1] = result.value.Valid;
+                    rows = result.value.Valid;
                 } else {
                     valid = false;
                 }
@@ -152,7 +154,7 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
         dvui.label(
             @src(),
             "{d} px x {d} px",
-            .{ tile_size[0] * (if (mode == .single) 1 else grid_size[0]), tile_size[1] * (if (mode == .single) 1 else grid_size[1]) },
+            .{ column_width * (if (mode == .single) 1 else columns), row_height * (if (mode == .single) 1 else rows) },
             .{
                 .gravity_x = 0.5,
                 .font = dvui.themeGet().font_title.larger(-6),

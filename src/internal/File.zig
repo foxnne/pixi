@@ -14,12 +14,10 @@ const Animation = @import("Animation.zig");
 id: u64,
 path: []const u8,
 
-//width: u32,
-//height: u32,
 columns: u32 = 1,
 rows: u32 = 1,
-column_width: u32 = 32,
-row_height: u32 = 32,
+column_width: u32,
+row_height: u32,
 
 selected_layer_index: usize = 0,
 peek_layer_index: ?usize = null,
@@ -78,8 +76,8 @@ pub const Buffers = @import("Buffers.zig");
 pub const InitOptions = struct {
     columns: u32 = 1,
     rows: u32 = 1,
-    column_width: u32 = 32,
-    row_height: u32 = 32,
+    column_width: u32,
+    row_height: u32,
 };
 
 pub fn init(path: []const u8, options: InitOptions) !pixi.Internal.File {
@@ -95,23 +93,23 @@ pub fn init(path: []const u8, options: InitOptions) !pixi.Internal.File {
     };
 
     // Initialize editor layers and selected sprites
-    internal.editor.temporary_layer = try .init(internal.newID(), "Temporary", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
-    internal.editor.selection_layer = try .init(internal.newID(), "Selection", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
-    internal.editor.transform_layer = try .init(internal.newID(), "Transform", internal.width, internal.height, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
+    internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
-    internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width * internal.height);
+    internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width() * internal.height());
     // Create a layer-sized checkerboard pattern for selection tools
-    for (0..internal.width * internal.height) |i| {
-        const value = pixi.math.checker(.{ .w = @floatFromInt(internal.width), .h = @floatFromInt(internal.height) }, i);
+    for (0..internal.width() * internal.height()) |i| {
+        const value = pixi.math.checker(.{ .w = @floatFromInt(internal.width()), .h = @floatFromInt(internal.height()) }, i);
         internal.editor.checkerboard.setValue(i, value);
     }
 
     // Initialize checkerboard tile image source
     {
         internal.editor.checkerboard_tile = pixi.image.init(
-            width * 2,
-            height * 2,
+            internal.column_width * 2,
+            internal.row_height * 2,
             .{ .r = 0, .g = 0, .b = 0, .a = 0 },
             .ptr,
         ) catch return error.LayerCreateError;
@@ -128,6 +126,13 @@ pub fn init(path: []const u8, options: InitOptions) !pixi.Internal.File {
         }
         dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
     }
+
+    {
+        // Create a single layer for the file
+        const layer: pixi.Internal.Layer = try .init(internal.newLayerID(), "Layer", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.layers.append(pixi.app.allocator, layer) catch return error.LayerCreateError;
+    }
+
     return internal;
 }
 
@@ -1358,7 +1363,7 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
 }
 
 pub fn saveAsync(self: *File) !void {
-    if (!self.dirty()) return;
+    //if (!self.dirty()) return;
 
     const ext = std.fs.path.extension(self.path);
 

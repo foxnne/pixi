@@ -477,7 +477,13 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                             .expand = .horizontal,
                             .style = .err,
                         })) != null) {
-                            fw2.close();
+                            defer fw2.close();
+
+                            if (entry.kind == .file) {
+                                std.fs.deleteFileAbsolute(abs_path) catch dvui.log.err("Failed to delete file: {s}", .{abs_path});
+                            } else if (entry.kind == .directory) {
+                                std.fs.deleteDirAbsolute(abs_path) catch dvui.log.err("Failed to delete folder: {s}", .{abs_path});
+                            }
                         }
                     }
                 }

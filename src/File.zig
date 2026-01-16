@@ -25,6 +25,7 @@ pub fn deinit(self: *File, allocator: std.mem.Allocator) void {
     allocator.free(self.animations);
 }
 
+/// Older file format, describes files by width and height and tile size
 pub const FileV2 = struct {
     version: std.SemanticVersion,
     width: u32,
@@ -48,6 +49,7 @@ pub const FileV2 = struct {
     }
 };
 
+/// Original file format, has a different animation format
 pub const FileV1 = struct {
     version: std.SemanticVersion,
     width: u32,
