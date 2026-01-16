@@ -12,7 +12,7 @@ pub var tree_removed_path: ?[]const u8 = null;
 pub var selected_id: ?usize = null;
 pub var edit_id: ?usize = null;
 pub var set_focus_path: ?[]const u8 = null;
-pub var selected_rect: ?dvui.Rect.Physical = null;
+pub var close_rect: ?dvui.Rect.Physical = null;
 pub var input_widget: ?*dvui.TextEntryWidget = null;
 
 pub const Extension = enum {
@@ -99,9 +99,15 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     });
     defer branch.deinit();
 
-    if (selected_rect == null) {
-        selected_rect = branch.button.data().borderRectScale().r;
+    if (set_focus_path) |focus_path| {
+        if (std.mem.eql(u8, focus_path, folder)) {
+            close_rect = branch.button.data().borderRectScale().r;
+        }
     }
+
+    // if (close_rect == null) {
+    //     close_rect = branch.button.data().borderRectScale().r;
+    // }
 
     { // Add right click context menu for item options
         var context = dvui.context(@src(), .{ .rect = branch.button.data().borderRectScale().r }, .{});
@@ -132,7 +138,7 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
 
     if (branch.button.clicked()) {
         selected_id = null;
-        selected_rect = branch.button.data().borderRectScale().r;
+        //close_rect = branch.button.data().borderRectScale().r;
     }
 
     const color = dvui.themeGet().color(.control, .fill_hover);
@@ -298,7 +304,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
     var id_extra: usize = 0;
 
     const recursor = struct {
-        fn search(directory: []const u8, tree: *pixi.dvui.TreeWidget, inner_unique_id: dvui.Id, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8) !void {
+        fn search(directory: []const u8, tree: *pixi.dvui.TreeWidget, inner_unique_id: dvui.Id, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8, parent_branch: ?*pixi.dvui.TreeWidget.Branch) !void {
             var dir = std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true }) catch return;
             defer dir.close();
 
@@ -331,7 +337,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                         continue;
                     }
                 } else if (filter_text.len > 0) {
-                    search(abs_path, tree, inner_unique_id, inner_id_extra, color_id, filter_text) catch continue;
+                    search(abs_path, tree, inner_unique_id, inner_id_extra, color_id, filter_text, null) catch continue;
                     continue;
                 }
 
@@ -356,6 +362,14 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                     expanded = true;
                 }
 
+                if (set_focus_path) |path| {
+                    if (std.fs.path.dirname(path)) |d| {
+                        if (std.mem.containsAtLeast(u8, d, 1, abs_path)) {
+                            expanded = true;
+                        }
+                    }
+                }
+
                 const branch = tree.branch(@src(), .{
                     .expanded = expanded,
                     .animation_duration = 450_000,
@@ -370,16 +384,20 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                 });
                 defer branch.deinit();
 
-                if (!dvui.firstFrame(branch.data().id)) {
+                if (!dvui.firstFrame(branch.data().id) and parent_branch != null and !parent_branch.?.expanding()) {
                     if (set_focus_path) |path| {
                         if (std.mem.eql(u8, path, abs_path)) {
                             edit_id = inner_id_extra.*;
                             selected_id = inner_id_extra.*;
-                            selected_rect = branch.button.data().borderRectScale().r;
+                            close_rect = branch.button.data().borderRectScale().r;
                             set_focus_path = null;
                         }
                     }
                 }
+
+                // if (!dvui.firstFrame(branch.data().id)) {
+                //     if (set_focus_path) |path| {}
+                // }
 
                 const current_point = dvui.currentWindow().mouse_pt;
 
@@ -453,7 +471,6 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                         defer fw2.deinit();
 
                         selected_id = inner_id_extra.*;
-                        selected_rect = branch.button.data().borderRectScale().r;
 
                         if (entry.kind == .file) {
                             if ((dvui.menuItemLabel(@src(), "Open", .{}, .{
@@ -598,7 +615,6 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
                         if (branch.button.clicked()) {
                             selected_id = inner_id_extra.*;
-                            selected_rect = branch.button.data().borderRectScale().r;
                             switch (ext) {
                                 .pixi, .png => {
                                     _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch |err| {
@@ -655,7 +671,6 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
                         if (branch.button.clicked()) {
                             selected_id = inner_id_extra.*;
-                            selected_rect = branch.button.data().borderRectScale().r;
                         }
 
                         if (branch.expander(@src(), .{ .indent = expanded_indent }, .{
@@ -683,6 +698,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                                 inner_id_extra,
                                 color_id,
                                 filter_text,
+                                branch,
                             );
                         } else {
                             if (pixi.editor.explorer.open_branches.contains(branch_id)) {
@@ -697,7 +713,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
         }
     }.search;
 
-    try recursor(root_directory, outer_tree, unique_id, &id_extra, &color_i, outer_filter_text);
+    try recursor(root_directory, outer_tree, unique_id, &id_extra, &color_i, outer_filter_text, null);
 
     return;
 }

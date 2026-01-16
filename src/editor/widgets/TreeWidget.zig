@@ -402,6 +402,14 @@ pub const Branch = struct {
         indent: f32 = 10.0,
     };
 
+    pub fn expanding(self: *Branch) bool {
+        if (self.anim) |a| {
+            return a.val != null;
+        }
+
+        return false;
+    }
+
     pub fn expander(self: *Branch, src: std.builtin.SourceLocation, init_opts: ExpanderOptions, opts: Options) bool {
         var clicked: bool = false;
         if (self.button.clicked()) {
@@ -426,7 +434,7 @@ pub const Branch = struct {
             default_opts.override(opts),
         );
 
-        if (clicked) {
+        if (clicked or self.init_options.expanded != self.expanded) {
             if (self.expanded) {
                 self.anim.?.init_opts.easing = dvui.easing.outQuad;
                 self.anim.?.init_opts.duration = @divTrunc(self.init_options.animation_duration, 2);

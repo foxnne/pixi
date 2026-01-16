@@ -175,7 +175,7 @@ pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!?dvu
 
     switch (response) {
         .ok => {
-            const new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ path, "Untitled.pixi" });
+            const new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ path, "untitled.pixi" });
 
             var file = pixi.editor.newFile(new_path, .{
                 .column_width = column_width,
@@ -197,9 +197,7 @@ pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!?dvu
                 return error.FailedToDuplicatePath;
             };
 
-            dvui.timer(id, 100_000);
-
-            if (pixi.Editor.Explorer.files.selected_rect) |rect| {
+            if (pixi.Editor.Explorer.files.close_rect) |rect| {
                 return rect;
             } else {
                 // dvui.log.err("No selected rect found for dialog {x}\n", .{id});

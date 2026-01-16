@@ -179,11 +179,10 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
     });
     defer win.deinit();
 
-    if (dvui.timerDone(id)) {
-        if (pixi.Editor.Explorer.files.selected_rect) |close_rect| {
-            dvui.dataSet(null, win.data().id, "_close_rect", close_rect);
-            dvui.refresh(null, @src(), win.data().id);
-        }
+    if (pixi.Editor.Explorer.files.close_rect) |close_rect| {
+        dvui.dataSet(null, win.data().id, "_close_rect", close_rect);
+        dvui.refresh(null, @src(), win.data().id);
+        pixi.Editor.Explorer.files.close_rect = null;
     } else if (dvui.animationGet(win.data().id, "_close_x")) |a| {
         if (a.done()) {
             dvui.dialogRemove(id);
