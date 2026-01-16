@@ -60,7 +60,7 @@ pub fn reorder(src: std.builtin.SourceLocation, init_opts: ReorderWidget.InitOpt
 }
 
 pub const DisplayFn = *const fn (dvui.Id) anyerror!bool;
-pub const CallAfterFn = *const fn (dvui.Id, dvui.enums.DialogResponse) anyerror!?dvui.Rect.Physical;
+pub const CallAfterFn = *const fn (dvui.Id, dvui.enums.DialogResponse) anyerror!void;
 
 pub const DialogOptions = struct {
     window: ?*dvui.Window = null,
@@ -91,7 +91,7 @@ pub fn defaultDialogDisplay(id: dvui.Id) anyerror!bool {
     return valid;
 }
 
-pub fn defaultDialogCallAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!?dvui.Rect.Physical {
+pub fn defaultDialogCallAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
     switch (response) {
         .ok => {
             dvui.log.info("Dialog callafter for {d} returned {any}", .{ id, response });
@@ -101,8 +101,6 @@ pub fn defaultDialogCallAfter(id: dvui.Id, response: dvui.enums.DialogResponse) 
         },
         else => {},
     }
-
-    return null;
 }
 
 /// Creates a new file dialog with necessary data set and returns the id mutex.
@@ -179,14 +177,14 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
     });
     defer win.deinit();
 
-    if (pixi.Editor.Explorer.files.close_rect) |close_rect| {
-        dvui.dataSet(null, win.data().id, "_close_rect", close_rect);
-        dvui.refresh(null, @src(), win.data().id);
-        pixi.Editor.Explorer.files.close_rect = null;
-    } else if (dvui.animationGet(win.data().id, "_close_x")) |a| {
+    if (dvui.animationGet(win.data().id, "_close_x")) |a| {
         if (a.done()) {
             dvui.dialogRemove(id);
         }
+    } else if (pixi.Editor.Explorer.files.new_file_close_rect) |close_rect| {
+        dvui.dataSet(null, win.data().id, "_close_rect", close_rect);
+        dvui.refresh(null, @src(), win.data().id);
+        pixi.Editor.Explorer.files.new_file_close_rect = null;
     } else {
         win.autoSize();
     }
@@ -199,9 +197,10 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         win.dragAreaSet(pixi.dvui.windowHeader(title, "", &header_openflag));
         if (!header_openflag) {
             if (callafter) |ca| {
-                if (ca(id, .cancel) catch null) |window_close_rect| {
-                    dvui.dataSet(null, win.data().id, "_close_rect", window_close_rect);
-                }
+                ca(id, .cancel) catch {
+                    dvui.log.err("Dialog callafter for {x} returned {any}", .{ id, error.FailedToCallAfter });
+                    return;
+                };
             } else {
                 dvui.dialogRemove(id);
             }
@@ -250,9 +249,10 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
             })) {
                 dvui.dialogRemove(id);
                 if (callafter) |ca| {
-                    if (ca(id, .cancel) catch null) |_| {
-                        //dvui.dataSet(null, win.data().id, "_close_rect", window_close_rect);
-                    }
+                    ca(id, .cancel) catch {
+                        dvui.log.err("Dialog callafter for {x} returned {any}", .{ id, error.FailedToCallAfter });
+                        return;
+                    };
                 }
                 return;
             }
@@ -289,9 +289,10 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         if (ok_button.clicked()) {
             if (!valid) return;
             if (callafter) |ca| {
-                if (ca(id, .ok) catch null) |_| {
-                    //dvui.dataSet(null, id, "_close_rect", window_close_rect);
-                }
+                ca(id, .ok) catch {
+                    dvui.log.err("Dialog callafter for {x} returned {any}", .{ id, error.FailedToCallAfter });
+                    return;
+                };
             } else {
                 dvui.dialogRemove(id);
             }
@@ -376,6 +377,59 @@ pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool) dv
     over.deinit();
 
     return ret;
+}
+
+pub const SpinnerOptions = struct {
+    end_time: i32 = 1_000_000,
+};
+
+pub fn spinner(src: std.builtin.SourceLocation, spinner_opts: SpinnerOptions, opts: dvui.Options) void {
+    var defaults: dvui.Options = .{
+        .name = "Spinner",
+        .min_size_content = .{ .w = 50, .h = 50 },
+    };
+    const options = defaults.override(opts);
+    var wd = dvui.WidgetData.init(src, .{}, options);
+    wd.register();
+    wd.minSizeSetAndRefresh();
+    wd.minSizeReportToParent();
+
+    if (wd.rect.empty()) {
+        return;
+    }
+
+    const rs = wd.contentRectScale();
+    const r = rs.r;
+
+    var t: f32 = 0;
+    const anim = dvui.Animation{ .end_time = spinner_opts.end_time };
+    if (dvui.animationGet(wd.id, "_t")) |a| {
+        // existing animation
+        var aa = a;
+        if (aa.done()) {
+            // this animation is expired, seamlessly transition to next animation
+            aa = anim;
+            aa.start_time = a.end_time;
+            aa.end_time += a.end_time;
+            dvui.animation(wd.id, "_t", aa);
+        }
+        t = aa.value();
+    } else {
+        // first frame we are seeing the spinner
+        dvui.animation(wd.id, "_t", anim);
+    }
+
+    var path: dvui.Path.Builder = .init(dvui.currentWindow().lifo());
+    defer path.deinit();
+
+    const full_circle = 2 * std.math.pi;
+    // start begins fast, speeding away from end
+    const start = full_circle * dvui.easing.outSine(t);
+    // end begins slow, catching up to start
+    const end = full_circle * dvui.easing.inSine(t);
+
+    path.addArc(r.center(), @min(r.w, r.h) / 3, start, end, false);
+    path.build().stroke(.{ .thickness = 3.0 * rs.s, .color = options.color(.text) });
 }
 
 pub fn toastDisplay(id: dvui.Id) !void {

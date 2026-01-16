@@ -154,7 +154,24 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
         const close_rect: dvui.Rect = .cast(cr.scale(1 / dvui.windowNaturalScale(), dvui.Rect));
 
         if (dvui.animationGet(self.wd.id, "_close_width")) |a| {
-            self.wd.rect.w = a.value();
+            if (a.end_val != close_rect.w) {
+                const progress = if (a.end_val != a.start_val)
+                    (a.value() - a.start_val) / (a.end_val - a.start_val)
+                else
+                    1.0;
+
+                const start_time: i32 = @intFromFloat(std.math.lerp(@as(f32, @floatFromInt(a.start_time)), @as(f32, @floatFromInt(a.end_time)), progress));
+
+                dvui.animation(self.wd.id, "_close_width", .{
+                    .start_val = a.start_val,
+                    .end_val = close_rect.w,
+                    .start_time = start_time,
+                    .end_time = a.end_time,
+                    .easing = dvui.easing.inBack,
+                });
+            } else {
+                self.wd.rect.w = a.value();
+            }
         } else {
             dvui.animation(self.wd.id, "_close_width", .{
                 .start_val = self.wd.rect.w,
@@ -165,7 +182,22 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
         }
 
         if (dvui.animationGet(self.wd.id, "_close_height")) |a| {
-            self.wd.rect.h = a.value();
+            if (a.end_val != close_rect.h) {
+                const progress = if (a.end_val != a.start_val)
+                    (a.value() - a.start_val) / (a.end_val - a.start_val)
+                else
+                    1.0;
+                const start_time: i32 = @intFromFloat(std.math.lerp(@as(f32, @floatFromInt(a.start_time)), @as(f32, @floatFromInt(a.end_time)), progress));
+                dvui.animation(self.wd.id, "_close_height", .{
+                    .start_val = a.start_val,
+                    .end_val = close_rect.h,
+                    .start_time = start_time,
+                    .end_time = a.end_time,
+                    .easing = dvui.easing.inBack,
+                });
+            } else {
+                self.wd.rect.h = a.value();
+            }
         } else {
             dvui.animation(self.wd.id, "_close_height", .{
                 .start_val = self.wd.rect.h,
@@ -176,7 +208,22 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
         }
 
         if (dvui.animationGet(self.wd.id, "_close_x")) |a| {
-            self.wd.rect.x = a.value();
+            if (a.end_val != close_rect.x) {
+                const progress = if (a.end_val != a.start_val)
+                    (a.value() - a.start_val) / (a.end_val - a.start_val)
+                else
+                    1.0;
+                const start_time: i32 = @intFromFloat(std.math.lerp(@as(f32, @floatFromInt(a.start_time)), @as(f32, @floatFromInt(a.end_time)), progress));
+                dvui.animation(self.wd.id, "_close_x", .{
+                    .start_val = a.start_val,
+                    .end_val = close_rect.x,
+                    .start_time = start_time,
+                    .end_time = a.end_time,
+                    .easing = dvui.easing.inBack,
+                });
+            } else {
+                self.wd.rect.x = a.value();
+            }
         } else {
             dvui.animation(self.wd.id, "_close_x", .{
                 .start_val = self.wd.rect.x,
@@ -187,7 +234,22 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
         }
 
         if (dvui.animationGet(self.wd.id, "_close_y")) |a| {
-            self.wd.rect.y = a.value();
+            if (a.end_val != close_rect.y) {
+                const progress = if (a.end_val != a.start_val)
+                    (a.value() - a.start_val) / (a.end_val - a.start_val)
+                else
+                    1.0;
+                const start_time: i32 = @intFromFloat(std.math.lerp(@as(f32, @floatFromInt(a.start_time)), @as(f32, @floatFromInt(a.end_time)), progress));
+                dvui.animation(self.wd.id, "_close_y", .{
+                    .start_val = a.start_val,
+                    .end_val = close_rect.y,
+                    .start_time = start_time,
+                    .end_time = a.end_time,
+                    .easing = dvui.easing.inBack,
+                });
+            } else {
+                self.wd.rect.y = a.value();
+            }
         } else {
             dvui.animation(self.wd.id, "_close_y", .{
                 .start_val = self.wd.rect.y,

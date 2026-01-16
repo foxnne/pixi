@@ -15,6 +15,8 @@ pub fn draw() !void {
 
     dvui.label(@src(), "{d:0>3.0} fps", .{dvui.FPS()}, .{});
 
+    dvui.label(@src(), "canvas.scale: {d}", .{if (pixi.editor.activeFile()) |file| file.editor.canvas.scale else 1.0}, .{});
+
     // imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 6.0 });
     // defer imgui.popStyleVar();
     // imgui.pushStyleColorImVec4(imgui.Col_Header, editor.theme.highlight_secondary.toImguiVec4());

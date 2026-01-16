@@ -14,6 +14,7 @@ screen_rect_scale: dvui.RectScale = .{},
 scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
 origin: dvui.Point = .{},
 scale: f32 = 1.0,
+prev_scale: f32 = 1.0,
 bounding_box: ?dvui.Rect.Physical = null,
 hovered: bool = false,
 
@@ -24,10 +25,42 @@ pub const InitOptions = struct {
 
 pub fn install(canvas: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: InitOptions, opts: dvui.Options) void {
     canvas.id = init_opts.id;
+
+    var parent_id = dvui.parentGet().data().id;
+    const parent = dvui.parentGet().data().rect;
+
+    parent_id = canvas.id;
+
+    const steps = pixi.editor.settings.zoom_steps;
+    const file_width: f32 = init_opts.data_size.w;
+    const file_height: f32 = init_opts.data_size.h;
+    const target_width = if (file_width < parent.w) parent.w else file_width;
+    const target_height = if (file_height < parent.h) parent.h else file_height;
+    var target_scale: f32 = 1.0;
+
+    for (steps, 0..) |zoom, i| {
+        if (((file_width * 1.2) * zoom) >= target_width or ((file_height * 1.2) * zoom) >= target_height) {
+            if (i > 0) {
+                target_scale = steps[i - 1];
+                break;
+            }
+            target_scale = steps[i];
+            break;
+        }
+    }
+
+    if (target_scale != canvas.prev_scale) {
+        canvas.scale = target_scale;
+        canvas.prev_scale = target_scale;
+
+        dvui.refresh(null, @src(), parent_id);
+    }
+
     canvas.scroll = dvui.scrollArea(src, .{ .scroll_info = &canvas.scroll_info }, opts);
+    canvas.scroll_container = &canvas.scroll.scroll.?;
+
     canvas.scaler = dvui.scale(src, .{ .scale = &canvas.scale }, .{ .rect = .{ .x = -canvas.origin.x, .y = -canvas.origin.y } });
 
-    canvas.scroll_container = &canvas.scroll.scroll.?;
     // can use this to convert between viewport/virtual_size and screen coords
     canvas.scroll_rect_scale = canvas.scroll_container.screenRectScale(.{});
     // can use this to convert between data and screen coords

@@ -11,9 +11,11 @@ const zstbi = @import("zstbi");
 pub var tree_removed_path: ?[]const u8 = null;
 pub var selected_id: ?usize = null;
 pub var edit_id: ?usize = null;
-pub var set_focus_path: ?[]const u8 = null;
-pub var close_rect: ?dvui.Rect.Physical = null;
-pub var input_widget: ?*dvui.TextEntryWidget = null;
+
+// These two are currently set from a dialog callafter function
+// If close_rect is not null, the dialog will animate into that rect then close
+pub var new_file_path: ?[]const u8 = null;
+pub var new_file_close_rect: ?dvui.Rect.Physical = null;
 
 pub const Extension = enum {
     unsupported,
@@ -38,19 +40,6 @@ pub const Extension = enum {
 pub fn draw() !void {
     var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{ .background = false, .expand = .both });
     defer tree.deinit();
-
-    // If we get a click outside of the tree, we know we need to clear the selected and edit ids
-    for (dvui.events()) |*event| {
-        switch (event.evt) {
-            .mouse => |mouse| {
-                if (!tree.matchEvent(event) and mouse.action == .press) {
-                    selected_id = null;
-                    edit_id = null;
-                }
-            },
-            else => {},
-        }
-    }
 
     if (pixi.editor.folder) |path| {
         try drawFiles(path, tree);
@@ -99,16 +88,6 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     });
     defer branch.deinit();
 
-    if (set_focus_path) |focus_path| {
-        if (std.mem.eql(u8, focus_path, folder)) {
-            close_rect = branch.button.data().borderRectScale().r;
-        }
-    }
-
-    // if (close_rect == null) {
-    //     close_rect = branch.button.data().borderRectScale().r;
-    // }
-
     { // Add right click context menu for item options
         var context = dvui.context(@src(), .{ .rect = branch.button.data().borderRectScale().r }, .{});
         defer context.deinit();
@@ -138,7 +117,6 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
 
     if (branch.button.clicked()) {
         selected_id = null;
-        //close_rect = branch.button.data().borderRectScale().r;
     }
 
     const color = dvui.themeGet().color(.control, .fill_hover);
@@ -165,20 +143,11 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     });
 
     if (branch.expander(@src(), .{ .indent = 24 }, .{
-        //.color_border = color,
         .color_fill = dvui.themeGet().color(.control, .fill),
         .corner_radius = .all(8),
-        // .box_shadow = .{
-        //     .color = .black,
-        //     .offset = .{ .x = -5, .y = 5 },
-        //     .shrink = 5,
-        //     .fade = 10,
-        //     .alpha = 0.15,
-        // },
         .expand = .both,
         .margin = .{ .x = 10, .w = 5 },
         .background = true,
-        //.border = .{ .x = 1, .w = 0 },
     })) {
         var box = dvui.box(@src(), .{
             .dir = .vertical,
@@ -212,14 +181,37 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             .background = false,
             .padding = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
-            .color_text = color,
+            .color_text = dvui.themeGet().color(.window, .text),
             .gravity_y = 0.5,
             .id_extra = id_extra,
         });
         defer te.deinit();
 
+        for (dvui.events()) |*event| {
+            switch (event.evt) {
+                .mouse => |mouse| {
+                    if (mouse.action == .press and !te.matchEvent(event)) {
+                        selected_id = null;
+                        edit_id = null;
+                    }
+                },
+                else => {},
+            }
+        }
+
         if (dvui.firstFrame(te.data().id)) {
             te.textSet(label, true);
+
+            if (std.mem.indexOf(u8, label, ".")) |idx| {
+                if (idx == 0) {
+                    te.textLayout.selection.moveCursor(1, false);
+                    te.textLayout.selection.moveCursor(label.len - 1, true);
+                } else {
+                    te.textLayout.selection.moveCursor(0, false);
+                    te.textLayout.selection.moveCursor(idx, true);
+                }
+            }
+
             dvui.focusWidget(te.data().id, null, null);
         }
 
@@ -227,7 +219,9 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             const parent_folder = std.fs.path.dirname(full_path);
             var new_path: []const u8 = undefined;
 
-            var valid_path = blk: {
+            defer edit_id = null;
+
+            const valid_path = blk: {
                 std.fs.accessAbsolute(full_path, .{}) catch {
                     break :blk false;
                 };
@@ -240,14 +234,6 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             } else {
                 new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{te.getText()});
             }
-
-            valid_path = blk: { // We want to reverse this on the new path, because we want to disallow overwriting existing files
-                std.fs.accessAbsolute(new_path, .{}) catch {
-                    break :blk true;
-                };
-
-                break :blk false;
-            };
 
             if (!std.mem.eql(u8, label, te.getText()) and te.getText().len > 0 and valid_path) {
                 switch (kind) {
@@ -276,13 +262,11 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
                     else => {},
                 }
             }
-            edit_id = null;
         }
     } else {
         if (selected) {
             if (dvui.labelClick(@src(), "{s}", .{label}, .{}, .{
                 .gravity_y = 0.5,
-                //.margin = dvui.Rect.all(2),
                 .padding = padding,
                 .id_extra = id_extra,
                 .color_text = color,
@@ -362,7 +346,8 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                     expanded = true;
                 }
 
-                if (set_focus_path) |path| {
+                // Make sure we open any parent paths of the new file close path
+                if (new_file_path) |path| {
                     if (std.fs.path.dirname(path)) |d| {
                         if (std.mem.containsAtLeast(u8, d, 1, abs_path)) {
                             expanded = true;
@@ -384,20 +369,20 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                 });
                 defer branch.deinit();
 
-                if (!dvui.firstFrame(branch.data().id) and parent_branch != null and !parent_branch.?.expanding()) {
-                    if (set_focus_path) |path| {
-                        if (std.mem.eql(u8, path, abs_path)) {
-                            edit_id = inner_id_extra.*;
-                            selected_id = inner_id_extra.*;
-                            close_rect = branch.button.data().borderRectScale().r;
-                            set_focus_path = null;
+                if (new_file_path) |path| {
+                    if (std.mem.eql(u8, path, abs_path)) {
+                        if (!dvui.firstFrame(branch.data().id)) {
+                            if ((parent_branch != null and !parent_branch.?.expanding()) or branch.button.data().rect.h > 10.0) {
+                                edit_id = inner_id_extra.*;
+                                selected_id = inner_id_extra.*;
+                                var close_rect = branch.button.data().borderRectScale().r;
+                                close_rect.h = @max(10.0, close_rect.h);
+                                new_file_close_rect = close_rect;
+                                new_file_path = null;
+                            }
                         }
                     }
                 }
-
-                // if (!dvui.firstFrame(branch.data().id)) {
-                //     if (set_focus_path) |path| {}
-                // }
 
                 const current_point = dvui.currentWindow().mouse_pt;
 
