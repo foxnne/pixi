@@ -143,11 +143,14 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     });
 
     if (branch.expander(@src(), .{ .indent = 24 }, .{
+        //.color_border = color,
         .color_fill = dvui.themeGet().color(.control, .fill),
         .corner_radius = .all(8),
+
         .expand = .both,
         .margin = .{ .x = 10, .w = 5 },
         .background = true,
+        //.border = .{ .x = 1, .w = 0 },
     })) {
         var box = dvui.box(@src(), .{
             .dir = .vertical,
@@ -235,6 +238,14 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
                 new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{te.getText()});
             }
 
+            // valid_path = blk: { // We want to reverse this on the new path, because we want to disallow overwriting existing files
+            //     std.fs.accessAbsolute(new_path, .{}) catch {
+            //         break :blk true;
+            //     };
+
+            //     break :blk false;
+            // };
+
             if (!std.mem.eql(u8, label, te.getText()) and te.getText().len > 0 and valid_path) {
                 switch (kind) {
                     .directory => {
@@ -267,6 +278,7 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
         if (selected) {
             if (dvui.labelClick(@src(), "{s}", .{label}, .{}, .{
                 .gravity_y = 0.5,
+                //.margin = dvui.Rect.all(2),
                 .padding = padding,
                 .id_extra = id_extra,
                 .color_text = color,
