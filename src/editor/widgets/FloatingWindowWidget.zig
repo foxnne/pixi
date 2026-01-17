@@ -172,7 +172,7 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
             } else {
                 self.wd.rect.w = a.value();
             }
-        } else {
+        } else if (cr.w != self.wd.rect.w) {
             dvui.animation(self.wd.id, "_close_width", .{
                 .start_val = self.wd.rect.w,
                 .end_val = close_rect.w,
@@ -198,7 +198,7 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
             } else {
                 self.wd.rect.h = a.value();
             }
-        } else {
+        } else if (cr.h != self.wd.rect.h) {
             dvui.animation(self.wd.id, "_close_height", .{
                 .start_val = self.wd.rect.h,
                 .end_val = close_rect.h,
@@ -224,7 +224,7 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
             } else {
                 self.wd.rect.x = a.value();
             }
-        } else {
+        } else if (cr.x != self.wd.rect.x) {
             dvui.animation(self.wd.id, "_close_x", .{
                 .start_val = self.wd.rect.x,
                 .end_val = close_rect.x,
@@ -250,7 +250,7 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
             } else {
                 self.wd.rect.y = a.value();
             }
-        } else {
+        } else if (cr.y != self.wd.rect.y) {
             dvui.animation(self.wd.id, "_close_y", .{
                 .start_val = self.wd.rect.y,
                 .end_val = close_rect.y,

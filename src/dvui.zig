@@ -179,11 +179,11 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
 
     if (dvui.animationGet(win.data().id, "_close_x")) |a| {
         if (a.done()) {
+            pixi.Editor.Explorer.files.new_file_close_rect = null;
             dvui.dialogRemove(id);
         }
     } else if (pixi.Editor.Explorer.files.new_file_close_rect) |close_rect| {
         dvui.dataSet(null, win.data().id, "_close_rect", close_rect);
-        dvui.refresh(null, @src(), win.data().id);
         pixi.Editor.Explorer.files.new_file_close_rect = null;
     } else {
         win.autoSize();

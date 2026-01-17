@@ -88,6 +88,12 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     });
     defer branch.deinit();
 
+    if (new_file_path) |focus_path| {
+        if (std.mem.eql(u8, focus_path, folder)) {
+            new_file_close_rect = branch.button.data().borderRectScale().r;
+        }
+    }
+
     { // Add right click context menu for item options
         var context = dvui.context(@src(), .{ .rect = branch.button.data().borderRectScale().r }, .{});
         defer context.deinit();
@@ -117,6 +123,7 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
 
     if (branch.button.clicked()) {
         selected_id = null;
+        //close_rect = branch.button.data().borderRectScale().r;
     }
 
     const color = dvui.themeGet().color(.control, .fill_hover);
@@ -143,14 +150,11 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     });
 
     if (branch.expander(@src(), .{ .indent = 24 }, .{
-        //.color_border = color,
         .color_fill = dvui.themeGet().color(.control, .fill),
         .corner_radius = .all(8),
-
         .expand = .both,
         .margin = .{ .x = 10, .w = 5 },
         .background = true,
-        //.border = .{ .x = 1, .w = 0 },
     })) {
         var box = dvui.box(@src(), .{
             .dir = .vertical,
@@ -237,14 +241,6 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             } else {
                 new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{te.getText()});
             }
-
-            // valid_path = blk: { // We want to reverse this on the new path, because we want to disallow overwriting existing files
-            //     std.fs.accessAbsolute(new_path, .{}) catch {
-            //         break :blk true;
-            //     };
-
-            //     break :blk false;
-            // };
 
             if (!std.mem.eql(u8, label, te.getText()) and te.getText().len > 0 and valid_path) {
                 switch (kind) {
