@@ -184,8 +184,8 @@ pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void
             var file = pixi.editor.newFile(new_path, .{
                 .column_width = column_width,
                 .row_height = row_height,
-                .columns = columns,
-                .rows = rows,
+                .columns = if (mode == .single) 1 else columns,
+                .rows = if (mode == .single) 1 else rows,
             }) catch {
                 dvui.log.err("Failed to create file: {s}", .{path});
                 return error.FailedToCreateFile;
