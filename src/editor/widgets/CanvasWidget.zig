@@ -37,35 +37,18 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
     parent_id = self.id;
 
     if (dvui.firstFrame(self.id) or (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w)) {
-        //const steps = pixi.editor.settings.zoom_steps;
         const file_width: f32 = init_opts.data_size.w;
         const file_height: f32 = init_opts.data_size.h;
         const target_width = parent.w;
         const target_height = parent.h;
         var target_scale: f32 = 1.0;
 
-        // for (steps, 0..) |zoom, i| {
-        //     if (((file_width * 1.5) * zoom) > target_width or ((file_height * 1.5) * zoom) > target_height) {
-        //         if (i > 0) {
-        //             target_scale = steps[i - 1];
-        //             break;
-        //         }
-        //         target_scale = zoom;
-        //         break;
-        //     }
-        // }
-
-        target_scale = @min(target_width / (file_width * 1.5), target_height / (file_height * 1.5));
+        target_scale = @min(target_width / (file_width * 1.2), target_height / (file_height * 1.5));
 
         if (target_scale != self.prev_scale) {
             self.scale = target_scale;
             self.prev_scale = target_scale;
         }
-
-        //const screen_rect = self.screenFromDataRect(dvui.Rect.fromSize(.{ .w = file_width, .h = file_height }));
-        //const viewport_rect = self.viewportFromScreenRect(screen_rect);
-
-        //const parent_viewport_rect = self.viewportFromScreenRect(self.scroll_rect_scale.r);
 
         // Center the canvas within the viewport
         self.scroll_info.virtual_size.w = file_width * self.scale;
@@ -86,8 +69,8 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
         self.origin.x = -offset_x;
         self.origin.y = -offset_y;
 
-        self.scroll_info.scrollToFraction(.horizontal, 0.0);
-        self.scroll_info.scrollToFraction(.vertical, 0.0);
+        //self.scroll_info.scrollToFraction(.horizontal, 0.0);
+        //self.scroll_info.scrollToFraction(.vertical, 0.0);
         dvui.refresh(null, @src(), parent_id);
     }
 
