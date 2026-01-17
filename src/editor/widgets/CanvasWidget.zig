@@ -84,7 +84,7 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
     if (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w or self.second_center) {
         self.rescale();
         self.recenter();
-        //dvui.refresh(null, @src(), self.id);
+        dvui.refresh(null, @src(), self.id);
     }
 
     self.scroll = dvui.scrollArea(src, .{ .scroll_info = &self.scroll_info }, opts);
