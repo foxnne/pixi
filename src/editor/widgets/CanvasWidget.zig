@@ -45,10 +45,8 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
 
         target_scale = @min(target_width / (file_width * 1.2), target_height / (file_height * 1.5));
 
-        if (target_scale != self.prev_scale) {
-            self.scale = target_scale;
-            self.prev_scale = target_scale;
-        }
+        self.scale = target_scale;
+        self.prev_scale = target_scale;
 
         // Center the canvas within the viewport
         self.scroll_info.virtual_size.w = file_width * self.scale;
@@ -68,9 +66,6 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
         self.scroll_info.viewport.y = offset_y;
         self.origin.x = -offset_x;
         self.origin.y = -offset_y;
-
-        //self.scroll_info.scrollToFraction(.horizontal, 0.0);
-        //self.scroll_info.scrollToFraction(.vertical, 0.0);
         dvui.refresh(null, @src(), parent_id);
     }
 
