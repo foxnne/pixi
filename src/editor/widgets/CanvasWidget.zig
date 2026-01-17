@@ -36,7 +36,7 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
 
     parent_id = self.id;
 
-    if (dvui.firstFrame(self.id) or (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w)) {
+    if (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w) {
         const file_width: f32 = init_opts.data_size.w;
         const file_height: f32 = init_opts.data_size.h;
         const target_width = parent.w;
