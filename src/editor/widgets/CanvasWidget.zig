@@ -5,6 +5,7 @@ const pixi = @import("../../pixi.zig");
 pub const CanvasWidget = @This();
 
 id: dvui.Id = undefined,
+init_opts: InitOptions = undefined,
 scroll: *dvui.ScrollAreaWidget = undefined,
 scaler: *dvui.ScaleWidget = undefined,
 rect: dvui.Rect.Physical = .{},
@@ -14,7 +15,8 @@ screen_rect_scale: dvui.RectScale = .{},
 scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
 origin: dvui.Point = .{},
 scale: f32 = 1.0,
-prev_scale: f32 = 1.0,
+prev_size: dvui.Size = .{},
+prev_scale: f32 = 0.0,
 bounding_box: ?dvui.Rect.Physical = null,
 hovered: bool = false,
 
@@ -23,49 +25,83 @@ pub const InitOptions = struct {
     data_size: dvui.Size,
 };
 
-pub fn install(canvas: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: InitOptions, opts: dvui.Options) void {
-    canvas.id = init_opts.id;
+pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: InitOptions, opts: dvui.Options) void {
+    self.id = init_opts.id;
+    self.init_opts = init_opts;
+
+    defer self.prev_size = self.init_opts.data_size;
 
     var parent_id = dvui.parentGet().data().id;
     const parent = dvui.parentGet().data().rect;
 
-    parent_id = canvas.id;
+    parent_id = self.id;
 
-    const steps = pixi.editor.settings.zoom_steps;
-    const file_width: f32 = init_opts.data_size.w;
-    const file_height: f32 = init_opts.data_size.h;
-    const target_width = if (file_width < parent.w) parent.w else file_width;
-    const target_height = if (file_height < parent.h) parent.h else file_height;
-    var target_scale: f32 = 1.0;
+    if (dvui.firstFrame(self.id) or (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w)) {
+        //const steps = pixi.editor.settings.zoom_steps;
+        const file_width: f32 = init_opts.data_size.w;
+        const file_height: f32 = init_opts.data_size.h;
+        const target_width = parent.w;
+        const target_height = parent.h;
+        var target_scale: f32 = 1.0;
 
-    for (steps, 0..) |zoom, i| {
-        if (((file_width * 1.2) * zoom) >= target_width or ((file_height * 1.2) * zoom) >= target_height) {
-            if (i > 0) {
-                target_scale = steps[i - 1];
-                break;
-            }
-            target_scale = steps[i];
-            break;
+        // for (steps, 0..) |zoom, i| {
+        //     if (((file_width * 1.5) * zoom) > target_width or ((file_height * 1.5) * zoom) > target_height) {
+        //         if (i > 0) {
+        //             target_scale = steps[i - 1];
+        //             break;
+        //         }
+        //         target_scale = zoom;
+        //         break;
+        //     }
+        // }
+
+        target_scale = @min(target_width / (file_width * 1.5), target_height / (file_height * 1.5));
+
+        if (target_scale != self.prev_scale) {
+            self.scale = target_scale;
+            self.prev_scale = target_scale;
         }
-    }
 
-    if (target_scale != canvas.prev_scale) {
-        canvas.scale = target_scale;
-        canvas.prev_scale = target_scale;
+        //const screen_rect = self.screenFromDataRect(dvui.Rect.fromSize(.{ .w = file_width, .h = file_height }));
+        //const viewport_rect = self.viewportFromScreenRect(screen_rect);
 
+        //const parent_viewport_rect = self.viewportFromScreenRect(self.scroll_rect_scale.r);
+
+        // Center the canvas within the viewport
+        self.scroll_info.virtual_size.w = file_width * self.scale;
+        self.scroll_info.virtual_size.h = file_height * self.scale;
+
+        // Calculate the amount of blank space for centering
+        const view_w = target_width;
+        const view_h = target_height;
+        const virt_w = self.scroll_info.virtual_size.w;
+        const virt_h = self.scroll_info.virtual_size.h;
+
+        // Center by default if content is smaller than viewport, else 0
+        const offset_x = if (virt_w < view_w) (view_w - virt_w) * 0.5 else 0.0;
+        const offset_y = if (virt_h < view_h) (view_h - virt_h) * 0.5 else 0.0;
+
+        self.scroll_info.viewport.x = offset_x;
+        self.scroll_info.viewport.y = offset_y;
+        self.origin.x = -offset_x;
+        self.origin.y = -offset_y;
+
+        self.scroll_info.scrollToFraction(.horizontal, 0.0);
+        self.scroll_info.scrollToFraction(.vertical, 0.0);
         dvui.refresh(null, @src(), parent_id);
     }
 
-    canvas.scroll = dvui.scrollArea(src, .{ .scroll_info = &canvas.scroll_info }, opts);
-    canvas.scroll_container = &canvas.scroll.scroll.?;
+    self.scroll = dvui.scrollArea(src, .{ .scroll_info = &self.scroll_info }, opts);
+    self.scroll_container = &self.scroll.scroll.?;
 
-    canvas.scaler = dvui.scale(src, .{ .scale = &canvas.scale }, .{ .rect = .{ .x = -canvas.origin.x, .y = -canvas.origin.y } });
+    self.scaler = dvui.scale(src, .{ .scale = &self.scale }, .{ .rect = .{ .x = -self.origin.x, .y = -self.origin.y } });
 
     // can use this to convert between viewport/virtual_size and screen coords
-    canvas.scroll_rect_scale = canvas.scroll_container.screenRectScale(.{});
+    self.scroll_rect_scale = self.scroll_container.screenRectScale(.{});
     // can use this to convert between data and screen coords
-    canvas.screen_rect_scale = canvas.scaler.screenRectScale(.{});
-    canvas.rect = canvas.screenFromDataRect(dvui.Rect.fromSize(.{ .w = init_opts.data_size.w, .h = init_opts.data_size.h }));
+    self.screen_rect_scale = self.scaler.screenRectScale(.{});
+
+    self.rect = self.screenFromDataRect(dvui.Rect.fromSize(.{ .w = init_opts.data_size.w, .h = init_opts.data_size.h }));
 }
 
 pub fn deinit(self: *CanvasWidget) void {
