@@ -87,6 +87,10 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
         dvui.refresh(null, @src(), self.id);
     }
 
+    if (self.first_center) {
+        return;
+    }
+
     self.scroll = dvui.scrollArea(src, .{ .scroll_info = &self.scroll_info }, opts);
     self.scroll_container = &self.scroll.scroll.?;
 
