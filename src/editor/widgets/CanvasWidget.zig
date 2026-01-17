@@ -62,10 +62,13 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
         const offset_x = if (virt_w < view_w) (view_w - virt_w) * 0.5 else 0.0;
         const offset_y = if (virt_h < view_h) (view_h - virt_h) * 0.5 else 0.0;
 
-        self.scroll_info.viewport.x = offset_x;
-        self.scroll_info.viewport.y = offset_y;
+        if (self.scroll_info.viewport.x == 0.0 and self.scroll_info.viewport.y == 0.0) {
+            self.scroll_info.viewport.x = offset_x;
+            self.scroll_info.viewport.y = offset_y;
+        }
         self.origin.x = -offset_x;
         self.origin.y = -offset_y;
+
         dvui.refresh(null, @src(), parent_id);
     }
 
