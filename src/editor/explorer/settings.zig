@@ -15,10 +15,16 @@ pub fn draw() !void {
 
     dvui.label(@src(), "{d:0>3.0} fps", .{dvui.FPS()}, .{});
 
-    dvui.label(@src(), "canvas.scale: {d}", .{if (pixi.editor.activeFile()) |file| file.editor.canvas.scale else 1.0}, .{});
-    dvui.label(@src(), "canvas.viewport: {any}", .{if (pixi.editor.activeFile()) |file| file.editor.canvas.scroll_info.viewport else dvui.Rect.all(0.0)}, .{});
-    dvui.label(@src(), "canvas.virtual_size: {any}", .{if (pixi.editor.activeFile()) |file| file.editor.canvas.scroll_info.virtual_size else dvui.Size.all(0.0)}, .{});
-    dvui.label(@src(), "canvas.offset_horizontal: {d}", .{if (pixi.editor.activeFile()) |file| file.editor.canvas.scroll_info.offset(.horizontal) else 0.0}, .{});
+    if (pixi.editor.activeFile()) |file| {
+        dvui.label(@src(), "canvas.scale: {d}", .{file.editor.canvas.scale}, .{});
+        dvui.label(@src(), "canvas.viewport: {any}", .{file.editor.canvas.scroll_info.viewport}, .{});
+        dvui.label(@src(), "canvas.virtual_size: {any}", .{file.editor.canvas.scroll_info.virtual_size}, .{});
+
+        dvui.label(@src(), "canvas.origin: {any}", .{file.editor.canvas.origin}, .{});
+
+        dvui.label(@src(), "canvas.offset_horizontal: {d}", .{file.editor.canvas.scroll_info.offset(.horizontal)}, .{});
+        dvui.label(@src(), "canvas.offset_vertical: {d}", .{file.editor.canvas.scroll_info.offset(.vertical)}, .{});
+    }
 
     // imgui.pushStyleVarImVec2(imgui.StyleVar_FramePadding, .{ .x = 6.0, .y = 6.0 });
     // defer imgui.popStyleVar();

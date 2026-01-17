@@ -5,6 +5,7 @@ const pixi = @import("../../pixi.zig");
 pub const CanvasWidget = @This();
 
 id: dvui.Id = undefined,
+installed: bool = false,
 init_opts: InitOptions = undefined,
 scroll: *dvui.ScrollAreaWidget = undefined,
 scaler: *dvui.ScaleWidget = undefined,
@@ -18,6 +19,10 @@ scale: f32 = 1.0,
 prev_size: dvui.Size = .{},
 prev_scale: f32 = 0.0,
 bounding_box: ?dvui.Rect.Physical = null,
+
+// This is a mess but i cant figure out why the first call to center on the first install doesn't work correctly
+first_center: bool = true,
+second_center: bool = true,
 hovered: bool = false,
 
 pub const InitOptions = struct {
@@ -25,51 +30,61 @@ pub const InitOptions = struct {
     data_size: dvui.Size,
 };
 
+pub fn recenter(self: *CanvasWidget) void {
+    const parent = dvui.parentGet().data().rect;
+
+    const file_width: f32 = self.init_opts.data_size.w;
+    const file_height: f32 = self.init_opts.data_size.h;
+    const target_width = parent.w;
+    const target_height = parent.h;
+
+    // Center the canvas within the viewport
+    self.scroll_info.virtual_size.w = file_width * self.scale;
+    self.scroll_info.virtual_size.h = file_height * self.scale;
+
+    // Calculate the amount of blank space for centering
+    const view_w = target_width;
+    const view_h = target_height;
+    const virt_w = self.scroll_info.virtual_size.w;
+    const virt_h = self.scroll_info.virtual_size.h;
+
+    // Center by default if content is smaller than viewport, else 0
+    const offset_x = (view_w - virt_w) * 0.5;
+    const offset_y = (view_h - virt_h) * 0.5;
+
+    self.origin.x = -offset_x;
+    self.origin.y = -offset_y;
+
+    if (self.first_center) {
+        self.first_center = false;
+    } else if (self.second_center) {
+        self.second_center = false;
+    }
+}
+
+pub fn rescale(self: *CanvasWidget) void {
+    const parent = dvui.parentGet().data().rect;
+
+    const file_width: f32 = self.init_opts.data_size.w;
+    const file_height: f32 = self.init_opts.data_size.h;
+    const target_width = parent.w;
+    const target_height = parent.h;
+    const target_scale: f32 = @min(target_width / (file_width * 1.25), target_height / (file_height * 1.25));
+
+    self.prev_scale = self.scale;
+    self.scale = target_scale;
+}
+
 pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: InitOptions, opts: dvui.Options) void {
     self.id = init_opts.id;
     self.init_opts = init_opts;
 
     defer self.prev_size = self.init_opts.data_size;
 
-    var parent_id = dvui.parentGet().data().id;
-    const parent = dvui.parentGet().data().rect;
-
-    parent_id = self.id;
-
-    if (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w) {
-        const file_width: f32 = init_opts.data_size.w;
-        const file_height: f32 = init_opts.data_size.h;
-        const target_width = parent.w;
-        const target_height = parent.h;
-        var target_scale: f32 = 1.0;
-
-        target_scale = @min(target_width / (file_width * 1.2), target_height / (file_height * 1.5));
-
-        self.scale = target_scale;
-        self.prev_scale = target_scale;
-
-        // Center the canvas within the viewport
-        self.scroll_info.virtual_size.w = file_width * self.scale;
-        self.scroll_info.virtual_size.h = file_height * self.scale;
-
-        // Calculate the amount of blank space for centering
-        const view_w = target_width;
-        const view_h = target_height;
-        const virt_w = self.scroll_info.virtual_size.w;
-        const virt_h = self.scroll_info.virtual_size.h;
-
-        // Center by default if content is smaller than viewport, else 0
-        const offset_x = if (virt_w < view_w) (view_w - virt_w) * 0.5 else 0.0;
-        const offset_y = if (virt_h < view_h) (view_h - virt_h) * 0.5 else 0.0;
-
-        if (self.scroll_info.viewport.x == 0.0 and self.scroll_info.viewport.y == 0.0) {
-            self.scroll_info.viewport.x = offset_x;
-            self.scroll_info.viewport.y = offset_y;
-        }
-        self.origin.x = -offset_x;
-        self.origin.y = -offset_y;
-
-        dvui.refresh(null, @src(), parent_id);
+    if (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w or self.second_center) {
+        self.rescale();
+        self.recenter();
+        //dvui.refresh(null, @src(), self.id);
     }
 
     self.scroll = dvui.scrollArea(src, .{ .scroll_info = &self.scroll_info }, opts);
