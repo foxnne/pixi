@@ -372,11 +372,11 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     file.layers.items(.name)[layer_settings.index],
                 }) catch "Invalid change";
             },
-            .resize => |*resize| {
+            .resize => |_| {
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} File resized to {d}x{d}", .{
                     action_text,
-                    resize.width,
-                    resize.height,
+                    file.width(),
+                    file.height(),
                 }) catch "Invalid change";
             },
         }
