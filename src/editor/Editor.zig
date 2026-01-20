@@ -160,7 +160,9 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                             file.selected_animation_frame_index = 0;
                         }
 
-                        const millis_per_frame = @as(i32, @intFromFloat(1_000 / animation.fps));
+                        const min_fps = pixi.editor.settings.min_animation_fps;
+                        const fps = @max(min_fps, animation.fps);
+                        const millis_per_frame = @as(i32, @intFromFloat(1_000 / fps));
                         if (dvui.timerDoneOrNone(base_box.data().id)) {
                             const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
                             const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));

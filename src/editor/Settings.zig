@@ -23,6 +23,11 @@ min_window_size: [2]f32 = .{ 640, 480 },
 
 initial_window_size: [2]f32 = .{ 1280, 720 },
 
+/// Minimum FPS for animations.
+min_animation_fps: f32 = 0.001,
+/// Maximum FPS for animations.
+max_animation_fps: f32 = 240.0,
+
 /// Width of the explorer grip.
 //explorer_grip: f32 = 18.0,
 

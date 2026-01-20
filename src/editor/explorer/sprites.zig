@@ -24,6 +24,29 @@ pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         const parent_width = dvui.parentGet().data().rect.w;
 
+        const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .horizontal,
+            .background = false,
+        });
+        defer vbox.deinit();
+
+        if (file.animations.len > 0) {
+            if (file.selected_animation_index) |index| {
+                const hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .horizontal,
+                    .background = false,
+                });
+                defer hbox.deinit();
+
+                dvui.labelNoFmt(@src(), "Frames per second:", .{}, .{ .gravity_y = 0.5 });
+
+                _ = dvui.textEntryNumber(@src(), f32, .{ .value = &file.animations.items(.fps)[index], .min = pixi.editor.settings.min_animation_fps, .max = pixi.editor.settings.max_animation_fps }, .{
+                    .expand = .horizontal,
+                    .background = false,
+                });
+            }
+        }
+
         // Collect layers length to trigger a refit of the panel
         // const anim_count: usize = file.animations.len;
         // defer self.prev_anim_count = anim_count;

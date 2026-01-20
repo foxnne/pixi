@@ -2477,8 +2477,8 @@ pub fn updateActiveLayerMask(self: *FileWidget) void {
 pub fn drawLayers(self: *FileWidget) void {
     var file = self.init_options.file;
     var layer_index: usize = file.layers.len;
-    var tiles_wide: usize = @intCast(@divExact(file.width(), file.column_width));
-    var tiles_high: usize = @intCast(@divExact(file.height(), file.row_height));
+    var columns: usize = file.columns;
+    var rows: usize = file.rows;
 
     const layer_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width()), .h = @floatFromInt(file.height()) });
     var resize_rect = layer_rect;
@@ -2490,14 +2490,14 @@ pub fn drawLayers(self: *FileWidget) void {
         if (resize_data_point.x < layer_rect.x + layer_rect.w or resize_data_point.y < layer_rect.y + layer_rect.h) {
             self.init_options.canvas.screenFromDataRect(layer_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 1.5 });
             // Draw grid lines for the original layer_rect
-            for (1..tiles_wide) |i| {
+            for (1..columns) |i| {
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
                     self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = layer_rect.h }),
                 } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
             }
 
-            for (1..tiles_high) |i| {
+            for (1..rows) |i| {
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                     self.init_options.canvas.screenFromDataPoint(.{ .x = layer_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
@@ -2505,8 +2505,8 @@ pub fn drawLayers(self: *FileWidget) void {
             }
         }
 
-        tiles_wide = @divExact(@as(u32, @intFromFloat(resize_rect.w)), file.column_width);
-        tiles_high = @divExact(@as(u32, @intFromFloat(resize_rect.h)), file.row_height);
+        columns = @divTrunc(@as(u32, @intFromFloat(resize_rect.w)), file.column_width);
+        rows = @divTrunc(@as(u32, @intFromFloat(resize_rect.h)), file.row_height);
     }
 
     const shadow_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -2674,14 +2674,14 @@ pub fn drawLayers(self: *FileWidget) void {
         }
     }
 
-    for (1..tiles_wide) |i| {
+    for (1..columns) |i| {
         dvui.Path.stroke(.{ .points = &.{
             self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
             self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = resize_rect.h }),
         } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
     }
 
-    for (1..tiles_high) |i| {
+    for (1..rows) |i| {
         dvui.Path.stroke(.{ .points = &.{
             self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
             self.init_options.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
@@ -2855,6 +2855,7 @@ pub fn processResize(self: *FileWidget) void {
                 .stroke_color = if (icon_button.hover) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.control, .text),
             }, .{
                 .expand = .ratio,
+                .min_size_content = .{ .w = 1.0, .h = 1.0 },
                 .gravity_x = 0.5,
                 .gravity_y = 0.5,
                 .border = dvui.Rect.all(0),
@@ -2876,8 +2877,8 @@ pub fn processResize(self: *FileWidget) void {
         if (dragging == false) {
             if (self.resize_data_point) |resize_data_point| {
                 self.init_options.file.resize(.{
-                    .columns = @divExact(@as(u32, @intFromFloat(resize_data_point.x)), self.init_options.file.column_width),
-                    .rows = @divExact(@as(u32, @intFromFloat(resize_data_point.y)), self.init_options.file.row_height),
+                    .columns = @divTrunc(@as(u32, @intFromFloat(resize_data_point.x)), self.init_options.file.column_width),
+                    .rows = @divTrunc(@as(u32, @intFromFloat(resize_data_point.y)), self.init_options.file.row_height),
                     .history = true,
                 }) catch |err| {
                     std.log.err("Failed to resize file: {s}", .{@errorName(err)});

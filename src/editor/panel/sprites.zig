@@ -205,7 +205,7 @@ pub fn drawAnimationControlsDialog(_: *Sprites) void {
                         .corner_radius = dvui.Rect.all(1000),
                     },
                     .color_fill = dvui.themeGet().color(.control, .fill),
-                    .min_size_content = .{ .w = 0.0, .h = 12.0 },
+                    .min_size_content = .{ .w = 1.0, .h = 12.0 },
                 })) {
                     file.editor.playing = !file.editor.playing;
                 }

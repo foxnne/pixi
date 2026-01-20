@@ -358,7 +358,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                 .id = internal.newAnimationID(),
                 .name = try pixi.app.allocator.dupe(u8, animation.name),
                 .frames = try pixi.app.allocator.dupe(usize, animation.frames),
-                .fps = animation.fps,
+                .fps = @max(pixi.editor.settings.min_animation_fps, animation.fps),
             }) catch return error.FileLoadError;
         }
         return internal;
@@ -627,7 +627,10 @@ pub fn spritePoint(file: *File, point: dvui.Point) dvui.Point {
     const column = @divTrunc(@as(i32, @intFromFloat(point.x)), @as(i32, @intCast(file.column_width)));
     const row = @divTrunc(@as(i32, @intFromFloat(point.y)), @as(i32, @intCast(file.row_height)));
 
-    return .{ .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width)), .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height)) };
+    return .{
+        .x = @as(f32, @floatFromInt(column * @as(i32, @intCast(file.column_width)))),
+        .y = @as(f32, @floatFromInt(row * @as(i32, @intCast(file.row_height)))),
+    };
 }
 
 pub fn spriteCount(file: *File) usize {

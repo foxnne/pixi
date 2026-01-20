@@ -524,7 +524,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     .{},
                     .{
                         .expand = .ratio,
-                        .min_size_content = .{ .w = 0.0, .h = 11.0 },
+                        .min_size_content = .{ .w = 1.0, .h = 11.0 },
                         .id_extra = layer_index,
                         .corner_radius = dvui.Rect.all(1000),
                         .margin = dvui.Rect.all(1),
@@ -541,7 +541,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     .{},
                     .{
                         .expand = .ratio,
-                        .min_size_content = .{ .w = 0.0, .h = 11.0 },
+                        .min_size_content = .{ .w = 1.0, .h = 11.0 },
                         .id_extra = layer_index,
                         .corner_radius = dvui.Rect.all(1000),
                         .margin = dvui.Rect.all(1),
