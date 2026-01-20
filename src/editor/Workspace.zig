@@ -16,6 +16,7 @@ pub const Workspace = @This();
 
 open_file_index: usize = 0,
 grouping: u64 = 0,
+center: bool = false,
 
 drag_index: ?usize = null,
 removed_index: ?usize = null,
@@ -427,9 +428,12 @@ pub fn drawCanvas(self: *Workspace) !void {
 
         self.drawTransformDialog(canvas_vbox);
 
+        if (self.grouping != file.editor.grouping) return;
+
         var file_widget = pixi.dvui.FileWidget.init(@src(), .{
             .canvas = &file.editor.canvas,
             .file = file,
+            .center = self.center,
         }, .{
             .expand = .both,
             .background = true,

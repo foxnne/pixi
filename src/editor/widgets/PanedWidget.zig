@@ -71,6 +71,7 @@ layout: dvui.BasicLayout = .{},
 should_autofit: bool = false,
 drawn: bool = false,
 dragging: bool = false,
+animating: bool = false,
 
 pub const AutoFitOptions = struct {
     /// The minimum split percentage [0-1] for the first side
@@ -148,6 +149,7 @@ pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Op
     }
 
     if (dvui.animationGet(self.wd.id, "_split_ratio")) |a| {
+        self.animating = true;
         self.split_ratio.* = a.value();
 
         if (self.collapsing and a.done()) {

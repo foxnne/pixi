@@ -28,6 +28,7 @@ hovered: bool = false,
 pub const InitOptions = struct {
     id: dvui.Id,
     data_size: dvui.Size,
+    center: bool = false,
 };
 
 pub fn recenter(self: *CanvasWidget) void {
@@ -81,14 +82,10 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
 
     defer self.prev_size = self.init_opts.data_size;
 
-    if (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w or self.second_center) {
+    if (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w or self.second_center or self.init_opts.center) {
         self.rescale();
         self.recenter();
         dvui.refresh(null, @src(), self.id);
-    }
-
-    if (self.first_center) {
-        return;
     }
 
     self.scroll = dvui.scrollArea(src, .{ .scroll_info = &self.scroll_info }, opts);

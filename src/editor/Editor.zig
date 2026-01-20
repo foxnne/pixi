@@ -613,43 +613,52 @@ pub fn rebuildWorkspaces(editor: *Editor) !void {
 pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     if (index >= editor.workspaces.count()) return .ok;
 
-    if (index <= editor.workspaces.count() - 1) {
-        var s = pixi.dvui.paned(@src(), .{
-            .direction = .horizontal,
-            .collapsed_size = if (index == editor.workspaces.count() - 1) std.math.floatMax(f32) else 0,
-            .handle_size = handle_size,
-            .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-        }, .{
-            .expand = .both,
-        });
-        defer s.deinit();
+    var s = pixi.dvui.paned(@src(), .{
+        .direction = .horizontal,
+        .collapsed_size = if (index == editor.workspaces.count() - 1) std.math.floatMax(f32) else 0,
+        .handle_size = handle_size,
+        .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
+    }, .{
+        .expand = .both,
+        .background = true,
+        .color_fill = dvui.themeGet().color(.window, .fill),
+    });
+    defer s.deinit();
 
-        if (index == editor.workspaces.count() - 1) {
-            s.split_ratio.* = 1.0;
-        } else {
-            if (dvui.firstFrame(s.wd.id)) {
-                s.split_ratio.* = 1.0;
-                s.animateSplit(0.5);
-            }
+    if (index == editor.workspaces.count() - 1) {
+        if (s.split_ratio.* != 1.0) {
+            s.animateSplit(1.0);
         }
+    } else {
+        if (dvui.firstFrame(s.wd.id)) {
+            s.split_ratio.* = 1.0;
+            s.animateSplit(0.5);
+        }
+    }
 
-        if (s.showFirst()) {
-            const result = try editor.workspaces.values()[index].draw();
+    if (s.showFirst()) {
+        const result = try editor.workspaces.values()[index].draw();
+        if (result != .ok) {
+            return result;
+        }
+    }
+
+    if (s.showSecond()) {
+        if (index + 1 == editor.workspaces.count() - 1) {
+            if (s.animating and editor.workspaces.count() > 1) {
+                editor.workspaces.values()[index + 1].center = true;
+            } else {
+                editor.workspaces.values()[index + 1].center = false;
+            }
+            const result = try editor.workspaces.values()[index + 1].draw();
             if (result != .ok) {
                 return result;
             }
-        }
-
-        if (s.showSecond()) {
+        } else {
             const result = try drawWorkspaces(editor, index + 1);
             if (result != .ok) {
                 return result;
             }
-        }
-    } else {
-        const result = try editor.workspaces.values()[index].draw();
-        if (result != .ok) {
-            return result;
         }
     }
 

@@ -33,6 +33,7 @@ hide_distance_bubble: bool = false,
 pub const InitOptions = struct {
     canvas: *CanvasWidget,
     file: *pixi.Internal.File,
+    center: bool = false,
 };
 
 pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Options) FileWidget {
@@ -54,6 +55,7 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
             .w = @floatFromInt(init_opts.file.width()),
             .h = @floatFromInt(init_opts.file.height()),
         },
+        .center = init_opts.center,
     }, opts);
 
     return fw;
