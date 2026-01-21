@@ -637,24 +637,26 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     }
 
     if (s.showFirst()) {
-        const result = try editor.workspaces.values()[index].draw();
-        if (result != .ok) {
-            return result;
-        }
-    }
-
-    if (s.showSecond()) {
-        if (index + 1 == editor.workspaces.count() - 1) {
-            if (s.animating and editor.workspaces.count() > 1) {
-                editor.workspaces.values()[index + 1].center = true;
-            } else {
-                editor.workspaces.values()[index + 1].center = false;
-            }
-            const result = try editor.workspaces.values()[index + 1].draw();
+        if (index == editor.workspaces.count() - 1) {
+            const result = try editor.workspaces.values()[index].draw();
             if (result != .ok) {
                 return result;
             }
         } else {
+            const result = try editor.workspaces.values()[index].draw();
+            if (result != .ok) {
+                return result;
+            }
+        }
+
+        if (s.showSecond()) {
+            if (index + 1 == editor.workspaces.count() - 1) {
+                if (s.animating and editor.workspaces.count() > 1) {
+                    editor.workspaces.values()[index + 1].center = true;
+                } else {
+                    editor.workspaces.values()[index + 1].center = false;
+                }
+            }
             const result = try drawWorkspaces(editor, index + 1);
             if (result != .ok) {
                 return result;
