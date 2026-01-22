@@ -228,7 +228,7 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
             dvui.animation(self.wd.id, "_close_x", .{
                 .start_val = self.wd.rect.x,
                 .end_val = close_rect.x,
-                .end_time = 500_000,
+                .end_time = 400_000,
                 .easing = dvui.easing.inBack,
             });
         }
@@ -254,7 +254,7 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
             dvui.animation(self.wd.id, "_close_y", .{
                 .start_val = self.wd.rect.y,
                 .end_val = close_rect.y,
-                .end_time = 500_000,
+                .end_time = 400_000,
                 .easing = dvui.easing.inBack,
             });
         }

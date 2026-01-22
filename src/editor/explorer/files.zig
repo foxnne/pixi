@@ -495,8 +495,8 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                             // Create a generic dialog that contains typical okay and cancel buttons and header
                             // The displayFn will be called during the drawing of the dialog, prior to ok and cancel buttons
                             var mutex = pixi.dvui.dialog(@src(), .{
-                                .displayFn = pixi.Editor.Dialogs.new_file.dialog,
-                                .callafterFn = pixi.Editor.Dialogs.new_file.callAfter,
+                                .displayFn = pixi.Editor.Dialogs.NewFile.dialog,
+                                .callafterFn = pixi.Editor.Dialogs.NewFile.callAfter,
                                 .title = "New File...",
                                 .ok_label = "Create",
                                 .cancel_label = "Cancel",

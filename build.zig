@@ -135,6 +135,13 @@ pub fn build(b: *std.Build) !void {
         exe.root_module.addImport("icons", dep.module("icons"));
     }
 
+    const zigimg_dependency = b.dependency("zigimg", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.root_module.addImport("zigimg", zigimg_dependency.module("zigimg"));
+
     //exe.root_module.addImport("zgif", zgif_module);
     // const nfd_lib = nfd.makeLib(b, target, optimize);
     // exe.root_module.addImport("nfd", nfd_lib);

@@ -201,10 +201,15 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
                     dvui.log.err("Dialog callafter for {x} returned {any}", .{ id, error.FailedToCallAfter });
                     return;
                 };
-            } else {
-                dvui.dialogRemove(id);
             }
-            return;
+
+            var close_rect = win.data().rectScale().r;
+            close_rect.x = close_rect.center().x;
+            close_rect.y = close_rect.center().y;
+            close_rect.w = 1;
+            close_rect.h = 1;
+
+            dvui.dataSet(null, win.data().id, "_close_rect", close_rect);
         }
     }
 
@@ -247,14 +252,20 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
                     .fade = 8,
                 },
             })) {
-                dvui.dialogRemove(id);
                 if (callafter) |ca| {
                     ca(id, .cancel) catch {
                         dvui.log.err("Dialog callafter for {x} returned {any}", .{ id, error.FailedToCallAfter });
                         return;
                     };
                 }
-                return;
+
+                var close_rect = win.data().rectScale().r;
+                close_rect.x = close_rect.center().x;
+                close_rect.y = close_rect.center().y;
+                close_rect.w = 1;
+                close_rect.h = 1;
+
+                dvui.dataSet(null, win.data().id, "_close_rect", close_rect);
             }
             if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .cancel) {
                 dvui.focusWidget(cancel_data.id, null, null);
@@ -293,10 +304,7 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
                     dvui.log.err("Dialog callafter for {x} returned {any}", .{ id, error.FailedToCallAfter });
                     return;
                 };
-            } else {
-                dvui.dialogRemove(id);
             }
-            return;
         }
         if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .ok) {
             dvui.focusWidget(ok_data.id, null, null);

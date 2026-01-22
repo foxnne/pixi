@@ -3,4 +3,5 @@ const dvui = @import("dvui");
 
 const Dialogs = @This();
 
-pub const new_file = @import("new_file.zig");
+pub const NewFile = @import("NewFile.zig");
+pub const Export = @import("Export.zig");

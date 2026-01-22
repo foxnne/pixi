@@ -19,6 +19,8 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "sample", .{ .control = true });
         try window.keybinds.putNoClobber(window.gpa, "transform", .{ .command = true, .key = .t });
         try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .command = true, .key = .e });
+        try window.keybinds.putNoClobber(window.gpa, "workspace", .{ .command = true, .key = .w });
+        try window.keybinds.putNoClobber(window.gpa, "export", .{ .command = true, .key = .p });
     } else {
         try window.keybinds.putNoClobber(window.gpa, "open_folder", .{ .key = .f, .control = true });
         try window.keybinds.putNoClobber(window.gpa, "open_files", .{ .key = .o, .control = true });
@@ -29,6 +31,8 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "sample", .{ .alt = true });
         try window.keybinds.putNoClobber(window.gpa, "transform", .{ .control = true, .key = .t });
         try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .control = true, .key = .e });
+        try window.keybinds.putNoClobber(window.gpa, "workspace", .{ .control = true, .key = .w });
+        try window.keybinds.putNoClobber(window.gpa, "export", .{ .control = true, .key = .p });
     }
 
     try window.keybinds.putNoClobber(window.gpa, "shift", .{ .shift = true });
@@ -93,6 +97,21 @@ pub fn tick() !void {
                         pixi.editor.tools.stroke_size += 1;
 
                     pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                }
+
+                if (ke.matchBind("export") and ke.action == .down) {
+                    // Create a generic dialog that contains typical okay and cancel buttons and header
+                    // The displayFn will be called during the drawing of the dialog, prior to ok and cancel buttons
+                    var mutex = pixi.dvui.dialog(@src(), .{
+                        .displayFn = pixi.Editor.Dialogs.Export.dialog,
+                        .callafterFn = pixi.Editor.Dialogs.Export.callAfter,
+                        .title = "Export...",
+                        .ok_label = "Export",
+                        .cancel_label = "Cancel",
+                        .resizeable = false,
+                        .default = .ok,
+                    });
+                    mutex.mutex.unlock();
                 }
 
                 if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
