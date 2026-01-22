@@ -10,6 +10,9 @@ const icons = @import("icons");
 pub var mouse_distance: f32 = std.math.floatMax(f32);
 
 pub fn draw() !dvui.App.Result {
+    const bg_box = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .horizontal, .background = true, .color_fill = dvui.themeGet().color(.control, .fill) });
+    defer bg_box.deinit();
+
     var m = dvui.menu(@src(), .horizontal, .{});
     defer m.deinit();
 

@@ -262,8 +262,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
 
         if (editor.explorer.paned.showSecond()) {
-            const workspace_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = false });
-            defer workspace_vbox.deinit();
+            const bg_box = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .color_fill = dvui.themeGet().color(.window, .fill) });
+            defer bg_box.deinit();
 
             {
                 const result = try Menu.draw();
@@ -271,6 +271,9 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     return result;
                 }
             }
+
+            const workspace_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = false, .padding = .{ .w = handle_size } });
+            defer workspace_vbox.deinit();
 
             editor.panel.paned = pixi.dvui.paned(@src(), .{
                 .direction = .vertical,
@@ -280,7 +283,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 .uncollapse_ratio = pixi.editor.settings.panel_ratio,
             }, .{
                 .expand = .both,
-                .background = false,
+                .background = true,
+                .color_fill = dvui.themeGet().color(.window, .fill),
             });
             defer editor.panel.paned.deinit();
 
