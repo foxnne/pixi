@@ -267,7 +267,7 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
 
                 dvui.dataSet(null, win.data().id, "_close_rect", close_rect);
             }
-            if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .cancel) {
+            if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .cancel and !valid) {
                 dvui.focusWidget(cancel_data.id, null, null);
             }
         }
@@ -291,6 +291,7 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         ok_button.init(@src(), .{}, ok_opts);
 
         if (valid) ok_button.processEvents();
+        ok_button.drawFocus();
         ok_button.drawBackground();
 
         dvui.labelNoFmt(@src(), ok_label, .{}, ok_opts.strip().override(ok_button.style()).override(.{ .gravity_x = 0.5, .gravity_y = 0.5 }));
@@ -306,7 +307,7 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
                 };
             }
         }
-        if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .ok) {
+        if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .ok and valid) {
             dvui.focusWidget(ok_data.id, null, null);
         }
     }
@@ -345,6 +346,7 @@ pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool) dv
 
         button.processEvents();
         button.drawBackground();
+        button.drawFocus();
 
         if (button.hovered()) {
             dvui.icon(@src(), "close", icons.tvg.lucide.x, .{

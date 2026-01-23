@@ -29,18 +29,26 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
         var unique_id = id.update(if (mode == .single) "single" else "grid");
 
         {
-            const hbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{ .expand = .horizontal, .corner_radius = .all(100000) });
+            const hbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{ .expand = .horizontal, .corner_radius = .all(100000), .margin = .all(4) });
             defer hbox.deinit();
 
             for (0..2) |i| {
                 const color = if (i == @intFromEnum(mode)) dvui.themeGet().color(.window, .fill).lighten(-4) else dvui.themeGet().color(.control, .fill);
                 const button_opts: dvui.Options = .{
-                    .padding = if (i == 0) .{ .x = 4, .y = 4, .h = 4 } else .{ .y = 4, .h = 4, .w = 4 },
+                    .padding = .all(6),
                     .margin = .{ .y = 2, .h = 4 },
                     .corner_radius = if (i == 0) .{ .x = 100000, .h = 100000 } else .{ .y = 100000, .w = 100000 },
                     .expand = .horizontal,
                     .color_fill = color,
+                    .color_fill_hover = if (i == @intFromEnum(mode)) color else null,
                     .id_extra = i,
+                    .box_shadow = if (i != @intFromEnum(mode)) .{
+                        .color = .black,
+                        .offset = .{ .x = 0.0, .y = 2.0 },
+                        .fade = 7.0,
+                        .alpha = 0.2,
+                        .corner_radius = if (i == 0) .{ .x = 100000, .h = 100000 } else .{ .y = 100000, .w = 100000 },
+                    } else null,
                 };
 
                 var button: dvui.ButtonWidget = undefined;
@@ -54,13 +62,21 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
                 button.drawBackground();
 
                 if (i == 0) {
-                    dvui.labelNoFmt(@src(), "Single", .{}, button_opts.strip().override(button.style()).override(.{ .gravity_x = 0.5, .gravity_y = 0.5 }));
+                    dvui.labelNoFmt(@src(), "Single", .{}, button_opts.strip().override(button.style()).override(.{
+                        .gravity_x = 0.5,
+                        .gravity_y = 0.5,
+                        .color_text = if (i == @intFromEnum(mode)) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
+                    }));
                     if (button.clicked()) {
                         mode = .single;
                         _ = dvui.dataSet(null, id, "_id_extra", id.update("single_tile").asUsize());
                     }
                 } else {
-                    dvui.labelNoFmt(@src(), "Grid", .{}, button_opts.strip().override(button.style()).override(.{ .gravity_x = 0.5, .gravity_y = 0.5 }));
+                    dvui.labelNoFmt(@src(), "Grid", .{}, button_opts.strip().override(button.style()).override(.{
+                        .gravity_x = 0.5,
+                        .gravity_y = 0.5,
+                        .color_text = if (i == @intFromEnum(mode)) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
+                    }));
                     if (button.clicked()) {
                         mode = .grid;
                         _ = dvui.dataSet(null, id, "_id_extra", id.update("grid").asUsize());
