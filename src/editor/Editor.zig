@@ -594,8 +594,7 @@ pub fn rebuildWorkspaces(editor: *Editor) !void {
 
         if (!contains) {
             if (editor.open_workspace_grouping == workspace.grouping) {
-                const new_index: usize = if (editor.workspaces.getIndex(workspace.grouping)) |index| if (index > 0) index - 1 else 0 else 0;
-                editor.open_workspace_grouping = new_index;
+                editor.open_workspace_grouping = 0;
             }
 
             _ = editor.workspaces.orderedRemove(workspace.grouping);
@@ -734,7 +733,7 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
 
         // At this point, if the workspace grouping doesn't exist, it will next frame
         // once the workspaces are rebuilt. Since we cant wait on that, go ahead and set it now
-        editor.open_workspace_grouping = grouping;
+        //editor.open_workspace_grouping = grouping;
 
         // If the workspace grouping does exist, go ahead and set the active file
         editor.setActiveFile(editor.open_files.count() - 1);
