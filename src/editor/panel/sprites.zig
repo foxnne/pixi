@@ -120,6 +120,7 @@ pub fn draw(self: *Sprites) !void {
                 .alpha = 0.25,
                 .corner_radius = dvui.Rect.all(parent_height / 32.0),
             },
+            .min_size_content = .{ .w = 32.0, .h = 32.0 },
         });
         defer hbox.deinit();
 

@@ -642,10 +642,10 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     if (index + 1 < editor.workspaces.count()) {
         editor.workspaces.values()[index + 1].center = s.animating or editor.panel.paned.animating;
     } else if (editor.workspaces.count() == 1) {
-        editor.workspaces.values()[index].center = (s.animating and !s.collapsing) or editor.panel.paned.animating;
+        editor.workspaces.values()[index].center = (s.animating or editor.panel.paned.animating) and !s.collapsed_state and !s.collapsing;
     }
 
-    if (!s.dragging and !s.animating) {
+    if (!s.dragging and !s.animating and !s.collapsing and !s.collapsed_state) {
         if (index == editor.workspaces.count() - 1) {
             if (s.split_ratio.* != 1.0) {
                 s.animateSplit(1.0);
