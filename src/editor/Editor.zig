@@ -593,8 +593,11 @@ pub fn rebuildWorkspaces(editor: *Editor) !void {
         }
 
         if (!contains) {
-            if (editor.open_workspace_grouping == workspace.grouping) {
-                editor.open_workspace_grouping = 0;
+            for (editor.workspaces.values()) |*w| {
+                if (w.grouping != workspace.grouping) {
+                    editor.open_workspace_grouping = w.grouping;
+                    break;
+                }
             }
 
             _ = editor.workspaces.orderedRemove(workspace.grouping);
@@ -642,7 +645,11 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     if (index + 1 < editor.workspaces.count()) {
         editor.workspaces.values()[index + 1].center = s.animating or editor.panel.paned.animating;
     } else if (editor.workspaces.count() == 1) {
-        editor.workspaces.values()[index].center = (s.animating or editor.panel.paned.animating) and !s.collapsed_state and !s.collapsing;
+        editor.workspaces.values()[index].center = (s.animating or editor.panel.paned.animating) and !s.collapsing;
+    }
+
+    if (s.collapsing and s.split_ratio.* < 0.5) {
+        s.animateSplit(1.0);
     }
 
     if (!s.dragging and !s.animating and !s.collapsing and !s.collapsed_state) {

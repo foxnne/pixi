@@ -479,7 +479,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                             if ((dvui.menuItemLabel(@src(), "Open to the side", .{}, .{
                                 .expand = .horizontal,
                             })) != null) {
-                                _ = pixi.editor.openFilePath(abs_path, pixi.editor.newGroupingID()) catch {
+                                _ = pixi.editor.openFilePath(abs_path, if (pixi.editor.open_files.count() == 0) pixi.editor.currentGroupingID() else pixi.editor.newGroupingID()) catch {
                                     dvui.log.err("Failed to open file: {s}", .{abs_path});
                                 };
 
