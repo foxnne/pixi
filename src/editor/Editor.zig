@@ -640,8 +640,10 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     });
     defer s.deinit();
 
-    if (index + 1 < editor.workspaces.count() and editor.workspaces.count() > 1) {
+    if (index + 1 < editor.workspaces.count()) {
         editor.workspaces.values()[index + 1].center = s.animating or editor.panel.paned.animating;
+    } else if (editor.workspaces.count() == 1) {
+        editor.workspaces.values()[index].center = (s.animating and !s.collapsing) or editor.panel.paned.animating;
     }
 
     if (!s.dragging and !s.animating) {
