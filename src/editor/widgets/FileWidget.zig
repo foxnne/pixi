@@ -31,7 +31,6 @@ shift_key_down: bool = false,
 hide_distance_bubble: bool = false,
 
 pub const InitOptions = struct {
-    canvas: *CanvasWidget,
     file: *pixi.Internal.File,
     center: bool = false,
 };
@@ -40,17 +39,17 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
     const fw: FileWidget = .{
         .init_options = init_opts,
         .options = opts,
-        .drag_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "drag_data_point", dvui.Point)) |point| point else null,
-        .sample_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "sample_data_point", dvui.Point)) |point| point else null,
-        .sample_key_down = if (dvui.dataGet(null, init_opts.canvas.id, "sample_key_down", bool)) |key| key else false,
-        .resize_data_point = if (dvui.dataGet(null, init_opts.canvas.id, "resize_data_point", dvui.Point)) |point| point else null,
-        .right_mouse_down = if (dvui.dataGet(null, init_opts.canvas.id, "right_mouse_down", bool)) |key| key else false,
-        .left_mouse_down = if (dvui.dataGet(null, init_opts.canvas.id, "left_mouse_down", bool)) |key| key else false,
-        .hide_distance_bubble = if (dvui.dataGet(null, init_opts.canvas.id, "hide_distance_bubble", bool)) |key| key else false,
+        .drag_data_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "drag_data_point", dvui.Point)) |point| point else null,
+        .sample_data_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "sample_data_point", dvui.Point)) |point| point else null,
+        .sample_key_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "sample_key_down", bool)) |key| key else false,
+        .resize_data_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "resize_data_point", dvui.Point)) |point| point else null,
+        .right_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "right_mouse_down", bool)) |key| key else false,
+        .left_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "left_mouse_down", bool)) |key| key else false,
+        .hide_distance_bubble = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "hide_distance_bubble", bool)) |key| key else false,
     };
 
-    init_opts.canvas.install(src, .{
-        .id = init_opts.canvas.id,
+    init_opts.file.editor.canvas.install(src, .{
+        .id = init_opts.file.editor.canvas.id,
         .data_size = .{
             .w = @floatFromInt(init_opts.file.width()),
             .h = @floatFromInt(init_opts.file.height()),
@@ -67,13 +66,13 @@ pub fn processSample(self: *FileWidget) void {
     const current_mods = dvui.currentWindow().modifiers;
 
     if (current_mods.matchBind("ctrl/cmd") and !self.previous_mods.matchBind("ctrl/cmd") and (self.right_mouse_down or self.sample_key_down)) {
-        const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+        const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
         self.sample(file, current_point, true, true);
     }
 
     if (current_mods.matchBind("sample") and !self.previous_mods.matchBind("sample")) {
         self.sample_key_down = true;
-        const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+        const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
         self.sample(file, current_point, self.right_mouse_down or self.left_mouse_down, false);
     } else if (!current_mods.matchBind("sample") and self.sample_key_down) {
         self.sample_key_down = false;
@@ -85,10 +84,10 @@ pub fn processSample(self: *FileWidget) void {
     for (dvui.events()) |*e| {
         switch (e.evt) {
             .mouse => |me| {
-                if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+                if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
                     continue;
                 }
-                const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+                const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button.pointer()) {
                     self.left_mouse_down = true;
@@ -101,8 +100,8 @@ pub fn processSample(self: *FileWidget) void {
 
                 if (me.action == .press and me.button == .right) {
                     self.right_mouse_down = true;
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                    dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                     dvui.dragPreStart(me.p, .{ .name = "sample_drag" });
                     self.drag_data_point = current_point;
 
@@ -114,8 +113,8 @@ pub fn processSample(self: *FileWidget) void {
                 } else if (me.action == .release and me.button == .right) {
                     self.right_mouse_down = false;
                     self.sample(file, current_point, self.sample_key_down or self.left_mouse_down, true);
-                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
-                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+                        e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         dvui.captureMouse(null, e.num);
                         dvui.dragEnd();
 
@@ -125,9 +124,9 @@ pub fn processSample(self: *FileWidget) void {
                         }
                     }
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
-                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sample_drag")) |diff| {
-                            const previous_point = current_point.plus(self.init_options.canvas.dataFromScreenPoint(diff));
+                            const previous_point = current_point.plus(self.init_options.file.editor.canvas.dataFromScreenPoint(diff));
                             // Construct a rect spanning between current_point and previous_point
                             const min_x = @min(previous_point.x, current_point.x);
                             const min_y = @min(previous_point.y, current_point.y);
@@ -140,7 +139,7 @@ pub fn processSample(self: *FileWidget) void {
                                 .h = max_y - min_y + 5,
                             };
 
-                            const screen_rect = self.init_options.canvas.screenFromDataRect(span_rect);
+                            const screen_rect = self.init_options.file.editor.canvas.screenFromDataRect(span_rect);
 
                             dvui.scrollDrag(.{
                                 .mouse_pt = me.p,
@@ -148,7 +147,7 @@ pub fn processSample(self: *FileWidget) void {
                             });
 
                             self.sample(file, current_point, self.sample_key_down or self.left_mouse_down or current_mods.matchBind("ctrl/cmd"), false);
-                            e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                            e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         }
                     } else if (self.right_mouse_down or self.sample_key_down) {
                         self.sample(file, current_point, self.right_mouse_down and (self.sample_key_down or self.left_mouse_down or current_mods.matchBind("ctrl/cmd")), false);
@@ -161,7 +160,7 @@ pub fn processSample(self: *FileWidget) void {
 }
 
 fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, change_layer: bool, change_tool: bool) void {
-    defer dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+    defer dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
     self.sample_data_point = point;
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 
@@ -215,7 +214,7 @@ fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, chang
 pub fn processAnimationSelection(self: *FileWidget) void {
     const file = self.init_options.file;
     for (dvui.events()) |*e| {
-        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
             continue;
         }
 
@@ -223,7 +222,7 @@ pub fn processAnimationSelection(self: *FileWidget) void {
             .mouse => |me| {
                 if ((me.button.pointer() and me.action == .press and !me.mod.matchBind("ctrl/cmd") and !me.mod.matchBind("shift")) or (pixi.editor.tools.current != .pointer and self.sample_data_point == null)) {
                     // If we have a sprite that is part of an animation, select the animation
-                    if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
+                    if (file.spriteIndex(self.init_options.file.editor.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
                         var found: bool = false;
                         for (file.animations.items(.frames), 0..) |frames, anim_index| {
                             for (frames, 0..) |frame, frame_index| {
@@ -261,7 +260,7 @@ pub fn processSpriteSelection(self: *FileWidget) void {
     const file = self.init_options.file;
 
     for (dvui.events()) |*e| {
-        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
             continue;
         }
 
@@ -279,40 +278,40 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                 }
             },
             .mouse => |me| {
-                const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+                const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button.pointer()) {
                     if (me.mod.matchBind("shift")) {
                         self.shift_key_down = true;
-                        if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
+                        if (file.spriteIndex(self.init_options.file.editor.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
                             file.editor.selected_sprites.unset(sprite_index);
                         }
                     } else if (me.mod.matchBind("ctrl/cmd")) {
-                        if (file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
+                        if (file.spriteIndex(self.init_options.file.editor.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
                             file.editor.selected_sprites.set(sprite_index);
                         }
                     } else {
                         file.clearSelectedSprites();
                     }
 
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                    dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                     dvui.dragPreStart(me.p, .{ .name = "sprite_selection_drag" });
 
                     self.drag_data_point = current_point;
                 } else if (me.action == .release and me.button.pointer()) {
-                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
-                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+                        e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         dvui.captureMouse(null, e.num);
                         dvui.dragEnd();
-                        dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                        dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                     }
                     self.drag_data_point = null;
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
-                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sprite_selection_drag")) |_| {
                             if (self.drag_data_point) |previous_point| {
-                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                                 const min_x = @min(previous_point.x, current_point.x);
                                 const min_y = @min(previous_point.y, current_point.y);
                                 const max_x = @max(previous_point.x, current_point.x);
@@ -324,7 +323,7 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                                     .h = @max(max_y - min_y, 1),
                                 };
 
-                                const screen_selection_rect = self.init_options.canvas.screenFromDataRect(span_rect);
+                                const screen_selection_rect = self.init_options.file.editor.canvas.screenFromDataRect(span_rect);
 
                                 dvui.scrollDrag(.{
                                     .mouse_pt = me.p,
@@ -527,7 +526,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                 }
 
                 {
-                    const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                    const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
                     const max_distance: f32 = if (peek) @max(sprite_rect.h, sprite_rect.w) * 1.5 else @max(sprite_rect.h, sprite_rect.w) * 1.5;
 
@@ -571,7 +570,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                     }
                 }
 
-                const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
                 var max_distance: f32 = sprite_rect.h * 1.2;
 
@@ -629,11 +628,11 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     const min_sprite_size: f32 = @min(sprite_rect.w, sprite_rect.h);
     const baseline_scale: f32 = baseline_sprite_size / min_sprite_size;
     // Compensate the button size so that it stays visually consistent even if the tile is smaller/larger than 64x64
-    var button_size = std.math.clamp((target_button_height * dvui.easing.outBack(t) / self.init_options.canvas.scale), 0.0, min_sprite_size / 3.0);
+    var button_size = std.math.clamp((target_button_height * dvui.easing.outBack(t) / self.init_options.file.editor.canvas.scale), 0.0, min_sprite_size / 3.0);
 
     const sprite_rect_scale: dvui.RectScale = .{
-        .r = self.init_options.canvas.screenFromDataRect(sprite_rect),
-        .s = self.init_options.canvas.scale,
+        .r = self.init_options.file.editor.canvas.screenFromDataRect(sprite_rect),
+        .s = self.init_options.file.editor.canvas.scale,
     };
 
     var bubble_max_height: f32 = @min(sprite_rect.h, sprite_rect.w) * 0.5;
@@ -650,7 +649,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
     }
 
-    const bubble_height = std.math.clamp((bubble_max_height * t / self.init_options.canvas.scale) * baseline_scale, 0.0, bubble_max_height * t);
+    const bubble_height = std.math.clamp((bubble_max_height * t / self.init_options.file.editor.canvas.scale) * baseline_scale, 0.0, bubble_max_height * t);
     const bubble_rect = dvui.Rect{
         .x = sprite_rect.x,
         .y = sprite_rect.y - bubble_height,
@@ -659,8 +658,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     };
 
     var bubble_rect_scale: dvui.RectScale = .{
-        .r = self.init_options.canvas.screenFromDataRect(bubble_rect),
-        .s = self.init_options.canvas.scale,
+        .r = self.init_options.file.editor.canvas.screenFromDataRect(bubble_rect),
+        .s = self.init_options.file.editor.canvas.scale,
     };
 
     var path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
@@ -967,7 +966,7 @@ pub fn drawSpriteSelection(self: *FileWidget) void {
     if (self.sample_data_point != null) return;
 
     if (self.drag_data_point) |previous_point| {
-        const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+        const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
         const min_x = @min(previous_point.x, current_point.x);
         const min_y = @min(previous_point.y, current_point.y);
         const max_x = @max(previous_point.x, current_point.x);
@@ -979,7 +978,7 @@ pub fn drawSpriteSelection(self: *FileWidget) void {
             .h = max_y - min_y,
         };
 
-        const screen_selection_rect = self.init_options.canvas.screenFromDataRect(span_rect);
+        const screen_selection_rect = self.init_options.file.editor.canvas.screenFromDataRect(span_rect);
         const selection_color = if (dvui.currentWindow().modifiers.matchBind("shift")) dvui.themeGet().color(.err, .fill).opacity(0.5) else dvui.themeGet().color(.highlight, .fill).opacity(0.5);
         screen_selection_rect.fill(
             dvui.Rect.Physical.all(6 * dvui.currentWindow().natural_scale),
@@ -1032,7 +1031,7 @@ pub fn processSelection(self: *FileWidget) void {
     }
 
     for (dvui.events()) |*e| {
-        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
             continue;
         }
 
@@ -1057,7 +1056,7 @@ pub fn processSelection(self: *FileWidget) void {
 
                 if (update) {
                     defer file.editor.temporary_layer.invalidate();
-                    const current_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                    const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
                     {
                         defer file.editor.temporary_layer.invalidate();
 
@@ -1089,7 +1088,7 @@ pub fn processSelection(self: *FileWidget) void {
                 }
             },
             .mouse => |me| {
-                const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+                const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .position) {
                     // Clear the mask, we now need to only draw the point at the stroke size to the mask
@@ -1143,8 +1142,8 @@ pub fn processSelection(self: *FileWidget) void {
                 }
 
                 if (me.action == .press and me.button.pointer()) {
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                    dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                     dvui.dragPreStart(me.p, .{ .name = "stroke_drag" });
 
                     // Only clear the mask if we don't have ctrl/cmd pressed
@@ -1161,8 +1160,8 @@ pub fn processSelection(self: *FileWidget) void {
 
                     self.drag_data_point = current_point;
                 } else if (me.action == .release and me.button.pointer()) {
-                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
-                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+                        e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         dvui.captureMouse(null, e.num);
                         dvui.dragEnd();
 
@@ -1177,7 +1176,7 @@ pub fn processSelection(self: *FileWidget) void {
                         self.drag_data_point = null;
                     }
                 } else if (me.action == .position or me.action == .wheel_x or me.action == .wheel_y) {
-                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "stroke_drag")) |_| {
                             if (self.drag_data_point) |previous_point| {
                                 // Construct a rect spanning between current_point and previous_point
@@ -1192,7 +1191,7 @@ pub fn processSelection(self: *FileWidget) void {
                                     .h = max_y - min_y + 1,
                                 };
 
-                                const screen_rect = self.init_options.canvas.screenFromDataRect(span_rect);
+                                const screen_rect = self.init_options.file.editor.canvas.screenFromDataRect(span_rect);
 
                                 dvui.scrollDrag(.{
                                     .mouse_pt = me.p,
@@ -1242,17 +1241,17 @@ pub fn processStroke(self: *FileWidget) void {
     };
 
     for (dvui.events()) |*e| {
-        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
             continue;
         }
 
         switch (e.evt) {
             .mouse => |me| {
-                const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+                const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button.pointer()) {
-                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                    dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                     dvui.dragPreStart(me.p, .{ .name = "stroke_drag" });
 
                     if (!me.mod.matchBind("shift")) {
@@ -1270,8 +1269,8 @@ pub fn processStroke(self: *FileWidget) void {
 
                     self.drag_data_point = current_point;
                 } else if (me.action == .release and me.button.pointer()) {
-                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
-                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+                        e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         dvui.captureMouse(null, e.num);
                         dvui.dragEnd();
 
@@ -1304,13 +1303,13 @@ pub fn processStroke(self: *FileWidget) void {
                             // We need one extra frame to go ahead and set the dirty flag and update the ui to show
                             // the dirty flag, since the mouse hasn't moved and we will stop processing events the moment the
                             // mouse is released.
-                            dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                            dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                         }
 
                         self.drag_data_point = null;
                     }
                 } else if (me.action == .position or me.action == .wheel_x or me.action == .wheel_y) {
-                    if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "stroke_drag")) |_| {
                             if (self.drag_data_point) |previous_point| {
                                 // Construct a rect spanning between current_point and previous_point
@@ -1325,7 +1324,7 @@ pub fn processStroke(self: *FileWidget) void {
                                     .h = max_y - min_y + 1,
                                 };
 
-                                const screen_rect = self.init_options.canvas.screenFromDataRect(span_rect);
+                                const screen_rect = self.init_options.file.editor.canvas.screenFromDataRect(span_rect);
 
                                 dvui.scrollDrag(.{
                                     .mouse_pt = me.p,
@@ -1364,7 +1363,7 @@ pub fn processStroke(self: *FileWidget) void {
 
                                 self.drag_data_point = current_point;
 
-                                if (self.init_options.canvas.rect.contains(me.p) and self.sample_data_point == null) {
+                                if (self.init_options.file.editor.canvas.rect.contains(me.p) and self.sample_data_point == null) {
                                     if (self.sample_data_point == null or color[3] == 0) {
                                         @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                                         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
@@ -1382,10 +1381,10 @@ pub fn processStroke(self: *FileWidget) void {
                                 }
                             }
 
-                            e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                            e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         }
                     } else {
-                        if (self.init_options.canvas.rect.contains(me.p) and self.sample_data_point == null) {
+                        if (self.init_options.file.editor.canvas.rect.contains(me.p) and self.sample_data_point == null) {
                             @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
                             const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
                             file.drawPoint(
@@ -1416,11 +1415,11 @@ pub fn processFill(self: *FileWidget) void {
     const file = self.init_options.file;
     const color = pixi.editor.colors.primary;
 
-    if (self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt) and self.sample_data_point == null) {
+    if (self.init_options.file.editor.canvas.rect.contains(dvui.currentWindow().mouse_pt) and self.sample_data_point == null) {
         @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
         file.drawPoint(
-            self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt),
+            self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt),
             .temporary,
             .{
                 .invalidate = true,
@@ -1432,13 +1431,13 @@ pub fn processFill(self: *FileWidget) void {
     }
 
     for (dvui.events()) |*e| {
-        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
             continue;
         }
 
         switch (e.evt) {
             .mouse => |me| {
-                const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+                const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button.pointer()) {
                     file.fillPoint(current_point, .selected, .{
@@ -1491,7 +1490,7 @@ pub fn processTransform(self: *FileWidget) void {
         }) catch null;
 
         { // Update the rotate point to locate towards the mouse
-            const diff = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt).diff(transform.point(.pivot).*);
+            const diff = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt).diff(transform.point(.pivot).*);
             transform.point(.rotate).* = transform.point(.pivot).plus(diff.normalize().scale(transform.radius, dvui.Point));
         }
 
@@ -1510,7 +1509,7 @@ pub fn processTransform(self: *FileWidget) void {
                 screen_rect.y -= screen_rect.h / 2;
 
                 for (dvui.events()) |*e| {
-                    if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+                    if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
                         continue;
                     }
 
@@ -1526,39 +1525,39 @@ pub fn processTransform(self: *FileWidget) void {
                         .key => |ke| {
                             if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("up")) {
                                 transform.move(.{ .x = 0, .y = -1 });
-                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                                e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                                dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                             }
                             if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("down")) {
                                 transform.move(.{ .x = 0, .y = 1 });
-                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                                e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                                dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                             }
                             if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("left")) {
                                 transform.move(.{ .x = -1, .y = 0 });
-                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                                e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                                dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                             }
                             if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("right")) {
                                 transform.move(.{ .x = 1, .y = 0 });
-                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                                e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                                dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                             }
                         },
                         .mouse => |me| {
-                            const current_point = self.init_options.canvas.dataFromScreenPoint(me.p);
+                            const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                             if (me.action == .press and me.button.pointer()) {
                                 if (screen_rect.contains(me.p)) {
                                     transform.active_point = @enumFromInt(point_index);
-                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                    dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                                    dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                                     dvui.dragPreStart(me.p, .{ .name = "transform_vertex_drag" });
                                     self.drag_data_point = current_point;
                                     transform.start_rotation = transform.rotation;
                                 }
                             } else if (me.action == .release and me.button.pointer()) {
-                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                                if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                                     if (transform.active_point) |active_point| {
                                         if (active_point == .pivot and transform.dragging == false) {
                                             transform.point(.pivot).* = transform.centroid();
@@ -1566,21 +1565,21 @@ pub fn processTransform(self: *FileWidget) void {
                                         }
                                     }
 
-                                    e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                                     dvui.captureMouse(null, e.num);
                                     dvui.dragEnd();
                                     transform.active_point = null;
-                                    dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                                    dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                                     self.drag_data_point = null;
                                     transform.dragging = false;
                                 }
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
-                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                                if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                                     if (dvui.dragging(me.p, "transform_vertex_drag")) |_| {
                                         transform.dragging = true;
                                         if (transform.active_point) |active_point| {
                                             if (@intFromEnum(active_point) == point_index) {
-                                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                                e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
 
                                                 // Set this state in advance so we can use it for the radius calculation
                                                 transform.track_pivot = active_point == .pivot;
@@ -1710,7 +1709,7 @@ pub fn processTransform(self: *FileWidget) void {
             // to move the entire transform
             if (transform.active_point == null) {
                 for (dvui.events()) |*e| {
-                    if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+                    if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
                         continue;
                     }
 
@@ -1725,16 +1724,16 @@ pub fn processTransform(self: *FileWidget) void {
                         .mouse => |me| {
                             if (me.action == .press and me.button.pointer()) {
                                 //if (is_hovered or me.mod.matchBind("ctrl/cmd")) {
-                                e.handle(@src(), self.init_options.canvas.scroll_container.data());
-                                dvui.captureMouse(self.init_options.canvas.scroll_container.data(), e.num);
+                                e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                                dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                                 dvui.dragPreStart(me.p, .{ .name = "transform_drag" });
                                 //}
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
-                                if (dvui.captured(self.init_options.canvas.scroll_container.data().id)) {
+                                if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                                     if (dvui.dragging(me.p, "transform_drag")) |_| {
                                         dvui.cursorSet(.hand);
                                         transform.dragging = true;
-                                        e.handle(@src(), self.init_options.canvas.scroll_container.data());
+                                        e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
 
                                         var prev_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt_prev);
                                         prev_point.x = @round(prev_point.x);
@@ -1744,7 +1743,7 @@ pub fn processTransform(self: *FileWidget) void {
                                         new_point.y = @round(new_point.y);
 
                                         transform.move(new_point.diff(prev_point));
-                                        dvui.refresh(null, @src(), self.init_options.canvas.scroll_container.data().id);
+                                        dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                                     }
                                 }
                             }
@@ -2219,7 +2218,7 @@ pub fn drawCursor(self: *FileWidget) void {
     var add = false;
 
     for (dvui.events()) |*e| {
-        if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
             continue;
         }
         switch (e.evt) {
@@ -2229,7 +2228,7 @@ pub fn drawCursor(self: *FileWidget) void {
                 } else if (ke.mod.matchBind("ctrl/cmd")) {
                     add = true;
                 }
-                if (self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
+                if (self.init_options.file.editor.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
                     _ = dvui.cursorSet(.hidden);
                 }
             },
@@ -2239,7 +2238,7 @@ pub fn drawCursor(self: *FileWidget) void {
                 } else if (me.mod.matchBind("ctrl/cmd")) {
                     add = true;
                 }
-                if (self.init_options.canvas.rect.contains(me.p)) {
+                if (self.init_options.file.editor.canvas.rect.contains(me.p)) {
                     _ = dvui.cursorSet(.hidden);
                 }
             },
@@ -2247,9 +2246,9 @@ pub fn drawCursor(self: *FileWidget) void {
         }
     }
 
-    const data_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+    const data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
     const mouse_point = dvui.currentWindow().mouse_pt;
-    if (!self.init_options.canvas.rect.contains(mouse_point)) return;
+    if (!self.init_options.file.editor.canvas.rect.contains(mouse_point)) return;
     if (self.sample_data_point != null) return;
 
     if (switch (pixi.editor.tools.current) {
@@ -2272,8 +2271,8 @@ pub fn drawCursor(self: *FileWidget) void {
         };
 
         const origin = dvui.Point{
-            .x = @as(f32, @floatFromInt(sprite.origin[0])) * 1 / self.init_options.canvas.scale,
-            .y = @as(f32, @floatFromInt(sprite.origin[1])) * 1 / self.init_options.canvas.scale,
+            .x = @as(f32, @floatFromInt(sprite.origin[0])) * 1 / self.init_options.file.editor.canvas.scale,
+            .y = @as(f32, @floatFromInt(sprite.origin[1])) * 1 / self.init_options.file.editor.canvas.scale,
         };
 
         const position = data_point.diff(origin);
@@ -2283,8 +2282,8 @@ pub fn drawCursor(self: *FileWidget) void {
             .rect = .{
                 .x = position.x,
                 .y = position.y,
-                .w = @as(f32, @floatFromInt(sprite.source[2])) * 1 / self.init_options.canvas.scale,
-                .h = @as(f32, @floatFromInt(sprite.source[3])) * 1 / self.init_options.canvas.scale,
+                .w = @as(f32, @floatFromInt(sprite.source[2])) * 1 / self.init_options.file.editor.canvas.scale,
+                .h = @as(f32, @floatFromInt(sprite.source[3])) * 1 / self.init_options.file.editor.canvas.scale,
             },
             .border = dvui.Rect.all(0),
             .corner_radius = .{ .x = 0, .y = 0 },
@@ -2310,18 +2309,18 @@ pub fn drawSample(self: *FileWidget) void {
     const point = self.sample_data_point;
 
     if (point) |data_point| {
-        const mouse_point = self.init_options.canvas.screenFromDataPoint(data_point);
-        if (!self.init_options.canvas.rect.contains(mouse_point)) return;
+        const mouse_point = self.init_options.file.editor.canvas.screenFromDataPoint(data_point);
+        if (!self.init_options.file.editor.canvas.rect.contains(mouse_point)) return;
 
         { // Draw a box around the hovered pixel at the correct scale
-            const pixel_box_size = self.init_options.canvas.scale * dvui.currentWindow().rectScale().s;
+            const pixel_box_size = self.init_options.file.editor.canvas.scale * dvui.currentWindow().rectScale().s;
 
             const pixel_point: dvui.Point = .{
                 .x = @round(data_point.x - 0.5),
                 .y = @round(data_point.y - 0.5),
             };
 
-            const pixel_box_point = self.init_options.canvas.screenFromDataPoint(pixel_point);
+            const pixel_box_point = self.init_options.file.editor.canvas.screenFromDataPoint(pixel_point);
             var pixel_box = dvui.Rect.Physical.fromSize(.{ .w = pixel_box_size, .h = pixel_box_size });
             pixel_box.x = pixel_box_point.x;
             pixel_box.y = pixel_box_point.y;
@@ -2336,10 +2335,10 @@ pub fn drawSample(self: *FileWidget) void {
         // The scale of the enlarged view varies based on the canvas scale
         // When canvas scale is small, we want more magnification
         // When canvas scale is large, we want less magnification
-        const enlarged_scale: f32 = self.init_options.canvas.scale * (8.0 / (1.0 + self.init_options.canvas.scale));
+        const enlarged_scale: f32 = self.init_options.file.editor.canvas.scale * (8.0 / (1.0 + self.init_options.file.editor.canvas.scale));
 
         // The size of the sample box in screen space (constant size)
-        const sample_box_size: f32 = 100.0 * 1 / self.init_options.canvas.scale; // e.g. 100x80 pixels on screen
+        const sample_box_size: f32 = 100.0 * 1 / self.init_options.file.editor.canvas.scale; // e.g. 100x80 pixels on screen
 
         const corner_radius = dvui.Rect{
             .y = 1000000,
@@ -2351,7 +2350,7 @@ pub fn drawSample(self: *FileWidget) void {
         // This is how many data pixels are shown in the box, so that the box always shows the same number of data pixels at 2x the canvas scale
         const sample_region_size: f32 = sample_box_size / enlarged_scale;
 
-        const border_width = 2 / self.init_options.canvas.scale;
+        const border_width = 2 / self.init_options.file.editor.canvas.scale;
 
         // Position the sample box so that the data_point is at its center
         const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -2368,7 +2367,7 @@ pub fn drawSample(self: *FileWidget) void {
             .background = true,
             .color_fill = dvui.themeGet().color(.window, .fill),
             .box_shadow = .{
-                .fade = 15 * 1 / self.init_options.canvas.scale,
+                .fade = 15 * 1 / self.init_options.file.editor.canvas.scale,
                 .corner_radius = .{
                     .x = sample_box_size / 12,
                     .y = sample_box_size / 2,
@@ -2377,8 +2376,8 @@ pub fn drawSample(self: *FileWidget) void {
                 },
                 .alpha = 0.2,
                 .offset = .{
-                    .x = 2 * 1 / self.init_options.canvas.scale,
-                    .y = 2 * 1 / self.init_options.canvas.scale,
+                    .x = 2 * 1 / self.init_options.file.editor.canvas.scale,
+                    .y = 2 * 1 / self.init_options.file.editor.canvas.scale,
                 },
             },
         });
@@ -2393,7 +2392,7 @@ pub fn drawSample(self: *FileWidget) void {
         };
 
         var rs = box.data().borderRectScale();
-        rs.r = rs.r.inset(dvui.Rect.Physical.all(border_width * self.init_options.canvas.scale * 2));
+        rs.r = rs.r.inset(dvui.Rect.Physical.all(border_width * self.init_options.file.editor.canvas.scale * 2));
 
         const nat_scale: u32 = @intFromFloat(1.0);
 
@@ -2490,19 +2489,19 @@ pub fn drawLayers(self: *FileWidget) void {
         resize_rect.h = resize_data_point.y;
 
         if (resize_data_point.x < layer_rect.x + layer_rect.w or resize_data_point.y < layer_rect.y + layer_rect.h) {
-            self.init_options.canvas.screenFromDataRect(layer_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 1.5 });
+            self.init_options.file.editor.canvas.screenFromDataRect(layer_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 1.5 });
             // Draw grid lines for the original layer_rect
             for (1..columns) |i| {
                 dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-                    self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = layer_rect.h }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = layer_rect.h }),
                 } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
             }
 
             for (1..rows) |i| {
                 dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                    self.init_options.canvas.screenFromDataPoint(.{ .x = layer_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = layer_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                 } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
             }
         }
@@ -2517,12 +2516,12 @@ pub fn drawLayers(self: *FileWidget) void {
         .border = dvui.Rect.all(0),
         .background = false,
         .box_shadow = .{
-            .fade = 20 * 1 / self.init_options.canvas.scale,
-            .corner_radius = dvui.Rect.all(2 * 1 / self.init_options.canvas.scale),
+            .fade = 20 * 1 / self.init_options.file.editor.canvas.scale,
+            .corner_radius = dvui.Rect.all(2 * 1 / self.init_options.file.editor.canvas.scale),
             .alpha = 0.2,
             .offset = .{
-                .x = 2 * 1 / self.init_options.canvas.scale,
-                .y = 2 * 1 / self.init_options.canvas.scale,
+                .x = 2 * 1 / self.init_options.file.editor.canvas.scale,
+                .y = 2 * 1 / self.init_options.file.editor.canvas.scale,
             },
         },
         .color_fill = dvui.themeGet().color(.window, .fill),
@@ -2549,8 +2548,8 @@ pub fn drawLayers(self: *FileWidget) void {
                     const image_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
 
                     const image_rect_scale: dvui.RectScale = .{
-                        .r = self.init_options.canvas.screenFromDataRect(image_rect),
-                        .s = self.init_options.canvas.scale,
+                        .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
+                        .s = self.init_options.file.editor.canvas.scale,
                     };
 
                     if (self.init_options.file.editor.canvas.scale < 2.0) {
@@ -2569,8 +2568,8 @@ pub fn drawLayers(self: *FileWidget) void {
             const image_rect = file.spriteRect(sprite_index);
 
             const image_rect_scale: dvui.RectScale = .{
-                .r = self.init_options.canvas.screenFromDataRect(image_rect),
-                .s = self.init_options.canvas.scale,
+                .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
+                .s = self.init_options.file.editor.canvas.scale,
             };
 
             if (self.init_options.file.editor.canvas.scale < 2.0) {
@@ -2587,7 +2586,7 @@ pub fn drawLayers(self: *FileWidget) void {
     }
 
     const image_rect = layer_rect;
-    const image_rect_physical = self.init_options.canvas.screenFromDataRect(image_rect);
+    const image_rect_physical = self.init_options.file.editor.canvas.screenFromDataRect(image_rect);
 
     var min_layer_index: usize = 0;
     if (file.editor.isolate_layer) {
@@ -2626,15 +2625,15 @@ pub fn drawLayers(self: *FileWidget) void {
         });
 
         const boxRect = image.rectScale().r;
-        if (self.init_options.canvas.bounding_box) |b| {
-            self.init_options.canvas.bounding_box = b.unionWith(boxRect);
+        if (self.init_options.file.editor.canvas.bounding_box) |b| {
+            self.init_options.file.editor.canvas.bounding_box = b.unionWith(boxRect);
         } else {
-            self.init_options.canvas.bounding_box = boxRect;
+            self.init_options.file.editor.canvas.bounding_box = boxRect;
         }
     }
 
     // Draw the selection layer
-    _ = dvui.image(@src(), .{
+    const image = dvui.image(@src(), .{
         .source = file.editor.selection_layer.source,
     }, .{
         .rect = image_rect,
@@ -2644,7 +2643,7 @@ pub fn drawLayers(self: *FileWidget) void {
     });
 
     // Draw the temporary layer
-    const image = dvui.image(@src(), .{
+    _ = dvui.image(@src(), .{
         .source = file.editor.temporary_layer.source,
     }, .{
         .rect = image_rect,
@@ -2662,7 +2661,7 @@ pub fn drawLayers(self: *FileWidget) void {
                 .h = @min(resize_data_point.y - layer_rect.topRight().y, layer_rect.h),
             };
 
-            self.init_options.canvas.screenFromDataRect(new_tiles_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
+            self.init_options.file.editor.canvas.screenFromDataRect(new_tiles_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
         }
         if (resize_data_point.y > layer_rect.y + layer_rect.h) {
             const new_tiles_rect = dvui.Rect{
@@ -2672,44 +2671,44 @@ pub fn drawLayers(self: *FileWidget) void {
                 .h = resize_data_point.y - layer_rect.bottomLeft().y,
             };
 
-            self.init_options.canvas.screenFromDataRect(new_tiles_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
+            self.init_options.file.editor.canvas.screenFromDataRect(new_tiles_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
         }
     }
 
     for (1..columns) |i| {
         dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = resize_rect.h }),
+            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
+            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = resize_rect.h }),
         } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
     }
 
     for (1..rows) |i| {
         dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
         } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
     }
 
     if (self.resize_data_point) |resize_data_point| {
         dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = resize_rect.h }),
+            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
+            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = resize_rect.h }),
         } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
 
         dvui.Path.stroke(.{ .points = &.{
-            self.init_options.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
-            self.init_options.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = resize_data_point.y }),
+            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
+            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = resize_data_point.y }),
         } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
     }
 
-    self.init_options.canvas.bounding_box = image.rectScale().r;
+    self.init_options.file.editor.canvas.bounding_box = image.rectScale().r;
 
     // Draw the selection box for the selected sprites
     if (pixi.editor.tools.current == .pointer and file.editor.transform == null and self.resize_data_point == null) {
         var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
         while (iter.next()) |i| {
             const sprite_rect = file.spriteRect(i);
-            const sprite_rect_physical = self.init_options.canvas.screenFromDataRect(sprite_rect);
+            const sprite_rect_physical = self.init_options.file.editor.canvas.screenFromDataRect(sprite_rect);
             sprite_rect_physical.inset(.all(dvui.currentWindow().natural_scale * 1.5)).stroke(dvui.Rect.Physical.all(@min(sprite_rect_physical.w, sprite_rect_physical.h) / 8), .{
                 .thickness = 1.5 * dvui.currentWindow().natural_scale,
                 .color = dvui.themeGet().color(.highlight, .fill),
@@ -2732,7 +2731,7 @@ pub fn processResize(self: *FileWidget) void {
         const baseline_size: f32 = 64.0;
         const baseline_scale: f32 = baseline_size / min_size;
         const target_button_height: f32 = min_size / 3.0;
-        const button_size: f32 = std.math.clamp((target_button_height * 1.0 / self.init_options.canvas.scale) * baseline_scale, 0.0, min_size);
+        const button_size: f32 = std.math.clamp((target_button_height * 1.0 / self.init_options.file.editor.canvas.scale) * baseline_scale, 0.0, min_size);
         var resize_button_rect = dvui.Rect{
             .x = file_rect.x + file_rect.w - button_size / 2.0,
             .y = file_rect.y + file_rect.h - button_size / 2.0,
@@ -2740,7 +2739,7 @@ pub fn processResize(self: *FileWidget) void {
             .h = button_size,
         };
 
-        const offset_data_point = self.init_options.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt).plus(.{
+        const offset_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt).plus(.{
             .x = @as(f32, @floatFromInt(file.column_width)) / 2.0,
             .y = @as(f32, @floatFromInt(file.row_height)) / 2.0,
         });
@@ -2756,9 +2755,9 @@ pub fn processResize(self: *FileWidget) void {
                 new_point.y = std.math.clamp(new_point.y, @as(f32, @floatFromInt(file.row_height)), std.math.floatMax(f32));
 
                 if (self.resize_data_point != null) {
-                    if (dvui.animationGet(self.init_options.canvas.id, "resize_button_rect_x")) |anim| {
-                        _ = dvui.currentWindow().animations.remove(self.init_options.canvas.id.update("resize_button_rect_x"));
-                        dvui.animation(self.init_options.canvas.id, "resize_button_rect_x", .{
+                    if (dvui.animationGet(self.init_options.file.editor.canvas.id, "resize_button_rect_x")) |anim| {
+                        _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("resize_button_rect_x"));
+                        dvui.animation(self.init_options.file.editor.canvas.id, "resize_button_rect_x", .{
                             .start_val = anim.value(),
                             .end_val = new_point.x,
                             .end_time = 250_000,
@@ -2767,7 +2766,7 @@ pub fn processResize(self: *FileWidget) void {
                     } else {
 
                         // If we are here, we need to trigger a new animation to move the resize button rect to the new point
-                        dvui.animation(self.init_options.canvas.id, "resize_button_rect_x", .{
+                        dvui.animation(self.init_options.file.editor.canvas.id, "resize_button_rect_x", .{
                             .start_val = current_point.x,
                             .end_val = new_point.x,
                             .end_time = 250_000,
@@ -2775,9 +2774,9 @@ pub fn processResize(self: *FileWidget) void {
                         });
                     }
 
-                    if (dvui.animationGet(self.init_options.canvas.id, "resize_button_rect_y")) |anim| {
-                        _ = dvui.currentWindow().animations.remove(self.init_options.canvas.id.update("resize_button_rect_y"));
-                        dvui.animation(self.init_options.canvas.id, "resize_button_rect_y", .{
+                    if (dvui.animationGet(self.init_options.file.editor.canvas.id, "resize_button_rect_y")) |anim| {
+                        _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("resize_button_rect_y"));
+                        dvui.animation(self.init_options.file.editor.canvas.id, "resize_button_rect_y", .{
                             .start_val = anim.value(),
                             .end_val = new_point.y,
                             .end_time = 250_000,
@@ -2786,7 +2785,7 @@ pub fn processResize(self: *FileWidget) void {
                     } else {
 
                         // If we are here, we need to trigger a new animation to move the resize button rect to the new point
-                        dvui.animation(self.init_options.canvas.id, "resize_button_rect_y", .{
+                        dvui.animation(self.init_options.file.editor.canvas.id, "resize_button_rect_y", .{
                             .start_val = current_point.y,
                             .end_val = new_point.y,
                             .end_time = 250_000,
@@ -2798,13 +2797,13 @@ pub fn processResize(self: *FileWidget) void {
                 self.resize_data_point = new_point;
             }
 
-            if (dvui.animationGet(self.init_options.canvas.id, "resize_button_rect_x")) |anim| {
+            if (dvui.animationGet(self.init_options.file.editor.canvas.id, "resize_button_rect_x")) |anim| {
                 resize_button_rect.x = anim.value();
             } else {
                 resize_button_rect.x = new_point.x;
             }
 
-            if (dvui.animationGet(self.init_options.canvas.id, "resize_button_rect_y")) |anim| {
+            if (dvui.animationGet(self.init_options.file.editor.canvas.id, "resize_button_rect_y")) |anim| {
                 resize_button_rect.y = anim.value();
             } else {
                 resize_button_rect.y = new_point.y;
@@ -2824,7 +2823,7 @@ pub fn processResize(self: *FileWidget) void {
 
         if (dragging) {
             var bounds_rect = dvui.Rect.Physical.fromSize(.{ .w = @as(f32, @floatFromInt(file.column_width)), .h = @as(f32, @floatFromInt(file.row_height)) });
-            bounds_rect = bounds_rect.scale(self.init_options.canvas.scale * dvui.currentWindow().natural_scale, dvui.Rect.Physical);
+            bounds_rect = bounds_rect.scale(self.init_options.file.editor.canvas.scale * dvui.currentWindow().natural_scale, dvui.Rect.Physical);
             bounds_rect.x = icon_button.data().contentRectScale().r.topLeft().x - bounds_rect.w / 2.0;
             bounds_rect.y = icon_button.data().contentRectScale().r.topLeft().y - bounds_rect.h / 2.0;
 
@@ -2873,7 +2872,7 @@ pub fn processResize(self: *FileWidget) void {
                 dvui.currentWindow().mouse_pt,
                 .{ .name = "resize_drag", .cursor = .hidden },
             );
-            dvui.captureMouse(self.init_options.canvas.scroll_container.data(), 0);
+            dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), 0);
         }
 
         if (dragging == false) {
@@ -2888,7 +2887,7 @@ pub fn processResize(self: *FileWidget) void {
                 self.resize_data_point = null;
                 dvui.dragEnd();
                 dvui.captureMouse(null, 0);
-                dvui.refresh(null, @src(), self.init_options.canvas.id);
+                dvui.refresh(null, @src(), self.init_options.file.editor.canvas.id);
             }
         }
     }
@@ -2910,55 +2909,55 @@ pub fn processEvents(self: *FileWidget) void {
     defer self.previous_mods = dvui.currentWindow().modifiers;
 
     defer if (self.drag_data_point) |drag_data_point| {
-        dvui.dataSet(null, self.init_options.canvas.id, "drag_data_point", drag_data_point);
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "drag_data_point", drag_data_point);
     } else {
-        dvui.dataRemove(null, self.init_options.canvas.id, "drag_data_point");
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "drag_data_point");
     };
 
     defer if (self.sample_data_point) |sample_data_point| {
-        dvui.dataSet(null, self.init_options.canvas.id, "sample_data_point", sample_data_point);
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "sample_data_point", sample_data_point);
     } else {
-        dvui.dataRemove(null, self.init_options.canvas.id, "sample_data_point");
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "sample_data_point");
     };
 
     defer if (self.resize_data_point) |resize_data_point| {
-        dvui.dataSet(null, self.init_options.canvas.id, "resize_data_point", resize_data_point);
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "resize_data_point", resize_data_point);
     } else {
-        dvui.dataRemove(null, self.init_options.canvas.id, "resize_data_point");
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "resize_data_point");
     };
 
     defer if (self.sample_key_down) {
-        dvui.dataSet(null, self.init_options.canvas.id, "sample_key_down", self.sample_key_down);
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "sample_key_down", self.sample_key_down);
     } else {
-        dvui.dataRemove(null, self.init_options.canvas.id, "sample_key_down");
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "sample_key_down");
     };
 
     defer if (self.right_mouse_down) {
-        dvui.dataSet(null, self.init_options.canvas.id, "right_mouse_down", self.right_mouse_down);
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "right_mouse_down", self.right_mouse_down);
     } else {
-        dvui.dataRemove(null, self.init_options.canvas.id, "right_mouse_down");
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "right_mouse_down");
     };
 
     defer if (self.left_mouse_down) {
-        dvui.dataSet(null, self.init_options.canvas.id, "left_mouse_down", self.left_mouse_down);
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "left_mouse_down", self.left_mouse_down);
     } else {
-        dvui.dataRemove(null, self.init_options.canvas.id, "left_mouse_down");
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "left_mouse_down");
     };
 
     defer if (self.hide_distance_bubble) {
-        dvui.dataSet(null, self.init_options.canvas.id, "hide_distance_bubble", self.hide_distance_bubble);
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "hide_distance_bubble", self.hide_distance_bubble);
     } else {
-        dvui.dataRemove(null, self.init_options.canvas.id, "hide_distance_bubble");
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "hide_distance_bubble");
     };
 
     if (self.active() or self.hovered()) {
         for (dvui.events()) |*e| {
-            if (!self.init_options.canvas.scroll_container.matchEvent(e)) {
+            if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
                 continue;
             }
 
             if (e.evt == .mouse and e.evt.mouse.action == .position) {
-                self.init_options.file.editor.sprites_hovered_index = self.init_options.file.spriteIndex(self.init_options.canvas.dataFromScreenPoint(e.evt.mouse.p)) orelse 0;
+                self.init_options.file.editor.sprites_hovered_index = self.init_options.file.spriteIndex(self.init_options.file.editor.canvas.dataFromScreenPoint(e.evt.mouse.p)) orelse 0;
             }
         }
 
@@ -3003,10 +3002,10 @@ pub fn processEvents(self: *FileWidget) void {
     }
 
     // Draw shadows for the scroll container
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .top, .{ .opacity = 0.15 });
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .bottom, .{});
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .left, .{ .opacity = 0.15 });
-    pixi.dvui.drawEdgeShadow(self.init_options.canvas.scroll_container.data().rectScale(), .right, .{});
+    pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .top, .{ .opacity = 0.15 });
+    pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .bottom, .{});
+    pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .left, .{ .opacity = 0.15 });
+    pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .right, .{});
 
     // Only process draw cursor on the hovered widget
     //if (self.hovered() != null) {
@@ -3017,17 +3016,17 @@ pub fn processEvents(self: *FileWidget) void {
     self.drawTransform();
 
     // Then process the scroll and zoom events last
-    self.init_options.canvas.processEvents();
+    self.init_options.file.editor.canvas.processEvents();
 }
 
 pub fn deinit(self: *FileWidget) void {
-    self.init_options.canvas.deinit();
+    self.init_options.file.editor.canvas.deinit();
 
     self.* = undefined;
 }
 
 pub fn hovered(self: *FileWidget) bool {
-    return self.init_options.canvas.hovered and self.init_options.canvas.rect.contains(dvui.currentWindow().mouse_pt);
+    return self.init_options.file.editor.canvas.hovered;
 }
 
 test {

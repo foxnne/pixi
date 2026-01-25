@@ -431,7 +431,6 @@ pub fn drawCanvas(self: *Workspace) !void {
         if (self.grouping != file.editor.grouping) return;
 
         var file_widget = pixi.dvui.FileWidget.init(@src(), .{
-            .canvas = &file.editor.canvas,
             .file = file,
             .center = self.center,
         }, .{

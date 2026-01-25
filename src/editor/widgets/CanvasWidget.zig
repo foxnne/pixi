@@ -189,8 +189,9 @@ pub fn processEvents(self: *CanvasWidget) void {
         switch (e.evt) {
             .mouse => |me| {
                 if (me.action == .position) {
-                    if (self.rect.contains(me.p))
+                    if (self.rect.contains(me.p)) {
                         self.hovered = true;
+                    }
                 }
 
                 if (me.action == .press and me.button == .middle) {
