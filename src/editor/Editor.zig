@@ -288,20 +288,18 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             });
             defer editor.panel.paned.deinit();
 
-            {
+            if (!editor.panel.paned.dragging) {
                 if (editor.activeFile()) |_| {
-                    if (!editor.panel.paned.dragging and editor.panel.paned.split_ratio.* == 1.0) {
+                    if (editor.panel.paned.split_ratio.* == 1.0) {
                         editor.panel.paned.animateSplit(1.0 - pixi.editor.settings.panel_ratio);
                     }
                 } else {
-                    if (!editor.panel.paned.dragging and !(editor.panel.paned.collapsed_state or editor.panel.paned.animating)) {
+                    if (!(editor.panel.paned.collapsed_state or editor.panel.paned.animating)) {
                         editor.panel.paned.animateSplit(1.0);
                     }
                 }
-
-                if (editor.panel.paned.dragging) {
-                    pixi.editor.settings.panel_ratio = 1.0 - editor.panel.paned.split_ratio.*;
-                }
+            } else {
+                pixi.editor.settings.panel_ratio = 1.0 - editor.panel.paned.split_ratio.*;
             }
 
             if (editor.panel.paned.showSecond()) {
@@ -654,6 +652,7 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
         }
     }
 
+    // Ens
     if (s.collapsing and s.split_ratio.* < 0.5) {
         s.animateSplit(1.0);
     }

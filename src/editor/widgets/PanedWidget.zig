@@ -419,6 +419,7 @@ pub fn processEvent(self: *PanedWidget, e: *Event) void {
                 // capture and start drag
                 dvui.captureMouse(self.data(), e.num);
                 dvui.dragPreStart(e.evt.mouse.p, .{ .cursor = cursor });
+                self.dragging = true;
             } else if (e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
                 e.handle(@src(), self.data());
                 // stop possible drag and capture
@@ -426,6 +427,7 @@ pub fn processEvent(self: *PanedWidget, e: *Event) void {
                 dvui.dragEnd();
                 self.dragging = false;
             } else if (e.evt.mouse.action == .motion and dvui.captured(self.data().id)) {
+                self.dragging = true;
                 e.handle(@src(), self.data());
                 // move if dragging
                 if (dvui.dragging(e.evt.mouse.p, null)) |dps| {
@@ -440,7 +442,6 @@ pub fn processEvent(self: *PanedWidget, e: *Event) void {
                     }
 
                     self.split_ratio.* = @max(0.0, @min(1.0, self.split_ratio.*));
-                    self.dragging = true;
                 }
             } else if (e.evt.mouse.action == .position) {
                 dvui.cursorSet(cursor);

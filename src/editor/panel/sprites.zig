@@ -14,6 +14,10 @@ pub fn draw(self: *Sprites) !void {
         const prev_clip = dvui.clip(dvui.parentGet().data().rectScale().r);
         defer dvui.clipSet(prev_clip);
 
+        if (dvui.parentGet().data().rect.h < 32.0) {
+            return;
+        }
+
         self.drawAnimationControlsDialog();
 
         // Since not all panel screens will likely want shadows, which should be reserved for canvases?
