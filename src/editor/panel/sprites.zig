@@ -124,6 +124,10 @@ pub fn draw(self: *Sprites) !void {
         });
         defer hbox.deinit();
 
+        if (parent.h < 32.0) {
+            return;
+        }
+
         _ = pixi.dvui.sprite(@src(), .{
             .source = file.layers.items(.source)[file.selected_layer_index],
             .file = file,

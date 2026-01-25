@@ -593,10 +593,12 @@ pub fn rebuildWorkspaces(editor: *Editor) !void {
         }
 
         if (!contains) {
-            for (editor.workspaces.values()) |*w| {
-                if (w.grouping != workspace.grouping) {
-                    editor.open_workspace_grouping = w.grouping;
-                    break;
+            if (editor.open_workspace_grouping == workspace.grouping) {
+                for (editor.workspaces.values()) |*w| {
+                    if (w.grouping != workspace.grouping) {
+                        editor.open_workspace_grouping = w.grouping;
+                        break;
+                    }
                 }
             }
 
@@ -642,10 +644,14 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     });
     defer s.deinit();
 
-    if (index + 1 < editor.workspaces.count()) {
-        editor.workspaces.values()[index + 1].center = s.animating or editor.panel.paned.animating;
-    } else if (editor.workspaces.count() == 1) {
-        editor.workspaces.values()[index].center = (s.animating or (editor.panel.paned.animating and !editor.panel.paned.collapsed_state)) and !s.collapsing;
+    const dragging = editor.panel.paned.dragging or s.dragging;
+
+    if (!dragging) {
+        if (index + 1 < editor.workspaces.count()) {
+            editor.workspaces.values()[index + 1].center = (s.animating and s.split_ratio.* < 1.0) or (editor.panel.paned.animating and editor.panel.paned.split_ratio.* < 1.0);
+        } else if (editor.workspaces.count() == 1) {
+            editor.workspaces.values()[index].center = (editor.panel.paned.animating and editor.panel.paned.split_ratio.* < 1.0);
+        }
     }
 
     if (s.collapsing and s.split_ratio.* < 0.5) {
