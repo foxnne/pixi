@@ -161,33 +161,62 @@ pub fn callAfter(_: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void 
     switch (response) {
         .ok => {
             if (mode == .animation) {
-                if (pixi.editor.activeFile()) |file| {
-                    if (file.animations.len > 0) {
-                        if (file.selected_animation_index) |animation_index| {
-                            const anim: pixi.Internal.Animation = file.animations.get(animation_index);
+                if (dvui.native_dialogs.Native.save(dvui.currentWindow().arena(), .{ .title = "Export Animation", .path = "untitled.gif" }) catch null) |path| {
+                    if (pixi.editor.activeFile()) |file| {
+                        if (file.animations.len > 0) {
+                            if (file.selected_animation_index) |animation_index| {
+                                const anim: pixi.Internal.Animation = file.animations.get(animation_index);
 
-                            var image = zigimg.Image.create(pixi.app.allocator, file.column_width, file.row_height, .rgb24) catch {
-                                dvui.log.err("Failed to create image", .{});
-                                return error.FailedToCreateImage;
-                            };
-                            defer image.deinit(pixi.app.allocator);
+                                var image = zigimg.Image.Managed.create(pixi.app.allocator, file.column_width * @as(u32, @intFromFloat(scale)), file.row_height * @as(u32, @intFromFloat(scale)), .rgba32) catch {
+                                    dvui.log.err("Failed to create image", .{});
+                                    return error.FailedToCreateImage;
+                                };
+                                defer image.deinit();
 
-                            for (anim.frames) |sprite_index| {
-                                const sprite_rect = file.spriteRect(sprite_index);
+                                for (anim.frames) |sprite_index| {
+                                    const sprite_rect = file.spriteRect(sprite_index);
 
-                                var layer_index: usize = file.layers.len - 1;
-                                while (layer_index > 0) {
-                                    layer_index -= 1;
-                                    var layer = file.layers.get(layer_index);
-                                    if (layer.visible) {
-                                        break;
-                                    }
+                                    var layer = file.layers.get(0);
 
                                     if (layer.pixelsFromRect(pixi.app.allocator, sprite_rect)) |pixels| {
-                                        _ = pixels;
+                                        const raw_data = pixels;
+                                        const pixel_data = @as([*]const u8, @ptrCast(@constCast(raw_data.ptr)))[0..@as(usize, @intFromFloat(sprite_rect.w * sprite_rect.h * 4))];
+                                        const color_pixels = zigimg.color.PixelStorage.initRawPixels(pixel_data, .rgba32) catch {
+                                            dvui.log.err("Failed to initialize color pixels", .{});
+                                            return error.FailedToInitializeColorPixels;
+                                        };
+
+                                        var transparent_index: u8 = 0;
+
+                                        if (color_pixels.getPalette()) |palette| {
+                                            for (palette, 0..) |color, i| {
+                                                if (color.a == 0) {
+                                                    transparent_index = @intCast(i);
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        image.animation.frames.append(pixi.app.allocator, .{
+                                            .pixels = color_pixels,
+                                            .duration = 1.0 / anim.fps,
+                                            .disposal = @intFromEnum(zigimg.formats.gif.DisposeMethod.restore_background_color),
+                                            .transparent_index = transparent_index,
+                                        }) catch {
+                                            dvui.log.err("Failed to append frame", .{});
+                                            return error.FailedToAppendFrame;
+                                        };
+                                    } else {
+                                        dvui.log.err("Failed to get pixels from layer", .{});
                                     }
-                                    // Now we need to copy these pixels into the image
                                 }
+
+                                var write_buffer: [zigimg.io.DEFAULT_BUFFER_SIZE]u8 = undefined;
+
+                                image.writeToFilePath(path, write_buffer[0..], .{ .gif = .{ .loop_count = zigimg.Image.AnimationLoopInfinite, .auto_convert = true } }) catch |err| {
+                                    dvui.log.err("Failed to write image to file {any}", .{err});
+                                    return error.FailedToWriteImageToFile;
+                                };
                             }
                         }
                     }

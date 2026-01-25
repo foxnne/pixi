@@ -280,7 +280,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 .collapsed_size = pixi.editor.settings.min_window_size[1] + 1,
                 .handle_size = handle_size,
                 .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
-                .uncollapse_ratio = pixi.editor.settings.panel_ratio,
+                .uncollapse_ratio = 1.0,
             }, .{
                 .expand = .both,
                 .background = true,
@@ -288,17 +288,28 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             });
             defer editor.panel.paned.deinit();
 
-            if (dvui.firstFrame(editor.panel.paned.wd.id)) {
-                editor.panel.paned.collapsed_state = false;
-                editor.panel.paned.collapsing = false;
-                editor.panel.paned.split_ratio.* = 1.0;
-                editor.panel.paned.animateSplit(pixi.editor.settings.panel_ratio);
-            } else if (!editor.panel.paned.collapsing and !editor.panel.paned.collapsed_state) {
-                pixi.editor.settings.panel_ratio = editor.panel.paned.split_ratio.*;
+            {
+                if (editor.activeFile()) |_| {
+                    if (!editor.panel.paned.dragging and editor.panel.paned.split_ratio.* == 1.0) {
+                        editor.panel.paned.animateSplit(1.0 - pixi.editor.settings.panel_ratio);
+                    }
+                } else {
+                    if (!editor.panel.paned.dragging and !(editor.panel.paned.collapsed_state or editor.panel.paned.animating)) {
+                        editor.panel.paned.animateSplit(1.0);
+                    }
+                }
+
+                if (editor.panel.paned.dragging) {
+                    pixi.editor.settings.panel_ratio = 1.0 - editor.panel.paned.split_ratio.*;
+                }
             }
 
             if (editor.panel.paned.showSecond()) {
-                const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .gravity_y = 0.0 });
+                const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+                    .expand = .both,
+                    .background = true,
+                    .gravity_y = 0.0,
+                });
                 defer vbox.deinit();
 
                 const result = try editor.panel.draw();
@@ -629,42 +640,34 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     });
     defer s.deinit();
 
-    if (index == editor.workspaces.count() - 1) {
-        if (s.split_ratio.* != 1.0) {
-            s.animateSplit(1.0);
-        }
-    } else {
-        if (dvui.firstFrame(s.wd.id)) {
-            s.split_ratio.* = 1.0;
-            s.animateSplit(0.5);
+    if (index + 1 < editor.workspaces.count() and editor.workspaces.count() > 1) {
+        editor.workspaces.values()[index + 1].center = s.animating or editor.panel.paned.animating;
+    }
+
+    if (!s.dragging and !s.animating) {
+        if (index == editor.workspaces.count() - 1) {
+            if (s.split_ratio.* != 1.0) {
+                s.animateSplit(1.0);
+            }
+        } else {
+            if (dvui.firstFrame(s.wd.id)) {
+                s.split_ratio.* = 1.0;
+                s.animateSplit(0.5);
+            }
         }
     }
 
     if (s.showFirst()) {
-        if (index == editor.workspaces.count() - 1) {
-            const result = try editor.workspaces.values()[index].draw();
-            if (result != .ok) {
-                return result;
-            }
-        } else {
-            const result = try editor.workspaces.values()[index].draw();
-            if (result != .ok) {
-                return result;
-            }
+        const result = try editor.workspaces.values()[index].draw();
+        if (result != .ok) {
+            return result;
         }
+    }
 
-        if (s.showSecond()) {
-            if (index + 1 == editor.workspaces.count() - 1) {
-                if (s.animating and editor.workspaces.count() > 1) {
-                    editor.workspaces.values()[index + 1].center = true;
-                } else {
-                    editor.workspaces.values()[index + 1].center = false;
-                }
-            }
-            const result = try drawWorkspaces(editor, index + 1);
-            if (result != .ok) {
-                return result;
-            }
+    if (s.showSecond()) {
+        const result = try drawWorkspaces(editor, index + 1);
+        if (result != .ok) {
+            return result;
         }
     }
 

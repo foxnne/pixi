@@ -17,7 +17,7 @@ pub const Compatibility = enum { none, ldtk };
 explorer_ratio: f32 = 0.35,
 
 /// Height of the flipbook window.
-panel_ratio: f32 = 0.75,
+panel_ratio: f32 = 0.25,
 
 min_window_size: [2]f32 = .{ 640, 480 },
 

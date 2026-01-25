@@ -149,7 +149,7 @@ pub fn init(src: std.builtin.SourceLocation, init_options: InitOptions, opts: Op
     }
 
     if (dvui.animationGet(self.wd.id, "_split_ratio")) |a| {
-        self.animating = true;
+        self.animating = !a.done();
         self.split_ratio.* = a.value();
 
         if (self.collapsing and a.done()) {
