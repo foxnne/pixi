@@ -290,7 +290,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
             if (!editor.panel.paned.dragging) {
                 if (editor.activeFile()) |_| {
-                    if (editor.panel.paned.split_ratio.* == 1.0) {
+                    if ((editor.panel.paned.split_ratio.* == 1.0 and !editor.panel.paned.collapsed()) and pixi.editor.settings.panel_ratio > 0.0) {
                         editor.panel.paned.animateSplit(1.0 - pixi.editor.settings.panel_ratio);
                     }
                 } else {

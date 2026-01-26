@@ -423,6 +423,7 @@ pub fn resize(layer: *Layer, new_size: dvui.Size) !void {
 /// If the src rect doesn't contain any opaque pixels, returns null
 pub fn reduce(layer: *Layer, src: dvui.Rect) ?dvui.Rect {
     const layer_width = @as(usize, @intFromFloat(layer.size().w));
+    const layer_height = @as(usize, @intFromFloat(layer.size().h));
     const read_pixels = layer.pixels();
 
     const src_x: usize = @as(usize, @intFromFloat(src.x));
@@ -430,15 +431,25 @@ pub fn reduce(layer: *Layer, src: dvui.Rect) ?dvui.Rect {
     const src_width: usize = @as(usize, @intFromFloat(src.w));
     const src_height: usize = @as(usize, @intFromFloat(src.h));
 
-    var top = src_y;
-    var bottom = src_y + src_height - 1;
-    var left = src_x;
-    var right = src_x + src_width - 1;
+    // Clamp boundaries so we do not go out of bounds
+    if (src_x >= layer_width or src_y >= layer_height or src_width == 0 or src_height == 0)
+        return null;
 
+    const src_x_end = @min(src_x + src_width, layer_width);
+    const src_y_end = @min(src_y + src_height, layer_height);
+
+    var top = src_y;
+    var bottom = src_y_end - 1;
+    var left = src_x;
+    var right = src_x_end - 1;
+
+    // Find top
     top: {
-        while (top < bottom) : (top += 1) {
+        while (top <= bottom) : (top += 1) {
             const start = left + top * layer_width;
-            const row = read_pixels[start .. start + src_width];
+            // Clamp not really needed here, but check anyway to prevent OOB
+            if (start + (right - left + 1) > read_pixels.len) return null;
+            const row = read_pixels[start .. start + (right - left + 1)]; // inclusive right
             for (row) |p| {
                 if (p[3] != 0) {
                     break :top;
@@ -446,16 +457,16 @@ pub fn reduce(layer: *Layer, src: dvui.Rect) ?dvui.Rect {
             }
         }
     }
-    if (top == bottom) return null;
+    if (top > bottom) return null;
 
+    // Find bottom
     bottom: {
-        while (bottom > top) : (bottom -= 1) {
+        while (bottom >= top) : (bottom -= 1) {
             const start = left + bottom * layer_width;
-            const row = read_pixels[start .. start + src_width];
+            if (start + (right - left + 1) > read_pixels.len) return null;
+            const row = read_pixels[start .. start + (right - left + 1)];
             for (row) |p| {
                 if (p[3] != 0) {
-                    if (bottom < src_y + src_height)
-                        bottom += 0; // Replace with 1 if needed
                     break :bottom;
                 }
             }
@@ -466,42 +477,43 @@ pub fn reduce(layer: *Layer, src: dvui.Rect) ?dvui.Rect {
     if (height == 0)
         return null;
 
-    const new_top: usize = if (top > 0) top - 1 else 0;
+    const new_top: usize = top;
 
+    // Left boundary
     left: {
         while (left < right) : (left += 1) {
             var y = bottom + 1;
             while (y > new_top) {
                 y -= 1;
-                if (read_pixels[left + y * layer_width][3] != 0) {
+                const idx = left + y * layer_width;
+                if (idx >= read_pixels.len) return null;
+                if (read_pixels[idx][3] != 0) {
                     break :left;
                 }
             }
         }
     }
 
+    // Right boundary
     right: {
         while (right > left) : (right -= 1) {
             var y = bottom + 1;
             while (y > new_top) {
                 y -= 1;
-                if (read_pixels[right + y * layer_width][3] != 0) {
-                    if (right < src_x + src_width)
-                        right += 1;
+                const idx = right + y * layer_width;
+                if (idx >= read_pixels.len) return null;
+                if (read_pixels[idx][3] != 0) {
                     break :right;
                 }
             }
         }
     }
 
-    const width = right - left;
+    const width = right - left + 1;
     if (width == 0)
         return null;
 
-    // // If we are packing a tileset, we want a uniform / non-tightly-packed grid. We remove all
-    // // completely empty sprite cells (the return null cases above), but do not trim transparent
-    // // regions during packing.
-    // if (pixi.app.pack_tileset) return src;
+    // See note in original about tileset packing
 
     return .{
         .x = @floatFromInt(left),
