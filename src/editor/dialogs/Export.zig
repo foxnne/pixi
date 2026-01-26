@@ -171,22 +171,95 @@ pub fn callAfter(_: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void 
                             if (file.selected_animation_index) |animation_index| {
                                 const anim: pixi.Internal.Animation = file.animations.get(animation_index);
 
+                                var export_width = file.column_width;
+                                var export_height = file.row_height;
+
                                 if (scale != 1.0) {
-                                    dvui.log.err("Only scale 1.0 is currently supported for animated gif export", .{});
-                                    return error.UnsupportedScale;
+                                    export_width = @intFromFloat(@as(f32, @floatFromInt(file.column_width)) * scale);
+                                    export_height = @intFromFloat(@as(f32, @floatFromInt(file.row_height)) * scale);
                                 }
 
                                 var handle: msf_gif.MSFGifState = undefined;
-                                _ = msf_gif.begin(&handle, file.column_width, file.row_height);
+                                _ = msf_gif.begin(&handle, export_width, export_height);
 
-                                msf_gif.msf_gif_alpha_threshold = 128;
+                                msf_gif.msf_gif_alpha_threshold = 10;
 
                                 for (anim.frames) |sprite_index| {
                                     const sprite_rect = file.spriteRect(sprite_index);
                                     const layer = file.layers.get(0);
 
                                     const pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), sprite_rect) orelse continue;
-                                    _ = msf_gif.frame(&handle, @ptrCast(pixels.ptr), @intFromFloat(anim.fps / 100));
+
+                                    if (scale != 1.0) {
+                                        const triangles = dvui.Path.fillConvexTriangles(.{
+                                            .points = &[_]dvui.Point.Physical{
+                                                .{ .x = 0, .y = 0 },
+                                                .{ .x = @as(f32, @floatFromInt(file.column_width)) * scale, .y = 0 },
+                                                .{ .x = @as(f32, @floatFromInt(file.column_width)) * scale, .y = @as(f32, @floatFromInt(file.row_height)) * scale },
+                                                .{ .x = 0, .y = @as(f32, @floatFromInt(file.row_height)) * scale },
+                                            },
+                                        }, dvui.currentWindow().arena(), .{
+                                            .color = .white,
+                                            .fade = 0.0,
+                                        }) catch {
+                                            dvui.log.err("Failed to fill convex triangles", .{});
+                                            continue;
+                                        };
+
+                                        // Here pass in the data rect, since we will be rendering directly to the low-res texture
+                                        const target_texture = dvui.textureCreateTarget(export_width, export_height, .nearest) catch {
+                                            std.log.err("Failed to create target texture", .{});
+                                            return;
+                                        };
+
+                                        defer {
+                                            const texture: ?dvui.Texture = dvui.textureFromTarget(target_texture) catch null;
+                                            if (texture) |t| {
+                                                dvui.textureDestroyLater(t);
+                                            }
+                                        }
+
+                                        // This is the previous target, we will be setting this back
+                                        const previous_target = dvui.renderTarget(.{ .texture = target_texture, .offset = .{ .x = 0, .y = 0 } });
+
+                                        // Make sure we clip to the image rect, if we don't  and the texture overlaps the canvas,
+                                        // the rendering will be clipped incorrectly
+                                        // Use clipSet instead of clip, clip unions with current clip
+                                        const clip_rect: dvui.Rect.Physical = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(export_width)), .h = @as(f32, @floatFromInt(export_height)) };
+                                        const prev_clip = dvui.clipGet();
+                                        dvui.clipSet(clip_rect);
+
+                                        // Set UVs, there are 5 vertexes, or 1 more than the number of triangles, and is at the center
+
+                                        triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
+                                        triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
+                                        triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
+                                        triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
+
+                                        const new_texture_source = pixi.image.fromPixelsPMA(@as([*]dvui.Color.PMA, @ptrCast(pixels.ptr))[0..@intCast(pixels.len)], file.column_width, file.row_height, .ptr) catch {
+                                            std.log.err("Failed to create new texture", .{});
+                                            return;
+                                        };
+
+                                        // Render the triangles to the target texture
+                                        dvui.renderTriangles(triangles, new_texture_source.getTexture() catch null) catch {
+                                            std.log.err("Failed to render triangles", .{});
+                                        };
+
+                                        // Restore the previous clip
+                                        dvui.clipSet(prev_clip);
+                                        // Set the target back
+                                        _ = dvui.renderTarget(previous_target);
+
+                                        // Read the target texture and copy it to the selection layer
+                                        if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
+                                            _ = msf_gif.frame(&handle, @ptrCast(image_data.ptr), @intFromFloat(anim.fps / 100));
+                                        } else {
+                                            std.log.err("Failed to read target", .{});
+                                        }
+                                    } else {
+                                        _ = msf_gif.frame(&handle, @ptrCast(pixels.ptr), @intFromFloat(anim.fps / 100));
+                                    }
                                 }
 
                                 const result = msf_gif.end(&handle);

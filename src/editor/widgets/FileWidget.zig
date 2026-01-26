@@ -3004,8 +3004,9 @@ pub fn processEvents(self: *FileWidget) void {
             }
         }
 
-        var layer_index: usize = self.init_options.file.layers.len - 1;
-        while (layer_index > min_layer_index) : (layer_index -= 1) {
+        var layer_index: usize = self.init_options.file.layers.len;
+        while (layer_index > min_layer_index) {
+            layer_index -= 1;
             var layer = self.init_options.file.layers.get(layer_index);
 
             if (!layer.visible) continue;
