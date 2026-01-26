@@ -48,8 +48,6 @@ pub fn build(b: *std.Build) !void {
 
     const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl3 });
 
-    //const timerModule = b.addModule("timer", .{ .root_source_file = .{ .cwd_relative = "src/tools/timer.zig" } });
-
     const zstbi_lib = b.addLibrary(.{
         .name = "zstbi",
         .root_module = b.addModule("zstbi", .{
@@ -62,27 +60,17 @@ pub fn build(b: *std.Build) !void {
 
     zstbi_lib.addCSourceFile(.{ .file = std.Build.path(b, "src/deps/stbi/zstbi.c") });
 
-    // quantization library
-    // const quantizeLib = b.addStaticLibrary(.{
-    //     .name = "quantize",
-    //     .root_source_file = .{ .cwd_relative = "src/tools/quantize/quantize.zig" },
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-    // addImport(quantizeLib, "timer", timerModule);
-    // const quantizeModule = quantizeLib.root_module;
+    const msf_gif_lib = b.addLibrary(.{
+        .name = "msf_gif",
+        .root_module = b.addModule("msf_gif", .{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = .{ .cwd_relative = "src/deps/msf_gif/msf_gif.zig" },
+        }),
+    });
+    const msf_gif_module = msf_gif_lib.root_module;
 
-    // zgif library
-    // const zgifLibrary = b.addStaticLibrary(.{
-    //     .name = "zgif",
-    //     .root_source_file = .{ .cwd_relative = "src/tools/gif.zig" },
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-    // addCGif(b, zgifLibrary);
-    // addImport(zgifLibrary, "quantize", quantizeModule);
-    // const zgif_module = zgifLibrary.root_module;
-    //zgif_module.addImport("zstbi",);
+    msf_gif_lib.addCSourceFile(.{ .file = std.Build.path(b, "src/deps/msf_gif/msf_gif.c") });
 
     const exe = b.addExecutable(.{
         .name = "Pixi",
@@ -128,23 +116,13 @@ pub fn build(b: *std.Build) !void {
     }
 
     exe.root_module.addImport("zstbi", zstbi_module);
+    exe.root_module.addImport("msf_gif", msf_gif_module);
     exe.root_module.addImport("zip", zip_pkg.module);
     exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl3"));
 
     if (b.lazyDependency("icons", .{ .target = target, .optimize = optimize })) |dep| {
         exe.root_module.addImport("icons", dep.module("icons"));
     }
-
-    const zigimg_dependency = b.dependency("zigimg", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    exe.root_module.addImport("zigimg", zigimg_dependency.module("zigimg"));
-
-    //exe.root_module.addImport("zgif", zgif_module);
-    // const nfd_lib = nfd.makeLib(b, target, optimize);
-    // exe.root_module.addImport("nfd", nfd_lib);
 
     if (target.result.os.tag == .macos) {
         if (b.lazyDependency("mach_objc", .{

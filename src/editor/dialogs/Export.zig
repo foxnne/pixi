@@ -2,6 +2,7 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 const zigimg = @import("zigimg");
+const msf_gif = @import("msf_gif");
 
 pub var mode: enum(usize) {
     single,
@@ -161,62 +162,43 @@ pub fn callAfter(_: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void 
     switch (response) {
         .ok => {
             if (mode == .animation) {
-                if (dvui.native_dialogs.Native.save(dvui.currentWindow().arena(), .{ .title = "Export Animation", .path = "untitled.gif" }) catch null) |path| {
+                if (dvui.native_dialogs.Native.save(
+                    dvui.currentWindow().arena(),
+                    .{ .title = "Export Animation", .path = "untitled.gif" },
+                ) catch null) |path| {
                     if (pixi.editor.activeFile()) |file| {
                         if (file.animations.len > 0) {
                             if (file.selected_animation_index) |animation_index| {
                                 const anim: pixi.Internal.Animation = file.animations.get(animation_index);
 
-                                var image = zigimg.Image.Managed.create(pixi.app.allocator, file.column_width * @as(u32, @intFromFloat(scale)), file.row_height * @as(u32, @intFromFloat(scale)), .rgba32) catch {
-                                    dvui.log.err("Failed to create image", .{});
-                                    return error.FailedToCreateImage;
-                                };
-                                defer image.deinit();
+                                if (scale != 1.0) {
+                                    dvui.log.err("Only scale 1.0 is currently supported for animated gif export", .{});
+                                    return error.UnsupportedScale;
+                                }
+
+                                var handle: msf_gif.MSFGifState = undefined;
+                                _ = msf_gif.begin(&handle, file.column_width, file.row_height);
+
+                                msf_gif.msf_gif_alpha_threshold = 128;
 
                                 for (anim.frames) |sprite_index| {
                                     const sprite_rect = file.spriteRect(sprite_index);
+                                    const layer = file.layers.get(0);
 
-                                    var layer = file.layers.get(0);
-
-                                    if (layer.pixelsFromRect(pixi.app.allocator, sprite_rect)) |pixels| {
-                                        const raw_data = pixels;
-                                        const pixel_data = @as([*]const u8, @ptrCast(@constCast(raw_data.ptr)))[0..@as(usize, @intFromFloat(sprite_rect.w * sprite_rect.h * 4))];
-                                        const color_pixels = zigimg.color.PixelStorage.initRawPixels(pixel_data, .rgba32) catch {
-                                            dvui.log.err("Failed to initialize color pixels", .{});
-                                            return error.FailedToInitializeColorPixels;
-                                        };
-
-                                        var transparent_index: u8 = 0;
-
-                                        if (color_pixels.getPalette()) |palette| {
-                                            for (palette, 0..) |color, i| {
-                                                if (color.a == 0) {
-                                                    transparent_index = @intCast(i);
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-                                        image.animation.frames.append(pixi.app.allocator, .{
-                                            .pixels = color_pixels,
-                                            .duration = 1.0 / anim.fps,
-                                            .disposal = @intFromEnum(zigimg.formats.gif.DisposeMethod.restore_background_color),
-                                            .transparent_index = transparent_index,
-                                        }) catch {
-                                            dvui.log.err("Failed to append frame", .{});
-                                            return error.FailedToAppendFrame;
-                                        };
-                                    } else {
-                                        dvui.log.err("Failed to get pixels from layer", .{});
-                                    }
+                                    const pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), sprite_rect) orelse continue;
+                                    _ = msf_gif.frame(&handle, @ptrCast(pixels.ptr), @intFromFloat(anim.fps / 100));
                                 }
 
-                                var write_buffer: [zigimg.io.DEFAULT_BUFFER_SIZE]u8 = undefined;
+                                const result = msf_gif.end(&handle);
+                                defer msf_gif.free(result);
 
-                                image.writeToFilePath(path, write_buffer[0..], .{ .gif = .{ .loop_count = zigimg.Image.AnimationLoopInfinite, .auto_convert = true } }) catch |err| {
-                                    dvui.log.err("Failed to write image to file {any}", .{err});
-                                    return error.FailedToWriteImageToFile;
-                                };
+                                // // Now write to file using the new Writer interface
+                                var output_file = try std.fs.cwd().createFile(path, .{});
+                                defer output_file.close();
+
+                                if (result.data) |data| {
+                                    try output_file.writeAll(data[0..result.dataSize]);
+                                }
                             }
                         }
                     }

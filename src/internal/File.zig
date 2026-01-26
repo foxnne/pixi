@@ -64,6 +64,7 @@ pub const EditorData = struct {
     temporary_layer: Layer = undefined,
     selection_layer: Layer = undefined,
     transform_layer: Layer = undefined,
+    flattened_layer: Layer = undefined,
     selected_sprites: std.DynamicBitSet = undefined,
 
     checkerboard: std.DynamicBitSet = undefined,
@@ -96,6 +97,7 @@ pub fn init(path: []const u8, options: InitOptions) !pixi.Internal.File {
     internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
     internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.flattened_layer = try .init(internal.newLayerID(), "Flattened", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
     internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width() * internal.height());
@@ -256,6 +258,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
         internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.flattened_layer = try .init(internal.newLayerID(), "Flattened", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
         internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width() * internal.height());
@@ -490,6 +493,7 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
     internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    internal.editor.flattened_layer = try .init(internal.newLayerID(), "Flattened", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
 
     internal.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.width() * internal.height());
@@ -572,7 +576,7 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     file.editor.temporary_layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
     file.editor.selection_layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
     file.editor.transform_layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
-
+    file.editor.flattened_layer.resize(.{ .w = @floatFromInt(new_width), .h = @floatFromInt(new_height) }) catch return error.LayerResizeError;
     file.editor.selected_sprites.resize(options.columns * options.rows, false) catch return error.MemoryAllocationFailed;
 
     file.editor.checkerboard.resize(new_width * new_height, false) catch return error.MemoryAllocationFailed;
@@ -600,6 +604,11 @@ pub fn deinit(file: *File) void {
     for (file.animations.items(.frames)) |frames| {
         pixi.app.allocator.free(frames);
     }
+
+    file.editor.flattened_layer.deinit();
+    file.editor.temporary_layer.deinit();
+    file.editor.selection_layer.deinit();
+    file.editor.transform_layer.deinit();
 
     file.layers.deinit(pixi.app.allocator);
     file.deleted_layers.deinit(pixi.app.allocator);

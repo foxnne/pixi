@@ -30,9 +30,5 @@
             .url = "git+https://github.com/foxnne/dvui-dev#1bc9c4e29c12779d067566f00e63817277a1dd1d",
             .hash = "dvui-0.4.0-dev-AQFJmeVS2gBr_UZImna5jjqJewaW2LBD6fve0Lt9Lc70",
         },
-        .zigimg = .{
-            .url = "git+https://github.com/zigimg/zigimg.git#fb74dfb7c6d83f2bd01a229826669451525a4ba8",
-            .hash = "zigimg-0.1.0-8_eo2kSGFwADIkeZYTgfnLOV-khh6ZRoGmK6F2-s_QbY",
-        },
     },
 }
