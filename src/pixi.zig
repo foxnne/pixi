@@ -10,7 +10,6 @@ pub const version: std.SemanticVersion = .{
 
 // Generated files, these contain helpers for autocomplete
 // So you can get a named index into atlas.sprites
-pub const paths = @import("generated/paths.zig");
 pub const atlas = @import("generated/atlas.zig");
 
 // Other helpers and namespaces

@@ -1,6 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const icons = @import("icons");
+const assets = @import("assets");
+const known_folders = @import("known-folders");
 
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
@@ -29,10 +31,13 @@ pub const Menu = @import("Menu.zig");
 /// Do not free these allocations, instead, this allocator will be .reset(.retain_capacity) each frame
 arena: std.heap.ArenaAllocator,
 
+config_folder: []const u8,
+palette_folder: []const u8,
+
 atlas: pixi.Internal.Atlas,
 
-settings: Settings,
-recents: Recents,
+settings: Settings = undefined,
+recents: Recents = undefined,
 
 explorer: *Explorer,
 panel: *Panel,
@@ -46,7 +51,7 @@ sidebar: Sidebar,
 infobar: Infobar,
 
 /// The root folder that will be searched for files and a .pixiproject file
-folder: ?[:0]const u8 = null,
+folder: ?[]const u8 = null,
 project: ?Project = null,
 
 open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
@@ -71,21 +76,49 @@ pub const SpriteClipboard = struct {
 pub fn init(
     app: *App,
 ) !Editor {
+    const config_folder = std.fs.path.join(pixi.app.allocator, &.{ try known_folders.getPath(dvui.currentWindow().arena(), .cache) orelse app.root_path, "Pixi" }) catch app.root_path;
+    const palette_folder = std.fs.path.join(pixi.app.allocator, &.{ config_folder, "Palettes" }) catch config_folder;
+
     var editor: Editor = .{
+        .config_folder = config_folder,
+        .palette_folder = palette_folder,
         .explorer = try app.allocator.create(Explorer),
         .panel = try app.allocator.create(Panel),
         .sidebar = try .init(),
         .infobar = try .init(),
-        .settings = try .load(app.allocator),
-        .recents = try .load(app.allocator),
         .arena = .init(std.heap.page_allocator),
         .last_titlebar_color = dvui.themeGet().color(.control, .fill),
         .atlas = .{
-            .data = try .loadFromFile(app.allocator, pixi.paths.@"pixi.atlas"),
-            .source = try pixi.image.fromImageFilePath(pixi.paths.@"pixi.png", pixi.paths.@"pixi.png", .ptr),
+            .data = try .loadFromBytes(app.allocator, assets.files.@"pixi.atlas"),
+            .source = try pixi.image.fromImageFileBytes("pixi.png", assets.files.@"pixi.png", .ptr),
         },
         .tools = try .init(app.allocator),
     };
+
+    var valid_path: bool = true;
+    if (std.fs.path.isAbsolute(editor.config_folder)) {
+        std.fs.accessAbsolute(editor.config_folder, .{ .mode = .read_only }) catch {
+            valid_path = false;
+        };
+
+        if (!valid_path) {
+            std.fs.makeDirAbsolute(editor.config_folder) catch |err| dvui.log.err("Failed to create config folder: {s}: {any}", .{ editor.config_folder, err });
+        }
+    }
+
+    valid_path = true;
+    if (std.fs.path.isAbsolute(editor.palette_folder)) {
+        std.fs.accessAbsolute(editor.palette_folder, .{ .mode = .read_only }) catch {
+            valid_path = false;
+        };
+
+        if (!valid_path) {
+            std.fs.makeDirAbsolute(editor.palette_folder) catch |err| dvui.log.err("Failed to create palette folder: {s}: {any}", .{ editor.palette_folder, err });
+        }
+    }
+
+    editor.settings = try .load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "settings.json" }));
+    editor.recents = try .load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "recents.json" }));
 
     editor.explorer.* = .init();
     editor.panel.* = .init();
@@ -96,8 +129,8 @@ pub fn init(
         return err;
     };
 
-    editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pixi.hex");
-    editor.colors.palette = try pixi.Internal.Palette.loadFromFile(pixi.paths.@"pixi.hex");
+    editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromBytes(app.allocator, "pixi.hex", assets.files.palettes.@"pixi.hex");
+    editor.colors.palette = try pixi.Internal.Palette.loadFromBytes(app.allocator, "pixi.hex", assets.files.palettes.@"pixi.hex");
 
     try Keybinds.register();
 
@@ -712,8 +745,8 @@ pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
         }
         pixi.app.allocator.free(folder);
     }
-    editor.folder = try pixi.app.allocator.dupeZ(u8, path);
-    try editor.recents.appendFolder(try pixi.app.allocator.dupeZ(u8, path));
+    editor.folder = try pixi.app.allocator.dupe(u8, path);
+    try editor.recents.appendFolder(try pixi.app.allocator.dupe(u8, path));
     editor.explorer.pane = .files;
 
     editor.project = Project.load(pixi.app.allocator) catch null;
@@ -1300,12 +1333,12 @@ pub fn deinit(editor: *Editor) !void {
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.file_tree_palette) |*palette| palette.deinit();
 
-    editor.recents.save(pixi.app.allocator) catch {
+    editor.recents.save(pixi.app.allocator, try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "recents.json" })) catch {
         dvui.log.err("Failed to save recents", .{});
     };
     editor.recents.deinit();
 
-    try editor.settings.save(pixi.app.allocator);
+    try editor.settings.save(pixi.app.allocator, try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "settings.json" }));
     editor.settings.deinit(pixi.app.allocator);
 
     if (editor.project) |*project| {

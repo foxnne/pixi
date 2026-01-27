@@ -2414,27 +2414,21 @@ pub fn drawSample(self: *FileWidget) void {
             dvui.log.err("Failed to render checkerboard", .{});
         };
 
-        const alpha: f32 = dvui.alpha(1.0);
-        if (file.peek_layer_index) |_| {
-            dvui.alphaSet(0.2);
-        }
+        var i: usize = file.layers.len;
+        while (i > if (file.editor.isolate_layer) file.selected_layer_index else 0) {
+            i -= 1;
+            if (!file.layers.items(.visible)[i]) continue;
 
-        dvui.renderImage(file.editor.flattened_layer.source, rs, .{
-            .uv = uv_rect,
-            .corner_radius = .{
-                .x = corner_radius.x * rs.s,
-                .y = corner_radius.y * rs.s,
-                .w = corner_radius.w * rs.s,
-                .h = corner_radius.h * rs.s,
-            },
-        }) catch {
-            dvui.log.err("Failed to render flattened layer", .{});
-        };
+            var alpha: f32 = dvui.alpha(1.0);
+            if (file.peek_layer_index) |peek_layer_index| {
+                if (peek_layer_index != i) {
+                    alpha = dvui.alpha(0.2);
+                }
+            }
 
-        dvui.alphaSet(alpha);
-
-        if (file.peek_layer_index) |index| {
-            dvui.renderImage(file.layers.items(.source)[index], rs, .{
+            defer dvui.alphaSet(alpha);
+            const source = file.layers.items(.source)[i];
+            dvui.renderImage(source, rs, .{
                 .uv = uv_rect,
                 .corner_radius = .{
                     .x = corner_radius.x * rs.s,
@@ -2442,9 +2436,7 @@ pub fn drawSample(self: *FileWidget) void {
                     .w = corner_radius.w * rs.s,
                     .h = corner_radius.h * rs.s,
                 },
-            }) catch {
-                dvui.log.err("Failed to render peeked layer", .{});
-            };
+            }) catch continue;
         }
 
         // Draw a cross at the center of the rounded sample box
@@ -2485,6 +2477,7 @@ pub fn updateActiveLayerMask(self: *FileWidget) void {
 
 pub fn drawLayers(self: *FileWidget) void {
     var file = self.init_options.file;
+    var layer_index: usize = file.layers.len;
     var columns: usize = file.columns;
     var rows: usize = file.rows;
 
@@ -2593,49 +2586,51 @@ pub fn drawLayers(self: *FileWidget) void {
     }
 
     const image_rect = layer_rect;
-    //const image_rect_physical = self.init_options.file.editor.canvas.screenFromDataRect(image_rect);
+    const image_rect_physical = self.init_options.file.editor.canvas.screenFromDataRect(image_rect);
 
-    // while (layer_index > min_layer_index) {
-    //     layer_index -= 1;
-
-    //     const visible = file.layers.items(.visible)[layer_index];
-
-    //     if (!visible) continue;
-
-    // const clip = dvui.clip(
-    //     image_rect_physical,
-    // );
-    // defer dvui.clipSet(clip);
-
-    const alpha: f32 = dvui.alpha(1.0);
-    if (file.peek_layer_index) |_| {
-        dvui.alphaSet(0.2);
+    var min_layer_index: usize = 0;
+    if (file.editor.isolate_layer) {
+        if (file.peek_layer_index) |peek_layer_index| {
+            min_layer_index = peek_layer_index;
+        } else if (!pixi.editor.explorer.tools.layersHovered()) {
+            min_layer_index = file.selected_layer_index;
+        }
     }
 
-    const flattened = dvui.image(@src(), .{ .source = file.editor.flattened_layer.source }, .{
-        .rect = image_rect,
-        .border = dvui.Rect.all(0),
-        .id_extra = 0,
-        .background = false,
-    });
-    dvui.alphaSet(alpha);
+    while (layer_index > min_layer_index) {
+        layer_index -= 1;
 
-    if (file.peek_layer_index) |peek_layer_index| {
-        _ = dvui.image(@src(), .{ .source = file.layers.items(.source)[peek_layer_index] }, .{
+        const clip = dvui.clip(
+            image_rect_physical,
+        );
+        defer dvui.clipSet(clip);
+
+        const visible = file.layers.items(.visible)[layer_index];
+
+        if (!visible) continue;
+
+        var alpha: f32 = dvui.alpha(1.0);
+        if (file.peek_layer_index) |peek_layer_index| {
+            if (peek_layer_index != layer_index) {
+                alpha = dvui.alpha(0.2);
+            }
+        }
+        defer dvui.alphaSet(alpha);
+
+        const image = dvui.image(@src(), .{ .source = file.layers.items(.source)[layer_index] }, .{
             .rect = image_rect,
             .border = dvui.Rect.all(0),
-            .id_extra = peek_layer_index,
+            .id_extra = layer_index,
             .background = false,
         });
-    }
 
-    const boxRect = flattened.rectScale().r;
-    if (self.init_options.file.editor.canvas.bounding_box) |b| {
-        self.init_options.file.editor.canvas.bounding_box = b.unionWith(boxRect);
-    } else {
-        self.init_options.file.editor.canvas.bounding_box = boxRect;
+        const boxRect = image.rectScale().r;
+        if (self.init_options.file.editor.canvas.bounding_box) |b| {
+            self.init_options.file.editor.canvas.bounding_box = b.unionWith(boxRect);
+        } else {
+            self.init_options.file.editor.canvas.bounding_box = boxRect;
+        }
     }
-    //}
 
     // Draw the selection layer
     _ = dvui.image(@src(), .{
@@ -2705,8 +2700,6 @@ pub fn drawLayers(self: *FileWidget) void {
             self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = resize_data_point.y }),
         } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
     }
-
-    self.init_options.file.editor.canvas.bounding_box = flattened.rectScale().r;
 
     // Draw the selection box for the selected sprites
     if (pixi.editor.tools.current == .pointer and file.editor.transform == null and self.resize_data_point == null) {
@@ -2992,33 +2985,77 @@ pub fn processEvents(self: *FileWidget) void {
         self.processTransform();
     }
 
-    if (self.active()) {
-        self.init_options.file.editor.flattened_layer.clear();
+    // if (self.active()) {
+    //     var min_layer_index: usize = 0;
+    //     if (self.init_options.file.editor.isolate_layer) {
+    //         if (self.init_options.file.peek_layer_index) |peek_layer_index| {
+    //             min_layer_index = peek_layer_index;
+    //         } else if (!pixi.editor.explorer.tools.layersHovered()) {
+    //             min_layer_index = self.init_options.file.selected_layer_index;
+    //         }
+    //     }
 
-        var min_layer_index: usize = 0;
-        if (self.init_options.file.editor.isolate_layer) {
-            if (self.init_options.file.peek_layer_index) |peek_layer_index| {
-                min_layer_index = peek_layer_index;
-            } else if (!pixi.editor.explorer.tools.layersHovered()) {
-                min_layer_index = self.init_options.file.selected_layer_index;
-            }
-        }
+    //     if (self.init_options.file.editor.canvas.triangles) |triangles| {
+    //         // Here pass in the data rect, since we will be rendering directly to the low-res texture
+    //         const target_texture = dvui.textureCreateTarget(self.init_options.file.width(), self.init_options.file.height(), .nearest) catch {
+    //             std.log.err("Failed to create target texture", .{});
+    //             return;
+    //         };
 
-        var layer_index: usize = self.init_options.file.layers.len;
-        while (layer_index > min_layer_index) {
-            layer_index -= 1;
-            var layer = self.init_options.file.layers.get(layer_index);
+    //         defer {
+    //             const texture: ?dvui.Texture = dvui.textureFromTarget(target_texture) catch null;
+    //             if (texture) |t| {
+    //                 dvui.textureDestroyLater(t);
+    //             }
+    //         }
 
-            if (!layer.visible) continue;
+    //         // This is the previous target, we will be setting this back
+    //         const previous_target = dvui.renderTarget(.{ .texture = target_texture, .offset = .{ .x = 0, .y = 0 } });
 
-            self.init_options.file.editor.flattened_layer.blit(layer.pixels(), .{
-                .x = 0,
-                .y = 0,
-                .w = layer.size().w,
-                .h = layer.size().h,
-            }, .{});
-        }
-    }
+    //         const clip_rect: dvui.Rect.Physical = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(self.init_options.file.width())), .h = @as(f32, @floatFromInt(self.init_options.file.height())) };
+    //         const prev_clip = dvui.clipGet();
+    //         dvui.clipSet(clip_rect);
+
+    //         // Set UVs, there are 5 vertexes, or 1 more than the number of triangles, and is at the center
+
+    //         triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
+    //         triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
+    //         triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
+    //         triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
+
+    //         var layer_index: usize = self.init_options.file.layers.len;
+    //         while (layer_index > min_layer_index) {
+    //             layer_index -= 1;
+    //             var layer = self.init_options.file.layers.get(layer_index);
+
+    //             if (!layer.visible) continue;
+
+    //             // self.init_options.file.editor.flattened_layer.blit(layer.pixels(), .{
+    //             //     .x = 0,
+    //             //     .y = 0,
+    //             //     .w = layer.size().w,
+    //             //     .h = layer.size().h,
+    //             // }, .{});
+
+    //             // Render the triangles to the target texture
+    //             dvui.renderTriangles(triangles, layer.source.getTexture() catch null) catch {
+    //                 std.log.err("Failed to render triangles", .{});
+    //             };
+    //         }
+
+    //         // Restore the previous clip
+    //         dvui.clipSet(prev_clip);
+    //         // Set the target back
+    //         _ = dvui.renderTarget(previous_target);
+
+    //         // Read the target texture and copy it to the selection layer
+    //         if (dvui.textureReadTarget(pixi.app.allocator, target_texture) catch null) |image_data| {
+    //             self.init_options.file.editor.flattened_layer.source.pixelsPMA.rgba = image_data;
+    //         } else {
+    //             std.log.err("Failed to read target", .{});
+    //         }
+    //     }
+    // }
 
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();

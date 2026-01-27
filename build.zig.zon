@@ -26,9 +26,18 @@
             .lazy = true,
         },
         .dvui = .{
-            //.path = "../dvui-dev",
-            .url = "git+https://github.com/foxnne/dvui-dev#1bc9c4e29c12779d067566f00e63817277a1dd1d",
-            .hash = "dvui-0.4.0-dev-AQFJmeVS2gBr_UZImna5jjqJewaW2LBD6fve0Lt9Lc70",
+            .path = "../dvui-dev",
+            //.url = "git+https://github.com/foxnne/dvui-dev#1bc9c4e29c12779d067566f00e63817277a1dd1d",
+            //.hash = "dvui-0.4.0-dev-AQFJmeVS2gBr_UZImna5jjqJewaW2LBD6fve0Lt9Lc70",
+        },
+        .assetpack = .{
+            .path = "../assetpack",
+            //.url = "git+https://github.com/silversquirl/assetpack#996cad7cb450314e59727c37601b153aaa050ac2",
+            //.hash = "assetpack-0.1.0-5DA2d09lAAAW6vBR2pYjiDyCGMzmbcz2hfdyUs6iqf1G",
+        },
+        .known_folders = .{
+            .url = "git+https://github.com/ziglibs/known-folders.git#83d39161eac2ed6f37ad3cb4d9dd518696ce90bb",
+            .hash = "known_folders-0.0.0-Fy-PJv3LAAABBRVoZWVrKZdyLoUfl5VRY5fqRRRdnF5L",
         },
     },
 }

@@ -19,6 +19,7 @@ scale: f32 = 1.0,
 prev_size: dvui.Size = .{},
 prev_scale: f32 = 0.0,
 bounding_box: ?dvui.Rect.Physical = null,
+triangles: ?dvui.Triangles = null,
 
 // This is a mess but i cant figure out why the first call to center on the first install doesn't work correctly
 first_center: bool = true,
@@ -77,12 +78,29 @@ pub fn rescale(self: *CanvasWidget) void {
 }
 
 pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: InitOptions, opts: dvui.Options) void {
+    if (self.triangles == null) {}
+
     self.id = init_opts.id;
     self.init_opts = init_opts;
 
     defer self.prev_size = self.init_opts.data_size;
 
     if (self.prev_size.h != self.init_opts.data_size.h or self.prev_size.w != self.init_opts.data_size.w or self.second_center or self.init_opts.center) {
+        self.triangles = dvui.Path.fillConvexTriangles(.{
+            .points = &[_]dvui.Point.Physical{
+                .{ .x = 0, .y = 0 },
+                .{ .x = init_opts.data_size.w, .y = 0 },
+                .{ .x = init_opts.data_size.w, .y = init_opts.data_size.h },
+                .{ .x = 0, .y = init_opts.data_size.h },
+            },
+        }, pixi.app.allocator, .{
+            .color = .white,
+            .fade = 0.0,
+        }) catch {
+            dvui.log.err("Failed to fill convex triangles", .{});
+            return;
+        };
+
         self.rescale();
         self.recenter();
         dvui.refresh(null, @src(), self.id);

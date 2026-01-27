@@ -39,25 +39,6 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
         const files = try getAllFiles(allocator, assets_root, true);
 
         if (files.len > 0) {
-            var paths = std.array_list.Managed(u8).init(allocator);
-            var paths_writer = paths.writer();
-
-            // Disclaimer
-            try paths_writer.writeAll("// This is a generated file, do not edit.\n");
-
-            try paths_writer.print("// Paths \n\n", .{});
-
-            // Top level assets declarations.
-            //try assets_writer.writeAll("const std = @import(\"std\");\n\n");
-
-            // Add root assets location as const.
-            try paths_writer.print("pub const root = \"{s}/\";\n\n", .{assets_root});
-
-            // Add palettes location as const.
-            try paths_writer.print("pub const palettes = \"{s}/{s}/\";\n\n", .{ assets_root, "palettes" });
-
-            // Add themes location as const.
-            try paths_writer.print("pub const themes = \"{s}/{s}/\";\n\n", .{ assets_root, "themes" });
 
             // Iterate all files
             for (files) |file| {
@@ -76,15 +57,6 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
 
                 const name_fixed = try allocator.alloc(u8, name.len);
                 _ = std.mem.replace(u8, name, "-", "_", name_fixed);
-
-                try paths_writer.print("pub const @\"{s}\" = \"{s}\";\n", .{ base, path_fixed });
-
-                // // Hex
-                // if (std.mem.eql(u8, ext, ".hex")) {
-                //     try paths_writer.print("pub const {s}{s} = struct {{\n", .{ name_fixed, "_hex" });
-                //     try paths_writer.print("  pub const path = \"{s}\";\n", .{path_fixed});
-                //     try paths_writer.print("}};\n\n", .{});
-                // }
 
                 // Atlases
                 if (std.mem.eql(u8, ext, ".atlas")) {
@@ -154,11 +126,6 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
                     }
                 }
             }
-
-            try std.fs.cwd().writeFile(.{
-                .sub_path = try std.fs.path.join(allocator, &[_][]const u8{ output_folder, "paths.zig" }),
-                .data = paths.items,
-            });
         } else {
             std.debug.print("No assets found!", .{});
         }

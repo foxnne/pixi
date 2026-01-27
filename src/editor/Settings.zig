@@ -144,8 +144,8 @@ theme: []const u8,
 //color_chip_radius: f32 = 12.0,
 
 /// Loads settings or if fails, returns default settings
-pub fn load(allocator: std.mem.Allocator) !Settings {
-    if (pixi.fs.read(allocator, "settings.json") catch null) |data| {
+pub fn load(allocator: std.mem.Allocator, path: []const u8) !Settings {
+    if (pixi.fs.read(allocator, path) catch null) |data| {
         defer allocator.free(data);
 
         const options = std.json.ParseOptions{
@@ -163,11 +163,11 @@ pub fn load(allocator: std.mem.Allocator) !Settings {
     };
 }
 
-pub fn save(settings: *Settings, allocator: std.mem.Allocator) !void {
+pub fn save(settings: *Settings, allocator: std.mem.Allocator, path: []const u8) !void {
     const str = try std.json.Stringify.valueAlloc(allocator, settings, .{});
     defer allocator.free(str);
 
-    var file = try std.fs.cwd().createFile("settings.json", .{});
+    var file = try std.fs.createFileAbsolute(path, .{});
     defer file.close();
 
     try file.writeAll(str);

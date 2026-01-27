@@ -30,7 +30,7 @@
         {
             "label": "Build and Run Project",
             "type": "shell",
-            "command": "zig build run",
+            "command": "zig build run -Daccesskit=static",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -42,7 +42,7 @@
         {
             "label": "Build and Run Project (release-fast)",
             "type": "shell",
-            "command": "zig build run -Doptimize=ReleaseFast",
+            "command": "zig build run -Doptimize=ReleaseFast -Daccesskit=static",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -54,7 +54,7 @@
         {
             "label": "Build and Run Project (release-small)",
             "type": "shell",
-            "command": "zig build run -Doptimize=ReleaseSmall",
+            "command": "zig build run -Doptimize=ReleaseSmall -Daccesskit=static",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -66,7 +66,7 @@
         {
             "label": "Build and Run Project (release-safe)",
             "type": "shell",
-            "command": "zig build run -Doptimize=ReleaseSafe",
+            "command": "zig build run -Doptimize=ReleaseSafe -Daccesskit=static",
             "group": {
                 "kind": "build",
                 "isDefault": true

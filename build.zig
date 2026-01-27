@@ -3,6 +3,8 @@ const builtin = @import("builtin");
 
 const zip = @import("src/deps/zip/build.zig");
 
+const dvui = @import("dvui");
+
 const content_dir = "assets/";
 
 const ProcessAssetsStep = @import("src/tools/process_assets.zig");
@@ -46,7 +48,9 @@ pub fn build(b: *std.Build) !void {
 
     const zip_pkg = zip.package(b, .{});
 
-    const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl3 });
+    const accesskit = b.option(dvui.AccesskitOptions, "accesskit", "Enable accesskit") orelse .off;
+
+    const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl3, .accesskit = accesskit });
 
     const zstbi_lib = b.addLibrary(.{
         .name = "zstbi",
@@ -102,12 +106,15 @@ pub fn build(b: *std.Build) !void {
         process_assets_step.dependOn(&assets.step);
         exe.step.dependOn(process_assets_step);
 
-        const install_content_step = b.addInstallDirectory(.{
-            .source_dir = .{ .cwd_relative = thisDir() ++ "/" ++ content_dir },
-            .install_dir = .{ .custom = "" },
-            .install_subdir = "bin/" ++ content_dir,
-        });
-        exe.step.dependOn(&install_content_step.step);
+        const assetpack = @import("assetpack");
+        const assets_module = assetpack.pack(b, b.path("assets"), .{});
+        exe.root_module.addImport("assets", assets_module);
+
+        const known_folders = b.dependency("known_folders", .{
+            .target = target,
+            .optimize = optimize,
+        }).module("known-folders");
+        exe.root_module.addImport("known-folders", known_folders);
 
         const installArtifact = b.addInstallArtifact(exe, .{});
         run_cmd.step.dependOn(&installArtifact.step);

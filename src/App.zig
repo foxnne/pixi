@@ -4,11 +4,12 @@ const zmath = @import("zmath");
 const dvui = @import("dvui");
 const objc = @import("objc");
 const win32 = @import("win32");
+const assets = @import("assets");
 
-const icon = @embedFile("assets/icon.png");
+const icon = assets.files.@"icon.png";
 
-const cozette_ttf = @embedFile("fonts/CozetteVector.ttf");
-const cozette_bold_ttf = @embedFile("fonts/CozetteVectorBold.ttf");
+const cozette_ttf = assets.files.fonts.@"CozetteVector.ttf";
+const cozette_bold_ttf = assets.files.fonts.@"CozetteVectorBold.ttf";
 
 const pixi = @import("pixi.zig");
 

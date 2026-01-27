@@ -246,9 +246,9 @@ pub fn appendProject(packer: *Packer) !void {
     }
 }
 
-pub fn recurseFiles(packer: *Packer, root_directory: [:0]const u8) !void {
+pub fn recurseFiles(packer: *Packer, root_directory: []const u8) !void {
     const recursor = struct {
-        fn search(p: *Packer, directory: [:0]const u8) !void {
+        fn search(p: *Packer, directory: []const u8) !void {
             var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
             defer dir.close();
 

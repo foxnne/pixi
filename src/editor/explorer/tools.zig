@@ -2,6 +2,7 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 const icons = @import("icons");
+const assets = @import("assets");
 
 const Tools = @This();
 
@@ -757,6 +758,31 @@ pub fn drawPalettes() !void {
         hbox.deinit();
 
         if (dropdown.dropped()) {
+            dvui.labelNoFmt(@src(), "Built-in", .{}, .{
+                .margin = .all(0),
+                .gravity_x = 0.5,
+            });
+            _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
+            var it = (try assets.root.dir("palettes")).iterate();
+            while (it.next()) |entry| {
+                switch (entry.data) {
+                    .file => |data| {
+                        const ext = std.fs.path.extension(entry.name);
+                        if (std.mem.eql(u8, ext, ".hex")) {
+                            if (dropdown.addChoiceLabel(entry.name)) {
+                                pixi.editor.colors.palette = pixi.Internal.Palette.loadFromBytes(pixi.app.allocator, entry.name, data) catch |err| {
+                                    dvui.log.err("Failed to load palette: {s}", .{@errorName(err)});
+                                    return error.FailedToLoadPalette;
+                                };
+                            }
+                        }
+                    },
+                    .dir => |_| {},
+                }
+            }
+
+            _ = dvui.separator(@src(), .{ .expand = .horizontal });
             searchPalettes(&dropdown) catch {
                 dvui.log.err("Failed to search palettes", .{});
             };
@@ -874,7 +900,7 @@ pub fn drawPalettes() !void {
 }
 
 fn searchPalettes(dropdown: *dvui.DropdownWidget) !void {
-    var dir_opt = std.fs.cwd().openDir(pixi.paths.palettes, .{ .access_sub_paths = false, .iterate = true }) catch null;
+    var dir_opt = std.fs.cwd().openDir(pixi.editor.palette_folder, .{ .access_sub_paths = false, .iterate = true }) catch null;
     if (dir_opt) |*dir| {
         defer dir.close();
         var iter = dir.iterate();
@@ -884,12 +910,12 @@ fn searchPalettes(dropdown: *dvui.DropdownWidget) !void {
                 if (std.mem.eql(u8, ext, ".hex")) {
                     const label = try std.fmt.allocPrint(dvui.currentWindow().arena(), "{s}", .{entry.name});
                     if (dropdown.addChoiceLabel(label)) {
-                        const abs_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ pixi.paths.palettes, entry.name });
+                        const abs_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ pixi.editor.palette_folder, entry.name });
 
                         if (pixi.editor.colors.palette) |*palette|
                             palette.deinit();
 
-                        pixi.editor.colors.palette = pixi.Internal.Palette.loadFromFile(abs_path) catch |err| {
+                        pixi.editor.colors.palette = pixi.Internal.Palette.loadFromFile(pixi.app.allocator, abs_path) catch |err| {
                             dvui.log.err("Failed to load palette: {s}", .{@errorName(err)});
                             return error.FailedToLoadPalette;
                         };

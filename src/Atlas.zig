@@ -20,9 +20,13 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
     const read = try fs.read(allocator, file);
     defer allocator.free(read);
 
+    return loadFromBytes(allocator, read);
+}
+
+pub fn loadFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !Atlas {
     const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
 
-    if (std.json.parseFromSlice(Atlas, allocator, read, options) catch null) |parsed| {
+    if (std.json.parseFromSlice(Atlas, allocator, bytes, options) catch null) |parsed| {
         const animations = try allocator.dupe(Animation, parsed.value.animations);
 
         for (animations) |*animation| {
@@ -33,7 +37,7 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
             .sprites = try allocator.dupe(Sprite, parsed.value.sprites),
             .animations = animations,
         };
-    } else if (std.json.parseFromSlice(OldAtlas, allocator, read, options) catch null) |parsed| {
+    } else if (std.json.parseFromSlice(OldAtlas, allocator, bytes, options) catch null) |parsed| {
         const animations = try allocator.alloc(Animation, parsed.value.animations.len);
         for (animations, parsed.value.animations) |*animation, old_animation| {
             animation.name = try allocator.dupe(u8, old_animation.name);
