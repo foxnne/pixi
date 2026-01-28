@@ -98,6 +98,10 @@ pub fn processSample(self: *FileWidget) void {
                     self.left_mouse_down = false;
                 }
 
+                if (me.action == .release) {
+                    dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
+                }
+
                 if (me.action == .press and me.button == .right) {
                     self.right_mouse_down = true;
                     e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
@@ -160,7 +164,6 @@ pub fn processSample(self: *FileWidget) void {
 }
 
 fn sample(self: *FileWidget, file: *pixi.Internal.File, point: dvui.Point, change_layer: bool, change_tool: bool) void {
-    defer dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
     self.sample_data_point = point;
     var color: [4]u8 = .{ 0, 0, 0, 0 };
 
@@ -2414,30 +2417,19 @@ pub fn drawSample(self: *FileWidget) void {
             dvui.log.err("Failed to render checkerboard", .{});
         };
 
-        var i: usize = file.layers.len;
-        while (i > if (file.editor.isolate_layer) file.selected_layer_index else 0) {
-            i -= 1;
-            if (!file.layers.items(.visible)[i]) continue;
-
-            var alpha: f32 = dvui.alpha(1.0);
-            if (file.peek_layer_index) |peek_layer_index| {
-                if (peek_layer_index != i) {
-                    alpha = dvui.alpha(0.2);
-                }
-            }
-
-            defer dvui.alphaSet(alpha);
-            const source = file.layers.items(.source)[i];
-            dvui.renderImage(source, rs, .{
-                .uv = uv_rect,
-                .corner_radius = .{
-                    .x = corner_radius.x * rs.s,
-                    .y = corner_radius.y * rs.s,
-                    .w = corner_radius.w * rs.s,
-                    .h = corner_radius.h * rs.s,
-                },
-            }) catch continue;
-        }
+        pixi.render.renderLayers(.{
+            .file = file,
+            .rs = rs,
+            .uv = uv_rect,
+            .corner_radius = .{
+                .x = corner_radius.x * rs.s,
+                .y = corner_radius.y * rs.s,
+                .w = corner_radius.w * rs.s,
+                .h = corner_radius.h * rs.s,
+            },
+        }) catch {
+            dvui.log.err("Failed to render layers", .{});
+        };
 
         // Draw a cross at the center of the rounded sample box
         const center_x = rs.r.x + rs.r.w / 2;
@@ -2477,11 +2469,10 @@ pub fn updateActiveLayerMask(self: *FileWidget) void {
 
 pub fn drawLayers(self: *FileWidget) void {
     var file = self.init_options.file;
-    var layer_index: usize = file.layers.len;
     var columns: usize = file.columns;
     var rows: usize = file.rows;
 
-    const layer_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width()), .h = @floatFromInt(file.height()) });
+    const layer_rect = self.init_options.file.editor.canvas.dataFromScreenRect(self.init_options.file.editor.canvas.rect);
     var resize_rect = layer_rect;
 
     if (self.resize_data_point) |resize_data_point| {
@@ -2585,9 +2576,6 @@ pub fn drawLayers(self: *FileWidget) void {
         }
     }
 
-    const image_rect = layer_rect;
-    const image_rect_physical = self.init_options.file.editor.canvas.screenFromDataRect(image_rect);
-
     var min_layer_index: usize = 0;
     if (file.editor.isolate_layer) {
         if (file.peek_layer_index) |peek_layer_index| {
@@ -2597,60 +2585,21 @@ pub fn drawLayers(self: *FileWidget) void {
         }
     }
 
-    while (layer_index > min_layer_index) {
-        layer_index -= 1;
+    self.init_options.file.editor.canvas.bounding_box = file.editor.canvas.rect;
 
-        const clip = dvui.clip(
-            image_rect_physical,
-        );
-        defer dvui.clipSet(clip);
-
-        const visible = file.layers.items(.visible)[layer_index];
-
-        if (!visible) continue;
-
-        var alpha: f32 = dvui.alpha(1.0);
-        if (file.peek_layer_index) |peek_layer_index| {
-            if (peek_layer_index != layer_index) {
-                alpha = dvui.alpha(0.2);
-            }
-        }
-        defer dvui.alphaSet(alpha);
-
-        const image = dvui.image(@src(), .{ .source = file.layers.items(.source)[layer_index] }, .{
-            .rect = image_rect,
-            .border = dvui.Rect.all(0),
-            .id_extra = layer_index,
-            .background = false,
-        });
-
-        const boxRect = image.rectScale().r;
-        if (self.init_options.file.editor.canvas.bounding_box) |b| {
-            self.init_options.file.editor.canvas.bounding_box = b.unionWith(boxRect);
-        } else {
-            self.init_options.file.editor.canvas.bounding_box = boxRect;
-        }
+    // Render all layers and update our bounding box;
+    {
+        pixi.render.renderLayers(.{
+            .file = file,
+            .rs = .{
+                .r = self.init_options.file.editor.canvas.rect,
+                .s = self.init_options.file.editor.canvas.scale,
+            },
+        }) catch {
+            std.log.err("Failed to render file image", .{});
+            return;
+        };
     }
-
-    // Draw the selection layer
-    _ = dvui.image(@src(), .{
-        .source = file.editor.selection_layer.source,
-    }, .{
-        .rect = image_rect,
-        .border = dvui.Rect.all(0),
-        .id_extra = file.layers.len + 1,
-        .background = false,
-    });
-
-    // Draw the temporary layer
-    _ = dvui.image(@src(), .{
-        .source = file.editor.temporary_layer.source,
-    }, .{
-        .rect = image_rect,
-        .border = dvui.Rect.all(0),
-        .id_extra = file.layers.len + 2,
-        .background = false,
-    });
 
     if (self.resize_data_point) |resize_data_point| {
         if (resize_data_point.x > layer_rect.x + layer_rect.w) {

@@ -488,7 +488,6 @@ pub const SpriteInitOptions = struct {
     alpha_source: ?dvui.ImageSource = null,
     sprite: pixi.Sprite,
     scale: f32 = 1.0,
-    //vertex_offsets: [4]dvui.Point.Physical = .{ .{ .x = 0, .y = 0 }, .{ .x = 0, .y = 0 }, .{ .x = 0, .y = 0 }, .{ .x = 0, .y = 0 } },
     depth: f32 = 0.0, // -1.0 is front, 1.0 is back
     reflection: bool = false,
     overlap: f32 = 0.0,
@@ -599,9 +598,9 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
                 while (index > 0) {
                     index -= 1;
 
-                    const alpha: f32 = if (file.peek_layer_index != null and file.peek_layer_index != index) 0.2 else 1.0;
+                    const color_mod: dvui.Color = if (file.peek_layer_index != null and file.peek_layer_index != index) dvui.Color.gray else dvui.Color.white;
 
-                    const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true, .color_mod = dvui.Color.white.opacity(alpha) }) catch unreachable;
+                    const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true, .color_mod = color_mod }) catch unreachable;
 
                     if (file.layers.items(.visible)[index]) {
                         dvui.renderTriangles(reflection_triangles_layers, file.layers.items(.source)[index].getTexture() catch null) catch {
@@ -630,34 +629,17 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
     }
 
     if (init_opts.file) |file| {
-        var min_layer_index: usize = 0;
-
-        if (file.editor.isolate_layer) {
-            if (file.peek_layer_index) |peek_layer_index| {
-                min_layer_index = peek_layer_index;
-            } else if (!pixi.editor.explorer.tools.layersHovered()) {
-                min_layer_index = file.selected_layer_index;
-            }
-        }
-
-        var layer_index: usize = file.layers.len;
-        while (layer_index > min_layer_index) {
-            layer_index -= 1;
-
-            const alpha: f32 = if (file.peek_layer_index != null and file.peek_layer_index != layer_index) 0.2 else 1.0;
-
-            const triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
-                .subdivisions = 8,
-                .uv = uv,
-                .color_mod = dvui.Color.white.opacity(alpha),
-            }) catch unreachable;
-
-            if (file.layers.items(.visible)[layer_index]) {
-                dvui.renderTriangles(triangles, file.layers.items(.source)[layer_index].getTexture() catch null) catch {
-                    dvui.log.err("Failed to render triangles", .{});
-                };
-            }
-        }
+        pixi.render.renderLayers(.{
+            .file = file,
+            .rs = .{
+                .r = wd.contentRectScale().r,
+                .s = wd.contentRectScale().s,
+            },
+            .uv = uv,
+            .corner_radius = .{ .x = 0, .y = 0, .w = 0, .h = 0 },
+        }) catch {
+            dvui.log.err("Failed to render layers", .{});
+        };
     } else {
         const triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
             .subdivisions = 8,
