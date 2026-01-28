@@ -63,7 +63,6 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
         if (!visible) continue;
 
         var tris = triangles;
-
         if (init_opts.file.peek_layer_index) |peek_layer_index| {
             if (peek_layer_index != layer_index) {
                 tris = trans_triangles;
@@ -81,7 +80,7 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
                 return;
             }
 
-            try dvui.renderTriangles(if (init_opts.file.peek_layer_index != null and init_opts.file.peek_layer_index != layer_index) trans_triangles else triangles, tex);
+            try dvui.renderTriangles(tris, tex);
         }
     }
 }

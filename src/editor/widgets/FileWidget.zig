@@ -90,19 +90,18 @@ pub fn processSample(self: *FileWidget) void {
                 const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button.pointer()) {
+                    dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                     self.left_mouse_down = true;
                     if (dvui.dragging(me.p, "sample_drag")) |_| {
                         self.sample(file, current_point, true, false);
                     }
                 } else if (me.action == .release and me.button.pointer()) {
+                    dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                     self.left_mouse_down = false;
                 }
 
-                if (me.action == .release) {
-                    dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
-                }
-
                 if (me.action == .press and me.button == .right) {
+                    dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                     self.right_mouse_down = true;
                     e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                     dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
@@ -115,6 +114,7 @@ pub fn processSample(self: *FileWidget) void {
                     file.editor.temporary_layer.invalidate();
                     file.editor.temporary_layer.dirty = false;
                 } else if (me.action == .release and me.button == .right) {
+                    dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                     self.right_mouse_down = false;
                     self.sample(file, current_point, self.sample_key_down or self.left_mouse_down, true);
                     if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
