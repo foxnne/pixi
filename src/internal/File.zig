@@ -50,7 +50,6 @@ pub const EditorData = struct {
     canvas: pixi.dvui.CanvasWidget = .{},
     layers_scroll_info: dvui.ScrollInfo = .{},
     sprites_scroll_info: dvui.ScrollInfo = .{},
-    sprites_hovered_index: usize = 0, // Last known hovered sprite index
     animations_scroll_info: dvui.ScrollInfo = .{},
     animations_scroll_to_index: ?usize = null,
     transform: ?Editor.Transform = null,

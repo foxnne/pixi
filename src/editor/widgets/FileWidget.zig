@@ -696,14 +696,14 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         defer path.deinit();
 
         var draw_transparency: bool = false;
-        if (!self.hovered()) {
+        draw_transparency = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
+
+        if (!draw_transparency and !self.init_options.file.editor.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
             if (self.init_options.file.selected_animation_index) |ai| {
                 if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
                     draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index;
                 }
             }
-        } else {
-            draw_transparency = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
         }
 
         if (shadow_only) { // Draw drop shadow
@@ -2531,7 +2531,25 @@ pub fn drawLayers(self: *FileWidget) void {
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
     if (self.resize_data_point == null) {
-        if (!self.hovered()) {
+        if (file.spriteIndex(mouse_data_point)) |sprite_index| {
+            const image_rect = file.spriteRect(sprite_index);
+
+            const image_rect_scale: dvui.RectScale = .{
+                .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
+                .s = self.init_options.file.editor.canvas.scale,
+            };
+
+            if (self.init_options.file.editor.canvas.scale < 2.0) {
+                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+            } else {
+                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+                dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
+                    .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
+                }) catch {
+                    std.log.err("Failed to render checkerboard", .{});
+                };
+            }
+        } else {
             if (self.init_options.file.selected_animation_index) |animation_index| {
                 const animation = file.animations.get(animation_index);
 
@@ -2555,24 +2573,6 @@ pub fn drawLayers(self: *FileWidget) void {
                     }
                 }
             }
-        } else if (file.spriteIndex(mouse_data_point)) |sprite_index| {
-            const image_rect = file.spriteRect(sprite_index);
-
-            const image_rect_scale: dvui.RectScale = .{
-                .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
-                .s = self.init_options.file.editor.canvas.scale,
-            };
-
-            if (self.init_options.file.editor.canvas.scale < 2.0) {
-                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
-            } else {
-                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
-                dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                    .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
-                }) catch {
-                    std.log.err("Failed to render checkerboard", .{});
-                };
-            }
         }
     }
 
@@ -2590,6 +2590,7 @@ pub fn drawLayers(self: *FileWidget) void {
         };
     }
 
+    // Draw the resize fill area if a resize is happening
     if (self.resize_data_point) |resize_data_point| {
         if (resize_data_point.x > layer_rect.x + layer_rect.w) {
             const new_tiles_rect = dvui.Rect{
@@ -2613,30 +2614,33 @@ pub fn drawLayers(self: *FileWidget) void {
         }
     }
 
-    for (1..columns) |i| {
-        dvui.Path.stroke(.{ .points = &.{
-            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = resize_rect.h }),
-        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
-    }
+    // Draw the grid lines for the canvas
+    {
+        for (1..columns) |i| {
+            dvui.Path.stroke(.{ .points = &.{
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = resize_rect.h }),
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+        }
 
-    for (1..rows) |i| {
-        dvui.Path.stroke(.{ .points = &.{
-            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
-    }
+        for (1..rows) |i| {
+            dvui.Path.stroke(.{ .points = &.{
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+        }
 
-    if (self.resize_data_point) |resize_data_point| {
-        dvui.Path.stroke(.{ .points = &.{
-            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
-            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = resize_rect.h }),
-        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+        if (self.resize_data_point) |resize_data_point| {
+            dvui.Path.stroke(.{ .points = &.{
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = resize_rect.h }),
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
 
-        dvui.Path.stroke(.{ .points = &.{
-            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
-            self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = resize_data_point.y }),
-        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            dvui.Path.stroke(.{ .points = &.{
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = resize_data_point.y }),
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+        }
     }
 
     // Draw the selection box for the selected sprites
@@ -2887,16 +2891,6 @@ pub fn processEvents(self: *FileWidget) void {
     };
 
     if (self.active() or self.hovered()) {
-        for (dvui.events()) |*e| {
-            if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
-                continue;
-            }
-
-            if (e.evt == .mouse and e.evt.mouse.action == .position) {
-                self.init_options.file.editor.sprites_hovered_index = self.init_options.file.spriteIndex(self.init_options.file.editor.canvas.dataFromScreenPoint(e.evt.mouse.p)) orelse 0;
-            }
-        }
-
         defer self.init_options.file.editor.temporary_layer.invalidate();
         // If we are processing, we need to always ensure the temporary layer is cleared
         @memset(self.init_options.file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
@@ -2923,78 +2917,6 @@ pub fn processEvents(self: *FileWidget) void {
         self.processTransform();
     }
 
-    // if (self.active()) {
-    //     var min_layer_index: usize = 0;
-    //     if (self.init_options.file.editor.isolate_layer) {
-    //         if (self.init_options.file.peek_layer_index) |peek_layer_index| {
-    //             min_layer_index = peek_layer_index;
-    //         } else if (!pixi.editor.explorer.tools.layersHovered()) {
-    //             min_layer_index = self.init_options.file.selected_layer_index;
-    //         }
-    //     }
-
-    //     if (self.init_options.file.editor.canvas.triangles) |triangles| {
-    //         // Here pass in the data rect, since we will be rendering directly to the low-res texture
-    //         const target_texture = dvui.textureCreateTarget(self.init_options.file.width(), self.init_options.file.height(), .nearest) catch {
-    //             std.log.err("Failed to create target texture", .{});
-    //             return;
-    //         };
-
-    //         defer {
-    //             const texture: ?dvui.Texture = dvui.textureFromTarget(target_texture) catch null;
-    //             if (texture) |t| {
-    //                 dvui.textureDestroyLater(t);
-    //             }
-    //         }
-
-    //         // This is the previous target, we will be setting this back
-    //         const previous_target = dvui.renderTarget(.{ .texture = target_texture, .offset = .{ .x = 0, .y = 0 } });
-
-    //         const clip_rect: dvui.Rect.Physical = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(self.init_options.file.width())), .h = @as(f32, @floatFromInt(self.init_options.file.height())) };
-    //         const prev_clip = dvui.clipGet();
-    //         dvui.clipSet(clip_rect);
-
-    //         // Set UVs, there are 5 vertexes, or 1 more than the number of triangles, and is at the center
-
-    //         triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
-    //         triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
-    //         triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
-    //         triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
-
-    //         var layer_index: usize = self.init_options.file.layers.len;
-    //         while (layer_index > min_layer_index) {
-    //             layer_index -= 1;
-    //             var layer = self.init_options.file.layers.get(layer_index);
-
-    //             if (!layer.visible) continue;
-
-    //             // self.init_options.file.editor.flattened_layer.blit(layer.pixels(), .{
-    //             //     .x = 0,
-    //             //     .y = 0,
-    //             //     .w = layer.size().w,
-    //             //     .h = layer.size().h,
-    //             // }, .{});
-
-    //             // Render the triangles to the target texture
-    //             dvui.renderTriangles(triangles, layer.source.getTexture() catch null) catch {
-    //                 std.log.err("Failed to render triangles", .{});
-    //             };
-    //         }
-
-    //         // Restore the previous clip
-    //         dvui.clipSet(prev_clip);
-    //         // Set the target back
-    //         _ = dvui.renderTarget(previous_target);
-
-    //         // Read the target texture and copy it to the selection layer
-    //         if (dvui.textureReadTarget(pixi.app.allocator, target_texture) catch null) |image_data| {
-    //             self.init_options.file.editor.flattened_layer.source.pixelsPMA.rgba = image_data;
-    //         } else {
-    //             std.log.err("Failed to read target", .{});
-    //         }
-    //     }
-    // }
-
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
 
@@ -3013,12 +2935,8 @@ pub fn processEvents(self: *FileWidget) void {
     pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .left, .{ .opacity = 0.15 });
     pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .right, .{});
 
-    // Only process draw cursor on the hovered widget
-    //if (self.hovered() != null) {
     self.drawCursor();
     self.drawSample();
-    //}
-
     self.drawTransform();
 
     // Then process the scroll and zoom events last
@@ -3032,7 +2950,15 @@ pub fn deinit(self: *FileWidget) void {
 }
 
 pub fn hovered(self: *FileWidget) bool {
-    return self.init_options.file.editor.canvas.hovered;
+    for (dvui.events()) |*e| {
+        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
+            continue;
+        }
+        if (e.evt == .mouse and e.evt.mouse.action == .position) {
+            return self.init_options.file.editor.canvas.rect.contains(e.evt.mouse.p);
+        }
+    }
+    return false;
 }
 
 test {

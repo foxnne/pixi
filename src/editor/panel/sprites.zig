@@ -47,8 +47,10 @@ pub fn draw(self: *Sprites) !void {
                 }
             }
         } else {
-            src_rect = file.spriteRect(file.editor.sprites_hovered_index);
-            index = file.editor.sprites_hovered_index;
+            if (file.spriteIndex(file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt))) |sprite_index| {
+                src_rect = file.spriteRect(sprite_index);
+                index = sprite_index;
+            }
         }
 
         const scale = blk: {

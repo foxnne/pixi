@@ -10,6 +10,9 @@ const RenderFileOptions = struct {
     corner_radius: dvui.Rect = .all(0),
 };
 
+/// Renders all visible layers of a file if the file is not isolated
+/// Will peek layers if the peek layer index is set, and draw other layers as dimmed
+/// Pass a valid uv if you want to draw a specific sprite of the file
 pub fn renderLayers(init_opts: RenderFileOptions) !void {
     const cw = dvui.currentWindow();
     var content_rs = init_opts.rs;
@@ -42,15 +45,15 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
     triangles.uvFromRectuv(content_rs.r, init_opts.uv);
     triangles.rotate(content_rs.r.center(), 0.0);
 
-    var trans_triangles = try triangles.dupe(cw.lifo());
-    defer trans_triangles.deinit(cw.lifo());
-    trans_triangles.color(.gray);
+    var dimmed_triangles = try triangles.dupe(cw.lifo());
+    defer dimmed_triangles.deinit(cw.lifo());
+    dimmed_triangles.color(.gray);
 
     defer {
         dvui.renderTriangles(triangles, init_opts.file.editor.selection_layer.source.getTexture() catch null) catch {
             dvui.log.err("Failed to render selection layer", .{});
         };
-        dvui.renderTriangles(trans_triangles, init_opts.file.editor.temporary_layer.source.getTexture() catch null) catch {
+        dvui.renderTriangles(triangles, init_opts.file.editor.temporary_layer.source.getTexture() catch null) catch {
             dvui.log.err("Failed to render temporary layer", .{});
         };
     }
@@ -65,7 +68,7 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
         var tris = triangles;
         if (init_opts.file.peek_layer_index) |peek_layer_index| {
             if (peek_layer_index != layer_index) {
-                tris = trans_triangles;
+                tris = dimmed_triangles;
             }
         }
 
