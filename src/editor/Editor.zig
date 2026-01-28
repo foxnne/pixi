@@ -196,7 +196,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                         const min_fps = pixi.editor.settings.min_animation_fps;
                         const fps = @max(min_fps, animation.fps);
                         const millis_per_frame = @as(i32, @intFromFloat(1_000 / fps));
-                        if (dvui.timerDoneOrNone(base_box.data().id)) {
+                        if (dvui.timerDoneOrNone(base_box.data().id) or if (dvui.timerGet(base_box.data().id)) |end_time| end_time > millis_per_frame * 1000 else false) {
                             const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
                             const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));
                             const wait = 1000 * (millis_per_frame - left);

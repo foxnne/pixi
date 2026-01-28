@@ -98,6 +98,16 @@ pub fn build(b: *std.Build) !void {
         //.use_llvm = true,
     });
 
+    const assetpack = @import("assetpack");
+    const assets_module = assetpack.pack(b, b.path("assets"), .{});
+    exe.root_module.addImport("assets", assets_module);
+
+    const known_folders = b.dependency("known_folders", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("known-folders");
+    exe.root_module.addImport("known-folders", known_folders);
+
     if (no_emit) {
         b.getInstallStep().dependOn(&exe.step);
     } else {
@@ -117,16 +127,6 @@ pub fn build(b: *std.Build) !void {
         var process_assets_step = b.step("process-assets", "generates struct for all assets");
         process_assets_step.dependOn(&assets.step);
         exe.step.dependOn(process_assets_step);
-
-        const assetpack = @import("assetpack");
-        const assets_module = assetpack.pack(b, b.path("assets"), .{});
-        exe.root_module.addImport("assets", assets_module);
-
-        const known_folders = b.dependency("known_folders", .{
-            .target = target,
-            .optimize = optimize,
-        }).module("known-folders");
-        exe.root_module.addImport("known-folders", known_folders);
 
         const installArtifact = b.addInstallArtifact(exe, .{});
         run_cmd.step.dependOn(&installArtifact.step);
