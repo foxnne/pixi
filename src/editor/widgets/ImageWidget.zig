@@ -308,13 +308,11 @@ pub fn drawImage(self: *ImageWidget) void {
     });
     shadow_box.deinit();
 
-    const image = dvui.image(@src(), .{ .source = self.init_options.source }, .{
+    _ = dvui.image(@src(), .{ .source = self.init_options.source }, .{
         .rect = .{ .x = 0, .y = 0, .w = size.w, .h = size.h },
         .border = dvui.Rect.all(0),
         .background = false,
     });
-
-    self.init_options.canvas.bounding_box = image.rectScale().r;
 
     // Outline the image with a rectangle
     dvui.Path.stroke(.{ .points = &.{

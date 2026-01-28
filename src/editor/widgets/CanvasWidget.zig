@@ -18,7 +18,6 @@ origin: dvui.Point = .{},
 scale: f32 = 1.0,
 prev_size: dvui.Size = .{},
 prev_scale: f32 = 0.0,
-bounding_box: ?dvui.Rect.Physical = null,
 
 // This is a mess but i cant figure out why the first call to center on the first install doesn't work correctly
 first_center: bool = true,
@@ -278,11 +277,8 @@ pub fn processEvents(self: *CanvasWidget) void {
         // add current viewport plus padding
         const pad = 10;
         var bbox = self.scroll_info.viewport.outsetAll(pad);
-        if (self.bounding_box) |bb| {
-            // convert bb from screen space to viewport space
-            const scrollbbox = self.viewportFromScreenRect(bb);
-            bbox = bbox.unionWith(scrollbbox);
-        }
+        const scrollbbox = self.viewportFromScreenRect(self.rect);
+        bbox = bbox.unionWith(scrollbbox);
 
         // adjust top if needed
         if (bbox.y != 0) {

@@ -2576,17 +2576,6 @@ pub fn drawLayers(self: *FileWidget) void {
         }
     }
 
-    var min_layer_index: usize = 0;
-    if (file.editor.isolate_layer) {
-        if (file.peek_layer_index) |peek_layer_index| {
-            min_layer_index = peek_layer_index;
-        } else if (!pixi.editor.explorer.tools.layersHovered()) {
-            min_layer_index = file.selected_layer_index;
-        }
-    }
-
-    self.init_options.file.editor.canvas.bounding_box = file.editor.canvas.rect;
-
     // Render all layers and update our bounding box;
     {
         pixi.render.renderLayers(.{
