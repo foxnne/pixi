@@ -2,8 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const zmath = @import("zmath");
 const dvui = @import("dvui");
-const objc = @import("objc");
-const win32 = @import("win32");
+
 const assets = @import("assets");
 
 const icon = assets.files.@"icon.png";
@@ -45,44 +44,6 @@ pub const panic = dvui.App.panic;
 pub const std_options: std.Options = .{
     .logFn = dvui.App.logFn,
 };
-
-pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
-    if (builtin.os.tag == .macos) {
-        const native_window: ?*objc.app_kit.Window = @ptrCast(dvui.backend.c.SDL_GetPointerProperty(
-            dvui.backend.c.SDL_GetWindowProperties(win.backend.impl.window),
-            dvui.backend.c.SDL_PROP_WINDOW_COCOA_WINDOW_POINTER,
-            null,
-        ));
-
-        if (native_window) |window| {
-            window.setTitlebarAppearsTransparent(true);
-            const new_color = objc.app_kit.Color.colorWithRed_green_blue_alpha(
-                @as(f32, @floatFromInt(color.r)) / 255.0,
-                @as(f32, @floatFromInt(color.g)) / 255.0,
-                @as(f32, @floatFromInt(color.b)) / 255.0,
-                @as(f32, @floatFromInt(color.a)) / 255.0,
-            );
-            window.setBackgroundColor(new_color);
-        }
-    } else if (builtin.os.tag == .windows) {
-        const colorref = @as(u32, @intCast(color.r)) |
-            (@as(u32, @intCast(color.g)) << 8) |
-            (@as(u32, @intCast(color.b)) << 16);
-
-        // Set both caption color and border color
-        _ = win32.graphics.dwm.DwmSetWindowAttribute(@ptrCast(dvui.backend.c.SDL_GetPointerProperty(
-            dvui.backend.c.SDL_GetWindowProperties(win.backend.impl.window),
-            dvui.backend.c.SDL_PROP_WINDOW_WIN32_HWND_POINTER,
-            null,
-        )), win32.graphics.dwm.DWMWA_CAPTION_COLOR, &colorref, @sizeOf(u32));
-
-        _ = win32.graphics.dwm.DwmSetWindowAttribute(@ptrCast(dvui.backend.c.SDL_GetPointerProperty(
-            dvui.backend.c.SDL_GetWindowProperties(win.backend.impl.window),
-            dvui.backend.c.SDL_PROP_WINDOW_WIN32_HWND_POINTER,
-            null,
-        )), win32.graphics.dwm.DWMWA_BORDER_COLOR, &colorref, @sizeOf(u32));
-    }
-}
 
 // Runs before the first frame, after backend and dvui.Window.init()
 pub fn AppInit(win: *dvui.Window) !void {
@@ -143,8 +104,7 @@ pub fn AppInit(win: *dvui.Window) !void {
         .text_press = theme.window.fill,
     };
 
-    //setTitlebarColor(win, .{ 0.1647, 0.17254, 0.21176, 1.0 });
-    setTitlebarColor(win, theme.control.fill.?);
+    pixi.backend.setTitlebarColor(win, theme.control.fill.?);
 
     // theme.content
     theme.fill = theme.window.fill.?;

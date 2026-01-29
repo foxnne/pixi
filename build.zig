@@ -138,6 +138,8 @@ pub fn build(b: *std.Build) !void {
     exe.root_module.addImport("msf_gif", msf_gif_module);
     exe.root_module.addImport("zip", zip_pkg.module);
     exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl3"));
+    // Add backend module so we can use it directly
+    exe.root_module.addImport("backend", dvui_dep.module("sdl3"));
 
     if (b.lazyDependency("icons", .{ .target = target, .optimize = optimize })) |dep| {
         exe.root_module.addImport("icons", dep.module("icons"));

@@ -393,7 +393,7 @@ pub fn setTitlebarColor(editor: *Editor) void {
 
     if (!std.mem.eql(u8, &editor.last_titlebar_color.toRGBA(), &color.toRGBA())) {
         editor.last_titlebar_color = color;
-        App.setTitlebarColor(dvui.currentWindow(), color);
+        pixi.backend.setTitlebarColor(dvui.currentWindow(), color);
     }
 }
 

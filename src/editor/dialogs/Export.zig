@@ -3,6 +3,8 @@ const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 const zigimg = @import("zigimg");
 const msf_gif = @import("msf_gif");
+const sdl3 = @import("backend").c;
+const zstbi = @import("zstbi");
 
 pub var mode: enum(usize) {
     single,
@@ -158,127 +160,173 @@ pub fn allDialog(_: dvui.Id) anyerror!bool {
 }
 
 /// Returns a physical rect that the dialog should animate into after closing, or null if the dialog should be removed without animation
-pub fn callAfter(_: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
+pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
     switch (response) {
         .ok => {
-            if (mode == .animation) {
-                if (dvui.native_dialogs.Native.save(
-                    dvui.currentWindow().arena(),
-                    .{ .title = "Export Animation", .path = "untitled.gif" },
-                ) catch null) |path| {
-                    if (pixi.editor.activeFile()) |file| {
-                        if (file.animations.len > 0) {
-                            if (file.selected_animation_index) |animation_index| {
-                                const anim: pixi.Internal.Animation = file.animations.get(animation_index);
+            switch (mode) {
+                .animation => {
+                    const default = blk: {
+                        const file = pixi.editor.activeFile() orelse {
+                            break :blk "animation.gif";
+                        };
 
-                                var export_width = file.column_width;
-                                var export_height = file.row_height;
+                        const default_filename: [:0]const u8 = std.fmt.allocPrintSentinel(pixi.app.allocator, "{s}.gif", .{
+                            if (file.selected_animation_index) |animation_index| file.animations.items(.name)[animation_index] else "animation",
+                        }, 0) catch {
+                            dvui.log.err("Failed to allocate filename", .{});
+                            return;
+                        };
 
-                                if (scale != 1.0) {
-                                    export_width = @intFromFloat(@as(f32, @floatFromInt(file.column_width)) * scale);
-                                    export_height = @intFromFloat(@as(f32, @floatFromInt(file.row_height)) * scale);
-                                }
+                        break :blk default_filename;
+                    };
 
-                                var handle: msf_gif.MSFGifState = undefined;
-                                _ = msf_gif.begin(&handle, export_width, export_height);
-
-                                msf_gif.msf_gif_alpha_threshold = 10;
-
-                                for (anim.frames) |sprite_index| {
-                                    const sprite_rect = file.spriteRect(sprite_index);
-                                    const layer = file.layers.get(0);
-
-                                    const pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), sprite_rect) orelse continue;
-
-                                    if (scale != 1.0) {
-                                        const triangles = dvui.Path.fillConvexTriangles(.{
-                                            .points = &[_]dvui.Point.Physical{
-                                                .{ .x = 0, .y = 0 },
-                                                .{ .x = @as(f32, @floatFromInt(file.column_width)) * scale, .y = 0 },
-                                                .{ .x = @as(f32, @floatFromInt(file.column_width)) * scale, .y = @as(f32, @floatFromInt(file.row_height)) * scale },
-                                                .{ .x = 0, .y = @as(f32, @floatFromInt(file.row_height)) * scale },
-                                            },
-                                        }, dvui.currentWindow().arena(), .{
-                                            .color = .white,
-                                            .fade = 0.0,
-                                        }) catch {
-                                            dvui.log.err("Failed to fill convex triangles", .{});
-                                            continue;
-                                        };
-
-                                        // Here pass in the data rect, since we will be rendering directly to the low-res texture
-                                        const target_texture = dvui.textureCreateTarget(export_width, export_height, .nearest) catch {
-                                            std.log.err("Failed to create target texture", .{});
-                                            return;
-                                        };
-
-                                        defer {
-                                            const texture: ?dvui.Texture = dvui.textureFromTarget(target_texture) catch null;
-                                            if (texture) |t| {
-                                                dvui.textureDestroyLater(t);
-                                            }
-                                        }
-
-                                        // This is the previous target, we will be setting this back
-                                        const previous_target = dvui.renderTarget(.{ .texture = target_texture, .offset = .{ .x = 0, .y = 0 } });
-
-                                        // Make sure we clip to the image rect, if we don't  and the texture overlaps the canvas,
-                                        // the rendering will be clipped incorrectly
-                                        // Use clipSet instead of clip, clip unions with current clip
-                                        const clip_rect: dvui.Rect.Physical = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(export_width)), .h = @as(f32, @floatFromInt(export_height)) };
-                                        const prev_clip = dvui.clipGet();
-                                        dvui.clipSet(clip_rect);
-
-                                        // Set UVs, there are 5 vertexes, or 1 more than the number of triangles, and is at the center
-
-                                        triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
-                                        triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
-                                        triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
-                                        triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
-
-                                        const new_texture_source = pixi.image.fromPixelsPMA(@as([*]dvui.Color.PMA, @ptrCast(pixels.ptr))[0..@intCast(pixels.len)], file.column_width, file.row_height, .ptr) catch {
-                                            std.log.err("Failed to create new texture", .{});
-                                            return;
-                                        };
-
-                                        // Render the triangles to the target texture
-                                        dvui.renderTriangles(triangles, new_texture_source.getTexture() catch null) catch {
-                                            std.log.err("Failed to render triangles", .{});
-                                        };
-
-                                        // Restore the previous clip
-                                        dvui.clipSet(prev_clip);
-                                        // Set the target back
-                                        _ = dvui.renderTarget(previous_target);
-
-                                        // Read the target texture and copy it to the selection layer
-                                        if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
-                                            _ = msf_gif.frame(&handle, @ptrCast(image_data.ptr), @intFromFloat(anim.fps / 100));
-                                        } else {
-                                            std.log.err("Failed to read target", .{});
-                                        }
-                                    } else {
-                                        _ = msf_gif.frame(&handle, @ptrCast(pixels.ptr), @intFromFloat(anim.fps / 100));
-                                    }
-                                }
-
-                                const result = msf_gif.end(&handle);
-                                defer msf_gif.free(result);
-
-                                // // Now write to file using the new Writer interface
-                                var output_file = try std.fs.cwd().createFile(path, .{});
-                                defer output_file.close();
-
-                                if (result.data) |data| {
-                                    try output_file.writeAll(data[0..result.dataSize]);
-                                }
-                            }
-                        }
+                    if (dvui.dialogNativeFileSave(pixi.app.allocator, .{ .title = "Save Animation", .path = default }) catch null) |path| {
+                        createAnimationGif(path) catch {
+                            dvui.log.err("Failed to save animation", .{});
+                            return;
+                        };
                     }
-                }
+                },
+                else => {},
             }
         },
         .cancel => {},
         else => {},
     }
+
+    // We always want to remove the dialog, this will likely be hidden behind the save file dialog
+    dvui.dialogRemove(id);
+}
+
+// This is for use with the SDL dialogs, but currently the SDL dialogs dont support sending the default path
+// on macOS, so we are going to use the native dialogs instead.
+pub fn saveAnimationCallback(paths: ?[][:0]const u8) void {
+    if (paths) |paths_| {
+        for (paths_) |path| {
+            createAnimationGif(path);
+        }
+    }
+}
+
+pub fn createAnimationGif(path: []const u8) anyerror!void {
+    const ext = std.fs.path.extension(path);
+    const is_gif = std.mem.eql(u8, ext, ".gif");
+
+    if (!is_gif) {
+        dvui.log.err("Export: File must end with .gif extension, got {s}", .{ext});
+        return error.InvalidExtension;
+    }
+
+    var file = pixi.editor.activeFile() orelse {
+        dvui.log.err("Export: No active file", .{});
+        return error.NoActiveFile;
+    };
+
+    if (file.animations.len == 0) {
+        dvui.log.err("Export: No animations in file", .{});
+        return error.NoAnimations;
+    }
+
+    if (file.selected_animation_index) |animation_index| {
+        const anim: pixi.Internal.Animation = file.animations.get(animation_index);
+
+        var export_width = file.column_width;
+        var export_height = file.row_height;
+
+        if (scale != 1.0) {
+            export_width = @intFromFloat(@as(f32, @floatFromInt(file.column_width)) * scale);
+            export_height = @intFromFloat(@as(f32, @floatFromInt(file.row_height)) * scale);
+        }
+
+        var handle: msf_gif.MSFGifState = undefined;
+        _ = msf_gif.begin(&handle, export_width, export_height);
+
+        // Anything less than this number will be considered transparent
+        // When resizing, sometimes we see a small outline of the pixels?
+        // Only see in some gif readers, but not all.
+        msf_gif.msf_gif_alpha_threshold = 240;
+
+        for (anim.frames) |sprite_index| {
+            const sprite_rect = file.spriteRect(sprite_index);
+
+            var layer_index = file.layers.len - 1;
+            const pixels = file.layers.get(layer_index).pixelsFromRect(pixi.app.allocator, sprite_rect) orelse continue;
+            defer pixi.app.allocator.free(pixels);
+
+            if (file.layers.len > 1) {
+                layer_index -= 1;
+
+                while (layer_index > 0) {
+                    const layer = file.layers.get(layer_index);
+                    if (!layer.visible) {
+                        break;
+                    }
+
+                    if (layer.pixelsFromRect(pixi.app.allocator, sprite_rect)) |layer_pixels| {
+                        pixi.image.blitData(pixels, @intFromFloat(sprite_rect.w), @intFromFloat(sprite_rect.h), layer_pixels, sprite_rect.justSize(), true);
+                        pixi.app.allocator.free(layer_pixels);
+                    }
+
+                    layer_index -= 1;
+                }
+            }
+
+            { // msf_gif will error if there are only transparent pixels
+                const valid = blk: {
+                    for (pixels) |pixel| {
+                        if (pixel[3] > msf_gif.msf_gif_alpha_threshold) {
+                            break :blk true;
+                        }
+                    }
+
+                    break :blk false;
+                };
+
+                if (!valid) {
+                    dvui.log.debug("Export: No valid pixels, skipping animation frame", .{});
+                    continue;
+                }
+            }
+
+            if (scale != 1.0) {
+                const resized_pixels = pixi.app.allocator.alloc([4]u8, export_width * export_height) catch {
+                    dvui.log.err("Failed to allocate resized pixels", .{});
+                    continue;
+                };
+                defer pixi.app.allocator.free(resized_pixels);
+
+                _ = zstbi.resize(
+                    pixels,
+                    file.column_width,
+                    file.row_height,
+                    resized_pixels,
+                    export_width,
+                    export_height,
+                );
+
+                _ = msf_gif.frame(&handle, @ptrCast(resized_pixels.ptr), @intFromFloat(anim.fps / 100));
+            } else {
+                _ = msf_gif.frame(&handle, @ptrCast(pixels.ptr), @intFromFloat(anim.fps / 100));
+            }
+        }
+
+        const result = msf_gif.end(&handle);
+        defer msf_gif.free(result);
+
+        // // Now write to file using the new Writer interface
+        var output_file = std.fs.cwd().createFile(path, .{}) catch {
+            dvui.log.err("Failed to create file {s}", .{path});
+            return;
+        };
+        defer output_file.close();
+
+        if (result.data) |data| {
+            output_file.writeAll(data[0..result.dataSize]) catch {
+                dvui.log.err("Failed to write to file {s}", .{path});
+                return;
+            };
+        }
+    }
+
+    return error.NoSelectedAnimation;
 }

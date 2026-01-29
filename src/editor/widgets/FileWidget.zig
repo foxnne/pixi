@@ -1758,7 +1758,7 @@ pub fn processTransform(self: *FileWidget) void {
 
             // Here pass in the data rect, since we will be rendering directly to the low-res texture
             const target_texture = dvui.textureCreateTarget(@intFromFloat(image_rect.w), @intFromFloat(image_rect.h), .nearest) catch {
-                std.log.err("Failed to create target texture", .{});
+                dvui.log.err("Failed to create target texture", .{});
                 return;
             };
 
@@ -1789,7 +1789,7 @@ pub fn processTransform(self: *FileWidget) void {
 
             // Render the triangles to the target texture
             dvui.renderTriangles(triangles.*, transform.source.getTexture() catch null) catch {
-                std.log.err("Failed to render triangles", .{});
+                dvui.log.err("Failed to render triangles", .{});
             };
 
             // Restore the previous clip
@@ -1802,10 +1802,10 @@ pub fn processTransform(self: *FileWidget) void {
                 @memcpy(file.editor.temporary_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
                 file.editor.temporary_layer.invalidate();
             } else {
-                std.log.err("Failed to read target", .{});
+                dvui.log.err("Failed to read target", .{});
             }
         } else {
-            std.log.err("Failed to fill triangles", .{});
+            dvui.log.err("Failed to fill triangles", .{});
         }
     }
 }
@@ -2262,7 +2262,7 @@ pub fn drawCursor(self: *FileWidget) void {
         else => null,
     }) |sprite| {
         const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
-            std.log.err("Failed to get atlas size", .{});
+            dvui.log.err("Failed to get atlas size", .{});
             return;
         };
 
@@ -2302,7 +2302,7 @@ pub fn drawCursor(self: *FileWidget) void {
         dvui.renderImage(pixi.editor.atlas.source, rs, .{
             .uv = uv,
         }) catch {
-            std.log.err("Failed to render cursor image", .{});
+            dvui.log.err("Failed to render cursor image", .{});
         };
     }
 }
@@ -2546,7 +2546,7 @@ pub fn drawLayers(self: *FileWidget) void {
                 dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
                     .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
                 }) catch {
-                    std.log.err("Failed to render checkerboard", .{});
+                    dvui.log.err("Failed to render checkerboard", .{});
                 };
             }
         } else {
@@ -2568,7 +2568,7 @@ pub fn drawLayers(self: *FileWidget) void {
                         dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
                             .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
                         }) catch {
-                            std.log.err("Failed to render checkerboard", .{});
+                            dvui.log.err("Failed to render checkerboard", .{});
                         };
                     }
                 }
@@ -2585,7 +2585,7 @@ pub fn drawLayers(self: *FileWidget) void {
                 .s = self.init_options.file.editor.canvas.scale,
             },
         }) catch {
-            std.log.err("Failed to render file image", .{});
+            dvui.log.err("Failed to render file image", .{});
             return;
         };
     }
@@ -2822,7 +2822,7 @@ pub fn processResize(self: *FileWidget) void {
                     .rows = @divTrunc(@as(u32, @intFromFloat(resize_data_point.y)), self.init_options.file.row_height),
                     .history = true,
                 }) catch |err| {
-                    std.log.err("Failed to resize file: {s}", .{@errorName(err)});
+                    dvui.log.err("Failed to resize file: {s}", .{@errorName(err)});
                 };
                 self.resize_data_point = null;
                 dvui.dragEnd();

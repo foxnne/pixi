@@ -98,11 +98,12 @@ pub fn pixels(source: dvui.ImageSource) [][4]u8 {
 /// Returns a slice of pixels from the image source that fit within the specified rect
 /// Caller owns the memory returned
 pub fn pixelsFromRect(allocator: std.mem.Allocator, source: dvui.ImageSource, rect: dvui.Rect) ?[][4]u8 {
+    // Return early if invalid rectangle
     if (rect.w <= 0 or rect.h <= 0) {
         return null;
     }
 
-    // Allocate output array for the rect
+    // Calculate target dimensions
     const width: usize = @intFromFloat(rect.w);
     const height: usize = @intFromFloat(rect.h);
     var output_pixels = allocator.alloc([4]u8, width * height) catch return null;
@@ -110,35 +111,47 @@ pub fn pixelsFromRect(allocator: std.mem.Allocator, source: dvui.ImageSource, re
     const all_pixels = pixels(source);
     const s = size(source);
 
-    // Clamp rect to image bounds
-    const start_x: usize = @max(0, @as(usize, @intFromFloat(rect.x)));
-    const start_y: usize = @max(0, @as(usize, @intFromFloat(rect.y)));
-    const end_x: usize = @min(@as(usize, @intFromFloat(rect.x + rect.w)), @as(usize, @intFromFloat(s.w)));
-    const end_y: usize = @min(@as(usize, @intFromFloat(rect.y + rect.h)), @as(usize, @intFromFloat(s.h)));
+    // Image bounds
+    const img_w: usize = @intFromFloat(s.w);
+    const img_h: usize = @intFromFloat(s.h);
 
-    var out_i: usize = 0;
-    for (start_y..end_y) |y| {
-        for (start_x..end_x) |x| {
-            const src_index = x + y * @as(usize, @intFromFloat(s.w));
-            if (src_index < all_pixels.len and out_i < output_pixels.len) {
-                output_pixels[out_i] = all_pixels[src_index];
-            } else if (out_i < output_pixels.len) {
-                output_pixels[out_i] = .{ 0, 0, 0, 0 };
+    // Clamp rect start to image bounds
+    const rect_start_x: usize = @intFromFloat(rect.x);
+    const rect_start_y: usize = @intFromFloat(rect.y);
+
+    // Compute clamp ranges inside source image
+    const start_x = @max(0, rect_start_x);
+    const start_y = @max(0, rect_start_y);
+    const end_x = @min(rect_start_x + width, img_w);
+    const end_y = @min(rect_start_y + height, img_h);
+
+    const clamp_x0 = start_x;
+    const clamp_x1 = end_x;
+    const clamp_y0 = start_y;
+    const clamp_y1 = end_y;
+
+    // Fill transparent by default for out-of-bounds
+    @memset(output_pixels, .{ 0, 0, 0, 0 });
+
+    // Fast-fill output buffer for the intersection of the rect and the image bounds
+    var out_row: usize = 0;
+    for (clamp_y0..clamp_y1) |src_y| {
+        const rel_y = src_y - rect_start_y;
+
+        // Calculate input/output ranges for this row
+        const in_row_start = clamp_x0;
+        const in_row_end = clamp_x1;
+        var in_idx = src_y * img_w + in_row_start;
+
+        // Bulk copy pixels for the valid intersection region
+        for (in_row_start..in_row_end) |src_x| {
+            const out_x = src_x - rect_start_x;
+            if (rel_y < height and out_x < width and in_idx < all_pixels.len) {
+                output_pixels[rel_y * width + out_x] = all_pixels[in_idx];
             }
-            out_i += 1;
+            in_idx += 1;
         }
-        // If the rect extends beyond the image width, fill with transparent
-        for (end_x..start_x + width) |_| {
-            if (out_i < output_pixels.len) {
-                output_pixels[out_i] = .{ 0, 0, 0, 0 };
-                out_i += 1;
-            }
-        }
-    }
-    // If the rect extends beyond the image height, fill with transparent
-    while (out_i < output_pixels.len) {
-        output_pixels[out_i] = .{ 0, 0, 0, 0 };
-        out_i += 1;
+        out_row += 1;
     }
 
     return output_pixels;
@@ -238,28 +251,34 @@ pub fn setRect(source: dvui.ImageSource, rect: dvui.Rect, color: [4]u8) void {
     }
 }
 
-pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
+pub fn blit(source: dvui.ImageSource, dst_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
+    const image_size = size(source);
+
+    blitData(pixels(source), @intFromFloat(image_size.w), @intFromFloat(image_size.h), dst_pixels, dst_rect, transparent);
+}
+
+pub fn blitData(src_pixels: [][4]u8, src_width: usize, src_height: usize, dst_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
     const x = @as(usize, @intFromFloat(dst_rect.x));
     const y = @as(usize, @intFromFloat(dst_rect.y));
     const width = @as(usize, @intFromFloat(dst_rect.w));
     const height = @as(usize, @intFromFloat(dst_rect.h));
 
-    const image_size = size(source);
+    const image_size: dvui.Size = .{ .w = @floatFromInt(src_width), .h = @floatFromInt(src_height) };
 
     const tex_width = @as(usize, @intFromFloat(image_size.w));
 
     var yy = y;
     var h = height;
 
-    var d = pixels(source)[x + yy * tex_width .. x + yy * tex_width + width];
+    var source_row = src_pixels[x + yy * tex_width .. x + yy * tex_width + width];
     var src_y: usize = 0;
     while (h > 0) {
         h -= 1;
-        const src_row = src_pixels[src_y * width .. (src_y * width) + width];
+        const dst_row = dst_pixels[src_y * width .. (src_y * width) + width];
         if (!transparent) {
-            @memcpy(d, src_row);
+            @memcpy(source_row, dst_row);
         } else {
-            for (src_row, d) |src, *dst| {
+            for (dst_row, source_row) |src, *dst| {
                 if (src[3] > 0) {
                     dst.* = src;
                 }
@@ -272,8 +291,8 @@ pub fn blit(source: dvui.ImageSource, src_pixels: [][4]u8, dst_rect: dvui.Rect, 
 
         const next_row_start = x + yy * tex_width;
         const next_row_end = next_row_start + width;
-        if (next_row_start < pixels(source).len and next_row_end < pixels(source).len) {
-            d = pixels(source)[next_row_start..next_row_end];
+        if (next_row_start < src_pixels.len and next_row_end < src_pixels.len) {
+            source_row = src_pixels[next_row_start..next_row_end];
         }
     }
 }
