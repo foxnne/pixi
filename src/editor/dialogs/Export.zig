@@ -180,12 +180,12 @@ pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void
                         break :blk default_filename;
                     };
 
-                    if (dvui.dialogNativeFileSave(pixi.app.allocator, .{ .title = "Save Animation", .path = default }) catch null) |path| {
-                        createAnimationGif(path) catch {
-                            dvui.log.err("Failed to save animation", .{});
-                            return;
-                        };
-                    }
+                    pixi.backend.showSaveFileDialog(
+                        saveAnimationCallback,
+                        &[_]sdl3.SDL_DialogFileFilter{.{ .name = "GIF", .pattern = "gif" }},
+                        default,
+                        null, // Passing null here means use the last save folder location
+                    );
                 },
                 else => {},
             }
@@ -203,7 +203,9 @@ pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void
 pub fn saveAnimationCallback(paths: ?[][:0]const u8) void {
     if (paths) |paths_| {
         for (paths_) |path| {
-            createAnimationGif(path);
+            createAnimationGif(path) catch {
+                dvui.log.err("Failed to save animation", .{});
+            };
         }
     }
 }

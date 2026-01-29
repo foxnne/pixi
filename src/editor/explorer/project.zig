@@ -304,17 +304,10 @@ fn pathTextEntry(path_type: PathType) !void {
                 break :blk true;
             };
 
-            if (dvui.dialogNativeFileSave(pixi.app.allocator, .{
-                .title = if (path_type == .atlas) "Select Atlas Data Output" else "Select Atlas Image Output",
-                .filters = if (path_type == .atlas) &.{"*.atlas"} else &.{"*.png"},
-                .filter_description = if (path_type == .atlas) "Atlas file" else "Image file",
-                .path = if (valid_path) output_path.* else null,
-            }) catch null) |new_path| {
-                output_path.* = pixi.app.allocator.dupe(u8, new_path[0..]) catch null;
-                set_text = true;
-            } else {
-                dvui.log.err("Project failed to copy new path", .{});
-            }
+            pixi.backend.showSaveFileDialog(if (path_type == .atlas) packedAtlasOutputCallback else packedImageOutputCallback, &.{
+                if (path_type == .atlas) .{ .name = "Atlas Data", .pattern = "atlas" } else .{ .name = "Atlas Image", .pattern = "png" },
+            }, "", if (valid_path) output_path.* else null);
+            set_text = true;
         }
 
         const te = dvui.textEntry(@src(), .{
@@ -330,7 +323,7 @@ fn pathTextEntry(path_type: PathType) !void {
         defer te.deinit();
 
         if (output_path.*) |packed_atlas_output| {
-            if (dvui.firstFrame(te.data().id) or set_text) {
+            if (dvui.firstFrame(te.data().id) or dvui.focusedWidgetId() != te.data().id) {
                 te.textSet(packed_atlas_output, false);
             }
         }
@@ -341,6 +334,30 @@ fn pathTextEntry(path_type: PathType) !void {
                 output_path.* = pixi.app.allocator.dupe(u8, t) catch null;
             } else {
                 output_path.* = null;
+            }
+        }
+    }
+}
+
+pub fn packedAtlasOutputCallback(paths: ?[][:0]const u8) void {
+    if (pixi.editor.project) |*project| {
+        const output_path = &project.packed_atlas_output;
+
+        if (paths) |paths_| {
+            for (paths_) |path| {
+                output_path.* = pixi.app.allocator.dupe(u8, path) catch null;
+            }
+        }
+    }
+}
+
+pub fn packedImageOutputCallback(paths: ?[][:0]const u8) void {
+    if (pixi.editor.project) |*project| {
+        const output_path = &project.packed_image_output;
+
+        if (paths) |paths_| {
+            for (paths_) |path| {
+                output_path.* = pixi.app.allocator.dupe(u8, path) catch null;
             }
         }
     }

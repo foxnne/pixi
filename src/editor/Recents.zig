@@ -3,12 +3,18 @@ const pixi = @import("../pixi.zig");
 
 const Recents = @This();
 
+const RecentsJson = struct {
+    last_save_folder: []const u8,
+    last_open_folder: []const u8,
+    folders: [][]const u8,
+};
+
+last_save_folder: ?[]const u8 = null,
+last_open_folder: ?[]const u8 = null,
 folders: std.array_list.Managed([]const u8),
-exports: std.array_list.Managed([]const u8),
 
 pub fn load(allocator: std.mem.Allocator, path: []const u8) !Recents {
     var folders = std.array_list.Managed([]const u8).init(allocator);
-    var exports = std.array_list.Managed([]const u8).init(allocator);
 
     if (pixi.fs.read(allocator, path) catch null) |read| {
         defer allocator.free(read);
@@ -23,17 +29,17 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Recents {
                     try folders.append(try allocator.dupe(u8, folder));
             }
 
-            for (parsed.value.exports) |exp| {
-                if (std.fs.path.dirname(exp)) |p| {
-                    const dir_opt = std.fs.openDirAbsolute(p, .{}) catch null;
-                    if (dir_opt != null)
-                        try exports.append(try allocator.dupe(u8, exp));
-                }
-            }
+            std.log.debug("Last save folder: {s}", .{parsed.value.last_save_folder});
+
+            return .{
+                .folders = folders,
+                .last_open_folder = if (parsed.value.last_open_folder.len > 0) try allocator.dupe(u8, parsed.value.last_open_folder) else null,
+                .last_save_folder = if (parsed.value.last_save_folder.len > 0) try allocator.dupe(u8, parsed.value.last_save_folder) else null,
+            };
         }
     }
 
-    return .{ .folders = folders, .exports = exports };
+    return error.FailedToLoadRecents;
 }
 
 pub fn indexOfFolder(recents: *Recents, path: []const u8) ?usize {
@@ -41,16 +47,6 @@ pub fn indexOfFolder(recents: *Recents, path: []const u8) ?usize {
 
     for (recents.folders.items, 0..) |folder, i| {
         if (std.mem.eql(u8, folder, path))
-            return i;
-    }
-    return null;
-}
-
-pub fn indexOfExport(recents: *Recents, path: []const u8) ?usize {
-    if (recents.exports.items.len == 0) return null;
-
-    for (recents.exports.items, 0..) |exp, i| {
-        if (std.mem.eql(u8, exp, path))
             return i;
     }
     return null;
@@ -71,21 +67,12 @@ pub fn appendFolder(recents: *Recents, path: []const u8) !void {
     }
 }
 
-pub fn appendExport(recents: *Recents, path: []const u8) !void {
-    if (recents.indexOfExport(path)) |index| {
-        const exp = recents.exports.swapRemove(index);
-        try recents.exports.append(exp);
-    } else {
-        if (recents.exports.items.len >= pixi.editor.settings.max_recents) {
-            const exp = recents.folders.swapRemove(0);
-            pixi.app.allocator.free(exp);
-        }
-        try recents.exports.append(path);
-    }
-}
-
 pub fn save(recents: *Recents, allocator: std.mem.Allocator, path: []const u8) !void {
-    const recents_json = RecentsJson{ .folders = recents.folders.items, .exports = recents.exports.items };
+    const recents_json = RecentsJson{
+        .folders = recents.folders.items,
+        .last_save_folder = recents.last_save_folder orelse "",
+        .last_open_folder = recents.last_open_folder orelse "",
+    };
 
     const str = try std.json.Stringify.valueAlloc(allocator, recents_json, .{});
     defer allocator.free(str);
@@ -101,18 +88,6 @@ pub fn deinit(recents: *Recents) void {
         pixi.app.allocator.free(folder);
     }
 
-    for (recents.exports.items) |exp| {
-        pixi.app.allocator.free(exp);
-    }
-
     recents.folders.clearAndFree();
     recents.folders.deinit();
-
-    recents.exports.clearAndFree();
-    recents.exports.deinit();
 }
-
-const RecentsJson = struct {
-    folders: [][]const u8,
-    exports: [][]const u8,
-};

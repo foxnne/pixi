@@ -117,8 +117,12 @@ pub fn init(
         }
     }
 
-    editor.settings = try .load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "settings.json" }));
-    editor.recents = try .load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "recents.json" }));
+    editor.settings = Settings.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "settings.json" })) catch .{
+        .theme = try app.allocator.dupe(u8, "pixi_dark.json"),
+    };
+    editor.recents = Recents.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "recents.json" })) catch .{
+        .folders = .init(app.allocator),
+    };
 
     editor.explorer.* = .init();
     editor.panel.* = .init();
@@ -129,8 +133,8 @@ pub fn init(
         return err;
     };
 
-    editor.colors.file_tree_palette = try pixi.Internal.Palette.loadFromBytes(app.allocator, "pixi.hex", assets.files.palettes.@"pixi.hex");
-    editor.colors.palette = try pixi.Internal.Palette.loadFromBytes(app.allocator, "pixi.hex", assets.files.palettes.@"pixi.hex");
+    editor.colors.file_tree_palette = pixi.Internal.Palette.loadFromBytes(app.allocator, "pixi.hex", assets.files.palettes.@"pixi.hex") catch null;
+    editor.colors.palette = pixi.Internal.Palette.loadFromBytes(app.allocator, "pixi.hex", assets.files.palettes.@"pixi.hex") catch null;
 
     try Keybinds.register();
 

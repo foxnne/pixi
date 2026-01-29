@@ -169,7 +169,8 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
     if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".pixi"))
         return error.InvalidExtension;
 
-    const null_terminated_path = try dvui.currentWindow().arena().dupeZ(u8, path);
+    const null_terminated_path = try pixi.app.allocator.dupeZ(u8, path);
+    defer pixi.app.allocator.free(null_terminated_path);
 
     zip_open: {
         const pixi_file = zip.zip_open(null_terminated_path.ptr, 0, 'r') orelse break :zip_open;
@@ -283,13 +284,15 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                     pixel.* = checker_color_2;
                 }
             }
-            dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
+            //dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
         }
 
         var set_layer_index: bool = false;
         for (ext.layers, 0..) |l, i| {
-            const layer_image_name = std.fmt.allocPrintSentinel(dvui.currentWindow().arena(), "{s}.layer", .{l.name}, 0) catch "Memory Allocation Failed";
-            const png_image_name = std.fmt.allocPrintSentinel(dvui.currentWindow().arena(), "{s}.png", .{l.name}, 0) catch "Memory Allocation Failed";
+            const layer_image_name = std.fmt.allocPrintSentinel(pixi.app.allocator, "{s}.layer", .{l.name}, 0) catch "Memory Allocation Failed";
+            defer pixi.app.allocator.free(layer_image_name);
+            const png_image_name = std.fmt.allocPrintSentinel(pixi.app.allocator, "{s}.png", .{l.name}, 0) catch "Memory Allocation Failed";
+            defer pixi.app.allocator.free(png_image_name);
 
             var img_buf: ?*anyopaque = null;
             var img_len: usize = 0;
@@ -517,7 +520,7 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
                 pixel.* = checker_color_2;
             }
         }
-        dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
+        //dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
     }
 
     return internal;

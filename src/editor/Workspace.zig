@@ -617,9 +617,7 @@ pub fn drawLogo(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
             pixi.dvui.labelWithKeybind("Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
 
             if (button.clicked()) {
-                if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
-                    try pixi.editor.setProjectFolder(folder);
-                }
+                pixi.backend.showOpenFolderDialog(setProjectFolderCallback, null);
             }
         }
 
@@ -639,17 +637,21 @@ pub fn drawLogo(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
             pixi.dvui.labelWithKeybind("Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
 
             if (button.clicked()) {
-                if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{
-                    .title = "Open Files...",
-                    .filter_description = ".pixi, .png",
-                    .filters = &.{ "*.pixi", "*.png" },
-                })) |files| {
-                    for (files) |file| {
-                        _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {
-                            std.log.err("Failed to open file: {s}", .{file});
-                        };
-                    }
-                }
+                // if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{
+                //     .title = "Open Files...",
+                //     .filter_description = ".pixi, .png",
+                //     .filters = &.{ "*.pixi", "*.png" },
+                // })) |files| {
+                //     for (files) |file| {
+                //         _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {
+                //             std.log.err("Failed to open file: {s}", .{file});
+                //         };
+                //     }
+                // }
+
+                pixi.backend.showOpenFileDialog(openFilesCallback, &.{
+                    .{ .name = "Image Files", .pattern = "pixi;png;jpg" },
+                }, "", null);
             }
         }
         vbox.deinit();
@@ -762,4 +764,23 @@ pub fn drawBubble(rect: dvui.Rect, rs: dvui.RectScale, color: [4]u8, id_extra: u
     }
 
     path.build().fillConvex(.{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] }, .fade = 1.0 });
+}
+
+// This should never be able to return more than one folder
+pub fn setProjectFolderCallback(folder: ?[][:0]const u8) void {
+    if (folder) |f| {
+        pixi.editor.setProjectFolder(f[0]) catch {
+            dvui.log.err("Failed to set project folder: {s}", .{f[0]});
+        };
+    }
+}
+
+pub fn openFilesCallback(files: ?[][:0]const u8) void {
+    if (files) |f| {
+        for (f) |file| {
+            _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {
+                dvui.log.err("Failed to open file: {s}", .{file});
+            };
+        }
+    }
 }

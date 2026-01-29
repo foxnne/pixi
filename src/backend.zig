@@ -1,4 +1,5 @@
 // These are functions specific to the backend, which is currently SDL3
+const pixi = @import("pixi.zig");
 const std = @import("std");
 const builtin = @import("builtin");
 const dvui = @import("dvui");
@@ -44,19 +45,59 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
     }
 }
 
-pub fn showSaveFileDialog(cb: *const fn (?[][:0]const u8) void, filters: []const sdl3.SDL_DialogFileFilter, default_location: [*:0]const u8) void {
-    sdl3.SDL_ShowSaveFileDialog(GenericDialogCallback, @ptrCast(@alignCast(@constCast(cb))), dvui.currentWindow().backend.impl.window, filters.ptr, @intCast(filters.len), default_location);
+pub fn showSaveFileDialog(cb: *const fn (?[][:0]const u8) void, filters: []const sdl3.SDL_DialogFileFilter, default_filename: []const u8, default_folder: ?[]const u8) void {
+    const default: [:0]const u8 = blk: {
+        if (default_folder) |folder| {
+            break :blk std.fs.path.joinZ(pixi.app.allocator, &.{ folder, default_filename }) catch "untitled";
+        } else if (pixi.editor.recents.last_save_folder) |last_save_folder| {
+            break :blk std.fs.path.joinZ(pixi.app.allocator, &.{ last_save_folder, default_filename }) catch "untitled";
+        } else {
+            break :blk std.fs.path.joinZ(pixi.app.allocator, &.{ pixi.editor.folder orelse "", default_filename }) catch "untitled";
+        }
+    };
+    defer pixi.app.allocator.free(default);
+    sdl3.SDL_ShowSaveFileDialog(GenericSaveDialogCallback, @ptrCast(@alignCast(@constCast(cb))), dvui.currentWindow().backend.impl.window, filters.ptr, @intCast(filters.len), default);
 }
 
-pub fn showOpenFileDialog(cb: *const fn (?[][:0]const u8) void, filters: []const sdl3.SDL_DialogFileFilter, default_location: []const u8) void {
-    sdl3.SDL_ShowOpenFileDialog(GenericDialogCallback, @ptrCast(@alignCast(@constCast(cb))), dvui.currentWindow().backend.impl.window, filters.ptr, @intCast(filters.len), default_location.ptr);
+pub fn showOpenFileDialog(cb: *const fn (?[][:0]const u8) void, filters: []const sdl3.SDL_DialogFileFilter, default_filename: []const u8, default_folder: ?[]const u8) void {
+    const default: [:0]const u8 = blk: {
+        if (default_folder) |folder| {
+            break :blk std.fs.path.joinZ(pixi.app.allocator, &.{ folder, default_filename }) catch "untitled";
+        } else if (pixi.editor.recents.last_open_folder) |last_open_folder| {
+            break :blk std.fs.path.joinZ(pixi.app.allocator, &.{ last_open_folder, default_filename }) catch "untitled";
+        } else {
+            break :blk std.fs.path.joinZ(pixi.app.allocator, &.{ pixi.editor.folder orelse "", default_filename }) catch "untitled";
+        }
+    };
+    defer pixi.app.allocator.free(default);
+    sdl3.SDL_ShowOpenFileDialog(GenericOpenDialogCallback, @ptrCast(@alignCast(@constCast(cb))), dvui.currentWindow().backend.impl.window, filters.ptr, @intCast(filters.len), default.ptr, true);
 }
 
-pub fn showOpenFolderDialog(cb: *const fn (?[][:0]const u8) void, default_location: []const u8) void {
-    sdl3.SDL_ShowOpenFolderDialog(GenericDialogCallback, @ptrCast(@alignCast(@constCast(cb))), dvui.currentWindow().backend.impl.window, default_location.ptr);
+pub fn showOpenFolderDialog(cb: *const fn (?[][:0]const u8) void, default_folder: ?[]const u8) void {
+    const default: [:0]const u8 = blk: {
+        if (default_folder) |folder| {
+            break :blk std.fmt.allocPrintSentinel(pixi.app.allocator, "{s}", .{folder}, 0) catch "untitled";
+        } else {
+            if (pixi.editor.recents.last_open_folder) |last_open_folder| {
+                break :blk std.fmt.allocPrintSentinel(pixi.app.allocator, "{s}", .{last_open_folder}, 0) catch "untitled";
+            } else {
+                break :blk std.fmt.allocPrintSentinel(pixi.app.allocator, "{s}", .{pixi.editor.folder orelse ""}, 0) catch "untitled";
+            }
+        }
+    };
+    defer pixi.app.allocator.free(default);
+    sdl3.SDL_ShowOpenFolderDialog(GenericOpenDialogCallback, @ptrCast(@alignCast(@constCast(cb))), dvui.currentWindow().backend.impl.window, default.ptr, false);
 }
 
-fn GenericDialogCallback(cb: ?*anyopaque, files: [*c]const [*c]const u8, _: c_int) callconv(.c) void {
+fn GenericSaveDialogCallback(cb: ?*anyopaque, files: [*c]const [*c]const u8, _: c_int) callconv(.c) void {
+    GenericDialogCallback(cb, files, .save);
+}
+
+fn GenericOpenDialogCallback(cb: ?*anyopaque, files: [*c]const [*c]const u8, _: c_int) callconv(.c) void {
+    GenericDialogCallback(cb, files, .open);
+}
+
+fn GenericDialogCallback(cb: ?*anyopaque, files: [*c]const [*c]const u8, mode: enum { save, open }) void {
     const callback: *const fn (?[][:0]const u8) void = @ptrCast(@alignCast(@constCast(cb)));
 
     // Try to count the number of files until we hit a null pointer.
@@ -75,6 +116,28 @@ fn GenericDialogCallback(cb: ?*anyopaque, files: [*c]const [*c]const u8, _: c_in
     if (zig_files.len == 0) {
         callback(null);
         return;
+    }
+
+    { // Save the open or save folder for the next time the dialog is shown
+        if (std.fs.path.dirname(zig_files[0])) |dir| {
+            if (mode == .save) {
+                if (pixi.editor.recents.last_save_folder) |last_save_folder| {
+                    pixi.app.allocator.free(last_save_folder);
+                }
+                pixi.editor.recents.last_save_folder = pixi.app.allocator.dupe(u8, dir) catch {
+                    dvui.log.err("Failed to dupe directory {s}", .{dir});
+                    return;
+                };
+            } else {
+                if (pixi.editor.recents.last_open_folder) |last_open_folder| {
+                    pixi.app.allocator.free(last_open_folder);
+                }
+                pixi.editor.recents.last_open_folder = pixi.app.allocator.dupe(u8, dir) catch {
+                    dvui.log.err("Failed to dupe directory {s}", .{dir});
+                    return;
+                };
+            }
+        }
     }
 
     callback(zig_files);
