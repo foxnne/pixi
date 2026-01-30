@@ -135,7 +135,7 @@ pub fn singleDialog(_: dvui.Id) anyerror!bool {
     return true;
 }
 
-pub fn animationDialog(_: dvui.Id) anyerror!bool {
+pub fn animationDialog(id: dvui.Id) anyerror!bool {
     const max_gif_size: [2]f32 = .{ 1024, 1024 };
     var max_scale: f32 = 16.0;
 
@@ -221,22 +221,8 @@ pub fn animationDialog(_: dvui.Id) anyerror!bool {
             };
         }
     }
-    // W file
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.25, .y = 0.3, .w = 0.0625, .h = 0.1 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.25, .y = 0.3, .w = 0.0625, .h = 0.1 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
-    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
 
-    _ = dvui.sliderEntry(@src(), "Scale: {d}", .{ .value = &scale, .min = 1, .max = max_scale, .interval = 1 }, .{
+    if (dvui.sliderEntry(@src(), "Scale: {d}", .{ .value = &scale, .min = 1, .max = max_scale, .interval = 1 }, .{
         .expand = .horizontal,
         .box_shadow = .{
             .color = .black,
@@ -249,7 +235,7 @@ pub fn animationDialog(_: dvui.Id) anyerror!bool {
         .color_fill_hover = dvui.themeGet().color(.window, .fill).lighten(2),
         .corner_radius = .all(100000),
         .margin = .all(6),
-    });
+    })) dvui.refresh(null, @src(), id);
 
     if (pixi.editor.activeFile()) |file| {
         dvui.label(@src(), "{d:0.0}px x {d:0.0}px", .{ @as(f32, @floatFromInt(file.column_width)) * scale, @as(f32, @floatFromInt(file.row_height)) * scale }, .{
