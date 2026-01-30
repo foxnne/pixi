@@ -608,6 +608,16 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
                         };
                     }
                 }
+
+                const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true }) catch unreachable;
+
+                dvui.renderTriangles(reflection_triangles_layers, file.editor.selection_layer.source.getTexture() catch null) catch {
+                    dvui.log.err("Failed to render triangles", .{});
+                };
+
+                dvui.renderTriangles(reflection_triangles_layers, file.editor.temporary_layer.source.getTexture() catch null) catch {
+                    dvui.log.err("Failed to render triangles", .{});
+                };
             } else {
                 const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true }) catch unreachable;
 
@@ -636,7 +646,7 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
                 .s = wd.contentRectScale().s,
             },
             .uv = uv,
-            .corner_radius = .{ .x = 0, .y = 0, .w = 0, .h = 0 },
+            .corner_radius = .all(0),
         }) catch {
             dvui.log.err("Failed to render layers", .{});
         };

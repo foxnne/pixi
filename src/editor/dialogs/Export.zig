@@ -11,15 +11,16 @@ pub var mode: enum(usize) {
     animation,
     layer,
     all,
-} = .single;
+} = .animation;
 
 pub var scale: f32 = 1.0;
 
 pub const max_size: [2]u32 = .{ 4096, 4096 };
 pub const min_size: [2]u32 = .{ 1, 1 };
 
-pub const max_scale: u32 = 16;
 pub const min_scale: u32 = 1;
+
+pub var anim_frame_index: usize = 0;
 
 pub fn dialog(id: dvui.Id) anyerror!bool {
     var outer_box = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
@@ -135,7 +136,107 @@ pub fn singleDialog(_: dvui.Id) anyerror!bool {
 }
 
 pub fn animationDialog(_: dvui.Id) anyerror!bool {
-    _ = dvui.sliderEntry(@src(), "Scale: {d}", .{ .value = &scale, .min = 1, .max = 16, .interval = 1 }, .{
+    const max_gif_size: [2]f32 = .{ 1024, 1024 };
+    var max_scale: f32 = 16.0;
+
+    if (pixi.editor.activeFile()) |file| {
+        max_scale = @min(@divTrunc(max_gif_size[0], @as(f32, @floatFromInt(file.column_width))), @divTrunc(max_gif_size[1], @as(f32, @floatFromInt(file.row_height))));
+
+        var scroll_area = dvui.scrollArea(@src(), .{
+            .horizontal = .auto,
+            .vertical = .auto,
+        }, .{
+            .expand = .both,
+            .max_size_content = .{ .w = (dvui.currentWindow().rect_pixels.w / dvui.currentWindow().natural_scale) / 2, .h = (dvui.currentWindow().rect_pixels.h / dvui.currentWindow().natural_scale) / 2.0 },
+        });
+        defer scroll_area.deinit();
+
+        if (file.selected_animation_index) |animation_index| {
+            const anim = file.animations.get(animation_index);
+            if (anim.frames.len > 0) {
+                if (anim_frame_index >= anim.frames.len) {
+                    anim_frame_index = 0;
+                }
+
+                const min_fps = pixi.editor.settings.min_animation_fps;
+                const fps = @max(min_fps, anim.fps);
+                const millis_per_frame = @as(i32, @intFromFloat(1_000 / fps));
+                if (dvui.timerDoneOrNone(scroll_area.data().id) or if (dvui.timerGet(scroll_area.data().id)) |end_time| end_time > millis_per_frame * 1000 else false) {
+                    const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
+                    const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));
+                    const wait = 1000 * (millis_per_frame - left);
+                    dvui.timer(scroll_area.data().id, wait);
+                }
+
+                const num_frames: i32 = @as(i32, @intCast(anim.frames.len));
+                const frame = blk: {
+                    const millis = @divFloor(dvui.frameTimeNS(), std.time.ns_per_ms);
+                    const left = @as(i32, @intCast(@rem(millis, num_frames * millis_per_frame)));
+                    break :blk @as(usize, @intCast(@divTrunc(left, millis_per_frame)));
+                };
+
+                anim_frame_index = frame;
+            }
+            const sprite_index = anim.frames[anim_frame_index];
+
+            const sprite_rect = file.spriteRect(sprite_index);
+
+            var box = dvui.box(@src(), .{
+                .dir = .horizontal,
+            }, .{
+                .expand = .none,
+                .min_size_content = sprite_rect.justSize().scale(scale, dvui.Rect).size(),
+                .gravity_x = 0.5,
+            });
+            defer box.deinit();
+
+            const uv = dvui.Rect{
+                .x = sprite_rect.x / @as(f32, @floatFromInt(file.width())),
+                .y = sprite_rect.y / @as(f32, @floatFromInt(file.height())),
+                .w = sprite_rect.w / @as(f32, @floatFromInt(file.width())),
+                .h = sprite_rect.h / @as(f32, @floatFromInt(file.height())),
+            };
+
+            {
+                var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+                defer path.deinit();
+
+                path.addRect(box.data().rectScale().r, .all(0));
+
+                const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
+                    .subdivisions = 8,
+                    .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0),
+                }) catch unreachable;
+                dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
+                    dvui.log.err("Failed to render triangles", .{});
+                };
+            }
+
+            pixi.render.renderLayers(.{
+                .file = file,
+                .rs = box.data().rectScale(),
+                .uv = uv,
+            }) catch {
+                dvui.log.err("Failed to render layers", .{});
+            };
+        }
+    }
+    // W file
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.25, .y = 0.3, .w = 0.0625, .h = 0.1 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.25, .y = 0.3, .w = 0.0625, .h = 0.1 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+    // debug: uv: .{ .x = 0.6484375, .y = 0, .w = 0.01171875, .h = 0.01953125 }
+
+    _ = dvui.sliderEntry(@src(), "Scale: {d}", .{ .value = &scale, .min = 1, .max = max_scale, .interval = 1 }, .{
         .expand = .horizontal,
         .box_shadow = .{
             .color = .black,
@@ -144,9 +245,20 @@ pub fn animationDialog(_: dvui.Id) anyerror!bool {
             .alpha = 0.2,
             .corner_radius = .all(100000),
         },
+        .color_fill = dvui.themeGet().color(.window, .fill).lighten(-4),
+        .color_fill_hover = dvui.themeGet().color(.window, .fill).lighten(2),
         .corner_radius = .all(100000),
         .margin = .all(6),
     });
+
+    if (pixi.editor.activeFile()) |file| {
+        dvui.label(@src(), "{d:0.0}px x {d:0.0}px", .{ @as(f32, @floatFromInt(file.column_width)) * scale, @as(f32, @floatFromInt(file.row_height)) * scale }, .{
+            .gravity_x = 0.5,
+            .color_text = dvui.themeGet().color(.window, .text),
+            .margin = .all(0),
+            .padding = .all(2),
+        });
+    }
 
     return true;
 }
@@ -159,8 +271,7 @@ pub fn allDialog(_: dvui.Id) anyerror!bool {
     return true;
 }
 
-/// Returns a physical rect that the dialog should animate into after closing, or null if the dialog should be removed without animation
-pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
+pub fn callAfter(_: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
     switch (response) {
         .ok => {
             switch (mode) {
@@ -193,9 +304,6 @@ pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void
         .cancel => {},
         else => {},
     }
-
-    // We always want to remove the dialog, this will likely be hidden behind the save file dialog
-    dvui.dialogRemove(id);
 }
 
 // This is for use with the SDL dialogs, but currently the SDL dialogs dont support sending the default path
@@ -203,8 +311,8 @@ pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void
 pub fn saveAnimationCallback(paths: ?[][:0]const u8) void {
     if (paths) |paths_| {
         for (paths_) |path| {
-            createAnimationGif(path) catch {
-                dvui.log.err("Failed to save animation", .{});
+            createAnimationGif(path) catch |err| {
+                dvui.log.err("Failed to save animation: {any}", .{err});
             };
         }
     }
@@ -255,21 +363,16 @@ pub fn createAnimationGif(path: []const u8) anyerror!void {
             const pixels = file.layers.get(layer_index).pixelsFromRect(pixi.app.allocator, sprite_rect) orelse continue;
             defer pixi.app.allocator.free(pixels);
 
-            if (file.layers.len > 1) {
+            while (layer_index > 0) {
                 layer_index -= 1;
+                const layer = file.layers.get(layer_index);
+                if (!layer.visible) {
+                    break;
+                }
 
-                while (layer_index > 0) {
-                    const layer = file.layers.get(layer_index);
-                    if (!layer.visible) {
-                        break;
-                    }
-
-                    if (layer.pixelsFromRect(pixi.app.allocator, sprite_rect)) |layer_pixels| {
-                        pixi.image.blitData(pixels, @intFromFloat(sprite_rect.w), @intFromFloat(sprite_rect.h), layer_pixels, sprite_rect.justSize(), true);
-                        pixi.app.allocator.free(layer_pixels);
-                    }
-
-                    layer_index -= 1;
+                if (layer.pixelsFromRect(pixi.app.allocator, sprite_rect)) |layer_pixels| {
+                    pixi.image.blitData(pixels, @intFromFloat(sprite_rect.w), @intFromFloat(sprite_rect.h), layer_pixels, sprite_rect.justSize(), true);
+                    pixi.app.allocator.free(layer_pixels);
                 }
             }
 

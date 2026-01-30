@@ -45,6 +45,12 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
     }
 }
 
+pub fn showSimpleMessage(title: [:0]const u8, message: [:0]const u8) void {
+    if (sdl3.SDL_ShowSimpleMessageBox(sdl3.SDL_MESSAGEBOX_INFORMATION, title, message, dvui.currentWindow().backend.impl.window)) {
+        std.log.debug("true!", .{});
+    }
+}
+
 pub fn showSaveFileDialog(cb: *const fn (?[][:0]const u8) void, filters: []const sdl3.SDL_DialogFileFilter, default_filename: []const u8, default_folder: ?[]const u8) void {
     const default: [:0]const u8 = blk: {
         if (default_folder) |folder| {

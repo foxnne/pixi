@@ -24,12 +24,11 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Recents {
             defer parsed.deinit();
 
             for (parsed.value.folders) |folder| {
+                // Check if the folder exists
                 const dir_opt = std.fs.openDirAbsolute(folder, .{}) catch null;
                 if (dir_opt != null)
                     try folders.append(try allocator.dupe(u8, folder));
             }
-
-            std.log.debug("Last save folder: {s}", .{parsed.value.last_save_folder});
 
             return .{
                 .folders = folders,
@@ -39,7 +38,9 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Recents {
         }
     }
 
-    return error.FailedToLoadRecents;
+    return .{
+        .folders = folders,
+    };
 }
 
 pub fn indexOfFolder(recents: *Recents, path: []const u8) ?usize {
