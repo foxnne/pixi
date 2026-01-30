@@ -142,15 +142,6 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
     if (pixi.editor.activeFile()) |file| {
         max_scale = @min(@divTrunc(max_gif_size[0], @as(f32, @floatFromInt(file.column_width))), @divTrunc(max_gif_size[1], @as(f32, @floatFromInt(file.row_height))));
 
-        var scroll_area = dvui.scrollArea(@src(), .{
-            .horizontal = .auto,
-            .vertical = .auto,
-        }, .{
-            .expand = .both,
-            .max_size_content = .{ .w = (dvui.currentWindow().rect_pixels.w / dvui.currentWindow().natural_scale) / 2, .h = (dvui.currentWindow().rect_pixels.h / dvui.currentWindow().natural_scale) / 2.0 },
-        });
-        defer scroll_area.deinit();
-
         if (file.selected_animation_index) |animation_index| {
             const anim = file.animations.get(animation_index);
             if (anim.frames.len > 0) {
@@ -161,11 +152,11 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
                 const min_fps = pixi.editor.settings.min_animation_fps;
                 const fps = @max(min_fps, anim.fps);
                 const millis_per_frame = @as(i32, @intFromFloat(1_000 / fps));
-                if (dvui.timerDoneOrNone(scroll_area.data().id) or if (dvui.timerGet(scroll_area.data().id)) |end_time| end_time > millis_per_frame * 1000 else false) {
+                if (dvui.timerDoneOrNone(id) or if (dvui.timerGet(id)) |end_time| end_time > millis_per_frame * 1000 else false) {
                     const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
                     const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));
                     const wait = 1000 * (millis_per_frame - left);
-                    dvui.timer(scroll_area.data().id, wait);
+                    dvui.timer(id, wait);
                 }
 
                 const num_frames: i32 = @as(i32, @intCast(anim.frames.len));
@@ -180,45 +171,60 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
             const sprite_index = anim.frames[anim_frame_index];
 
             const sprite_rect = file.spriteRect(sprite_index);
+            const max_size_content: dvui.Size = .{ .w = (dvui.currentWindow().rect_pixels.w / dvui.currentWindow().natural_scale) / 2, .h = (dvui.currentWindow().rect_pixels.h / dvui.currentWindow().natural_scale) / 2.0 };
+            const min_size_content: dvui.Size = sprite_rect.justSize().scale(scale, dvui.Rect).size();
 
-            var box = dvui.box(@src(), .{
-                .dir = .horizontal,
+            var scroll_area = dvui.scrollArea(@src(), .{
+                .horizontal = .auto,
+                .vertical = .auto,
             }, .{
                 .expand = .none,
-                .min_size_content = sprite_rect.justSize().scale(scale, dvui.Rect).size(),
+                .max_size_content = .{ .w = max_size_content.w, .h = max_size_content.h },
                 .gravity_x = 0.5,
             });
-            defer box.deinit();
 
-            const uv = dvui.Rect{
-                .x = sprite_rect.x / @as(f32, @floatFromInt(file.width())),
-                .y = sprite_rect.y / @as(f32, @floatFromInt(file.height())),
-                .w = sprite_rect.w / @as(f32, @floatFromInt(file.width())),
-                .h = sprite_rect.h / @as(f32, @floatFromInt(file.height())),
-            };
+            defer scroll_area.deinit();
 
             {
-                var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-                defer path.deinit();
+                var box = dvui.box(@src(), .{
+                    .dir = .horizontal,
+                }, .{
+                    .expand = .none,
+                    .min_size_content = min_size_content,
+                    .gravity_x = 0.5,
+                });
+                defer box.deinit();
 
-                path.addRect(box.data().rectScale().r, .all(0));
+                const uv = dvui.Rect{
+                    .x = sprite_rect.x / @as(f32, @floatFromInt(file.width())),
+                    .y = sprite_rect.y / @as(f32, @floatFromInt(file.height())),
+                    .w = sprite_rect.w / @as(f32, @floatFromInt(file.width())),
+                    .h = sprite_rect.h / @as(f32, @floatFromInt(file.height())),
+                };
 
-                const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
-                    .subdivisions = 8,
-                    .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0),
-                }) catch unreachable;
-                dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
-                    dvui.log.err("Failed to render triangles", .{});
+                {
+                    var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+                    defer path.deinit();
+
+                    path.addRect(box.data().rectScale().r, .all(0));
+
+                    const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
+                        .subdivisions = 8,
+                        .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0),
+                    }) catch unreachable;
+                    dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
+                        dvui.log.err("Failed to render triangles", .{});
+                    };
+                }
+
+                pixi.render.renderLayers(.{
+                    .file = file,
+                    .rs = box.data().rectScale(),
+                    .uv = uv,
+                }) catch {
+                    dvui.log.err("Failed to render layers", .{});
                 };
             }
-
-            pixi.render.renderLayers(.{
-                .file = file,
-                .rs = box.data().rectScale(),
-                .uv = uv,
-            }) catch {
-                dvui.log.err("Failed to render layers", .{});
-            };
         }
     }
 
@@ -235,7 +241,7 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
         .color_fill_hover = dvui.themeGet().color(.window, .fill).lighten(2),
         .corner_radius = .all(100000),
         .margin = .all(6),
-    })) dvui.refresh(null, @src(), id);
+    })) dvui.currentWindow().extra_frames_needed = 2;
 
     if (pixi.editor.activeFile()) |file| {
         dvui.label(@src(), "{d:0.0}px x {d:0.0}px", .{ @as(f32, @floatFromInt(file.column_width)) * scale, @as(f32, @floatFromInt(file.row_height)) * scale }, .{
