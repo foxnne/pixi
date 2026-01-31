@@ -184,6 +184,7 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
                 .horizontal_bar = .auto_overlay,
                 .vertical_bar = .auto_overlay,
             }, .{
+                .background = false,
                 .expand = .both,
                 .max_size_content = .{ .w = max_size_content.w, .h = max_size_content.h },
             });
