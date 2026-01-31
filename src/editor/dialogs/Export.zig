@@ -406,9 +406,9 @@ pub fn createAnimationGif(path: []const u8) anyerror!void {
                     export_height,
                 );
 
-                _ = msf_gif.frame(&handle, @ptrCast(resized_pixels.ptr), @intFromFloat(anim.fps / 100));
+                _ = msf_gif.frame(&handle, @ptrCast(resized_pixels.ptr), @intFromFloat(100.0 / anim.fps));
             } else {
-                _ = msf_gif.frame(&handle, @ptrCast(pixels.ptr), @intFromFloat(anim.fps / 100));
+                _ = msf_gif.frame(&handle, @ptrCast(pixels.ptr), @intFromFloat(100.0 / anim.fps));
             }
         }
 
@@ -428,6 +428,8 @@ pub fn createAnimationGif(path: []const u8) anyerror!void {
                 return;
             };
         }
+
+        return;
     }
 
     return error.NoSelectedAnimation;
