@@ -15,6 +15,11 @@ pub var mode: enum(usize) {
 
 pub var scale: f32 = 1.0;
 
+pub var scroll_info: dvui.ScrollInfo = .{
+    .horizontal = .auto,
+    .vertical = .auto,
+};
+
 pub const max_size: [2]u32 = .{ 4096, 4096 };
 pub const min_size: [2]u32 = .{ 1, 1 };
 
@@ -175,14 +180,13 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
             const min_size_content: dvui.Size = sprite_rect.justSize().scale(scale, dvui.Rect).size();
 
             var scroll_area = dvui.scrollArea(@src(), .{
-                .horizontal = .auto,
-                .vertical = .auto,
+                .scroll_info = &scroll_info,
+                .horizontal_bar = .auto_overlay,
+                .vertical_bar = .auto_overlay,
             }, .{
-                .expand = .none,
+                .expand = .both,
                 .max_size_content = .{ .w = max_size_content.w, .h = max_size_content.h },
-                .gravity_x = 0.5,
             });
-
             defer scroll_area.deinit();
 
             {
