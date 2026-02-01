@@ -845,7 +845,7 @@ pub fn drawFrames(self: *Sprites) !void {
                     self.sprite_insert_before_index = frame_index;
                 }
 
-                const selected = file.editor.selected_sprites.isSet(frame);
+                const selected = if (frame < file.editor.selected_sprites.capacity()) file.editor.selected_sprites.isSet(frame) else false;
                 const hovered = pixi.dvui.hovered(r.data());
 
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -960,14 +960,16 @@ pub fn drawFrames(self: *Sprites) !void {
                 // This consumes the click event, so we need to do this last
                 if (dvui.clickedEx(hbox.data(), .{ .hover_cursor = .hand })) |e| {
                     if (e == .mouse) {
-                        if (e.mouse.mod.matchBind("ctrl/cmd")) {
-                            file.editor.selected_sprites.set(frame);
-                        } else if (e.mouse.mod.matchBind("shift")) {
-                            file.editor.selected_sprites.unset(frame);
-                        } else {
-                            file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.editor.selected_sprites.capacity() }, false);
-                            file.editor.selected_sprites.set(frame);
-                            file.selected_animation_frame_index = frame_index;
+                        if (frame < file.editor.selected_sprites.capacity()) {
+                            if (e.mouse.mod.matchBind("ctrl/cmd")) {
+                                file.editor.selected_sprites.set(frame);
+                            } else if (e.mouse.mod.matchBind("shift")) {
+                                file.editor.selected_sprites.unset(frame);
+                            } else {
+                                file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.editor.selected_sprites.capacity() }, false);
+                                file.editor.selected_sprites.set(frame);
+                                file.selected_animation_frame_index = frame_index;
+                            }
                         }
                     }
                 }
