@@ -102,7 +102,7 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         .background = false,
     });
 
-    var scroll = dvui.scrollArea(@src(), .{ .scroll_info = &explorer.scroll_info }, .{
+    var scroll = dvui.scrollArea(@src(), .{ .scroll_info = &explorer.scroll_info, .horizontal_bar = .auto_overlay, .vertical_bar = .auto_overlay }, .{
         .expand = .both,
         .background = false,
     });

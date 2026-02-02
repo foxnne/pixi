@@ -197,11 +197,39 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
 
         if (try_parse == null) {
             // If we are here, we have tried to load the file but hit an issue because the old animation format
-            // exists
 
-            // we now need to load the old animation format.
+            if (std.json.parseFromSlice(pixi.File.FileV3, pixi.app.allocator, content, options) catch null) |old_file| {
+                const animations = try pixi.app.allocator.alloc(pixi.Animation, old_file.value.animations.len);
+                for (animations, old_file.value.animations) |*animation, old_animation| {
+                    animation.name = try pixi.app.allocator.dupe(u8, old_animation.name);
+                    animation.frames = try pixi.app.allocator.alloc(Animation.Frame, old_animation.frames.len);
+                    for (animation.frames, old_animation.frames) |*frame, old_frame| {
+                        frame.index = old_frame;
+                        frame.ms = @intFromFloat(1000 / old_animation.fps);
+                    }
+                }
 
-            if (std.json.parseFromSlice(pixi.File.FileV2, pixi.app.allocator, content, options) catch null) |old_file| {
+                ext = .{
+                    .version = old_file.value.version,
+                    .columns = old_file.value.columns,
+                    .rows = old_file.value.rows,
+                    .column_width = old_file.value.column_width,
+                    .row_height = old_file.value.row_height,
+                    .layers = old_file.value.layers,
+                    .sprites = old_file.value.sprites,
+                    .animations = animations,
+                };
+            } else if (std.json.parseFromSlice(pixi.File.FileV2, pixi.app.allocator, content, options) catch null) |old_file| {
+                const animations = try pixi.app.allocator.alloc(pixi.Animation, old_file.value.animations.len);
+                for (animations, old_file.value.animations) |*animation, old_animation| {
+                    animation.name = try pixi.app.allocator.dupe(u8, old_animation.name);
+                    animation.frames = try pixi.app.allocator.alloc(Animation.Frame, old_animation.frames.len);
+                    for (animation.frames, old_animation.frames) |*frame, old_frame| {
+                        frame.index = old_frame;
+                        frame.ms = @intFromFloat(1000 / old_animation.fps);
+                    }
+                }
+
                 ext = .{
                     .version = old_file.value.version,
                     .columns = @divExact(old_file.value.width, old_file.value.tile_width),
@@ -210,29 +238,27 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                     .row_height = old_file.value.tile_height,
                     .layers = old_file.value.layers,
                     .sprites = old_file.value.sprites,
-                    .animations = old_file.value.animations,
+                    .animations = animations,
                 };
-            }
-
-            if (std.json.parseFromSlice(pixi.File.FileV1, pixi.app.allocator, content, options) catch null) |older_file| {
-                const animations = try pixi.app.allocator.alloc(pixi.Animation, older_file.value.animations.len);
+            } else if (std.json.parseFromSlice(pixi.File.FileV1, pixi.app.allocator, content, options) catch null) |old_file| {
+                const animations = try pixi.app.allocator.alloc(pixi.Animation, old_file.value.animations.len);
                 for (animations, 0..) |*animation, i| {
-                    animation.name = try pixi.app.allocator.dupe(u8, older_file.value.animations[i].name);
-                    animation.frames = try pixi.app.allocator.alloc(Animation.Frame, older_file.value.animations[i].length);
-                    for (animation.frames, 0..older_file.value.animations[i].length) |*frame, j| {
-                        frame.index = older_file.value.animations[i].start + j;
-                        frame.ms = @intFromFloat(older_file.value.animations[i].fps / 1000);
+                    animation.name = try pixi.app.allocator.dupe(u8, old_file.value.animations[i].name);
+                    animation.frames = try pixi.app.allocator.alloc(Animation.Frame, old_file.value.animations[i].length);
+                    for (animation.frames, 0..old_file.value.animations[i].length) |*frame, j| {
+                        frame.index = old_file.value.animations[i].start + j;
+                        frame.ms = @intFromFloat(1000 / old_file.value.animations[i].fps);
                     }
                 }
 
                 ext = .{
-                    .version = older_file.value.version,
-                    .columns = @divExact(older_file.value.width, older_file.value.tile_width),
-                    .rows = @divExact(older_file.value.height, older_file.value.tile_height),
-                    .column_width = older_file.value.tile_width,
-                    .row_height = older_file.value.tile_height,
-                    .layers = older_file.value.layers,
-                    .sprites = older_file.value.sprites,
+                    .version = old_file.value.version,
+                    .columns = @divExact(old_file.value.width, old_file.value.tile_width),
+                    .rows = @divExact(old_file.value.height, old_file.value.tile_height),
+                    .column_width = old_file.value.tile_width,
+                    .row_height = old_file.value.tile_height,
+                    .layers = old_file.value.layers,
+                    .sprites = old_file.value.sprites,
                     .animations = animations,
                 };
             }
@@ -670,7 +696,7 @@ pub fn spriteName(file: *File, allocator: std.mem.Allocator, index: usize, by_an
         }
     }
 
-    return std.fmt.allocPrint(allocator, "Index: {d}", .{index});
+    return std.fmt.allocPrint(allocator, "{d}", .{index});
 }
 
 pub fn spriteRect(file: *File, index: usize) dvui.Rect {

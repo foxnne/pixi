@@ -33,7 +33,7 @@ pub const FileV3 = struct {
     row_height: u32,
     layers: []pixi.Layer,
     sprites: []pixi.Sprite,
-    animations: []pixi.Animation,
+    animations: []pixi.Animation.AnimationV2,
 
     pub fn deinit(self: *File, allocator: std.mem.Allocator) void {
         for (self.layers) |*layer| {
@@ -57,7 +57,7 @@ pub const FileV2 = struct {
     tile_height: u32,
     layers: []pixi.Layer,
     sprites: []pixi.Sprite,
-    animations: []pixi.Animation,
+    animations: []pixi.Animation.AnimationV2,
 
     pub fn deinit(self: *File, allocator: std.mem.Allocator) void {
         for (self.layers) |*layer| {
