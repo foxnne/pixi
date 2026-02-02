@@ -42,14 +42,20 @@ pub fn draw(self: *Sprites) !void {
                 const frame_index = file.selected_animation_frame_index;
 
                 if (frame_index < animation.frames.len) {
-                    const sprite_index = animation.frames[frame_index].sprite_index;
-                    src_rect = file.spriteRect(sprite_index);
+                    src_rect = file.spriteRect(animation.frames[frame_index].sprite_index);
                 }
             }
         } else {
             if (file.spriteIndex(file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt))) |sprite_index| {
                 src_rect = file.spriteRect(sprite_index);
                 index = sprite_index;
+            } else {
+                if (file.selected_animation_index) |animation_index| {
+                    const animation = file.animations.get(animation_index);
+                    if (animation.frames.len > 0 and file.selected_animation_frame_index < animation.frames.len) {
+                        src_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].sprite_index);
+                    }
+                }
             }
         }
 
