@@ -84,7 +84,7 @@ pub fn defaultDialogDisplay(id: dvui.Id) anyerror!bool {
 
     _ = pixi.dvui.sprite(@src(), .{
         .source = pixi.editor.atlas.source,
-        .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.fox_default_0],
+        .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.fox_default],
         .scale = 2.0,
     }, .{ .gravity_y = 0.5, .gravity_x = 0.5, .background = false });
 

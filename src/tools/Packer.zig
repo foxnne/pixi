@@ -107,6 +107,7 @@ pub fn clearAndFree(self: *Packer) void {
 }
 
 pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
+    std.log.info("Appending file with sprites: {d}", .{file.sprites.slice().len});
     var layer_opt: ?pixi.Internal.Layer = null;
     var index: usize = 0;
     while (index < file.layers.slice().len) : (index += 1) {
@@ -147,7 +148,7 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
 
         const layer_width = @as(usize, @intFromFloat(size.w));
         var sprite_index: usize = 0;
-        while (sprite_index < file.sprites.slice().len) : (sprite_index += 1) {
+        while (sprite_index < file.spriteCount()) : (sprite_index += 1) {
             const sprite = file.sprites.slice().get(sprite_index);
             const columns = file.columns;
 
@@ -195,6 +196,23 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                 });
 
                 try self.frames.append(.{ .id = self.newId(), .w = @as(c_ushort, @intCast(image.width)), .h = @as(c_ushort, @intCast(image.height)) });
+
+                const new_sprite_index = self.sprites.items.len - 1;
+                for (0..file.animations.len) |animation_index| {
+                    const animation = file.animations.get(animation_index);
+                    if (animation.frames[0].sprite_index == sprite_index) {
+                        const frames = try pixi.app.allocator.alloc(pixi.Animation.Frame, animation.frames.len);
+                        for (frames, animation.frames, 0..) |*current_frame, file_anim_frame, i| {
+                            current_frame.sprite_index = new_sprite_index + i;
+                            current_frame.ms = file_anim_frame.ms;
+                        }
+                        try self.animations.append(.{
+                            .name = try std.fmt.allocPrint(pixi.app.allocator, "{s}_{s}", .{ animation.name, layer.name }),
+                            .frames = frames,
+                            .fps = animation.fps,
+                        });
+                    }
+                }
             } else {
                 var animation_index: usize = 0;
                 while (animation_index < file.animations.slice().len) : (animation_index += 1) {
@@ -202,6 +220,7 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
 
                     for (animation.frames) |frame| {
                         if (frame.sprite_index == sprite_index) {
+
                             // Sprite contains no pixels but is part of an animation
                             // To preserve the animation, add a blank pixel to the sprites list
                             try self.sprites.append(.{
@@ -216,19 +235,6 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                             });
                         }
                     }
-                }
-            }
-
-            var animation_index: usize = 0;
-            while (animation_index < file.animations.slice().len) : (animation_index += 1) {
-                const animation = file.animations.slice().get(animation_index);
-                if (sprite_index == animation.frames[0].sprite_index) {
-                    try self.animations.append(.{
-                        //.id = animation.id,
-                        .name = try std.fmt.allocPrint(pixi.app.allocator, "{s}_{s}", .{ animation.name, layer.name }),
-                        .frames = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames),
-                        .fps = animation.fps,
-                    });
                 }
             }
         }

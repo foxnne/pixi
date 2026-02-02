@@ -35,6 +35,8 @@ pub const InitOptions = struct {
     center: bool = false,
 };
 
+pub const temp_ms: u32 = 1000; // Default 1 second
+
 pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Options) FileWidget {
     const fw: FileWidget = .{
         .init_options = init_opts,
@@ -867,19 +869,19 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                         if (in_selection) {
                             iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
                             while (iter.next()) |selected_index| {
-                                frames.append(.{ .sprite_index = selected_index, .ms = 250000 }) catch {
+                                frames.append(.{ .sprite_index = selected_index, .ms = temp_ms }) catch {
                                     dvui.log.err("Failed to append frame", .{});
                                     return;
                                 };
                             }
                         } else {
-                            frames.append(.{ .sprite_index = sprite_index, .ms = 250000 }) catch {
+                            frames.append(.{ .sprite_index = sprite_index, .ms = temp_ms }) catch {
                                 dvui.log.err("Failed to append frame", .{});
                                 return;
                             };
                         }
                     } else {
-                        frames.append(.{ .sprite_index = sprite_index, .ms = 250000 }) catch {
+                        frames.append(.{ .sprite_index = sprite_index, .ms = temp_ms }) catch {
                             dvui.log.err("Failed to append frame", .{});
                             return;
                         };
@@ -916,7 +918,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
                     var anim = self.init_options.file.animations.get(anim_index);
                     if (anim.frames.len == 0) {
-                        anim.appendFrame(pixi.app.allocator, .{ .sprite_index = sprite_index, .ms = 250000 }) catch {
+                        anim.appendFrame(pixi.app.allocator, .{ .sprite_index = sprite_index, .ms = temp_ms }) catch {
                             dvui.log.err("Failed to append frame", .{});
                             return;
                         };

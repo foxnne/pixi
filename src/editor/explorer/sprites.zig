@@ -482,7 +482,7 @@ pub fn drawFrameControls(_: *Sprites) !void {
             .color_fill = dvui.themeGet().color(.control, .fill),
         })) {
             const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
-            //std.mem.sort(pixi.Animation.Frame, animation.frames, {}, FrameSort.desc);
+            std.mem.sort(pixi.Animation.Frame, animation.frames, {}, FrameSort.desc);
 
             if (!animation.eqlFrames(prev_order)) {
                 file.history.append(.{
