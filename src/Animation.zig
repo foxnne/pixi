@@ -3,7 +3,6 @@ const Animation = @This();
 
 name: []const u8,
 frames: []Frame,
-fps: f32,
 
 pub const Frame = struct {
     sprite_index: usize,
@@ -23,11 +22,10 @@ pub const AnimationV1 = struct {
     fps: f32,
 };
 
-pub fn init(allocator: std.mem.Allocator, name: []const u8, frames: []usize, fps: f32) !Animation {
+pub fn init(allocator: std.mem.Allocator, name: []const u8, frames: []usize) !Animation {
     return .{
         .name = try allocator.dupe(u8, name),
         .frames = try allocator.dupe(Frame, frames),
-        .fps = fps,
     };
 }
 

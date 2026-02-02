@@ -7,7 +7,6 @@ pub const Frame = @import("../Animation.zig").Frame;
 id: u64,
 name: []const u8,
 frames: []Frame,
-fps: f32,
 
 pub const AnimationV2 = struct {
     id: u64,
@@ -16,12 +15,11 @@ pub const AnimationV2 = struct {
     fps: f32,
 };
 
-pub fn init(allocator: std.mem.Allocator, id: u64, name: []const u8, frames: []Frame, fps: f32) !Animation {
+pub fn init(allocator: std.mem.Allocator, id: u64, name: []const u8, frames: []Frame) !Animation {
     return .{
         .id = id,
         .name = try allocator.dupe(u8, name),
         .frames = try allocator.dupe(Frame, frames),
-        .fps = fps,
     };
 }
 

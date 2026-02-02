@@ -2643,18 +2643,18 @@ pub fn drawLayers(self: *FileWidget) void {
     }
 
     // Draw the selection box for the selected sprites
-    if (pixi.editor.tools.current == .pointer and file.editor.transform == null and self.resize_data_point == null) {
-        var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-        while (iter.next()) |i| {
-            const sprite_rect = file.spriteRect(i);
-            const sprite_rect_physical = self.init_options.file.editor.canvas.screenFromDataRect(sprite_rect);
-            sprite_rect_physical.inset(.all(dvui.currentWindow().natural_scale * 1.5)).stroke(dvui.Rect.Physical.all(@min(sprite_rect_physical.w, sprite_rect_physical.h) / 8), .{
-                .thickness = 1.5 * dvui.currentWindow().natural_scale,
-                .color = dvui.themeGet().color(.highlight, .fill),
-                .closed = true,
-            });
-        }
-    }
+    // if (pixi.editor.tools.current == .pointer and file.editor.transform == null and self.resize_data_point == null) {
+    //     var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+    //     while (iter.next()) |i| {
+    //         const sprite_rect = file.spriteRect(i);
+    //         const sprite_rect_physical = self.init_options.file.editor.canvas.screenFromDataRect(sprite_rect);
+    //         sprite_rect_physical.inset(.all(dvui.currentWindow().natural_scale * 1.5)).stroke(dvui.Rect.Physical.all(@min(sprite_rect_physical.w, sprite_rect_physical.h) / 8), .{
+    //             .thickness = 1.5 * dvui.currentWindow().natural_scale,
+    //             .color = dvui.themeGet().color(.highlight, .fill),
+    //             .closed = true,
+    //         });
+    //     }
+    // }
 }
 
 pub fn processResize(self: *FileWidget) void {

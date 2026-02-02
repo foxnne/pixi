@@ -209,7 +209,6 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                         try self.animations.append(.{
                             .name = try std.fmt.allocPrint(pixi.app.allocator, "{s}_{s}", .{ animation.name, layer.name }),
                             .frames = frames,
-                            .fps = animation.fps,
                         });
                     }
                 }
@@ -327,7 +326,6 @@ pub fn packAndClear(packer: *Packer) !void {
 
         for (atlas.animations, packer.animations.items) |*dst, src| {
             dst.name = try pixi.app.allocator.dupe(u8, src.name);
-            dst.fps = src.fps;
             dst.frames = try pixi.app.allocator.dupe(pixi.Animation.Frame, src.frames);
             //dst.length = src.length;
             // dst.start = src.start;

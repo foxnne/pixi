@@ -203,8 +203,8 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
 
         if (try_parse == null) {
             // If we are here, we have tried to load the file but hit an issue because the old animation format
-
             if (std.json.parseFromSlice(pixi.File.FileV3, pixi.app.allocator, content, options) catch null) |old_file| {
+                std.log.info("Loading file v3: {s}", .{path});
                 const animations = try pixi.app.allocator.alloc(pixi.Animation, old_file.value.animations.len);
                 for (animations, old_file.value.animations) |*animation, old_animation| {
                     animation.name = try pixi.app.allocator.dupe(u8, old_animation.name);
@@ -226,6 +226,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                     .animations = animations,
                 };
             } else if (std.json.parseFromSlice(pixi.File.FileV2, pixi.app.allocator, content, options) catch null) |old_file| {
+                std.log.info("Loading file v2: {s}", .{path});
                 const animations = try pixi.app.allocator.alloc(pixi.Animation, old_file.value.animations.len);
                 for (animations, old_file.value.animations) |*animation, old_animation| {
                     animation.name = try pixi.app.allocator.dupe(u8, old_animation.name);
@@ -247,6 +248,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                     .animations = animations,
                 };
             } else if (std.json.parseFromSlice(pixi.File.FileV1, pixi.app.allocator, content, options) catch null) |old_file| {
+                std.log.info("Loading file v1: {s}", .{path});
                 const animations = try pixi.app.allocator.alloc(pixi.Animation, old_file.value.animations.len);
                 for (animations, 0..) |*animation, i| {
                     animation.name = try pixi.app.allocator.dupe(u8, old_file.value.animations[i].name);
@@ -393,7 +395,6 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                 .id = internal.newAnimationID(),
                 .name = try pixi.app.allocator.dupe(u8, animation.name),
                 .frames = try pixi.app.allocator.dupe(Animation.Frame, animation.frames),
-                .fps = @max(pixi.editor.settings.min_animation_fps, animation.fps),
             }) catch return error.FileLoadError;
         }
         return internal;
@@ -1233,7 +1234,12 @@ pub fn createLayer(self: *File) !u64 {
 }
 
 pub fn createAnimation(self: *File) !usize {
-    var animation = Animation.init(pixi.app.allocator, self.newAnimationID(), "New Animation", &[_]Animation.Frame{}, @floatFromInt(self.editor.selected_sprites.count())) catch return error.FailedToCreateAnimation;
+    var animation = Animation.init(
+        pixi.app.allocator,
+        self.newAnimationID(),
+        "New Animation",
+        &[_]Animation.Frame{},
+    ) catch return error.FailedToCreateAnimation;
 
     if (self.editor.selected_sprites.count() > 0) {
         animation.frames = try pixi.app.allocator.alloc(Animation.Frame, self.editor.selected_sprites.count());
@@ -1254,7 +1260,7 @@ pub fn createAnimation(self: *File) !usize {
 pub fn duplicateAnimation(self: *File, index: usize) !usize {
     const animation = self.animations.slice().get(index);
     const new_name = try std.fmt.allocPrint(dvui.currentWindow().lifo(), "{s}_copy", .{animation.name});
-    const new_animation = Animation.init(pixi.app.allocator, self.newAnimationID(), new_name, animation.frames, animation.fps) catch return error.FailedToDuplicateAnimation;
+    const new_animation = Animation.init(pixi.app.allocator, self.newAnimationID(), new_name, animation.frames) catch return error.FailedToDuplicateAnimation;
     self.animations.insert(pixi.app.allocator, index + 1, new_animation) catch {
         dvui.log.err("Failed to append animation", .{});
     };
@@ -1434,9 +1440,6 @@ pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
 
     for (animations, 0..) |*animation, i| {
         animation.name = try allocator.dupe(u8, self.animations.items(.name)[i]);
-        animation.fps = self.animations.items(.fps)[i];
-        //animation.start = self.animations.items(.start)[i];
-        //animation.length = self.animations.items(.length)[i];
         animation.frames = try allocator.dupe(Animation.Frame, self.animations.items(.frames)[i]);
     }
 

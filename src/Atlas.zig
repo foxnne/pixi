@@ -69,7 +69,6 @@ pub fn loadFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !Atlas {
                 frame.sprite_index = frame_index;
                 frame.ms = @intFromFloat(1000.0 / old_animation.fps);
             }
-            animation.fps = old_animation.fps;
         }
 
         return .{

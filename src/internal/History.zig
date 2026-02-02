@@ -508,12 +508,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             animation_name.name = name;
             pixi.editor.explorer.pane = .sprites;
         },
-        .animation_settings => |*animation_settings| {
-            const fps = file.animations.items(.fps)[animation_settings.index];
-            file.animations.items(.fps)[animation_settings.index] = animation_settings.fps;
-            animation_settings.fps = fps;
-            pixi.editor.explorer.pane = .sprites;
-        },
+        .animation_settings => |_| {},
         .animation_order => |*animation_order| {
             var new_order = try dvui.currentWindow().arena().alloc(usize, animation_order.order.len);
             for (0..file.animations.len) |anim_index| {

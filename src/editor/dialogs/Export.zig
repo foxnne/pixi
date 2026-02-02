@@ -150,28 +150,18 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
         if (file.selected_animation_index) |animation_index| {
             const anim = file.animations.get(animation_index);
             if (anim.frames.len > 0) {
-                if (anim_frame_index >= anim.frames.len) {
-                    anim_frame_index = 0;
+                if (anim.frames.len > 0) {
+                    if (dvui.timerDoneOrNone(id)) {
+                        if (file.selected_animation_frame_index >= anim.frames.len - 1) {
+                            file.selected_animation_frame_index = 0;
+                        } else {
+                            file.selected_animation_frame_index += 1;
+                        }
+                        const millis_per_frame = anim.frames[file.selected_animation_frame_index].ms;
+
+                        dvui.timer(id, @intCast(millis_per_frame * 1000));
+                    }
                 }
-
-                const min_fps = pixi.editor.settings.min_animation_fps;
-                const fps = @max(min_fps, anim.fps);
-                const millis_per_frame = @as(i32, @intFromFloat(1_000 / fps));
-                if (dvui.timerDoneOrNone(id) or if (dvui.timerGet(id)) |end_time| end_time > millis_per_frame * 1000 else false) {
-                    const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
-                    const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));
-                    const wait = 1000 * (millis_per_frame - left);
-                    dvui.timer(id, wait);
-                }
-
-                const num_frames: i32 = @as(i32, @intCast(anim.frames.len));
-                const frame = blk: {
-                    const millis = @divFloor(dvui.frameTimeNS(), std.time.ns_per_ms);
-                    const left = @as(i32, @intCast(@rem(millis, num_frames * millis_per_frame)));
-                    break :blk @as(usize, @intCast(@divTrunc(left, millis_per_frame)));
-                };
-
-                anim_frame_index = frame;
             }
             const sprite_index = anim.frames[anim_frame_index].sprite_index;
 
@@ -407,9 +397,9 @@ pub fn createAnimationGif(path: []const u8) anyerror!void {
                     export_height,
                 );
 
-                _ = msf_gif.frame(&handle, @ptrCast(resized_pixels.ptr), @intFromFloat(100.0 / anim.fps));
+                _ = msf_gif.frame(&handle, @ptrCast(resized_pixels.ptr), @divTrunc(@as(i32, @intCast(frame.ms)), 10));
             } else {
-                _ = msf_gif.frame(&handle, @ptrCast(pixels.ptr), @intFromFloat(100.0 / anim.fps));
+                _ = msf_gif.frame(&handle, @ptrCast(pixels.ptr), @divTrunc(@as(i32, @intCast(frame.ms)), 10));
             }
         }
 
