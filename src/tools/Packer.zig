@@ -201,7 +201,7 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                     const animation = file.animations.slice().get(animation_index);
 
                     for (animation.frames) |frame| {
-                        if (frame == sprite_index) {
+                        if (frame.index == sprite_index) {
                             // Sprite contains no pixels but is part of an animation
                             // To preserve the animation, add a blank pixel to the sprites list
                             try self.sprites.append(.{
@@ -222,11 +222,11 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
             var animation_index: usize = 0;
             while (animation_index < file.animations.slice().len) : (animation_index += 1) {
                 const animation = file.animations.slice().get(animation_index);
-                if (sprite_index == animation.frames[0]) {
+                if (sprite_index == animation.frames[0].index) {
                     try self.animations.append(.{
                         //.id = animation.id,
                         .name = try std.fmt.allocPrint(pixi.app.allocator, "{s}_{s}", .{ animation.name, layer.name }),
-                        .frames = try pixi.app.allocator.dupe(usize, animation.frames),
+                        .frames = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames),
                         .fps = animation.fps,
                     });
                 }
@@ -322,7 +322,7 @@ pub fn packAndClear(packer: *Packer) !void {
         for (atlas.animations, packer.animations.items) |*dst, src| {
             dst.name = try pixi.app.allocator.dupe(u8, src.name);
             dst.fps = src.fps;
-            dst.frames = try pixi.app.allocator.dupe(usize, src.frames);
+            dst.frames = try pixi.app.allocator.dupe(pixi.Animation.Frame, src.frames);
             //dst.length = src.length;
             // dst.start = src.start;
         }

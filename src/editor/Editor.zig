@@ -936,7 +936,7 @@ pub fn copy(editor: *Editor) !void {
                     } else if (file.selected_animation_index) |animation_index| {
                         const animation = file.animations.get(animation_index);
                         if (file.selected_animation_frame_index < animation.frames.len) {
-                            const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+                            const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].index);
                             if (selected_layer.pixelsFromRect(
                                 dvui.currentWindow().arena(),
                                 rect,
@@ -1038,7 +1038,7 @@ pub fn paste(editor: *Editor) !void {
                 const animation = file.animations.get(animation_index);
 
                 if (file.selected_animation_frame_index < animation.frames.len) {
-                    const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+                    const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].index);
                     dst_rect.x = rect.x + clipboard.offset.x;
                     dst_rect.y = rect.y + clipboard.offset.y;
 
@@ -1149,7 +1149,7 @@ pub fn transform(editor: *Editor) !void {
                     } else if (file.selected_animation_index) |animation_index| {
                         const animation = file.animations.get(animation_index);
                         if (file.selected_animation_frame_index < animation.frames.len) {
-                            const source_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+                            const source_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].index);
                             if (selected_layer.pixelsFromRect(
                                 dvui.currentWindow().arena(),
                                 source_rect,

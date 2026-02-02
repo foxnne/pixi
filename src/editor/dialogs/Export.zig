@@ -173,7 +173,7 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
 
                 anim_frame_index = frame;
             }
-            const sprite_index = anim.frames[anim_frame_index];
+            const sprite_index = anim.frames[anim_frame_index].index;
 
             const sprite_rect = file.spriteRect(sprite_index);
             const max_size_content: dvui.Size = .{ .w = (dvui.currentWindow().rect_pixels.w / dvui.currentWindow().natural_scale) / 2, .h = (dvui.currentWindow().rect_pixels.h / dvui.currentWindow().natural_scale) / 2.0 };
@@ -353,7 +353,8 @@ pub fn createAnimationGif(path: []const u8) anyerror!void {
         // Only see in some gif readers, but not all.
         msf_gif.msf_gif_alpha_threshold = 240;
 
-        for (anim.frames) |sprite_index| {
+        for (anim.frames) |frame| {
+            const sprite_index = frame.index;
             const sprite_rect = file.spriteRect(sprite_index);
 
             var layer_index = file.layers.len - 1;

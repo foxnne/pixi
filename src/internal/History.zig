@@ -52,7 +52,7 @@ pub const Change = union(ChangeType) {
 
     pub const AnimationFrames = struct {
         index: usize,
-        frames: []usize,
+        frames: []pixi.Animation.Frame,
     };
 
     pub const AnimationRestoreDelete = struct {

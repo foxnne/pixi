@@ -42,7 +42,7 @@ pub fn draw(self: *Sprites) !void {
                 const frame_index = file.selected_animation_frame_index;
 
                 if (frame_index < animation.frames.len) {
-                    const sprite_index = animation.frames[frame_index];
+                    const sprite_index = animation.frames[frame_index].index;
                     src_rect = file.spriteRect(sprite_index);
                 }
             }

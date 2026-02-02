@@ -6,14 +6,18 @@ const Atlas = @This();
 
 const Sprite = @import("Sprite.zig");
 const Animation = @import("Animation.zig");
-const OldAnimation = Animation.OldAnimation;
 
 sprites: []Sprite,
 animations: []Animation,
 
-const OldAtlas = struct {
+const AtlasV2 = struct {
     sprites: []Sprite,
-    animations: []OldAnimation,
+    animations: []Animation.AnimationV2,
+};
+
+const AtlasV1 = struct {
+    sprites: []Sprite,
+    animations: []Animation.AnimationV1,
 };
 
 pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
@@ -37,13 +41,29 @@ pub fn loadFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !Atlas {
             .sprites = try allocator.dupe(Sprite, parsed.value.sprites),
             .animations = animations,
         };
-    } else if (std.json.parseFromSlice(OldAtlas, allocator, bytes, options) catch null) |parsed| {
+    } else if (std.json.parseFromSlice(AtlasV2, allocator, bytes, options) catch null) |parsed| {
         const animations = try allocator.alloc(Animation, parsed.value.animations.len);
         for (animations, parsed.value.animations) |*animation, old_animation| {
             animation.name = try allocator.dupe(u8, old_animation.name);
-            animation.frames = try allocator.alloc(usize, old_animation.length);
+            animation.frames = try allocator.alloc(Animation.Frame, old_animation.frames.len);
+            for (animation.frames, old_animation.frames) |*frame, old_frame| {
+                frame.index = old_frame;
+                frame.ms = @intFromFloat(1000.0 / old_animation.fps);
+            }
+        }
+
+        return .{
+            .sprites = try allocator.dupe(Sprite, parsed.value.sprites),
+            .animations = animations,
+        };
+    } else if (std.json.parseFromSlice(AtlasV1, allocator, bytes, options) catch null) |parsed| {
+        const animations = try allocator.alloc(Animation, parsed.value.animations.len);
+        for (animations, parsed.value.animations) |*animation, old_animation| {
+            animation.name = try allocator.dupe(u8, old_animation.name);
+            animation.frames = try allocator.alloc(Animation.Frame, old_animation.length);
             for (animation.frames, 0..old_animation.length) |*frame, i| {
-                frame.* = old_animation.start + i;
+                frame.index = old_animation.start + i;
+                frame.ms = @intFromFloat(1000.0 / old_animation.fps);
             }
             animation.fps = old_animation.fps;
         }
@@ -60,7 +80,7 @@ pub fn loadFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !Atlas {
 pub fn spriteName(atlas: *Atlas, allocator: std.mem.Allocator, index: usize) ![]const u8 {
     for (atlas.animations) |animation| {
         for (animation.frames, 0..) |frame, i| {
-            if (frame != index) continue;
+            if (frame.index != index) continue;
 
             if (animation.frames.len > 1) {
                 return std.fmt.allocPrint(allocator, "{s}_{d}", .{ animation.name, i });

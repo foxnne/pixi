@@ -101,7 +101,7 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
                             try atlas_writer.print("     pub var {s} = [_]usize {{\n", .{animation_name});
 
                             for (animation.frames) |sprite_index| {
-                                try atlas_writer.print("        sprites.{s},\n", .{try atlas.spriteName(allocator, sprite_index)});
+                                try atlas_writer.print("        sprites.{s},\n", .{try atlas.spriteName(allocator, sprite_index.index)});
                             }
 
                             try atlas_writer.print("    }};\n", .{});

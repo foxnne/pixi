@@ -1,31 +1,32 @@
 const std = @import("std");
 const dvui = @import("dvui");
 const Animation = @This();
+pub const Frame = @import("../Animation.zig").Frame;
 
 // TODO: make the same type as external without id
 id: u64,
 name: []const u8,
-frames: []usize,
+frames: []Frame,
 fps: f32,
 
-pub const OldAnimation = struct {
+pub const AnimationV2 = struct {
+    id: u64,
     name: []const u8,
-    start: usize,
-    length: usize,
+    frames: []usize,
     fps: f32,
 };
 
-pub fn init(allocator: std.mem.Allocator, id: u64, name: []const u8, frames: []usize, fps: f32) !Animation {
+pub fn init(allocator: std.mem.Allocator, id: u64, name: []const u8, frames: []Frame, fps: f32) !Animation {
     return .{
         .id = id,
         .name = try allocator.dupe(u8, name),
-        .frames = try allocator.dupe(usize, frames),
+        .frames = try allocator.dupe(Frame, frames),
         .fps = fps,
     };
 }
 
-pub fn appendFrame(self: *Animation, allocator: std.mem.Allocator, frame: usize) !void {
-    var new_frames = std.array_list.Managed(usize).init(allocator);
+pub fn appendFrame(self: *Animation, allocator: std.mem.Allocator, frame: Frame) !void {
+    var new_frames = std.array_list.Managed(Frame).init(allocator);
     new_frames.appendSlice(self.frames) catch |err| {
         dvui.log.err("Failed to append frames", .{});
         return err;
@@ -43,8 +44,8 @@ pub fn appendFrame(self: *Animation, allocator: std.mem.Allocator, frame: usize)
     };
 }
 
-pub fn appendFrames(self: *Animation, allocator: std.mem.Allocator, frames: []usize) !void {
-    var new_frames = std.array_list.Managed(usize).init(allocator);
+pub fn appendFrames(self: *Animation, allocator: std.mem.Allocator, frames: []Frame) !void {
+    var new_frames = std.array_list.Managed(Frame).init(allocator);
     new_frames.appendSlice(self.frames) catch |err| {
         dvui.log.err("Failed to append frames", .{});
         return err;
@@ -61,8 +62,8 @@ pub fn appendFrames(self: *Animation, allocator: std.mem.Allocator, frames: []us
     };
 }
 
-pub fn insertFrame(self: *Animation, allocator: std.mem.Allocator, index: usize, frame: usize) !void {
-    var new_frames = std.array_list.Managed(usize).init(allocator);
+pub fn insertFrame(self: *Animation, allocator: std.mem.Allocator, index: usize, frame: Frame) !void {
+    var new_frames = std.array_list.Managed(Frame).init(allocator);
     new_frames.appendSlice(self.frames) catch |err| {
         dvui.log.err("Failed to append frames", .{});
         return err;
@@ -81,7 +82,7 @@ pub fn insertFrame(self: *Animation, allocator: std.mem.Allocator, index: usize,
 }
 
 pub fn removeFrame(self: *Animation, allocator: std.mem.Allocator, index: usize) void {
-    var new_frames = std.array_list.Managed(usize).init(allocator);
+    var new_frames = std.array_list.Managed(Frame).init(allocator);
     new_frames.appendSlice(self.frames) catch {
         dvui.log.err("Failed to append frames", .{});
         return;

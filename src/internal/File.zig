@@ -218,9 +218,10 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
                 const animations = try pixi.app.allocator.alloc(pixi.Animation, older_file.value.animations.len);
                 for (animations, 0..) |*animation, i| {
                     animation.name = try pixi.app.allocator.dupe(u8, older_file.value.animations[i].name);
-                    animation.frames = try pixi.app.allocator.alloc(usize, older_file.value.animations[i].length);
+                    animation.frames = try pixi.app.allocator.alloc(Animation.Frame, older_file.value.animations[i].length);
                     for (animation.frames, 0..older_file.value.animations[i].length) |*frame, j| {
-                        frame.* = older_file.value.animations[i].start + j;
+                        frame.index = older_file.value.animations[i].start + j;
+                        frame.ms = @intFromFloat(older_file.value.animations[i].fps / 1000);
                     }
                 }
 
@@ -359,7 +360,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
             internal.animations.append(pixi.app.allocator, .{
                 .id = internal.newAnimationID(),
                 .name = try pixi.app.allocator.dupe(u8, animation.name),
-                .frames = try pixi.app.allocator.dupe(usize, animation.frames),
+                .frames = try pixi.app.allocator.dupe(Animation.Frame, animation.frames),
                 .fps = @max(pixi.editor.settings.min_animation_fps, animation.fps),
             }) catch return error.FileLoadError;
         }
@@ -658,7 +659,7 @@ pub fn spriteName(file: *File, allocator: std.mem.Allocator, index: usize, by_an
     if (by_animation) {
         for (file.animations.items(.frames), 0..) |frames, animation_index| {
             for (frames, 0..) |frame, i| {
-                if (frame != index) continue;
+                if (frame.index != index) continue;
 
                 if (frames.len > 1) {
                     return std.fmt.allocPrint(allocator, "{s}_{d}", .{ file.animations.items(.name)[animation_index], i });
@@ -1200,15 +1201,15 @@ pub fn createLayer(self: *File) !u64 {
 }
 
 pub fn createAnimation(self: *File) !usize {
-    var animation = Animation.init(pixi.app.allocator, self.newAnimationID(), "New Animation", &[_]usize{}, 1.0) catch return error.FailedToCreateAnimation;
+    var animation = Animation.init(pixi.app.allocator, self.newAnimationID(), "New Animation", &[_]Animation.Frame{}, @floatFromInt(self.editor.selected_sprites.count())) catch return error.FailedToCreateAnimation;
 
     if (self.editor.selected_sprites.count() > 0) {
-        animation.frames = try pixi.app.allocator.alloc(usize, self.editor.selected_sprites.count());
+        animation.frames = try pixi.app.allocator.alloc(Animation.Frame, self.editor.selected_sprites.count());
 
         var iter = self.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
         var i: usize = 0;
         while (iter.next()) |sprite_index| : (i += 1) {
-            animation.frames[i] = sprite_index;
+            animation.frames[i] = .{ .index = sprite_index, .ms = @intFromFloat(1000.0 / @as(f32, @floatFromInt(self.editor.selected_sprites.count()))) };
         }
     }
 
@@ -1404,7 +1405,7 @@ pub fn external(self: File, allocator: std.mem.Allocator) !pixi.File {
         animation.fps = self.animations.items(.fps)[i];
         //animation.start = self.animations.items(.start)[i];
         //animation.length = self.animations.items(.length)[i];
-        animation.frames = try allocator.dupe(usize, self.animations.items(.frames)[i]);
+        animation.frames = try allocator.dupe(Animation.Frame, self.animations.items(.frames)[i]);
     }
 
     return .{

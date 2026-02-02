@@ -229,7 +229,7 @@ pub fn processAnimationSelection(self: *FileWidget) void {
                         var found: bool = false;
                         for (file.animations.items(.frames), 0..) |frames, anim_index| {
                             for (frames, 0..) |frame, frame_index| {
-                                if (frame == sprite_index) {
+                                if (frame.index == sprite_index) {
                                     file.selected_animation_index = anim_index;
                                     file.editor.animations_scroll_to_index = anim_index;
 
@@ -454,7 +454,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             // First, search through the frames of the selected animation to see if our current sprite is in it
             if (self.init_options.file.selected_animation_index) |selected_animation_index| {
                 for (self.init_options.file.animations.items(.frames)[selected_animation_index], 0..) |frame, i| {
-                    if (frame == index) {
+                    if (frame.index == index) {
                         automatic_animation_frame_i = i;
                         animation_index = selected_animation_index;
                         break;
@@ -466,7 +466,7 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             if (animation_index == null) {
                 anim_blk: for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
                     for (frames, 0..) |frame, j| {
-                        if (frame == index) {
+                        if (frame.index == index) {
                             automatic_animation_frame_i = j;
                             animation_index = i;
                             break :anim_blk;
@@ -645,7 +645,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             const animation = self.init_options.file.animations.get(ai);
             if (animation.frames.len > 0) {
                 const frame = animation.frames[self.init_options.file.selected_animation_frame_index];
-                if (frame != sprite_index and animation_index == ai) {
+                if (frame.index != sprite_index and animation_index == ai) {
                     bubble_max_height = @min(sprite_rect.h, sprite_rect.w) * 0.3333;
                 }
             }
@@ -701,7 +701,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         if (!draw_transparency and !self.init_options.file.editor.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
             if (self.init_options.file.selected_animation_index) |ai| {
                 if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
-                    draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index] == sprite_index;
+                    draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index].index == sprite_index;
                 }
             }
         }
@@ -811,17 +811,17 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             if (anim_index_opt) |anim_index| {
                 // TODO: Efficiently resize the animation frames array instead of duplicating it
 
-                var anim = self.init_options.file.animations.get(anim_index);
+                const anim = self.init_options.file.animations.get(anim_index);
 
-                var frames = std.array_list.Managed(usize).init(pixi.app.allocator);
+                var frames = std.array_list.Managed(pixi.Animation.Frame).init(pixi.app.allocator);
                 frames.appendSlice(anim.frames) catch {
                     dvui.log.err("Failed to append frames", .{});
                     return;
                 };
 
                 var remove: bool = false;
-                for (frames.items, 0..) |frame_sprite_index, i| {
-                    if (frame_sprite_index == sprite_index) {
+                for (frames.items, 0..) |frame, i| {
+                    if (frame.index == sprite_index) {
                         remove = true;
 
                         // First remove the currently clicked frame, regardless
@@ -846,7 +846,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                         while (iter.next()) |selected_sprite_index| {
                             var j: usize = frames.items.len;
                             while (j > 0) : (j -= 1) {
-                                if (frames.items[j - 1] == selected_sprite_index) {
+                                if (frames.items[j - 1].index == selected_sprite_index) {
                                     _ = frames.orderedRemove(j - 1);
                                 }
                             }
@@ -869,46 +869,46 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                         if (in_selection) {
                             iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
                             while (iter.next()) |selected_index| {
-                                frames.append(selected_index) catch {
+                                frames.append(.{ .index = selected_index, .ms = 250000 }) catch {
                                     dvui.log.err("Failed to append frame", .{});
                                     return;
                                 };
                             }
                         } else {
-                            frames.append(sprite_index) catch {
+                            frames.append(.{ .index = sprite_index, .ms = 250000 }) catch {
                                 dvui.log.err("Failed to append frame", .{});
                                 return;
                             };
                         }
                     } else {
-                        frames.append(sprite_index) catch {
+                        frames.append(.{ .index = sprite_index, .ms = 250000 }) catch {
                             dvui.log.err("Failed to append frame", .{});
                             return;
                         };
                     }
                 }
 
-                if (!std.mem.eql(usize, anim.frames, frames.items)) {
-                    self.init_options.file.history.append(.{
-                        .animation_frames = .{
-                            .index = anim_index,
-                            .frames = pixi.app.allocator.dupe(usize, anim.frames) catch {
-                                dvui.log.err("Failed to dupe frames", .{});
-                                return;
-                            },
-                        },
-                    }) catch {
-                        dvui.log.err("Failed to append history", .{});
-                    };
+                // if (!std.mem.eql(pixi.Animation.Frame, anim.frames, frames.items)) {
+                //     self.init_options.file.history.append(.{
+                //         .animation_frames = .{
+                //             .index = anim_index,
+                //             .frames = pixi.app.allocator.dupe(pixi.Animation.Frame, anim.frames) catch {
+                //                 dvui.log.err("Failed to dupe frames", .{});
+                //                 return;
+                //             },
+                //         },
+                //     }) catch {
+                //         dvui.log.err("Failed to append history", .{});
+                //     };
 
-                    pixi.app.allocator.free(anim.frames);
-                    anim.frames = frames.toOwnedSlice() catch {
-                        dvui.log.err("Failed to free frames", .{});
-                        return;
-                    };
+                //     pixi.app.allocator.free(anim.frames);
+                //     anim.frames = frames.toOwnedSlice() catch {
+                //         dvui.log.err("Failed to free frames", .{});
+                //         return;
+                //     };
 
-                    self.init_options.file.animations.set(anim_index, anim);
-                }
+                //     self.init_options.file.animations.set(anim_index, anim);
+                // }
             } else {
                 anim_index_opt = self.init_options.file.createAnimation() catch null;
                 if (anim_index_opt) |anim_index| {
@@ -919,7 +919,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
                     var anim = self.init_options.file.animations.get(anim_index);
                     if (anim.frames.len == 0) {
-                        anim.appendFrame(pixi.app.allocator, sprite_index) catch {
+                        anim.appendFrame(pixi.app.allocator, .{ .index = sprite_index, .ms = 250000 }) catch {
                             dvui.log.err("Failed to append frame", .{});
                             return;
                         };
@@ -2554,7 +2554,7 @@ pub fn drawLayers(self: *FileWidget) void {
                 const animation = file.animations.get(animation_index);
 
                 if (file.selected_animation_frame_index < animation.frames.len) {
-                    const image_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index]);
+                    const image_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].index);
 
                     const image_rect_scale: dvui.RectScale = .{
                         .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),

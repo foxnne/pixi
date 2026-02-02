@@ -2,10 +2,21 @@ const std = @import("std");
 const Animation = @This();
 
 name: []const u8,
-frames: []usize,
+frames: []Frame,
 fps: f32,
 
-pub const OldAnimation = struct {
+pub const Frame = struct {
+    index: usize,
+    ms: u32,
+};
+
+pub const AnimationV2 = struct {
+    name: []const u8,
+    frames: []usize,
+    fps: f32,
+};
+
+pub const AnimationV1 = struct {
     name: []const u8,
     start: usize,
     length: usize,
@@ -15,7 +26,7 @@ pub const OldAnimation = struct {
 pub fn init(allocator: std.mem.Allocator, name: []const u8, frames: []usize, fps: f32) !Animation {
     return .{
         .name = try allocator.dupe(u8, name),
-        .frames = try allocator.dupe(usize, frames),
+        .frames = try allocator.dupe(Frame, frames),
         .fps = fps,
     };
 }
