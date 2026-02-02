@@ -33,7 +33,7 @@ pub fn draw(self: *Sprites) !void {
 
         const hbox = dvui.box(@src(), .{
             .dir = .horizontal,
-            .equal_space = true,
+            .equal_space = false,
         }, .{
             .expand = .horizontal,
             .background = false,
