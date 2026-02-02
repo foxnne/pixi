@@ -20,7 +20,7 @@ pub const Image = struct {
 
 pub const Sprite = struct {
     image: ?Image = null,
-    origin: [2]i32 = .{ 0, 0 },
+    origin: [2]f32 = .{ 0.0, 0.0 },
 
     pub fn deinit(self: *Sprite, allocator: std.mem.Allocator) void {
         if (self.image) |*image| {
@@ -191,7 +191,7 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                 try self.sprites.append(.{
                     .image = image,
                     //.heightmap_image = heightmap_image,
-                    .origin = .{ @as(i32, @intFromFloat(sprite.origin[0])) - @as(i32, @intCast(offset[0])), @as(i32, @intFromFloat(sprite.origin[1])) - @as(i32, @intCast(offset[1])) },
+                    .origin = .{ sprite.origin[0] - @as(f32, @floatFromInt(offset[0])), sprite.origin[1] - @as(f32, @floatFromInt(offset[1])) },
                 });
 
                 try self.frames.append(.{ .id = self.newId(), .w = @as(c_ushort, @intCast(image.width)), .h = @as(c_ushort, @intCast(image.height)) });
@@ -201,7 +201,7 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
                     const animation = file.animations.slice().get(animation_index);
 
                     for (animation.frames) |frame| {
-                        if (frame.index == sprite_index) {
+                        if (frame.sprite_index == sprite_index) {
                             // Sprite contains no pixels but is part of an animation
                             // To preserve the animation, add a blank pixel to the sprites list
                             try self.sprites.append(.{
@@ -222,7 +222,7 @@ pub fn append(self: *Packer, file: *pixi.Internal.File) !void {
             var animation_index: usize = 0;
             while (animation_index < file.animations.slice().len) : (animation_index += 1) {
                 const animation = file.animations.slice().get(animation_index);
-                if (sprite_index == animation.frames[0].index) {
+                if (sprite_index == animation.frames[0].sprite_index) {
                     try self.animations.append(.{
                         //.id = animation.id,
                         .name = try std.fmt.allocPrint(pixi.app.allocator, "{s}_{s}", .{ animation.name, layer.name }),
@@ -310,7 +310,7 @@ pub fn packAndClear(packer: *Packer) !void {
         atlas_layer.invalidate();
 
         const atlas: pixi.Atlas = .{
-            .sprites = try pixi.app.allocator.alloc(pixi.Sprite, packer.sprites.items.len),
+            .sprites = try pixi.app.allocator.alloc(pixi.Atlas.Sprite, packer.sprites.items.len),
             .animations = try pixi.app.allocator.alloc(pixi.Animation, packer.animations.items.len),
         };
 

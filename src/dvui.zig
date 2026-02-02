@@ -486,7 +486,7 @@ pub const SpriteInitOptions = struct {
     source: dvui.ImageSource,
     file: ?*pixi.Internal.File = null,
     alpha_source: ?dvui.ImageSource = null,
-    sprite: pixi.Sprite,
+    sprite: pixi.Atlas.Sprite,
     scale: f32 = 1.0,
     depth: f32 = 0.0, // -1.0 is front, 1.0 is back
     reflection: bool = false,

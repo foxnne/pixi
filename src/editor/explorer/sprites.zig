@@ -31,25 +31,9 @@ pub fn draw(self: *Sprites) !void {
         });
         defer vbox.deinit();
 
-        if (file.animations.len > 0) {
-            if (file.selected_animation_index) |index| {
-                const hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                    .expand = .horizontal,
-                    .background = false,
-                });
-                defer hbox.deinit();
-
-                dvui.labelNoFmt(@src(), "Frames per second:", .{}, .{ .gravity_y = 0.5 });
-
-                _ = dvui.textEntryNumber(@src(), f32, .{ .value = &file.animations.items(.fps)[index], .min = pixi.editor.settings.min_animation_fps, .max = pixi.editor.settings.max_animation_fps }, .{
-                    .expand = .horizontal,
-                    .background = false,
-                });
-            }
-        }
         const hbox = dvui.box(@src(), .{
             .dir = .horizontal,
-            .equal_space = false,
+            .equal_space = true,
         }, .{
             .expand = .horizontal,
             .background = false,
@@ -169,7 +153,7 @@ pub fn drawAnimationControls(self: *Sprites) !void {
 
 pub fn drawAnimations(self: *Sprites) !void {
     const controls_box = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .none,
+        .expand = .horizontal,
         .background = false,
     });
     defer controls_box.deinit();
@@ -206,7 +190,7 @@ pub fn drawAnimations(self: *Sprites) !void {
         // Drag and drop is completing
         if (self.animation_insert_before_index) |insert_before| {
             if (self.animation_removed_index) |removed| {
-                // const prev_order = try pixi.app.allocator.dupe(u64, file.animations.items(.id));
+                //const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, file.animations.items(.id));
 
                 const anim = file.animations.get(removed);
                 file.animations.orderedRemove(removed);
@@ -336,6 +320,7 @@ pub fn drawAnimations(self: *Sprites) !void {
             });
 
             const font = dvui.Font.theme(.mono).larger(-4.0);
+            const padding: dvui.Rect = .{ .w = 6 };
 
             if (self.edit_anim_id != anim_id) {
                 if (file.selected_animation_index == anim_index) {
@@ -343,7 +328,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                         .gravity_y = 0.5,
                         .font = font,
                         .margin = dvui.Rect.all(2),
-                        .padding = dvui.Rect.all(0),
+                        .padding = padding,
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     })) {
                         self.edit_anim_id = anim_id;
@@ -353,7 +338,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(2),
                         .font = font,
-                        .padding = dvui.Rect.all(0),
+                        .padding = padding,
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
                     });
                 }
@@ -361,7 +346,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                 var te = dvui.textEntry(@src(), .{}, .{
                     .expand = .horizontal,
                     .background = false,
-                    .padding = dvui.Rect.all(0),
+                    .padding = padding,
                     .margin = dvui.Rect.all(0),
                     .font = font,
                     .gravity_y = 0.5,
@@ -464,23 +449,23 @@ pub fn drawFrameControls(_: *Sprites) !void {
             },
             .color_fill = dvui.themeGet().color(.control, .fill),
         })) {
-            //const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
-            //std.mem.sort(pixi.Animation.Frame, animation.frames, {}, FrameSort.asc);
+            const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
+            std.mem.sort(pixi.Animation.Frame, animation.frames, {}, FrameSort.asc);
 
-            // if (!std.mem.eql(pixi.Animation.Frame, animation.frames[0..animation.frames.len], prev_order)) {
-            //     file.history.append(.{
-            //         .animation_frames = .{
-            //             .index = index,
-            //             .frames = prev_order,
-            //         },
-            //     }) catch {
-            //         dvui.log.err("Failed to append history", .{});
-            //     };
+            if (!animation.eqlFrames(prev_order)) {
+                file.history.append(.{
+                    .animation_frames = .{
+                        .index = index,
+                        .frames = prev_order,
+                    },
+                }) catch {
+                    dvui.log.err("Failed to append history", .{});
+                };
 
-            //     file.animations.set(index, animation);
-            // } else {
-            //     pixi.app.allocator.free(prev_order);
-            // }
+                file.animations.set(index, animation);
+            } else {
+                pixi.app.allocator.free(prev_order);
+            }
         }
 
         if (dvui.buttonIcon(@src(), "SortAnimationDec", icons.tvg.lucide.@"arrow-down-from-line", .{}, .{}, .{
@@ -496,23 +481,23 @@ pub fn drawFrameControls(_: *Sprites) !void {
             },
             .color_fill = dvui.themeGet().color(.control, .fill),
         })) {
-            //const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
+            const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
             //std.mem.sort(pixi.Animation.Frame, animation.frames, {}, FrameSort.desc);
 
-            // if (!std.mem.eql(pixi.Animation.Frame, animation.frames[0..animation.frames.len], prev_order)) {
-            //     file.history.append(.{
-            //         .animation_frames = .{
-            //             .index = index,
-            //             .frames = prev_order,
-            //         },
-            //     }) catch {
-            //         dvui.log.err("Failed to append history", .{});
-            //     };
+            if (!animation.eqlFrames(prev_order)) {
+                file.history.append(.{
+                    .animation_frames = .{
+                        .index = index,
+                        .frames = prev_order,
+                    },
+                }) catch {
+                    dvui.log.err("Failed to append history", .{});
+                };
 
-            //     file.animations.set(index, animation);
-            // } else {
-            //     pixi.app.allocator.free(prev_order);
-            // }
+                file.animations.set(index, animation);
+            } else {
+                pixi.app.allocator.free(prev_order);
+            }
         }
 
         if (file.editor.selected_sprites.count() > 0) {
@@ -533,7 +518,7 @@ pub fn drawFrameControls(_: *Sprites) !void {
                 var frames = std.array_list.Managed(pixi.Animation.Frame).init(dvui.currentWindow().arena());
                 while (iter.next()) |sprite_index| {
                     frames.append(.{
-                        .index = sprite_index,
+                        .sprite_index = sprite_index,
                         .ms = @intFromFloat(1000.0 / @as(f32, @floatFromInt(file.editor.selected_sprites.count()))),
                     }) catch {
                         dvui.log.err("Failed to append frame", .{});
@@ -541,26 +526,26 @@ pub fn drawFrameControls(_: *Sprites) !void {
                     };
                 }
 
-                //const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
+                const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
 
                 animation.appendFrames(pixi.app.allocator, frames.items) catch {
                     dvui.log.err("Failed to append frames", .{});
                 };
 
-                // if (!std.mem.eql(pixi.Animation.Frame, animation.frames[0..animation.frames.len], prev_order)) {
-                //     file.history.append(.{
-                //         .animation_frames = .{
-                //             .index = index,
-                //             .frames = prev_order,
-                //         },
-                //     }) catch {
-                //         dvui.log.err("Failed to append history", .{});
-                //     };
+                if (!animation.eqlFrames(prev_order)) {
+                    file.history.append(.{
+                        .animation_frames = .{
+                            .index = index,
+                            .frames = prev_order,
+                        },
+                    }) catch {
+                        dvui.log.err("Failed to append history", .{});
+                    };
 
-                //     file.animations.set(index, animation);
-                // } else {
-                //     pixi.app.allocator.free(prev_order);
-                // }
+                    file.animations.set(index, animation);
+                } else {
+                    pixi.app.allocator.free(prev_order);
+                }
             }
 
             var show_delete_button = false;
@@ -568,7 +553,7 @@ pub fn drawFrameControls(_: *Sprites) !void {
             var selection_iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
             blk: while (selection_iter.next()) |sprite_index| {
                 for (animation.frames) |frame| {
-                    if (frame.index == sprite_index) {
+                    if (frame.sprite_index == sprite_index) {
                         show_delete_button = true;
                         break :blk;
                     }
@@ -591,31 +576,31 @@ pub fn drawFrameControls(_: *Sprites) !void {
                 },
             })) {
                 var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-                // const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
+                const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
 
                 while (iter.next()) |sprite_index| {
                     for (animation.frames, 0..) |frame, i| {
-                        if (frame.index == sprite_index) {
+                        if (frame.sprite_index == sprite_index) {
                             animation.removeFrame(pixi.app.allocator, i);
                             break;
                         }
                     }
                 }
 
-                // if (!std.mem.eql(pixi.Animation.Frame, animation.frames[0..animation.frames.len], prev_order)) {
-                //     file.history.append(.{
-                //         .animation_frames = .{
-                //             .index = index,
-                //             .frames = prev_order,
-                //         },
-                //     }) catch {
-                //         dvui.log.err("Failed to append history", .{});
-                //     };
-                //     file.selected_animation_frame_index = 0;
-                //     file.animations.set(index, animation);
-                // } else {
-                //     pixi.app.allocator.free(prev_order);
-                // }
+                if (!animation.eqlFrames(prev_order)) {
+                    file.history.append(.{
+                        .animation_frames = .{
+                            .index = index,
+                            .frames = prev_order,
+                        },
+                    }) catch {
+                        dvui.log.err("Failed to append history", .{});
+                    };
+                    file.selected_animation_frame_index = 0;
+                    file.animations.set(index, animation);
+                } else {
+                    pixi.app.allocator.free(prev_order);
+                }
             }
         }
     }
@@ -624,7 +609,7 @@ pub fn drawFrameControls(_: *Sprites) !void {
 pub fn drawFrames(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         const controls_box = dvui.box(@src(), .{ .dir = .vertical }, .{
-            .expand = .none,
+            .expand = .horizontal,
             .background = false,
         });
         defer controls_box.deinit();
@@ -634,15 +619,14 @@ pub fn drawFrames(self: *Sprites) !void {
         self.drawFrameControls() catch {};
 
         const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-            .expand = .none,
+            .expand = .both,
             .background = false,
             .color_fill = dvui.themeGet().color(.content, .fill),
-            .max_size_content = .{ .w = pixi.editor.explorer.rect.w / 2.0, .h = std.math.floatMax(f32) },
         });
         defer vbox.deinit();
 
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.sprites_scroll_info, .horizontal_bar = .auto_overlay, .vertical_bar = .auto_overlay }, .{
-            .expand = .none,
+            .expand = .horizontal,
             .background = false,
             .corner_radius = dvui.Rect.all(1000),
         });
@@ -658,7 +642,7 @@ pub fn drawFrames(self: *Sprites) !void {
             defer self.prev_anim_id = animation.id;
 
             var reorder = pixi.dvui.reorder(@src(), .{ .drag_name = "sprite_drag" }, .{
-                .expand = .none,
+                .expand = .horizontal,
                 .background = false,
             });
             defer reorder.deinit();
@@ -668,7 +652,7 @@ pub fn drawFrames(self: *Sprites) !void {
             // Drag and drop is completing
             if (self.sprite_insert_before_index) |insert_before| {
                 if (self.sprite_removed_index) |removed| {
-                    //const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
+                    const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
                     defer file.animations.set(animation_index, animation);
 
                     dvui.ReorderWidget.reorderSlice(pixi.Animation.Frame, animation.frames, removed, insert_before);
@@ -693,18 +677,18 @@ pub fn drawFrames(self: *Sprites) !void {
                     //     }
                     // }
 
-                    // if (!std.mem.eql(pixi.Animation.Frame, animation.frames[0..animation.frames.len], prev_order)) {
-                    //     file.history.append(.{
-                    //         .animation_frames = .{
-                    //             .index = animation_index,
-                    //             .frames = prev_order,
-                    //         },
-                    //     }) catch {
-                    //         dvui.log.err("Failed to append history", .{});
-                    //     };
-                    // } else {
-                    //     pixi.app.allocator.free(prev_order);
-                    // }
+                    if (!animation.eqlFrames(prev_order)) {
+                        file.history.append(.{
+                            .animation_frames = .{
+                                .index = animation_index,
+                                .frames = prev_order,
+                            },
+                        }) catch {
+                            dvui.log.err("Failed to append history", .{});
+                        };
+                    } else {
+                        pixi.app.allocator.free(prev_order);
+                    }
 
                     self.sprite_insert_before_index = null;
                     self.sprite_removed_index = null;
@@ -725,7 +709,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 duration_step = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(animation.frames.len))), 0, max_step_duration);
             }
 
-            for (animation.frames, 0..) |frame, frame_index| {
+            for (animation.frames, 0..) |*frame, frame_index| {
                 const duration = max_step_duration + (duration_step * @as(i32, @intCast(frame_index + 1)));
                 var color = dvui.themeGet().color(.control, .fill_hover);
                 if (pixi.editor.colors.file_tree_palette) |*palette| {
@@ -766,7 +750,7 @@ pub fn drawFrames(self: *Sprites) !void {
                     self.sprite_insert_before_index = frame_index;
                 }
 
-                const selected = if (frame.index < file.editor.selected_sprites.capacity()) file.editor.selected_sprites.isSet(frame.index) else false;
+                const selected = if (frame.sprite_index < file.editor.selected_sprites.capacity()) file.editor.selected_sprites.isSet(frame.sprite_index) else false;
                 const hovered = pixi.dvui.hovered(r.data());
 
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -798,15 +782,58 @@ pub fn drawFrames(self: *Sprites) !void {
                     .margin = .{ .x = 4, .w = 4 },
                 });
 
-                dvui.labelNoFmt(@src(), try file.spriteName(pixi.app.allocator, frame.index, false), .{}, .{
+                dvui.labelNoFmt(@src(), try file.spriteName(pixi.app.allocator, frame.sprite_index, false), .{}, .{
                     .gravity_y = 0.5,
-                    .margin = dvui.Rect.all(2),
+                    .margin = dvui.Rect.all(0),
                     .font = dvui.Font.theme(.mono).larger(-4.0),
-                    .padding = .{ .x = 2, .w = 2 },
+                    .padding = .{ .x = 2, .w = 6 },
                     .background = if (frame_index == file.selected_animation_frame_index) true else false,
                     .color_fill = color,
                     .corner_radius = dvui.Rect.all(1000),
                     .color_text = if (frame_index == file.selected_animation_frame_index) dvui.themeGet().color(.window, .fill) else if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
+                });
+
+                var ms_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .horizontal,
+                    .background = false,
+                    .margin = dvui.Rect.all(0),
+                    .padding = .{ .x = 6 },
+                    .corner_radius = dvui.Rect.all(1000),
+                    .gravity_y = 0.5,
+                    .gravity_x = 1.0,
+                });
+                defer ms_box.deinit();
+
+                const result = dvui.textEntryNumber(@src(), u32, .{ .value = &frame.ms, .min = 0, .max = 9999999 }, .{
+                    .expand = .horizontal,
+                    .background = true,
+                    .padding = dvui.Rect.all(2),
+                    .margin = dvui.Rect.all(0),
+                    .border = dvui.Rect.all(0),
+                    .min_size_content = .{
+                        .w = dvui.Font.theme(.mono).larger(-4.0).textSize("9999").w,
+                        .h = dvui.Font.theme(.mono).larger(-4.0).textSize("9999").h,
+                    },
+                    .font = dvui.Font.theme(.mono).larger(-4.0),
+                    .gravity_y = 0.5,
+                });
+
+                // Set all frames that are currently selected
+                if (result.changed) {
+                    if (result.value == .Valid) {
+                        for (animation.frames) |*f| {
+                            if (file.editor.selected_sprites.isSet(f.sprite_index)) {
+                                f.ms = result.value.Valid;
+                            }
+                        }
+                    }
+                }
+
+                dvui.labelNoFmt(@src(), "ms", .{}, .{
+                    .gravity_y = 0.5,
+                    .margin = dvui.Rect.all(0),
+                    .font = dvui.Font.theme(.mono).larger(-5.0),
+                    .padding = .{ .x = 2, .w = 6 },
                 });
 
                 // if (self.edit_anim_id != animation.id) {
@@ -884,14 +911,14 @@ pub fn drawFrames(self: *Sprites) !void {
                 // This consumes the click event, so we need to do this last
                 if (dvui.clickedEx(hbox.data(), .{ .hover_cursor = .hand })) |e| {
                     if (e == .mouse) {
-                        if (frame.index < file.editor.selected_sprites.capacity()) {
+                        if (frame.sprite_index < file.editor.selected_sprites.capacity()) {
                             if (e.mouse.mod.matchBind("ctrl/cmd")) {
-                                file.editor.selected_sprites.set(frame.index);
+                                file.editor.selected_sprites.set(frame.sprite_index);
                             } else if (e.mouse.mod.matchBind("shift")) {
-                                file.editor.selected_sprites.unset(frame.index);
+                                file.editor.selected_sprites.unset(frame.sprite_index);
                             } else {
                                 file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.editor.selected_sprites.capacity() }, false);
-                                file.editor.selected_sprites.set(frame.index);
+                                file.editor.selected_sprites.set(frame.sprite_index);
                                 file.selected_animation_frame_index = frame_index;
                             }
                         }
@@ -922,10 +949,10 @@ pub fn drawFrames(self: *Sprites) !void {
 
 const FrameSort = struct {
     pub fn asc(_: void, a: pixi.Animation.Frame, b: pixi.Animation.Frame) bool {
-        return a.index < b.index;
+        return a.sprite_index < b.sprite_index;
     }
 
     pub fn desc(_: void, a: pixi.Animation.Frame, b: pixi.Animation.Frame) bool {
-        return a.index > b.index;
+        return a.sprite_index > b.sprite_index;
     }
 };

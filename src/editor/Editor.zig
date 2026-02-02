@@ -193,28 +193,16 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     const animation = file.animations.get(index);
 
                     if (animation.frames.len > 0) {
-                        if (file.selected_animation_frame_index >= animation.frames.len) {
-                            file.selected_animation_frame_index = 0;
+                        if (dvui.timerDoneOrNone(base_box.data().id)) {
+                            if (file.selected_animation_frame_index >= animation.frames.len - 1) {
+                                file.selected_animation_frame_index = 0;
+                            } else {
+                                file.selected_animation_frame_index += 1;
+                            }
+                            const millis_per_frame = animation.frames[file.selected_animation_frame_index].ms;
+
+                            dvui.timer(base_box.data().id, @intCast(millis_per_frame * 1000));
                         }
-
-                        const min_fps = pixi.editor.settings.min_animation_fps;
-                        const fps = @max(min_fps, animation.fps);
-                        const millis_per_frame = @as(i32, @intFromFloat(1_000 / fps));
-                        if (dvui.timerDoneOrNone(base_box.data().id) or if (dvui.timerGet(base_box.data().id)) |end_time| end_time > millis_per_frame * 1000 else false) {
-                            const millis = @divFloor(dvui.frameTimeNS(), 1_000_000);
-                            const left = @as(i32, @intCast(@rem(millis, millis_per_frame)));
-                            const wait = 1000 * (millis_per_frame - left);
-                            dvui.timer(base_box.data().id, wait);
-                        }
-
-                        const num_frames: i32 = @as(i32, @intCast(animation.frames.len));
-                        const frame = blk: {
-                            const millis = @divFloor(dvui.frameTimeNS(), std.time.ns_per_ms);
-                            const left = @as(i32, @intCast(@rem(millis, num_frames * millis_per_frame)));
-                            break :blk @as(usize, @intCast(@divTrunc(left, millis_per_frame)));
-                        };
-
-                        file.selected_animation_frame_index = frame;
                     }
                 }
             }
@@ -936,7 +924,7 @@ pub fn copy(editor: *Editor) !void {
                     } else if (file.selected_animation_index) |animation_index| {
                         const animation = file.animations.get(animation_index);
                         if (file.selected_animation_frame_index < animation.frames.len) {
-                            const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].index);
+                            const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].sprite_index);
                             if (selected_layer.pixelsFromRect(
                                 dvui.currentWindow().arena(),
                                 rect,
@@ -1038,7 +1026,7 @@ pub fn paste(editor: *Editor) !void {
                 const animation = file.animations.get(animation_index);
 
                 if (file.selected_animation_frame_index < animation.frames.len) {
-                    const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].index);
+                    const rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].sprite_index);
                     dst_rect.x = rect.x + clipboard.offset.x;
                     dst_rect.y = rect.y + clipboard.offset.y;
 
@@ -1149,7 +1137,7 @@ pub fn transform(editor: *Editor) !void {
                     } else if (file.selected_animation_index) |animation_index| {
                         const animation = file.animations.get(animation_index);
                         if (file.selected_animation_frame_index < animation.frames.len) {
-                            const source_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].index);
+                            const source_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].sprite_index);
                             if (selected_layer.pixelsFromRect(
                                 dvui.currentWindow().arena(),
                                 source_rect,

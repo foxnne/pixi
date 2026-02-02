@@ -77,12 +77,12 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
 
                     try atlas_writer.print("pub const sprites = struct {{\n", .{});
 
-                    for (atlas.sprites, 0..) |_, i| {
-                        const sprite_name = try atlas.spriteName(allocator, i);
+                    for (atlas.sprites, 0..) |_, sprite_index| {
+                        const sprite_name = try atlas.spriteName(allocator, sprite_index);
                         // _ = std.mem.replace(u8, sprite.name, " ", "_", sprite_name);
                         // _ = std.mem.replace(u8, sprite_name, ".", "_", sprite_name);
 
-                        try atlas_writer.print("    pub const {s} = {d};\n", .{ sprite_name, i });
+                        try atlas_writer.print("    pub const {s} = {d};\n", .{ sprite_name, sprite_index });
                     }
 
                     try atlas_writer.print("}};\n\n", .{});
@@ -100,8 +100,8 @@ pub fn generate(allocator: std.mem.Allocator, assets_root: []const u8, output_fo
 
                             try atlas_writer.print("     pub var {s} = [_]usize {{\n", .{animation_name});
 
-                            for (animation.frames) |sprite_index| {
-                                try atlas_writer.print("        sprites.{s},\n", .{try atlas.spriteName(allocator, sprite_index.index)});
+                            for (animation.frames) |frame| {
+                                try atlas_writer.print("        sprites.{s},\n", .{try atlas.spriteName(allocator, frame.sprite_index)});
                             }
 
                             try atlas_writer.print("    }};\n", .{});

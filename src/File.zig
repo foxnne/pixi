@@ -3,13 +3,20 @@ const pixi = @import("pixi.zig");
 
 const File = @This();
 
+/// Version of pixi that created this file
 version: std.SemanticVersion,
+
+// Grid data
 columns: u32,
 rows: u32,
 column_width: u32,
 row_height: u32,
+
+// Layer data
 layers: []pixi.Layer,
+// Origins of sprites
 sprites: []pixi.Sprite,
+// Lists of sprite indexes and timings
 animations: []pixi.Animation,
 
 pub fn deinit(self: *File, allocator: std.mem.Allocator) void {
@@ -25,6 +32,7 @@ pub fn deinit(self: *File, allocator: std.mem.Allocator) void {
     allocator.free(self.animations);
 }
 
+/// Older file format, describes animations by frame indices with no duration information
 pub const FileV3 = struct {
     version: std.SemanticVersion,
     columns: u32,

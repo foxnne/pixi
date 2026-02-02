@@ -4,7 +4,11 @@ const pixi = @import("pixi.zig");
 
 const Atlas = @This();
 
-const Sprite = @import("Sprite.zig");
+pub const Sprite = struct {
+    origin: [2]f32 = .{ 0.0, 0.0 },
+    source: [4]u32,
+};
+
 const Animation = @import("Animation.zig");
 
 sprites: []Sprite,
@@ -47,7 +51,7 @@ pub fn loadFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !Atlas {
             animation.name = try allocator.dupe(u8, old_animation.name);
             animation.frames = try allocator.alloc(Animation.Frame, old_animation.frames.len);
             for (animation.frames, old_animation.frames) |*frame, old_frame| {
-                frame.index = old_frame;
+                frame.sprite_index = old_frame;
                 frame.ms = @intFromFloat(1000.0 / old_animation.fps);
             }
         }
@@ -61,8 +65,8 @@ pub fn loadFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !Atlas {
         for (animations, parsed.value.animations) |*animation, old_animation| {
             animation.name = try allocator.dupe(u8, old_animation.name);
             animation.frames = try allocator.alloc(Animation.Frame, old_animation.length);
-            for (animation.frames, 0..old_animation.length) |*frame, i| {
-                frame.index = old_animation.start + i;
+            for (animation.frames, old_animation.start..old_animation.start + old_animation.length) |*frame, frame_index| {
+                frame.sprite_index = frame_index;
                 frame.ms = @intFromFloat(1000.0 / old_animation.fps);
             }
             animation.fps = old_animation.fps;
@@ -79,11 +83,11 @@ pub fn loadFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !Atlas {
 
 pub fn spriteName(atlas: *Atlas, allocator: std.mem.Allocator, index: usize) ![]const u8 {
     for (atlas.animations) |animation| {
-        for (animation.frames, 0..) |frame, i| {
-            if (frame.index != index) continue;
+        for (animation.frames, 0..) |frame, frame_index| {
+            if (frame.sprite_index != index) continue;
 
             if (animation.frames.len > 1) {
-                return std.fmt.allocPrint(allocator, "{s}_{d}", .{ animation.name, i });
+                return std.fmt.allocPrint(allocator, "{s}_{d}", .{ animation.name, frame_index });
             } else {
                 return std.fmt.allocPrint(allocator, "{s}", .{animation.name});
             }
