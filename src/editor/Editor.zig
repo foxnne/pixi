@@ -434,8 +434,8 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .fade = 8.0,
             .alpha = 0.25,
         },
-        .color_fill = menu_color,
-        .border = dvui.Rect.all(1.0),
+        .color_fill = menu_color.opacity(0.75),
+        .border = dvui.Rect.all(0.0),
     });
 
     box.deinit();
@@ -498,12 +498,10 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             } else null,
             .padding = .all(0),
             .margin = .all(0),
-            //.border = dvui.Rect.all(1.0),
-            //.color_border = if (tool == editor.tools.current) color else dvui.themeGet().color(.control, .fill),
         });
 
         const sprite = switch (@as(Editor.Tools.Tool, @enumFromInt(i))) {
-            .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.dropper_default],
+            .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.cursor_default],
             .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
             .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
             .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],

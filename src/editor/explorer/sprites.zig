@@ -22,7 +22,6 @@ pub fn init() Sprites {
 
 pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
-        //const parent_width = dvui.parentGet().data().rect.w - 2.0 * dvui.currentWindow().natural_scale;
         const parent_height = dvui.parentGet().data().rect.h - 2.0 * dvui.currentWindow().natural_scale;
 
         const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
@@ -152,6 +151,7 @@ pub fn drawAnimationControls(self: *Sprites) !void {
 }
 
 pub fn drawAnimations(self: *Sprites) !void {
+    //const parent_width = dvui.parentGet().data().rect.w;
     const controls_box = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .horizontal,
         .background = false,
@@ -163,7 +163,7 @@ pub fn drawAnimations(self: *Sprites) !void {
     self.drawAnimationControls() catch {};
 
     const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .both,
+        .expand = .horizontal,
         .background = false,
         .color_fill = dvui.themeGet().color(.content, .fill),
     });
@@ -173,9 +173,13 @@ pub fn drawAnimations(self: *Sprites) !void {
         // Make sure to update the prev anim count!
         defer self.prev_anim_count = file.animations.len;
 
-        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.animations_scroll_info, .horizontal_bar = .auto_overlay, .vertical_bar = .auto_overlay }, .{
+        var scroll_area = dvui.scrollArea(@src(), .{
+            .scroll_info = &file.editor.animations_scroll_info,
+            .horizontal_bar = .auto_overlay,
+        }, .{
             .expand = .horizontal,
             .background = false,
+            //.max_size_content = .{ .h = std.math.floatMax(f32), .w = parent_width / 2.0 },
         });
         defer scroll_area.deinit();
 
@@ -334,7 +338,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                         self.edit_anim_id = anim_id;
                     }
                 } else {
-                    dvui.labelNoFmt(@src(), file.animations.items(.name)[anim_index], .{ .ellipsize = false }, .{
+                    dvui.labelNoFmt(@src(), file.animations.items(.name)[anim_index], .{ .ellipsize = true }, .{
                         .gravity_y = 0.5,
                         .margin = dvui.Rect.all(2),
                         .font = font,
@@ -751,12 +755,18 @@ pub fn drawFrames(self: *Sprites) !void {
                 }
 
                 const selected = if (frame.sprite_index < file.editor.selected_sprites.capacity()) file.editor.selected_sprites.isSet(frame.sprite_index) else false;
-                const hovered = pixi.dvui.hovered(r.data());
+                //const hovered = pixi.dvui.hovered(r.data());
 
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .horizontal,
+                    .background = false,
+                });
+                defer hbox.deinit();
+
+                var index_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .both,
                     .background = true,
-                    .color_fill = if (hovered) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
+                    .color_fill = dvui.themeGet().color(.control, .fill),
                     .corner_radius = dvui.Rect.all(1000),
                     .margin = dvui.Rect.all(2),
                     .padding = dvui.Rect.all(1),
@@ -770,8 +780,6 @@ pub fn drawFrames(self: *Sprites) !void {
                         .corner_radius = dvui.Rect.all(1000),
                     },
                 });
-                defer hbox.deinit();
-
                 _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
                     .reorderable = r,
                     .tvg_bytes = icons.tvg.lucide.@"grip-horizontal",
@@ -782,7 +790,7 @@ pub fn drawFrames(self: *Sprites) !void {
                     .margin = .{ .x = 4, .w = 4 },
                 });
 
-                dvui.labelNoFmt(@src(), try file.spriteName(pixi.app.allocator, frame.sprite_index, false), .{}, .{
+                dvui.labelNoFmt(@src(), try file.fmtSprite(dvui.currentWindow().arena(), frame.sprite_index, .index), .{}, .{
                     .gravity_y = 0.5,
                     .margin = dvui.Rect.all(0),
                     .font = dvui.Font.theme(.mono).larger(-4.0),
@@ -793,16 +801,32 @@ pub fn drawFrames(self: *Sprites) !void {
                     .color_text = if (frame_index == file.selected_animation_frame_index) dvui.themeGet().color(.window, .fill) else if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
                 });
 
+                index_box.deinit();
+
                 var ms_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .horizontal,
                     .background = false,
-                    .margin = dvui.Rect.all(0),
-                    .padding = .{ .x = 6 },
+                    .margin = dvui.Rect.all(2),
+                    .padding = dvui.Rect.all(1),
+                    .color_border = if (selected) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.control, .fill),
+                    .border = dvui.Rect.all(1.0),
                     .corner_radius = dvui.Rect.all(1000),
                     .gravity_y = 0.5,
                     .gravity_x = 1.0,
+                    .box_shadow = .{
+                        .color = .black,
+                        .offset = .{ .x = -2.0, .y = 2.0 },
+                        .fade = 6.0,
+                        .alpha = 0.25,
+                        .corner_radius = dvui.Rect.all(1000),
+                    },
                 });
                 defer ms_box.deinit();
+
+                const frame_ms_text = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{frame.ms}) catch {
+                    dvui.log.err("Failed to allocate frame ms text", .{});
+                    return;
+                };
 
                 const result = dvui.textEntryNumber(@src(), u32, .{ .value = &frame.ms, .min = 0, .max = 9999999 }, .{
                     .expand = .horizontal,
@@ -811,8 +835,8 @@ pub fn drawFrames(self: *Sprites) !void {
                     .margin = dvui.Rect.all(0),
                     .border = dvui.Rect.all(0),
                     .min_size_content = .{
-                        .w = dvui.Font.theme(.mono).larger(-4.0).textSize("9999").w,
-                        .h = dvui.Font.theme(.mono).larger(-4.0).textSize("9999").h,
+                        .w = dvui.Font.theme(.mono).larger(-4.0).textSize(frame_ms_text).w,
+                        .h = dvui.Font.theme(.mono).larger(-4.0).textSize(frame_ms_text).h,
                     },
                     .font = dvui.Font.theme(.mono).larger(-4.0),
                     .gravity_y = 0.5,

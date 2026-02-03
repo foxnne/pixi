@@ -687,23 +687,33 @@ pub fn spriteIndex(file: *File, point: dvui.Point) ?usize {
     return row * tiles_wide + column;
 }
 
-// Returns the name of the animation and the frame index of the sprite, or just the frame index
-pub fn spriteName(file: *File, allocator: std.mem.Allocator, sprite_index: usize, by_animation: bool) ![]const u8 {
-    if (by_animation) {
-        for (file.animations.items(.frames), 0..) |frames, animation_index| {
-            for (frames) |frame| {
-                if (frame.sprite_index != sprite_index) continue;
+pub const SpriteName = enum {
+    index,
+    animation,
+    file,
+};
 
-                if (frames.len > 1) {
-                    return std.fmt.allocPrint(allocator, "{s}_{d}", .{ file.animations.items(.name)[animation_index], animation_index });
-                } else {
-                    return std.fmt.allocPrint(allocator, "{s}", .{file.animations.items(.name)[animation_index]});
+// Names sprites based o
+pub fn fmtSprite(file: *File, allocator: std.mem.Allocator, sprite_index: usize, name_type: SpriteName) ![]const u8 {
+    return switch (name_type) {
+        .animation => blk: {
+            for (file.animations.items(.frames), 0..) |frames, animation_index| {
+                for (frames) |frame| {
+                    if (frame.sprite_index != sprite_index) continue;
+
+                    if (frames.len > 1) {
+                        break :blk std.fmt.allocPrint(allocator, "{s}_{d}", .{ file.animations.items(.name)[animation_index], animation_index }) catch return error.MemoryAllocationFailed;
+                    } else {
+                        break :blk std.fmt.allocPrint(allocator, "{s}", .{file.animations.items(.name)[animation_index]}) catch return error.MemoryAllocationFailed;
+                    }
                 }
             }
-        }
-    }
 
-    return std.fmt.allocPrint(allocator, "Index: {d}", .{sprite_index});
+            break :blk std.fmt.allocPrint(allocator, "{d}", .{sprite_index}) catch return error.MemoryAllocationFailed;
+        },
+        .file => std.fmt.allocPrint(allocator, "{s}_{s}_{d}", .{ std.fs.path.basename(file.path), file.layers.items(.name)[file.selected_layer_index], sprite_index }) catch return error.MemoryAllocationFailed,
+        .index => std.fmt.allocPrint(allocator, "{d}", .{sprite_index}) catch return error.MemoryAllocationFailed,
+    };
 }
 
 pub fn spriteRect(file: *File, index: usize) dvui.Rect {

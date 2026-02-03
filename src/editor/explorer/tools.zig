@@ -111,7 +111,7 @@ pub fn drawTools() !void {
         }
 
         const sprite = switch (tool) {
-            .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.dropper_default],
+            .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.cursor_default],
             .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
             .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
             .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
