@@ -30,6 +30,8 @@ sample_key_down: bool = false,
 shift_key_down: bool = false,
 hide_distance_bubble: bool = false,
 hovered_bubble_animation_index: ?usize = null,
+hovered_bubble_sprite_index: ?usize = null,
+tip_opacity: f32 = 0.0,
 
 pub const InitOptions = struct {
     file: *pixi.Internal.File,
@@ -49,7 +51,6 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
         .right_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "right_mouse_down", bool)) |key| key else false,
         .left_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "left_mouse_down", bool)) |key| key else false,
         .hide_distance_bubble = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "hide_distance_bubble", bool)) |key| key else false,
-        .hovered_bubble_animation_index = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "hovered_bubble_animation_index", usize)) |index| index else null,
     };
 
     init_opts.file.editor.canvas.install(src, .{
@@ -568,7 +569,10 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
                 t = if (open) anim.val orelse 1.0 else std.math.clamp(1.0 - (anim.val orelse 1.0), 0.0, 2.0);
 
-                drawSpriteBubble(self, sprite_index, t, color, animation_index, !shadow_drawn);
+                if (drawSpriteBubble(self, sprite_index, t, color, animation_index, !shadow_drawn)) {
+                    self.hovered_bubble_sprite_index = sprite_index;
+                    self.hovered_bubble_animation_index = animation_index;
+                }
             } else {
                 // Only draw bubbles over sprites that are part of the selected sprites if there is a selection
                 if (self.init_options.file.editor.selected_sprites.count() > 0) {
@@ -606,14 +610,17 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
                     t = std.math.clamp(t, 0.0, 2.0);
 
-                    drawSpriteBubble(
+                    if (drawSpriteBubble(
                         self,
                         sprite_index,
                         t,
                         dvui.themeGet().color(.window, .fill).lerp(color, 1.0 - (distance / (max_distance * 2.0))),
                         animation_index,
                         !shadow_drawn,
-                    );
+                    )) {
+                        self.hovered_bubble_sprite_index = sprite_index;
+                        self.hovered_bubble_animation_index = animation_index;
+                    }
                 }
             }
         }
@@ -622,36 +629,18 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
 /// Draw a single sprite bubble based on sprite index and progress. Animation index just lets us know if not null, its part of an animation,
 /// and if its equal to the currently selected animation index, we need to draw a checkmark in the bubble because its part of the currently selected animation.
-pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, color: dvui.Color, animation_index: ?usize, shadow_only: bool) void {
-    const sprite_label = self.init_options.file.fmtSprite(dvui.currentWindow().arena(), sprite_index, .grid) catch {
-        dvui.log.err("Failed to format sprite index", .{});
-        return;
-    };
+pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, color: dvui.Color, animation_index: ?usize, shadow_only: bool) bool {
 
     // Would this sprite be removed if the user clicked the button?
     var remove: bool = false;
     if (self.init_options.file.selected_animation_index) |anim_index| {
-        // TODO: Efficiently resize the animation frames array instead of duplicating it
-
         const anim = self.init_options.file.animations.get(anim_index);
-
-        var frames = std.array_list.Managed(pixi.Animation.Frame).init(pixi.app.allocator);
-        frames.appendSlice(anim.frames) catch {
-            dvui.log.err("Failed to append frames", .{});
-            return;
-        };
-
-        for (frames.items) |frame| {
+        for (anim.frames) |frame| {
             if (frame.sprite_index == sprite_index) {
                 remove = true;
             }
         }
     }
-
-    // Choose a font size that fits scaled to button size.
-    const font = dvui.Font.theme(.mono).larger(-4.0);
-
-    const text_size = font.textSize(sprite_label);
 
     //if (sprite_index != 0) return;
     const t = progress;
@@ -700,6 +689,39 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     };
 
     var path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
+
+    const center = bubble_rect.center();
+
+    const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
+
+    // Choose a font size that fits scaled to button size.
+    const font = dvui.Font.theme(.mono).larger(-4.0);
+
+    const sprite_label = self.init_options.file.fmtSprite(dvui.currentWindow().arena(), sprite_index, .grid) catch {
+        dvui.log.err("Failed to format sprite index", .{});
+        return false;
+    };
+
+    const text_size = font.textSize(sprite_label);
+
+    var button_width = @max(button_height, (text_size.w + 4.0) / self.init_options.file.editor.canvas.scale);
+
+    if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+        button_height *= anim.value();
+        button_width *= anim.value();
+    } else if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+        button_height *= anim.value();
+        button_width *= anim.value();
+    } else if (pixi.editor.tools.current != .pointer or self.hide_distance_bubble) {
+        button_height = 0.0;
+        button_width = 0.0;
+    }
+
+    if (button_height < 2.0) {
+        return false;
+    }
+
+    const button_rect = dvui.Rect{ .x = center.x - button_width / 2, .y = center.y - (button_height / 2), .w = button_width, .h = button_height };
 
     if (bubble_rect_scale.r.h <= dvui.currentWindow().natural_scale) {
         path.addPoint(bubble_rect_scale.r.topRight());
@@ -757,7 +779,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             shadow_path.addArc(arc_center.plus(.{ .x = 0.0, .y = 0.0 }), radius, dvui.math.pi + start_angle, dvui.math.pi + end_angle, false);
             shadow_path.build().fillConvex(.{ .color = shadow_color, .fade = shadow_fade });
 
-            return;
+            const mouse_data_pt = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+
+            return button_rect.contains(mouse_data_pt);
         }
 
         if (draw_transparency) {
@@ -767,7 +791,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 built.fillConvex(.{ .color = fill_color, .fade = 0.0 });
                 var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0).opacity(0.5), .fade = 0.0 }) catch {
                     dvui.log.err("Failed to fill convex triangles", .{});
-                    return;
+                    return false;
                 };
 
                 const h = arc_height / sprite_rect_scale.r.h;
@@ -800,27 +824,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         // Draw bubble outline
         built.stroke(.{ .color = color, .thickness = dvui.currentWindow().natural_scale });
 
-        const center = bubble_rect.center();
-
-        const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
-
-        var button_width = @max(button_height, (text_size.w + 4.0) / self.init_options.file.editor.canvas.scale);
-
-        if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
-            button_height *= anim.value();
-            button_width *= anim.value();
-        } else if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
-            button_height *= anim.value();
-            button_width *= anim.value();
-        } else if (pixi.editor.tools.current != .pointer or self.hide_distance_bubble) {
-            button_height = 0.0;
-            button_width = 0.0;
-        }
-
-        if (button_height < 2.0) {
-            return;
-        }
-
         var add_rem_message: ?[]const u8 = null;
 
         var border_color = dvui.themeGet().color(.control, .fill_hover);
@@ -829,17 +832,15 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 border_color = palette.getDVUIColor(self.init_options.file.animations.get(index).id);
                 add_rem_message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s}", .{self.init_options.file.animations.get(index).name}) catch {
                     dvui.log.err("Failed to allocate add/remove message", .{});
-                    return;
+                    return false;
                 };
             } else {
                 add_rem_message = std.fmt.allocPrint(dvui.currentWindow().arena(), "New Animation", .{}) catch {
                     dvui.log.err("Failed to allocate add/remove message", .{});
-                    return;
+                    return false;
                 };
             }
         }
-
-        const button_rect = dvui.Rect{ .x = center.x - button_width / 2, .y = center.y - (button_height / 2), .w = button_width, .h = button_height };
 
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{
@@ -885,7 +886,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 var frames = std.array_list.Managed(pixi.Animation.Frame).init(pixi.app.allocator);
                 frames.appendSlice(anim.frames) catch {
                     dvui.log.err("Failed to append frames", .{});
-                    return;
+                    return false;
                 };
 
                 for (frames.items, 0..) |frame, i| {
@@ -938,19 +939,19 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                             while (iter.next()) |selected_index| {
                                 frames.append(.{ .sprite_index = selected_index, .ms = temp_ms }) catch {
                                     dvui.log.err("Failed to append frame", .{});
-                                    return;
+                                    return false;
                                 };
                             }
                         } else {
                             frames.append(.{ .sprite_index = sprite_index, .ms = temp_ms }) catch {
                                 dvui.log.err("Failed to append frame", .{});
-                                return;
+                                return false;
                             };
                         }
                     } else {
                         frames.append(.{ .sprite_index = sprite_index, .ms = temp_ms }) catch {
                             dvui.log.err("Failed to append frame", .{});
-                            return;
+                            return false;
                         };
                     }
                 }
@@ -961,7 +962,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                             .index = anim_index,
                             .frames = pixi.app.allocator.dupe(pixi.Animation.Frame, anim.frames) catch {
                                 dvui.log.err("Failed to dupe frames", .{});
-                                return;
+                                return false;
                             },
                         },
                     }) catch {
@@ -971,7 +972,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                     pixi.app.allocator.free(anim.frames);
                     anim.frames = frames.toOwnedSlice() catch {
                         dvui.log.err("Failed to free frames", .{});
-                        return;
+                        return false;
                     };
 
                     self.init_options.file.animations.set(anim_index, anim);
@@ -987,7 +988,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                     if (anim.frames.len == 0) {
                         anim.appendFrame(pixi.app.allocator, .{ .sprite_index = sprite_index, .ms = temp_ms }) catch {
                             dvui.log.err("Failed to append frame", .{});
-                            return;
+                            return false;
                         };
                     }
                     self.init_options.file.animations.set(anim_index, anim);
@@ -1004,7 +1005,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             }
         }
 
-        if (button.data().contentRectScale().r.w > text_size.w and button.data().contentRectScale().r.h > 2.0) {
+        if (button.data().contentRectScale().r.w > text_size.w) {
             // Determine the rect to draw in
             const btn_rect = button.data().contentRectScale().r;
 
@@ -1026,7 +1027,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 .rs = .{ .r = text_rect, .s = dvui.currentWindow().natural_scale },
             }) catch {
                 dvui.log.err("Failed to render text", .{});
-                return;
+                return false;
             };
 
             var icon_rect = button.data().rectScale().r;
@@ -1039,7 +1040,29 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             var fill_rect = icon_rect;
             fill_rect.x += icon_rect.w + (2.0 * dvui.currentWindow().natural_scale);
 
-            if (button.hovered()) {
+            var show_hint: bool = false;
+            if (self.hovered_bubble_sprite_index) |index| {
+                var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                while (iter.next()) |selected_index| {
+                    if (selected_index == sprite_index) {
+                        show_hint = true;
+                    }
+                }
+
+                var found_current_in_selection: bool = false;
+
+                iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                while (iter.next()) |selected_index| {
+                    if (selected_index == index) {
+                        found_current_in_selection = true;
+                    }
+                }
+
+                if (!found_current_in_selection)
+                    show_hint = false;
+            }
+
+            if (button.hovered() or show_hint) {
                 icon_rect.fill(.all(1000000), .{
                     .color = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
                 });
@@ -1053,30 +1076,31 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
                     fill_rect.h = @max(fill_rect.h, message_rect.h);
                 }
-
-                //self.hovered_bubble_animation_index = animation_index;
-
-                fill_rect.fill(.all(1000000), .{
-                    .color = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
-                });
                 dvui.renderIcon("close", if (remove) icons.tvg.lucide.minus else icons.tvg.lucide.plus, .{ .r = icon_rect, .s = dvui.currentWindow().natural_scale }, .{}, .{}) catch {
                     dvui.log.err("Failed to render icon", .{});
-                    return;
+                    return false;
                 };
 
-                if (add_rem_message) |message| {
-                    dvui.renderText(.{
-                        .text = message,
-                        .font = font,
-                        .color = .white,
-                        .rs = .{ .r = message_rect, .s = dvui.currentWindow().natural_scale },
-                    }) catch {
-                        dvui.log.err("Failed to render text", .{});
-                    };
+                if (button.hovered()) {
+                    if (add_rem_message) |message| {
+                        fill_rect.fill(.all(1000000), .{
+                            .color = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
+                        });
+                        dvui.renderText(.{
+                            .text = message,
+                            .font = font,
+                            .color = .white,
+                            .rs = .{ .r = message_rect, .s = dvui.currentWindow().natural_scale },
+                        }) catch {
+                            dvui.log.err("Failed to render text", .{});
+                        };
+                    }
                 }
             }
         }
     }
+
+    return false;
 }
 
 /// Draw the highlight colored selection box for each selected sprite.
@@ -3005,12 +3029,6 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataSet(null, self.init_options.file.editor.canvas.id, "hide_distance_bubble", self.hide_distance_bubble);
     } else {
         dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "hide_distance_bubble");
-    };
-
-    defer if (self.hovered_bubble_animation_index) |hovered_bubble_animation_index| {
-        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "hovered_bubble_animation_index", hovered_bubble_animation_index);
-    } else {
-        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "hovered_bubble_animation_index");
     };
 
     if (self.active() or self.hovered()) {
