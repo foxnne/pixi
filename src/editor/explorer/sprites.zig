@@ -790,15 +790,15 @@ pub fn drawFrames(self: *Sprites) !void {
                     .margin = .{ .x = 4, .w = 4 },
                 });
 
-                dvui.labelNoFmt(@src(), try file.fmtSprite(dvui.currentWindow().arena(), frame.sprite_index, .index), .{}, .{
+                dvui.labelNoFmt(@src(), try file.fmtSprite(dvui.currentWindow().arena(), frame.sprite_index, .grid), .{}, .{
                     .gravity_y = 0.5,
                     .margin = dvui.Rect.all(0),
                     .font = dvui.Font.theme(.mono).larger(-4.0),
-                    .padding = .{ .x = 2, .w = 6 },
+                    .padding = .{ .x = 6, .y = 2, .w = 6, .h = 2 },
                     .background = if (frame_index == file.selected_animation_frame_index) true else false,
-                    .color_fill = color,
+                    .color_fill = if (frame_index == file.selected_animation_frame_index) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
                     .corner_radius = dvui.Rect.all(1000),
-                    .color_text = if (frame_index == file.selected_animation_frame_index) dvui.themeGet().color(.window, .fill) else if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
+                    .color_text = if (selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.control, .text),
                 });
 
                 index_box.deinit();

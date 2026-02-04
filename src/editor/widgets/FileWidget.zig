@@ -29,6 +29,7 @@ right_mouse_down: bool = false,
 sample_key_down: bool = false,
 shift_key_down: bool = false,
 hide_distance_bubble: bool = false,
+hovered_bubble_animation_index: ?usize = null,
 
 pub const InitOptions = struct {
     file: *pixi.Internal.File,
@@ -48,6 +49,7 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
         .right_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "right_mouse_down", bool)) |key| key else false,
         .left_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "left_mouse_down", bool)) |key| key else false,
         .hide_distance_bubble = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "hide_distance_bubble", bool)) |key| key else false,
+        .hovered_bubble_animation_index = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "hovered_bubble_animation_index", usize)) |index| index else null,
     };
 
     init_opts.file.editor.canvas.install(src, .{
@@ -621,6 +623,36 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 /// Draw a single sprite bubble based on sprite index and progress. Animation index just lets us know if not null, its part of an animation,
 /// and if its equal to the currently selected animation index, we need to draw a checkmark in the bubble because its part of the currently selected animation.
 pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, color: dvui.Color, animation_index: ?usize, shadow_only: bool) void {
+    const sprite_label = self.init_options.file.fmtSprite(dvui.currentWindow().arena(), sprite_index, .grid) catch {
+        dvui.log.err("Failed to format sprite index", .{});
+        return;
+    };
+
+    // Would this sprite be removed if the user clicked the button?
+    var remove: bool = false;
+    if (self.init_options.file.selected_animation_index) |anim_index| {
+        // TODO: Efficiently resize the animation frames array instead of duplicating it
+
+        const anim = self.init_options.file.animations.get(anim_index);
+
+        var frames = std.array_list.Managed(pixi.Animation.Frame).init(pixi.app.allocator);
+        frames.appendSlice(anim.frames) catch {
+            dvui.log.err("Failed to append frames", .{});
+            return;
+        };
+
+        for (frames.items) |frame| {
+            if (frame.sprite_index == sprite_index) {
+                remove = true;
+            }
+        }
+    }
+
+    // Choose a font size that fits scaled to button size.
+    const font = dvui.Font.theme(.mono).larger(-4.0);
+
+    const text_size = font.textSize(sprite_label);
+
     //if (sprite_index != 0) return;
     const t = progress;
     const fill_color: dvui.Color = dvui.themeGet().color(.control, .fill);
@@ -633,7 +665,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     const min_sprite_size: f32 = @min(sprite_rect.w, sprite_rect.h);
     const baseline_scale: f32 = baseline_sprite_size / min_sprite_size;
     // Compensate the button size so that it stays visually consistent even if the tile is smaller/larger than 64x64
-    var button_size = std.math.clamp((target_button_height * dvui.easing.outBack(t) / self.init_options.file.editor.canvas.scale), 0.0, min_sprite_size / 3.0);
+    var button_height = std.math.clamp((target_button_height * dvui.easing.outBack(t) / self.init_options.file.editor.canvas.scale), 0.0, min_sprite_size / 3.0);
 
     const sprite_rect_scale: dvui.RectScale = .{
         .r = self.init_options.file.editor.canvas.screenFromDataRect(sprite_rect),
@@ -772,39 +804,65 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
 
+        var button_width = @max(button_height, (text_size.w + 4.0) / self.init_options.file.editor.canvas.scale);
+
         if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
-            button_size *= anim.value();
+            button_height *= anim.value();
+            button_width *= anim.value();
         } else if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
-            button_size *= anim.value();
+            button_height *= anim.value();
+            button_width *= anim.value();
         } else if (pixi.editor.tools.current != .pointer or self.hide_distance_bubble) {
-            button_size = 0.0;
+            button_height = 0.0;
+            button_width = 0.0;
         }
 
-        const button_rect = dvui.Rect{ .x = center.x - button_size / 2, .y = center.y - (button_size / 2), .w = button_size, .h = button_size };
+        if (button_height < 2.0) {
+            return;
+        }
+
+        var border_color = dvui.themeGet().color(.control, .fill_hover);
+        if (pixi.editor.colors.file_tree_palette) |*palette| {
+            if (self.init_options.file.selected_animation_index) |index| {
+                border_color = palette.getDVUIColor(self.init_options.file.animations.get(index).id);
+            }
+        }
+
+        const button_rect = dvui.Rect{ .x = center.x - button_width / 2, .y = center.y - (button_height / 2), .w = button_width, .h = button_height };
 
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{
             .draw_focus = false,
         }, .{
             .rect = button_rect,
-            .color_fill = dvui.themeGet().color(.control, .fill_hover),
             .margin = .all(0),
             .padding = .all(0),
             .id_extra = sprite_index,
+            .color_fill = dvui.themeGet().color(.control, .fill_hover),
+            .color_border = dvui.themeGet().color(.control, .fill_hover),
+            .border = dvui.Rect.all(1).scale(1.0 / self.init_options.file.editor.canvas.scale, dvui.Rect),
             .box_shadow = .{
                 .color = .black,
-                .offset = .{ .x = -0.05 * button_size, .y = 0.08 * button_size },
-                .fade = (button_size / 10) * t,
+                .offset = .{ .x = -0.05 * button_height, .y = 0.08 * button_height },
+                .fade = (button_height / 10) * t,
                 .alpha = 0.35 * t,
             },
             .corner_radius = dvui.Rect.all(1000000),
-
             .gravity_x = 0.5,
             .gravity_y = 0.5,
         });
         defer button.deinit();
 
         button.processEvents();
+
+        if (button.hovered()) {
+            if (remove) {
+                button.data().options.color_border = dvui.themeGet().color(.err, .fill);
+            } else {
+                button.data().options.color_border = border_color;
+            }
+        }
+
         button.drawBackground();
 
         if (button.clicked()) { // Toggle animation frame on or off for this selection/animation
@@ -819,10 +877,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                     return;
                 };
 
-                var remove: bool = false;
                 for (frames.items, 0..) |frame, i| {
                     if (frame.sprite_index == sprite_index) {
-                        remove = true;
 
                         // First remove the currently clicked frame, regardless
                         _ = frames.orderedRemove(i);
@@ -937,26 +993,49 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             }
         }
 
-        if (animation_index == self.init_options.file.selected_animation_index and animation_index != null and button.data().contentRectScale().r.w > 2.0) {
-            const check_t = std.math.clamp(dvui.easing.outQuad(t), 0.5, 1.5);
+        if (button.data().contentRectScale().r.w > text_size.w and button.data().contentRectScale().r.h > 2.0) {
+            // Determine the rect to draw in
+            const btn_rect = button.data().contentRectScale().r;
 
-            var checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            const scaled_text_size = text_size.scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
 
-            const point1 = button.data().contentRectScale().r.center().plus(.{ .x = -(button.data().contentRectScale().r.w / 3.25) * check_t, .y = 0.0 });
-            const point2 = button.data().contentRectScale().r.center().plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.h / 4.0) * check_t });
-            const point3 = button.data().contentRectScale().r.center().plus(.{ .x = (button.data().contentRectScale().r.w / 2) * check_t, .y = -(button.data().contentRectScale().r.h / 2.5) * check_t });
+            const text_rect = dvui.Rect.Physical{
+                .x = btn_rect.x + (btn_rect.w - scaled_text_size.w) / 2,
+                .y = btn_rect.y + (btn_rect.h - scaled_text_size.h) / 2,
+                .w = scaled_text_size.w,
+                .h = scaled_text_size.h,
+            };
 
-            checkmark_path.addPoint(point1.plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.w / 18) * check_t }));
-            checkmark_path.addPoint(point2.plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.w / 18) * check_t }));
-            checkmark_path.addPoint(point3.plus(.{ .x = 0.0, .y = (button.data().contentRectScale().r.w / 18) * check_t }));
-            checkmark_path.build().stroke(.{ .thickness = (button.data().contentRectScale().r.w / 9) * check_t, .color = dvui.Color.black.opacity(0.5) });
+            const color_main = if (button.hovered() or animation_index == self.init_options.file.selected_animation_index) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text);
 
-            checkmark_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            checkmark_path.addPoint(point1);
-            checkmark_path.addPoint(point2);
-            checkmark_path.addPoint(point3);
+            dvui.renderText(.{
+                .text = sprite_label,
+                .font = font,
+                .color = color_main.opacity(progress),
+                .rs = .{ .r = text_rect, .s = dvui.currentWindow().natural_scale },
+            }) catch {
+                dvui.log.err("Failed to render text", .{});
+                return;
+            };
 
-            checkmark_path.build().stroke(.{ .thickness = (button.data().contentRectScale().r.w / 9) * check_t, .color = color });
+            var icon_rect = button.data().rectScale().r;
+            icon_rect.x += icon_rect.w;
+            icon_rect.w = icon_rect.w / 2.0;
+            icon_rect.h = icon_rect.h / 2.0;
+            icon_rect.x = icon_rect.x - icon_rect.w / 1.5;
+            icon_rect.y = icon_rect.y - icon_rect.h / 3;
+
+            if (button.hovered()) {
+                //self.hovered_bubble_animation_index = animation_index;
+
+                icon_rect.fill(.all(1000000), .{
+                    .color = if (remove) dvui.themeGet().color(.err, .fill) else dvui.themeGet().color(.highlight, .fill),
+                });
+                dvui.renderIcon("close", if (remove) icons.tvg.lucide.minus else icons.tvg.lucide.plus, .{ .r = icon_rect, .s = dvui.currentWindow().natural_scale }, .{}, .{}) catch {
+                    dvui.log.err("Failed to render icon", .{});
+                    return;
+                };
+            }
         }
     }
 }
@@ -2887,6 +2966,12 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataSet(null, self.init_options.file.editor.canvas.id, "hide_distance_bubble", self.hide_distance_bubble);
     } else {
         dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "hide_distance_bubble");
+    };
+
+    defer if (self.hovered_bubble_animation_index) |hovered_bubble_animation_index| {
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "hovered_bubble_animation_index", hovered_bubble_animation_index);
+    } else {
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "hovered_bubble_animation_index");
     };
 
     if (self.active() or self.hovered()) {

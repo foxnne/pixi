@@ -687,11 +687,7 @@ pub fn spriteIndex(file: *File, point: dvui.Point) ?usize {
     return row * tiles_wide + column;
 }
 
-pub const SpriteName = enum {
-    index,
-    animation,
-    file,
-};
+pub const SpriteName = enum { index, animation, file, grid };
 
 // Names sprites based o
 pub fn fmtSprite(file: *File, allocator: std.mem.Allocator, sprite_index: usize, name_type: SpriteName) ![]const u8 {
@@ -713,13 +709,49 @@ pub fn fmtSprite(file: *File, allocator: std.mem.Allocator, sprite_index: usize,
         },
         .file => std.fmt.allocPrint(allocator, "{s}_{s}_{d}", .{ std.fs.path.basename(file.path), file.layers.items(.name)[file.selected_layer_index], sprite_index }) catch return error.MemoryAllocationFailed,
         .index => std.fmt.allocPrint(allocator, "{d}", .{sprite_index}) catch return error.MemoryAllocationFailed,
+        .grid => std.fmt.allocPrint(allocator, "{s}{d}", .{ try fmtColumn(file, allocator, file.columnFromIndex(sprite_index)), file.rowFromIndex(sprite_index) }) catch return error.MemoryAllocationFailed,
     };
 }
 
+pub fn fmtColumn(_: *File, allocator: std.mem.Allocator, column: u32) ![]const u8 {
+    // Excel-style: 0 -> A, 1 -> B, ... 25 -> Z, 26 -> AA, 27 -> AB, etc.
+    var temp: [10]u8 = undefined; // Enough for absurdly large columns (> 1 billion)
+    var len: usize = 0;
+
+    var idx = column;
+    while (true) {
+        const rem = idx % 26;
+        temp[9 - len] = std.ascii.uppercase[rem];
+        len += 1;
+        if (idx < 26) break;
+        // Adjust for 1-based carryover because Excel-style is nonzero-based
+        idx = idx / 26 - 1;
+    }
+    const start = 10 - len;
+    const fmt = allocator.alloc(u8, len) catch return error.MemoryAllocationFailed;
+    @memcpy(fmt, temp[start .. start + len]);
+    return fmt;
+}
+
+pub fn columnFromIndex(file: *File, index: usize) u32 {
+    return @mod(@as(u32, @intCast(index)), file.columns);
+}
+
+pub fn rowFromIndex(file: *File, index: usize) u32 {
+    return @divTrunc(@as(u32, @intCast(index)), file.columns);
+}
+
+pub fn columnFromPixel(file: *File, pixel: dvui.Point) u32 {
+    return @mod(@as(u32, @intFromFloat(pixel.x)), file.column_width);
+}
+
+pub fn rowFromPixel(file: *File, pixel: dvui.Point) u32 {
+    return @divTrunc(@as(u32, @intFromFloat(pixel.y)), file.row_height);
+}
+
 pub fn spriteRect(file: *File, index: usize) dvui.Rect {
-    const columns = file.columns;
-    const column = @mod(@as(u32, @intCast(index)), columns);
-    const row = @divTrunc(@as(u32, @intCast(index)), columns);
+    const column = file.columnFromIndex(index);
+    const row = file.rowFromIndex(index);
 
     const out: dvui.Rect = .{
         .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width)),
@@ -765,8 +797,8 @@ pub fn selectPoint(file: *File, point: dvui.Point, select_options: SelectOptions
         return;
     }
 
-    const column = @as(u32, @intFromFloat(point.x)) / file.column_width;
-    const row = @as(u32, @intFromFloat(point.y)) / file.row_height;
+    const column = file.columnFromPixel(point);
+    const row = file.rowFromPixel(point);
 
     const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width));
     const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height));
@@ -827,8 +859,8 @@ pub fn selectLine(file: *File, point1: dvui.Point, point2: dvui.Point, select_op
         return;
     }
 
-    const column = @as(u32, @intFromFloat(point2.x)) / file.column_width;
-    const row = @as(u32, @intFromFloat(point2.y)) / file.row_height;
+    const column = file.columnFromPixel(point2);
+    const row = file.rowFromPixel(point2);
 
     const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width));
     const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height));
@@ -913,8 +945,8 @@ pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options:
 
     const mask_value: bool = draw_options.color.a != 0;
 
-    const column = @as(u32, @intFromFloat(point.x)) / file.column_width;
-    const row = @as(u32, @intFromFloat(point.y)) / file.row_height;
+    const column = file.columnFromPixel(point);
+    const row = file.rowFromPixel(point);
 
     const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width));
     const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height));
@@ -1012,8 +1044,8 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
 
     const mask_value: bool = draw_options.color.a != 0;
 
-    const column = @as(u32, @intFromFloat(point2.x)) / file.column_width;
-    const row = @as(u32, @intFromFloat(point2.y)) / file.row_height;
+    const column = file.columnFromPixel(point2);
+    const row = file.rowFromPixel(point2);
 
     const min_x: f32 = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width));
     const min_y: f32 = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height));
