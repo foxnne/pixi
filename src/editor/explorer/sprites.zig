@@ -566,6 +566,50 @@ pub fn drawFrameControls(_: *Sprites) !void {
 
             if (!show_delete_button) return;
 
+            if (dvui.buttonIcon(@src(), "DuplicateSprite", icons.tvg.lucide.copy, .{}, .{}, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .color_fill = dvui.themeGet().color(.control, .fill),
+            })) {
+                var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
+
+                while (iter.next()) |sprite_index| {
+                    for (animation.frames) |frame| {
+                        if (frame.sprite_index == sprite_index) {
+                            try animation.appendFrame(pixi.app.allocator, .{
+                                .sprite_index = frame.sprite_index,
+                                .ms = frame.ms,
+                            });
+                            break;
+                        }
+                    }
+                }
+
+                if (!animation.eqlFrames(prev_order)) {
+                    file.history.append(.{
+                        .animation_frames = .{
+                            .index = index,
+                            .frames = prev_order,
+                        },
+                    }) catch {
+                        dvui.log.err("Failed to append history", .{});
+                    };
+                    file.selected_animation_frame_index = 0;
+                    file.animations.set(index, animation);
+                } else {
+                    pixi.app.allocator.free(prev_order);
+                }
+            }
+
             if (dvui.buttonIcon(@src(), "DeleteSprite", icons.tvg.lucide.trash, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{
                 .style = .err,
                 .expand = .none,
@@ -583,9 +627,10 @@ pub fn drawFrameControls(_: *Sprites) !void {
                 const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
 
                 while (iter.next()) |sprite_index| {
-                    for (animation.frames, 0..) |frame, i| {
-                        if (frame.sprite_index == sprite_index) {
-                            animation.removeFrame(pixi.app.allocator, i);
+                    var i: usize = animation.frames.len;
+                    while (i > 0) : (i -= 1) {
+                        if (animation.frames[i - 1].sprite_index == sprite_index) {
+                            animation.removeFrame(pixi.app.allocator, i - 1);
                             break;
                         }
                     }

@@ -821,10 +821,21 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             return;
         }
 
+        var add_rem_message: ?[]const u8 = null;
+
         var border_color = dvui.themeGet().color(.control, .fill_hover);
         if (pixi.editor.colors.file_tree_palette) |*palette| {
             if (self.init_options.file.selected_animation_index) |index| {
                 border_color = palette.getDVUIColor(self.init_options.file.animations.get(index).id);
+                add_rem_message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s}", .{self.init_options.file.animations.get(index).name}) catch {
+                    dvui.log.err("Failed to allocate add/remove message", .{});
+                    return;
+                };
+            } else {
+                add_rem_message = std.fmt.allocPrint(dvui.currentWindow().arena(), "New Animation", .{}) catch {
+                    dvui.log.err("Failed to allocate add/remove message", .{});
+                    return;
+                };
             }
         }
 
@@ -1025,16 +1036,44 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             icon_rect.x = icon_rect.x - icon_rect.w / 1.5;
             icon_rect.y = icon_rect.y - icon_rect.h / 3;
 
+            var fill_rect = icon_rect;
+            fill_rect.x += icon_rect.w + (2.0 * dvui.currentWindow().natural_scale);
+
             if (button.hovered()) {
+                icon_rect.fill(.all(1000000), .{
+                    .color = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
+                });
+                var message_rect = fill_rect;
+                if (add_rem_message) |message| {
+                    message_rect.w = font.textSize(message).w * dvui.currentWindow().natural_scale;
+                    message_rect.h = font.textSize(message).h * dvui.currentWindow().natural_scale + 2.0 * dvui.currentWindow().natural_scale;
+
+                    fill_rect.w += (message_rect.x - icon_rect.x) + message_rect.w;
+                    message_rect.x += (fill_rect.w - message_rect.w) / 2.0;
+
+                    fill_rect.h = @max(fill_rect.h, message_rect.h);
+                }
+
                 //self.hovered_bubble_animation_index = animation_index;
 
-                icon_rect.fill(.all(1000000), .{
-                    .color = if (remove) dvui.themeGet().color(.err, .fill) else dvui.themeGet().color(.highlight, .fill),
+                fill_rect.fill(.all(1000000), .{
+                    .color = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
                 });
                 dvui.renderIcon("close", if (remove) icons.tvg.lucide.minus else icons.tvg.lucide.plus, .{ .r = icon_rect, .s = dvui.currentWindow().natural_scale }, .{}, .{}) catch {
                     dvui.log.err("Failed to render icon", .{});
                     return;
                 };
+
+                if (add_rem_message) |message| {
+                    dvui.renderText(.{
+                        .text = message,
+                        .font = font,
+                        .color = .white,
+                        .rs = .{ .r = message_rect, .s = dvui.currentWindow().natural_scale },
+                    }) catch {
+                        dvui.log.err("Failed to render text", .{});
+                    };
+                }
             }
         }
     }
