@@ -695,7 +695,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
 
     // Choose a font size that fits scaled to button size.
-    const font = dvui.Font.theme(.mono).larger(-4.0);
+    const font = dvui.Font.theme(.mono).larger(-3.0);
 
     const sprite_label = self.init_options.file.fmtSprite(dvui.currentWindow().arena(), sprite_index, .grid) catch {
         dvui.log.err("Failed to format sprite index", .{});
@@ -816,7 +816,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             });
             built.fillConvex(.{ .color = dvui.themeGet().color(.window, .fill), .fade = 3.0 });
         }
-
         // Draw bubble outline
         built.stroke(.{ .color = color, .thickness = dvui.currentWindow().natural_scale });
 

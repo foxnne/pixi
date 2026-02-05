@@ -215,7 +215,7 @@ pub fn processEvents(self: *CanvasWidget) void {
                 } else if (me.action == .wheel_y or me.action == .wheel_x) {
                     switch (pixi.editor.settings.input_scheme) {
                         .mouse => {
-                            const base: f32 = if (me.mod.matchBind("shift")) 1.005 else 1.001;
+                            const base: f32 = if (me.mod.matchBind("shift")) 1.005 else 1.005;
                             if ((me.mod.matchBind("shift") and me.mod.matchBind("ctrl/cmd")) or !me.mod.matchBind("shift") and !me.mod.matchBind("ctrl/cmd")) {
                                 e.handle(@src(), self.scroll_container.data());
                                 if (me.action == .wheel_y) {
@@ -231,7 +231,7 @@ pub fn processEvents(self: *CanvasWidget) void {
                             if (me.mod.matchBind("zoom")) {
                                 e.handle(@src(), self.scroll_container.data());
                                 if (me.action == .wheel_y) {
-                                    const base: f32 = if (me.mod.matchBind("shift")) 1.005 else 1.001;
+                                    const base: f32 = if (me.mod.matchBind("shift")) 1.001 else 1.001;
                                     const zs = @exp(@log(base) * me.action.wheel_y);
                                     if (zs != 1.0) {
                                         zoom *= zs;
