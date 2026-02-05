@@ -76,7 +76,7 @@ pub const SpriteClipboard = struct {
 pub fn init(
     app: *App,
 ) !Editor {
-    const config_folder = std.fs.path.join(pixi.app.allocator, &.{ try known_folders.getPath(dvui.currentWindow().arena(), .cache) orelse app.root_path, "Pixi" }) catch app.root_path;
+    const config_folder = std.fs.path.join(pixi.app.allocator, &.{ try known_folders.getPath(dvui.currentWindow().arena(), .local_configuration) orelse app.root_path, "Pixi" }) catch app.root_path;
     const palette_folder = std.fs.path.join(pixi.app.allocator, &.{ config_folder, "Palettes" }) catch config_folder;
 
     var editor: Editor = .{
