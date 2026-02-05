@@ -229,7 +229,6 @@ pub fn processAnimationSelection(self: *FileWidget) void {
         switch (e.evt) {
             .mouse => |me| {
                 if ((me.button.pointer() and me.action == .press and !me.mod.matchBind("ctrl/cmd") and !me.mod.matchBind("shift")) or (pixi.editor.tools.current != .pointer and self.sample_data_point == null)) {
-                    // If we have a sprite that is part of an animation, select the animation
                     if (file.spriteIndex(self.init_options.file.editor.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
                         var found: bool = false;
                         for (file.animations.items(.frames), 0..) |frames, anim_index| {
@@ -299,7 +298,11 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                             file.editor.selected_sprites.set(sprite_index);
                         }
                     } else {
-                        file.clearSelectedSprites();
+                        if (!file.editor.canvas.hovered) {
+                            pixi.editor.cancel() catch {
+                                dvui.log.err("Failed to cancel", .{});
+                            };
+                        }
                     }
 
                     e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
@@ -1603,24 +1606,11 @@ pub fn processFill(self: *FileWidget) void {
 /// Responsible for processing events to create/modify a transform. A transform is basically a quad with controls on each corner, and
 /// allows moving, rotating, skewing and scaling the quad. The controls also include a pivot point for the rotation.
 pub fn processTransform(self: *FileWidget) void {
-    var valid: bool = true;
-
-    if (switch (pixi.editor.tools.current) {
-        .pointer,
-        => false,
-        else => true,
-    }) valid = false;
-
     const file = self.init_options.file;
     const image_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width()), .h = @floatFromInt(file.height()) });
     const image_rect_physical = dvui.Rect.Physical.fromSize(.{ .w = image_rect.w, .h = image_rect.h });
 
     if (file.editor.transform) |*transform| {
-        // If the scenario is not valid, cancel the transform
-        if (!valid) {
-            transform.cancel();
-            return;
-        }
 
         // Data path is necessary to build and fill with convex triangles, which will be how we render to the target texture
         var data_path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
@@ -1958,7 +1948,6 @@ pub fn processTransform(self: *FileWidget) void {
 /// Includes guides for the sprite size and angle in appropriately scaled text labels.
 pub fn drawTransform(self: *FileWidget) void {
     const file = self.init_options.file;
-    if (pixi.editor.tools.current != .pointer) return;
 
     if (file.editor.transform) |*transform| {
         var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
@@ -2360,6 +2349,7 @@ pub fn active(self: *FileWidget) bool {
 pub fn drawCursor(self: *FileWidget) void {
     if (pixi.editor.tools.current == .pointer and self.sample_data_point == null) return;
     if (pixi.editor.tools.radial_menu.visible) return;
+    if (self.init_options.file.editor.transform != null) return;
 
     var subtract = false;
     var add = false;
@@ -3052,17 +3042,19 @@ pub fn processEvents(self: *FileWidget) void {
             }
         }
 
-        self.processFill();
-        self.processStroke();
-        self.processSample();
-        self.processSelection();
+        if (self.init_options.file.editor.transform == null) {
+            self.processFill();
+            self.processStroke();
+            self.processSample();
+            self.processSelection();
+        }
         self.processTransform();
     }
 
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
 
-    if (self.active() or self.hovered()) {
+    if ((self.active() or self.hovered()) and self.init_options.file.editor.transform == null) {
         self.drawSpriteBubbles();
         self.processResize();
 
