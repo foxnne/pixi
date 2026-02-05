@@ -717,10 +717,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         button_width = 0.0;
     }
 
-    if (button_height < 2.0) {
-        return false;
-    }
-
     const button_rect = dvui.Rect{ .x = center.x - button_width / 2, .y = center.y - (button_height / 2), .w = button_width, .h = button_height };
 
     if (bubble_rect_scale.r.h <= dvui.currentWindow().natural_scale) {
@@ -869,9 +865,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         if (button.hovered()) {
             if (remove) {
-                button.data().options.color_border = dvui.themeGet().color(.err, .fill);
+                button.data().options.color_border = dvui.themeGet().color(.err, .fill).opacity(0.75);
             } else {
-                button.data().options.color_border = border_color;
+                button.data().options.color_border = dvui.themeGet().color(.highlight, .fill).opacity(0.75);
             }
         }
 
@@ -1040,6 +1036,14 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             var fill_rect = icon_rect;
             fill_rect.x += icon_rect.w + (2.0 * dvui.currentWindow().natural_scale);
 
+            // Center fill_rect over the button rect if there is more than one selected sprite.
+            if (self.init_options.file.editor.selected_sprites.count() > 1) {
+                // Center fill_rect horizontally and vertically over button rect
+                fill_rect.x = button.data().rectScale().r.x + (button.data().rectScale().r.w - fill_rect.w) / 2.0;
+
+                fill_rect.y -= fill_rect.h + fill_rect.h / 3;
+            }
+
             var show_hint: bool = false;
             if (self.hovered_bubble_sprite_index) |index| {
                 var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
@@ -1066,21 +1070,21 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 icon_rect.fill(.all(1000000), .{
                     .color = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
                 });
-                var message_rect = fill_rect;
-                if (add_rem_message) |message| {
-                    message_rect.w = font.textSize(message).w * dvui.currentWindow().natural_scale;
-                    message_rect.h = font.textSize(message).h * dvui.currentWindow().natural_scale + 2.0 * dvui.currentWindow().natural_scale;
-
-                    fill_rect.w += (message_rect.x - icon_rect.x) + message_rect.w;
-                    message_rect.x += (fill_rect.w - message_rect.w) / 2.0;
-
-                    fill_rect.h = @max(fill_rect.h, message_rect.h);
-                }
                 dvui.renderIcon("close", if (remove) icons.tvg.lucide.minus else icons.tvg.lucide.plus, .{ .r = icon_rect, .s = dvui.currentWindow().natural_scale }, .{}, .{}) catch {
                     dvui.log.err("Failed to render icon", .{});
                     return false;
                 };
 
+                var message_rect = fill_rect;
+                if (add_rem_message) |message| {
+                    message_rect.w = font.textSize(message).w * dvui.currentWindow().natural_scale;
+                    message_rect.h = font.textSize(message).h * dvui.currentWindow().natural_scale + 2.0 * dvui.currentWindow().natural_scale;
+
+                    fill_rect.w += message_rect.w * 1.5;
+                    message_rect.x += (fill_rect.w - message_rect.w) / 2.0;
+
+                    fill_rect.h = @max(fill_rect.h, message_rect.h);
+                }
                 if (button.hovered()) {
                     if (add_rem_message) |message| {
                         fill_rect.fill(.all(1000000), .{
