@@ -848,22 +848,16 @@ pub fn accept(editor: *Editor) !void {
 
 pub fn cancel(editor: *Editor) !void {
     if (editor.activeFile()) |file| {
-        // First press will clear transform
         if (file.editor.transform) |*t| {
             t.cancel();
-            return;
         }
 
-        // Second press will clear selected sprites
         if (file.editor.selected_sprites.count() > 0) {
             file.clearSelectedSprites();
-            return;
         }
 
-        // Third press will clear animation
         if (file.selected_animation_index != null) {
             file.selected_animation_index = null;
-            return;
         }
     }
 }

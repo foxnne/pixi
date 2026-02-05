@@ -837,6 +837,28 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             }
         }
 
+        var show_hint: bool = false;
+        if (self.hovered_bubble_sprite_index) |index| {
+            var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+            while (iter.next()) |selected_index| {
+                if (selected_index == sprite_index) {
+                    show_hint = true;
+                }
+            }
+
+            var found_current_in_selection: bool = false;
+
+            iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+            while (iter.next()) |selected_index| {
+                if (selected_index == index) {
+                    found_current_in_selection = true;
+                }
+            }
+
+            if (!found_current_in_selection)
+                show_hint = false;
+        }
+
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{
             .draw_focus = false,
@@ -862,7 +884,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         button.processEvents();
 
-        if (button.hovered()) {
+        if (button.hovered() or show_hint) {
             if (remove) {
                 button.data().options.color_border = dvui.themeGet().color(.err, .fill).opacity(0.75);
             } else {
@@ -1041,28 +1063,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 fill_rect.x = button.data().rectScale().r.x + (button.data().rectScale().r.w - fill_rect.w) / 2.0;
 
                 fill_rect.y -= fill_rect.h + fill_rect.h / 3;
-            }
-
-            var show_hint: bool = false;
-            if (self.hovered_bubble_sprite_index) |index| {
-                var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-                while (iter.next()) |selected_index| {
-                    if (selected_index == sprite_index) {
-                        show_hint = true;
-                    }
-                }
-
-                var found_current_in_selection: bool = false;
-
-                iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-                while (iter.next()) |selected_index| {
-                    if (selected_index == index) {
-                        found_current_in_selection = true;
-                    }
-                }
-
-                if (!found_current_in_selection)
-                    show_hint = false;
             }
 
             if (button.hovered() or show_hint) {
