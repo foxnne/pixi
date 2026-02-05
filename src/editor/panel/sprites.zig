@@ -46,9 +46,11 @@ pub fn draw(self: *Sprites) !void {
                 }
             }
         } else {
-            if (file.spriteIndex(file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt))) |sprite_index| {
-                src_rect = file.spriteRect(sprite_index);
-                index = sprite_index;
+            if (file.editor.canvas.hovered) {
+                if (file.spriteIndex(file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt))) |sprite_index| {
+                    src_rect = file.spriteRect(sprite_index);
+                    index = sprite_index;
+                }
             } else {
                 if (file.selected_animation_index) |animation_index| {
                     const animation = file.animations.get(animation_index);

@@ -182,14 +182,18 @@ pub fn processEvents(self: *CanvasWidget) void {
     // process scroll area events after boxes so the boxes get first pick (so
     // the button works)
     for (dvui.events()) |*e| {
-        if (!self.scroll_container.matchEvent(e))
+        if (!self.scroll_container.matchEvent(e)) {
+            self.hovered = false;
             continue;
+        }
 
         switch (e.evt) {
             .mouse => |me| {
                 if (me.action == .position) {
                     if (self.rect.contains(me.p)) {
                         self.hovered = true;
+                    } else {
+                        self.hovered = false;
                     }
                 }
 

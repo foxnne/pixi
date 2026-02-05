@@ -1528,7 +1528,7 @@ pub fn processStroke(self: *FileWidget) void {
                                 }
                             }
 
-                            e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                            //e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         }
                     } else {
                         if (self.init_options.file.editor.canvas.rect.contains(me.p) and self.sample_data_point == null) {
@@ -2364,6 +2364,10 @@ pub fn drawCursor(self: *FileWidget) void {
     var subtract = false;
     var add = false;
 
+    if (self.init_options.file.editor.canvas.hovered) {
+        _ = dvui.cursorSet(.hidden);
+    }
+
     for (dvui.events()) |*e| {
         if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
             continue;
@@ -2375,18 +2379,12 @@ pub fn drawCursor(self: *FileWidget) void {
                 } else if (ke.mod.matchBind("ctrl/cmd")) {
                     add = true;
                 }
-                if (self.init_options.file.editor.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
-                    _ = dvui.cursorSet(.hidden);
-                }
             },
             .mouse => |me| {
                 if (me.mod.matchBind("shift")) {
                     subtract = true;
                 } else if (me.mod.matchBind("ctrl/cmd")) {
                     add = true;
-                }
-                if (self.init_options.file.editor.canvas.rect.contains(me.p)) {
-                    _ = dvui.cursorSet(.hidden);
                 }
             },
             else => {},
@@ -3034,7 +3032,7 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "hide_distance_bubble");
     };
 
-    if (self.active() or self.hovered()) {
+    if ((self.active() and self.hovered()) or self.hovered()) {
         defer self.init_options.file.editor.temporary_layer.invalidate();
         // If we are processing, we need to always ensure the temporary layer is cleared
         @memset(self.init_options.file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
@@ -3079,9 +3077,9 @@ pub fn processEvents(self: *FileWidget) void {
     pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .left, .{ .opacity = 0.15 });
     pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .right, .{});
 
-    self.drawCursor();
     self.drawSample();
     self.drawTransform();
+    self.drawCursor();
 
     // Then process the scroll and zoom events last
     self.init_options.file.editor.canvas.processEvents();
@@ -3094,15 +3092,7 @@ pub fn deinit(self: *FileWidget) void {
 }
 
 pub fn hovered(self: *FileWidget) bool {
-    for (dvui.events()) |*e| {
-        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
-            continue;
-        }
-        if (e.evt == .mouse and e.evt.mouse.action == .position) {
-            return self.init_options.file.editor.canvas.rect.contains(e.evt.mouse.p);
-        }
-    }
-    return false;
+    return self.init_options.file.editor.canvas.hovered;
 }
 
 test {
