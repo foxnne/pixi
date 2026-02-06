@@ -51,6 +51,11 @@ pub fn draw(self: *Sprites) !void {
                     src_rect = file.spriteRect(sprite_index);
                     index = sprite_index;
                 }
+            } else if (file.editor.selected_sprites.count() > 0) {
+                if (file.editor.selected_sprites.findLastSet()) |last| {
+                    src_rect = file.spriteRect(last);
+                    index = last;
+                }
             } else {
                 if (file.selected_animation_index) |animation_index| {
                     const animation = file.animations.get(animation_index);

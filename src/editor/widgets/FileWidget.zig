@@ -29,9 +29,7 @@ right_mouse_down: bool = false,
 sample_key_down: bool = false,
 shift_key_down: bool = false,
 hide_distance_bubble: bool = false,
-hovered_bubble_animation_index: ?usize = null,
 hovered_bubble_sprite_index: ?usize = null,
-tip_opacity: f32 = 0.0,
 
 pub const InitOptions = struct {
     file: *pixi.Internal.File,
@@ -298,7 +296,14 @@ pub fn processSpriteSelection(self: *FileWidget) void {
                             file.editor.selected_sprites.set(sprite_index);
                         }
                     } else {
-                        if (!file.editor.canvas.hovered) {
+                        if (file.spriteIndex(self.init_options.file.editor.canvas.dataFromScreenPoint(me.p))) |sprite_index| {
+                            const selected = file.editor.selected_sprites.isSet(sprite_index);
+                            file.clearSelectedSprites();
+
+                            if (!selected) {
+                                file.editor.selected_sprites.set(sprite_index);
+                            }
+                        } else if (!file.editor.canvas.hovered) {
                             pixi.editor.cancel() catch {
                                 dvui.log.err("Failed to cancel", .{});
                             };
@@ -574,7 +579,6 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
                 if (drawSpriteBubble(self, sprite_index, t, color, animation_index, !shadow_drawn)) {
                     self.hovered_bubble_sprite_index = sprite_index;
-                    self.hovered_bubble_animation_index = animation_index;
                 }
             } else {
                 // Only draw bubbles over sprites that are part of the selected sprites if there is a selection
@@ -622,7 +626,6 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                         !shadow_drawn,
                     )) {
                         self.hovered_bubble_sprite_index = sprite_index;
-                        self.hovered_bubble_animation_index = animation_index;
                     }
                 }
             }
@@ -844,7 +847,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
 
         var show_hint: bool = false;
-        if (self.hovered_bubble_sprite_index) |index| {
+        if (self.hovered_bubble_sprite_index) |hovered_button_index| {
             var iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
             while (iter.next()) |selected_index| {
                 if (selected_index == sprite_index) {
@@ -852,11 +855,36 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 }
             }
 
+            if (self.init_options.file.selected_animation_index) |selected_animation_index| {
+                const selected_animation = self.init_options.file.animations.get(selected_animation_index);
+                if (selected_animation.frames.len > 0) {
+                    var hovered_in_animation: bool = false;
+                    for (selected_animation.frames) |frame| {
+                        if (frame.sprite_index == hovered_button_index) {
+                            hovered_in_animation = true;
+                            break;
+                        }
+                    }
+
+                    var current_in_animation: bool = false;
+                    for (selected_animation.frames) |frame| {
+                        if (frame.sprite_index == sprite_index) {
+                            current_in_animation = true;
+                            break;
+                        }
+                    }
+
+                    if (hovered_in_animation != current_in_animation) {
+                        show_hint = false;
+                    }
+                }
+            }
+
             var found_current_in_selection: bool = false;
 
             iter = self.init_options.file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
             while (iter.next()) |selected_index| {
-                if (selected_index == index) {
+                if (selected_index == hovered_button_index) {
                     found_current_in_selection = true;
                 }
             }
