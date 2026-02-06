@@ -891,7 +891,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 if (result.changed) {
                     if (result.value == .Valid) {
                         for (animation.frames) |*f| {
-                            if (file.editor.selected_sprites.isSet(f.sprite_index)) {
+                            if (file.editor.selected_sprites.isSet(f.sprite_index) and file.editor.selected_sprites.isSet(frame.sprite_index)) {
                                 f.ms = result.value.Valid;
                             }
                         }

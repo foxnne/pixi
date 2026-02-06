@@ -521,10 +521,14 @@ pub fn drawTransformDialog(self: *Workspace, canvas_vbox: *dvui.BoxWidget) void 
             });
             defer box.deinit();
             if (dvui.buttonIcon(@src(), "transform_cancel", icons.tvg.lucide.@"trash-2", .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .err, .expand = .horizontal })) {
-                transform.cancel();
+                pixi.editor.cancel() catch {
+                    dvui.log.err("Failed to cancel transform", .{});
+                };
             }
             if (dvui.buttonIcon(@src(), "transform_accept", icons.tvg.lucide.check, .{}, .{ .stroke_color = dvui.themeGet().color(.window, .fill) }, .{ .style = .highlight, .expand = .horizontal })) {
-                transform.accept();
+                pixi.editor.accept() catch {
+                    dvui.log.err("Failed to accept transform", .{});
+                };
             }
         }
     }
