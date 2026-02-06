@@ -52,18 +52,12 @@ pub fn draw(self: *Sprites) !void {
 }
 
 pub fn drawAnimationControls(self: *Sprites) !void {
-    var box = dvui.box(@src(), .{ .dir = .vertical }, .{
+    var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
     });
     defer box.deinit();
 
     if (pixi.editor.activeFile()) |file| {
-        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .none,
-            .background = false,
-        });
-        defer hbox.deinit();
-
         if (dvui.buttonIcon(@src(), "AddAnimation", icons.tvg.lucide.plus, .{}, .{}, .{
             .expand = .none,
             .gravity_y = 0.5,
@@ -151,23 +145,22 @@ pub fn drawAnimationControls(self: *Sprites) !void {
 }
 
 pub fn drawAnimations(self: *Sprites) !void {
-    //const parent_width = dvui.parentGet().data().rect.w;
-    const controls_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+    const outer_box = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .horizontal,
         .background = false,
     });
-    defer controls_box.deinit();
+    defer outer_box.deinit();
 
+    //const parent_width = dvui.parentGet().data().rect.w;
+    const controls_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .none,
+        .background = false,
+    });
     dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
 
     self.drawAnimationControls() catch {};
 
-    const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .horizontal,
-        .background = false,
-        .color_fill = dvui.themeGet().color(.content, .fill),
-    });
-    defer vbox.deinit();
+    controls_box.deinit();
 
     if (pixi.editor.activeFile()) |file| {
         // Make sure to update the prev anim count!
@@ -425,20 +418,14 @@ pub fn drawAnimations(self: *Sprites) !void {
 }
 
 pub fn drawFrameControls(_: *Sprites) !void {
-    var box = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .none,
+    var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .horizontal,
     });
     defer box.deinit();
 
     if (pixi.editor.activeFile()) |file| {
         const index = if (file.selected_animation_index) |i| i else 0;
         var animation = file.animations.get(index);
-
-        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .none,
-            .background = false,
-        });
-        defer hbox.deinit();
 
         if (dvui.buttonIcon(@src(), "SortAnimationAsc", icons.tvg.lucide.@"arrow-up-from-line", .{}, .{}, .{
             .expand = .none,
@@ -503,7 +490,6 @@ pub fn drawFrameControls(_: *Sprites) !void {
                 pixi.app.allocator.free(prev_order);
             }
         }
-
         if (file.editor.selected_sprites.count() > 0) {
             if (dvui.buttonIcon(@src(), "AddSprite", icons.tvg.lucide.plus, .{}, .{}, .{
                 .expand = .none,
@@ -657,22 +643,24 @@ pub fn drawFrameControls(_: *Sprites) !void {
 
 pub fn drawFrames(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
-        const controls_box = dvui.box(@src(), .{ .dir = .vertical }, .{
-            .expand = .horizontal,
+        var anim = dvui.animate(@src(), .{ .kind = .horizontal, .duration = 450_000, .easing = dvui.easing.outBack }, .{});
+        defer anim.deinit();
+
+        const outer_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .none,
             .background = false,
         });
-        defer controls_box.deinit();
+        defer outer_box.deinit();
 
+        const controls_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .none,
+            .background = false,
+        });
         dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
 
         self.drawFrameControls() catch {};
 
-        const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-            .expand = .both,
-            .background = false,
-            .color_fill = dvui.themeGet().color(.content, .fill),
-        });
-        defer vbox.deinit();
+        controls_box.deinit();
 
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.sprites_scroll_info, .horizontal_bar = .auto_overlay, .vertical_bar = .auto_overlay }, .{
             .expand = .horizontal,
@@ -766,16 +754,16 @@ pub fn drawFrames(self: *Sprites) !void {
                 }
 
                 var r = reorder.reorderable(@src(), .{}, .{
-                    .id_extra = frame_index,
+                    .id_extra = frame.sprite_index,
                     .expand = .horizontal,
                     .corner_radius = dvui.Rect.all(1000),
                     .min_size_content = .{ .w = 0.0, .h = reorder.reorderable_size.h },
                 });
                 defer r.deinit();
 
-                if (dvui.firstFrame(r.data().id) or self.prev_sprite_count != animation.frames.len or self.prev_anim_id != animation.id) {
+                if (dvui.firstFrame(r.data().id) or self.prev_sprite_count != animation.frames.len) {
                     dvui.animation(r.data().id, "sprite_expand", .{
-                        .start_val = 0.2,
+                        .start_val = 0.0,
                         .end_val = 1.0,
                         .end_time = duration,
                         .easing = dvui.easing.outBack,
@@ -905,78 +893,6 @@ pub fn drawFrames(self: *Sprites) !void {
                     .padding = .{ .x = 2, .w = 6 },
                 });
 
-                // if (self.edit_anim_id != animation.id) {
-                //     if (file.selected_animation_index == anim_index) {
-                //         if (dvui.labelClick(@src(), "{s}", .{file.animations.items(.name)[anim_index]}, .{}, .{
-                //             .gravity_y = 0.5,
-                //             .font_style = .body,
-                //             .margin = dvui.Rect.all(2),
-                //             .padding = dvui.Rect.all(0),
-                //             .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-                //         })) {
-                //             self.edit_anim_id = anim_id;
-                //         }
-                //     } else {
-                //         dvui.labelNoFmt(@src(), file.animations.items(.name)[anim_index], .{}, .{
-                //             .gravity_y = 0.5,
-                //             .margin = dvui.Rect.all(2),
-                //             .font_style = .body,
-                //             .padding = dvui.Rect.all(0),
-                //             .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-                //         });
-                //     }
-                // } else {
-                //     var te = dvui.textEntry(@src(), .{}, .{
-                //         .expand = .horizontal,
-                //         .background = false,
-                //         .padding = dvui.Rect.all(0),
-                //         .margin = dvui.Rect.all(0),
-                //         .font_style = .body,
-                //         .gravity_y = 0.5,
-                //     });
-                //     defer te.deinit();
-
-                //     if (dvui.firstFrame(te.data().id)) {
-                //         te.textSet(file.animations.items(.name)[anim_index], true);
-                //         dvui.focusWidget(te.data().id, null, null);
-                //     }
-
-                //     if (te.enter_pressed or dvui.focusedWidgetId() != te.data().id) {
-                //         if (!std.mem.eql(u8, file.animations.items(.name)[anim_index], te.getText()) and te.getText().len > 0) {
-                //             file.history.append(.{
-                //                 .animation_name = .{
-                //                     .index = anim_index,
-                //                     .name = try pixi.app.allocator.dupe(u8, file.animations.items(.name)[anim_index]),
-                //                 },
-                //             }) catch {
-                //                 dvui.log.err("Failed to append history", .{});
-                //             };
-                //             pixi.app.allocator.free(file.animations.items(.name)[anim_index]);
-                //             file.animations.items(.name)[anim_index] = try pixi.app.allocator.dupe(u8, te.getText());
-                //         }
-                //         self.edit_anim_id = null;
-                //     }
-                // }
-
-                if (reorder.drag_point == null and frame_index == file.selected_animation_frame_index) {
-                    // var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                    //     .expand = .ratio,
-                    //     .gravity_x = 1.0,
-                    //     .min_size_content = .{ .w = 5.0, .h = 5.0 },
-                    //     .corner_radius = dvui.Rect.all(1000),
-                    //     .background = true,
-                    //     .color_fill = color,
-                    //     // .box_shadow = .{
-                    //     //     .color = .black,
-                    //     //     .offset = .{ .x = -2.0, .y = 2.0 },
-                    //     //     .fade = 6.0,
-                    //     //     .alpha = 0.25,
-                    //     //     .corner_radius = dvui.Rect.all(1000),
-                    //     // },
-                    // });
-                    // defer button_box.deinit();
-                }
-
                 // This consumes the click event, so we need to do this last
                 if (dvui.clickedEx(hbox.data(), .{ .hover_cursor = .hand })) |e| {
                     if (e == .mouse) {
@@ -993,13 +909,6 @@ pub fn drawFrames(self: *Sprites) !void {
                         }
                     }
                 }
-
-                // if (file.editor.animations_scroll_to_index) |index| {
-                //     if (index == anim_index) {
-                //         dvui.scrollTo(.{ .screen_rect = hbox.data().rectScale().r });
-                //         file.editor.animations_scroll_to_index = null;
-                //     }
-                // }
             }
 
             if (reorder.finalSlot()) {
