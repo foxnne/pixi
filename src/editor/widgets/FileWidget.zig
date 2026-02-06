@@ -822,6 +822,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         // Draw bubble outline
         built.stroke(.{ .color = color, .thickness = dvui.currentWindow().natural_scale });
 
+        // Dont draw any buttons if the button is too small or too large.
+        if (button_rect.w > bubble_rect.w * 0.666 or button_rect.w < bubble_rect.w * 0.001) return false;
+
         var add_rem_message: ?[]const u8 = null;
 
         var border_color = dvui.themeGet().color(.control, .fill_hover);
@@ -1069,34 +1072,63 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             }
 
             if (button.hovered() or show_hint) {
-                icon_rect.fill(.all(1000000), .{
-                    .color = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
+                var icon_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .none,
+                    .rect = button.data().rectScale().rectFromPhysical(icon_rect),
+                    .border = dvui.Rect.all(0),
+                    .background = true,
+                    .corner_radius = dvui.Rect.all(1000000),
+                    .box_shadow = .{
+                        .color = .black,
+                        .offset = .{ .x = -0.05 * button_height, .y = 0.08 * button_height },
+                        .fade = (button_height / 10) * t,
+                        .alpha = 0.35 * t,
+                    },
+                    .color_fill = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
                 });
-                dvui.renderIcon("close", if (remove) icons.tvg.lucide.minus else icons.tvg.lucide.plus, .{ .r = icon_rect, .s = dvui.currentWindow().natural_scale }, .{}, .{}) catch {
+
+                dvui.renderIcon("close", if (remove) icons.tvg.lucide.minus else icons.tvg.lucide.plus, .{ .r = icon_box.data().rectScale().r, .s = dvui.currentWindow().natural_scale }, .{}, .{}) catch {
                     dvui.log.err("Failed to render icon", .{});
                     return false;
                 };
+                icon_box.deinit();
 
-                var message_rect = fill_rect;
+                var message_size: dvui.Size = .{};
+
                 if (add_rem_message) |message| {
-                    message_rect.w = font.textSize(message).w * dvui.currentWindow().natural_scale;
-                    message_rect.h = font.textSize(message).h * dvui.currentWindow().natural_scale + 2.0 * dvui.currentWindow().natural_scale;
+                    message_size.w = font.textSize(message).w * dvui.currentWindow().natural_scale;
+                    message_size.h = font.textSize(message).h * dvui.currentWindow().natural_scale + 2.0 * dvui.currentWindow().natural_scale;
 
-                    fill_rect.w += message_rect.w * 1.5;
-                    message_rect.x += (fill_rect.w - message_rect.w) / 2.0;
-
-                    fill_rect.h = @max(fill_rect.h, message_rect.h);
+                    fill_rect.w += message_size.w * 1.5;
+                    fill_rect.h = @max(fill_rect.h, message_size.h);
                 }
                 if (button.hovered()) {
                     if (add_rem_message) |message| {
-                        fill_rect.fill(.all(1000000), .{
-                            .color = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
+                        const fill_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                            .expand = .none,
+                            .rect = button.data().rectScale().rectFromPhysical(fill_rect),
+                            .border = dvui.Rect.all(0),
+                            .background = true,
+                            .corner_radius = dvui.Rect.all(1000000),
+                            .box_shadow = .{
+                                .color = .black,
+                                .offset = .{ .x = -0.05 * button_height, .y = 0.08 * button_height },
+                                .fade = (button_height / 10) * t,
+                                .alpha = 0.35 * t,
+                            },
+                            .color_fill = if (remove) dvui.themeGet().color(.err, .fill).opacity(0.75) else dvui.themeGet().color(.highlight, .fill).opacity(0.75),
                         });
+                        defer fill_box.deinit();
+
+                        var text_box = fill_box.data().contentRectScale().r;
+                        text_box.x += (text_box.w - (message_size.w)) / 2.0;
+                        text_box.y += (text_box.h - (message_size.h)) / 2.0;
+
                         dvui.renderText(.{
                             .text = message,
                             .font = font,
                             .color = .white,
-                            .rs = .{ .r = message_rect, .s = dvui.currentWindow().natural_scale },
+                            .rs = .{ .r = text_box, .s = dvui.currentWindow().natural_scale },
                         }) catch {
                             dvui.log.err("Failed to render text", .{});
                         };
