@@ -152,12 +152,12 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
             if (anim.frames.len > 0) {
                 if (anim.frames.len > 0) {
                     if (dvui.timerDoneOrNone(id)) {
-                        if (file.selected_animation_frame_index >= anim.frames.len - 1) {
-                            file.selected_animation_frame_index = 0;
+                        if (anim_frame_index >= anim.frames.len - 1) {
+                            anim_frame_index = 0;
                         } else {
-                            file.selected_animation_frame_index += 1;
+                            anim_frame_index += 1;
                         }
-                        const millis_per_frame = anim.frames[file.selected_animation_frame_index].ms;
+                        const millis_per_frame = anim.frames[anim_frame_index].ms;
 
                         dvui.timer(id, @intCast(millis_per_frame * 1000));
                     }

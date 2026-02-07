@@ -23,6 +23,7 @@ pub fn init() Sprites {
 pub fn draw(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
         const parent_height = dvui.parentGet().data().rect.h - 2.0 * dvui.currentWindow().natural_scale;
+        const parent_data = dvui.parentGet().data();
 
         const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
             .expand = .both,
@@ -47,6 +48,14 @@ pub fn draw(self: *Sprites) !void {
             self.drawFrames() catch {
                 dvui.log.err("Failed to draw sprites", .{});
             };
+        }
+
+        for (dvui.events()) |*e| {
+            if (e.evt == .mouse and e.evt.mouse.action == .press) {
+                if (dvui.eventMatchSimple(e, parent_data)) {
+                    file.clearSelectedSprites();
+                }
+            }
         }
     }
 }
@@ -202,12 +211,11 @@ pub fn drawAnimationControls(self: *Sprites) !void {
                 @src(),
                 "DeleteAnimationIcon",
                 icons.tvg.lucide.trash,
-                .{ .fill_color = dvui.themeGet().color(.err, .text), .stroke_color = dvui.themeGet().color(.err, .text) },
+                .{ .fill_color = dvui.themeGet().color(.window, .fill), .stroke_color = dvui.themeGet().color(.window, .fill) },
                 .{
                     .gravity_x = 0.5,
                     .gravity_y = 0.5,
                     .expand = .ratio,
-                    .color_text = dvui.themeGet().color(.err, .text),
                     .margin = dvui.Rect.all(0),
                     .padding = dvui.Rect.all(0),
                 },
@@ -858,7 +866,7 @@ pub fn drawFrameControls(_: *Sprites) !void {
 
             dvui.alphaSet(alpha);
 
-            if (delete_animation_button.pressed()) {
+            if (delete_animation_button.clicked()) {
                 var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
                 const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
 
@@ -1011,7 +1019,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 }
 
                 var r = reorder.reorderable(@src(), .{}, .{
-                    .id_extra = frame.sprite_index,
+                    .id_extra = frame_index,
                     .expand = .horizontal,
                     .corner_radius = dvui.Rect.all(1000),
                     .min_size_content = .{ .w = 0.0, .h = reorder.reorderable_size.h },
@@ -1045,7 +1053,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 }
 
                 const selected = if (frame.sprite_index < file.editor.selected_sprites.capacity()) file.editor.selected_sprites.isSet(frame.sprite_index) else false;
-                //const hovered = pixi.dvui.hovered(r.data());
+                const hovered = pixi.dvui.hovered(r.data());
 
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .horizontal,
@@ -1056,7 +1064,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 var index_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .both,
                     .background = true,
-                    .color_fill = dvui.themeGet().color(.control, .fill),
+                    .color_fill = if (hovered) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
                     .corner_radius = dvui.Rect.all(1000),
                     .margin = dvui.Rect.all(2),
                     .padding = dvui.Rect.all(1),
@@ -1150,7 +1158,6 @@ pub fn drawFrames(self: *Sprites) !void {
                     .padding = .{ .x = 2, .w = 6 },
                 });
 
-                // This consumes the click event, so we need to do this last
                 if (dvui.clickedEx(hbox.data(), .{ .hover_cursor = .hand })) |e| {
                     if (e == .mouse) {
                         if (frame.sprite_index < file.editor.selected_sprites.capacity()) {
@@ -1159,7 +1166,7 @@ pub fn drawFrames(self: *Sprites) !void {
                             } else if (e.mouse.mod.matchBind("shift")) {
                                 file.editor.selected_sprites.unset(frame.sprite_index);
                             } else {
-                                file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.editor.selected_sprites.capacity() }, false);
+                                file.clearSelectedSprites();
                                 file.editor.selected_sprites.set(frame.sprite_index);
                                 file.selected_animation_frame_index = frame_index;
                             }
