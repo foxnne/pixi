@@ -48,9 +48,9 @@ editor: EditorData = .{},
 /// Also, the fields here tend to be directly coupled with the UI library
 pub const EditorData = struct {
     canvas: pixi.dvui.CanvasWidget = .{},
-    layers_scroll_info: dvui.ScrollInfo = .{},
-    sprites_scroll_info: dvui.ScrollInfo = .{},
-    animations_scroll_info: dvui.ScrollInfo = .{},
+    layers_scroll_info: dvui.ScrollInfo = .{ .horizontal = .auto },
+    sprites_scroll_info: dvui.ScrollInfo = .{ .horizontal = .auto },
+    animations_scroll_info: dvui.ScrollInfo = .{ .horizontal = .auto },
     animations_scroll_to_index: ?usize = null,
     transform: ?Editor.Transform = null,
 
