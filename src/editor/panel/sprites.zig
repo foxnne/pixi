@@ -47,7 +47,7 @@ pub fn draw(self: *Sprites) !void {
             }
         } else {
             if (file.editor.canvas.hovered) {
-                if (file.spriteIndex(file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt))) |sprite_index| {
+                if (file.spriteIndex(file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt_prev))) |sprite_index| {
                     src_rect = file.spriteRect(sprite_index);
                     index = sprite_index;
                 }
