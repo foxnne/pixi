@@ -11,6 +11,8 @@ const Layer = @import("Layer.zig");
 const Sprite = @import("Sprite.zig");
 const Animation = @import("Animation.zig");
 
+const alpha_checkerboard_count: u32 = 8;
+
 id: u64,
 path: []const u8,
 
@@ -106,9 +108,13 @@ pub fn init(path: []const u8, options: InitOptions) !pixi.Internal.File {
 
     // Initialize checkerboard tile image source
     {
+        const alpha_width = alpha_checkerboard_count;
+        const aspect_ratio = @as(f32, @floatFromInt(internal.column_width)) / @as(f32, @floatFromInt(internal.row_height));
+        const alpha_height = @round(alpha_width / aspect_ratio);
+
         internal.editor.checkerboard_tile = pixi.image.init(
-            internal.column_width * 2,
-            internal.row_height * 2,
+            alpha_width,
+            std.math.clamp(2, @as(u32, @intFromFloat(alpha_height)), 1024),
             .{ .r = 0, .g = 0, .b = 0, .a = 0 },
             .ptr,
         ) catch return error.LayerCreateError;
@@ -302,9 +308,13 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
 
         // Initialize checkerboard tile image source
         {
+            const alpha_width = alpha_checkerboard_count;
+            const aspect_ratio = @as(f32, @floatFromInt(internal.column_width)) / @as(f32, @floatFromInt(internal.row_height));
+            const alpha_height = @round(alpha_width / aspect_ratio);
+
             internal.editor.checkerboard_tile = pixi.image.init(
-                ext.column_width * 2,
-                ext.row_height * 2,
+                alpha_width,
+                std.math.clamp(2, @as(u32, @intFromFloat(alpha_height)), 1024),
                 .{ .r = 0, .g = 0, .b = 0, .a = 0 },
                 .ptr,
             ) catch return error.LayerCreateError;
@@ -537,9 +547,13 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
 
     // Initialize checkerboard tile image source
     {
+        const alpha_width = alpha_checkerboard_count;
+        const aspect_ratio = @as(f32, @floatFromInt(internal.column_width)) / @as(f32, @floatFromInt(internal.row_height));
+        const alpha_height = @round(alpha_width / aspect_ratio);
+
         internal.editor.checkerboard_tile = pixi.image.init(
-            column_width * 2,
-            row_height * 2,
+            alpha_width,
+            std.math.clamp(2, @as(u32, @intFromFloat(alpha_height)), 1024),
             .{ .r = 0, .g = 0, .b = 0, .a = 0 },
             .ptr,
         ) catch return error.LayerCreateError;
@@ -573,6 +587,8 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
 
     if (options.columns == current_columns and
         options.rows == current_rows) return;
+
+    if (options.columns == 0 or options.rows == 0) return error.InvalidImageSize;
 
     const new_columns = options.columns;
     const new_rows = options.rows;

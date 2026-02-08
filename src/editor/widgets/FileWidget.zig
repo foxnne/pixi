@@ -787,7 +787,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         }
 
         if (draw_transparency) {
-            if (self.init_options.file.editor.canvas.scale < 2.0) {
+            if (self.init_options.file.editor.canvas.scale < 0.1) {
                 built.fillConvex(.{ .color = fill_color, .fade = 3.0 });
             } else {
                 built.fillConvex(.{ .color = fill_color, .fade = 0.0 });
@@ -2731,7 +2731,7 @@ pub fn drawLayers(self: *FileWidget) void {
                 .s = self.init_options.file.editor.canvas.scale,
             };
 
-            if (self.init_options.file.editor.canvas.scale < 2.0) {
+            if (self.init_options.file.editor.canvas.scale < 0.1) {
                 image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
             } else {
                 image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });

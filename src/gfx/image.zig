@@ -5,6 +5,7 @@ const zip = @import("zip");
 
 pub fn init(width: u32, height: u32, default_color: dvui.Color.PMA, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
     const num_pixels = width * height;
+    if (num_pixels == 0) return error.InvalidImageSize;
     const p = pixi.app.allocator.alloc(dvui.Color.PMA, num_pixels) catch return error.MemoryAllocationFailed;
 
     @memset(p, default_color);

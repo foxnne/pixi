@@ -858,6 +858,7 @@ pub fn drawFrameControls(_: *Sprites) !void {
                 .{
                     .gravity_x = 0.5,
                     .gravity_y = 0.5,
+                    .color_text = dvui.themeGet().color(.err, .text),
                     .expand = .ratio,
                     .margin = dvui.Rect.all(0),
                     .padding = dvui.Rect.all(0),

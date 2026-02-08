@@ -629,9 +629,11 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
     }
 
     if (init_opts.alpha_source) |alpha_source| {
+        wd.contentRectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+
         const alpha_triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
             .subdivisions = 8,
-            .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0),
+            .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
         }) catch unreachable;
         dvui.renderTriangles(alpha_triangles, alpha_source.getTexture() catch null) catch {
             dvui.log.err("Failed to render triangles", .{});
