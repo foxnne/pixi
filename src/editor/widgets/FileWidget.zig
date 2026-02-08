@@ -754,7 +754,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         defer path.deinit();
 
         var draw_transparency: bool = false;
-        draw_transparency = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt);
+        draw_transparency = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt) and self.hovered();
 
         if (!draw_transparency and !self.init_options.file.editor.canvas.rect.contains(dvui.currentWindow().mouse_pt)) {
             if (self.init_options.file.selected_animation_index) |ai| {
@@ -2753,7 +2753,7 @@ pub fn drawLayers(self: *FileWidget) void {
                         .s = self.init_options.file.editor.canvas.scale,
                     };
 
-                    if (self.init_options.file.editor.canvas.scale < 2.0) {
+                    if (self.init_options.file.editor.canvas.scale < 0.1) {
                         image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
                     } else {
                         image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
