@@ -47,7 +47,7 @@ pub fn draw(self: *Tools) !void {
         };
     }
 
-    const autofit = !paned.dragging and !paned.collapsed_state;
+    const autofit = !paned.dragging and !paned.collapsed_state and !paned.animating;
 
     // Refit must be done between showFirst and showSecond
     if (((dvui.firstFrame(paned.data().id) or prev_layer_count != layer_count) or autofit) and !pixi.editor.explorer.pinned_palettes) {

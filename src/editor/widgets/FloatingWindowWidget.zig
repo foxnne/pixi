@@ -16,7 +16,7 @@ const FloatingWindowWidget = @This();
 /// Defaults is for the embedded box widget
 pub var defaults: Options = .{
     .name = "Window",
-    .role = .window,
+    .role = .dialog,
     .corner_radius = Rect.all(5),
     .margin = Rect.all(2),
     .border = Rect.all(1),
@@ -432,6 +432,7 @@ pub fn init(self: *FloatingWindowWidget, src: std.builtin.SourceLocation, init_o
             dvui.AccessKit.nodeSetModal(ak_node)
         else
             dvui.AccessKit.nodeClearModal(ak_node);
+        dvui.AccessKit.nodeAddAction(ak_node, dvui.AccessKit.Action.focus);
     }
 }
 
@@ -571,7 +572,6 @@ pub fn processEventsBefore(self: *FloatingWindowWidget) void {
                     dvui.captureMouse(null, e.num); // stop drag and capture
                     dvui.dragEnd();
                     e.handle(@src(), self.data());
-                    dvui.refresh(null, @src(), self.data().id);
                     continue;
                 }
             }
@@ -671,12 +671,12 @@ pub fn processEventsAfter(self: *FloatingWindowWidget) void {
             },
             .key => |ke| {
                 // catch any tabs that weren't handled by widgets
-                if (ke.action == .down and ke.matchBind("next_widget")) {
+                if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("next_widget")) {
                     e.handle(@src(), self.data());
                     dvui.tabIndexNext(e.num);
                 }
 
-                if (ke.action == .down and ke.matchBind("prev_widget")) {
+                if ((ke.action == .down or ke.action == .repeat) and ke.matchBind("prev_widget")) {
                     e.handle(@src(), self.data());
                     dvui.tabIndexPrev(e.num);
                 }
@@ -732,8 +732,7 @@ pub fn minSizeForChild(self: *FloatingWindowWidget, s: Size) void {
 }
 
 pub fn deinit(self: *FloatingWindowWidget) void {
-    const should_free = self.data().was_allocated_on_widget_stack;
-    defer if (should_free) dvui.widgetFree(self);
+    defer if (dvui.widgetIsAllocated(self)) dvui.widgetFree(self);
     defer self.* = undefined;
     self.layout.deinit();
 

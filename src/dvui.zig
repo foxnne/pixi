@@ -17,9 +17,7 @@ pub const TreeWidget = Widgets.TreeWidget;
 /// Currently this is specialized for the layers paned widget, just includes icon and dragging flag so we know when the pane is dragging
 pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions, opts: dvui.Options) *PanedWidget {
     var ret = dvui.widgetAlloc(PanedWidget);
-    ret.* = PanedWidget.init(src, init_opts, opts);
-    ret.data().was_allocated_on_widget_stack = true;
-    ret.install();
+    ret.init(src, init_opts, opts);
     ret.processEvents();
     return ret;
 }
@@ -27,10 +25,8 @@ pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions
 pub fn floatingWindow(src: std.builtin.SourceLocation, floating_opts: FloatingWindowWidget.InitOptions, opts: dvui.Options) *FloatingWindowWidget {
     var ret = dvui.widgetAlloc(FloatingWindowWidget);
     ret.init(src, floating_opts, opts);
-    ret.data().was_allocated_on_widget_stack = true;
     ret.processEventsBefore();
     ret.drawBackground();
-    pixi.editor.dim_titlebar = true;
     return ret;
 }
 
@@ -54,7 +50,6 @@ pub fn hovered(wd: *dvui.WidgetData) bool {
 pub fn reorder(src: std.builtin.SourceLocation, init_opts: ReorderWidget.InitOptions, opts: dvui.Options) *ReorderWidget {
     var ret = dvui.widgetAlloc(ReorderWidget);
     ret.init(src, init_opts, opts);
-    ret.data().was_allocated_on_widget_stack = true;
     ret.processEvents();
     return ret;
 }

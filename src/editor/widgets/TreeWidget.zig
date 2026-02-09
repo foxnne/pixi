@@ -58,7 +58,6 @@ pub fn init(self: *TreeWidget, src: std.builtin.SourceLocation, init_opts: InitO
 pub fn tree(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Options) *TreeWidget {
     var ret = dvui.widgetAlloc(TreeWidget);
     ret.init(src, init_opts, opts);
-    ret.data().was_allocated_on_widget_stack = true;
     ret.processEvents();
     return ret;
 }
@@ -135,8 +134,7 @@ pub fn processEvent(self: *TreeWidget, e: *dvui.Event) void {
 }
 
 pub fn deinit(self: *TreeWidget) void {
-    const should_free = self.data().was_allocated_on_widget_stack;
-    defer if (should_free) dvui.widgetFree(self);
+    defer if (dvui.widgetIsAllocated(self)) dvui.widgetFree(self);
     defer self.* = undefined;
 
     self.group.deinit();
@@ -181,7 +179,6 @@ pub fn branch(self: *TreeWidget, src: std.builtin.SourceLocation, init_opts: Bra
     const ret = dvui.widgetAlloc(Branch);
     ret.init(src, self, init_opts, opts);
     ret.install();
-    ret.data().was_allocated_on_widget_stack = true;
     if (ret.data().accesskit_node()) |ak_node| {
         AccessKit.nodeAddAction(ak_node, AccessKit.Action.focus);
         AccessKit.nodeAddAction(ak_node, AccessKit.Action.click);
@@ -231,15 +228,14 @@ pub const Branch = struct {
         ret.padding = Rect{};
         ret.margin = .{};
         ret.background = false;
-        ret.role = .none;
-        ret.label = null;
         return ret;
     }
 
     pub fn wrapInner(opts: Options) Options {
         var ret = opts;
         ret.name = null;
-        ret.expand = .horizontal;
+        ret.role = null;
+        ret.label = null;
         return ret;
     }
 
@@ -284,7 +280,16 @@ pub const Branch = struct {
                 self.floating_widget.?.init(
                     @src(),
                     .{ .mouse_events = false },
-                    .{ .rect = Rect.fromPoint(.cast(topleft.toNatural())), .min_size_content = self.tree.branch_size },
+                    .{ .rect = Rect.fromPoint(.cast(topleft.toNatural())), .min_size_content = self.tree.branch_size, .box_shadow = .{
+                        .fade = 6,
+                        .corner_radius = dvui.Rect.all(1000000),
+                        .alpha = 0.2,
+                        .offset = .{
+                            .x = 2,
+                            .y = 2,
+                        },
+                        .color = .black,
+                    } },
                 );
             } else {
                 self.wd = WidgetData.init(self.wd.src, .{}, wrapOuter(self.options));
@@ -325,9 +330,10 @@ pub const Branch = struct {
             dvui.parentSet(self.widget());
         }
 
-        self.button.init(@src(), .{}, wrapInner(self.options));
-        if (self.init_options.process_events)
+        self.button.init(@src(), .{}, wrapInner(self.options).override(.{ .expand = self.options.expand }));
+        if (self.init_options.process_events) {
             self.button.processEvents();
+        }
         self.button.drawBackground();
         self.button.drawFocus();
 
@@ -512,8 +518,7 @@ pub const Branch = struct {
     }
 
     pub fn deinit(self: *Branch) void {
-        const should_free = self.data().was_allocated_on_widget_stack;
-        defer if (should_free) dvui.widgetFree(self);
+        defer if (dvui.widgetIsAllocated(self)) dvui.widgetFree(self);
         defer self.* = undefined;
 
         if (self.can_expand) {

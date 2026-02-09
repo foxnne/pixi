@@ -33,6 +33,7 @@ pub fn init(self: *ReorderWidget, src: std.builtin.SourceLocation, init_opts: In
         .drag_point = dvui.dataGet(null, wd.id, "_drag_point", dvui.Point.Physical),
         .reorderable_size = dvui.dataGet(null, wd.id, "_reorderable_size", dvui.Size) orelse .{},
     };
+
     if (self.drag_point != null and dvui.currentWindow().dragging.state != .dragging) {
         self.drag_ending = true;
         dvui.captureMouse(null, 0);
@@ -43,18 +44,13 @@ pub fn init(self: *ReorderWidget, src: std.builtin.SourceLocation, init_opts: In
 
     dvui.parentSet(self.widget());
 }
+
 // this means we should watch for a drop, not that we started it
 fn dragging(self: *ReorderWidget) bool {
     return self.drag_ending or dvui.captured(self.wd.id) or dvui.dragName(self.init_opts.drag_name);
 }
 
 pub fn needFinalSlot(self: *ReorderWidget) bool {
-    // if (self.dragging() and self.data().borderRectScale().r.contains(dvui.currentWindow().mouse_pt)) {
-    //     return !self.found_slot;
-    // }
-
-    // Here we always draw a final slot if we are dragging, such that the scroll area beneath is always updated
-
     if (self.dragging()) {
         return !self.found_slot;
     }
@@ -97,6 +93,8 @@ pub fn minSizeForChild(self: *ReorderWidget, s: Size) void {
 }
 
 pub fn matchEvent(self: *ReorderWidget, event: *dvui.Event) bool {
+    //return dvui.eventMatch(event, .{ .id = self.wd.id, .r = self.data().borderRectScale().r, .drag_name = self.init_opts.drag_name });
+
     if (dvui.captured(self.wd.id) or (self.init_opts.drag_name != null and dvui.dragName(self.init_opts.drag_name.?))) {
         // passively listen to mouse motion
         for (dvui.events()) |*e| {
@@ -135,6 +133,17 @@ pub fn processEvents(self: *ReorderWidget) void {
 pub fn processEvent(self: *ReorderWidget, e: *dvui.Event) void {
     switch (e.evt) {
         .mouse => |me| {
+            // if we are the drag source, update where the mouse is and possibly scroll
+
+            if (self.drag_point != null and me.action == .motion) {
+                self.drag_point = e.evt.mouse.p;
+
+                dvui.scrollDrag(.{
+                    .mouse_pt = e.evt.mouse.p,
+                    .screen_rect = self.wd.rectScale().r,
+                });
+            }
+
             // detect a drag end that is over us
             // if nobody catches it, dvui.Window will end the drag on an unhandled mouse up
             if (self.dragging() and self.data().borderRectScale().r.contains(dvui.currentWindow().mouse_pt)) {
@@ -151,8 +160,7 @@ pub fn processEvent(self: *ReorderWidget, e: *dvui.Event) void {
 }
 
 pub fn deinit(self: *ReorderWidget) void {
-    const should_free = self.data().was_allocated_on_widget_stack;
-    defer if (should_free) dvui.widgetFree(self);
+    defer if (dvui.widgetIsAllocated(self)) dvui.widgetFree(self);
     defer self.* = undefined;
     if (self.drag_ending) {
         self.id_reorderable = null;
@@ -193,7 +201,7 @@ pub fn dragStart(self: *ReorderWidget, reorder_id: usize, p: dvui.Point.Physical
 
 pub const draggableInitOptions = struct {
     tvg_bytes: ?[]const u8 = null,
-    top_left: ?dvui.Point.Physical = null,
+    rect: ?dvui.Rect.Physical = null,
     reorderable: ?*Reorderable = null,
     color: ?dvui.Color = null,
 };
@@ -211,6 +219,9 @@ pub fn draggable(src: std.builtin.SourceLocation, init_opts: draggableInitOption
                 if (me.action == .press and me.button.pointer()) {
                     e.handle(@src(), iw.data());
                     dvui.captureMouse(iw.data(), e.num);
+                    // const reo_rect: ?dvui.Rect.Physical = if (init_opts.reorderable) |reo| reo.data().rectScale().r else null;
+                    // const rect: dvui.Rect.Physical = init_opts.rect orelse reo_rect orelse iw.data().rectScale().r;
+                    // dvui.dragPreStart(me.p, .{ .offset = rect.topLeft().diff(me.p), .size = rect.size() });
                     //const reo_top_left: ?dvui.Point.Physical = if (init_opts.reorderable) |reo| reo.data().rectScale().r.topLeft() else null;
                     //const top_left: ?dvui.Point.Physical = init_opts.top_left orelse reo_top_left;
                     dvui.dragPreStart(me.p, .{ .offset = (iw.data().rectScale().r.topLeft()).diff(me.p) });
@@ -241,7 +252,6 @@ pub fn draggable(src: std.builtin.SourceLocation, init_opts: draggableInitOption
 pub fn reorderable(self: *ReorderWidget, src: std.builtin.SourceLocation, init_opts: Reorderable.InitOptions, opts: Options) *Reorderable {
     const ret = dvui.widgetAlloc(Reorderable);
     ret.init(src, self, init_opts, opts);
-    ret.init_options.was_allocated_on_widget_stack = true;
     ret.install();
     return ret;
 }
@@ -262,7 +272,6 @@ pub const Reorderable = struct {
 
         // if false, caller responsible for calling reinstall() when targetRectScale() returns true
         reinstall: bool = true,
-        was_allocated_on_widget_stack: bool = false,
     };
 
     wd: WidgetData,
@@ -312,17 +321,16 @@ pub const Reorderable = struct {
                     self.wd = WidgetData.init(self.data().src, .{}, self.options);
                 }
                 const rs = self.data().rectScale();
-                const dragRect = Rect.Physical.fromPoint(topleft).toSize(self.reorder.reorderable_size.scale(rs.s, Size.Physical));
 
-                if (!self.reorder.found_slot and !rs.r.intersect(dragRect).empty()) {
-                    // user is dragging a reorderable over this rect
+                if (!self.reorder.found_slot and rs.r.contains(dvui.currentWindow().mouse_pt)) {
+                    // user is dragging something over this rect
                     self.target_rs = rs;
                     self.reorder.found_slot = true;
 
                     if (self.init_options.draw_target) {
                         rs.r.fill(
                             .all(10000),
-                            .{ .color = dvui.themeGet().color(.window, .fill), .fade = if (rs.s > 1.0) 0.0 else 1.0 },
+                            .{ .color = dvui.themeGet().focus, .fade = 1.0 },
                         );
                     }
 
@@ -411,8 +419,7 @@ pub const Reorderable = struct {
     }
 
     pub fn deinit(self: *Reorderable) void {
-        const should_free = self.init_options.was_allocated_on_widget_stack;
-        defer if (should_free) dvui.widgetFree(self);
+        defer if (dvui.widgetIsAllocated(self)) dvui.widgetFree(self);
         defer self.* = undefined;
         if (self.floating_widget) |*fw| {
             self.data().minSizeMax(fw.data().min_size);

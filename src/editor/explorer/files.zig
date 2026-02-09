@@ -194,10 +194,12 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
         });
         defer te.deinit();
 
+        // Text edit should handle any click events, so if we find one unhandled after the text edit
+        // we can assume the mouse was clicked anywhere else and that the edit needs to be confirmed.
         for (dvui.events()) |*event| {
             switch (event.evt) {
                 .mouse => |mouse| {
-                    if (mouse.action == .press and !te.matchEvent(event)) {
+                    if (mouse.action == .press and selected and editing and !event.handled) {
                         selected_id = null;
                         edit_id = null;
                     }
@@ -270,24 +272,22 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
                 }
             }
         }
-    } else {
-        if (selected) {
-            if (dvui.labelClick(@src(), "{s}", .{label}, .{}, .{
-                .gravity_y = 0.5,
-                //.margin = dvui.Rect.all(2),
-                .padding = padding,
-                .id_extra = id_extra,
-                .color_text = color,
-            })) {
-                edit_id = id_extra;
-            }
-        } else {
-            dvui.label(@src(), "{s}", .{label}, .{
-                .color_text = color,
-                .padding = padding,
-                .id_extra = id_extra,
-            });
+    } else if (selected) {
+        if (dvui.labelClick(@src(), "{s}", .{label}, .{}, .{
+            .gravity_y = 0.5,
+            //.margin = dvui.Rect.all(2),
+            .padding = padding,
+            .id_extra = id_extra,
+            .color_text = color,
+        })) {
+            edit_id = id_extra;
         }
+    } else {
+        dvui.label(@src(), "{s}", .{label}, .{
+            .color_text = color,
+            .padding = padding,
+            .id_extra = id_extra,
+        });
     }
 }
 

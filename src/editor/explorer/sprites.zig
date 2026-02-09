@@ -60,6 +60,38 @@ pub fn draw(self: *Sprites) !void {
     }
 }
 
+pub fn drawOriginControls(_: *Sprites) !void {
+    var preview_origin_x: ?f32 = null;
+    var preview_origin_y: ?f32 = null;
+
+    if (pixi.editor.activeFile()) |file| {
+        if (file.editor.selected_sprites.findFirstSet()) |first_sprite_index| {
+            const first_sprite = file.sprites.get(first_sprite_index);
+
+            preview_origin_x = first_sprite.origin[0];
+            preview_origin_y = first_sprite.origin[1];
+
+            var iter = file.editor.selected_sprites.iterator(.{ .direction = .forward, .kind = .set });
+            while (iter.next()) |selected_sprite_index| {
+                const selected_sprite = file.sprites.get(selected_sprite_index);
+
+                if (selected_sprite.origin[0] != preview_origin_x) {
+                    preview_origin_x = null;
+                }
+
+                if (selected_sprite.origin[1] != preview_origin_y) {
+                    preview_origin_y = null;
+                }
+
+                if (preview_origin_x == null and preview_origin_y == null) {
+                    // We already know we have mixed origin sizes, so the origins are not unified
+                    break;
+                }
+            }
+        }
+    }
+}
+
 pub fn drawAnimationControls(self: *Sprites) !void {
     var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
