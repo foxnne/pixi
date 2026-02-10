@@ -33,8 +33,8 @@ input_scheme: InputScheme = if (builtin.os.tag == .macos) .trackpad else .mouse,
 /// Whether or not to show rulers on each canvas.
 show_rulers: bool = true,
 
-/// Width of vertical ruler or height of horizontal ruler.
-ruler_size: f32 = 14.0,
+/// Padding to include in the size of the ruler outside of the font height.
+ruler_padding: f32 = 4.0,
 
 /// Setting to control overall zoom sensitivity
 /// 0 - 1

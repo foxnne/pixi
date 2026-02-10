@@ -464,15 +464,26 @@ pub fn drawCanvas(self: *Workspace) !void {
 
 pub fn drawHorizontalRuler(self: *Workspace) void {
     const file = &pixi.editor.open_files.values()[self.open_file_index];
+    const font = dvui.Font.theme(.mono).larger(-2.0);
+
+    // Set ruler height to the font height plus some padding
+    const ruler_height = font.textSize("M").h + pixi.editor.settings.ruler_padding;
 
     var canvas_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
     });
     defer canvas_hbox.deinit();
 
+    const largest_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{file.rows - 1}) catch {
+        dvui.log.err("Failed to allocate largest label", .{});
+        return;
+    };
+    const largest_label_size = font.textSize(largest_label);
+    const vert_ruler_width = largest_label_size.w + pixi.editor.settings.ruler_padding;
+
     var corner_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
-        .min_size_content = .{ .h = 14, .w = 14 },
+        .min_size_content = .{ .h = vert_ruler_width, .w = vert_ruler_width },
         .background = false,
         .color_fill = dvui.themeGet().color(.window, .fill).lighten(-2.0).opacity(0.75),
     });
@@ -480,14 +491,14 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
 
     var top_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
-        .min_size_content = .{ .h = 14, .w = 14 },
+        .min_size_content = .{ .h = ruler_height, .w = ruler_height },
         .background = true,
         .color_fill = dvui.themeGet().color(.window, .fill),
     });
     defer top_box.deinit();
 
     self.horizontal_scroll_info.virtual_size.w = file.editor.canvas.scroll_info.virtual_size.w;
-    self.horizontal_scroll_info.virtual_size.h = pixi.editor.settings.ruler_size;
+    self.horizontal_scroll_info.virtual_size.h = ruler_height;
     self.horizontal_scroll_info.viewport.w = file.editor.canvas.scroll_info.viewport.w;
     self.horizontal_scroll_info.viewport.x = file.editor.canvas.scroll_info.viewport.x;
 
@@ -505,7 +516,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
 
     var outer_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
-        .rect = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(file.width())), .h = pixi.editor.settings.ruler_size * (1.0 / file.editor.canvas.scale) },
+        .rect = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(file.width())), .h = ruler_height / file.editor.canvas.scale },
     });
     defer outer_box.deinit();
 
@@ -549,21 +560,52 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
             .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.column_width)) },
         });
         defer reorderable.deinit();
-        var button_color = dvui.themeGet().color(.control, .fill);
+        var button_color = dvui.themeGet().color(.window, .fill);
 
         if (pixi.dvui.hovered(reorderable.data())) {
-            button_color = dvui.themeGet().color(.control, .fill_hover);
+            button_color = dvui.themeGet().color(.control, .fill);
+            dvui.cursorSet(.hand);
         }
 
-        var column_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        var cell_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .both,
             .background = true,
             .color_fill = button_color,
             .id_extra = column_index,
         });
-        const top_right = column_box.data().rectScale().r.topLeft();
-        const bottom_right = column_box.data().rectScale().r.bottomLeft();
-        column_box.deinit();
+
+        {
+            const label = file.fmtColumn(dvui.currentWindow().arena(), @intCast(column_index)) catch {
+                dvui.log.err("Failed to allocate label", .{});
+                return;
+            };
+
+            const label_size = font.textSize(label).scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
+
+            var label_rect = cell_box.data().rectScale().r;
+            const padding = pixi.editor.settings.ruler_padding * dvui.currentWindow().natural_scale;
+
+            if (label_size.w + padding <= label_rect.w) {
+                label_rect.h = label_size.h + padding;
+                label_rect.x += (label_rect.w - label_size.w) / 2.0;
+                label_rect.y += (label_rect.h - label_size.h) / 2.0;
+
+                dvui.renderText(.{
+                    .text = label,
+                    .font = font,
+                    .color = dvui.themeGet().color(.control, .text),
+                    .rs = .{
+                        .r = label_rect,
+                        .s = dvui.currentWindow().natural_scale,
+                    },
+                }) catch {
+                    dvui.log.err("Failed to render text", .{});
+                };
+            }
+        }
+        const top_right = cell_box.data().rectScale().r.topLeft();
+        const bottom_right = cell_box.data().rectScale().r.bottomLeft();
+        cell_box.deinit();
 
         dvui.Path.stroke(.{ .points = &.{ top_right, bottom_right } }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
     }
@@ -571,17 +613,25 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
 
 pub fn drawVerticalRuler(self: *Workspace) void {
     const file = &pixi.editor.open_files.values()[self.open_file_index];
+    const font = dvui.Font.theme(.mono).larger(-2.0);
+
+    const largest_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{file.rows - 1}) catch {
+        dvui.log.err("Failed to allocate largest label", .{});
+        return;
+    };
+    const largest_label_size = font.textSize(largest_label);
+    const ruler_width = largest_label_size.w + pixi.editor.settings.ruler_padding;
 
     var ruler_box = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .vertical,
-        .min_size_content = .{ .h = pixi.editor.settings.ruler_size, .w = pixi.editor.settings.ruler_size },
+        .min_size_content = .{ .w = ruler_width, .h = 1.0 },
         .background = true,
         .color_fill = dvui.themeGet().color(.window, .fill),
     });
     defer ruler_box.deinit();
 
     self.vertical_scroll_info.virtual_size.h = file.editor.canvas.scroll_info.virtual_size.h;
-    self.vertical_scroll_info.virtual_size.w = pixi.editor.settings.ruler_size;
+    self.vertical_scroll_info.virtual_size.w = ruler_width;
     self.vertical_scroll_info.viewport.h = file.editor.canvas.scroll_info.viewport.h;
     self.vertical_scroll_info.viewport.y = file.editor.canvas.scroll_info.viewport.y;
 
@@ -599,7 +649,7 @@ pub fn drawVerticalRuler(self: *Workspace) void {
 
     var outer_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
-        .rect = .{ .x = 0, .y = 0, .h = @as(f32, @floatFromInt(file.height())), .w = pixi.editor.settings.ruler_size * (1.0 / file.editor.canvas.scale) },
+        .rect = .{ .x = 0, .y = 0, .h = @as(f32, @floatFromInt(file.height())), .w = ruler_width * (1.0 / file.editor.canvas.scale) },
     });
     defer outer_box.deinit();
 
@@ -644,10 +694,11 @@ pub fn drawVerticalRuler(self: *Workspace) void {
         });
         defer reorderable.deinit();
 
-        var button_color = dvui.themeGet().color(.control, .fill);
+        var button_color = dvui.themeGet().color(.window, .fill);
 
         if (pixi.dvui.hovered(reorderable.data())) {
-            button_color = dvui.themeGet().color(.control, .fill_hover);
+            button_color = dvui.themeGet().color(.control, .fill);
+            dvui.cursorSet(.hand);
         }
 
         var cell_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -656,6 +707,41 @@ pub fn drawVerticalRuler(self: *Workspace) void {
             .color_fill = button_color,
             .id_extra = row_index,
         });
+        {
+            const label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{row_index}) catch {
+                dvui.log.err("Failed to allocate label", .{});
+                return;
+            };
+
+            const label_size = font.textSize(label).scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
+            const padding = pixi.editor.settings.ruler_padding * dvui.currentWindow().natural_scale;
+
+            // always reserve space for the largest label width, and center within it
+            const largest_label_size_scaled = largest_label_size.scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
+
+            var label_rect = cell_box.data().rectScale().r;
+            // Set the width to the largest possible label width + padding
+            label_rect.w = largest_label_size_scaled.w + padding;
+
+            // Center vertically
+            label_rect.y += (label_rect.h - label_size.h) / 2.0;
+
+            // Center horizontally: calculate start so that single- and multi-digit labels are centered in the same width
+            label_rect.x += (label_rect.w - label_size.w) / 2.0;
+
+            dvui.renderText(.{
+                .text = label,
+                .font = font,
+                .color = dvui.themeGet().color(.control, .text),
+                .rs = .{
+                    .r = label_rect,
+                    .s = dvui.currentWindow().natural_scale,
+                },
+            }) catch {
+                dvui.log.err("Failed to render text", .{});
+            };
+        }
+
         const top_right = cell_box.data().rectScale().r.topLeft();
         const top_left = cell_box.data().rectScale().r.topRight();
         cell_box.deinit();
