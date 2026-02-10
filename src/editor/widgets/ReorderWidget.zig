@@ -58,12 +58,11 @@ pub fn needFinalSlot(self: *ReorderWidget) bool {
     return false;
 }
 
-pub fn finalSlot(self: *ReorderWidget) bool {
+pub fn finalSlot(self: *ReorderWidget, mode: Reorderable.Mode) bool {
     if (self.needFinalSlot()) {
         var r = self.reorderable(@src(), .{
             .last_slot = true,
-            .any_x = true,
-            .any_y = true,
+            .mode = mode,
         }, .{});
         defer r.deinit();
 
@@ -261,6 +260,11 @@ pub fn reorderable(self: *ReorderWidget, src: std.builtin.SourceLocation, init_o
 }
 
 pub const Reorderable = struct {
+    pub const Mode = enum {
+        default,
+        any_x,
+        any_y,
+    };
     pub const InitOptions = struct {
 
         // set to true for a reorderable that represents a final empty slot in
@@ -279,9 +283,7 @@ pub const Reorderable = struct {
 
         require_hover: bool = true,
 
-        any_x: bool = false,
-
-        any_y: bool = false,
+        mode: Mode = .default,
     };
 
     wd: WidgetData,
@@ -347,9 +349,10 @@ pub const Reorderable = struct {
 
                 var found_slot = rs.r.contains(dvui.currentWindow().mouse_pt);
 
-                if (self.init_options.any_y) {
+                if (self.init_options.mode == .any_y) {
                     found_slot = dvui.currentWindow().mouse_pt.x > rs.r.x and dvui.currentWindow().mouse_pt.x < rs.r.x + rs.r.w;
-                } else if (self.init_options.any_x) {
+                }
+                if (self.init_options.mode == .any_x) {
                     found_slot = dvui.currentWindow().mouse_pt.y > rs.r.y and dvui.currentWindow().mouse_pt.y < rs.r.y + rs.r.h;
                 }
 

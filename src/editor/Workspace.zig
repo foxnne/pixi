@@ -563,7 +563,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
 
     for (0..file.columns) |column_index| {
         var reorderable = columns.reorderable(@src(), .{
-            .any_y = true,
+            .mode = .any_y,
         }, .{
             .expand = .vertical,
             .id_extra = column_index,
@@ -572,7 +572,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
             .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.column_width)) },
         });
         defer reorderable.deinit();
-        var button_color = dvui.themeGet().color(.window, .fill).opacity(0.75);
+        var button_color = if (columns.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.75) else dvui.themeGet().color(.window, .fill);
 
         if (pixi.dvui.hovered(reorderable.data())) {
             button_color = dvui.themeGet().color(.control, .fill);
@@ -711,7 +711,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
         }
     }
 
-    if (columns.finalSlot()) {
+    if (columns.finalSlot(.any_y)) {
         self.columns_insert_before_index = file.columns - 1;
     }
 }
@@ -790,7 +790,9 @@ pub fn drawVerticalRuler(self: *Workspace) void {
     );
 
     for (0..file.rows) |row_index| {
-        var reorderable = rows.reorderable(@src(), .{}, .{
+        var reorderable = rows.reorderable(@src(), .{
+            .mode = .any_x,
+        }, .{
             .expand = .horizontal,
             .id_extra = row_index,
             .padding = dvui.Rect.all(0),
@@ -799,7 +801,7 @@ pub fn drawVerticalRuler(self: *Workspace) void {
         });
         defer reorderable.deinit();
 
-        var button_color = if (rows.drag_point != null) dvui.themeGet().color(.control, .fill) else dvui.themeGet().color(.window, .fill);
+        var button_color = if (rows.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.75) else dvui.themeGet().color(.window, .fill);
 
         if (pixi.dvui.hovered(reorderable.data())) {
             button_color = dvui.themeGet().color(.control, .fill);
@@ -808,6 +810,7 @@ pub fn drawVerticalRuler(self: *Workspace) void {
 
         if (reorderable.floating()) {
             self.rows_drag_index = row_index;
+            rows.reorderable_size.w = @as(f32, @floatFromInt(file.width())) + ruler_width / file.editor.canvas.scale;
         }
 
         var cell_box: dvui.BoxWidget = undefined;
@@ -817,13 +820,12 @@ pub fn drawVerticalRuler(self: *Workspace) void {
             .background = true,
             .color_fill = button_color,
             .id_extra = row_index,
-            .border = if (self.rows_drag_index == row_index) dvui.Rect.all(1) else dvui.Rect.all(0),
-            .corner_radius = if (self.rows_drag_index == row_index) dvui.Rect.all(1000000) else dvui.Rect.all(0),
         });
-        defer cell_box.deinit();
-        cell_box.drawBackground();
 
         {
+            defer cell_box.deinit();
+            cell_box.drawBackground();
+
             const top_right = cell_box.data().rectScale().r.topLeft();
             const top_left = cell_box.data().rectScale().r.topRight();
 
@@ -864,43 +866,83 @@ pub fn drawVerticalRuler(self: *Workspace) void {
                 .color = ruler_stroke_color,
                 .thickness = 2.0,
             });
-        }
 
-        loop: for (dvui.events()) |*e| {
-            if (!cell_box.matchEvent(e)) {
-                continue;
-            }
+            loop: for (dvui.events()) |*e| {
+                if (!cell_box.matchEvent(e)) {
+                    continue;
+                }
 
-            switch (e.evt) {
-                .mouse => |me| {
-                    if (me.action == .press and me.button.pointer()) {
-                        e.handle(@src(), cell_box.data());
-                        dvui.captureMouse(cell_box.data(), e.num);
-                        dvui.dragPreStart(me.p, .{
-                            .size = reorderable.data().rectScale().r.size(),
-                            .offset = reorderable.data().rectScale().r.topLeft().diff(me.p),
-                        });
-                    } else if (me.action == .release and me.button.pointer()) {
-                        dvui.captureMouse(null, e.num);
-                        dvui.dragEnd();
-                        self.rows_drag_index = null;
-                    } else if (me.action == .motion) {
-                        if (dvui.captured(cell_box.data().id)) {
+                switch (e.evt) {
+                    .mouse => |me| {
+                        if (me.action == .press and me.button.pointer()) {
                             e.handle(@src(), cell_box.data());
-                            if (dvui.dragging(me.p, null)) |_| {
-                                reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0); // reorder grabs capture
-                                break :loop;
+                            dvui.captureMouse(cell_box.data(), e.num);
+                            dvui.dragPreStart(me.p, .{
+                                .size = reorderable.data().rectScale().r.size(),
+                                .offset = reorderable.data().rectScale().r.topLeft().diff(me.p),
+                            });
+                        } else if (me.action == .release and me.button.pointer()) {
+                            dvui.captureMouse(null, e.num);
+                            dvui.dragEnd();
+                            self.rows_drag_index = null;
+                        } else if (me.action == .motion) {
+                            if (dvui.captured(cell_box.data().id)) {
+                                e.handle(@src(), cell_box.data());
+                                if (dvui.dragging(me.p, null)) |_| {
+                                    reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0); // reorder grabs capture
+                                    break :loop;
+                                }
                             }
                         }
-                    }
-                },
+                    },
 
-                else => {},
+                    else => {},
+                }
+            }
+        }
+
+        if (reorderable.floating()) {
+            const image_rect = dvui.Rect{
+                .x = ruler_width / file.editor.canvas.scale,
+                .y = 0.0,
+                .w = @as(f32, @floatFromInt(file.width())),
+                .h = @as(f32, @floatFromInt(file.row_height)),
+            };
+
+            const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .rect = image_rect,
+                .background = false,
+                .color_fill = dvui.themeGet().color(.err, .fill),
+            });
+            defer box.deinit();
+
+            var i: usize = file.layers.len;
+
+            while (i > 0) {
+                i -= 1;
+                const layer = file.layers.get(i);
+                if (!layer.visible) {
+                    continue;
+                }
+
+                // UVs cover just the needed portion
+                const uv: dvui.Rect = .{
+                    .x = 0.0,
+                    .y = @as(f32, @floatFromInt(row_index)) * @as(f32, @floatFromInt(file.row_height)) / @as(f32, @floatFromInt(file.height())),
+                    .w = 1.0,
+                    .h = @as(f32, @floatFromInt(file.row_height)) / @as(f32, @floatFromInt(file.height())),
+                };
+
+                dvui.renderImage(layer.source, box.data().rectScale(), .{
+                    .uv = uv,
+                }) catch {
+                    dvui.log.err("Failed to render checkerboard", .{});
+                };
             }
         }
     }
 
-    if (rows.finalSlot()) {
+    if (rows.finalSlot(.any_x)) {
         self.rows_insert_before_index = file.rows - 1;
     }
 }

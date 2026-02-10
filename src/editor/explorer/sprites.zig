@@ -553,7 +553,7 @@ pub fn drawAnimations(self: *Sprites) !void {
             }
         }
 
-        if (reorderable.finalSlot()) {
+        if (reorderable.finalSlot(.default)) {
             self.animation_insert_before_index = file.animations.len;
         }
 
@@ -1208,7 +1208,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 }
             }
 
-            if (reorder.finalSlot()) {
+            if (reorder.finalSlot(.default)) {
                 self.sprite_insert_before_index = animation.frames.len;
             }
         }

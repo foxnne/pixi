@@ -558,7 +558,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             }
         }
 
-        if (reorderable.finalSlot()) {
+        if (reorderable.finalSlot(.default)) {
             insert_before_index = file.layers.len;
         }
 
