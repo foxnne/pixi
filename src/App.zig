@@ -118,10 +118,10 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     theme.dark = true;
     theme.name = "Pixi Dark";
-    theme.font_body = .find(.{ .family = "Vera Sans", .size = 13 });
-    theme.font_title = .find(.{ .family = "Vera Sans", .size = 18, .weight = .bold });
-    theme.font_heading = .find(.{ .family = "Vera Sans", .size = 13, .style = .italic });
-    theme.font_mono = .find(.{ .family = "Vera Sans Mono", .size = 16 });
+    theme.font_body = .find(.{ .family = "Vera Sans", .size = 8 });
+    theme.font_title = .find(.{ .family = "Vera Sans", .size = 10, .weight = .bold });
+    theme.font_heading = .find(.{ .family = "Vera Sans", .size = 8, .style = .italic });
+    theme.font_mono = .find(.{ .family = "Vera Sans Mono", .size = 10 });
 
     dvui.themeSet(theme);
 }

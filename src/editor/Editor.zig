@@ -1241,10 +1241,6 @@ pub fn rawCloseFile(editor: *Editor, index: usize) !void {
 
     file.deinit();
     editor.open_files.orderedRemoveAt(index);
-
-    // editor.rebuildWorkspaces() catch {
-    //     dvui.log.err("Failed to rebuild workspaces", .{});
-    // };
 }
 
 pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
@@ -1263,10 +1259,6 @@ pub fn rawCloseFileID(editor: *Editor, id: u64) !void {
         }
         file.deinit();
         _ = editor.open_files.orderedRemove(id);
-
-        // editor.rebuildWorkspaces() catch {
-        //     dvui.log.err("Failed to rebuild workspaces", .{});
-        // };
     }
 }
 

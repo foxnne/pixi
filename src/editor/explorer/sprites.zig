@@ -285,7 +285,7 @@ pub fn drawAnimations(self: *Sprites) !void {
         .expand = .horizontal,
         .background = false,
     });
-    dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
+    dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font = dvui.Font.theme(.title).larger(-3.0).withWeight(.bold) });
 
     self.drawAnimationControls() catch {};
 
@@ -465,7 +465,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                 .margin = .{ .x = 4, .w = 4 },
             });
 
-            const font = dvui.Font.theme(.mono).larger(-4.0);
+            const font = dvui.Font.theme(.mono).larger(-2.0);
             const padding: dvui.Rect = .{ .w = 6 };
 
             if (self.edit_anim_id != anim_id) {
@@ -947,7 +947,7 @@ pub fn drawFrames(self: *Sprites) !void {
             .expand = .none,
             .background = false,
         });
-        dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
+        dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font = dvui.Font.theme(.title).larger(-3.0).withWeight(.bold) });
 
         self.drawFrameControls() catch {};
 
@@ -1124,7 +1124,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 dvui.labelNoFmt(@src(), try file.fmtSprite(dvui.currentWindow().arena(), frame.sprite_index, .grid), .{}, .{
                     .gravity_y = 0.5,
                     .margin = dvui.Rect.all(0),
-                    .font = dvui.Font.theme(.mono).larger(-4.0),
+                    .font = dvui.Font.theme(.mono).larger(-2.0),
                     .padding = .{ .x = 6, .y = 2, .w = 6, .h = 2 },
                     .background = if (frame_index == file.selected_animation_frame_index) true else false,
                     .color_fill = if (frame_index == file.selected_animation_frame_index) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
@@ -1166,10 +1166,10 @@ pub fn drawFrames(self: *Sprites) !void {
                     .margin = dvui.Rect.all(0),
                     .border = dvui.Rect.all(0),
                     .min_size_content = .{
-                        .w = dvui.Font.theme(.mono).larger(-4.0).textSize(frame_ms_text).w,
-                        .h = dvui.Font.theme(.mono).larger(-4.0).textSize(frame_ms_text).h,
+                        .w = dvui.Font.theme(.mono).larger(-2.0).textSize(frame_ms_text).w,
+                        .h = dvui.Font.theme(.mono).larger(-2.0).textSize(frame_ms_text).h,
                     },
-                    .font = dvui.Font.theme(.mono).larger(-4.0),
+                    .font = dvui.Font.theme(.mono).larger(-2.0),
                     .gravity_y = 0.5,
                 });
 

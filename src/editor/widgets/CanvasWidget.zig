@@ -88,6 +88,7 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
     }
 
     self.scroll = dvui.scrollArea(src, .{ .scroll_info = &self.scroll_info }, opts);
+    
     self.scroll_container = &self.scroll.scroll.?;
 
     self.scaler = dvui.scale(src, .{ .scale = &self.scale }, .{ .rect = .{ .x = -self.origin.x, .y = -self.origin.y } });

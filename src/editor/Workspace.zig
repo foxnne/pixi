@@ -22,6 +22,9 @@ drag_index: ?usize = null,
 removed_index: ?usize = null,
 insert_before_index: ?usize = null,
 
+horizontal_scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
+vertical_scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
+
 pub fn init(grouping: u64) Workspace {
     return .{ .grouping = grouping };
 }
@@ -426,6 +429,19 @@ pub fn drawCanvas(self: *Workspace) !void {
         const file = &pixi.editor.open_files.values()[self.open_file_index];
         file.editor.canvas.id = canvas_vbox.data().id;
 
+        if (pixi.editor.settings.show_rulers) {
+            defer pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{});
+            self.drawHorizontalRuler();
+        }
+
+        var canvas_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
+        defer canvas_hbox.deinit();
+
+        if (pixi.editor.settings.show_rulers) {
+            defer pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .left, .{});
+            self.drawVerticalRuler();
+        }
+
         self.drawTransformDialog(canvas_vbox);
 
         if (self.grouping != file.editor.grouping) return;
@@ -443,6 +459,211 @@ pub fn drawCanvas(self: *Workspace) !void {
         file_widget.processEvents();
     } else {
         try self.drawLogo(canvas_vbox);
+    }
+}
+
+pub fn drawHorizontalRuler(self: *Workspace) void {
+    const file = &pixi.editor.open_files.values()[self.open_file_index];
+
+    var canvas_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .horizontal,
+    });
+    defer canvas_hbox.deinit();
+
+    var corner_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .none,
+        .min_size_content = .{ .h = 14, .w = 14 },
+        .background = false,
+        .color_fill = dvui.themeGet().color(.window, .fill).lighten(-2.0).opacity(0.75),
+    });
+    corner_box.deinit();
+
+    var top_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .horizontal,
+        .min_size_content = .{ .h = 14, .w = 14 },
+        .background = true,
+        .color_fill = dvui.themeGet().color(.window, .fill),
+    });
+    defer top_box.deinit();
+
+    self.horizontal_scroll_info.virtual_size.w = file.editor.canvas.scroll_info.virtual_size.w;
+    self.horizontal_scroll_info.virtual_size.h = pixi.editor.settings.ruler_size;
+    self.horizontal_scroll_info.viewport.w = file.editor.canvas.scroll_info.viewport.w;
+    self.horizontal_scroll_info.viewport.x = file.editor.canvas.scroll_info.viewport.x;
+
+    var horizontal_scroll_area = dvui.scrollArea(@src(), .{
+        .scroll_info = &self.horizontal_scroll_info,
+        .container = true,
+        .process_events_after = true,
+        .horizontal_bar = .hide,
+        .vertical_bar = .hide,
+    }, .{ .expand = .both });
+    defer horizontal_scroll_area.deinit();
+
+    var scaler = dvui.scale(@src(), .{ .scale = &file.editor.canvas.scale }, .{ .rect = .{ .x = -file.editor.canvas.origin.x, .y = 0 } });
+    defer scaler.deinit();
+
+    var outer_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .none,
+        .rect = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(file.width())), .h = pixi.editor.settings.ruler_size * (1.0 / file.editor.canvas.scale) },
+    });
+    defer outer_box.deinit();
+
+    var columns = dvui.reorder(@src(), .{ .drag_name = "column_drag" }, .{
+        .expand = .both,
+        .margin = dvui.Rect.all(0),
+        .padding = dvui.Rect.all(0),
+        .background = false,
+        .corner_radius = dvui.Rect.all(0),
+    });
+    defer columns.deinit();
+
+    var columns_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .both,
+        .background = false,
+        .corner_radius = dvui.Rect.all(0),
+        .margin = dvui.Rect.all(0),
+        .padding = dvui.Rect.all(0),
+    });
+    defer columns_hbox.deinit();
+
+    const ruler_stroke_color = dvui.themeGet().color(.control, .fill_hover).lighten(2.0);
+
+    defer dvui.Path.stroke(
+        .{ .points = &.{
+            columns_hbox.data().rectScale().r.topRight(),
+            columns_hbox.data().rectScale().r.bottomRight(),
+        } },
+        .{
+            .color = ruler_stroke_color,
+            .thickness = 2.0,
+        },
+    );
+
+    for (0..file.columns) |column_index| {
+        var reorderable = columns.reorderable(@src(), .{}, .{
+            .expand = .vertical,
+            .id_extra = column_index,
+            .padding = dvui.Rect.all(0),
+            .margin = dvui.Rect.all(0),
+            .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.column_width)) },
+        });
+        defer reorderable.deinit();
+        var button_color = dvui.themeGet().color(.control, .fill);
+
+        if (pixi.dvui.hovered(reorderable.data())) {
+            button_color = dvui.themeGet().color(.control, .fill_hover);
+        }
+
+        var column_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = button_color,
+            .id_extra = column_index,
+        });
+        const top_right = column_box.data().rectScale().r.topLeft();
+        const bottom_right = column_box.data().rectScale().r.bottomLeft();
+        column_box.deinit();
+
+        dvui.Path.stroke(.{ .points = &.{ top_right, bottom_right } }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
+    }
+}
+
+pub fn drawVerticalRuler(self: *Workspace) void {
+    const file = &pixi.editor.open_files.values()[self.open_file_index];
+
+    var ruler_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .vertical,
+        .min_size_content = .{ .h = pixi.editor.settings.ruler_size, .w = pixi.editor.settings.ruler_size },
+        .background = true,
+        .color_fill = dvui.themeGet().color(.window, .fill),
+    });
+    defer ruler_box.deinit();
+
+    self.vertical_scroll_info.virtual_size.h = file.editor.canvas.scroll_info.virtual_size.h;
+    self.vertical_scroll_info.virtual_size.w = pixi.editor.settings.ruler_size;
+    self.vertical_scroll_info.viewport.h = file.editor.canvas.scroll_info.viewport.h;
+    self.vertical_scroll_info.viewport.y = file.editor.canvas.scroll_info.viewport.y;
+
+    var vertical_scroll_area = dvui.scrollArea(@src(), .{
+        .scroll_info = &self.vertical_scroll_info,
+        .container = true,
+        .process_events_after = true,
+        .horizontal_bar = .hide,
+        .vertical_bar = .hide,
+    }, .{ .expand = .both });
+    defer vertical_scroll_area.deinit();
+
+    var scaler = dvui.scale(@src(), .{ .scale = &file.editor.canvas.scale }, .{ .rect = .{ .x = 0, .y = -file.editor.canvas.origin.y } });
+    defer scaler.deinit();
+
+    var outer_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .none,
+        .rect = .{ .x = 0, .y = 0, .h = @as(f32, @floatFromInt(file.height())), .w = pixi.editor.settings.ruler_size * (1.0 / file.editor.canvas.scale) },
+    });
+    defer outer_box.deinit();
+
+    var rows = dvui.reorder(@src(), .{ .drag_name = "row_drag" }, .{
+        .expand = .both,
+        .margin = dvui.Rect.all(0),
+        .padding = dvui.Rect.all(0),
+        .background = false,
+        .corner_radius = dvui.Rect.all(0),
+    });
+    defer rows.deinit();
+
+    var rows_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+        .background = false,
+        .corner_radius = dvui.Rect.all(0),
+        .margin = dvui.Rect.all(0),
+        .padding = dvui.Rect.all(0),
+    });
+    defer rows_vbox.deinit();
+
+    const ruler_stroke_color = dvui.themeGet().color(.control, .fill_hover);
+
+    defer dvui.Path.stroke(
+        .{ .points = &.{
+            rows_vbox.data().rectScale().r.bottomRight(),
+            rows_vbox.data().rectScale().r.bottomLeft(),
+        } },
+        .{
+            .color = ruler_stroke_color,
+            .thickness = 2.0,
+        },
+    );
+
+    for (0..file.rows) |row_index| {
+        var reorderable = rows.reorderable(@src(), .{}, .{
+            .expand = .horizontal,
+            .id_extra = row_index,
+            .padding = dvui.Rect.all(0),
+            .margin = dvui.Rect.all(0),
+            .min_size_content = .{ .h = @as(f32, @floatFromInt(file.row_height)), .w = 1 },
+        });
+        defer reorderable.deinit();
+
+        var button_color = dvui.themeGet().color(.control, .fill);
+
+        if (pixi.dvui.hovered(reorderable.data())) {
+            button_color = dvui.themeGet().color(.control, .fill_hover);
+        }
+
+        var cell_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = button_color,
+            .id_extra = row_index,
+        });
+        const top_right = cell_box.data().rectScale().r.topLeft();
+        const top_left = cell_box.data().rectScale().r.topRight();
+        cell_box.deinit();
+
+        dvui.Path.stroke(.{ .points = &.{ top_right, top_left } }, .{
+            .color = ruler_stroke_color,
+            .thickness = 2.0,
+        });
     }
 }
 

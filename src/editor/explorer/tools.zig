@@ -182,7 +182,7 @@ pub fn drawLayerControls() !void {
         .background = false,
     });
     defer box.deinit();
-    dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold), .gravity_y = 0.5 });
+    dvui.labelNoFmt(@src(), "LAYERS", .{}, .{ .font = dvui.Font.theme(.title).larger(-3.0).withWeight(.bold), .gravity_y = 0.5 });
 
     if (pixi.editor.activeFile()) |file| {
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -362,7 +362,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
 
             const selected = if (edit_layer_id) |id| id == layer_id else file.selected_layer_index == layer_index;
             const visible = file.layers.items(.visible)[layer_index];
-            const font = if (visible) dvui.Font.theme(.mono).larger(-4.0) else dvui.Font.theme(.mono).withStyle(.italic).larger(-4.0);
+            const font = if (visible) dvui.Font.theme(.mono).larger(-2.0) else dvui.Font.theme(.mono).withStyle(.italic).larger(-2.0);
 
             var color = dvui.themeGet().color(.control, .fill_hover);
             if (pixi.editor.colors.file_tree_palette) |*palette| {
@@ -578,7 +578,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
 }
 
 pub fn drawColors() !void {
-    dvui.labelNoFmt(@src(), "COLORS", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
+    dvui.labelNoFmt(@src(), "COLORS", .{}, .{ .font = dvui.Font.theme(.title).larger(-3.0).withWeight(.bold) });
 
     var hbox = dvui.box(@src(), .{ .dir = .horizontal, .equal_space = true }, .{
         .expand = .horizontal,
@@ -692,7 +692,7 @@ pub fn drawPaletteControls() !void {
     });
     defer box.deinit();
 
-    dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font = dvui.Font.theme(.title).larger(-6.0).withWeight(.bold) });
+    dvui.labelNoFmt(@src(), "PALETTES", .{}, .{ .font = dvui.Font.theme(.title).larger(-3.0).withWeight(.bold) });
 
     if (dvui.buttonIcon(@src(), "PinPalettes", dvui.entypo.pin, .{ .draw_focus = false }, .{}, .{
         .expand = .none,
