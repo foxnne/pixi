@@ -60,7 +60,11 @@ pub fn needFinalSlot(self: *ReorderWidget) bool {
 
 pub fn finalSlot(self: *ReorderWidget) bool {
     if (self.needFinalSlot()) {
-        var r = self.reorderable(@src(), .{ .last_slot = true }, .{});
+        var r = self.reorderable(@src(), .{
+            .last_slot = true,
+            .any_x = true,
+            .any_y = true,
+        }, .{});
         defer r.deinit();
 
         if (r.insertBefore()) {
@@ -272,6 +276,12 @@ pub const Reorderable = struct {
 
         // if false, caller responsible for calling reinstall() when targetRectScale() returns true
         reinstall: bool = true,
+
+        require_hover: bool = true,
+
+        any_x: bool = false,
+
+        any_y: bool = false,
     };
 
     wd: WidgetData,
@@ -313,7 +323,20 @@ pub const Reorderable = struct {
                 dvui.parentSet(self.widget());
 
                 self.floating_widget = @as(dvui.FloatingWidget, undefined);
-                self.floating_widget.?.init(@src(), .{ .mouse_events = false }, .{ .rect = Rect.fromPoint(.cast(topleft.toNatural())), .min_size_content = self.reorder.reorderable_size });
+                self.floating_widget.?.init(@src(), .{ .mouse_events = false }, .{
+                    .rect = Rect.fromPoint(.cast(topleft.toNatural())),
+                    .min_size_content = self.reorder.reorderable_size,
+                    .box_shadow = .{
+                        .color = .black,
+                        .offset = .{
+                            .x = -4,
+                            .y = 4,
+                        },
+                        .alpha = 0.25,
+                        .fade = 6,
+                        .corner_radius = self.data().options.corner_radiusGet(),
+                    },
+                });
             } else {
                 if (self.init_options.last_slot) {
                     self.wd = WidgetData.init(self.data().src, .{}, self.options.override(.{ .min_size_content = self.reorder.reorderable_size }));
@@ -322,14 +345,22 @@ pub const Reorderable = struct {
                 }
                 const rs = self.data().rectScale();
 
-                if (!self.reorder.found_slot and rs.r.contains(dvui.currentWindow().mouse_pt)) {
+                var found_slot = rs.r.contains(dvui.currentWindow().mouse_pt);
+
+                if (self.init_options.any_y) {
+                    found_slot = dvui.currentWindow().mouse_pt.x > rs.r.x and dvui.currentWindow().mouse_pt.x < rs.r.x + rs.r.w;
+                } else if (self.init_options.any_x) {
+                    found_slot = dvui.currentWindow().mouse_pt.y > rs.r.y and dvui.currentWindow().mouse_pt.y < rs.r.y + rs.r.h;
+                }
+
+                if (!self.reorder.found_slot and found_slot) {
                     // user is dragging something over this rect
                     self.target_rs = rs;
                     self.reorder.found_slot = true;
 
                     if (self.init_options.draw_target) {
                         rs.r.fill(
-                            .all(10000),
+                            self.data().options.corner_radiusGet().scale(rs.s, Rect.Physical),
                             .{ .color = dvui.themeGet().focus, .fade = 1.0 },
                         );
                     }
