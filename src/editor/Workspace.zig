@@ -671,14 +671,6 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
         }
 
         if (reorderable.floating()) {
-            // const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            //     .expand = .both,
-            //     .background = false,
-            //     .color_fill = dvui.themeGet().color(.control, .fill),
-            //     .corner_radius = dvui.Rect.all(1000),
-            // });
-            // defer box.deinit();
-
             const image_rect = dvui.Rect{
                 .x = 0,
                 .y = ruler_height / file.editor.canvas.scale,
@@ -688,7 +680,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
 
             const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .rect = image_rect,
-                .background = true,
+                .background = false,
                 .color_fill = dvui.themeGet().color(.err, .fill),
             });
             defer box.deinit();
@@ -702,23 +694,16 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
                     continue;
                 }
 
-                // Calculate UVs for the column rectangle within the checkerboard tile.
-                // Assume tile size is (tile_w, tile_h) and image_rect is the column rect.
-                const tile_w = @as(f32, @floatFromInt(file.column_width));
-                const tile_h = @as(f32, @floatFromInt(file.height()));
-                // The rect area we are rendering
-                const rect = box.data().rectScale().r;
                 // UVs cover just the needed portion
                 const uv: dvui.Rect = .{
-                    .x = 0.0,
+                    .x = @as(f32, @floatFromInt(column_index)) * @as(f32, @floatFromInt(file.column_width)) / @as(f32, @floatFromInt(file.width())),
                     .y = 0.0,
-                    .w = rect.w / tile_w,
-                    .h = rect.h / tile_h,
+                    .w = @as(f32, @floatFromInt(file.column_width)) / @as(f32, @floatFromInt(file.width())),
+                    .h = @as(f32, @floatFromInt(file.height())) / @as(f32, @floatFromInt(file.height())),
                 };
 
                 dvui.renderImage(layer.source, box.data().rectScale(), .{
                     .uv = uv,
-                    .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
                 }) catch {
                     dvui.log.err("Failed to render checkerboard", .{});
                 };
