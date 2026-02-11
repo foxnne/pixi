@@ -614,27 +614,26 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
                 return;
             };
 
-            const label_size = font.textSize(label).scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
+            self.drawRulerLabel(.{
+                .font = font,
+                .label = label,
+                .rect = cell_box.data().rectScale().r,
+                .color = dvui.themeGet().color(.control, .text).opacity(0.5),
+            });
 
-            var label_rect = cell_box.data().rectScale().r;
-            const padding = pixi.editor.settings.ruler_padding * dvui.currentWindow().natural_scale;
-
-            if (label_size.w + padding <= label_rect.w) {
-                label_rect.h = label_size.h + padding;
-                label_rect.x += (label_rect.w - label_size.w) / 2.0;
-                label_rect.y += (label_rect.h - label_size.h) / 2.0;
-
-                dvui.renderText(.{
-                    .text = label,
-                    .font = font,
-                    .color = dvui.themeGet().color(.control, .text).opacity(0.5),
-                    .rs = .{
-                        .r = label_rect,
-                        .s = dvui.currentWindow().natural_scale,
-                    },
-                }) catch {
-                    dvui.log.err("Failed to render text", .{});
-                };
+            if (reorderable.target_rs) |target_rs| {
+                if (self.columns_drag_index) |columns_drag_index| {
+                    const drag_label = file.fmtColumn(dvui.currentWindow().arena(), @intCast(columns_drag_index)) catch {
+                        dvui.log.err("Failed to allocate label", .{});
+                        return;
+                    };
+                    self.drawRulerLabel(.{
+                        .font = font,
+                        .label = drag_label,
+                        .rect = target_rs.r,
+                        .color = dvui.themeGet().color(.window, .fill),
+                    });
+                }
             }
 
             const top_right = cell_box.data().rectScale().r.topLeft();
@@ -724,8 +723,99 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
         }
     }
 
-    if (columns.finalSlot(.any_y)) {
-        self.columns_insert_before_index = file.columns - 1;
+    if (columns.needFinalSlot()) {
+        var reorderable = columns.reorderable(@src(), .{
+            .mode = .any_y,
+            .last_slot = true,
+        }, .{
+            .expand = .vertical,
+            .id_extra = file.columns,
+            .padding = dvui.Rect.all(0),
+            .margin = dvui.Rect.all(0),
+            .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.column_width)) },
+        });
+        defer reorderable.deinit();
+
+        if (reorderable.target_rs) |target_rs| {
+            if (self.columns_drag_index) |columns_drag_index| {
+                const drag_label = file.fmtColumn(dvui.currentWindow().arena(), @intCast(columns_drag_index)) catch {
+                    dvui.log.err("Failed to allocate label", .{});
+                    return;
+                };
+                self.drawRulerLabel(.{
+                    .font = font,
+                    .label = drag_label,
+                    .rect = target_rs.r,
+                    .color = dvui.themeGet().color(.window, .fill),
+                });
+            }
+        }
+
+        if (reorderable.insertBefore()) {
+            self.columns_insert_before_index = file.columns;
+        }
+    }
+}
+
+pub const TextLabelOptions = struct {
+    pub const Mode = enum {
+        horizontal,
+        vertical,
+    };
+
+    font: dvui.Font,
+    label: []const u8,
+    rect: dvui.Rect.Physical,
+    color: dvui.Color,
+    mode: Mode = .horizontal,
+    largest_label: ?[]const u8 = null,
+};
+
+pub fn drawRulerLabel(_: *Workspace, options: TextLabelOptions) void {
+    const font = options.font;
+    const label = options.label;
+    const rect = options.rect;
+    const color = options.color;
+
+    const label_size = font.textSize(options.largest_label orelse label).scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
+    const actual_label_size = font.textSize(label).scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
+
+    const padding = pixi.editor.settings.ruler_padding * dvui.currentWindow().natural_scale;
+
+    var label_rect = rect;
+
+    if (label_size.w + padding <= label_rect.w and options.mode == .horizontal) {
+        label_rect.h = label_size.h + padding;
+        label_rect.x += (label_rect.w - actual_label_size.w) / 2.0;
+        label_rect.y += (label_rect.h - actual_label_size.h) / 2.0;
+
+        dvui.renderText(.{
+            .text = label,
+            .font = font,
+            .color = color,
+            .rs = .{
+                .r = label_rect,
+                .s = dvui.currentWindow().natural_scale,
+            },
+        }) catch {
+            dvui.log.err("Failed to render text", .{});
+        };
+    } else if (label_size.h + padding <= label_rect.h and options.mode == .vertical) {
+        label_rect.w = label_size.w + padding;
+        label_rect.x += (label_rect.w - actual_label_size.w) / 2.0;
+        label_rect.y += (label_rect.h - actual_label_size.h) / 2.0;
+
+        dvui.renderText(.{
+            .text = label,
+            .font = font,
+            .color = color,
+            .rs = .{
+                .r = label_rect,
+                .s = dvui.currentWindow().natural_scale,
+            },
+        }) catch {
+            dvui.log.err("Failed to render text", .{});
+        };
     }
 }
 
@@ -739,22 +829,6 @@ pub fn processColumnReorder(self: *Workspace) void {
 
             file.reorderColumns(columns_removed_index, columns_insert_before_index) catch {
                 dvui.log.err("Failed to reorder columns", .{});
-                return;
-            };
-        }
-    }
-}
-
-pub fn processRowReorder(self: *Workspace) void {
-    if (self.rows_removed_index) |rows_removed_index| {
-        if (self.rows_insert_before_index) |rows_insert_before_index| {
-            defer self.rows_removed_index = null;
-            defer self.rows_insert_before_index = null;
-
-            const file = &pixi.editor.open_files.values()[self.open_file_index];
-
-            file.reorderRows(rows_removed_index, rows_insert_before_index) catch {
-                dvui.log.err("Failed to reorder rows", .{});
                 return;
             };
         }
@@ -890,33 +964,30 @@ pub fn drawVerticalRuler(self: *Workspace) void {
                 return;
             };
 
-            const label_size = font.textSize(label).scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
-            const padding = pixi.editor.settings.ruler_padding * dvui.currentWindow().natural_scale;
-
-            // always reserve space for the largest label width, and center within it
-            const largest_label_size_scaled = largest_label_size.scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
-
-            var label_rect = cell_box.data().rectScale().r;
-            // Set the width to the largest possible label width + padding
-            label_rect.w = largest_label_size_scaled.w + padding;
-
-            // Center vertically
-            label_rect.y += (label_rect.h - label_size.h) / 2.0;
-
-            // Center horizontally: calculate start so that single- and multi-digit labels are centered in the same width
-            label_rect.x += (label_rect.w - label_size.w) / 2.0;
-
-            dvui.renderText(.{
-                .text = label,
+            self.drawRulerLabel(.{
                 .font = font,
+                .label = label,
+                .rect = cell_box.data().rectScale().r,
                 .color = dvui.themeGet().color(.control, .text).opacity(0.5),
-                .rs = .{
-                    .r = label_rect,
-                    .s = dvui.currentWindow().natural_scale,
-                },
-            }) catch {
-                dvui.log.err("Failed to render text", .{});
-            };
+                .largest_label = largest_label,
+                .mode = .vertical,
+            });
+
+            if (reorderable.target_rs) |target_rs| {
+                if (self.rows_drag_index) |rows_drag_index| {
+                    const drag_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{rows_drag_index}) catch {
+                        dvui.log.err("Failed to allocate label", .{});
+                        return;
+                    };
+                    self.drawRulerLabel(.{
+                        .font = font,
+                        .label = drag_label,
+                        .rect = target_rs.r,
+                        .color = dvui.themeGet().color(.window, .fill),
+                        .mode = .vertical,
+                    });
+                }
+            }
 
             dvui.Path.stroke(.{ .points = &.{ top_right, top_left } }, .{
                 .color = ruler_stroke_color,
@@ -998,8 +1069,54 @@ pub fn drawVerticalRuler(self: *Workspace) void {
         }
     }
 
-    if (rows.finalSlot(.any_x)) {
-        self.rows_insert_before_index = file.rows - 1;
+    if (rows.needFinalSlot()) {
+        var reorderable = rows.reorderable(@src(), .{
+            .mode = .any_x,
+            .last_slot = true,
+        }, .{
+            .expand = .vertical,
+            .id_extra = file.rows,
+            .padding = dvui.Rect.all(0),
+            .margin = dvui.Rect.all(0),
+            .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.row_height)) },
+        });
+        defer reorderable.deinit();
+
+        if (reorderable.target_rs) |target_rs| {
+            if (self.rows_drag_index) |rows_drag_index| {
+                const drag_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{rows_drag_index}) catch {
+                    dvui.log.err("Failed to allocate label", .{});
+                    return;
+                };
+                self.drawRulerLabel(.{
+                    .font = font,
+                    .label = drag_label,
+                    .rect = target_rs.r,
+                    .color = dvui.themeGet().color(.window, .fill),
+                    .mode = .vertical,
+                });
+            }
+        }
+
+        if (reorderable.insertBefore()) {
+            self.rows_insert_before_index = file.rows;
+        }
+    }
+}
+
+pub fn processRowReorder(self: *Workspace) void {
+    if (self.rows_removed_index) |rows_removed_index| {
+        if (self.rows_insert_before_index) |rows_insert_before_index| {
+            defer self.rows_removed_index = null;
+            defer self.rows_insert_before_index = null;
+
+            const file = &pixi.editor.open_files.values()[self.open_file_index];
+
+            file.reorderRows(rows_removed_index, rows_insert_before_index) catch {
+                dvui.log.err("Failed to reorder rows", .{});
+                return;
+            };
+        }
     }
 }
 

@@ -638,7 +638,7 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
 
 pub fn reorderColumns(file: *File, removed_column_index: usize, insert_before_column_index: usize) !void {
     if (removed_column_index == insert_before_column_index) return;
-    if (removed_column_index >= file.columns or insert_before_column_index > file.columns) return error.InvalidIndex;
+    if (removed_column_index > file.columns or insert_before_column_index > file.columns) return error.InvalidIndex;
 
     for (0..file.layers.len) |layer_index| {
         var layer = file.layers.get(layer_index);
