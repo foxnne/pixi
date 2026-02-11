@@ -636,6 +636,84 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     file.rows = new_rows;
 }
 
+pub fn reorderColumns(file: *File, removed_column_index: usize, insert_before_column_index: usize) !void {
+    if (removed_column_index == insert_before_column_index) return;
+    if (removed_column_index >= file.columns or insert_before_column_index > file.columns) return error.InvalidIndex;
+
+    for (0..file.layers.len) |layer_index| {
+        var layer = file.layers.get(layer_index);
+
+        var insert_column_rect = file.columnRect(insert_before_column_index);
+        var removed_column_rect = file.columnRect(removed_column_index);
+
+        if (insert_before_column_index < removed_column_index) {
+            // We are moving the column to the left, so we need to move the pixels after the insert column to the left one column
+
+            var translate_rect = insert_column_rect;
+            translate_rect.w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(removed_column_index - insert_before_column_index));
+
+            const translate_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), translate_rect) orelse return error.MemoryAllocationFailed;
+            // Move our translate rect over one column
+            translate_rect.x += @as(f32, @floatFromInt(file.column_width));
+
+            const removed_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), removed_column_rect) orelse return error.MemoryAllocationFailed;
+
+            layer.blit(translate_pixels, translate_rect, .{ .transparent = false, .mask = false });
+            layer.blit(removed_pixels, insert_column_rect, .{ .transparent = false, .mask = false });
+        } else {
+            var translate_rect = removed_column_rect.offsetPoint(.{ .x = @as(f32, @floatFromInt(file.column_width)) });
+            translate_rect.w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(insert_before_column_index - removed_column_index));
+
+            const translate_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), translate_rect) orelse return error.MemoryAllocationFailed;
+            // Move our translate rect over one column
+            translate_rect.x -= @as(f32, @floatFromInt(file.column_width));
+
+            const removed_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), removed_column_rect) orelse return error.MemoryAllocationFailed;
+            layer.blit(translate_pixels, translate_rect, .{ .transparent = false, .mask = false });
+            layer.blit(removed_pixels, insert_column_rect.offsetPoint(.{ .x = -@as(f32, @floatFromInt(file.column_width)) }), .{ .transparent = false, .mask = false });
+        }
+    }
+}
+
+pub fn reorderRows(file: *File, removed_row_index: usize, insert_before_row_index: usize) !void {
+    if (removed_row_index == insert_before_row_index) return;
+    if (removed_row_index >= file.rows or insert_before_row_index > file.rows) return error.InvalidIndex;
+
+    for (0..file.layers.len) |layer_index| {
+        var layer = file.layers.get(layer_index);
+
+        var insert_row_rect = file.rowRect(insert_before_row_index);
+        var removed_row_rect = file.rowRect(removed_row_index);
+
+        if (insert_before_row_index < removed_row_index) {
+            // We are moving the column to the left, so we need to move the pixels after the insert column to the left one column
+
+            var translate_rect = insert_row_rect;
+            translate_rect.h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(removed_row_index - insert_before_row_index));
+
+            const translate_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), translate_rect) orelse return error.MemoryAllocationFailed;
+            // Move our translate rect over one column
+            translate_rect.y += @as(f32, @floatFromInt(file.row_height));
+
+            const removed_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), removed_row_rect) orelse return error.MemoryAllocationFailed;
+
+            layer.blit(translate_pixels, translate_rect, .{ .transparent = false, .mask = false });
+            layer.blit(removed_pixels, insert_row_rect, .{ .transparent = false, .mask = false });
+        } else {
+            var translate_rect = removed_row_rect.offsetPoint(.{ .y = @as(f32, @floatFromInt(file.row_height)) });
+            translate_rect.h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(insert_before_row_index - removed_row_index));
+
+            const translate_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), translate_rect) orelse return error.MemoryAllocationFailed;
+            // Move our translate rect over one column
+            translate_rect.y -= @as(f32, @floatFromInt(file.row_height));
+
+            const removed_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), removed_row_rect) orelse return error.MemoryAllocationFailed;
+            layer.blit(translate_pixels, translate_rect, .{ .transparent = false, .mask = false });
+            layer.blit(removed_pixels, insert_row_rect.offsetPoint(.{ .y = -@as(f32, @floatFromInt(file.row_height)) }), .{ .transparent = false, .mask = false });
+        }
+    }
+}
+
 pub fn deinit(file: *File) void {
     file.history.deinit();
     file.buffers.deinit();
@@ -778,6 +856,23 @@ pub fn spriteRect(file: *File, index: usize) dvui.Rect {
     return out;
 }
 
+pub fn columnRect(file: *File, column: usize) dvui.Rect {
+    return .{
+        .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width)),
+        .y = 0,
+        .w = @as(f32, @floatFromInt(file.column_width)),
+        .h = @as(f32, @floatFromInt(file.height())),
+    };
+}
+
+pub fn rowRect(file: *File, row: usize) dvui.Rect {
+    return .{
+        .x = 0,
+        .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height)),
+        .w = @as(f32, @floatFromInt(file.width())),
+        .h = @as(f32, @floatFromInt(file.row_height)),
+    };
+}
 pub fn clearSelectedSprites(file: *File) void {
     file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.spriteCount() }, false);
 }

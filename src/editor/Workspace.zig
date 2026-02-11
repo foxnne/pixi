@@ -23,10 +23,12 @@ tabs_removed_index: ?usize = null,
 tabs_insert_before_index: ?usize = null,
 
 columns_drag_index: ?usize = null,
+columns_target_id: ?dvui.Id = null,
 columns_removed_index: ?usize = null,
 columns_insert_before_index: ?usize = null,
 
 rows_drag_index: ?usize = null,
+rows_target_id: ?dvui.Id = null,
 rows_removed_index: ?usize = null,
 rows_insert_before_index: ?usize = null,
 
@@ -574,6 +576,9 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
         defer reorderable.deinit();
         var button_color = if (columns.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
 
+        // Process the column reorder, when both fields are set and we can take action
+        defer self.processColumnReorder();
+
         if (pixi.dvui.hovered(reorderable.data())) {
             button_color = dvui.themeGet().color(.control, .fill);
             dvui.cursorSet(.hand);
@@ -588,8 +593,16 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
         });
 
         if (reorderable.floating()) {
-            self.rows_drag_index = column_index;
+            self.columns_drag_index = column_index;
             columns.reorderable_size.h = @as(f32, @floatFromInt(file.height())) + ruler_height / file.editor.canvas.scale;
+        }
+
+        if (reorderable.removed()) {
+            self.columns_removed_index = column_index;
+        } else if (reorderable.insertBefore()) {
+            self.columns_insert_before_index = column_index;
+        } else if (reorderable.targetID()) |target_id| {
+            self.columns_target_id = target_id;
         }
 
         {
@@ -716,6 +729,38 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
     }
 }
 
+pub fn processColumnReorder(self: *Workspace) void {
+    if (self.columns_removed_index) |columns_removed_index| {
+        if (self.columns_insert_before_index) |columns_insert_before_index| {
+            defer self.columns_removed_index = null;
+            defer self.columns_insert_before_index = null;
+
+            const file = &pixi.editor.open_files.values()[self.open_file_index];
+
+            file.reorderColumns(columns_removed_index, columns_insert_before_index) catch {
+                dvui.log.err("Failed to reorder columns", .{});
+                return;
+            };
+        }
+    }
+}
+
+pub fn processRowReorder(self: *Workspace) void {
+    if (self.rows_removed_index) |rows_removed_index| {
+        if (self.rows_insert_before_index) |rows_insert_before_index| {
+            defer self.rows_removed_index = null;
+            defer self.rows_insert_before_index = null;
+
+            const file = &pixi.editor.open_files.values()[self.open_file_index];
+
+            file.reorderRows(rows_removed_index, rows_insert_before_index) catch {
+                dvui.log.err("Failed to reorder rows", .{});
+                return;
+            };
+        }
+    }
+}
+
 pub fn drawVerticalRuler(self: *Workspace) void {
     const file = &pixi.editor.open_files.values()[self.open_file_index];
     const font = dvui.Font.theme(.body);
@@ -803,6 +848,9 @@ pub fn drawVerticalRuler(self: *Workspace) void {
 
         var button_color = if (rows.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
 
+        // Process the column reorder, when both fields are set and we can take action
+        defer self.processRowReorder();
+
         if (pixi.dvui.hovered(reorderable.data())) {
             button_color = dvui.themeGet().color(.control, .fill);
             dvui.cursorSet(.hand);
@@ -811,6 +859,14 @@ pub fn drawVerticalRuler(self: *Workspace) void {
         if (reorderable.floating()) {
             self.rows_drag_index = row_index;
             rows.reorderable_size.w = @as(f32, @floatFromInt(file.width())) + ruler_width / file.editor.canvas.scale;
+        }
+
+        if (reorderable.removed()) {
+            self.rows_removed_index = row_index;
+        } else if (reorderable.insertBefore()) {
+            self.rows_insert_before_index = row_index;
+        } else if (reorderable.targetID()) |target_id| {
+            self.rows_target_id = target_id;
         }
 
         var cell_box: dvui.BoxWidget = undefined;

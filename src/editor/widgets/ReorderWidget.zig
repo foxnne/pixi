@@ -293,6 +293,7 @@ pub const Reorderable = struct {
     installed: bool = false,
     floating_widget: ?dvui.FloatingWidget = null,
     target_rs: ?dvui.RectScale = null,
+    target_id: ?dvui.Id = null,
 
     pub fn init(self: *Reorderable, src: std.builtin.SourceLocation, reorder: *ReorderWidget, init_opts: Reorderable.InitOptions, opts: Options) void {
         const defaults = Options{ .name = "Reorderable" };
@@ -359,6 +360,7 @@ pub const Reorderable = struct {
                 if (!self.reorder.found_slot and found_slot) {
                     // user is dragging something over this rect
                     self.target_rs = rs;
+                    self.target_id = self.data().id;
                     self.reorder.found_slot = true;
 
                     if (self.init_options.draw_target) {
@@ -389,6 +391,10 @@ pub const Reorderable = struct {
 
     pub fn targetRectScale(self: *Reorderable) ?dvui.RectScale {
         return self.target_rs;
+    }
+
+    pub fn targetID(self: *Reorderable) ?dvui.Id {
+        return self.target_id;
     }
 
     pub fn removed(self: *Reorderable) bool {
