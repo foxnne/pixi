@@ -472,7 +472,7 @@ pub fn drawCanvas(self: *Workspace) !void {
 
 pub fn drawHorizontalRuler(self: *Workspace) void {
     const file = &pixi.editor.open_files.values()[self.open_file_index];
-    const font = dvui.Font.theme(.mono).larger(-2.0);
+    const font = dvui.Font.theme(.body);
 
     // Set ruler height to the font height plus some padding
     const ruler_height = font.textSize("M").h + pixi.editor.settings.ruler_padding;
@@ -572,7 +572,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
             .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.column_width)) },
         });
         defer reorderable.deinit();
-        var button_color = if (columns.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.75) else dvui.themeGet().color(.window, .fill);
+        var button_color = if (columns.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
 
         if (pixi.dvui.hovered(reorderable.data())) {
             button_color = dvui.themeGet().color(.control, .fill);
@@ -614,7 +614,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
                 dvui.renderText(.{
                     .text = label,
                     .font = font,
-                    .color = dvui.themeGet().color(.control, .text),
+                    .color = dvui.themeGet().color(.control, .text).opacity(0.5),
                     .rs = .{
                         .r = label_rect,
                         .s = dvui.currentWindow().natural_scale,
@@ -718,7 +718,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
 
 pub fn drawVerticalRuler(self: *Workspace) void {
     const file = &pixi.editor.open_files.values()[self.open_file_index];
-    const font = dvui.Font.theme(.mono).larger(-2.0);
+    const font = dvui.Font.theme(.body);
 
     const largest_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{file.rows - 1}) catch {
         dvui.log.err("Failed to allocate largest label", .{});
@@ -801,7 +801,7 @@ pub fn drawVerticalRuler(self: *Workspace) void {
         });
         defer reorderable.deinit();
 
-        var button_color = if (rows.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.75) else dvui.themeGet().color(.window, .fill);
+        var button_color = if (rows.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
 
         if (pixi.dvui.hovered(reorderable.data())) {
             button_color = dvui.themeGet().color(.control, .fill);
@@ -853,7 +853,7 @@ pub fn drawVerticalRuler(self: *Workspace) void {
             dvui.renderText(.{
                 .text = label,
                 .font = font,
-                .color = dvui.themeGet().color(.control, .text),
+                .color = dvui.themeGet().color(.control, .text).opacity(0.5),
                 .rs = .{
                     .r = label_rect,
                     .s = dvui.currentWindow().natural_scale,
