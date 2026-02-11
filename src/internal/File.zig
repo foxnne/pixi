@@ -49,6 +49,8 @@ editor: EditorData = .{},
 ///
 /// Also, the fields here tend to be directly coupled with the UI library
 pub const EditorData = struct {
+    // Only valid while file widget is drawing the file
+    workspace: *pixi.Editor.Workspace = undefined,
     canvas: pixi.dvui.CanvasWidget = .{},
     layers_scroll_info: dvui.ScrollInfo = .{ .horizontal = .auto },
     sprites_scroll_info: dvui.ScrollInfo = .{ .horizontal = .auto },
@@ -856,19 +858,35 @@ pub fn spriteRect(file: *File, index: usize) dvui.Rect {
     return out;
 }
 
-pub fn columnRect(file: *File, column: usize) dvui.Rect {
+pub fn columnRect(file: *File, column_index: usize) dvui.Rect {
     return .{
-        .x = @as(f32, @floatFromInt(column)) * @as(f32, @floatFromInt(file.column_width)),
+        .x = @as(f32, @floatFromInt(column_index)) * @as(f32, @floatFromInt(file.column_width)),
         .y = 0,
         .w = @as(f32, @floatFromInt(file.column_width)),
         .h = @as(f32, @floatFromInt(file.height())),
     };
 }
 
-pub fn rowRect(file: *File, row: usize) dvui.Rect {
+pub fn columnIndex(file: *File, point: dvui.Point) ?usize {
+    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width()))) return null;
+    if (point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height()))) return null;
+    const index = @divTrunc(@as(usize, @intFromFloat(point.x)), file.column_width);
+    if (index >= file.columns) return null;
+    return index;
+}
+
+pub fn rowIndex(file: *File, point: dvui.Point) ?usize {
+    if (point.x < 0 or point.x >= @as(f32, @floatFromInt(file.width()))) return null;
+    if (point.y < 0 or point.y >= @as(f32, @floatFromInt(file.height()))) return null;
+    const index = @divTrunc(@as(usize, @intFromFloat(point.y)), file.row_height);
+    if (index >= file.rows) return null;
+    return index;
+}
+
+pub fn rowRect(file: *File, row_index: usize) dvui.Rect {
     return .{
         .x = 0,
-        .y = @as(f32, @floatFromInt(row)) * @as(f32, @floatFromInt(file.row_height)),
+        .y = @as(f32, @floatFromInt(row_index)) * @as(f32, @floatFromInt(file.row_height)),
         .w = @as(f32, @floatFromInt(file.width())),
         .h = @as(f32, @floatFromInt(file.row_height)),
     };

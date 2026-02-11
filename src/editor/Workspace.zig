@@ -24,11 +24,13 @@ tabs_insert_before_index: ?usize = null,
 
 columns_drag_index: ?usize = null,
 columns_target_id: ?dvui.Id = null,
+columns_target_index: ?usize = null,
 columns_removed_index: ?usize = null,
 columns_insert_before_index: ?usize = null,
 
 rows_drag_index: ?usize = null,
 rows_target_id: ?dvui.Id = null,
+rows_target_index: ?usize = null,
 rows_removed_index: ?usize = null,
 rows_insert_before_index: ?usize = null,
 
@@ -62,6 +64,9 @@ const logo_colors: [15]pixi.math.Color = [_]pixi.math.Color{
 var dragging: bool = false;
 
 pub fn draw(self: *Workspace) !dvui.App.Result {
+    defer self.columns_drag_index = null;
+    defer self.rows_drag_index = null;
+
     // Canvas Area
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
@@ -438,6 +443,7 @@ pub fn drawCanvas(self: *Workspace) !void {
 
         const file = &pixi.editor.open_files.values()[self.open_file_index];
         file.editor.canvas.id = canvas_vbox.data().id;
+        file.editor.workspace = self;
 
         if (pixi.editor.settings.show_rulers) {
             defer pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{});
@@ -603,6 +609,12 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
             self.columns_insert_before_index = column_index;
         } else if (reorderable.targetID()) |target_id| {
             self.columns_target_id = target_id;
+        }
+
+        if (self.columns_drag_index) |_| {
+            var mouse_pt = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+            mouse_pt.y = 0.0;
+            self.columns_target_index = file.columnIndex(mouse_pt);
         }
 
         {
@@ -941,6 +953,12 @@ pub fn drawVerticalRuler(self: *Workspace) void {
             self.rows_insert_before_index = row_index;
         } else if (reorderable.targetID()) |target_id| {
             self.rows_target_id = target_id;
+        }
+
+        if (self.rows_drag_index) |_| {
+            var mouse_pt = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+            mouse_pt.x = 0.0;
+            self.rows_target_index = file.rowIndex(mouse_pt);
         }
 
         var cell_box: dvui.BoxWidget = undefined;

@@ -2667,11 +2667,11 @@ pub fn drawLayers(self: *FileWidget) void {
     var rows: usize = file.rows;
 
     const layer_rect = self.init_options.file.editor.canvas.dataFromScreenRect(self.init_options.file.editor.canvas.rect);
-    var resize_rect = layer_rect;
+    var canvas_rect = layer_rect;
 
     if (self.resize_data_point) |resize_data_point| {
-        resize_rect.w = resize_data_point.x;
-        resize_rect.h = resize_data_point.y;
+        canvas_rect.w = resize_data_point.x;
+        canvas_rect.h = resize_data_point.y;
 
         if (resize_data_point.x < layer_rect.x + layer_rect.w or resize_data_point.y < layer_rect.y + layer_rect.h) {
             self.init_options.file.editor.canvas.screenFromDataRect(layer_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 1.5 });
@@ -2691,13 +2691,13 @@ pub fn drawLayers(self: *FileWidget) void {
             }
         }
 
-        columns = @divTrunc(@as(u32, @intFromFloat(resize_rect.w)), file.column_width);
-        rows = @divTrunc(@as(u32, @intFromFloat(resize_rect.h)), file.row_height);
+        columns = @divTrunc(@as(u32, @intFromFloat(canvas_rect.w)), file.column_width);
+        rows = @divTrunc(@as(u32, @intFromFloat(canvas_rect.h)), file.row_height);
     }
 
     const shadow_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
-        .rect = resize_rect,
+        .rect = canvas_rect,
         .border = dvui.Rect.all(0),
         .background = false,
         .box_shadow = .{
@@ -2715,7 +2715,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const fill_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
-        .rect = .{ .x = layer_rect.x, .y = layer_rect.y, .w = @min(resize_rect.w, layer_rect.w), .h = @min(resize_rect.h, layer_rect.h) },
+        .rect = .{ .x = layer_rect.x, .y = layer_rect.y, .w = @min(canvas_rect.w, layer_rect.w), .h = @min(canvas_rect.h, layer_rect.h) },
         .border = dvui.Rect.all(0),
         .background = true,
         .color_fill = dvui.themeGet().color(.window, .fill),
@@ -2780,16 +2780,20 @@ pub fn drawLayers(self: *FileWidget) void {
 
     // Render all layers and update our bounding box;
     {
-        pixi.render.renderLayers(.{
-            .file = file,
-            .rs = .{
-                .r = self.init_options.file.editor.canvas.rect,
-                .s = self.init_options.file.editor.canvas.scale,
-            },
-        }) catch {
-            dvui.log.err("Failed to render file image", .{});
-            return;
-        };
+        if (file.editor.workspace.columns_drag_index == null and file.editor.workspace.rows_drag_index == null) {
+            pixi.render.renderLayers(.{
+                .file = file,
+                .rs = .{
+                    .r = self.init_options.file.editor.canvas.rect,
+                    .s = self.init_options.file.editor.canvas.scale,
+                },
+            }) catch {
+                dvui.log.err("Failed to render file image", .{});
+                return;
+            };
+        } else {
+            self.drawReorderPreviewLayers();
+        }
     }
 
     // Draw the resize fill area if a resize is happening
@@ -2821,26 +2825,26 @@ pub fn drawLayers(self: *FileWidget) void {
         for (1..columns) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = resize_rect.h }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = canvas_rect.h }),
             } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
         }
 
         for (1..rows) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
             } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
         }
 
         if (self.resize_data_point) |resize_data_point| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = resize_rect.h }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = canvas_rect.h }),
             } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
 
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_rect.w, .y = resize_data_point.y }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = resize_data_point.y }),
             } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
         }
     }
@@ -2857,6 +2861,39 @@ pub fn drawLayers(self: *FileWidget) void {
                 .closed = true,
             });
         }
+    }
+}
+
+pub fn drawReorderPreviewLayers(self: *FileWidget) void {
+    const file = self.init_options.file;
+    if (file.editor.workspace.columns_drag_index == null and file.editor.workspace.rows_drag_index == null) {
+        return;
+    }
+
+    const workspace = file.editor.workspace;
+
+    const Mode = enum {
+        columns,
+        rows,
+    };
+
+    const mode = if (workspace.columns_drag_index != null) Mode.columns else Mode.rows;
+
+    switch (mode) {
+        .columns => {
+            if (workspace.columns_target_index) |columns_target_index| {
+                const target_rect = file.columnRect(columns_target_index);
+
+                file.editor.canvas.screenFromDataRect(target_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
+            }
+        },
+        .rows => {
+            if (workspace.rows_target_index) |rows_target_index| {
+                const target_rect = file.rowRect(rows_target_index);
+
+                file.editor.canvas.screenFromDataRect(target_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
+            }
+        },
     }
 }
 
@@ -3036,6 +3073,8 @@ pub fn processResize(self: *FileWidget) void {
 }
 
 pub fn processEvents(self: *FileWidget) void {
+    const transform = self.init_options.file.editor.transform != null;
+    const reorder = self.init_options.file.editor.workspace.columns_drag_index != null or self.init_options.file.editor.workspace.rows_drag_index != null;
 
     // Try to ensure that selected animation frame index is valid
     if (self.init_options.file.selected_animation_index) |ai| {
@@ -3124,7 +3163,7 @@ pub fn processEvents(self: *FileWidget) void {
     // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
 
-    if ((self.active() or self.hovered()) and self.init_options.file.editor.transform == null) {
+    if ((self.active() or self.hovered()) and !transform and !reorder) {
         self.drawSpriteBubbles();
         self.processResize();
 
