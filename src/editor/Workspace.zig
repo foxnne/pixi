@@ -67,6 +67,10 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
     defer self.columns_drag_index = null;
     defer self.rows_drag_index = null;
 
+    // Process the column reorder, when both fields are set and we can take action
+    defer self.processColumnReorder();
+    defer self.processRowReorder();
+
     // Canvas Area
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
@@ -582,9 +586,6 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
         defer reorderable.deinit();
         var button_color = if (columns.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
 
-        // Process the column reorder, when both fields are set and we can take action
-        defer self.processColumnReorder();
-
         if (pixi.dvui.hovered(reorderable.data())) {
             button_color = dvui.themeGet().color(.control, .fill);
             dvui.cursorSet(.hand);
@@ -602,12 +603,13 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
             self.columns_drag_index = column_index;
             columns.reorderable_size.h = @as(f32, @floatFromInt(file.height())) + ruler_height / file.editor.canvas.scale;
         }
-
         if (reorderable.removed()) {
             self.columns_removed_index = column_index;
-        } else if (reorderable.insertBefore()) {
+        }
+        if (reorderable.insertBefore()) {
             self.columns_insert_before_index = column_index;
-        } else if (reorderable.targetID()) |target_id| {
+        }
+        if (reorderable.targetID()) |target_id| {
             self.columns_target_id = target_id;
         }
 
@@ -934,9 +936,6 @@ pub fn drawVerticalRuler(self: *Workspace) void {
 
         var button_color = if (rows.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
 
-        // Process the column reorder, when both fields are set and we can take action
-        defer self.processRowReorder();
-
         if (pixi.dvui.hovered(reorderable.data())) {
             button_color = dvui.themeGet().color(.control, .fill);
             dvui.cursorSet(.hand);
@@ -949,9 +948,11 @@ pub fn drawVerticalRuler(self: *Workspace) void {
 
         if (reorderable.removed()) {
             self.rows_removed_index = row_index;
-        } else if (reorderable.insertBefore()) {
+        }
+        if (reorderable.insertBefore()) {
             self.rows_insert_before_index = row_index;
-        } else if (reorderable.targetID()) |target_id| {
+        }
+        if (reorderable.targetID()) |target_id| {
             self.rows_target_id = target_id;
         }
 

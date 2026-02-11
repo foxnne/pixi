@@ -2881,16 +2881,104 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
 
     switch (mode) {
         .columns => {
-            if (workspace.columns_target_index) |columns_target_index| {
-                const target_rect = file.columnRect(columns_target_index);
-
+            if (workspace.columns_target_index) |target_index| {
+                const target_rect = file.columnRect(target_index);
                 file.editor.canvas.screenFromDataRect(target_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
+
+                if (workspace.columns_drag_index) |removed_index| {
+                    const removed_rect = file.columnRect(removed_index);
+                    //file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
+
+                    if (target_index <= removed_index) {
+                        {
+                            const rect_left: dvui.Rect = .{
+                                .x = 0.0,
+                                .y = 0.0,
+                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(target_index)),
+                                .h = @as(f32, @floatFromInt(file.height())),
+                            };
+
+                            pixi.render.renderLayers(.{
+                                .file = file,
+                                .rs = .{
+                                    .r = file.editor.canvas.screenFromDataRect(rect_left),
+                                    .s = self.init_options.file.editor.canvas.scale,
+                                },
+                                .uv = .{
+                                    .x = rect_left.x / @as(f32, @floatFromInt(file.width())),
+                                    .y = rect_left.y / @as(f32, @floatFromInt(file.height())),
+                                    .w = rect_left.w / @as(f32, @floatFromInt(file.width())),
+                                    .h = rect_left.h / @as(f32, @floatFromInt(file.height())),
+                                },
+                            }) catch {
+                                dvui.log.err("Failed to render file image", .{});
+                                return;
+                            };
+                        }
+
+                        // Draw the columns between the target and removed (exclusive),
+                        // ensuring the column directly after the target is drawn.
+                        if (removed_index - target_index >= 1) {
+                            const rect_middle: dvui.Rect = .{
+                                .x = target_rect.x,
+                                .y = 0.0,
+                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(removed_index - target_index)),
+                                .h = @as(f32, @floatFromInt(file.height())),
+                            };
+
+                            if (rect_middle.w > 0.0) {
+                                pixi.render.renderLayers(.{
+                                    .file = file,
+                                    .rs = .{
+                                        .r = file.editor.canvas.screenFromDataRect(rect_middle.offsetPoint(.{ .x = @as(f32, @floatFromInt(file.column_width)) })),
+                                        .s = self.init_options.file.editor.canvas.scale,
+                                    },
+                                    .uv = .{
+                                        .x = rect_middle.x / @as(f32, @floatFromInt(file.width())),
+                                        .y = rect_middle.y / @as(f32, @floatFromInt(file.height())),
+                                        .w = rect_middle.w / @as(f32, @floatFromInt(file.width())),
+                                        .h = rect_middle.h / @as(f32, @floatFromInt(file.height())),
+                                    },
+                                }) catch {
+                                    dvui.log.err("Failed to render file image", .{});
+                                    return;
+                                };
+                            }
+                        }
+
+                        {
+                            const rect_right: dvui.Rect = .{
+                                .x = removed_rect.x + removed_rect.w,
+                                .y = 0.0,
+                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(file.columns - removed_index - 1)),
+                                .h = @as(f32, @floatFromInt(file.height())),
+                            };
+
+                            if (rect_right.w > 0.0) {
+                                pixi.render.renderLayers(.{
+                                    .file = file,
+                                    .rs = .{
+                                        .r = file.editor.canvas.screenFromDataRect(rect_right),
+                                    },
+                                    .uv = .{
+                                        .x = rect_right.x / @as(f32, @floatFromInt(file.width())),
+                                        .y = rect_right.y / @as(f32, @floatFromInt(file.height())),
+                                        .w = rect_right.w / @as(f32, @floatFromInt(file.width())),
+                                        .h = rect_right.h / @as(f32, @floatFromInt(file.height())),
+                                    },
+                                }) catch {
+                                    dvui.log.err("Failed to render file image", .{});
+                                    return;
+                                };
+                            }
+                        }
+                    } else {}
+                }
             }
         },
         .rows => {
             if (workspace.rows_target_index) |rows_target_index| {
                 const target_rect = file.rowRect(rows_target_index);
-
                 file.editor.canvas.screenFromDataRect(target_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
             }
         },
@@ -3160,7 +3248,6 @@ pub fn processEvents(self: *FileWidget) void {
         self.processTransform();
     }
 
-    // Draw layers first, so that the scrolling bounding box is updated
     self.drawLayers();
 
     if ((self.active() or self.hovered()) and !transform and !reorder) {
