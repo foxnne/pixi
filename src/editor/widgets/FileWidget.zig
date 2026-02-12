@@ -2864,497 +2864,220 @@ pub fn drawLayers(self: *FileWidget) void {
     }
 }
 
-// TODO: Maybe refactor this so its not so much duplicated code?
-pub fn drawReorderPreviewLayers(self: *FileWidget) void {
+const ReorderAxis = enum { columns, rows };
+
+fn drawReorderPreviewLayers(self: *FileWidget) void {
     const file = self.init_options.file;
-    if (file.editor.workspace.columns_drag_index == null and file.editor.workspace.rows_drag_index == null) {
-        return;
-    }
-
     const workspace = file.editor.workspace;
+    if (workspace.columns_drag_index == null and workspace.rows_drag_index == null) return;
 
-    const Mode = enum {
-        columns,
-        rows,
+    const axis: ReorderAxis = if (workspace.columns_drag_index != null) .columns else .rows;
+    const target_index = switch (axis) {
+        .columns => workspace.columns_target_index,
+        .rows => workspace.rows_target_index,
+    } orelse return;
+    const removed_index = switch (axis) {
+        .columns => workspace.columns_drag_index,
+        .rows => workspace.rows_drag_index,
+    } orelse return;
+
+    self.drawReorderPreviewForAxis(workspace, file, axis, target_index, removed_index);
+}
+
+fn renderLayers(
+    self: *FileWidget,
+    file: *pixi.Internal.File,
+    data_rect: dvui.Rect,
+    screen_rect_override: ?dvui.Rect.Physical,
+) void {
+    const scale = self.init_options.file.editor.canvas.scale;
+    const w = @as(f32, @floatFromInt(file.width()));
+    const h = @as(f32, @floatFromInt(file.height()));
+    const r = screen_rect_override orelse file.editor.canvas.screenFromDataRect(data_rect);
+    pixi.render.renderLayers(.{
+        .file = file,
+        .rs = .{ .r = r, .s = scale },
+        .uv = .{
+            .x = data_rect.x / w,
+            .y = data_rect.y / h,
+            .w = data_rect.w / w,
+            .h = data_rect.h / h,
+        },
+    }) catch dvui.log.err("Failed to render file image", .{});
+}
+
+fn reorderSegmentRects(
+    axis: ReorderAxis,
+    file: *pixi.Internal.File,
+    target_index: usize,
+    removed_index: usize,
+    target_rect: dvui.Rect,
+    removed_rect: dvui.Rect,
+) struct {
+    first: dvui.Rect,
+    middle: ?dvui.Rect,
+    last: dvui.Rect,
+    middle_screen_offset: dvui.Point,
+} {
+    const slot_size = switch (axis) {
+        .columns => file.column_width,
+        .rows => file.row_height,
+    };
+    const slot_count = switch (axis) {
+        .columns => file.columns,
+        .rows => file.rows,
+    };
+    const slot_f = @as(f32, @floatFromInt(slot_size));
+    const extent_other = switch (axis) {
+        .columns => @as(f32, @floatFromInt(file.height())),
+        .rows => @as(f32, @floatFromInt(file.width())),
     };
 
-    const mode = if (workspace.columns_drag_index != null) Mode.columns else Mode.rows;
+    if (target_index <= removed_index) {
+        const first: dvui.Rect = switch (axis) {
+            .columns => .{ .x = 0.0, .y = 0.0, .w = slot_f * @as(f32, @floatFromInt(target_index)), .h = extent_other },
+            .rows => .{ .x = 0.0, .y = 0.0, .w = extent_other, .h = slot_f * @as(f32, @floatFromInt(target_index)) },
+        };
+        const middle_n = removed_index - target_index;
+        const middle: ?dvui.Rect = if (middle_n >= 1)
+            switch (axis) {
+                .columns => .{ .x = target_rect.x, .y = 0.0, .w = slot_f * @as(f32, @floatFromInt(middle_n)), .h = extent_other },
+                .rows => .{ .x = 0.0, .y = target_rect.y, .w = extent_other, .h = slot_f * @as(f32, @floatFromInt(middle_n)) },
+            }
+        else
+            null;
+        const last: dvui.Rect = switch (axis) {
+            .columns => .{ .x = removed_rect.x + removed_rect.w, .y = 0.0, .w = slot_f * @as(f32, @floatFromInt(slot_count - removed_index - 1)), .h = extent_other },
+            .rows => .{ .x = 0.0, .y = removed_rect.y + removed_rect.h, .w = extent_other, .h = slot_f * @as(f32, @floatFromInt(slot_count - removed_index - 1)) },
+        };
+        const middle_screen_offset: dvui.Point = switch (axis) {
+            .columns => .{ .x = slot_f, .y = 0.0 },
+            .rows => .{ .x = 0.0, .y = slot_f },
+        };
+        return .{ .first = first, .middle = middle, .last = last, .middle_screen_offset = middle_screen_offset };
+    } else {
+        const first: dvui.Rect = switch (axis) {
+            .columns => .{ .x = 0.0, .y = 0.0, .w = slot_f * @as(f32, @floatFromInt(removed_index)), .h = extent_other },
+            .rows => .{ .x = 0.0, .y = 0.0, .w = extent_other, .h = slot_f * @as(f32, @floatFromInt(removed_index)) },
+        };
+        const middle_n = target_index - removed_index;
+        const middle: ?dvui.Rect = if (middle_n >= 1)
+            switch (axis) {
+                .columns => .{ .x = removed_rect.x + removed_rect.w, .y = 0.0, .w = slot_f * @as(f32, @floatFromInt(middle_n)), .h = extent_other },
+                .rows => .{ .x = 0.0, .y = removed_rect.y + removed_rect.h, .w = extent_other, .h = slot_f * @as(f32, @floatFromInt(middle_n)) },
+            }
+        else
+            null;
+        const last: dvui.Rect = switch (axis) {
+            .columns => .{ .x = target_rect.x + target_rect.w, .y = 0.0, .w = slot_f * @as(f32, @floatFromInt(slot_count - target_index - 1)), .h = extent_other },
+            .rows => .{ .x = 0.0, .y = target_rect.y + target_rect.h, .w = extent_other, .h = slot_f * @as(f32, @floatFromInt(slot_count - target_index - 1)) },
+        };
+        const middle_screen_offset: dvui.Point = switch (axis) {
+            .columns => .{ .x = -slot_f, .y = 0.0 },
+            .rows => .{ .x = 0.0, .y = -slot_f },
+        };
+        return .{ .first = first, .middle = middle, .last = last, .middle_screen_offset = middle_screen_offset };
+    }
+}
 
-    switch (mode) {
-        .columns => {
-            if (workspace.columns_target_index) |target_index| {
-                const target_column_rect = file.columnRect(target_index);
+fn drawReorderPreviewForAxis(
+    self: *FileWidget,
+    workspace: *pixi.Editor.Workspace,
+    file: *pixi.Internal.File,
+    axis: ReorderAxis,
+    target_index: usize,
+    removed_index: usize,
+) void {
+    const target_rect = switch (axis) {
+        .columns => file.columnRect(target_index),
+        .rows => file.rowRect(target_index),
+    };
+    const removed_rect = switch (axis) {
+        .columns => file.columnRect(removed_index),
+        .rows => file.rowRect(removed_index),
+    };
+    const scale = file.editor.canvas.scale;
+    const box_dir = switch (axis) {
+        .columns => dvui.enums.Direction.horizontal,
+        .rows => dvui.enums.Direction.vertical,
+    };
+    const ruler_size = switch (axis) {
+        .columns => workspace.horizontal_ruler_height,
+        .rows => workspace.vertical_ruler_width,
+    } / scale;
 
-                const target_box_rect = target_column_rect;
+    defer if (removed_index != target_index) {
+        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{
+            .color = dvui.themeGet().color(.err, .fill).opacity(0.5),
+            .fade = 0.0,
+        });
+    };
 
-                if (workspace.columns_drag_index) |removed_index| {
-                    const removed_rect = file.columnRect(removed_index);
+    {
+        var target_box_label_rect = target_rect;
+        switch (axis) {
+            .columns => {
+                target_box_label_rect.y -= ruler_size;
+                target_box_label_rect.h = ruler_size;
+            },
+            .rows => {
+                target_box_label_rect.x -= ruler_size;
+                target_box_label_rect.w = ruler_size;
+            },
+        }
 
-                    defer {
-                        var target_box_label_rect = target_box_rect;
-                        target_box_label_rect.y -= workspace.horizontal_ruler_height / file.editor.canvas.scale;
-                        target_box_label_rect.h = workspace.horizontal_ruler_height / file.editor.canvas.scale;
+        const target_box_label_box = dvui.box(@src(), .{ .dir = box_dir }, .{
+            .expand = .none,
+            .rect = target_box_label_rect,
+            .border = dvui.Rect.all(0),
+            .background = true,
+            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+        });
+        target_box_label_box.deinit();
 
-                        const target_box_label_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                            .expand = .none,
-                            .rect = target_box_label_rect,
-                            .border = dvui.Rect.all(0),
-                            .background = true,
-                            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                        });
-                        target_box_label_box.deinit();
+        const target_box = dvui.box(@src(), .{ .dir = box_dir }, .{
+            .expand = .none,
+            .rect = target_rect,
+            .border = dvui.Rect.all(0),
+            .background = true,
+            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{ .x = -4.0 / scale, .y = 4.0 / scale },
+                .fade = 10.0 / scale,
+                .alpha = 0.2,
+            },
+        });
+        defer target_box.deinit();
 
-                        const target_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                            .expand = .none,
-                            .rect = target_box_rect,
-                            .border = dvui.Rect.all(0),
-                            .background = true,
-                            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                            .box_shadow = .{
-                                .color = .black,
-                                .offset = .{ .x = -4.0 / self.init_options.file.editor.canvas.scale, .y = 4.0 / self.init_options.file.editor.canvas.scale },
-                                .fade = 10.0 / self.init_options.file.editor.canvas.scale,
-                                .alpha = 0.2,
-                            },
-                        });
-                        defer target_box.deinit();
+        self.renderLayers(file, removed_rect, target_box.data().rectScale().r);
 
-                        pixi.render.renderLayers(.{
-                            .file = file,
-                            .rs = .{
-                                .r = target_box.data().rectScale().r,
-                                .s = self.init_options.file.editor.canvas.scale,
-                            },
-                            .uv = .{
-                                .x = removed_rect.x / @as(f32, @floatFromInt(file.width())),
-                                .y = removed_rect.y / @as(f32, @floatFromInt(file.height())),
-                                .w = removed_rect.w / @as(f32, @floatFromInt(file.width())),
-                                .h = removed_rect.h / @as(f32, @floatFromInt(file.height())),
-                            },
-                        }) catch {
-                            dvui.log.err("Failed to render file image", .{});
-                        };
+        const label = switch (axis) {
+            .columns => file.fmtColumn(dvui.currentWindow().arena(), @intCast(removed_index)) catch "err",
+            .rows => std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{removed_index}) catch "err",
+        };
+        workspace.drawRulerLabel(.{
+            .font = dvui.Font.theme(.body),
+            .label = label,
+            .rect = file.editor.canvas.screenFromDataRect(target_box_label_rect),
+            .color = dvui.themeGet().color(.window, .fill),
+            .mode = switch (axis) {
+                .columns => .horizontal,
+                .rows => .vertical,
+            },
+        });
+    }
 
-                        const label = file.fmtColumn(dvui.currentWindow().arena(), @intCast(removed_index)) catch "err";
+    const segments = reorderSegmentRects(axis, file, target_index, removed_index, target_rect, removed_rect);
+    const canvas = &file.editor.canvas;
 
-                        workspace.drawRulerLabel(.{
-                            .font = dvui.Font.theme(.body),
-                            .label = label,
-                            .rect = file.editor.canvas.screenFromDataRect(target_box_label_rect),
-                            .color = dvui.themeGet().color(.window, .fill),
-                        });
-                    }
-
-                    defer if (removed_index != target_index) {
-                        // Dim the area we removed from
-                        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 0.0 });
-                    };
-                    if (target_index <= removed_index) {
-                        {
-                            const rect_left: dvui.Rect = .{
-                                .x = 0.0,
-                                .y = 0.0,
-                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(target_index)),
-                                .h = @as(f32, @floatFromInt(file.height())),
-                            };
-
-                            pixi.render.renderLayers(.{
-                                .file = file,
-                                .rs = .{
-                                    .r = file.editor.canvas.screenFromDataRect(rect_left),
-                                    .s = self.init_options.file.editor.canvas.scale,
-                                },
-                                .uv = .{
-                                    .x = rect_left.x / @as(f32, @floatFromInt(file.width())),
-                                    .y = rect_left.y / @as(f32, @floatFromInt(file.height())),
-                                    .w = rect_left.w / @as(f32, @floatFromInt(file.width())),
-                                    .h = rect_left.h / @as(f32, @floatFromInt(file.height())),
-                                },
-                            }) catch {
-                                dvui.log.err("Failed to render file image", .{});
-                                return;
-                            };
-                        }
-
-                        // Draw the columns between the target and removed (exclusive),
-                        // ensuring the column directly after the target is drawn.
-                        if (removed_index - target_index >= 1) {
-                            const rect_middle: dvui.Rect = .{
-                                .x = target_column_rect.x,
-                                .y = 0.0,
-                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(removed_index - target_index)),
-                                .h = @as(f32, @floatFromInt(file.height())),
-                            };
-
-                            if (rect_middle.w > 0.0) {
-                                pixi.render.renderLayers(.{
-                                    .file = file,
-                                    .rs = .{
-                                        .r = file.editor.canvas.screenFromDataRect(rect_middle.offsetPoint(.{ .x = @as(f32, @floatFromInt(file.column_width)) })),
-                                        .s = self.init_options.file.editor.canvas.scale,
-                                    },
-                                    .uv = .{
-                                        .x = rect_middle.x / @as(f32, @floatFromInt(file.width())),
-                                        .y = rect_middle.y / @as(f32, @floatFromInt(file.height())),
-                                        .w = rect_middle.w / @as(f32, @floatFromInt(file.width())),
-                                        .h = rect_middle.h / @as(f32, @floatFromInt(file.height())),
-                                    },
-                                }) catch {
-                                    dvui.log.err("Failed to render file image", .{});
-                                    return;
-                                };
-                            }
-                        }
-
-                        {
-                            const rect_right: dvui.Rect = .{
-                                .x = removed_rect.x + removed_rect.w,
-                                .y = 0.0,
-                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(file.columns - removed_index - 1)),
-                                .h = @as(f32, @floatFromInt(file.height())),
-                            };
-
-                            if (rect_right.w > 0.0) {
-                                pixi.render.renderLayers(.{
-                                    .file = file,
-                                    .rs = .{
-                                        .r = file.editor.canvas.screenFromDataRect(rect_right),
-                                    },
-                                    .uv = .{
-                                        .x = rect_right.x / @as(f32, @floatFromInt(file.width())),
-                                        .y = rect_right.y / @as(f32, @floatFromInt(file.height())),
-                                        .w = rect_right.w / @as(f32, @floatFromInt(file.width())),
-                                        .h = rect_right.h / @as(f32, @floatFromInt(file.height())),
-                                    },
-                                }) catch {
-                                    dvui.log.err("Failed to render file image", .{});
-                                    return;
-                                };
-                            }
-                        }
-                    } else {
-                        {
-                            const rect_left: dvui.Rect = .{
-                                .x = 0.0,
-                                .y = 0.0,
-                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(removed_index)),
-                                .h = @as(f32, @floatFromInt(file.height())),
-                            };
-
-                            pixi.render.renderLayers(.{
-                                .file = file,
-                                .rs = .{
-                                    .r = file.editor.canvas.screenFromDataRect(rect_left),
-                                    .s = self.init_options.file.editor.canvas.scale,
-                                },
-                                .uv = .{
-                                    .x = rect_left.x / @as(f32, @floatFromInt(file.width())),
-                                    .y = rect_left.y / @as(f32, @floatFromInt(file.height())),
-                                    .w = rect_left.w / @as(f32, @floatFromInt(file.width())),
-                                    .h = rect_left.h / @as(f32, @floatFromInt(file.height())),
-                                },
-                            }) catch {
-                                dvui.log.err("Failed to render file image", .{});
-                                return;
-                            };
-                        }
-
-                        if (target_index - removed_index >= 1) {
-                            const rect_middle: dvui.Rect = .{
-                                .x = removed_rect.x + removed_rect.w,
-                                .y = 0.0,
-                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt((target_index - removed_index))),
-                                .h = @as(f32, @floatFromInt(file.height())),
-                            };
-
-                            if (rect_middle.w > 0.0) {
-                                pixi.render.renderLayers(.{
-                                    .file = file,
-                                    .rs = .{
-                                        .r = file.editor.canvas.screenFromDataRect(rect_middle.offsetPoint(.{ .x = -@as(f32, @floatFromInt(file.column_width)) })),
-                                        .s = self.init_options.file.editor.canvas.scale,
-                                    },
-                                    .uv = .{
-                                        .x = rect_middle.x / @as(f32, @floatFromInt(file.width())),
-                                        .y = rect_middle.y / @as(f32, @floatFromInt(file.height())),
-                                        .w = rect_middle.w / @as(f32, @floatFromInt(file.width())),
-                                        .h = rect_middle.h / @as(f32, @floatFromInt(file.height())),
-                                    },
-                                }) catch {
-                                    dvui.log.err("Failed to render file image", .{});
-                                    return;
-                                };
-                            }
-                        }
-
-                        {
-                            const rect_right: dvui.Rect = .{
-                                .x = target_column_rect.x + target_column_rect.w,
-                                .y = 0.0,
-                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(file.columns - target_index - 1)),
-                                .h = @as(f32, @floatFromInt(file.height())),
-                            };
-
-                            if (rect_right.w > 0.0) {
-                                pixi.render.renderLayers(.{
-                                    .file = file,
-                                    .rs = .{
-                                        .r = file.editor.canvas.screenFromDataRect(rect_right),
-                                    },
-                                    .uv = .{
-                                        .x = rect_right.x / @as(f32, @floatFromInt(file.width())),
-                                        .y = rect_right.y / @as(f32, @floatFromInt(file.height())),
-                                        .w = rect_right.w / @as(f32, @floatFromInt(file.width())),
-                                        .h = rect_right.h / @as(f32, @floatFromInt(file.height())),
-                                    },
-                                }) catch {
-                                    dvui.log.err("Failed to render file image", .{});
-                                    return;
-                                };
-                            }
-                        }
-                    }
-                }
-            } else {}
-        },
-        .rows => {
-            if (workspace.rows_target_index) |target_index| {
-                const target_row_rect = file.rowRect(target_index);
-
-                const target_box_rect = target_row_rect;
-
-                if (workspace.rows_drag_index) |removed_index| {
-                    const removed_rect = file.rowRect(removed_index);
-
-                    defer {
-                        var target_box_label_rect = target_box_rect;
-                        target_box_label_rect.x -= workspace.vertical_ruler_width / file.editor.canvas.scale;
-                        target_box_label_rect.w = workspace.vertical_ruler_width / file.editor.canvas.scale;
-
-                        const target_box_label_box = dvui.box(@src(), .{ .dir = .vertical }, .{
-                            .expand = .none,
-                            .rect = target_box_label_rect,
-                            .border = dvui.Rect.all(0),
-                            .background = true,
-                            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                        });
-                        target_box_label_box.deinit();
-
-                        const target_box = dvui.box(@src(), .{ .dir = .vertical }, .{
-                            .expand = .none,
-                            .rect = target_box_rect,
-                            .border = dvui.Rect.all(0),
-                            .background = true,
-                            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                            .box_shadow = .{
-                                .color = .black,
-                                .offset = .{ .x = -4.0 / self.init_options.file.editor.canvas.scale, .y = 4.0 / self.init_options.file.editor.canvas.scale },
-                                .fade = 10.0 / self.init_options.file.editor.canvas.scale,
-                                .alpha = 0.2,
-                            },
-                        });
-                        defer target_box.deinit();
-
-                        pixi.render.renderLayers(.{
-                            .file = file,
-                            .rs = .{
-                                .r = target_box.data().rectScale().r,
-                                .s = self.init_options.file.editor.canvas.scale,
-                            },
-                            .uv = .{
-                                .x = removed_rect.x / @as(f32, @floatFromInt(file.width())),
-                                .y = removed_rect.y / @as(f32, @floatFromInt(file.height())),
-                                .w = removed_rect.w / @as(f32, @floatFromInt(file.width())),
-                                .h = removed_rect.h / @as(f32, @floatFromInt(file.height())),
-                            },
-                        }) catch {
-                            dvui.log.err("Failed to render file image", .{});
-                        };
-
-                        const label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{removed_index}) catch "err";
-
-                        workspace.drawRulerLabel(.{
-                            .font = dvui.Font.theme(.body),
-                            .label = label,
-                            .rect = file.editor.canvas.screenFromDataRect(target_box_label_rect),
-                            .color = dvui.themeGet().color(.window, .fill),
-                            .mode = .vertical,
-                        });
-                    }
-
-                    defer if (removed_index != target_index) {
-                        // Dim the area we removed from
-                        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 0.0 });
-                    };
-
-                    if (target_index <= removed_index) {
-                        {
-                            const rect_top: dvui.Rect = .{
-                                .x = 0.0,
-                                .y = 0.0,
-                                .w = @as(f32, @floatFromInt(file.width())),
-                                .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(target_index)),
-                            };
-
-                            pixi.render.renderLayers(.{
-                                .file = file,
-                                .rs = .{
-                                    .r = file.editor.canvas.screenFromDataRect(rect_top),
-                                    .s = self.init_options.file.editor.canvas.scale,
-                                },
-                                .uv = .{
-                                    .x = rect_top.x / @as(f32, @floatFromInt(file.width())),
-                                    .y = rect_top.y / @as(f32, @floatFromInt(file.height())),
-                                    .w = rect_top.w / @as(f32, @floatFromInt(file.width())),
-                                    .h = rect_top.h / @as(f32, @floatFromInt(file.height())),
-                                },
-                            }) catch {
-                                dvui.log.err("Failed to render file image", .{});
-                                return;
-                            };
-                        }
-
-                        // Draw the rows between the target and removed (exclusive),
-                        // ensuring the row directly after the target is drawn.
-                        if (removed_index - target_index >= 1) {
-                            const rect_middle: dvui.Rect = .{
-                                .x = 0.0,
-                                .y = target_row_rect.y,
-                                .w = @as(f32, @floatFromInt(file.width())),
-                                .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(removed_index - target_index)),
-                            };
-
-                            if (rect_middle.h > 0.0) {
-                                pixi.render.renderLayers(.{
-                                    .file = file,
-                                    .rs = .{
-                                        .r = file.editor.canvas.screenFromDataRect(rect_middle.offsetPoint(.{ .y = @as(f32, @floatFromInt(file.row_height)) })),
-                                        .s = self.init_options.file.editor.canvas.scale,
-                                    },
-                                    .uv = .{
-                                        .x = rect_middle.x / @as(f32, @floatFromInt(file.width())),
-                                        .y = rect_middle.y / @as(f32, @floatFromInt(file.height())),
-                                        .w = rect_middle.w / @as(f32, @floatFromInt(file.width())),
-                                        .h = rect_middle.h / @as(f32, @floatFromInt(file.height())),
-                                    },
-                                }) catch {
-                                    dvui.log.err("Failed to render file image", .{});
-                                    return;
-                                };
-                            }
-                        }
-
-                        {
-                            const rect_bottom: dvui.Rect = .{
-                                .x = 0.0,
-                                .y = removed_rect.y + removed_rect.h,
-                                .w = @as(f32, @floatFromInt(file.width())),
-                                .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(file.rows - removed_index - 1)),
-                            };
-
-                            if (rect_bottom.h > 0.0) {
-                                pixi.render.renderLayers(.{
-                                    .file = file,
-                                    .rs = .{
-                                        .r = file.editor.canvas.screenFromDataRect(rect_bottom),
-                                    },
-                                    .uv = .{
-                                        .x = rect_bottom.x / @as(f32, @floatFromInt(file.width())),
-                                        .y = rect_bottom.y / @as(f32, @floatFromInt(file.height())),
-                                        .w = rect_bottom.w / @as(f32, @floatFromInt(file.width())),
-                                        .h = rect_bottom.h / @as(f32, @floatFromInt(file.height())),
-                                    },
-                                }) catch {
-                                    dvui.log.err("Failed to render file image", .{});
-                                    return;
-                                };
-                            }
-                        }
-                    } else {
-                        {
-                            const rect_top: dvui.Rect = .{
-                                .x = 0.0,
-                                .y = 0.0,
-                                .w = @as(f32, @floatFromInt(file.width())),
-                                .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(removed_index)),
-                            };
-
-                            pixi.render.renderLayers(.{
-                                .file = file,
-                                .rs = .{
-                                    .r = file.editor.canvas.screenFromDataRect(rect_top),
-                                    .s = self.init_options.file.editor.canvas.scale,
-                                },
-                                .uv = .{
-                                    .x = rect_top.x / @as(f32, @floatFromInt(file.width())),
-                                    .y = rect_top.y / @as(f32, @floatFromInt(file.height())),
-                                    .w = rect_top.w / @as(f32, @floatFromInt(file.width())),
-                                    .h = rect_top.h / @as(f32, @floatFromInt(file.height())),
-                                },
-                            }) catch {
-                                dvui.log.err("Failed to render file image", .{});
-                                return;
-                            };
-                        }
-
-                        if (target_index - removed_index >= 1) {
-                            const rect_middle: dvui.Rect = .{
-                                .x = 0.0,
-                                .y = removed_rect.y + removed_rect.h,
-                                .w = @as(f32, @floatFromInt(file.width())),
-                                .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt((target_index - removed_index))),
-                            };
-
-                            if (rect_middle.h > 0.0) {
-                                pixi.render.renderLayers(.{
-                                    .file = file,
-                                    .rs = .{
-                                        .r = file.editor.canvas.screenFromDataRect(rect_middle.offsetPoint(.{ .y = -@as(f32, @floatFromInt(file.row_height)) })),
-                                        .s = self.init_options.file.editor.canvas.scale,
-                                    },
-                                    .uv = .{
-                                        .x = rect_middle.x / @as(f32, @floatFromInt(file.width())),
-                                        .y = rect_middle.y / @as(f32, @floatFromInt(file.height())),
-                                        .w = rect_middle.w / @as(f32, @floatFromInt(file.width())),
-                                        .h = rect_middle.h / @as(f32, @floatFromInt(file.height())),
-                                    },
-                                }) catch {
-                                    dvui.log.err("Failed to render file image", .{});
-                                    return;
-                                };
-                            }
-                        }
-
-                        {
-                            const rect_bottom: dvui.Rect = .{
-                                .x = 0.0,
-                                .y = target_row_rect.y + target_row_rect.h,
-                                .w = @as(f32, @floatFromInt(file.width())),
-                                .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(file.rows - target_index - 1)),
-                            };
-
-                            if (rect_bottom.h > 0.0) {
-                                pixi.render.renderLayers(.{
-                                    .file = file,
-                                    .rs = .{
-                                        .r = file.editor.canvas.screenFromDataRect(rect_bottom),
-                                    },
-                                    .uv = .{
-                                        .x = rect_bottom.x / @as(f32, @floatFromInt(file.width())),
-                                        .y = rect_bottom.y / @as(f32, @floatFromInt(file.height())),
-                                        .w = rect_bottom.w / @as(f32, @floatFromInt(file.width())),
-                                        .h = rect_bottom.h / @as(f32, @floatFromInt(file.height())),
-                                    },
-                                }) catch {
-                                    dvui.log.err("Failed to render file image", .{});
-                                    return;
-                                };
-                            }
-                        }
-                    }
-                }
-            } else {}
-        },
+    self.renderLayers(file, segments.first, null);
+    if (segments.middle) |middle_rect| {
+        const screen_rect = canvas.screenFromDataRect(middle_rect.offsetPoint(segments.middle_screen_offset));
+        self.renderLayers(file, middle_rect, screen_rect);
+    }
+    if (segments.last.w > 0.0 and segments.last.h > 0.0) {
+        self.renderLayers(file, segments.last, null);
     }
 }
 
