@@ -2875,7 +2875,7 @@ fn drawReorderPreviewLayers(self: *FileWidget) void {
     const target_index = switch (axis) {
         .columns => workspace.columns_target_index,
         .rows => workspace.rows_target_index,
-    } orelse return;
+    };
     const removed_index = switch (axis) {
         .columns => workspace.columns_drag_index,
         .rows => workspace.rows_drag_index,
@@ -2884,7 +2884,7 @@ fn drawReorderPreviewLayers(self: *FileWidget) void {
     self.drawReorderPreviewForAxis(workspace, file, axis, target_index, removed_index);
 }
 
-fn renderLayers(
+fn renderLayersInDataRect(
     self: *FileWidget,
     file: *pixi.Internal.File,
     data_rect: dvui.Rect,
@@ -2985,16 +2985,34 @@ fn drawReorderPreviewForAxis(
     workspace: *pixi.Editor.Workspace,
     file: *pixi.Internal.File,
     axis: ReorderAxis,
-    target_index: usize,
+    target_index: ?usize,
     removed_index: usize,
 ) void {
-    const target_rect = switch (axis) {
-        .columns => file.columnRect(target_index),
-        .rows => file.rowRect(target_index),
-    };
     const removed_rect = switch (axis) {
         .columns => file.columnRect(removed_index),
         .rows => file.rowRect(removed_index),
+    };
+
+    if (target_index == null) {
+        // Dragging but not over canvas: draw full layers unchanged, then dim removed slot only
+        const full_rect = dvui.Rect{
+            .x = 0.0,
+            .y = 0.0,
+            .w = @floatFromInt(file.width()),
+            .h = @floatFromInt(file.height()),
+        };
+        self.renderLayersInDataRect(file, full_rect, null);
+        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{
+            .color = dvui.themeGet().color(.err, .fill).opacity(0.5),
+            .fade = 0.0,
+        });
+        return;
+    }
+
+    const target_i = target_index.?;
+    const target_rect = switch (axis) {
+        .columns => file.columnRect(target_i),
+        .rows => file.rowRect(target_i),
     };
     const scale = file.editor.canvas.scale;
     const box_dir = switch (axis) {
@@ -3006,7 +3024,7 @@ fn drawReorderPreviewForAxis(
         .rows => workspace.vertical_ruler_width,
     } / scale;
 
-    defer if (removed_index != target_index) {
+    defer if (removed_index != target_i) {
         file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{
             .color = dvui.themeGet().color(.err, .fill).opacity(0.5),
             .fade = 0.0,
@@ -3050,7 +3068,7 @@ fn drawReorderPreviewForAxis(
         });
         defer target_box.deinit();
 
-        self.renderLayers(file, removed_rect, target_box.data().rectScale().r);
+        self.renderLayersInDataRect(file, removed_rect, target_box.data().rectScale().r);
 
         const label = switch (axis) {
             .columns => file.fmtColumn(dvui.currentWindow().arena(), @intCast(removed_index)) catch "err",
@@ -3068,16 +3086,16 @@ fn drawReorderPreviewForAxis(
         });
     }
 
-    const segments = reorderSegmentRects(axis, file, target_index, removed_index, target_rect, removed_rect);
+    const segments = reorderSegmentRects(axis, file, target_i, removed_index, target_rect, removed_rect);
     const canvas = &file.editor.canvas;
 
-    self.renderLayers(file, segments.first, null);
+    self.renderLayersInDataRect(file, segments.first, null);
     if (segments.middle) |middle_rect| {
         const screen_rect = canvas.screenFromDataRect(middle_rect.offsetPoint(segments.middle_screen_offset));
-        self.renderLayers(file, middle_rect, screen_rect);
+        self.renderLayersInDataRect(file, middle_rect, screen_rect);
     }
     if (segments.last.w > 0.0 and segments.last.h > 0.0) {
-        self.renderLayers(file, segments.last, null);
+        self.renderLayersInDataRect(file, segments.last, null);
     }
 }
 
