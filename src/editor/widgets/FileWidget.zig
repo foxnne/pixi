@@ -2795,6 +2795,7 @@ pub fn drawLayers(self: *FileWidget) void {
             };
         } else {
             self.drawReorderPreviewLayers();
+            return;
         }
     }
 
@@ -3028,14 +3029,7 @@ fn drawReorderPreviewForAxis(
         .rows => workspace.vertical_ruler_width,
     } / scale;
 
-    defer if (removed_index != target_i) {
-        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{
-            .color = dvui.themeGet().color(.err, .fill).opacity(0.5),
-            .fade = 0.0,
-        });
-    };
-
-    {
+    defer {
         var target_box_rect = target_rect;
 
         {
@@ -3148,6 +3142,13 @@ fn drawReorderPreviewForAxis(
         });
     }
 
+    defer if (removed_index != target_i) {
+        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{
+            .color = dvui.themeGet().color(.err, .fill).opacity(0.5),
+            .fade = 0.0,
+        });
+    };
+
     const segments = reorderSegmentRects(axis, file, target_i, removed_index, target_rect, removed_rect);
     const canvas = &file.editor.canvas;
 
@@ -3158,6 +3159,22 @@ fn drawReorderPreviewForAxis(
     }
     if (segments.last.w > 0.0 and segments.last.h > 0.0) {
         self.renderLayersInDataRect(file, segments.last, null);
+    }
+
+    {
+        for (1..file.columns) |i| {
+            dvui.Path.stroke(.{ .points = &.{
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = @as(f32, @floatFromInt(file.height())) }),
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+        }
+
+        for (1..file.rows) |i| {
+            dvui.Path.stroke(.{ .points = &.{
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width())), .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+        }
     }
 }
 
