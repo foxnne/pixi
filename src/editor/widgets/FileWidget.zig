@@ -30,6 +30,7 @@ sample_key_down: bool = false,
 shift_key_down: bool = false,
 hide_distance_bubble: bool = false,
 hovered_bubble_sprite_index: ?usize = null,
+grid_reorder_point: ?dvui.Point = null,
 
 pub const InitOptions = struct {
     file: *pixi.Internal.File,
@@ -46,6 +47,7 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
         .sample_data_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "sample_data_point", dvui.Point)) |point| point else null,
         .sample_key_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "sample_key_down", bool)) |key| key else false,
         .resize_data_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "resize_data_point", dvui.Point)) |point| point else null,
+        .grid_reorder_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "grid_reorder_point", dvui.Point)) |point| point else null,
         .right_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "right_mouse_down", bool)) |key| key else false,
         .left_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "left_mouse_down", bool)) |key| key else false,
         .hide_distance_bubble = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "hide_distance_bubble", bool)) |key| key else false,
@@ -3010,10 +3012,12 @@ fn drawReorderPreviewForAxis(
     }
 
     const target_i = target_index.?;
+
     const target_rect = switch (axis) {
         .columns => file.columnRect(target_i),
         .rows => file.rowRect(target_i),
     };
+
     const scale = file.editor.canvas.scale;
     const box_dir = switch (axis) {
         .columns => dvui.enums.Direction.horizontal,
@@ -3032,7 +3036,65 @@ fn drawReorderPreviewForAxis(
     };
 
     {
-        var target_box_label_rect = target_rect;
+        var target_box_rect = target_rect;
+
+        {
+            const current_tl: dvui.Point = self.grid_reorder_point orelse .{ .x = 0.0, .y = 0.0 };
+
+            if (target_box_rect.topLeft().x != current_tl.x or target_box_rect.topLeft().y != current_tl.y) {
+                defer self.grid_reorder_point = target_box_rect.topLeft();
+
+                if (self.grid_reorder_point != null) {
+                    if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_x")) |anim| {
+                        _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("reorder_target_rect_x"));
+                        dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_x", .{
+                            .start_val = anim.value(),
+                            .end_val = target_box_rect.x,
+                            .end_time = 250_000,
+                            .easing = dvui.easing.outBack,
+                        });
+                    } else {
+
+                        // If we are here, we need to trigger a new animation to move the resize button rect to the new point
+                        dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_x", .{
+                            .start_val = current_tl.x,
+                            .end_val = target_box_rect.x,
+                            .end_time = 250_000,
+                            .easing = dvui.easing.outBack,
+                        });
+                    }
+
+                    if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_y")) |anim| {
+                        _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("reorder_target_rect_y"));
+                        dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_y", .{
+                            .start_val = anim.value(),
+                            .end_val = target_box_rect.y,
+                            .end_time = 250_000,
+                            .easing = dvui.easing.outBack,
+                        });
+                    } else {
+
+                        // If we are here, we need to trigger a new animation to move the resize button rect to the new point
+                        dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_y", .{
+                            .start_val = current_tl.y,
+                            .end_val = target_box_rect.y,
+                            .end_time = 250_000,
+                            .easing = dvui.easing.outBack,
+                        });
+                    }
+                }
+
+                if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_x")) |anim| {
+                    target_box_rect.x = anim.value();
+                }
+
+                if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_y")) |anim| {
+                    target_box_rect.y = anim.value();
+                }
+            }
+        }
+
+        var target_box_label_rect = target_box_rect;
         switch (axis) {
             .columns => {
                 target_box_label_rect.y -= ruler_size;
@@ -3055,7 +3117,7 @@ fn drawReorderPreviewForAxis(
 
         const target_box = dvui.box(@src(), .{ .dir = box_dir }, .{
             .expand = .none,
-            .rect = target_rect,
+            .rect = target_box_rect,
             .border = dvui.Rect.all(0),
             .background = true,
             .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
@@ -3307,6 +3369,12 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataSet(null, self.init_options.file.editor.canvas.id, "resize_data_point", resize_data_point);
     } else {
         dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "resize_data_point");
+    };
+
+    defer if (self.grid_reorder_point) |grid_reorder_point| {
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "grid_reorder_point", grid_reorder_point);
+    } else {
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "grid_reorder_point");
     };
 
     defer if (self.sample_key_down) {
