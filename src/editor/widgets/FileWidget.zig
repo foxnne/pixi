@@ -2724,7 +2724,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-    if (self.resize_data_point == null) {
+    if (self.resize_data_point == null and file.editor.workspace.columns_drag_index == null and file.editor.workspace.rows_drag_index == null) {
         var image_rect_scale: dvui.RectScale = .{};
         if (file.spriteIndex(mouse_data_point)) |sprite_index| {
             const image_rect = file.spriteRect(sprite_index);
@@ -2883,11 +2883,72 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
     switch (mode) {
         .columns => {
             if (workspace.columns_target_index) |target_index| {
-                const target_rect = file.columnRect(target_index);
-                file.editor.canvas.screenFromDataRect(target_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
+                const target_column_rect = file.columnRect(target_index);
+
+                const target_box_rect = target_column_rect;
 
                 if (workspace.columns_drag_index) |removed_index| {
                     const removed_rect = file.columnRect(removed_index);
+
+                    defer {
+                        var target_box_label_rect = target_box_rect;
+                        target_box_label_rect.y -= workspace.horizontal_ruler_height / file.editor.canvas.scale;
+                        target_box_label_rect.h = workspace.horizontal_ruler_height / file.editor.canvas.scale;
+
+                        const target_box_label_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                            .expand = .none,
+                            .rect = target_box_label_rect,
+                            .border = dvui.Rect.all(0),
+                            .background = true,
+                            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                        });
+                        target_box_label_box.deinit();
+
+                        const target_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                            .expand = .none,
+                            .rect = target_box_rect,
+                            .border = dvui.Rect.all(0),
+                            .background = true,
+                            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                            .box_shadow = .{
+                                .color = .black,
+                                .offset = .{ .x = -4.0 / self.init_options.file.editor.canvas.scale, .y = 4.0 / self.init_options.file.editor.canvas.scale },
+                                .fade = 10.0 / self.init_options.file.editor.canvas.scale,
+                                .alpha = 0.2,
+                            },
+                        });
+                        defer target_box.deinit();
+
+                        pixi.render.renderLayers(.{
+                            .file = file,
+                            .rs = .{
+                                .r = target_box.data().rectScale().r,
+                                .s = self.init_options.file.editor.canvas.scale,
+                            },
+                            .uv = .{
+                                .x = removed_rect.x / @as(f32, @floatFromInt(file.width())),
+                                .y = removed_rect.y / @as(f32, @floatFromInt(file.height())),
+                                .w = removed_rect.w / @as(f32, @floatFromInt(file.width())),
+                                .h = removed_rect.h / @as(f32, @floatFromInt(file.height())),
+                            },
+                        }) catch {
+                            dvui.log.err("Failed to render file image", .{});
+                        };
+
+                        const label = file.fmtColumn(dvui.currentWindow().arena(), @intCast(removed_index)) catch "err";
+
+                        workspace.drawRulerLabel(.{
+                            .font = dvui.Font.theme(.body),
+                            .label = label,
+                            .rect = file.editor.canvas.screenFromDataRect(target_box_label_rect),
+                            .color = dvui.themeGet().color(.window, .fill),
+                        });
+                    }
+
+                    defer if (removed_index != target_index) {
+                        // Dim the area we removed from
+                        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 0.0 });
+                    };
                     if (target_index <= removed_index) {
                         {
                             const rect_left: dvui.Rect = .{
@@ -2919,7 +2980,7 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
                         // ensuring the column directly after the target is drawn.
                         if (removed_index - target_index >= 1) {
                             const rect_middle: dvui.Rect = .{
-                                .x = target_rect.x,
+                                .x = target_column_rect.x,
                                 .y = 0.0,
                                 .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(removed_index - target_index)),
                                 .h = @as(f32, @floatFromInt(file.height())),
@@ -3000,9 +3061,9 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
 
                         if (target_index - removed_index >= 1) {
                             const rect_middle: dvui.Rect = .{
-                                .x = removed_rect.x,
+                                .x = removed_rect.x + removed_rect.w,
                                 .y = 0.0,
-                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(target_index - removed_index + 1)),
+                                .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt((target_index - removed_index))),
                                 .h = @as(f32, @floatFromInt(file.height())),
                             };
 
@@ -3028,7 +3089,7 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
 
                         {
                             const rect_right: dvui.Rect = .{
-                                .x = target_rect.x + target_rect.w,
+                                .x = target_column_rect.x + target_column_rect.w,
                                 .y = 0.0,
                                 .w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(file.columns - target_index - 1)),
                                 .h = @as(f32, @floatFromInt(file.height())),
@@ -3054,15 +3115,77 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
                         }
                     }
                 }
-            }
+            } else {}
         },
         .rows => {
             if (workspace.rows_target_index) |target_index| {
-                const target_rect = file.rowRect(target_index);
-                file.editor.canvas.screenFromDataRect(target_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5), .fade = 0.0 });
+                const target_row_rect = file.rowRect(target_index);
+
+                const target_box_rect = target_row_rect;
 
                 if (workspace.rows_drag_index) |removed_index| {
                     const removed_rect = file.rowRect(removed_index);
+
+                    defer {
+                        var target_box_label_rect = target_box_rect;
+                        target_box_label_rect.x -= workspace.vertical_ruler_width / file.editor.canvas.scale;
+                        target_box_label_rect.w = workspace.vertical_ruler_width / file.editor.canvas.scale;
+
+                        const target_box_label_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+                            .expand = .none,
+                            .rect = target_box_label_rect,
+                            .border = dvui.Rect.all(0),
+                            .background = true,
+                            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                        });
+                        target_box_label_box.deinit();
+
+                        const target_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+                            .expand = .none,
+                            .rect = target_box_rect,
+                            .border = dvui.Rect.all(0),
+                            .background = true,
+                            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                            .box_shadow = .{
+                                .color = .black,
+                                .offset = .{ .x = -4.0 / self.init_options.file.editor.canvas.scale, .y = 4.0 / self.init_options.file.editor.canvas.scale },
+                                .fade = 10.0 / self.init_options.file.editor.canvas.scale,
+                                .alpha = 0.2,
+                            },
+                        });
+                        defer target_box.deinit();
+
+                        pixi.render.renderLayers(.{
+                            .file = file,
+                            .rs = .{
+                                .r = target_box.data().rectScale().r,
+                                .s = self.init_options.file.editor.canvas.scale,
+                            },
+                            .uv = .{
+                                .x = removed_rect.x / @as(f32, @floatFromInt(file.width())),
+                                .y = removed_rect.y / @as(f32, @floatFromInt(file.height())),
+                                .w = removed_rect.w / @as(f32, @floatFromInt(file.width())),
+                                .h = removed_rect.h / @as(f32, @floatFromInt(file.height())),
+                            },
+                        }) catch {
+                            dvui.log.err("Failed to render file image", .{});
+                        };
+
+                        const label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{removed_index}) catch "err";
+
+                        workspace.drawRulerLabel(.{
+                            .font = dvui.Font.theme(.body),
+                            .label = label,
+                            .rect = file.editor.canvas.screenFromDataRect(target_box_label_rect),
+                            .color = dvui.themeGet().color(.window, .fill),
+                            .mode = .vertical,
+                        });
+                    }
+
+                    defer if (removed_index != target_index) {
+                        // Dim the area we removed from
+                        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 0.0 });
+                    };
 
                     if (target_index <= removed_index) {
                         {
@@ -3096,7 +3219,7 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
                         if (removed_index - target_index >= 1) {
                             const rect_middle: dvui.Rect = .{
                                 .x = 0.0,
-                                .y = target_rect.y,
+                                .y = target_row_rect.y,
                                 .w = @as(f32, @floatFromInt(file.width())),
                                 .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(removed_index - target_index)),
                             };
@@ -3177,9 +3300,9 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
                         if (target_index - removed_index >= 1) {
                             const rect_middle: dvui.Rect = .{
                                 .x = 0.0,
-                                .y = removed_rect.y,
+                                .y = removed_rect.y + removed_rect.h,
                                 .w = @as(f32, @floatFromInt(file.width())),
-                                .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(target_index - removed_index + 1)),
+                                .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt((target_index - removed_index))),
                             };
 
                             if (rect_middle.h > 0.0) {
@@ -3205,7 +3328,7 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
                         {
                             const rect_bottom: dvui.Rect = .{
                                 .x = 0.0,
-                                .y = target_rect.y + target_rect.h,
+                                .y = target_row_rect.y + target_row_rect.h,
                                 .w = @as(f32, @floatFromInt(file.width())),
                                 .h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(file.rows - target_index - 1)),
                             };
@@ -3230,7 +3353,7 @@ pub fn drawReorderPreviewLayers(self: *FileWidget) void {
                         }
                     }
                 }
-            }
+            } else {}
         },
     }
 }
