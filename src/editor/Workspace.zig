@@ -37,6 +37,9 @@ rows_insert_before_index: ?usize = null,
 horizontal_scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
 vertical_scroll_info: dvui.ScrollInfo = .{ .vertical = .given, .horizontal = .given },
 
+horizontal_ruler_height: f32 = 0.0,
+vertical_ruler_width: f32 = 0.0,
+
 pub fn init(grouping: u64) Workspace {
     return .{ .grouping = grouping };
 }
@@ -487,7 +490,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
     const font = dvui.Font.theme(.body);
 
     // Set ruler height to the font height plus some padding
-    const ruler_height = font.textSize("M").h + pixi.editor.settings.ruler_padding;
+    self.horizontal_ruler_height = font.textSize("M").h + pixi.editor.settings.ruler_padding;
 
     var canvas_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
@@ -511,14 +514,14 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
 
     var top_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
-        .min_size_content = .{ .h = ruler_height, .w = ruler_height },
+        .min_size_content = .{ .h = self.horizontal_ruler_height, .w = self.horizontal_ruler_height },
         .background = true,
         .color_fill = dvui.themeGet().color(.window, .fill),
     });
     defer top_box.deinit();
 
     self.horizontal_scroll_info.virtual_size.w = file.editor.canvas.scroll_info.virtual_size.w;
-    self.horizontal_scroll_info.virtual_size.h = ruler_height;
+    self.horizontal_scroll_info.virtual_size.h = self.horizontal_ruler_height;
     self.horizontal_scroll_info.viewport.w = file.editor.canvas.scroll_info.viewport.w;
     self.horizontal_scroll_info.viewport.x = file.editor.canvas.scroll_info.viewport.x;
 
@@ -536,7 +539,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
 
     var outer_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
-        .rect = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(file.width())), .h = ruler_height / file.editor.canvas.scale },
+        .rect = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(file.width())), .h = self.horizontal_ruler_height / file.editor.canvas.scale },
     });
     defer outer_box.deinit();
 
@@ -601,7 +604,8 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
 
         if (reorderable.floating()) {
             self.columns_drag_index = column_index;
-            columns.reorderable_size.h = @as(f32, @floatFromInt(file.height())) + ruler_height / file.editor.canvas.scale;
+            columns.reorderable_size.h = 0.0;
+            dvui.cursorSet(.hand);
         }
         if (reorderable.removed()) {
             self.columns_removed_index = column_index;
@@ -634,21 +638,6 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
                 .rect = cell_box.data().rectScale().r,
                 .color = dvui.themeGet().color(.control, .text).opacity(0.5),
             });
-
-            if (reorderable.target_rs) |target_rs| {
-                if (self.columns_drag_index) |columns_drag_index| {
-                    const drag_label = file.fmtColumn(dvui.currentWindow().arena(), @intCast(columns_drag_index)) catch {
-                        dvui.log.err("Failed to allocate label", .{});
-                        return;
-                    };
-                    self.drawRulerLabel(.{
-                        .font = font,
-                        .label = drag_label,
-                        .rect = target_rs.r,
-                        .color = dvui.themeGet().color(.window, .fill),
-                    });
-                }
-            }
 
             const top_right = cell_box.data().rectScale().r.topLeft();
             const bottom_right = cell_box.data().rectScale().r.bottomLeft();
@@ -699,7 +688,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
         if (reorderable.floating()) {
             const image_rect = dvui.Rect{
                 .x = 0,
-                .y = ruler_height / file.editor.canvas.scale,
+                .y = self.horizontal_ruler_height / file.editor.canvas.scale,
                 .w = @as(f32, @floatFromInt(file.column_width)),
                 .h = @as(f32, @floatFromInt(file.height())),
             };
@@ -749,21 +738,6 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
             .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.column_width)) },
         });
         defer reorderable.deinit();
-
-        if (reorderable.target_rs) |target_rs| {
-            if (self.columns_drag_index) |columns_drag_index| {
-                const drag_label = file.fmtColumn(dvui.currentWindow().arena(), @intCast(columns_drag_index)) catch {
-                    dvui.log.err("Failed to allocate label", .{});
-                    return;
-                };
-                self.drawRulerLabel(.{
-                    .font = font,
-                    .label = drag_label,
-                    .rect = target_rs.r,
-                    .color = dvui.themeGet().color(.window, .fill),
-                });
-            }
-        }
 
         if (reorderable.insertBefore()) {
             self.columns_insert_before_index = file.columns;
@@ -858,18 +832,18 @@ pub fn drawVerticalRuler(self: *Workspace) void {
         return;
     };
     const largest_label_size = font.textSize(largest_label);
-    const ruler_width = largest_label_size.w + pixi.editor.settings.ruler_padding;
+    self.vertical_ruler_width = largest_label_size.w + pixi.editor.settings.ruler_padding;
 
     var ruler_box = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .vertical,
-        .min_size_content = .{ .w = ruler_width, .h = 1.0 },
+        .min_size_content = .{ .w = self.vertical_ruler_width, .h = 1.0 },
         .background = true,
         .color_fill = dvui.themeGet().color(.window, .fill),
     });
     defer ruler_box.deinit();
 
     self.vertical_scroll_info.virtual_size.h = file.editor.canvas.scroll_info.virtual_size.h;
-    self.vertical_scroll_info.virtual_size.w = ruler_width;
+    self.vertical_scroll_info.virtual_size.w = self.vertical_ruler_width;
     self.vertical_scroll_info.viewport.h = file.editor.canvas.scroll_info.viewport.h;
     self.vertical_scroll_info.viewport.y = file.editor.canvas.scroll_info.viewport.y;
 
@@ -887,7 +861,7 @@ pub fn drawVerticalRuler(self: *Workspace) void {
 
     var outer_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
-        .rect = .{ .x = 0, .y = 0, .h = @as(f32, @floatFromInt(file.height())), .w = ruler_width * (1.0 / file.editor.canvas.scale) },
+        .rect = .{ .x = 0, .y = 0, .h = @as(f32, @floatFromInt(file.height())), .w = self.vertical_ruler_width * (1.0 / file.editor.canvas.scale) },
     });
     defer outer_box.deinit();
 
@@ -941,11 +915,19 @@ pub fn drawVerticalRuler(self: *Workspace) void {
             dvui.cursorSet(.hand);
         }
 
+        var cell_box: dvui.BoxWidget = undefined;
+        cell_box.init(@src(), .{ .dir = .horizontal }, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = button_color,
+            .id_extra = row_index,
+        });
+
         if (reorderable.floating()) {
             self.rows_drag_index = row_index;
-            rows.reorderable_size.w = @as(f32, @floatFromInt(file.width())) + ruler_width / file.editor.canvas.scale;
+            rows.reorderable_size.w = 0.0;
+            dvui.cursorSet(.hand);
         }
-
         if (reorderable.removed()) {
             self.rows_removed_index = row_index;
         }
@@ -962,21 +944,9 @@ pub fn drawVerticalRuler(self: *Workspace) void {
             self.rows_target_index = file.rowIndex(mouse_pt);
         }
 
-        var cell_box: dvui.BoxWidget = undefined;
-
-        cell_box.init(@src(), .{ .dir = .horizontal }, .{
-            .expand = .both,
-            .background = true,
-            .color_fill = button_color,
-            .id_extra = row_index,
-        });
-
         {
             defer cell_box.deinit();
             cell_box.drawBackground();
-
-            const top_right = cell_box.data().rectScale().r.topLeft();
-            const top_left = cell_box.data().rectScale().r.topRight();
 
             const label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{row_index}) catch {
                 dvui.log.err("Failed to allocate label", .{});
@@ -992,26 +962,20 @@ pub fn drawVerticalRuler(self: *Workspace) void {
                 .mode = .vertical,
             });
 
-            if (reorderable.target_rs) |target_rs| {
-                if (self.rows_drag_index) |rows_drag_index| {
-                    const drag_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{rows_drag_index}) catch {
-                        dvui.log.err("Failed to allocate label", .{});
-                        return;
-                    };
-                    self.drawRulerLabel(.{
-                        .font = font,
-                        .label = drag_label,
-                        .rect = target_rs.r,
-                        .color = dvui.themeGet().color(.window, .fill),
-                        .mode = .vertical,
-                    });
-                }
-            }
+            const top_right = cell_box.data().rectScale().r.topLeft();
+            const top_left = cell_box.data().rectScale().r.topRight();
 
             dvui.Path.stroke(.{ .points = &.{ top_right, top_left } }, .{
                 .color = ruler_stroke_color,
                 .thickness = 2.0,
             });
+
+            if (reorderable.floating()) {
+                const bottom_left = cell_box.data().rectScale().r.bottomLeft();
+                const bottom_right = cell_box.data().rectScale().r.bottomRight();
+
+                dvui.Path.stroke(.{ .points = &.{ bottom_left, bottom_right } }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
+            }
 
             loop: for (dvui.events()) |*e| {
                 if (!cell_box.matchEvent(e)) {
@@ -1049,7 +1013,7 @@ pub fn drawVerticalRuler(self: *Workspace) void {
 
         if (reorderable.floating()) {
             const image_rect = dvui.Rect{
-                .x = ruler_width / file.editor.canvas.scale,
+                .x = self.vertical_ruler_width / file.editor.canvas.scale,
                 .y = 0.0,
                 .w = @as(f32, @floatFromInt(file.width())),
                 .h = @as(f32, @floatFromInt(file.row_height)),
@@ -1093,29 +1057,13 @@ pub fn drawVerticalRuler(self: *Workspace) void {
             .mode = .any_x,
             .last_slot = true,
         }, .{
-            .expand = .vertical,
+            .expand = .horizontal,
             .id_extra = file.rows,
             .padding = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
-            .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.row_height)) },
+            .min_size_content = .{ .h = @as(f32, @floatFromInt(file.row_height)), .w = 1 },
         });
         defer reorderable.deinit();
-
-        if (reorderable.target_rs) |target_rs| {
-            if (self.rows_drag_index) |rows_drag_index| {
-                const drag_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{rows_drag_index}) catch {
-                    dvui.log.err("Failed to allocate label", .{});
-                    return;
-                };
-                self.drawRulerLabel(.{
-                    .font = font,
-                    .label = drag_label,
-                    .rect = target_rs.r,
-                    .color = dvui.themeGet().color(.window, .fill),
-                    .mode = .vertical,
-                });
-            }
-        }
 
         if (reorderable.insertBefore()) {
             self.rows_insert_before_index = file.rows;
