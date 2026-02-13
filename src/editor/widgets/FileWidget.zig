@@ -3146,12 +3146,6 @@ fn drawReorderPreviewForAxis(
             .border = dvui.Rect.all(0),
             .background = true,
             .color_fill = dvui.themeGet().color(.window, .fill),
-            // .box_shadow = .{
-            //     .color = .black,
-            //     .offset = .{ .x = -4.0 / scale, .y = 4.0 / scale },
-            //     .fade = 10.0 / scale,
-            //     .alpha = shadow_alpha * 0.6,
-            // },
         });
         defer target_box.deinit();
         defer {
@@ -3179,15 +3173,62 @@ fn drawReorderPreviewForAxis(
 
     defer if (removed_index != target_i) {
         if (axis == .columns) {
+            const top = if (removed_index < target_i) removed_rect.topLeft() else removed_rect.topRight();
+            const bottom = if (removed_index < target_i) removed_rect.bottomLeft() else removed_rect.bottomRight();
             dvui.Path.stroke(.{ .points = &.{
-                file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topLeft() else removed_rect.topRight()),
-                file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.bottomLeft() else removed_rect.bottomRight()),
-            } }, .{ .thickness = 2, .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5) });
+                file.editor.canvas.screenFromDataPoint(top),
+                file.editor.canvas.screenFromDataPoint(bottom),
+            } }, .{ .thickness = 3, .color = dvui.themeGet().color(.highlight, .fill) });
+
+            dvui.Path.fillConvex(.{
+                .points = &.{
+                    file.editor.canvas.screenFromDataPoint(top),
+                    file.editor.canvas.screenFromDataPoint(top.plus(.{ .x = 5.0 / scale, .y = -10.0 / scale })),
+                    file.editor.canvas.screenFromDataPoint(top.plus(.{ .x = -5.0 / scale, .y = -10.0 / scale })),
+                },
+            }, .{
+                .color = dvui.themeGet().color(.highlight, .fill),
+                .fade = 1.0,
+            });
+
+            dvui.Path.fillConvex(.{
+                .points = &.{
+                    file.editor.canvas.screenFromDataPoint(bottom),
+                    file.editor.canvas.screenFromDataPoint(bottom.plus(.{ .x = 5.0 / scale, .y = 10.0 / scale })),
+                    file.editor.canvas.screenFromDataPoint(bottom.plus(.{ .x = -5.0 / scale, .y = 10.0 / scale })),
+                },
+            }, .{
+                .color = dvui.themeGet().color(.highlight, .fill),
+                .fade = 1.0,
+            });
         } else {
+            const left = if (removed_index < target_i) removed_rect.topLeft() else removed_rect.bottomLeft();
+            const right = if (removed_index < target_i) removed_rect.topRight() else removed_rect.bottomRight();
             dvui.Path.stroke(.{ .points = &.{
-                file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topLeft() else removed_rect.bottomLeft()),
-                file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topRight() else removed_rect.bottomRight()),
-            } }, .{ .thickness = 2, .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5) });
+                file.editor.canvas.screenFromDataPoint(left),
+                file.editor.canvas.screenFromDataPoint(right),
+            } }, .{ .thickness = 3, .color = dvui.themeGet().color(.highlight, .fill) });
+
+            dvui.Path.fillConvex(.{
+                .points = &.{
+                    file.editor.canvas.screenFromDataPoint(left),
+                    file.editor.canvas.screenFromDataPoint(left.plus(.{ .x = -8.0 / scale, .y = -5.0 / scale })),
+                    file.editor.canvas.screenFromDataPoint(left.plus(.{ .x = -8.0 / scale, .y = 5.0 / scale })),
+                },
+            }, .{
+                .color = dvui.themeGet().color(.highlight, .fill),
+                .fade = 1.0,
+            });
+            dvui.Path.fillConvex(.{
+                .points = &.{
+                    file.editor.canvas.screenFromDataPoint(right),
+                    file.editor.canvas.screenFromDataPoint(right.plus(.{ .x = 8.0 / scale, .y = -5.0 / scale })),
+                    file.editor.canvas.screenFromDataPoint(right.plus(.{ .x = 8.0 / scale, .y = 5.0 / scale })),
+                },
+            }, .{
+                .color = dvui.themeGet().color(.highlight, .fill),
+                .fade = 1.0,
+            });
         }
     };
 

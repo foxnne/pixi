@@ -789,14 +789,6 @@ fn drawRulerContent(
             };
             dvui.Path.stroke(.{ .points = &cell_stroke_points }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
 
-            if (reorderable.floating()) {
-                const floating_stroke_points = switch (orientation) {
-                    .horizontal => .{ cell_rect.topLeft(), cell_rect.bottomLeft() },
-                    .vertical => .{ cell_rect.bottomLeft(), cell_rect.bottomRight() },
-                };
-                dvui.Path.stroke(.{ .points = &floating_stroke_points }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
-            }
-
             loop: for (dvui.events()) |*e| {
                 if (!cell_box.matchEvent(e)) continue;
 
