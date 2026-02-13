@@ -3160,10 +3160,17 @@ fn drawReorderPreviewForAxis(
     }
 
     defer if (removed_index != target_i) {
-        dvui.Path.stroke(.{ .points = &.{
-            file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topLeft() else removed_rect.topRight()),
-            file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.bottomLeft() else removed_rect.bottomRight()),
-        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.err, .fill) });
+        if (axis == .columns) {
+            dvui.Path.stroke(.{ .points = &.{
+                file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topLeft() else removed_rect.topRight()),
+                file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.bottomLeft() else removed_rect.bottomRight()),
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.err, .fill) });
+        } else {
+            dvui.Path.stroke(.{ .points = &.{
+                file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topLeft() else removed_rect.bottomLeft()),
+                file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topRight() else removed_rect.bottomRight()),
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.err, .fill) });
+        }
     };
 
     const segments = reorderSegmentRects(axis, file, target_i, removed_index, target_rect, removed_rect);
