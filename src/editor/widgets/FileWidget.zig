@@ -3022,10 +3022,6 @@ fn drawReorderPreviewForAxis(
             .h = @floatFromInt(file.height()),
         };
         self.renderLayersInDataRect(file, full_rect, null);
-        file.editor.canvas.screenFromDataRect(removed_rect).stroke(.all(0), .{
-            .color = dvui.themeGet().color(.err, .fill),
-            .thickness = 1.0,
-        });
         return;
     }
 
@@ -3046,7 +3042,9 @@ fn drawReorderPreviewForAxis(
         .rows => workspace.vertical_ruler_width,
     } / scale;
 
-    defer {
+    var shadow_alpha: f32 = 0.0;
+
+    {
         var target_box_rect = target_rect;
 
         {
@@ -3057,39 +3055,41 @@ fn drawReorderPreviewForAxis(
 
                 if (self.grid_reorder_point != null) {
                     if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_x")) |anim| {
-                        _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("reorder_target_rect_x"));
-                        dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_x", .{
-                            .start_val = anim.value(),
-                            .end_val = target_box_rect.x,
-                            .end_time = 250_000,
-                            .easing = dvui.easing.outBack,
-                        });
-                    } else {
+                        if (anim.end_val != target_box_rect.x) {
+                            _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("reorder_target_rect_x"));
+                            dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_x", .{
+                                .start_val = anim.value(),
+                                .end_val = target_box_rect.x,
+                                .end_time = 350_000,
+                                .easing = dvui.easing.outBack,
+                            });
+                        }
+                    } else if (target_box_rect.x != current_tl.x) {
 
                         // If we are here, we need to trigger a new animation to move the resize button rect to the new point
                         dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_x", .{
                             .start_val = current_tl.x,
                             .end_val = target_box_rect.x,
-                            .end_time = 250_000,
+                            .end_time = 350_000,
                             .easing = dvui.easing.outBack,
                         });
-                    }
-
-                    if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_y")) |anim| {
-                        _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("reorder_target_rect_y"));
-                        dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_y", .{
-                            .start_val = anim.value(),
-                            .end_val = target_box_rect.y,
-                            .end_time = 250_000,
-                            .easing = dvui.easing.outBack,
-                        });
-                    } else {
+                    } else if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_y")) |anim| {
+                        if (anim.end_val != target_box_rect.y) {
+                            _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("reorder_target_rect_y"));
+                            dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_y", .{
+                                .start_val = anim.value(),
+                                .end_val = target_box_rect.y,
+                                .end_time = 350_000,
+                                .easing = dvui.easing.outBack,
+                            });
+                        }
+                    } else if (target_box_rect.y != current_tl.y) {
 
                         // If we are here, we need to trigger a new animation to move the resize button rect to the new point
                         dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_y", .{
                             .start_val = current_tl.y,
                             .end_val = target_box_rect.y,
-                            .end_time = 250_000,
+                            .end_time = 350_000,
                             .easing = dvui.easing.outBack,
                         });
                     }
@@ -3097,10 +3097,12 @@ fn drawReorderPreviewForAxis(
 
                 if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_x")) |anim| {
                     target_box_rect.x = anim.value();
+                    shadow_alpha = 1.0 - (anim.value() - anim.start_val) / (anim.end_val - anim.start_val);
                 }
 
                 if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_y")) |anim| {
                     target_box_rect.y = anim.value();
+                    shadow_alpha = 1.0 - (anim.value() - anim.start_val) / (anim.end_val - anim.start_val);
                 }
             }
         }
@@ -3122,24 +3124,33 @@ fn drawReorderPreviewForAxis(
             .rect = target_box_label_rect,
             .border = dvui.Rect.all(0),
             .background = true,
-            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+            .color_fill = dvui.themeGet().color(.highlight, .fill),
         });
         target_box_label_box.deinit();
+
+        file.editor.canvas.screenFromDataRect(target_rect).fill(.all(0), .{
+            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.6),
+            .fade = 1.0,
+        });
 
         const target_box = dvui.box(@src(), .{ .dir = box_dir }, .{
             .expand = .none,
             .rect = target_box_rect,
             .border = dvui.Rect.all(0),
             .background = true,
-            .color_fill = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-            .box_shadow = .{
-                .color = .black,
-                .offset = .{ .x = -4.0 / scale, .y = 4.0 / scale },
-                .fade = 10.0 / scale,
-                .alpha = 0.2,
-            },
+            .color_fill = dvui.themeGet().color(.window, .fill),
+            // .box_shadow = .{
+            //     .color = .black,
+            //     .offset = .{ .x = -4.0 / scale, .y = 4.0 / scale },
+            //     .fade = 10.0 / scale,
+            //     .alpha = shadow_alpha * 0.6,
+            // },
         });
         defer target_box.deinit();
+        defer {
+            pixi.dvui.drawEdgeShadow(.{ .r = file.editor.canvas.screenFromDataRect(target_rect), .s = scale }, if (axis == .columns) .right else .top, .{});
+            pixi.dvui.drawEdgeShadow(.{ .r = file.editor.canvas.screenFromDataRect(target_rect), .s = scale }, if (axis == .columns) .left else .bottom, .{});
+        }
 
         self.renderLayersInDataRect(file, removed_rect, target_box.data().rectScale().r);
 
@@ -3164,12 +3175,12 @@ fn drawReorderPreviewForAxis(
             dvui.Path.stroke(.{ .points = &.{
                 file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topLeft() else removed_rect.topRight()),
                 file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.bottomLeft() else removed_rect.bottomRight()),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.err, .fill) });
+            } }, .{ .thickness = 2, .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5) });
         } else {
             dvui.Path.stroke(.{ .points = &.{
                 file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topLeft() else removed_rect.bottomLeft()),
                 file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topRight() else removed_rect.bottomRight()),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.err, .fill) });
+            } }, .{ .thickness = 2, .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5) });
         }
     };
 
