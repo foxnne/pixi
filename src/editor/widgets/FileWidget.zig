@@ -3125,6 +3125,13 @@ fn drawReorderPreviewForAxis(
             .border = dvui.Rect.all(0),
             .background = true,
             .color_fill = dvui.themeGet().color(.highlight, .fill),
+            .corner_radius = if (axis == .columns) .{
+                .x = 10000000,
+                .y = 10000000,
+            } else .{
+                .x = 10000000,
+                .h = 10000000,
+            },
         });
         target_box_label_box.deinit();
 

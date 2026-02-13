@@ -507,7 +507,7 @@ pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
     const largest_label_size = font.textSize(largest_label);
     const base_ruler_size = largest_label_size.w + pixi.editor.settings.ruler_padding;
 
-    const ruler_size: f32 = switch (orientation) {
+    const ruler_thickness: f32 = switch (orientation) {
         .horizontal => blk: {
             self.horizontal_ruler_height = font.textSize("M").h + pixi.editor.settings.ruler_padding;
             break :blk self.horizontal_ruler_height;
@@ -535,24 +535,24 @@ pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
 
             var top_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .horizontal,
-                .min_size_content = .{ .h = ruler_size, .w = ruler_size },
+                .min_size_content = .{ .h = ruler_thickness, .w = ruler_thickness },
                 .background = true,
                 .color_fill = dvui.themeGet().color(.window, .fill),
             });
             defer top_box.deinit();
 
-            self.drawRulerContent(file, font, orientation, ruler_size, largest_label);
+            self.drawRulerContent(file, font, orientation, ruler_thickness, largest_label);
         },
         .vertical => {
             var ruler_box = dvui.box(@src(), .{ .dir = .vertical }, .{
                 .expand = .vertical,
-                .min_size_content = .{ .w = ruler_size, .h = 1.0 },
+                .min_size_content = .{ .w = ruler_thickness, .h = 1.0 },
                 .background = true,
                 .color_fill = dvui.themeGet().color(.window, .fill),
             });
             defer ruler_box.deinit();
 
-            self.drawRulerContent(file, font, orientation, ruler_size, largest_label);
+            self.drawRulerContent(file, font, orientation, ruler_thickness, largest_label);
         },
     }
 }
@@ -671,7 +671,7 @@ fn drawRulerContent(
     };
     defer dvui.Path.stroke(.{ .points = &edge_stroke_points }, .{
         .color = ruler_stroke_color,
-        .thickness = 2.0,
+        .thickness = 1.0,
     });
 
     const count = switch (orientation) {
@@ -828,56 +828,6 @@ fn drawRulerContent(
                     },
                     else => {},
                 }
-            }
-        }
-
-        if (reorderable.floating()) {
-            const image_rect = switch (orientation) {
-                .horizontal => dvui.Rect{
-                    .x = 0,
-                    .y = ruler_size / scale,
-                    .w = @as(f32, @floatFromInt(file.column_width)),
-                    .h = @as(f32, @floatFromInt(file.height())),
-                },
-                .vertical => dvui.Rect{
-                    .x = ruler_size / scale,
-                    .y = 0,
-                    .w = @as(f32, @floatFromInt(file.width())),
-                    .h = @as(f32, @floatFromInt(file.row_height)),
-                },
-            };
-
-            const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .rect = image_rect,
-                .background = false,
-                .color_fill = dvui.themeGet().color(.err, .fill),
-            });
-            defer box.deinit();
-
-            const uv = switch (orientation) {
-                .horizontal => dvui.Rect{
-                    .x = @as(f32, @floatFromInt(index)) * @as(f32, @floatFromInt(file.column_width)) / @as(f32, @floatFromInt(file.width())),
-                    .y = 0.0,
-                    .w = @as(f32, @floatFromInt(file.column_width)) / @as(f32, @floatFromInt(file.width())),
-                    .h = 1.0,
-                },
-                .vertical => dvui.Rect{
-                    .x = 0.0,
-                    .y = @as(f32, @floatFromInt(index)) * @as(f32, @floatFromInt(file.row_height)) / @as(f32, @floatFromInt(file.height())),
-                    .w = 1.0,
-                    .h = @as(f32, @floatFromInt(file.row_height)) / @as(f32, @floatFromInt(file.height())),
-                },
-            };
-
-            var i: usize = file.layers.len;
-            while (i > 0) {
-                i -= 1;
-                const layer = file.layers.get(i);
-                if (!layer.visible) continue;
-
-                dvui.renderImage(layer.source, box.data().rectScale(), .{ .uv = uv }) catch {
-                    dvui.log.err("Failed to render checkerboard", .{});
-                };
             }
         }
     }
