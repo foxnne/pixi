@@ -284,6 +284,8 @@ pub const Reorderable = struct {
         require_hover: bool = true,
 
         mode: Mode = .default,
+
+        clamp_to_edges: bool = false,
     };
 
     wd: WidgetData,
@@ -348,13 +350,19 @@ pub const Reorderable = struct {
                 }
                 const rs = self.data().rectScale();
 
-                var found_slot = rs.r.contains(dvui.currentWindow().mouse_pt);
+                var mouse_pt = dvui.currentWindow().mouse_pt;
+                if (self.init_options.clamp_to_edges) {
+                    mouse_pt.x = std.math.clamp(mouse_pt.x, self.reorder.data().rectScale().r.x + 1.0, self.reorder.data().rectScale().r.x + self.reorder.data().rectScale().r.w - 1.0);
+                    mouse_pt.y = std.math.clamp(mouse_pt.y, self.reorder.data().rectScale().r.y + 1.0, self.reorder.data().rectScale().r.y + self.reorder.data().rectScale().r.h - 1.0);
+                }
+
+                var found_slot = rs.r.contains(mouse_pt);
 
                 if (self.init_options.mode == .any_y) {
-                    found_slot = dvui.currentWindow().mouse_pt.x > rs.r.x and dvui.currentWindow().mouse_pt.x < rs.r.x + rs.r.w;
+                    found_slot = mouse_pt.x > rs.r.x and mouse_pt.x < rs.r.x + rs.r.w;
                 }
                 if (self.init_options.mode == .any_x) {
-                    found_slot = dvui.currentWindow().mouse_pt.y > rs.r.y and dvui.currentWindow().mouse_pt.y < rs.r.y + rs.r.h;
+                    found_slot = mouse_pt.y > rs.r.y and mouse_pt.y < rs.r.y + rs.r.h;
                 }
 
                 if (!self.reorder.found_slot and found_slot) {

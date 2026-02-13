@@ -695,6 +695,7 @@ fn drawRulerContent(
     while (index < count) : (index += 1) {
         var reorderable = reorder.reorderable(@src(), .{
             .mode = reorder_mode,
+            .clamp_to_edges = true,
         }, .{
             .expand = reorder_expand,
             .id_extra = index,
@@ -732,6 +733,7 @@ fn drawRulerContent(
                 if (self.columns_drag_index) |_| {
                     var mouse_pt = @constCast(&file.editor.canvas).dataFromScreenPoint(dvui.currentWindow().mouse_pt);
                     mouse_pt.y = 0.0;
+                    mouse_pt.x = std.math.clamp(mouse_pt.x, 0.0, @as(f32, @floatFromInt(file.width() - 1)));
                     self.columns_target_index = file.columnIndex(mouse_pt);
                 }
             },
@@ -747,6 +749,7 @@ fn drawRulerContent(
                 if (self.rows_drag_index) |_| {
                     var mouse_pt = @constCast(&file.editor.canvas).dataFromScreenPoint(dvui.currentWindow().mouse_pt);
                     mouse_pt.x = 0.0;
+                    mouse_pt.y = std.math.clamp(mouse_pt.y, 0.0, @as(f32, @floatFromInt(file.height() - 1)));
                     self.rows_target_index = file.rowIndex(mouse_pt);
                 }
             },
@@ -887,6 +890,7 @@ fn drawRulerContent(
         var reorderable = reorder.reorderable(@src(), .{
             .mode = reorder_mode,
             .last_slot = true,
+            .clamp_to_edges = true,
         }, .{
             .expand = reorder_expand,
             .id_extra = final_slot_id,
