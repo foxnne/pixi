@@ -2998,6 +2998,23 @@ fn drawReorderPreviewForAxis(
 
     if (target_index == null) {
         // Dragging but not over canvas: draw full layers unchanged, then dim removed slot only
+
+        {
+            for (1..file.columns) |i| {
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = @as(f32, @floatFromInt(file.height())) }),
+                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            }
+
+            for (1..file.rows) |i| {
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width())), .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            }
+        }
+
         const full_rect = dvui.Rect{
             .x = 0.0,
             .y = 0.0,
@@ -3005,9 +3022,9 @@ fn drawReorderPreviewForAxis(
             .h = @floatFromInt(file.height()),
         };
         self.renderLayersInDataRect(file, full_rect, null);
-        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{
-            .color = dvui.themeGet().color(.err, .fill).opacity(0.5),
-            .fade = 0.0,
+        file.editor.canvas.screenFromDataRect(removed_rect).stroke(.all(0), .{
+            .color = dvui.themeGet().color(.err, .fill),
+            .thickness = 1.0,
         });
         return;
     }
@@ -3143,10 +3160,10 @@ fn drawReorderPreviewForAxis(
     }
 
     defer if (removed_index != target_i) {
-        file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{
-            .color = dvui.themeGet().color(.err, .fill).opacity(0.5),
-            .fade = 0.0,
-        });
+        dvui.Path.stroke(.{ .points = &.{
+            file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.topLeft() else removed_rect.topRight()),
+            file.editor.canvas.screenFromDataPoint(if (removed_index < target_i) removed_rect.bottomLeft() else removed_rect.bottomRight()),
+        } }, .{ .thickness = 1, .color = dvui.themeGet().color(.err, .fill) });
     };
 
     const segments = reorderSegmentRects(axis, file, target_i, removed_index, target_rect, removed_rect);
