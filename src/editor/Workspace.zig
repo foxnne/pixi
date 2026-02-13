@@ -22,12 +22,14 @@ tabs_drag_index: ?usize = null,
 tabs_removed_index: ?usize = null,
 tabs_insert_before_index: ?usize = null,
 
+columns_drag_name: []const u8 = undefined,
 columns_drag_index: ?usize = null,
 columns_target_id: ?dvui.Id = null,
 columns_target_index: ?usize = null,
 columns_removed_index: ?usize = null,
 columns_insert_before_index: ?usize = null,
 
+rows_drag_name: []const u8 = undefined,
 rows_drag_index: ?usize = null,
 rows_target_id: ?dvui.Id = null,
 rows_target_index: ?usize = null,
@@ -41,7 +43,11 @@ horizontal_ruler_height: f32 = 0.0,
 vertical_ruler_width: f32 = 0.0,
 
 pub fn init(grouping: u64) Workspace {
-    return .{ .grouping = grouping };
+    return .{
+        .grouping = grouping,
+        .columns_drag_name = std.fmt.allocPrint(pixi.app.allocator, "column_drag_{d}", .{grouping}) catch "column_drag",
+        .rows_drag_name = std.fmt.allocPrint(pixi.app.allocator, "row_drag_{d}", .{grouping}) catch "row_drag",
+    };
 }
 
 const handle_size = 10;
@@ -543,7 +549,7 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
     });
     defer outer_box.deinit();
 
-    var columns = pixi.dvui.reorder(@src(), .{ .drag_name = "column_drag" }, .{
+    var columns = pixi.dvui.reorder(@src(), .{ .drag_name = self.columns_drag_name }, .{
         .expand = .both,
         .margin = dvui.Rect.all(0),
         .padding = dvui.Rect.all(0),
@@ -865,7 +871,7 @@ pub fn drawVerticalRuler(self: *Workspace) void {
     });
     defer outer_box.deinit();
 
-    var rows = pixi.dvui.reorder(@src(), .{ .drag_name = "row_drag" }, .{
+    var rows = pixi.dvui.reorder(@src(), .{ .drag_name = self.rows_drag_name }, .{
         .expand = .both,
         .margin = dvui.Rect.all(0),
         .padding = dvui.Rect.all(0),
