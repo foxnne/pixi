@@ -460,7 +460,7 @@ pub fn drawCanvas(self: *Workspace) !void {
 
         if (pixi.editor.settings.show_rulers) {
             defer pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{});
-            self.drawHorizontalRuler();
+            self.drawRuler(.horizontal);
         }
 
         var canvas_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
@@ -468,7 +468,7 @@ pub fn drawCanvas(self: *Workspace) !void {
 
         if (pixi.editor.settings.show_rulers) {
             defer pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .left, .{});
-            self.drawVerticalRuler();
+            self.drawRuler(.vertical);
         }
 
         self.drawTransformDialog(canvas_vbox);
@@ -491,109 +491,220 @@ pub fn drawCanvas(self: *Workspace) !void {
     }
 }
 
-pub fn drawHorizontalRuler(self: *Workspace) void {
+pub const RulerOrientation = enum {
+    horizontal,
+    vertical,
+};
+
+pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
     const file = &pixi.editor.open_files.values()[self.open_file_index];
     const font = dvui.Font.theme(.body);
-
-    // Set ruler height to the font height plus some padding
-    self.horizontal_ruler_height = font.textSize("M").h + pixi.editor.settings.ruler_padding;
-
-    var canvas_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .expand = .horizontal,
-    });
-    defer canvas_hbox.deinit();
 
     const largest_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{file.rows - 1}) catch {
         dvui.log.err("Failed to allocate largest label", .{});
         return;
     };
     const largest_label_size = font.textSize(largest_label);
-    const vert_ruler_width = largest_label_size.w + pixi.editor.settings.ruler_padding;
+    const base_ruler_size = largest_label_size.w + pixi.editor.settings.ruler_padding;
 
-    var corner_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .expand = .none,
-        .min_size_content = .{ .h = vert_ruler_width, .w = vert_ruler_width },
-        .background = false,
-        .color_fill = dvui.themeGet().color(.window, .fill).lighten(-2.0).opacity(0.75),
-    });
-    corner_box.deinit();
+    const ruler_size: f32 = switch (orientation) {
+        .horizontal => blk: {
+            self.horizontal_ruler_height = font.textSize("M").h + pixi.editor.settings.ruler_padding;
+            break :blk self.horizontal_ruler_height;
+        },
+        .vertical => blk: {
+            self.vertical_ruler_width = base_ruler_size;
+            break :blk self.vertical_ruler_width;
+        },
+    };
 
-    var top_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .expand = .horizontal,
-        .min_size_content = .{ .h = self.horizontal_ruler_height, .w = self.horizontal_ruler_height },
-        .background = true,
-        .color_fill = dvui.themeGet().color(.window, .fill),
-    });
-    defer top_box.deinit();
+    switch (orientation) {
+        .horizontal => {
+            var canvas_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+            });
+            defer canvas_hbox.deinit();
 
-    self.horizontal_scroll_info.virtual_size.w = file.editor.canvas.scroll_info.virtual_size.w;
-    self.horizontal_scroll_info.virtual_size.h = self.horizontal_ruler_height;
-    self.horizontal_scroll_info.viewport.w = file.editor.canvas.scroll_info.viewport.w;
-    self.horizontal_scroll_info.viewport.x = file.editor.canvas.scroll_info.viewport.x;
+            var corner_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .none,
+                .min_size_content = .{ .h = base_ruler_size, .w = base_ruler_size },
+                .background = false,
+                .color_fill = dvui.themeGet().color(.window, .fill),
+            });
+            corner_box.deinit();
 
-    var horizontal_scroll_area = dvui.scrollArea(@src(), .{
-        .scroll_info = &self.horizontal_scroll_info,
+            var top_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+                .min_size_content = .{ .h = ruler_size, .w = ruler_size },
+                .background = true,
+                .color_fill = dvui.themeGet().color(.window, .fill),
+            });
+            defer top_box.deinit();
+
+            self.drawRulerContent(file, font, orientation, ruler_size, largest_label);
+        },
+        .vertical => {
+            var ruler_box = dvui.box(@src(), .{ .dir = .vertical }, .{
+                .expand = .vertical,
+                .min_size_content = .{ .w = ruler_size, .h = 1.0 },
+                .background = true,
+                .color_fill = dvui.themeGet().color(.window, .fill),
+            });
+            defer ruler_box.deinit();
+
+            self.drawRulerContent(file, font, orientation, ruler_size, largest_label);
+        },
+    }
+}
+
+fn drawRulerContent(
+    self: *Workspace,
+    file: *pixi.Internal.File,
+    font: dvui.Font,
+    orientation: RulerOrientation,
+    ruler_size: f32,
+    largest_label: []const u8,
+) void {
+    const scale = file.editor.canvas.scale;
+    const canvas = file.editor.canvas;
+
+    switch (orientation) {
+        .horizontal => {
+            self.horizontal_scroll_info.virtual_size.w = canvas.scroll_info.virtual_size.w;
+            self.horizontal_scroll_info.virtual_size.h = ruler_size;
+            self.horizontal_scroll_info.viewport.w = canvas.scroll_info.viewport.w;
+            self.horizontal_scroll_info.viewport.x = canvas.scroll_info.viewport.x;
+        },
+        .vertical => {
+            self.vertical_scroll_info.virtual_size.h = canvas.scroll_info.virtual_size.h;
+            self.vertical_scroll_info.virtual_size.w = ruler_size;
+            self.vertical_scroll_info.viewport.h = canvas.scroll_info.viewport.h;
+            self.vertical_scroll_info.viewport.y = canvas.scroll_info.viewport.y;
+        },
+    }
+
+    const scroll_info = switch (orientation) {
+        .horizontal => &self.horizontal_scroll_info,
+        .vertical => &self.vertical_scroll_info,
+    };
+
+    var scroll_area = dvui.scrollArea(@src(), .{
+        .scroll_info = scroll_info,
         .container = true,
         .process_events_after = true,
         .horizontal_bar = .hide,
         .vertical_bar = .hide,
     }, .{ .expand = .both });
-    defer horizontal_scroll_area.deinit();
+    defer scroll_area.deinit();
 
-    var scaler = dvui.scale(@src(), .{ .scale = &file.editor.canvas.scale }, .{ .rect = .{ .x = -file.editor.canvas.origin.x, .y = 0 } });
+    const scale_rect = switch (orientation) {
+        .horizontal => dvui.Rect{ .x = -canvas.origin.x, .y = 0, .w = 0, .h = 0 },
+        .vertical => dvui.Rect{ .x = 0, .y = -canvas.origin.y, .w = 0, .h = 0 },
+    };
+    var scaler = dvui.scale(@src(), .{ .scale = &file.editor.canvas.scale }, .{ .rect = scale_rect });
     defer scaler.deinit();
 
-    var outer_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+    const outer_rect: dvui.Rect = switch (orientation) {
+        .horizontal => .{
+            .x = 0,
+            .y = 0,
+            .w = @as(f32, @floatFromInt(file.width())),
+            .h = ruler_size / scale,
+        },
+        .vertical => .{
+            .x = 0,
+            .y = 0,
+            .w = ruler_size * (1.0 / scale),
+            .h = @as(f32, @floatFromInt(file.height())),
+        },
+    };
+    var outer_box = dvui.box(@src(), .{ .dir = switch (orientation) {
+        .horizontal => .horizontal,
+        .vertical => .horizontal,
+    } }, .{
         .expand = .none,
-        .rect = .{ .x = 0, .y = 0, .w = @as(f32, @floatFromInt(file.width())), .h = self.horizontal_ruler_height / file.editor.canvas.scale },
+        .rect = outer_rect,
     });
     defer outer_box.deinit();
 
-    var columns = pixi.dvui.reorder(@src(), .{ .drag_name = self.columns_drag_name }, .{
+    const drag_name = switch (orientation) {
+        .horizontal => self.columns_drag_name,
+        .vertical => self.rows_drag_name,
+    };
+
+    var reorder = pixi.dvui.reorder(@src(), .{ .drag_name = drag_name }, .{
         .expand = .both,
         .margin = dvui.Rect.all(0),
         .padding = dvui.Rect.all(0),
         .background = false,
         .corner_radius = dvui.Rect.all(0),
     });
-    defer columns.deinit();
+    defer reorder.deinit();
 
-    var columns_hbox = dvui.box(@src(), .{
-        .dir = .horizontal,
-    }, .{
+    const reorder_box_dir: dvui.enums.Direction = switch (orientation) {
+        .horizontal => .horizontal,
+        .vertical => .vertical,
+    };
+    var reorder_box = dvui.box(@src(), .{ .dir = reorder_box_dir }, .{
         .expand = .both,
         .background = false,
         .corner_radius = dvui.Rect.all(0),
         .margin = dvui.Rect.all(0),
         .padding = dvui.Rect.all(0),
     });
-    defer columns_hbox.deinit();
+    defer reorder_box.deinit();
 
-    const ruler_stroke_color = dvui.themeGet().color(.control, .fill_hover).lighten(2.0);
+    const ruler_stroke_color = dvui.themeGet().color(.control, .fill_hover).lighten(switch (orientation) {
+        .horizontal => 2.0,
+        .vertical => 0.0,
+    });
 
-    defer dvui.Path.stroke(
-        .{ .points = &.{
-            columns_hbox.data().rectScale().r.topRight(),
-            columns_hbox.data().rectScale().r.bottomRight(),
-        } },
-        .{
-            .color = ruler_stroke_color,
-            .thickness = 2.0,
+    const edge_stroke_points = switch (orientation) {
+        .horizontal => .{
+            reorder_box.data().rectScale().r.topRight(),
+            reorder_box.data().rectScale().r.bottomRight(),
         },
-    );
+        .vertical => .{
+            reorder_box.data().rectScale().r.bottomRight(),
+            reorder_box.data().rectScale().r.bottomLeft(),
+        },
+    };
+    defer dvui.Path.stroke(.{ .points = &edge_stroke_points }, .{
+        .color = ruler_stroke_color,
+        .thickness = 2.0,
+    });
 
-    for (0..file.columns) |column_index| {
-        var reorderable = columns.reorderable(@src(), .{
-            .mode = .any_y,
+    const count = switch (orientation) {
+        .horizontal => file.columns,
+        .vertical => file.rows,
+    };
+    const cell_min_size: dvui.Size = switch (orientation) {
+        .horizontal => .{ .w = @as(f32, @floatFromInt(file.column_width)), .h = 1.0 },
+        .vertical => .{ .w = 1.0, .h = @as(f32, @floatFromInt(file.row_height)) },
+    };
+    const reorder_mode: pixi.dvui.ReorderWidget.Reorderable.Mode = switch (orientation) {
+        .horizontal => .any_y,
+        .vertical => .any_x,
+    };
+    const reorder_expand: dvui.Options.Expand = switch (orientation) {
+        .horizontal => .vertical,
+        .vertical => .horizontal,
+    };
+
+    var index: usize = 0;
+    while (index < count) : (index += 1) {
+        var reorderable = reorder.reorderable(@src(), .{
+            .mode = reorder_mode,
         }, .{
-            .expand = .vertical,
-            .id_extra = column_index,
+            .expand = reorder_expand,
+            .id_extra = index,
             .padding = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
-            .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.column_width)) },
+            .min_size_content = cell_min_size,
         });
         defer reorderable.deinit();
-        var button_color = if (columns.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
+
+        var button_color = if (reorder.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
 
         if (pixi.dvui.hovered(reorderable.data())) {
             button_color = dvui.themeGet().color(.control, .fill);
@@ -605,37 +716,55 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
             .expand = .both,
             .background = true,
             .color_fill = button_color,
-            .id_extra = column_index,
+            .id_extra = index,
         });
 
-        if (reorderable.floating()) {
-            self.columns_drag_index = column_index;
-            columns.reorderable_size.h = 0.0;
-            dvui.cursorSet(.hand);
-        }
-        if (reorderable.removed()) {
-            self.columns_removed_index = column_index;
-        }
-        if (reorderable.insertBefore()) {
-            self.columns_insert_before_index = column_index;
-        }
-        if (reorderable.targetID()) |target_id| {
-            self.columns_target_id = target_id;
-        }
-
-        if (self.columns_drag_index) |_| {
-            var mouse_pt = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-            mouse_pt.y = 0.0;
-            self.columns_target_index = file.columnIndex(mouse_pt);
+        switch (orientation) {
+            .horizontal => {
+                if (reorderable.floating()) {
+                    self.columns_drag_index = index;
+                    reorder.reorderable_size.h = 0.0;
+                    dvui.cursorSet(.hand);
+                }
+                if (reorderable.removed()) self.columns_removed_index = index;
+                if (reorderable.insertBefore()) self.columns_insert_before_index = index;
+                if (reorderable.targetID()) |target_id| self.columns_target_id = target_id;
+                if (self.columns_drag_index) |_| {
+                    var mouse_pt = @constCast(&file.editor.canvas).dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                    mouse_pt.y = 0.0;
+                    self.columns_target_index = file.columnIndex(mouse_pt);
+                }
+            },
+            .vertical => {
+                if (reorderable.floating()) {
+                    self.rows_drag_index = index;
+                    reorder.reorderable_size.w = 0.0;
+                    dvui.cursorSet(.hand);
+                }
+                if (reorderable.removed()) self.rows_removed_index = index;
+                if (reorderable.insertBefore()) self.rows_insert_before_index = index;
+                if (reorderable.targetID()) |target_id| self.rows_target_id = target_id;
+                if (self.rows_drag_index) |_| {
+                    var mouse_pt = @constCast(&file.editor.canvas).dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                    mouse_pt.x = 0.0;
+                    self.rows_target_index = file.rowIndex(mouse_pt);
+                }
+            },
         }
 
         {
             defer cell_box.deinit();
             cell_box.drawBackground();
 
-            const label = file.fmtColumn(dvui.currentWindow().arena(), @intCast(column_index)) catch {
-                dvui.log.err("Failed to allocate label", .{});
-                return;
+            const label = switch (orientation) {
+                .horizontal => file.fmtColumn(dvui.currentWindow().arena(), @intCast(index)) catch {
+                    dvui.log.err("Failed to allocate label", .{});
+                    return;
+                },
+                .vertical => std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{index}) catch {
+                    dvui.log.err("Failed to allocate label", .{});
+                    return;
+                },
             };
 
             self.drawRulerLabel(.{
@@ -643,24 +772,30 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
                 .label = label,
                 .rect = cell_box.data().rectScale().r,
                 .color = dvui.themeGet().color(.control, .text).opacity(0.5),
+                .mode = switch (orientation) {
+                    .horizontal => .horizontal,
+                    .vertical => .vertical,
+                },
+                .largest_label = if (orientation == .vertical) largest_label else null,
             });
 
-            const top_right = cell_box.data().rectScale().r.topLeft();
-            const bottom_right = cell_box.data().rectScale().r.bottomLeft();
-
-            dvui.Path.stroke(.{ .points = &.{ top_right, bottom_right } }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
+            const cell_rect = cell_box.data().rectScale().r;
+            const cell_stroke_points = switch (orientation) {
+                .horizontal => .{ cell_rect.topLeft(), cell_rect.bottomLeft() },
+                .vertical => .{ cell_rect.topLeft(), cell_rect.topRight() },
+            };
+            dvui.Path.stroke(.{ .points = &cell_stroke_points }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
 
             if (reorderable.floating()) {
-                const top_left = cell_box.data().rectScale().r.topLeft();
-                const bottom_left = cell_box.data().rectScale().r.bottomLeft();
-
-                dvui.Path.stroke(.{ .points = &.{ top_left, bottom_left } }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
+                const floating_stroke_points = switch (orientation) {
+                    .horizontal => .{ cell_rect.topLeft(), cell_rect.bottomLeft() },
+                    .vertical => .{ cell_rect.bottomLeft(), cell_rect.bottomRight() },
+                };
+                dvui.Path.stroke(.{ .points = &floating_stroke_points }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
             }
 
             loop: for (dvui.events()) |*e| {
-                if (!cell_box.matchEvent(e)) {
-                    continue;
-                }
+                if (!cell_box.matchEvent(e)) continue;
 
                 switch (e.evt) {
                     .mouse => |me| {
@@ -674,29 +809,39 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
                         } else if (me.action == .release and me.button.pointer()) {
                             dvui.captureMouse(null, e.num);
                             dvui.dragEnd();
-                            self.columns_drag_index = null;
+                            switch (orientation) {
+                                .horizontal => self.columns_drag_index = null,
+                                .vertical => self.rows_drag_index = null,
+                            }
                         } else if (me.action == .motion) {
                             if (dvui.captured(cell_box.data().id)) {
                                 e.handle(@src(), cell_box.data());
                                 if (dvui.dragging(me.p, null)) |_| {
-                                    reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0); // reorder grabs capture
+                                    reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0);
                                     break :loop;
                                 }
                             }
                         }
                     },
-
                     else => {},
                 }
             }
         }
 
         if (reorderable.floating()) {
-            const image_rect = dvui.Rect{
-                .x = 0,
-                .y = self.horizontal_ruler_height / file.editor.canvas.scale,
-                .w = @as(f32, @floatFromInt(file.column_width)),
-                .h = @as(f32, @floatFromInt(file.height())),
+            const image_rect = switch (orientation) {
+                .horizontal => dvui.Rect{
+                    .x = 0,
+                    .y = ruler_size / scale,
+                    .w = @as(f32, @floatFromInt(file.column_width)),
+                    .h = @as(f32, @floatFromInt(file.height())),
+                },
+                .vertical => dvui.Rect{
+                    .x = ruler_size / scale,
+                    .y = 0,
+                    .w = @as(f32, @floatFromInt(file.width())),
+                    .h = @as(f32, @floatFromInt(file.row_height)),
+                },
             };
 
             const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -706,47 +851,56 @@ pub fn drawHorizontalRuler(self: *Workspace) void {
             });
             defer box.deinit();
 
-            var i: usize = file.layers.len;
+            const uv = switch (orientation) {
+                .horizontal => dvui.Rect{
+                    .x = @as(f32, @floatFromInt(index)) * @as(f32, @floatFromInt(file.column_width)) / @as(f32, @floatFromInt(file.width())),
+                    .y = 0.0,
+                    .w = @as(f32, @floatFromInt(file.column_width)) / @as(f32, @floatFromInt(file.width())),
+                    .h = 1.0,
+                },
+                .vertical => dvui.Rect{
+                    .x = 0.0,
+                    .y = @as(f32, @floatFromInt(index)) * @as(f32, @floatFromInt(file.row_height)) / @as(f32, @floatFromInt(file.height())),
+                    .w = 1.0,
+                    .h = @as(f32, @floatFromInt(file.row_height)) / @as(f32, @floatFromInt(file.height())),
+                },
+            };
 
+            var i: usize = file.layers.len;
             while (i > 0) {
                 i -= 1;
                 const layer = file.layers.get(i);
-                if (!layer.visible) {
-                    continue;
-                }
+                if (!layer.visible) continue;
 
-                // UVs cover just the needed portion
-                const uv: dvui.Rect = .{
-                    .x = @as(f32, @floatFromInt(column_index)) * @as(f32, @floatFromInt(file.column_width)) / @as(f32, @floatFromInt(file.width())),
-                    .y = 0.0,
-                    .w = @as(f32, @floatFromInt(file.column_width)) / @as(f32, @floatFromInt(file.width())),
-                    .h = @as(f32, @floatFromInt(file.height())) / @as(f32, @floatFromInt(file.height())),
-                };
-
-                dvui.renderImage(layer.source, box.data().rectScale(), .{
-                    .uv = uv,
-                }) catch {
+                dvui.renderImage(layer.source, box.data().rectScale(), .{ .uv = uv }) catch {
                     dvui.log.err("Failed to render checkerboard", .{});
                 };
             }
         }
     }
 
-    if (columns.needFinalSlot()) {
-        var reorderable = columns.reorderable(@src(), .{
-            .mode = .any_y,
+    const final_slot_id = switch (orientation) {
+        .horizontal => file.columns,
+        .vertical => file.rows,
+    };
+    if (reorder.needFinalSlot()) {
+        var reorderable = reorder.reorderable(@src(), .{
+            .mode = reorder_mode,
             .last_slot = true,
         }, .{
-            .expand = .vertical,
-            .id_extra = file.columns,
+            .expand = reorder_expand,
+            .id_extra = final_slot_id,
             .padding = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
-            .min_size_content = .{ .h = 1, .w = @as(f32, @floatFromInt(file.column_width)) },
+            .min_size_content = cell_min_size,
         });
         defer reorderable.deinit();
 
         if (reorderable.insertBefore()) {
-            self.columns_insert_before_index = file.columns;
+            switch (orientation) {
+                .horizontal => self.columns_insert_before_index = final_slot_id,
+                .vertical => self.rows_insert_before_index = final_slot_id,
+            }
         }
     }
 }
@@ -825,254 +979,6 @@ pub fn processColumnReorder(self: *Workspace) void {
                 dvui.log.err("Failed to reorder columns", .{});
                 return;
             };
-        }
-    }
-}
-
-pub fn drawVerticalRuler(self: *Workspace) void {
-    const file = &pixi.editor.open_files.values()[self.open_file_index];
-    const font = dvui.Font.theme(.body);
-
-    const largest_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{file.rows - 1}) catch {
-        dvui.log.err("Failed to allocate largest label", .{});
-        return;
-    };
-    const largest_label_size = font.textSize(largest_label);
-    self.vertical_ruler_width = largest_label_size.w + pixi.editor.settings.ruler_padding;
-
-    var ruler_box = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .vertical,
-        .min_size_content = .{ .w = self.vertical_ruler_width, .h = 1.0 },
-        .background = true,
-        .color_fill = dvui.themeGet().color(.window, .fill),
-    });
-    defer ruler_box.deinit();
-
-    self.vertical_scroll_info.virtual_size.h = file.editor.canvas.scroll_info.virtual_size.h;
-    self.vertical_scroll_info.virtual_size.w = self.vertical_ruler_width;
-    self.vertical_scroll_info.viewport.h = file.editor.canvas.scroll_info.viewport.h;
-    self.vertical_scroll_info.viewport.y = file.editor.canvas.scroll_info.viewport.y;
-
-    var vertical_scroll_area = dvui.scrollArea(@src(), .{
-        .scroll_info = &self.vertical_scroll_info,
-        .container = true,
-        .process_events_after = true,
-        .horizontal_bar = .hide,
-        .vertical_bar = .hide,
-    }, .{ .expand = .both });
-    defer vertical_scroll_area.deinit();
-
-    var scaler = dvui.scale(@src(), .{ .scale = &file.editor.canvas.scale }, .{ .rect = .{ .x = 0, .y = -file.editor.canvas.origin.y } });
-    defer scaler.deinit();
-
-    var outer_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .expand = .none,
-        .rect = .{ .x = 0, .y = 0, .h = @as(f32, @floatFromInt(file.height())), .w = self.vertical_ruler_width * (1.0 / file.editor.canvas.scale) },
-    });
-    defer outer_box.deinit();
-
-    var rows = pixi.dvui.reorder(@src(), .{ .drag_name = self.rows_drag_name }, .{
-        .expand = .both,
-        .margin = dvui.Rect.all(0),
-        .padding = dvui.Rect.all(0),
-        .background = false,
-        .corner_radius = dvui.Rect.all(0),
-    });
-    defer rows.deinit();
-
-    var rows_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .both,
-        .background = false,
-        .corner_radius = dvui.Rect.all(0),
-        .margin = dvui.Rect.all(0),
-        .padding = dvui.Rect.all(0),
-    });
-    defer rows_vbox.deinit();
-
-    const ruler_stroke_color = dvui.themeGet().color(.control, .fill_hover);
-
-    defer dvui.Path.stroke(
-        .{ .points = &.{
-            rows_vbox.data().rectScale().r.bottomRight(),
-            rows_vbox.data().rectScale().r.bottomLeft(),
-        } },
-        .{
-            .color = ruler_stroke_color,
-            .thickness = 2.0,
-        },
-    );
-
-    for (0..file.rows) |row_index| {
-        var reorderable = rows.reorderable(@src(), .{
-            .mode = .any_x,
-        }, .{
-            .expand = .horizontal,
-            .id_extra = row_index,
-            .padding = dvui.Rect.all(0),
-            .margin = dvui.Rect.all(0),
-            .min_size_content = .{ .h = @as(f32, @floatFromInt(file.row_height)), .w = 1 },
-        });
-        defer reorderable.deinit();
-
-        var button_color = if (rows.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
-
-        if (pixi.dvui.hovered(reorderable.data())) {
-            button_color = dvui.themeGet().color(.control, .fill);
-            dvui.cursorSet(.hand);
-        }
-
-        var cell_box: dvui.BoxWidget = undefined;
-        cell_box.init(@src(), .{ .dir = .horizontal }, .{
-            .expand = .both,
-            .background = true,
-            .color_fill = button_color,
-            .id_extra = row_index,
-        });
-
-        if (reorderable.floating()) {
-            self.rows_drag_index = row_index;
-            rows.reorderable_size.w = 0.0;
-            dvui.cursorSet(.hand);
-        }
-        if (reorderable.removed()) {
-            self.rows_removed_index = row_index;
-        }
-        if (reorderable.insertBefore()) {
-            self.rows_insert_before_index = row_index;
-        }
-        if (reorderable.targetID()) |target_id| {
-            self.rows_target_id = target_id;
-        }
-
-        if (self.rows_drag_index) |_| {
-            var mouse_pt = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-            mouse_pt.x = 0.0;
-            self.rows_target_index = file.rowIndex(mouse_pt);
-        }
-
-        {
-            defer cell_box.deinit();
-            cell_box.drawBackground();
-
-            const label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{row_index}) catch {
-                dvui.log.err("Failed to allocate label", .{});
-                return;
-            };
-
-            self.drawRulerLabel(.{
-                .font = font,
-                .label = label,
-                .rect = cell_box.data().rectScale().r,
-                .color = dvui.themeGet().color(.control, .text).opacity(0.5),
-                .largest_label = largest_label,
-                .mode = .vertical,
-            });
-
-            const top_right = cell_box.data().rectScale().r.topLeft();
-            const top_left = cell_box.data().rectScale().r.topRight();
-
-            dvui.Path.stroke(.{ .points = &.{ top_right, top_left } }, .{
-                .color = ruler_stroke_color,
-                .thickness = 2.0,
-            });
-
-            if (reorderable.floating()) {
-                const bottom_left = cell_box.data().rectScale().r.bottomLeft();
-                const bottom_right = cell_box.data().rectScale().r.bottomRight();
-
-                dvui.Path.stroke(.{ .points = &.{ bottom_left, bottom_right } }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
-            }
-
-            loop: for (dvui.events()) |*e| {
-                if (!cell_box.matchEvent(e)) {
-                    continue;
-                }
-
-                switch (e.evt) {
-                    .mouse => |me| {
-                        if (me.action == .press and me.button.pointer()) {
-                            e.handle(@src(), cell_box.data());
-                            dvui.captureMouse(cell_box.data(), e.num);
-                            dvui.dragPreStart(me.p, .{
-                                .size = reorderable.data().rectScale().r.size(),
-                                .offset = reorderable.data().rectScale().r.topLeft().diff(me.p),
-                            });
-                        } else if (me.action == .release and me.button.pointer()) {
-                            dvui.captureMouse(null, e.num);
-                            dvui.dragEnd();
-                            self.rows_drag_index = null;
-                        } else if (me.action == .motion) {
-                            if (dvui.captured(cell_box.data().id)) {
-                                e.handle(@src(), cell_box.data());
-                                if (dvui.dragging(me.p, null)) |_| {
-                                    reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0); // reorder grabs capture
-                                    break :loop;
-                                }
-                            }
-                        }
-                    },
-
-                    else => {},
-                }
-            }
-        }
-
-        if (reorderable.floating()) {
-            const image_rect = dvui.Rect{
-                .x = self.vertical_ruler_width / file.editor.canvas.scale,
-                .y = 0.0,
-                .w = @as(f32, @floatFromInt(file.width())),
-                .h = @as(f32, @floatFromInt(file.row_height)),
-            };
-
-            const box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .rect = image_rect,
-                .background = false,
-                .color_fill = dvui.themeGet().color(.err, .fill),
-            });
-            defer box.deinit();
-
-            var i: usize = file.layers.len;
-
-            while (i > 0) {
-                i -= 1;
-                const layer = file.layers.get(i);
-                if (!layer.visible) {
-                    continue;
-                }
-
-                // UVs cover just the needed portion
-                const uv: dvui.Rect = .{
-                    .x = 0.0,
-                    .y = @as(f32, @floatFromInt(row_index)) * @as(f32, @floatFromInt(file.row_height)) / @as(f32, @floatFromInt(file.height())),
-                    .w = 1.0,
-                    .h = @as(f32, @floatFromInt(file.row_height)) / @as(f32, @floatFromInt(file.height())),
-                };
-
-                dvui.renderImage(layer.source, box.data().rectScale(), .{
-                    .uv = uv,
-                }) catch {
-                    dvui.log.err("Failed to render checkerboard", .{});
-                };
-            }
-        }
-    }
-
-    if (rows.needFinalSlot()) {
-        var reorderable = rows.reorderable(@src(), .{
-            .mode = .any_x,
-            .last_slot = true,
-        }, .{
-            .expand = .horizontal,
-            .id_extra = file.rows,
-            .padding = dvui.Rect.all(0),
-            .margin = dvui.Rect.all(0),
-            .min_size_content = .{ .h = @as(f32, @floatFromInt(file.row_height)), .w = 1 },
-        });
-        defer reorderable.deinit();
-
-        if (reorderable.insertBefore()) {
-            self.rows_insert_before_index = file.rows;
         }
     }
 }
