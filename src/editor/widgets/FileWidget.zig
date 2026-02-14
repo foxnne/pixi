@@ -3164,7 +3164,7 @@ fn drawReorderPreviewForAxis(
             .rect = target_box_rect,
             .border = dvui.Rect.all(0),
             .background = true,
-            .color_fill = dvui.themeGet().color(.window, .fill),
+            .color_fill = dvui.themeGet().color(.window, .fill).opacity(0.75),
             .box_shadow = .{
                 .color = .black,
                 .offset = .{
