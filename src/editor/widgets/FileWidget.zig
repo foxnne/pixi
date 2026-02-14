@@ -3042,53 +3042,65 @@ fn drawReorderPreviewForAxis(
         .rows => workspace.vertical_ruler_width,
     } / scale;
 
-    var shadow_alpha: f32 = 0.0;
-
-    {
+    defer {
         var target_box_rect = target_rect;
+
+        const tl = dvui.currentWindow().mouse_pt.plus(dvui.dragOffset());
+        const data_tl = file.editor.canvas.dataFromScreenPoint(tl);
+
+        switch (axis) {
+            .columns => {
+                target_box_rect.x = data_tl.x;
+            },
+            .rows => {
+                target_box_rect.y = data_tl.y;
+            },
+        }
+
+        var animated_target_box_rect = target_rect;
 
         {
             const current_tl: dvui.Point = self.grid_reorder_point orelse .{ .x = 0.0, .y = 0.0 };
 
-            if (target_box_rect.topLeft().x != current_tl.x or target_box_rect.topLeft().y != current_tl.y) {
-                defer self.grid_reorder_point = target_box_rect.topLeft();
+            if (animated_target_box_rect.topLeft().x != current_tl.x or animated_target_box_rect.topLeft().y != current_tl.y) {
+                defer self.grid_reorder_point = animated_target_box_rect.topLeft();
 
                 if (self.grid_reorder_point != null) {
                     if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_x")) |anim| {
-                        if (anim.end_val != target_box_rect.x) {
+                        if (anim.end_val != animated_target_box_rect.x) {
                             _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("reorder_target_rect_x"));
                             dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_x", .{
                                 .start_val = anim.value(),
-                                .end_val = target_box_rect.x,
+                                .end_val = animated_target_box_rect.x,
                                 .end_time = 350_000,
                                 .easing = dvui.easing.outBack,
                             });
                         }
-                    } else if (target_box_rect.x != current_tl.x) {
+                    } else if (animated_target_box_rect.x != current_tl.x) {
 
                         // If we are here, we need to trigger a new animation to move the resize button rect to the new point
                         dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_x", .{
                             .start_val = current_tl.x,
-                            .end_val = target_box_rect.x,
+                            .end_val = animated_target_box_rect.x,
                             .end_time = 350_000,
                             .easing = dvui.easing.outBack,
                         });
                     } else if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_y")) |anim| {
-                        if (anim.end_val != target_box_rect.y) {
+                        if (anim.end_val != animated_target_box_rect.y) {
                             _ = dvui.currentWindow().animations.remove(self.init_options.file.editor.canvas.id.update("reorder_target_rect_y"));
                             dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_y", .{
                                 .start_val = anim.value(),
-                                .end_val = target_box_rect.y,
+                                .end_val = animated_target_box_rect.y,
                                 .end_time = 350_000,
                                 .easing = dvui.easing.outBack,
                             });
                         }
-                    } else if (target_box_rect.y != current_tl.y) {
+                    } else if (animated_target_box_rect.y != current_tl.y) {
 
                         // If we are here, we need to trigger a new animation to move the resize button rect to the new point
                         dvui.animation(self.init_options.file.editor.canvas.id, "reorder_target_rect_y", .{
                             .start_val = current_tl.y,
-                            .end_val = target_box_rect.y,
+                            .end_val = animated_target_box_rect.y,
                             .end_time = 350_000,
                             .easing = dvui.easing.outBack,
                         });
@@ -3096,13 +3108,11 @@ fn drawReorderPreviewForAxis(
                 }
 
                 if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_x")) |anim| {
-                    target_box_rect.x = anim.value();
-                    shadow_alpha = 1.0 - (anim.value() - anim.start_val) / (anim.end_val - anim.start_val);
+                    animated_target_box_rect.x = anim.value();
                 }
 
                 if (dvui.animationGet(self.init_options.file.editor.canvas.id, "reorder_target_rect_y")) |anim| {
-                    target_box_rect.y = anim.value();
-                    shadow_alpha = 1.0 - (anim.value() - anim.start_val) / (anim.end_val - anim.start_val);
+                    animated_target_box_rect.y = anim.value();
                 }
             }
         }
@@ -3135,10 +3145,19 @@ fn drawReorderPreviewForAxis(
         });
         target_box_label_box.deinit();
 
-        file.editor.canvas.screenFromDataRect(target_rect).fill(.all(0), .{
-            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.6),
+        file.editor.canvas.screenFromDataRect(animated_target_box_rect).fill(.all(8.0 / scale), .{
+            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.8),
             .fade = 1.0,
         });
+
+        {
+            pixi.dvui.drawEdgeShadow(.{ .r = file.editor.canvas.screenFromDataRect(animated_target_box_rect), .s = scale }, if (axis == .columns) .right else .top, .{
+                .opacity = 0.8,
+            });
+            pixi.dvui.drawEdgeShadow(.{ .r = file.editor.canvas.screenFromDataRect(animated_target_box_rect), .s = scale }, if (axis == .columns) .left else .bottom, .{
+                .opacity = 0.8,
+            });
+        }
 
         const target_box = dvui.box(@src(), .{ .dir = box_dir }, .{
             .expand = .none,
@@ -3146,12 +3165,18 @@ fn drawReorderPreviewForAxis(
             .border = dvui.Rect.all(0),
             .background = true,
             .color_fill = dvui.themeGet().color(.window, .fill),
+            .box_shadow = .{
+                .color = .black,
+                .offset = .{
+                    .x = -4 / scale,
+                    .y = 4 / scale,
+                },
+                .alpha = 0.25,
+                .fade = 10 / scale,
+                .corner_radius = dvui.Rect.all(target_rect.w / 2.0 / scale),
+            },
         });
         defer target_box.deinit();
-        defer {
-            pixi.dvui.drawEdgeShadow(.{ .r = file.editor.canvas.screenFromDataRect(target_rect), .s = scale }, if (axis == .columns) .right else .top, .{});
-            pixi.dvui.drawEdgeShadow(.{ .r = file.editor.canvas.screenFromDataRect(target_rect), .s = scale }, if (axis == .columns) .left else .bottom, .{});
-        }
 
         self.renderLayersInDataRect(file, removed_rect, target_box.data().rectScale().r);
 

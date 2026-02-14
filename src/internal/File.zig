@@ -598,6 +598,24 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     const new_width = new_columns * file.column_width;
     const new_height = new_rows * file.row_height;
 
+    for (0..file.animations.len) |animation_index| {
+        const old_animation = file.animations.get(animation_index);
+        var new_animation = Animation.init(pixi.app.allocator, old_animation.id, old_animation.name, &.{}) catch return error.AnimationCreateError;
+        defer file.animations.set(animation_index, new_animation);
+        defer pixi.app.allocator.free(old_animation.frames);
+        for (0..old_animation.frames.len) |frame_index| {
+            const old_sprite_index = old_animation.frames[frame_index].sprite_index;
+            const old_column = file.columnFromIndex(old_sprite_index);
+            if (old_column < new_columns) {
+                const old_row = file.rowFromIndex(old_sprite_index);
+                if (old_row < new_rows) {
+                    const new_sprite_index = old_column * new_rows + old_row;
+                    new_animation.appendFrame(pixi.app.allocator, .{ .sprite_index = new_sprite_index, .ms = old_animation.frames[frame_index].ms }) catch return error.AnimationFrameAppendError;
+                }
+            }
+        }
+    }
+
     // First, record the current layer data for undo/redo
     if (options.history) {
         file.history.append(.{ .resize = .{ .width = file.width(), .height = file.height() } }) catch return error.HistoryAppendError;
