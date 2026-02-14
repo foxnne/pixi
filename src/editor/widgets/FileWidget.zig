@@ -3145,17 +3145,17 @@ fn drawReorderPreviewForAxis(
         });
         target_box_label_box.deinit();
 
-        file.editor.canvas.screenFromDataRect(animated_target_box_rect).fill(.all(8.0 / scale), .{
-            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.8),
+        file.editor.canvas.screenFromDataRect(animated_target_box_rect).fill(.all(3.0 / scale), .{
+            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.6),
             .fade = 1.0,
         });
 
         {
             pixi.dvui.drawEdgeShadow(.{ .r = file.editor.canvas.screenFromDataRect(animated_target_box_rect), .s = scale }, if (axis == .columns) .right else .top, .{
-                .opacity = 0.8,
+                .opacity = 0.5,
             });
             pixi.dvui.drawEdgeShadow(.{ .r = file.editor.canvas.screenFromDataRect(animated_target_box_rect), .s = scale }, if (axis == .columns) .left else .bottom, .{
-                .opacity = 0.8,
+                .opacity = 0.5,
             });
         }
 
@@ -3169,10 +3169,10 @@ fn drawReorderPreviewForAxis(
                 .color = .black,
                 .offset = .{
                     .x = -4 / scale,
-                    .y = 4 / scale,
+                    .y = 0.0,
                 },
                 .alpha = 0.25,
-                .fade = 10 / scale,
+                .fade = 16 / scale,
                 .corner_radius = dvui.Rect.all(target_rect.w / 2.0 / scale),
             },
         });
