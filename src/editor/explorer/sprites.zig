@@ -1187,7 +1187,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 dvui.labelNoFmt(@src(), "ms", .{}, .{
                     .gravity_y = 0.5,
                     .margin = dvui.Rect.all(0),
-                    .font = dvui.Font.theme(.mono).larger(-5.0),
+                    .font = dvui.Font.theme(.mono).larger(-4.0),
                     .padding = .{ .x = 2, .w = 6 },
                 });
 

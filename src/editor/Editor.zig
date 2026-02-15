@@ -319,7 +319,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                         editor.panel.paned.animateSplit(1.0 - pixi.editor.settings.panel_ratio);
                     }
                 } else {
-                    if (!(editor.panel.paned.collapsed_state or editor.panel.paned.animating)) {
+                    if (!editor.panel.paned.animating and editor.panel.paned.split_ratio.* < 1.0) {
                         editor.panel.paned.animateSplit(1.0);
                     }
                 }
