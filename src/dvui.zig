@@ -126,6 +126,10 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         return;
     };
 
+    if (modal) {
+        pixi.editor.dim_titlebar = true;
+    }
+
     const title = dvui.dataGetSlice(null, id, "_title", []u8) orelse {
         dvui.log.err("dialogDisplay lost data for dialog {x}\n", .{id});
         dvui.dialogRemove(id);

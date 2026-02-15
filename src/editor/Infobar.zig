@@ -93,8 +93,19 @@ pub fn draw(_: Infobar) !void {
             .{ .gravity_y = 0.5 },
         );
 
-        pixi.Editor.Dialogs.drawDimensionsLabel(@src(), file.width(), file.height(), font_mono, "px", .{ .gravity_y = 0.5, .margin = .{ .x = 4, .w = 4 } });
-        pixi.Editor.Dialogs.drawDimensionsLabel(@src(), file.column_width, file.row_height, font_mono, "px", .{ .gravity_y = 0.5, .margin = .{ .x = 4, .w = 4 } });
+        pixi.Editor.Dialogs.drawDimensionsLabel(@src(), file.width(), file.height(), font_mono, "px", .{ .gravity_y = 0.5, .margin = .{ .x = 4 } });
+
+        _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 12 } });
+
+        dvui.icon(
+            @src(),
+            "sprite_icon",
+            dvui.entypo.grid,
+            .{ .fill_color = dvui.themeGet().color(.window, .text) },
+            .{ .gravity_y = 0.5 },
+        );
+
+        pixi.Editor.Dialogs.drawDimensionsLabel(@src(), file.column_width, file.row_height, font_mono, "px", .{ .gravity_y = 0.5, .margin = .{ .x = 4 } });
 
         //dvui.label(@src(), "{d}x{d} - {d}x{d}", .{ file.width(), file.height(), file.column_width, file.row_height }, .{ .font = font, .gravity_y = 0.5 });
 
