@@ -58,12 +58,14 @@ pub fn needFinalSlot(self: *ReorderWidget) bool {
     return false;
 }
 
-pub fn finalSlot(self: *ReorderWidget, mode: Reorderable.Mode) bool {
+pub fn finalSlot(self: *ReorderWidget, mode: Reorderable.Mode, corner_radius: dvui.Rect) bool {
     if (self.needFinalSlot()) {
         var r = self.reorderable(@src(), .{
             .last_slot = true,
             .mode = mode,
-        }, .{});
+        }, .{
+            .corner_radius = corner_radius,
+        });
         defer r.deinit();
 
         if (r.insertBefore()) {

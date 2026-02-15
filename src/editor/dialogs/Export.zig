@@ -6,6 +6,8 @@ const msf_gif = @import("msf_gif");
 const sdl3 = @import("backend").c;
 const zstbi = @import("zstbi");
 
+const Dialogs = @import("Dialogs.zig");
+
 pub var mode: enum(usize) {
     single,
     animation,
@@ -239,12 +241,12 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
     })) dvui.currentWindow().extra_frames_needed = 2;
 
     if (pixi.editor.activeFile()) |file| {
-        dvui.label(@src(), "{d:0.0}px x {d:0.0}px", .{ @as(f32, @floatFromInt(file.column_width)) * scale, @as(f32, @floatFromInt(file.row_height)) * scale }, .{
-            .gravity_x = 0.5,
-            .color_text = dvui.themeGet().color(.window, .text),
-            .margin = .all(0),
-            .padding = .all(2),
-        });
+        const column_width = @as(f32, @floatFromInt(file.column_width)) * scale;
+        const row_height = @as(f32, @floatFromInt(file.row_height)) * scale;
+
+        const entry_font = dvui.Font.theme(.mono).larger(-2);
+
+        Dialogs.drawDimensionsLabel(@src(), @intFromFloat(column_width), @intFromFloat(row_height), entry_font, "px", .{ .gravity_x = 0.5 });
     }
 
     return true;

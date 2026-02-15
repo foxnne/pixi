@@ -445,13 +445,13 @@ pub fn drawAnimations(self: *Sprites) !void {
                 .padding = dvui.Rect.all(1),
                 .border = dvui.Rect.all(1.0),
                 .color_border = if (selected) color else dvui.themeGet().color(.control, .fill),
-                .box_shadow = .{
+                .box_shadow = if (!r.floating()) .{
                     .color = .black,
                     .offset = .{ .x = -2.0, .y = 2.0 },
                     .fade = 6.0,
                     .alpha = 0.25,
                     .corner_radius = dvui.Rect.all(1000),
-                },
+                } else null,
             });
             defer hbox.deinit();
 
@@ -553,7 +553,7 @@ pub fn drawAnimations(self: *Sprites) !void {
             }
         }
 
-        if (reorderable.finalSlot(.default)) {
+        if (reorderable.finalSlot(.default, dvui.Rect.all(1000))) {
             self.animation_insert_before_index = file.animations.len;
         }
 
@@ -1103,13 +1103,13 @@ pub fn drawFrames(self: *Sprites) !void {
                     .padding = dvui.Rect.all(1),
                     .border = dvui.Rect.all(1.0),
                     .color_border = if (selected) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.control, .fill),
-                    .box_shadow = .{
+                    .box_shadow = if (!r.floating()) .{
                         .color = .black,
                         .offset = .{ .x = -2.0, .y = 2.0 },
                         .fade = 6.0,
                         .alpha = 0.25,
                         .corner_radius = dvui.Rect.all(1000),
-                    },
+                    } else null,
                 });
                 _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
                     .reorderable = r,
@@ -1136,7 +1136,7 @@ pub fn drawFrames(self: *Sprites) !void {
 
                 var ms_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .horizontal,
-                    .background = false,
+                    .background = true,
                     .margin = dvui.Rect.all(2),
                     .padding = dvui.Rect.all(1),
                     .color_border = if (selected) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.control, .fill),
@@ -1144,13 +1144,13 @@ pub fn drawFrames(self: *Sprites) !void {
                     .corner_radius = dvui.Rect.all(1000),
                     .gravity_y = 0.5,
                     .gravity_x = 1.0,
-                    .box_shadow = .{
+                    .box_shadow = if (!r.floating()) .{
                         .color = .black,
                         .offset = .{ .x = -2.0, .y = 2.0 },
                         .fade = 6.0,
                         .alpha = 0.25,
                         .corner_radius = dvui.Rect.all(1000),
-                    },
+                    } else null,
                 });
                 defer ms_box.deinit();
 
@@ -1208,7 +1208,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 }
             }
 
-            if (reorder.finalSlot(.default)) {
+            if (reorder.finalSlot(.default, dvui.Rect.all(1000))) {
                 self.sprite_insert_before_index = animation.frames.len;
             }
         }

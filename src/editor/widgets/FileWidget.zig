@@ -703,7 +703,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
 
     // Choose a font size that fits scaled to button size.
-    const font = dvui.Font.theme(.mono).larger(-3.0);
+    const font = dvui.Font.theme(.mono).larger(-1.0);
 
     const sprite_label = self.init_options.file.fmtSprite(dvui.currentWindow().arena(), sprite_index, .grid) catch {
         dvui.log.err("Failed to format sprite index", .{});
@@ -3185,7 +3185,7 @@ fn drawReorderPreviewForAxis(
             .rows => std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{removed_index}) catch "err",
         };
         workspace.drawRulerLabel(.{
-            .font = dvui.Font.theme(.body),
+            .font = dvui.Font.theme(.mono).larger(-1),
             .label = label,
             .rect = file.editor.canvas.screenFromDataRect(target_box_label_rect),
             .color = dvui.themeGet().color(.window, .fill),

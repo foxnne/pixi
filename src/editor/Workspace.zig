@@ -498,7 +498,7 @@ pub const RulerOrientation = enum {
 
 pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
     const file = &pixi.editor.open_files.values()[self.open_file_index];
-    const font = dvui.Font.theme(.body);
+    const font = dvui.Font.theme(.mono).larger(-1);
 
     const largest_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{file.rows - 1}) catch {
         dvui.log.err("Failed to allocate largest label", .{});

@@ -2,6 +2,8 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 
+const Dialogs = @import("Dialogs.zig");
+
 pub var mode: enum(usize) {
     single,
     grid,
@@ -16,6 +18,7 @@ pub const max_size: [2]u32 = .{ 4096, 4096 };
 pub const min_size: [2]u32 = .{ 1, 1 };
 
 pub fn dialog(id: dvui.Id) anyerror!bool {
+    const entry_font = dvui.Font.theme(.mono).larger(-2);
 
     // Reference our parent path so it remains alive until the dialog is closed
     _ = dvui.dataGetSlice(null, id, "_parent_path", []u8);
@@ -96,6 +99,7 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
                     .label = .{ .label_widget = .prev },
                     .gravity_x = 1.0,
                     .id_extra = unique_id.asUsize(),
+                    .font = entry_font,
                 });
                 if (result.value == .Valid) {
                     column_width = result.value.Valid;
@@ -116,6 +120,7 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
                     .label = .{ .label_widget = .prev },
                     .gravity_x = 1.0,
                     .id_extra = unique_id.asUsize(),
+                    .font = entry_font,
                 });
                 if (result.value == .Valid) {
                     row_height = result.value.Valid;
@@ -137,6 +142,7 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
                         .label = .{ .label_widget = .prev },
                         .gravity_x = 1.0,
                         .id_extra = unique_id.asUsize(),
+                        .font = entry_font,
                     });
                     if (result.value == .Valid) {
                         columns = result.value.Valid;
@@ -153,6 +159,7 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
                         .label = .{ .label_widget = .prev },
                         .gravity_x = 1.0,
                         .id_extra = unique_id.asUsize(),
+                        .font = entry_font,
                     });
                     if (result.value == .Valid) {
                         rows = result.value.Valid;
@@ -164,20 +171,10 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
         }
         _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 10, .h = 10 } });
 
-        {
-            var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
-            defer hbox.deinit();
+        const width = column_width * (if (mode == .single) 1 else columns);
+        const height = row_height * (if (mode == .single) 1 else rows);
 
-            dvui.label(
-                @src(),
-                "{d} px x {d} px",
-                .{ column_width * (if (mode == .single) 1 else columns), row_height * (if (mode == .single) 1 else rows) },
-                .{
-                    .gravity_x = 0.5,
-                    .font = dvui.themeGet().font_title.larger(-6),
-                },
-            );
-        }
+        Dialogs.drawDimensionsLabel(@src(), width, height, entry_font, "px", .{ .gravity_x = 0.5 });
 
         return valid;
     }

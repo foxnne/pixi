@@ -435,13 +435,13 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 .padding = dvui.Rect.all(0),
                 .border = dvui.Rect.all(1.0),
                 .color_border = if (selected) color else if (!visible) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
-                .box_shadow = .{
+                .box_shadow = if (!r.floating()) .{
                     .color = .black,
                     .offset = .{ .x = -2.0, .y = 2.0 },
                     .fade = 6.0,
                     .alpha = 0.25,
                     .corner_radius = dvui.Rect.all(1000),
-                },
+                } else null,
             });
             defer hbox.deinit();
 
@@ -558,7 +558,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             }
         }
 
-        if (reorderable.finalSlot(.default)) {
+        if (reorderable.finalSlot(.default, dvui.Rect.all(1000))) {
             insert_before_index = file.layers.len;
         }
 

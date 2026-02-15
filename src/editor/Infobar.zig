@@ -16,7 +16,7 @@ pub fn deinit() void {
 }
 
 pub fn draw(_: Infobar) !void {
-    const font = dvui.Font.theme(.mono).larger(-5.0);
+    const font = dvui.Font.theme(.body).larger(-2.0);
 
     var scrollarea = dvui.scrollArea(@src(), .{}, .{
         .expand = .horizontal,
@@ -91,7 +91,11 @@ pub fn draw(_: Infobar) !void {
             .{ .stroke_color = dvui.themeGet().color(.window, .text) },
             .{ .gravity_y = 0.5 },
         );
-        dvui.label(@src(), "{d}x{d} - {d}x{d}", .{ file.width(), file.height(), file.column_width, file.row_height }, .{ .font = font, .gravity_y = 0.5 });
+
+        pixi.Editor.Dialogs.drawDimensionsLabel(@src(), file.width(), file.height(), dvui.Font.theme(.mono).larger(-4), "px", .{ .gravity_y = 0.5, .margin = .{ .x = 4, .w = 4 } });
+        pixi.Editor.Dialogs.drawDimensionsLabel(@src(), file.column_width, file.row_height, dvui.Font.theme(.mono).larger(-4), "px", .{ .gravity_y = 0.5, .margin = .{ .x = 4, .w = 4 } });
+
+        //dvui.label(@src(), "{d}x{d} - {d}x{d}", .{ file.width(), file.height(), file.column_width, file.row_height }, .{ .font = font, .gravity_y = 0.5 });
 
         const mouse_pt = dvui.currentWindow().mouse_pt;
         const data_pt = file.editor.canvas.dataFromScreenPoint(mouse_pt);
@@ -110,7 +114,7 @@ pub fn draw(_: Infobar) !void {
             );
 
             const sprite_pt = file.spritePoint(data_pt);
-            dvui.label(@src(), "{d:0.0},{d:0.0} - {d:0.0},{d:0.0}", .{ @floor(data_pt.x), @floor(data_pt.y), @floor(sprite_pt.x / @as(f32, @floatFromInt(file.column_width))), @floor(sprite_pt.y / @as(f32, @floatFromInt(file.row_height))) }, .{ .font = font, .gravity_y = 0.5 });
+            dvui.label(@src(), "{d:0.0},{d:0.0} - {d:0.0},{d:0.0}", .{ @floor(data_pt.x), @floor(data_pt.y), @floor(sprite_pt.x / @as(f32, @floatFromInt(file.column_width))), @floor(sprite_pt.y / @as(f32, @floatFromInt(file.row_height))) }, .{ .gravity_y = 0.5, .font = dvui.Font.theme(.mono).larger(-4) });
         }
     }
 }

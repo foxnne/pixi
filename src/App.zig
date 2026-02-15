@@ -121,7 +121,7 @@ pub fn AppInit(win: *dvui.Window) !void {
     theme.font_body = .find(.{ .family = "Vera Sans", .size = 8 });
     theme.font_title = .find(.{ .family = "Vera Sans", .size = 10, .weight = .bold });
     theme.font_heading = .find(.{ .family = "Vera Sans", .size = 8, .style = .italic });
-    theme.font_mono = .find(.{ .family = "Vera Sans Mono", .size = 10 });
+    theme.font_mono = .find(.{ .family = "CozetteVector", .size = 10 });
 
     dvui.themeSet(theme);
 }
