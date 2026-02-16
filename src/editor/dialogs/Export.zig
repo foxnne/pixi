@@ -207,9 +207,11 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
 
                         path.addRect(box.data().rectScale().r, .all(0));
 
+                        box.data().rectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+
                         const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
                             .subdivisions = 8,
-                            .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0),
+                            .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
                         }) catch unreachable;
                         dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
                             dvui.log.err("Failed to render triangles", .{});

@@ -169,9 +169,9 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         .color_fill = dvui.themeGet().color(.control, .fill).opacity(0.85),
         .box_shadow = .{
             .color = .black,
-            .alpha = 0.25,
+            .alpha = 0.35,
             .offset = .{ .x = -4, .y = 4 },
-            .fade = 8,
+            .fade = 10,
         },
     });
     defer win.deinit();
