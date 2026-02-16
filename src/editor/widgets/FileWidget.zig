@@ -731,7 +731,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         path.addPoint(bubble_rect_scale.r.topRight());
         path.addPoint(bubble_rect_scale.r.topLeft());
 
-        path.build().stroke(.{ .thickness = dvui.currentWindow().natural_scale, .color = color });
+        path.build().stroke(.{ .thickness = 1, .color = color });
     } else {
         const arc_height = std.math.clamp(
             bubble_rect_scale.r.h,
@@ -824,7 +824,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 .color = dvui.themeGet().color(.window, .fill),
                 .thickness = 1.0,
             });
-            built.fillConvex(.{ .color = dvui.themeGet().color(.window, .fill), .fade = 3.0 });
+            built.fillConvex(.{ .color = dvui.themeGet().color(.control, .fill), .fade = 3.0 });
         }
         // Draw bubble outline
         built.stroke(.{ .color = color, .thickness = dvui.currentWindow().natural_scale });
@@ -905,8 +905,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             .margin = .all(0),
             .padding = .all(0),
             .id_extra = sprite_index,
-            .color_fill = dvui.themeGet().color(.control, .fill_hover),
-            .color_border = dvui.themeGet().color(.control, .fill_hover),
+            .color_fill = dvui.themeGet().color(.window, .fill),
+            .color_border = dvui.themeGet().color(.window, .fill),
             .border = dvui.Rect.all(1).scale(1.0 / self.init_options.file.editor.canvas.scale, dvui.Rect),
             .box_shadow = .{
                 .color = .black,
@@ -2701,7 +2701,6 @@ pub fn drawLayers(self: *FileWidget) void {
         .expand = .none,
         .rect = canvas_rect,
         .border = dvui.Rect.all(0),
-        .background = false,
         .box_shadow = .{
             .fade = 20 * 1 / self.init_options.file.editor.canvas.scale,
             .corner_radius = dvui.Rect.all(2 * 1 / self.init_options.file.editor.canvas.scale),
@@ -2711,7 +2710,6 @@ pub fn drawLayers(self: *FileWidget) void {
                 .y = 2 * 1 / self.init_options.file.editor.canvas.scale,
             },
         },
-        .color_fill = dvui.themeGet().color(.window, .fill),
     });
     shadow_box.deinit();
 
@@ -2720,7 +2718,7 @@ pub fn drawLayers(self: *FileWidget) void {
         .rect = .{ .x = layer_rect.x, .y = layer_rect.y, .w = @min(canvas_rect.w, layer_rect.w), .h = @min(canvas_rect.h, layer_rect.h) },
         .border = dvui.Rect.all(0),
         .background = true,
-        .color_fill = dvui.themeGet().color(.window, .fill),
+        .color_fill = dvui.themeGet().color(.control, .fill),
     });
     fill_box.deinit();
 
@@ -2825,30 +2823,31 @@ pub fn drawLayers(self: *FileWidget) void {
 
     // Draw the grid lines for the canvas
     {
+        const grid_color = dvui.themeGet().color(.window, .fill);
         for (1..columns) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = canvas_rect.h }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            } }, .{ .thickness = 1, .color = grid_color });
         }
 
         for (1..rows) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            } }, .{ .thickness = 1, .color = grid_color });
         }
 
         if (self.resize_data_point) |resize_data_point| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = canvas_rect.h }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            } }, .{ .thickness = 1, .color = grid_color });
 
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = resize_data_point.y }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            } }, .{ .thickness = 1, .color = grid_color });
         }
     }
 
@@ -3004,14 +3003,14 @@ fn drawReorderPreviewForAxis(
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = @as(f32, @floatFromInt(file.height())) }),
-                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
             }
 
             for (1..file.rows) |i| {
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width())), .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
             }
         }
 
@@ -3274,14 +3273,14 @@ fn drawReorderPreviewForAxis(
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = @as(f32, @floatFromInt(file.height())) }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
         }
 
         for (1..file.rows) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width())), .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.control, .fill) });
+            } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
         }
     }
 }
@@ -3572,9 +3571,10 @@ pub fn processEvents(self: *FileWidget) void {
     pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .left, .{ .opacity = 0.15 });
     pixi.dvui.drawEdgeShadow(self.init_options.file.editor.canvas.scroll_container.data().rectScale(), .right, .{});
 
-    self.drawSample();
     self.drawTransform();
-    self.drawCursor();
+    self.drawSample();
+    if (self.hovered())
+        self.drawCursor();
 
     // Then process the scroll and zoom events last
     self.init_options.file.editor.canvas.processEvents();

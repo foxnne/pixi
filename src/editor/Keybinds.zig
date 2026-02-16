@@ -109,6 +109,7 @@ pub fn tick() !void {
                         .ok_label = "Export",
                         .cancel_label = "Cancel",
                         .resizeable = false,
+                        .modal = false,
                         .default = .ok,
                     });
                     mutex.mutex.unlock();

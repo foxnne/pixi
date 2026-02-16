@@ -331,6 +331,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
                     .expand = .both,
                     .background = true,
+                    .color_fill = dvui.themeGet().color(.window, .fill),
                     .gravity_y = 0.0,
                 });
                 defer vbox.deinit();
