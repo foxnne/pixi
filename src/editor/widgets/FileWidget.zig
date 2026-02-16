@@ -788,6 +788,16 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             return button_rect.contains(mouse_data_pt);
         }
 
+        dvui.Path.stroke(.{
+            .points = &[_]dvui.Point.Physical{
+                bubble_rect_scale.r.bottomLeft(),
+                bubble_rect_scale.r.bottomRight(),
+            },
+        }, .{
+            .color = dvui.themeGet().color(.control, .fill),
+            .thickness = 2.0,
+        });
+
         if (draw_transparency) {
             if (self.init_options.file.editor.canvas.scale < 0.1) {
                 built.fillConvex(.{ .color = fill_color, .fade = 3.0 });
@@ -813,15 +823,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 };
             }
         } else {
-            dvui.Path.stroke(.{
-                .points = &[_]dvui.Point.Physical{
-                    bubble_rect_scale.r.bottomLeft(),
-                    bubble_rect_scale.r.bottomRight(),
-                },
-            }, .{
-                .color = dvui.themeGet().color(.control, .fill),
-                .thickness = 2.0,
-            });
             built.fillConvex(.{ .color = dvui.themeGet().color(.control, .fill), .fade = 3.0 });
         }
         // Draw bubble outline
@@ -904,8 +905,8 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             .padding = .all(0),
             .id_extra = sprite_index,
             .color_fill = dvui.themeGet().color(.window, .fill),
-            .color_border = dvui.themeGet().color(.control, .fill),
-            .border = dvui.Rect.all(1).scale(1.0 / self.init_options.file.editor.canvas.scale, dvui.Rect),
+            //.color_border = dvui.themeGet().color(.control, .fill),
+            //.border = dvui.Rect.all(1).scale(1.0 / self.init_options.file.editor.canvas.scale, dvui.Rect),
             .box_shadow = .{
                 .color = .black,
                 .offset = .{ .x = -0.05 * button_height, .y = 0.08 * button_height },
@@ -2822,30 +2823,31 @@ pub fn drawLayers(self: *FileWidget) void {
     // Draw the grid lines for the canvas
     {
         const grid_color = dvui.themeGet().color(.window, .fill);
+        const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
         for (1..columns) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = canvas_rect.h }),
-            } }, .{ .thickness = 2, .color = grid_color });
+            } }, .{ .thickness = grid_thickness, .color = grid_color });
         }
 
         for (1..rows) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-            } }, .{ .thickness = 2, .color = grid_color });
+            } }, .{ .thickness = grid_thickness, .color = grid_color });
         }
 
         if (self.resize_data_point) |resize_data_point| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = canvas_rect.h }),
-            } }, .{ .thickness = 2, .color = grid_color });
+            } }, .{ .thickness = grid_thickness, .color = grid_color });
 
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = resize_data_point.y }),
-            } }, .{ .thickness = 2, .color = grid_color });
+            } }, .{ .thickness = grid_thickness, .color = grid_color });
         }
     }
 
@@ -2997,18 +2999,19 @@ fn drawReorderPreviewForAxis(
         // Dragging but not over canvas: draw full layers unchanged, then dim removed slot only
 
         {
+            const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
             for (1..file.columns) |i| {
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = @as(f32, @floatFromInt(file.height())) }),
-                } }, .{ .thickness = 2, .color = dvui.themeGet().color(.window, .fill) });
+                } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
             }
 
             for (1..file.rows) |i| {
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width())), .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                } }, .{ .thickness = 2, .color = dvui.themeGet().color(.window, .fill) });
+                } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
             }
         }
 
@@ -3267,18 +3270,19 @@ fn drawReorderPreviewForAxis(
     }
 
     {
+        const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
         for (1..file.columns) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = @as(f32, @floatFromInt(file.height())) }),
-            } }, .{ .thickness = 2, .color = dvui.themeGet().color(.window, .fill) });
+            } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
         }
 
         for (1..file.rows) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width())), .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-            } }, .{ .thickness = 2, .color = dvui.themeGet().color(.window, .fill) });
+            } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
         }
     }
 }
