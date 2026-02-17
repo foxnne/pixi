@@ -297,15 +297,24 @@ pub fn showSecond(self: *PanedWidget) bool {
 }
 
 pub fn animateSplit(self: *PanedWidget, end_val: f32) void {
-    if (dvui.animationGet(self.data().id, "_split_ratio")) |_|
-        _ = dvui.currentWindow().animations.remove(dvui.Id.update(self.data().id, "_split_ratio"));
-
-    dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
-        .start_val = self.split_ratio.*,
-        .end_val = end_val,
-        .end_time = if (end_val < 0.1) 350_000 else 500_000,
-        .easing = if (end_val < 0.1) dvui.easing.outQuint else dvui.easing.outBack,
-    });
+    if (dvui.animationGet(self.data().id, "_split_ratio")) |animation| {
+        if (animation.end_val != end_val) {
+            _ = dvui.currentWindow().animations.remove(dvui.Id.update(self.data().id, "_split_ratio"));
+            dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
+                .start_val = animation.value(),
+                .end_val = end_val,
+                .end_time = if (end_val < 0.1) 350_000 else 500_000,
+                .easing = if (end_val < 0.1) dvui.easing.outQuint else dvui.easing.outBack,
+            });
+        }
+    } else if (self.split_ratio.* != end_val) {
+        dvui.animation(self.data().id, "_split_ratio", dvui.Animation{
+            .start_val = self.split_ratio.*,
+            .end_val = end_val,
+            .end_time = if (end_val < 0.1) 350_000 else 500_000,
+            .easing = if (end_val < 0.1) dvui.easing.outQuint else dvui.easing.outBack,
+        });
+    }
 }
 
 pub fn widget(self: *PanedWidget) Widget {

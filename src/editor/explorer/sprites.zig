@@ -231,7 +231,7 @@ pub fn drawAnimationControls(self: *Sprites) !void {
                     .alpha = 0.15,
                     .corner_radius = dvui.Rect.all(1000),
                 },
-                .color_fill = dvui.themeGet().color(.err, .fill).opacity(0.75),
+                .color_fill = dvui.themeGet().color(.err, .fill),
             });
             defer delete_animation_button.deinit();
             delete_animation_button.processEvents();
