@@ -847,7 +847,7 @@ pub fn keybindLabels(self: *const dvui.enums.Keybind, enabled: bool, opts: dvui.
 
     var second_opts = opts.strip();
     second_opts.color_text = color;
-    second_opts.font = dvui.Font.theme(.mono).larger(-1.0);
+    second_opts.font = dvui.Font.theme(.mono).larger(-2.0);
     second_opts.gravity_y = 0.5;
 
     var needs_space = false;
