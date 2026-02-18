@@ -925,6 +925,32 @@ pub fn processColumnReorder(self: *Workspace) void {
                 dvui.log.err("Failed to reorder columns", .{});
                 return;
             };
+
+            // We'll store the previous indices for clarity.
+            const prev_removed_index = columns_removed_index;
+            const prev_insert_before_index = columns_insert_before_index;
+
+            if (prev_removed_index < prev_insert_before_index) {
+                file.history.append(.{
+                    .reorder = .{
+                        .mode = .columns,
+                        .removed_index = prev_insert_before_index - 1,
+                        .insert_before_index = prev_removed_index,
+                    },
+                }) catch {
+                    dvui.log.err("Failed to append history", .{});
+                };
+            } else {
+                file.history.append(.{
+                    .reorder = .{
+                        .mode = .columns,
+                        .removed_index = prev_insert_before_index,
+                        .insert_before_index = prev_removed_index + 1,
+                    },
+                }) catch {
+                    dvui.log.err("Failed to append history", .{});
+                };
+            }
         }
     }
 }
@@ -941,6 +967,32 @@ pub fn processRowReorder(self: *Workspace) void {
                 dvui.log.err("Failed to reorder rows", .{});
                 return;
             };
+
+            // We'll store the previous indices for clarity.
+            const prev_removed_index = rows_removed_index;
+            const prev_insert_before_index = rows_insert_before_index;
+
+            if (prev_removed_index < prev_insert_before_index) {
+                file.history.append(.{
+                    .reorder = .{
+                        .mode = .rows,
+                        .removed_index = prev_insert_before_index - 1,
+                        .insert_before_index = prev_removed_index,
+                    },
+                }) catch {
+                    dvui.log.err("Failed to append history", .{});
+                };
+            } else {
+                file.history.append(.{
+                    .reorder = .{
+                        .mode = .rows,
+                        .removed_index = prev_insert_before_index,
+                        .insert_before_index = prev_removed_index + 1,
+                    },
+                }) catch {
+                    dvui.log.err("Failed to append history", .{});
+                };
+            }
         }
     }
 }

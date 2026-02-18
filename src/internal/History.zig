@@ -20,6 +20,7 @@ pub const ChangeType = enum {
     layer_name,
     layer_settings,
     resize,
+    reorder,
 };
 
 pub const Change = union(ChangeType) {
@@ -84,6 +85,17 @@ pub const Change = union(ChangeType) {
         height: u32,
     };
 
+    pub const Reorder = struct {
+        pub const Mode = enum {
+            columns,
+            rows,
+        };
+
+        mode: Mode,
+        removed_index: usize,
+        insert_before_index: usize,
+    };
+
     pixels: Pixels,
     origins: Origins,
     animation_name: AnimationName,
@@ -96,6 +108,7 @@ pub const Change = union(ChangeType) {
     layer_name: LayerName,
     layer_settings: LayerSettings,
     resize: Resize,
+    reorder: Reorder,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -249,6 +262,9 @@ pub fn append(self: *History, change: Change) !void {
                 .resize => {
                     equal = false;
                 },
+                .reorder => {
+                    equal = false;
+                },
             }
         } else equal = false;
     }
@@ -378,6 +394,9 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     file.width(),
                     file.height(),
                 }) catch "Invalid change";
+            },
+            .reorder => |_| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} File columns and rows reordered", .{action_text}) catch "Invalid change";
             },
         }
 
@@ -576,6 +595,30 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 .history = false,
                 .layer_data = layer_data,
             }) catch return error.ResizeError;
+        },
+        .reorder => |*reorder| {
+            switch (reorder.mode) {
+                .columns => {
+                    file.reorderColumns(reorder.removed_index, reorder.insert_before_index) catch return error.ReorderError;
+                },
+
+                .rows => {
+                    file.reorderRows(reorder.removed_index, reorder.insert_before_index) catch return error.ReorderError;
+                },
+            }
+
+            const prev_removed_index = reorder.removed_index;
+            const prev_insert_before_index = reorder.insert_before_index;
+
+            if (prev_removed_index < prev_insert_before_index) {
+                // Column was removed before the insert position, so it "shifts left" after being inserted.
+                reorder.removed_index = prev_insert_before_index - 1;
+                reorder.insert_before_index = prev_removed_index;
+            } else {
+                // Column was removed after (or at) insert position.
+                reorder.removed_index = prev_insert_before_index;
+                reorder.insert_before_index = prev_removed_index + 1;
+            }
         },
     }
 
