@@ -54,6 +54,8 @@ infobar: Infobar,
 folder: ?[]const u8 = null,
 project: ?Project = null,
 
+themes: std.array_list.Managed(dvui.Theme) = undefined,
+
 open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 
 // The actively focused workspace grouping ID
@@ -76,8 +78,66 @@ pub const SpriteClipboard = struct {
 pub fn init(
     app: *App,
 ) !Editor {
-    const config_folder = std.fs.path.join(pixi.app.allocator, &.{ try known_folders.getPath(dvui.currentWindow().arena(), .local_configuration) orelse app.root_path, "Pixi" }) catch app.root_path;
+    const config_folder = std.fs.path.join(pixi.app.allocator, &.{
+        try known_folders.getPath(dvui.currentWindow().arena(), .local_configuration) orelse app.root_path,
+        "Pixi",
+    }) catch app.root_path;
     const palette_folder = std.fs.path.join(pixi.app.allocator, &.{ config_folder, "Palettes" }) catch config_folder;
+
+    var theme = dvui.themeGet();
+
+    theme.window = .{
+        .fill = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
+        .fill_hover = .{ .r = 62, .g = 64, .b = 74, .a = 255 },
+        .fill_press = .{ .r = 32, .g = 34, .b = 44, .a = 255 },
+        //.fill_hover = .{ .r = 64, .g = 68, .b = 78, .a = 255 },
+        //.fill_press = theme.window.fill,
+        .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
+        .text = .{ .r = 206, .g = 163, .b = 127, .a = 255 },
+        .text_hover = theme.window.text,
+        .text_press = theme.window.text,
+    };
+
+    theme.control = .{
+        .fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 },
+        .fill_hover = .{ .r = 62, .g = 64, .b = 74, .a = 255 },
+        .fill_press = .{ .r = 32, .g = 34, .b = 44, .a = 255 },
+        .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
+        .text = .{ .r = 134, .g = 138, .b = 148, .a = 255 },
+        .text_hover = .{ .r = 124, .g = 128, .b = 138, .a = 255 },
+        .text_press = .{ .r = 124, .g = 128, .b = 138, .a = 255 },
+    };
+
+    theme.highlight = .{
+        .fill = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
+        //.fill_hover = theme.highlight.fill.?.average(theme.control.fill_hover.?),
+        //.fill_press = theme.highlight.fill.?.average(theme.control.fill_press.?),
+        .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
+        .text = theme.window.fill,
+        .text_hover = theme.window.fill,
+        .text_press = theme.window.fill,
+    };
+
+    pixi.backend.setTitlebarColor(dvui.currentWindow(), theme.control.fill.?);
+
+    // theme.content
+    theme.fill = theme.window.fill.?;
+    theme.border = theme.window.border.?;
+    theme.fill_hover = theme.control.fill_hover.?;
+    theme.fill_press = theme.control.fill_press.?;
+    theme.text = theme.window.text.?;
+    theme.text_hover = theme.window.text_hover.?;
+    theme.text_press = theme.window.text_press.?;
+    theme.focus = theme.highlight.fill.?;
+
+    theme.dark = true;
+    theme.name = "Pixi Dark";
+    theme.font_body = .find(.{ .family = "Vera Sans", .size = 8 });
+    theme.font_title = .find(.{ .family = "Vera Sans", .size = 10, .weight = .bold });
+    theme.font_heading = .find(.{ .family = "Vera Sans", .size = 8, .style = .italic });
+    theme.font_mono = .find(.{ .family = "CozetteVector", .size = 10 });
+
+    dvui.themeSet(theme);
 
     var editor: Editor = .{
         .config_folder = config_folder,
@@ -93,7 +153,20 @@ pub fn init(
             .source = try pixi.image.fromImageFileBytes("pixi.png", assets.files.@"pixi.png", .ptr),
         },
         .tools = try .init(app.allocator),
+        .themes = .init(app.allocator),
     };
+
+    editor.themes.append(theme) catch {
+        dvui.log.err("Failed to append theme", .{});
+        return error.FailedToAppendTheme;
+    };
+
+    for (dvui.Theme.builtins) |b| {
+        editor.themes.append(b) catch {
+            dvui.log.err("Failed to append builtin theme", .{});
+            return error.FailedToAppendBuiltinTheme;
+        };
+    }
 
     var valid_path: bool = true;
     if (std.fs.path.isAbsolute(editor.config_folder)) {

@@ -586,8 +586,10 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
         path2.addPoint(bottom_right);
         path2.addPoint(bottom_left);
 
+        const subdivisions = 32;
+
         if (init_opts.alpha_source) |alpha_source| {
-            const reflection_triangles = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 4, .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0), .vertical_fade = true }) catch unreachable;
+            const reflection_triangles = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0), .vertical_fade = true }) catch unreachable;
             dvui.renderTriangles(reflection_triangles, alpha_source.getTexture() catch null) catch {
                 dvui.log.err("Failed to render triangles", .{});
             };
@@ -596,19 +598,17 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
                 var index: usize = file.layers.len;
                 while (index > 0) {
                     index -= 1;
-
-                    const color_mod: dvui.Color = if (file.peek_layer_index != null and file.peek_layer_index != index) dvui.Color.gray else dvui.Color.white;
-
-                    const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true, .color_mod = color_mod }) catch unreachable;
-
                     if (file.layers.items(.visible)[index]) {
+                        const color_mod: dvui.Color = if (file.peek_layer_index != null and file.peek_layer_index != index) dvui.Color.gray else dvui.Color.white;
+                        const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .uv = uv, .vertical_fade = true, .color_mod = color_mod }) catch unreachable;
+
                         dvui.renderTriangles(reflection_triangles_layers, file.layers.items(.source)[index].getTexture() catch null) catch {
                             dvui.log.err("Failed to render triangles", .{});
                         };
                     }
                 }
 
-                const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true }) catch unreachable;
+                const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .uv = uv, .vertical_fade = true }) catch unreachable;
 
                 dvui.renderTriangles(reflection_triangles_layers, file.editor.selection_layer.source.getTexture() catch null) catch {
                     dvui.log.err("Failed to render triangles", .{});
@@ -618,7 +618,7 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
                     dvui.log.err("Failed to render triangles", .{});
                 };
             } else {
-                const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = 8, .uv = uv, .vertical_fade = true }) catch unreachable;
+                const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .uv = uv, .vertical_fade = true }) catch unreachable;
 
                 dvui.renderTriangles(reflection_triangles_layers, init_opts.source.getTexture() catch null) catch {
                     dvui.log.err("Failed to render triangles", .{});
@@ -698,41 +698,40 @@ pub fn pathToSubdividedQuad(path: dvui.Path, allocator: std.mem.Allocator, optio
     // Use given UV or default to (0,0,1,1)
     const base_uv = options.uv orelse dvui.Rect{ .x = 0, .y = 0, .w = 1, .h = 1 };
 
-    var last_pos: dvui.Point.Physical = tl;
-
-    // Write all vertices, including the last row and column at s=1, t=1
-    for (0..(subdivs + 1)) |j| { // vertical
-        const t = @as(f32, @floatFromInt(j)) / @as(f32, @floatFromInt(subdivs));
-        // Interpolate between tl/bl for left and tr/br for right
-        const left = dvui.Point.Physical{
-            .x = tl.x + (bl.x - tl.x) * t,
-            .y = tl.y + (bl.y - tl.y) * t,
-        };
-        const right = dvui.Point.Physical{
-            .x = tr.x + (br.x - tr.x) * t,
-            .y = tr.y + (br.y - tr.y) * t,
-        };
-        for (0..(subdivs + 1)) |i| { // horizontal
-            const s = @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(subdivs));
-            // Interpolate across row
-            const pos = dvui.Point.Physical{
-                .x = left.x + (right.x - left.x) * s,
-                .y = left.y + (right.y - left.y) * s,
+    {
+        var y: usize = 0;
+        while (y <= subdivs) : (y += 1) { // vertical
+            const t_y = @as(f32, @floatFromInt(y)) / @as(f32, @floatFromInt(subdivs));
+            // Interpolate between tl/bl for left and tr/br for right
+            const left = dvui.Point.Physical{
+                .x = tl.x + (bl.x - tl.x) * t_y,
+                .y = tl.y + (bl.y - tl.y) * t_y,
             };
-            last_pos = pos;
-            // Calculate UV in sub-rect if given, otherwise fill [0..1] range
-            const uv = .{
-                base_uv.x + base_uv.w * s,
-                base_uv.y + base_uv.h * t,
+            const right = dvui.Point.Physical{
+                .x = tr.x + (br.x - tr.x) * t_y,
+                .y = tr.y + (br.y - tr.y) * t_y,
             };
+            var x: usize = 0;
+            while (x <= subdivs) : (x += 1) { // horizontal
+                const t_x = @as(f32, @floatFromInt(x)) / @as(f32, @floatFromInt(subdivs));
+                const pos = dvui.Point.Physical{
+                    .x = left.x + (right.x - left.x) * t_x,
+                    .y = left.y + (right.y - left.y) * t_x,
+                };
 
-            var col: dvui.Color = options.color_mod;
-            if (options.vertical_fade) col = col.opacity(0.5 * (1.0 - (1.0 - t)));
-            builder.appendVertex(.{
-                .pos = pos,
-                .col = dvui.Color.PMA.fromColor(col),
-                .uv = uv,
-            });
+                const uv = .{
+                    base_uv.x + base_uv.w * t_x,
+                    base_uv.y + base_uv.h * t_y,
+                };
+
+                var col: dvui.Color = options.color_mod;
+                if (options.vertical_fade) col = col.opacity(0.5 * t_y);
+                builder.appendVertex(.{
+                    .pos = pos,
+                    .col = dvui.Color.PMA.fromColor(col),
+                    .uv = uv,
+                });
+            }
         }
     }
 

@@ -2675,20 +2675,21 @@ pub fn drawLayers(self: *FileWidget) void {
         canvas_rect.h = resize_data_point.y;
 
         if (resize_data_point.x < layer_rect.x + layer_rect.w or resize_data_point.y < layer_rect.y + layer_rect.h) {
+            const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
             self.init_options.file.editor.canvas.screenFromDataRect(layer_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 1.5 });
             // Draw grid lines for the original layer_rect
             for (1..columns) |i| {
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = layer_rect.h }),
-                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
+                } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
             }
 
             for (1..rows) |i| {
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = layer_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.window, .fill) });
+                } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
             }
         }
 

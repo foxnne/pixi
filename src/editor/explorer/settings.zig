@@ -13,6 +13,8 @@ pub fn draw() !void {
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{});
     defer vbox.deinit();
 
+    if (dvui.Theme.picker(@src(), pixi.editor.themes.items, .{})) {}
+
     dvui.label(@src(), "{d:0>3.0} fps", .{dvui.FPS()}, .{});
 
     if (pixi.editor.activeFile()) |file| {

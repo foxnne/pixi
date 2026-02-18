@@ -513,7 +513,7 @@ pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
             break :blk self.horizontal_ruler_height;
         },
         .vertical => blk: {
-            self.vertical_ruler_width = base_ruler_size;
+            self.vertical_ruler_width = @max(base_ruler_size, font.textSize("M").h + pixi.editor.settings.ruler_padding);
             break :blk self.vertical_ruler_width;
         },
     };
@@ -527,7 +527,7 @@ pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
 
             var corner_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
-                .min_size_content = .{ .h = base_ruler_size, .w = base_ruler_size },
+                .min_size_content = .{ .h = self.vertical_ruler_width, .w = self.vertical_ruler_width },
                 .background = false,
                 .color_fill = dvui.themeGet().color(.window, .fill),
             });
@@ -563,7 +563,7 @@ fn drawRulerContent(
     font: dvui.Font,
     orientation: RulerOrientation,
     ruler_size: f32,
-    largest_label: []const u8,
+    _: []const u8,
 ) void {
     const scale = file.editor.canvas.scale;
     const canvas = file.editor.canvas;
@@ -614,7 +614,7 @@ fn drawRulerContent(
         .vertical => .{
             .x = 0,
             .y = 0,
-            .w = ruler_size * (1.0 / scale),
+            .w = ruler_size / scale,
             .h = @as(f32, @floatFromInt(file.height())),
         },
     };
@@ -779,7 +779,7 @@ fn drawRulerContent(
                     .horizontal => .horizontal,
                     .vertical => .vertical,
                 },
-                .largest_label = if (orientation == .vertical) largest_label else null,
+                .largest_label = null,
             });
 
             const cell_rect = cell_box.data().rectScale().r;
@@ -895,7 +895,7 @@ pub fn drawRulerLabel(_: *Workspace, options: TextLabelOptions) void {
             dvui.log.err("Failed to render text", .{});
         };
     } else if (label_size.h + padding <= label_rect.h and options.mode == .vertical) {
-        label_rect.w = label_size.w + padding;
+        label_rect.w = label_size.h + padding;
         label_rect.x += (label_rect.w - actual_label_size.w) / 2.0;
         label_rect.y += (label_rect.h - actual_label_size.h) / 2.0;
 

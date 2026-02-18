@@ -121,14 +121,11 @@ pub fn init(path: []const u8, options: InitOptions) !pixi.Internal.File {
             .ptr,
         ) catch return error.LayerCreateError;
 
-        const checker_color_1: [4]u8 = .{ 255, 255, 255, 255 };
-        const checker_color_2: [4]u8 = .{ 175, 175, 175, 255 };
-
         for (pixi.image.pixels(internal.editor.checkerboard_tile), 0..) |*pixel, i| {
             if (pixi.math.checker(pixi.image.size(internal.editor.checkerboard_tile), i)) {
-                pixel.* = checker_color_1;
+                pixel.* = pixi.editor.settings.checker_color_even;
             } else {
-                pixel.* = checker_color_2;
+                pixel.* = pixi.editor.settings.checker_color_odd;
             }
         }
         dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
