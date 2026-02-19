@@ -172,6 +172,9 @@ redo_stack: std.array_list.Managed(Change),
 undo_layer_data_stack: std.array_list.Managed([][][4]u8),
 redo_layer_data_stack: std.array_list.Managed([][][4]u8),
 
+undo_animation_data_stack: std.array_list.Managed([][]pixi.Animation.Frame),
+redo_animation_data_stack: std.array_list.Managed([][]pixi.Animation.Frame),
+
 pub fn init(allocator: std.mem.Allocator) History {
     return .{
         .undo_stack = std.array_list.Managed(Change).init(allocator),
@@ -179,6 +182,9 @@ pub fn init(allocator: std.mem.Allocator) History {
 
         .undo_layer_data_stack = std.array_list.Managed([][][4]u8).init(allocator),
         .redo_layer_data_stack = std.array_list.Managed([][][4]u8).init(allocator),
+
+        .undo_animation_data_stack = std.array_list.Managed([][]pixi.Animation.Frame).init(allocator),
+        .redo_animation_data_stack = std.array_list.Managed([][]pixi.Animation.Frame).init(allocator),
     };
 }
 

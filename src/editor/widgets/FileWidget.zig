@@ -2858,6 +2858,27 @@ pub fn drawLayers(self: *FileWidget) void {
         while (iter.next()) |i| {
             const sprite_rect = file.spriteRect(i);
             const sprite_rect_physical = self.init_options.file.editor.canvas.screenFromDataRect(sprite_rect);
+
+            // Draw the origins when in the sprites pane
+            if (pixi.editor.explorer.pane == .sprites) {
+                const origin: dvui.Point = .{ .x = sprite_rect.topLeft().x + file.sprites.get(i).origin[0], .y = sprite_rect.topLeft().y + file.sprites.get(i).origin[1] };
+
+                const horizontal_line_start: dvui.Point = .{ .x = sprite_rect.topLeft().x, .y = origin.y };
+                const horizontal_line_end: dvui.Point = .{ .x = sprite_rect.topRight().x, .y = origin.y };
+                const vertical_line_start: dvui.Point = .{ .x = origin.x, .y = sprite_rect.topLeft().y };
+                const vertical_line_end: dvui.Point = .{ .x = origin.x, .y = sprite_rect.bottomLeft().y };
+
+                dvui.Path.stroke(.{ .points = &.{
+                    file.editor.canvas.screenFromDataPoint(horizontal_line_start),
+                    file.editor.canvas.screenFromDataPoint(horizontal_line_end),
+                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.err, .fill) });
+
+                dvui.Path.stroke(.{ .points = &.{
+                    file.editor.canvas.screenFromDataPoint(vertical_line_start),
+                    file.editor.canvas.screenFromDataPoint(vertical_line_end),
+                } }, .{ .thickness = 1, .color = dvui.themeGet().color(.err, .fill) });
+            }
+
             sprite_rect_physical.inset(.all(dvui.currentWindow().natural_scale * 1.5)).stroke(dvui.Rect.Physical.all(@min(sprite_rect_physical.w, sprite_rect_physical.h) / 8), .{
                 .thickness = 1.5 * dvui.currentWindow().natural_scale,
                 .color = dvui.themeGet().color(.highlight, .fill),

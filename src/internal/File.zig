@@ -393,10 +393,16 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
         }
         _ = zip.zip_entry_close(pixi_file);
 
-        for (ext.sprites) |sprite| {
-            internal.sprites.append(pixi.app.allocator, .{
-                .origin = .{ sprite.origin[0], sprite.origin[1] },
-            }) catch return error.FileLoadError;
+        for (0..internal.spriteCount()) |sprite_index| {
+            if (sprite_index >= ext.sprites.len) {
+                internal.sprites.append(pixi.app.allocator, .{
+                    .origin = .{ 0, 0 },
+                }) catch return error.FileLoadError;
+            } else {
+                internal.sprites.append(pixi.app.allocator, .{
+                    .origin = .{ ext.sprites[sprite_index].origin[0], ext.sprites[sprite_index].origin[1] },
+                }) catch return error.FileLoadError;
+            }
         }
 
         for (ext.animations) |animation| {
@@ -567,7 +573,6 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
                 pixel.* = checker_color_2;
             }
         }
-        //dvui.textureInvalidateCache(internal.editor.checkerboard_tile.hash());
     }
 
     return internal;
@@ -578,6 +583,7 @@ pub const ResizeOptions = struct {
     rows: u32,
     history: bool = true, // If true, layer data will be recorded for undo/redo
     layer_data: ?[][][4]u8 = null, // If provided, the layer data will be applied to the layers after resizing
+    animation_data: ?[][]pixi.Animation.Frame = null, // If provided, the animation data will be applied to the animations after resizing
 };
 
 pub fn resize(file: *File, options: ResizeOptions) !void {
@@ -595,20 +601,31 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     const new_width = new_columns * file.column_width;
     const new_height = new_rows * file.row_height;
 
-    for (0..file.animations.len) |animation_index| {
+    var anim_data: std.array_list.Managed([]pixi.Animation.Frame) = std.array_list.Managed([]pixi.Animation.Frame).init(pixi.app.allocator);
+    if (options.history) {
+        for (0..file.animations.len) |animation_index| {
+            const animation = file.animations.get(animation_index);
+            anim_data.append(animation.frames) catch return error.MemoryAllocationFailed;
+        }
+        file.history.undo_animation_data_stack.append(anim_data.toOwnedSlice() catch return error.MemoryAllocationFailed) catch return error.MemoryAllocationFailed;
+    } else {
+        anim_data.deinit();
+    }
+
+    // Overwrite the current animation data with the new animation data
+    if (options.animation_data) |old_animations| {
+        for (file.animations.items(.frames), 0..) |*frames, animation_index| {
+            frames.* = pixi.app.allocator.dupe(pixi.Animation.Frame, old_animations[animation_index]) catch return error.MemoryAllocationFailed;
+        }
+    } else for (0..file.animations.len) |animation_index| {
         const old_animation = file.animations.get(animation_index);
         var new_animation = Animation.init(pixi.app.allocator, old_animation.id, old_animation.name, &.{}) catch return error.AnimationCreateError;
         defer file.animations.set(animation_index, new_animation);
-        defer pixi.app.allocator.free(old_animation.frames);
         for (0..old_animation.frames.len) |frame_index| {
             const old_sprite_index = old_animation.frames[frame_index].sprite_index;
-            const old_column = file.columnFromIndex(old_sprite_index);
-            if (old_column < new_columns) {
-                const old_row = file.rowFromIndex(old_sprite_index);
-                if (old_row < new_rows) {
-                    const new_sprite_index = old_column * new_rows + old_row;
-                    new_animation.appendFrame(pixi.app.allocator, .{ .sprite_index = new_sprite_index, .ms = old_animation.frames[frame_index].ms }) catch return error.AnimationFrameAppendError;
-                }
+
+            if (file.getResizedIndex(old_sprite_index, new_columns, new_rows)) |new_sprite_index| {
+                new_animation.appendFrame(pixi.app.allocator, .{ .sprite_index = new_sprite_index, .ms = old_animation.frames[frame_index].ms }) catch return error.AnimationFrameAppendError;
             }
         }
     }
@@ -653,20 +670,44 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     file.rows = new_rows;
 }
 
+/// Returns the sprite index after a grid resize, or null if the cell is outside the new grid.
+/// Index layout is row-major: index = row * columns + column.
+pub fn getResizedIndex(
+    self: *File,
+    sprite_index: usize,
+    new_columns: u32,
+    new_rows: u32,
+) ?usize {
+    // Determine the original row/col
+    const old_col: u32 = @intCast(@mod(sprite_index, self.columns));
+    const old_row: u32 = @intCast(@divTrunc(sprite_index, self.columns));
+
+    // Out of bounds in original grid
+    if (old_row >= self.rows or old_col >= self.columns)
+        return null;
+
+    // After resize, if this position exists in the new grid, keep index unchanged if the structure is compatible,
+    // otherwise return null. Only "remove" indices that no longer fit.
+    if (old_row < new_rows and old_col < new_columns) {
+        return old_row * new_columns + old_col;
+    } else {
+        return null;
+    }
+}
+
 /// Returns the sprite index after a drag-and-drop reorder of one column or row.
 /// `removed_index` is the column/row that was dragged, `insert_before_index` is where it was dropped (before that column/row).
-/// Use this to update animation frame sprite indices after reorderColumns or reorderRows.
 pub fn getReorderedIndex(
+    self: *File,
     removed_index: usize,
     insert_before_index: usize,
     orientation: enum { column, row },
     sprite_index: usize,
-    columns: u32,
 ) usize {
     if (removed_index == insert_before_index) return sprite_index;
 
-    const col: u32 = @intCast(@mod(sprite_index, columns));
-    const row: u32 = @intCast(@divTrunc(sprite_index, columns));
+    const col: u32 = @intCast(@mod(sprite_index, self.columns));
+    const row: u32 = @intCast(@divTrunc(sprite_index, self.columns));
 
     const insert_pos: usize = if (insert_before_index > removed_index)
         insert_before_index - 1
@@ -686,8 +727,8 @@ pub fn getReorderedIndex(
     };
 
     return switch (orientation) {
-        .column => row * columns + @as(u32, @intCast(new_pos_along)),
-        .row => @as(u32, @intCast(new_pos_along)) * columns + col,
+        .column => row * self.columns + @as(u32, @intCast(new_pos_along)),
+        .row => @as(u32, @intCast(new_pos_along)) * self.columns + col,
     };
 }
 
@@ -727,14 +768,26 @@ pub fn reorderColumns(file: *File, removed_column_index: usize, insert_before_co
 
     for (file.animations.items(.frames)) |*frames| {
         for (frames.*) |*frame| {
-            frame.sprite_index = getReorderedIndex(
+            frame.sprite_index = file.getReorderedIndex(
                 removed_column_index,
                 insert_before_column_index,
                 .column,
                 frame.sprite_index,
-                file.columns,
             );
         }
+    }
+
+    var new_origins = try dvui.currentWindow().arena().dupe([2]f32, file.sprites.items(.origin));
+    for (file.sprites.items(.origin), 0..) |*origin, sprite_index| {
+        const reordered_index = file.getReorderedIndex(removed_column_index, insert_before_column_index, .column, sprite_index);
+
+        if (reordered_index != sprite_index) {
+            new_origins[reordered_index] = origin.*;
+        }
+    }
+
+    for (new_origins, 0..) |origin, sprite_index| {
+        file.sprites.items(.origin)[sprite_index] = origin;
     }
 }
 
@@ -774,14 +827,26 @@ pub fn reorderRows(file: *File, removed_row_index: usize, insert_before_row_inde
 
     for (file.animations.items(.frames)) |*frames| {
         for (frames.*) |*frame| {
-            frame.sprite_index = getReorderedIndex(
+            frame.sprite_index = file.getReorderedIndex(
                 removed_row_index,
                 insert_before_row_index,
                 .row,
                 frame.sprite_index,
-                file.columns,
             );
         }
+    }
+
+    var new_origins = try dvui.currentWindow().arena().dupe([2]f32, file.sprites.items(.origin));
+    for (file.sprites.items(.origin), 0..) |*origin, sprite_index| {
+        const reordered_index = file.getReorderedIndex(removed_row_index, insert_before_row_index, .row, sprite_index);
+
+        if (reordered_index != sprite_index) {
+            new_origins[reordered_index] = origin.*;
+        }
+    }
+
+    for (new_origins, 0..) |origin, sprite_index| {
+        file.sprites.items(.origin)[sprite_index] = origin;
     }
 }
 
