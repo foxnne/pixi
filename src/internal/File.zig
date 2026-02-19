@@ -653,6 +653,44 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     file.rows = new_rows;
 }
 
+/// Returns the sprite index after a drag-and-drop reorder of one column or row.
+/// `removed_index` is the column/row that was dragged, `insert_before_index` is where it was dropped (before that column/row).
+/// Use this to update animation frame sprite indices after reorderColumns or reorderRows.
+pub fn getReorderedIndex(
+    removed_index: usize,
+    insert_before_index: usize,
+    orientation: enum { column, row },
+    sprite_index: usize,
+    columns: u32,
+) usize {
+    if (removed_index == insert_before_index) return sprite_index;
+
+    const col: u32 = @intCast(@mod(sprite_index, columns));
+    const row: u32 = @intCast(@divTrunc(sprite_index, columns));
+
+    const insert_pos: usize = if (insert_before_index > removed_index)
+        insert_before_index - 1
+    else
+        insert_before_index;
+
+    const pos_along: usize = switch (orientation) {
+        .column => col,
+        .row => row,
+    };
+
+    const new_pos_along: usize = if (pos_along == removed_index)
+        insert_pos
+    else blk: {
+        const temp = if (pos_along < removed_index) pos_along else pos_along - 1;
+        break :blk if (temp >= insert_pos) temp + 1 else temp;
+    };
+
+    return switch (orientation) {
+        .column => row * columns + @as(u32, @intCast(new_pos_along)),
+        .row => @as(u32, @intCast(new_pos_along)) * columns + col,
+    };
+}
+
 pub fn reorderColumns(file: *File, removed_column_index: usize, insert_before_column_index: usize) !void {
     if (removed_column_index == insert_before_column_index) return;
     if (removed_column_index > file.columns or insert_before_column_index > file.columns) return error.InvalidIndex;
@@ -664,13 +702,10 @@ pub fn reorderColumns(file: *File, removed_column_index: usize, insert_before_co
         var removed_column_rect = file.columnRect(removed_column_index);
 
         if (insert_before_column_index < removed_column_index) {
-            // We are moving the column to the left, so we need to move the pixels after the insert column to the left one column
-
             var translate_rect = insert_column_rect;
             translate_rect.w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(removed_column_index - insert_before_column_index));
 
             const translate_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), translate_rect) orelse return error.MemoryAllocationFailed;
-            // Move our translate rect over one column
             translate_rect.x += @as(f32, @floatFromInt(file.column_width));
 
             const removed_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), removed_column_rect) orelse return error.MemoryAllocationFailed;
@@ -682,12 +717,23 @@ pub fn reorderColumns(file: *File, removed_column_index: usize, insert_before_co
             translate_rect.w = @as(f32, @floatFromInt(file.column_width)) * @as(f32, @floatFromInt(insert_before_column_index - removed_column_index));
 
             const translate_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), translate_rect) orelse return error.MemoryAllocationFailed;
-            // Move our translate rect over one column
             translate_rect.x -= @as(f32, @floatFromInt(file.column_width));
 
             const removed_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), removed_column_rect) orelse return error.MemoryAllocationFailed;
             layer.blit(translate_pixels, translate_rect, .{ .transparent = false, .mask = false });
             layer.blit(removed_pixels, insert_column_rect.offsetPoint(.{ .x = -@as(f32, @floatFromInt(file.column_width)) }), .{ .transparent = false, .mask = false });
+        }
+    }
+
+    for (file.animations.items(.frames)) |*frames| {
+        for (frames.*) |*frame| {
+            frame.sprite_index = getReorderedIndex(
+                removed_column_index,
+                insert_before_column_index,
+                .column,
+                frame.sprite_index,
+                file.columns,
+            );
         }
     }
 }
@@ -703,13 +749,10 @@ pub fn reorderRows(file: *File, removed_row_index: usize, insert_before_row_inde
         var removed_row_rect = file.rowRect(removed_row_index);
 
         if (insert_before_row_index < removed_row_index) {
-            // We are moving the column to the left, so we need to move the pixels after the insert column to the left one column
-
             var translate_rect = insert_row_rect;
             translate_rect.h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(removed_row_index - insert_before_row_index));
 
             const translate_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), translate_rect) orelse return error.MemoryAllocationFailed;
-            // Move our translate rect over one column
             translate_rect.y += @as(f32, @floatFromInt(file.row_height));
 
             const removed_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), removed_row_rect) orelse return error.MemoryAllocationFailed;
@@ -721,12 +764,23 @@ pub fn reorderRows(file: *File, removed_row_index: usize, insert_before_row_inde
             translate_rect.h = @as(f32, @floatFromInt(file.row_height)) * @as(f32, @floatFromInt(insert_before_row_index - removed_row_index));
 
             const translate_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), translate_rect) orelse return error.MemoryAllocationFailed;
-            // Move our translate rect over one column
             translate_rect.y -= @as(f32, @floatFromInt(file.row_height));
 
             const removed_pixels = layer.pixelsFromRect(dvui.currentWindow().arena(), removed_row_rect) orelse return error.MemoryAllocationFailed;
             layer.blit(translate_pixels, translate_rect, .{ .transparent = false, .mask = false });
             layer.blit(removed_pixels, insert_row_rect.offsetPoint(.{ .y = -@as(f32, @floatFromInt(file.row_height)) }), .{ .transparent = false, .mask = false });
+        }
+    }
+
+    for (file.animations.items(.frames)) |*frames| {
+        for (frames.*) |*frame| {
+            frame.sprite_index = getReorderedIndex(
+                removed_row_index,
+                insert_before_row_index,
+                .row,
+                frame.sprite_index,
+                file.columns,
+            );
         }
     }
 }
