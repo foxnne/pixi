@@ -601,35 +601,6 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
     const new_width = new_columns * file.column_width;
     const new_height = new_rows * file.row_height;
 
-    var anim_data: std.array_list.Managed([]pixi.Animation.Frame) = std.array_list.Managed([]pixi.Animation.Frame).init(pixi.app.allocator);
-    if (options.history) {
-        for (0..file.animations.len) |animation_index| {
-            const animation = file.animations.get(animation_index);
-            anim_data.append(animation.frames) catch return error.MemoryAllocationFailed;
-        }
-        file.history.undo_animation_data_stack.append(anim_data.toOwnedSlice() catch return error.MemoryAllocationFailed) catch return error.MemoryAllocationFailed;
-    } else {
-        anim_data.deinit();
-    }
-
-    // Overwrite the current animation data with the new animation data
-    if (options.animation_data) |old_animations| {
-        for (file.animations.items(.frames), 0..) |*frames, animation_index| {
-            frames.* = pixi.app.allocator.dupe(pixi.Animation.Frame, old_animations[animation_index]) catch return error.MemoryAllocationFailed;
-        }
-    } else for (0..file.animations.len) |animation_index| {
-        const old_animation = file.animations.get(animation_index);
-        var new_animation = Animation.init(pixi.app.allocator, old_animation.id, old_animation.name, &.{}) catch return error.AnimationCreateError;
-        defer file.animations.set(animation_index, new_animation);
-        for (0..old_animation.frames.len) |frame_index| {
-            const old_sprite_index = old_animation.frames[frame_index].sprite_index;
-
-            if (file.getResizedIndex(old_sprite_index, new_columns, new_rows)) |new_sprite_index| {
-                new_animation.appendFrame(pixi.app.allocator, .{ .sprite_index = new_sprite_index, .ms = old_animation.frames[frame_index].ms }) catch return error.AnimationFrameAppendError;
-            }
-        }
-    }
-
     // First, record the current layer data for undo/redo
     if (options.history) {
         file.history.append(.{ .resize = .{ .width = file.width(), .height = file.height() } }) catch return error.HistoryAppendError;
@@ -640,6 +611,39 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
             layer_data[layer_index] = pixi.app.allocator.dupe([4]u8, layer.pixels()) catch return error.MemoryAllocationFailed;
         }
         file.history.undo_layer_data_stack.append(layer_data) catch return error.MemoryAllocationFailed;
+
+        // Store all the animations before the resize event
+        var anim_data = try pixi.app.allocator.alloc([]pixi.Animation.Frame, file.animations.len);
+        for (0..file.animations.len) |anim_index| {
+            const animation = file.animations.get(anim_index);
+            anim_data[anim_index] = pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames) catch return error.MemoryAllocationFailed;
+        }
+        file.history.undo_animation_data_stack.append(anim_data) catch return error.MemoryAllocationFailed;
+    }
+
+    if (options.animation_data) |anim_data| {
+        for (0..file.animations.len) |anim_index| {
+            var current_animation = file.animations.get(anim_index);
+            const current_data = anim_data[anim_index];
+
+            var new_animation = pixi.Internal.Animation.init(pixi.app.allocator, current_animation.id, current_animation.name, &.{}) catch return error.AnimationCreateError;
+            defer file.animations.set(anim_index, new_animation);
+            defer current_animation.deinit(pixi.app.allocator);
+            for (current_data) |frame| {
+                new_animation.appendFrame(pixi.app.allocator, .{ .sprite_index = frame.sprite_index, .ms = frame.ms }) catch return error.AnimationFrameAppendError;
+            }
+        }
+    } else for (0..file.animations.len) |anim_index| {
+        var animation = file.animations.get(anim_index);
+        var new_animation = pixi.Internal.Animation.init(pixi.app.allocator, animation.id, animation.name, &.{}) catch return error.AnimationCreateError;
+        defer file.animations.set(anim_index, new_animation);
+        defer animation.deinit(pixi.app.allocator);
+        for (0..animation.frames.len) |frame_index| {
+            const old_sprite_index = animation.frames[frame_index].sprite_index;
+            if (file.getResizedIndex(old_sprite_index, new_columns, new_rows)) |new_sprite_index| {
+                new_animation.appendFrame(pixi.app.allocator, .{ .sprite_index = new_sprite_index, .ms = animation.frames[frame_index].ms }) catch return error.AnimationFrameAppendError;
+            }
+        }
     }
 
     // Now, resize the layers, and apply any layer data if needed
@@ -678,16 +682,12 @@ pub fn getResizedIndex(
     new_columns: u32,
     new_rows: u32,
 ) ?usize {
-    // Determine the original row/col
     const old_col: u32 = @intCast(@mod(sprite_index, self.columns));
     const old_row: u32 = @intCast(@divTrunc(sprite_index, self.columns));
 
-    // Out of bounds in original grid
     if (old_row >= self.rows or old_col >= self.columns)
         return null;
 
-    // After resize, if this position exists in the new grid, keep index unchanged if the structure is compatible,
-    // otherwise return null. Only "remove" indices that no longer fit.
     if (old_row < new_rows and old_col < new_columns) {
         return old_row * new_columns + old_col;
     } else {

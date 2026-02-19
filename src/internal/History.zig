@@ -579,6 +579,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             resize.height = file.height();
 
             var layer_data: ?[][][4]u8 = null;
+            var animation_data: ?[][]pixi.Animation.Frame = null;
 
             switch (action) {
                 .undo => {
@@ -586,11 +587,32 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                         try self.redo_layer_data_stack.append(ld);
                         layer_data = ld;
                     }
+
+                    if (self.undo_animation_data_stack.pop()) |ad| {
+                        //try self.redo_animation_data_stack.append(ad);
+                        animation_data = ad;
+
+                        var anim_data = try pixi.app.allocator.alloc([]pixi.Animation.Frame, file.animations.len);
+                        for (0..file.animations.len) |animation_index| {
+                            anim_data[animation_index] = pixi.app.allocator.dupe(pixi.Animation.Frame, file.animations.items(.frames)[animation_index]) catch return error.MemoryAllocationFailed;
+                        }
+                        try self.redo_animation_data_stack.append(anim_data);
+                    }
                 },
                 .redo => {
                     if (self.redo_layer_data_stack.pop()) |ld| {
                         try self.undo_layer_data_stack.append(ld);
                         layer_data = ld;
+                    }
+                    if (self.redo_animation_data_stack.pop()) |ad| {
+                        //try self.undo_animation_data_stack.append(ad);
+                        animation_data = ad;
+
+                        var anim_data = try pixi.app.allocator.alloc([]pixi.Animation.Frame, file.animations.len);
+                        for (0..file.animations.len) |animation_index| {
+                            anim_data[animation_index] = pixi.app.allocator.dupe(pixi.Animation.Frame, file.animations.items(.frames)[animation_index]) catch return error.MemoryAllocationFailed;
+                        }
+                        try self.undo_animation_data_stack.append(anim_data);
                     }
                 },
             }
@@ -600,6 +622,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 .rows = @divTrunc(new_size_high, file.row_height),
                 .history = false,
                 .layer_data = layer_data,
+                .animation_data = animation_data,
             }) catch return error.ResizeError;
         },
         .reorder => |*reorder| {
