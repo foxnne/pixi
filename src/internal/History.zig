@@ -175,6 +175,9 @@ redo_layer_data_stack: std.array_list.Managed([][][4]u8),
 undo_animation_data_stack: std.array_list.Managed([][]pixi.Animation.Frame),
 redo_animation_data_stack: std.array_list.Managed([][]pixi.Animation.Frame),
 
+undo_sprite_data_stack: std.array_list.Managed([][2]f32),
+redo_sprite_data_stack: std.array_list.Managed([][2]f32),
+
 pub fn init(allocator: std.mem.Allocator) History {
     return .{
         .undo_stack = std.array_list.Managed(Change).init(allocator),
@@ -185,6 +188,9 @@ pub fn init(allocator: std.mem.Allocator) History {
 
         .undo_animation_data_stack = std.array_list.Managed([][]pixi.Animation.Frame).init(allocator),
         .redo_animation_data_stack = std.array_list.Managed([][]pixi.Animation.Frame).init(allocator),
+
+        .undo_sprite_data_stack = std.array_list.Managed([][2]f32).init(allocator),
+        .redo_sprite_data_stack = std.array_list.Managed([][2]f32).init(allocator),
     };
 }
 
@@ -580,6 +586,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
 
             var layer_data: ?[][][4]u8 = null;
             var animation_data: ?[][]pixi.Animation.Frame = null;
+            var sprite_data: ?[][2]f32 = null;
 
             switch (action) {
                 .undo => {
@@ -589,7 +596,6 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     }
 
                     if (self.undo_animation_data_stack.pop()) |ad| {
-                        //try self.redo_animation_data_stack.append(ad);
                         animation_data = ad;
 
                         var anim_data = try pixi.app.allocator.alloc([]pixi.Animation.Frame, file.animations.len);
@@ -598,6 +604,16 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                         }
                         try self.redo_animation_data_stack.append(anim_data);
                     }
+
+                    if (self.undo_sprite_data_stack.pop()) |sd| {
+                        sprite_data = sd;
+
+                        const new_sprite_data = try pixi.app.allocator.alloc([2]f32, file.spriteCount());
+                        for (0..file.spriteCount()) |sprite_index| {
+                            new_sprite_data[sprite_index] = file.sprites.items(.origin)[sprite_index];
+                        }
+                        try self.redo_sprite_data_stack.append(new_sprite_data);
+                    }
                 },
                 .redo => {
                     if (self.redo_layer_data_stack.pop()) |ld| {
@@ -605,7 +621,6 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                         layer_data = ld;
                     }
                     if (self.redo_animation_data_stack.pop()) |ad| {
-                        //try self.undo_animation_data_stack.append(ad);
                         animation_data = ad;
 
                         var anim_data = try pixi.app.allocator.alloc([]pixi.Animation.Frame, file.animations.len);
@@ -613,6 +628,15 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                             anim_data[animation_index] = pixi.app.allocator.dupe(pixi.Animation.Frame, file.animations.items(.frames)[animation_index]) catch return error.MemoryAllocationFailed;
                         }
                         try self.undo_animation_data_stack.append(anim_data);
+                    }
+                    if (self.redo_sprite_data_stack.pop()) |sd| {
+                        sprite_data = sd;
+
+                        const new_sprite_data = try pixi.app.allocator.alloc([2]f32, file.spriteCount());
+                        for (0..file.spriteCount()) |sprite_index| {
+                            new_sprite_data[sprite_index] = file.sprites.items(.origin)[sprite_index];
+                        }
+                        try self.undo_sprite_data_stack.append(new_sprite_data);
                     }
                 },
             }
@@ -623,7 +647,16 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 .history = false,
                 .layer_data = layer_data,
                 .animation_data = animation_data,
+                .sprite_data = sprite_data,
             }) catch return error.ResizeError;
+
+            if (animation_data) |ad| {
+                pixi.app.allocator.free(ad);
+            }
+
+            if (sprite_data) |sd| {
+                pixi.app.allocator.free(sd);
+            }
         },
         .reorder => |*reorder| {
             switch (reorder.mode) {

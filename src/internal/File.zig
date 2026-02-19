@@ -584,6 +584,7 @@ pub const ResizeOptions = struct {
     history: bool = true, // If true, layer data will be recorded for undo/redo
     layer_data: ?[][][4]u8 = null, // If provided, the layer data will be applied to the layers after resizing
     animation_data: ?[][]pixi.Animation.Frame = null, // If provided, the animation data will be applied to the animations after resizing
+    sprite_data: ?[][2]f32 = null, // If provided, the sprite data will be applied to the sprites after resizing
 };
 
 pub fn resize(file: *File, options: ResizeOptions) !void {
@@ -619,6 +620,12 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
             anim_data[anim_index] = pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames) catch return error.MemoryAllocationFailed;
         }
         file.history.undo_animation_data_stack.append(anim_data) catch return error.MemoryAllocationFailed;
+
+        var sprite_data = try pixi.app.allocator.alloc([2]f32, file.spriteCount());
+        for (0..file.spriteCount()) |sprite_index| {
+            sprite_data[sprite_index] = file.sprites.items(.origin)[sprite_index];
+        }
+        file.history.undo_sprite_data_stack.append(sprite_data) catch return error.MemoryAllocationFailed;
     }
 
     if (options.animation_data) |anim_data| {
@@ -643,6 +650,21 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
             if (file.getResizedIndex(old_sprite_index, new_columns, new_rows)) |new_sprite_index| {
                 new_animation.appendFrame(pixi.app.allocator, .{ .sprite_index = new_sprite_index, .ms = animation.frames[frame_index].ms }) catch return error.AnimationFrameAppendError;
             }
+        }
+    }
+
+    file.sprites.resize(
+        pixi.app.allocator,
+        new_columns * new_rows,
+    ) catch return error.MemoryAllocationFailed;
+
+    // Read all sprite data into our sprites array
+    if (options.sprite_data) |sprite_data| {
+        for (0..file.spriteCount()) |sprite_index| {
+            if (sprite_index >= sprite_data.len) break;
+            const current_data = sprite_data[sprite_index];
+            const new_origin: [2]f32 = .{ current_data[0], current_data[1] };
+            file.sprites.items(.origin)[sprite_index] = new_origin;
         }
     }
 
