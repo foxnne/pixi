@@ -919,6 +919,8 @@ pub fn processColumnReorder(self: *Workspace) void {
             defer self.columns_removed_index = null;
             defer self.columns_insert_before_index = null;
 
+            if (columns_removed_index == columns_insert_before_index or columns_removed_index + 1 == columns_insert_before_index) return;
+
             const file = &pixi.editor.open_files.values()[self.open_file_index];
 
             file.reorderColumns(columns_removed_index, columns_insert_before_index) catch {
@@ -960,6 +962,7 @@ pub fn processRowReorder(self: *Workspace) void {
         if (self.rows_insert_before_index) |rows_insert_before_index| {
             defer self.rows_removed_index = null;
             defer self.rows_insert_before_index = null;
+            if (rows_removed_index == rows_insert_before_index or rows_removed_index + 1 == rows_insert_before_index) return;
 
             const file = &pixi.editor.open_files.values()[self.open_file_index];
 

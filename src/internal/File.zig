@@ -814,7 +814,7 @@ pub fn reorderColumns(file: *File, removed_column_index: usize, insert_before_co
 }
 
 pub fn reorderRows(file: *File, removed_row_index: usize, insert_before_row_index: usize) !void {
-    if (removed_row_index == insert_before_row_index) return;
+    if (removed_row_index + 1 == insert_before_row_index) return;
     if (removed_row_index >= file.rows or insert_before_row_index > file.rows) return error.InvalidIndex;
 
     for (0..file.layers.len) |layer_index| {
