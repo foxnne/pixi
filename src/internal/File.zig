@@ -893,13 +893,17 @@ pub fn getReorderIndices(
     defer allocator.free(order);
     for (0..total) |i| order[i] = i;
 
-    for (removed_sprite_indices, insert_before_sprite_indices) |r, b| {
-        if (r == b) continue;
-        const removed_elem = order[r];
-        for (r + 1..total) |i| {
+    // removed_sprite_indices are original sprite ids; insert_before_sprite_indices are target positions (where each sprite should end up) in current layout.
+    for (removed_sprite_indices, insert_before_sprite_indices) |r_orig, b| {
+        if (r_orig == b) continue;
+        var r_current: usize = 0;
+        while (order[r_current] != r_orig) : (r_current += 1) {}
+
+        const removed_elem = order[r_current];
+        for (r_current + 1..total) |i| {
             order[i - 1] = order[i];
         }
-        const insert_at = if (b > r) b - 1 else b;
+        const insert_at = if (b > r_current) b - 1 else b;
         var i = total - 1;
         while (i > insert_at) : (i -= 1) {
             order[i] = order[i - 1];
@@ -935,15 +939,17 @@ pub fn reorder(file: *File, removed_sprite_indices: []const usize, insert_before
     const order = try arena.alloc(usize, total);
     for (0..total) |i| order[i] = i;
 
-    for (removed_sprite_indices, insert_before_sprite_indices) |r, b| {
-        if (r == b) continue;
-        const removed_elem = order[r];
-        // Remove at r: shift [r+1 .. total) down
-        for (r + 1..total) |i| {
+    // removed_sprite_indices are original sprite ids; insert_before_sprite_indices are target positions in current layout.
+    for (removed_sprite_indices, insert_before_sprite_indices) |r_orig, b| {
+        if (r_orig == b) continue;
+        var r_current: usize = 0;
+        while (order[r_current] != r_orig) : (r_current += 1) {}
+
+        const removed_elem = order[r_current];
+        for (r_current + 1..total) |i| {
             order[i - 1] = order[i];
         }
-        const insert_at = if (b > r) b - 1 else b;
-        // Insert at insert_at: shift [insert_at .. total-1) up
+        const insert_at = if (b > r_current) b - 1 else b;
         var i = total - 1;
         while (i > insert_at) : (i -= 1) {
             order[i] = order[i - 1];
