@@ -887,11 +887,11 @@ pub fn getReorderIndices(
     if (removed_sprite_indices.len == 0 or insert_before_sprite_indices.len == 0) return error.InvalidReorderSlices;
     if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
 
-    const total = file.spriteCount();
+    const sprite_count = file.spriteCount();
 
-    var order = try allocator.alloc(usize, total);
+    var order = try allocator.alloc(usize, sprite_count);
     defer allocator.free(order);
-    for (0..total) |i| order[i] = i;
+    for (0..sprite_count) |i| order[i] = i;
 
     for (removed_sprite_indices, insert_before_sprite_indices) |removed, insert_before| {
         if (removed == insert_before) continue;
@@ -899,22 +899,21 @@ pub fn getReorderIndices(
         while (order[current_removed] != removed) : (current_removed += 1) {}
 
         const removed_elem = order[current_removed];
-        for (current_removed + 1..total) |i| {
+        for (current_removed + 1..sprite_count) |i| {
             order[i - 1] = order[i];
         }
-        const insert_at = if (insert_before > current_removed) insert_before else insert_before;
-        var i = total - 1;
-        while (i > insert_at) : (i -= 1) {
+        var i = sprite_count - 1;
+        while (i > insert_before) : (i -= 1) {
             order[i] = order[i - 1];
         }
-        order[insert_at] = removed_elem;
+        order[insert_before] = removed_elem;
     }
 
-    const new_index = try allocator.alloc(usize, total);
-    for (order, 0..) |orig, pos| {
-        new_index[orig] = pos;
+    const reorder_indices = try allocator.alloc(usize, sprite_count);
+    for (order, 0..) |order_index, i| {
+        reorder_indices[order_index] = i;
     }
-    return new_index;
+    return reorder_indices;
 }
 
 /// Reorders sprites by applying a batch of moves. Each move is (removed_sprite_indices[i], insert_before_sprite_indices[i]):

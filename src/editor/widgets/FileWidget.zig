@@ -355,9 +355,8 @@ pub fn processSpriteReorder(self: *FileWidget) void {
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(file.editor.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sprite_reorder_drag")) |_| {
+                            defer e.handle(@src(), file.editor.canvas.scroll_container.data());
                             if (self.cell_reorder_point) |_| {
-                                defer e.handle(@src(), file.editor.canvas.scroll_container.data());
-
                                 if (self.removed_sprite_indices == null) {
                                     var removed_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
                                         dvui.log.err("Failed to allocate removed sprite indices", .{});
