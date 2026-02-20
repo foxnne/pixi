@@ -893,17 +893,16 @@ pub fn getReorderIndices(
     defer allocator.free(order);
     for (0..total) |i| order[i] = i;
 
-    // removed_sprite_indices are original sprite ids; insert_before_sprite_indices are target positions (where each sprite should end up) in current layout.
-    for (removed_sprite_indices, insert_before_sprite_indices) |r_orig, b| {
-        if (r_orig == b) continue;
-        var r_current: usize = 0;
-        while (order[r_current] != r_orig) : (r_current += 1) {}
+    for (removed_sprite_indices, insert_before_sprite_indices) |removed, insert_before| {
+        if (removed == insert_before) continue;
+        var current_removed: usize = 0;
+        while (order[current_removed] != removed) : (current_removed += 1) {}
 
-        const removed_elem = order[r_current];
-        for (r_current + 1..total) |i| {
+        const removed_elem = order[current_removed];
+        for (current_removed + 1..total) |i| {
             order[i - 1] = order[i];
         }
-        const insert_at = if (b > r_current) b - 1 else b;
+        const insert_at = if (insert_before > current_removed) insert_before else insert_before;
         var i = total - 1;
         while (i > insert_at) : (i -= 1) {
             order[i] = order[i - 1];
@@ -939,22 +938,38 @@ pub fn reorder(file: *File, removed_sprite_indices: []const usize, insert_before
     const order = try arena.alloc(usize, total);
     for (0..total) |i| order[i] = i;
 
-    // removed_sprite_indices are original sprite ids; insert_before_sprite_indices are target positions in current layout.
-    for (removed_sprite_indices, insert_before_sprite_indices) |r_orig, b| {
-        if (r_orig == b) continue;
+    // Both removed and insert_before are in original layout; track current slot positions for insert_before.
+    var current_slot_to_orig = try arena.alloc(usize, total);
+    for (0..total) |i| current_slot_to_orig[i] = i;
+    const orig_slot_to_current = try arena.alloc(usize, total);
+
+    for (removed_sprite_indices, insert_before_sprite_indices) |r_orig, b_orig| {
+        if (r_orig == b_orig) continue;
         var r_current: usize = 0;
         while (order[r_current] != r_orig) : (r_current += 1) {}
+        for (current_slot_to_orig, 0..) |orig, c| orig_slot_to_current[orig] = c;
+        const b_current = orig_slot_to_current[b_orig];
 
         const removed_elem = order[r_current];
         for (r_current + 1..total) |i| {
             order[i - 1] = order[i];
         }
-        const insert_at = if (b > r_current) b - 1 else b;
+        const insert_at = if (b_current > r_current) b_current - 1 else b_current;
         var i = total - 1;
         while (i > insert_at) : (i -= 1) {
             order[i] = order[i - 1];
         }
         order[insert_at] = removed_elem;
+
+        const slot_at_r = current_slot_to_orig[r_current];
+        for (r_current + 1..total) |k| {
+            current_slot_to_orig[k - 1] = current_slot_to_orig[k];
+        }
+        var j = r_current;
+        while (j > insert_at) : (j -= 1) {
+            current_slot_to_orig[j] = current_slot_to_orig[j - 1];
+        }
+        current_slot_to_orig[insert_at] = slot_at_r;
     }
 
     // new_index[original] = final position of that original index

@@ -2906,11 +2906,11 @@ pub fn drawLayers(self: *FileWidget) void {
 
     // Render all layers and update our bounding box;
     {
-        if (self.cell_reorder_point != null) {
+        if (dvui.dragName("sprite_reorder_drag")) {
             self.drawSpriteReorderPreview();
             return;
         } else if (file.editor.workspace.columns_drag_index != null or file.editor.workspace.rows_drag_index != null) {
-            self.drawReorderPreviewLayers();
+            self.drawColumnRowReorderPreview();
             return;
         } else {
             pixi.render.renderLayers(.{
@@ -3019,7 +3019,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
 const ReorderAxis = enum { columns, rows };
 
-fn drawReorderPreviewLayers(self: *FileWidget) void {
+fn drawColumnRowReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
     const workspace = file.editor.workspace;
     if (workspace.columns_drag_index == null and workspace.rows_drag_index == null) return;
@@ -3442,7 +3442,7 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
 
     if (self.removed_sprite_indices) |removed_sprite_indices| {
-        var insert_before_sprite_indices = dvui.currentWindow().arena().alloc(usize, removed_sprite_indices.len) catch {
+        const insert_before_sprite_indices = dvui.currentWindow().arena().alloc(usize, removed_sprite_indices.len) catch {
             dvui.log.err("Failed to allocate insert before sprite indices", .{});
             return;
         };
