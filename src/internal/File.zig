@@ -717,28 +717,30 @@ pub fn getResizedIndex(
     }
 }
 
-/// Returns the sprite index after a drag-and-drop reorder of one column or row.
-/// `removed_index` is the column/row that was dragged, `insert_before_index` is where it was dropped (before that column/row).
+/// Returns the sprite index after a drag-and-drop reorder of one column, row, or single cell.
+/// For column/row: `removed_index` is the column/row that was dragged, `insert_before_index` is where it was dropped (before that column/row).
+/// For cell: `removed_index` and `insert_before_index` are sprite indices (grid cell indices); returns where `sprite_index` ends up after the move.
 pub fn getReorderedIndex(
     self: *File,
     removed_index: usize,
     insert_before_index: usize,
-    orientation: enum { column, row },
+    orientation: enum { column, row, cell },
     sprite_index: usize,
 ) usize {
     if (removed_index == insert_before_index) return sprite_index;
-
-    const col: u32 = @intCast(@mod(sprite_index, self.columns));
-    const row: u32 = @intCast(@divTrunc(sprite_index, self.columns));
 
     const insert_pos: usize = if (insert_before_index > removed_index)
         insert_before_index - 1
     else
         insert_before_index;
 
+    const col: u32 = @intCast(@mod(sprite_index, self.columns));
+    const row: u32 = @intCast(@divTrunc(sprite_index, self.columns));
+
     const pos_along: usize = switch (orientation) {
         .column => col,
         .row => row,
+        .cell => sprite_index,
     };
 
     const new_pos_along: usize = if (pos_along == removed_index)
@@ -751,6 +753,7 @@ pub fn getReorderedIndex(
     return switch (orientation) {
         .column => row * self.columns + @as(u32, @intCast(new_pos_along)),
         .row => @as(u32, @intCast(new_pos_along)) * self.columns + col,
+        .cell => new_pos_along,
     };
 }
 
@@ -867,6 +870,136 @@ pub fn reorderRows(file: *File, removed_row_index: usize, insert_before_row_inde
         }
     }
 
+    for (new_origins, 0..) |origin, sprite_index| {
+        file.sprites.items(.origin)[sprite_index] = origin;
+    }
+}
+
+/// Returns a freshly allocated slice of length file.spriteCount() such that result[original_sprite_index]
+/// is the new sprite index after applying the given reorder moves. Caller owns the returned memory.
+/// Use this to preview reorder(file, removed_sprite_indices, insert_before_sprite_indices) without modifying the file.
+pub fn getReorderIndices(
+    file: *File,
+    allocator: std.mem.Allocator,
+    removed_sprite_indices: []const usize,
+    insert_before_sprite_indices: []const usize,
+) ![]usize {
+    if (removed_sprite_indices.len == 0 or insert_before_sprite_indices.len == 0) return error.InvalidReorderSlices;
+    if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
+
+    const total = file.spriteCount();
+
+    var order = try allocator.alloc(usize, total);
+    defer allocator.free(order);
+    for (0..total) |i| order[i] = i;
+
+    for (removed_sprite_indices, insert_before_sprite_indices) |r, b| {
+        if (r == b) continue;
+        const removed_elem = order[r];
+        for (r + 1..total) |i| {
+            order[i - 1] = order[i];
+        }
+        const insert_at = if (b > r) b - 1 else b;
+        var i = total - 1;
+        while (i > insert_at) : (i -= 1) {
+            order[i] = order[i - 1];
+        }
+        order[insert_at] = removed_elem;
+    }
+
+    const new_index = try allocator.alloc(usize, total);
+    for (order, 0..) |orig, pos| {
+        new_index[orig] = pos;
+    }
+    return new_index;
+}
+
+/// Reorders sprites by applying a batch of moves. Each move is (removed_sprite_indices[i], insert_before_sprite_indices[i]):
+/// remove the sprite at that position and insert it before the other. Moves are applied sequentially in slice order.
+/// Uses cycle-following with two cell buffers per layer so no full-layer copy is needed.
+pub fn reorder(file: *File, removed_sprite_indices: []const usize, insert_before_sprite_indices: []const usize) !void {
+    if (removed_sprite_indices.len == 0) return;
+    if (insert_before_sprite_indices.len == 0) return;
+    if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
+
+    const total = file.spriteCount();
+    if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
+
+    for (removed_sprite_indices, insert_before_sprite_indices) |r, b| {
+        if (r >= total or b > total) return error.InvalidIndex;
+    }
+
+    const arena = dvui.currentWindow().arena();
+
+    // order[position] = original sprite index that ends up at that position after all moves
+    const order = try arena.alloc(usize, total);
+    for (0..total) |i| order[i] = i;
+
+    for (removed_sprite_indices, insert_before_sprite_indices) |r, b| {
+        if (r == b) continue;
+        const removed_elem = order[r];
+        // Remove at r: shift [r+1 .. total) down
+        for (r + 1..total) |i| {
+            order[i - 1] = order[i];
+        }
+        const insert_at = if (b > r) b - 1 else b;
+        // Insert at insert_at: shift [insert_at .. total-1) up
+        var i = total - 1;
+        while (i > insert_at) : (i -= 1) {
+            order[i] = order[i - 1];
+        }
+        order[insert_at] = removed_elem;
+    }
+
+    // new_index[original] = final position of that original index
+    const new_index = try arena.alloc(usize, total);
+    for (order, 0..) |orig, pos| {
+        new_index[orig] = pos;
+    }
+
+    // Apply permutation to each layer using cycle-following (two cell buffers: carry + read-before-write)
+    for (0..file.layers.len) |layer_index| {
+        var layer = file.layers.get(layer_index);
+        var visited = try arena.alloc(bool, total);
+        @memset(visited, false);
+
+        for (0..total) |i_0| {
+            if (visited[i_0]) continue;
+            const to_fill = new_index[i_0];
+            if (to_fill == i_0) {
+                visited[i_0] = true;
+                continue;
+            }
+            // Rotate cycle: i0 -> to_fill -> ... -> i0. Buffer holds content to write at current position.
+            var buffer = layer.pixelsFromRect(arena, file.spriteRect(i_0)) orelse return error.MemoryAllocationFailed;
+            layer.blit(
+                layer.pixelsFromRect(arena, file.spriteRect(order[i_0])) orelse return error.MemoryAllocationFailed,
+                file.spriteRect(i_0),
+                .{ .transparent = false, .mask = false },
+            );
+            visited[i_0] = true;
+            var pos = to_fill;
+            while (pos != i_0) {
+                visited[pos] = true;
+                const save = layer.pixelsFromRect(arena, file.spriteRect(pos)) orelse return error.MemoryAllocationFailed;
+                layer.blit(buffer, file.spriteRect(pos), .{ .transparent = false, .mask = false });
+                buffer = save;
+                pos = new_index[order[pos]];
+            }
+            layer.blit(buffer, file.spriteRect(i_0), .{ .transparent = false, .mask = false });
+        }
+    }
+
+    for (file.animations.items(.frames)) |*frames| {
+        for (frames.*) |*frame| {
+            frame.sprite_index = new_index[frame.sprite_index];
+        }
+    }
+
+    var new_origins = try arena.dupe([2]f32, file.sprites.items(.origin));
+    for (file.sprites.items(.origin), 0..) |*origin, sprite_index| {
+        new_origins[new_index[sprite_index]] = origin.*;
+    }
     for (new_origins, 0..) |origin, sprite_index| {
         file.sprites.items(.origin)[sprite_index] = origin;
     }

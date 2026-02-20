@@ -31,6 +31,10 @@ shift_key_down: bool = false,
 hide_distance_bubble: bool = false,
 hovered_bubble_sprite_index: ?usize = null,
 grid_reorder_point: ?dvui.Point = null,
+cell_reorder_point: ?dvui.Point = null,
+
+removed_sprite_indices: ?[]const usize = null,
+insert_before_sprite_indices: ?[]const usize = null,
 
 pub const InitOptions = struct {
     file: *pixi.Internal.File,
@@ -48,9 +52,11 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
         .sample_key_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "sample_key_down", bool)) |key| key else false,
         .resize_data_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "resize_data_point", dvui.Point)) |point| point else null,
         .grid_reorder_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "grid_reorder_point", dvui.Point)) |point| point else null,
+        .cell_reorder_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "cell_reorder_point", dvui.Point)) |point| point else null,
         .right_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "right_mouse_down", bool)) |key| key else false,
         .left_mouse_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "left_mouse_down", bool)) |key| key else false,
         .hide_distance_bubble = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "hide_distance_bubble", bool)) |key| key else false,
+        .removed_sprite_indices = if (dvui.dataGetSlice(null, init_opts.file.editor.canvas.id, "removed_sprite_indices", []usize)) |slice| slice else null,
     };
 
     init_opts.file.editor.canvas.install(src, .{
@@ -255,6 +261,126 @@ pub fn processAnimationSelection(self: *FileWidget) void {
     }
 }
 
+pub fn processSpriteReorder(self: *FileWidget) void {
+    if (pixi.editor.tools.current != .pointer) return;
+    if (self.init_options.file.editor.transform != null) return;
+    if (self.sample_data_point != null) return;
+    if (dvui.currentWindow().modifiers.matchBind("shift")) return;
+
+    const file = self.init_options.file;
+
+    for (dvui.events()) |*e| {
+        if (!file.editor.canvas.scroll_container.matchEvent(e)) {
+            continue;
+        }
+
+        switch (e.evt) {
+            .mouse => |me| {
+                const current_point = file.editor.canvas.dataFromScreenPoint(me.p);
+
+                var selected_sprite_move_hovered: bool = false;
+
+                var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                while (iter.next()) |sprite_index| {
+                    const sprite_rect = file.spriteRect(sprite_index);
+                    if (sprite_rect.contains(current_point)) {
+                        selected_sprite_move_hovered = true;
+                        break;
+                    }
+                }
+
+                if (selected_sprite_move_hovered) {
+                    dvui.cursorSet(.hand);
+                }
+
+                if (me.action == .press and me.button.pointer()) {
+                    if (file.editor.selected_sprites.count() > 0) {
+                        if (selected_sprite_move_hovered) {
+                            e.handle(@src(), file.editor.canvas.scroll_container.data());
+                            dvui.captureMouse(file.editor.canvas.scroll_container.data(), e.num);
+
+                            const index = file.spriteIndex(current_point);
+                            var offset: dvui.Point = .{};
+                            if (index) |i| {
+                                offset = file.spriteRect(i).topLeft().diff(current_point);
+                            }
+                            dvui.dragPreStart(me.p, .{ .name = "sprite_reorder_drag", .offset = file.editor.canvas.screenFromDataPoint(offset) });
+
+                            self.cell_reorder_point = current_point;
+                        }
+                    }
+                } else if (me.action == .release and me.button.pointer()) {
+                    if (dvui.captured(file.editor.canvas.scroll_container.data().id) and dvui.dragging(me.p, "sprite_reorder_drag") != null) {
+                        e.handle(@src(), file.editor.canvas.scroll_container.data());
+                        dvui.captureMouse(null, e.num);
+                        dvui.dragEnd();
+                        dvui.refresh(null, @src(), file.editor.canvas.scroll_container.data().id);
+                    }
+                    defer self.cell_reorder_point = null;
+
+                    if (self.cell_reorder_point) |cell_reorder_point| {
+                        const drag_index = file.spriteIndex(cell_reorder_point.plus(file.editor.canvas.dataFromScreenPoint(dvui.dragOffset())));
+                        if (drag_index) |di| {
+                            if (file.spriteIndex(current_point)) |current_index| {
+                                if (di != current_index) {
+                                    // Drag has moved to a new cell, so we have shifted some sprites around
+                                    // and we have released, so we need to allocate a new array of insert_before_sprite_indices
+
+                                    if (self.insert_before_sprite_indices) |insert_before_sprite_indices| {
+                                        pixi.app.allocator.free(insert_before_sprite_indices);
+                                        self.insert_before_sprite_indices = null;
+                                    }
+
+                                    const delta = file.spriteRect(current_index).topLeft().diff(file.spriteRect(di).topLeft());
+
+                                    // This will actually trigger the drag/drop
+                                    var insert_before_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
+                                        dvui.log.err("Failed to allocate insert before sprite indices", .{});
+                                        return;
+                                    };
+                                    var i: usize = 0;
+                                    var sprite_iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                                    while (sprite_iter.next()) |sprite_index| {
+                                        var sprite_rect = file.spriteRect(sprite_index);
+                                        sprite_rect.x += delta.x;
+                                        sprite_rect.y += delta.y;
+                                        insert_before_sprite_indices[i] = if (file.spriteIndex(sprite_rect.center())) |index| index else std.math.maxInt(usize);
+                                        i += 1;
+                                    }
+                                    self.insert_before_sprite_indices = insert_before_sprite_indices;
+                                }
+                            }
+                        }
+                    }
+                } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
+                    if (dvui.captured(file.editor.canvas.scroll_container.data().id)) {
+                        if (dvui.dragging(me.p, "sprite_reorder_drag")) |_| {
+                            if (self.cell_reorder_point) |_| {
+                                defer e.handle(@src(), file.editor.canvas.scroll_container.data());
+
+                                if (self.removed_sprite_indices == null) {
+                                    var removed_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
+                                        dvui.log.err("Failed to allocate removed sprite indices", .{});
+                                        return;
+                                    };
+                                    var i: usize = 0;
+                                    var sprite_iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                                    while (sprite_iter.next()) |sprite_index| {
+                                        removed_sprite_indices[i] = sprite_index;
+                                        i += 1;
+                                    }
+                                    self.removed_sprite_indices = removed_sprite_indices;
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            else => {},
+        }
+    }
+}
+
 /// Responsible for handling rough/broad sprite selection (grid tiles)
 /// Sprites can only be selected with the pointer tool.
 ///
@@ -267,7 +393,7 @@ pub fn processSpriteSelection(self: *FileWidget) void {
     const file = self.init_options.file;
 
     for (dvui.events()) |*e| {
-        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
+        if (!file.editor.canvas.scroll_container.matchEvent(e)) {
             continue;
         }
 
@@ -318,7 +444,7 @@ pub fn processSpriteSelection(self: *FileWidget) void {
 
                     self.drag_data_point = current_point;
                 } else if (me.action == .release and me.button.pointer()) {
-                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id) and dvui.dragging(me.p, "sprite_selection_drag") != null) {
                         e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         dvui.captureMouse(null, e.num);
                         dvui.dragEnd();
@@ -2780,7 +2906,13 @@ pub fn drawLayers(self: *FileWidget) void {
 
     // Render all layers and update our bounding box;
     {
-        if (file.editor.workspace.columns_drag_index == null and file.editor.workspace.rows_drag_index == null) {
+        if (self.cell_reorder_point != null) {
+            self.drawSpriteReorderPreview();
+            return;
+        } else if (file.editor.workspace.columns_drag_index != null or file.editor.workspace.rows_drag_index != null) {
+            self.drawReorderPreviewLayers();
+            return;
+        } else {
             pixi.render.renderLayers(.{
                 .file = file,
                 .rs = .{
@@ -2791,9 +2923,6 @@ pub fn drawLayers(self: *FileWidget) void {
                 dvui.log.err("Failed to render file image", .{});
                 return;
             };
-        } else {
-            self.drawReorderPreviewLayers();
-            return;
         }
     }
 
@@ -3309,6 +3438,43 @@ fn drawReorderPreviewForAxis(
     }
 }
 
+pub fn drawSpriteReorderPreview(self: *FileWidget) void {
+    const file = self.init_options.file;
+
+    if (self.removed_sprite_indices) |removed_sprite_indices| {
+        var insert_before_sprite_indices = dvui.currentWindow().arena().alloc(usize, removed_sprite_indices.len) catch {
+            dvui.log.err("Failed to allocate insert before sprite indices", .{});
+            return;
+        };
+
+        for (removed_sprite_indices, 0..) |removed_sprite_index, i| {
+            const removed_sprite_rect = file.spriteRect(removed_sprite_index);
+
+            const current_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+
+            var offset: dvui.Point = .{}; // How much the mouse has
+            if (self.cell_reorder_point) |cell_reorder_point| {
+                offset = current_point.diff(cell_reorder_point);
+            }
+
+            insert_before_sprite_indices[i] = if (file.spriteIndex(removed_sprite_rect.center().plus(offset))) |index| index else 0;
+        }
+
+        const new_sprite_indices = file.getReorderIndices(dvui.currentWindow().arena(), removed_sprite_indices, insert_before_sprite_indices) catch |err| {
+            dvui.log.err("Failed to get reorder indices {any}", .{err});
+            return;
+        };
+
+        for (0..file.spriteCount()) |i| {
+            const new_index = new_sprite_indices[i];
+            const new_rect = file.spriteRect(new_index);
+            const old_rect = file.spriteRect(i);
+
+            self.renderLayersInDataRect(file, old_rect, file.editor.canvas.screenFromDataRect(new_rect));
+        }
+    }
+}
+
 pub fn processResize(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
@@ -3525,6 +3691,12 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "grid_reorder_point");
     };
 
+    defer if (self.cell_reorder_point) |cell_reorder_point| {
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "cell_reorder_point", cell_reorder_point);
+    } else {
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "cell_reorder_point");
+    };
+
     defer if (self.sample_key_down) {
         dvui.dataSet(null, self.init_options.file.editor.canvas.id, "sample_key_down", self.sample_key_down);
     } else {
@@ -3574,6 +3746,7 @@ pub fn processEvents(self: *FileWidget) void {
             self.processStroke();
             self.processSample();
             self.processSelection();
+            self.processSpriteReorder();
         }
         self.processTransform();
     }
@@ -3585,6 +3758,7 @@ pub fn processEvents(self: *FileWidget) void {
         self.processResize();
 
         self.processAnimationSelection();
+
         self.processSpriteSelection();
         self.drawSpriteSelection();
     }
