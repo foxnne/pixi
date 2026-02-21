@@ -349,16 +349,16 @@ pub fn processSpriteReorder(self: *FileWidget) void {
                                     }
                                     self.insert_before_sprite_indices = insert_before_sprite_indices;
 
-                                    if (self.removed_sprite_indices) |_| {
-                                        self.removed_sprite_indices = null;
-                                        dvui.dataRemove(null, file.editor.canvas.id, "removed_sprite_indices");
-                                        std.log.debug("Removed sprite indices", .{});
-                                    }
-
                                     // This is where we will call reorder
                                 }
                             }
                         }
+                    }
+
+                    if (self.removed_sprite_indices) |_| {
+                        self.removed_sprite_indices = null;
+                        dvui.dataRemove(null, file.editor.canvas.id, "removed_sprite_indices");
+                        std.log.debug("Removed sprite indices", .{});
                     }
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(file.editor.canvas.scroll_container.data().id)) {
@@ -3716,7 +3716,7 @@ pub fn processResize(self: *FileWidget) void {
 
 pub fn processEvents(self: *FileWidget) void {
     const transform = self.init_options.file.editor.transform != null;
-    const reorder = self.init_options.file.editor.workspace.columns_drag_index != null or self.init_options.file.editor.workspace.rows_drag_index != null;
+    const reorder = self.init_options.file.editor.workspace.columns_drag_index != null or self.init_options.file.editor.workspace.rows_drag_index != null or self.removed_sprite_indices != null;
 
     // Try to ensure that selected animation frame index is valid
     if (self.init_options.file.selected_animation_index) |ai| {
@@ -3810,9 +3810,12 @@ pub fn processEvents(self: *FileWidget) void {
             self.processStroke();
             self.processSample();
             self.processSelection();
-            self.processSpriteReorder();
         }
         self.processTransform();
+    }
+
+    if (self.active()) {
+        self.processSpriteReorder();
     }
 
     self.drawLayers();
