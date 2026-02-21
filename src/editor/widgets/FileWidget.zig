@@ -33,8 +33,8 @@ hovered_bubble_sprite_index: ?usize = null,
 grid_reorder_point: ?dvui.Point = null,
 cell_reorder_point: ?dvui.Point = null,
 
-removed_sprite_indices: ?[]const usize = null,
-insert_before_sprite_indices: ?[]const usize = null,
+removed_sprite_indices: ?[]usize = null,
+insert_before_sprite_indices: ?[]usize = null,
 
 pub const InitOptions = struct {
     file: *pixi.Internal.File,
@@ -316,9 +316,9 @@ pub fn processSpriteReorder(self: *FileWidget) void {
                         dvui.dragEnd();
                         dvui.refresh(null, @src(), file.editor.canvas.scroll_container.data().id);
                     }
-                    defer self.cell_reorder_point = null;
 
                     if (self.cell_reorder_point) |cell_reorder_point| {
+                        defer self.cell_reorder_point = null;
                         const drag_index = file.spriteIndex(cell_reorder_point.plus(file.editor.canvas.dataFromScreenPoint(dvui.dragOffset())));
                         if (drag_index) |di| {
                             if (file.spriteIndex(current_point)) |current_index| {
@@ -348,6 +348,14 @@ pub fn processSpriteReorder(self: *FileWidget) void {
                                         i += 1;
                                     }
                                     self.insert_before_sprite_indices = insert_before_sprite_indices;
+
+                                    if (self.removed_sprite_indices) |_| {
+                                        self.removed_sprite_indices = null;
+                                        dvui.dataRemove(null, file.editor.canvas.id, "removed_sprite_indices");
+                                        std.log.debug("Removed sprite indices", .{});
+                                    }
+
+                                    // This is where we will call reorder
                                 }
                             }
                         }
@@ -356,20 +364,19 @@ pub fn processSpriteReorder(self: *FileWidget) void {
                     if (dvui.captured(file.editor.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sprite_reorder_drag")) |_| {
                             defer e.handle(@src(), file.editor.canvas.scroll_container.data());
-                            if (self.cell_reorder_point) |_| {
-                                if (self.removed_sprite_indices == null) {
-                                    var removed_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
-                                        dvui.log.err("Failed to allocate removed sprite indices", .{});
-                                        return;
-                                    };
-                                    var i: usize = 0;
-                                    var sprite_iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-                                    while (sprite_iter.next()) |sprite_index| {
-                                        removed_sprite_indices[i] = sprite_index;
-                                        i += 1;
-                                    }
-                                    self.removed_sprite_indices = removed_sprite_indices;
+                            if (self.removed_sprite_indices == null and file.editor.selected_sprites.count() > 0) {
+                                var removed_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
+                                    dvui.log.err("Failed to allocate removed sprite indices", .{});
+                                    return;
+                                };
+                                var i: usize = 0;
+                                var sprite_iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+                                while (sprite_iter.next()) |sprite_index| {
+                                    removed_sprite_indices[i] = sprite_index;
+                                    i += 1;
                                 }
+                                self.removed_sprite_indices = removed_sprite_indices;
+                                dvui.dataSetSlice(null, file.editor.canvas.id, "removed_sprite_indices", removed_sprite_indices);
                             }
                         }
                     }
@@ -1562,6 +1569,8 @@ pub fn processSelection(self: *FileWidget) void {
 /// Supports using shift to draw a line between two points, and increasing/decreasing stroke size
 pub fn processStroke(self: *FileWidget) void {
     const file = self.init_options.file;
+
+    if (self.cell_reorder_point != null) return;
 
     if (switch (pixi.editor.tools.current) {
         .pencil,
@@ -2905,7 +2914,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
     // Render all layers and update our bounding box;
     {
-        if (dvui.dragName("sprite_reorder_drag")) {
+        if (self.removed_sprite_indices != null) {
             self.drawSpriteReorderPreview();
             return;
         } else if (file.editor.workspace.columns_drag_index != null or file.editor.workspace.rows_drag_index != null) {
@@ -3464,13 +3473,60 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
             return;
         };
 
+        var builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), file.spriteCount() * 4, file.spriteCount() * 6) catch |err| {
+            dvui.log.err("Failed to initialize triangles builder: {any}", .{err});
+            return;
+        };
+        defer builder.deinit(dvui.currentWindow().arena());
+
+        const file_width = @as(f32, @floatFromInt(file.width()));
+        const file_height = @as(f32, @floatFromInt(file.height()));
+
         for (0..file.spriteCount()) |i| {
             const new_index = new_sprite_indices[i];
             const new_rect = file.spriteRect(new_index);
             const new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
-            const old_rect = file.spriteRect(i);
+            const current_rect = file.spriteRect(i);
 
-            self.renderLayersInDataRect(file, old_rect, file.editor.canvas.screenFromDataRect(new_rect));
+            // UVs: normalize sprite rect in data space to 0-1 over the layer texture (same size as file).
+            // 0: TopLeft     → uv (umin, vmin)
+            // 1: TopRight    → uv (umax, vmin)
+            // 2: BottomRight → uv (umax, vmax)
+            // 3: BottomLeft  → uv (umin, vmax)
+            const umin = current_rect.x / file_width;
+            const vmin = current_rect.y / file_height;
+            const umax = (current_rect.x + current_rect.w) / file_width;
+            const vmax = (current_rect.y + current_rect.h) / file_height;
+
+            builder.appendVertex(.{ .pos = new_rect_physical.topLeft(), .col = .white, .uv = .{ umin, vmin } });
+            builder.appendVertex(.{ .pos = new_rect_physical.topRight(), .col = .white, .uv = .{ umax, vmin } });
+            builder.appendVertex(.{ .pos = new_rect_physical.bottomRight(), .col = .white, .uv = .{ umax, vmax } });
+            builder.appendVertex(.{ .pos = new_rect_physical.bottomLeft(), .col = .white, .uv = .{ umin, vmax } });
+
+            const base: dvui.Vertex.Index = @intCast(i * 4);
+            builder.appendTriangles(&.{ base + 1, base + 0, base + 3, base + 1, base + 3, base + 2 });
+        }
+
+        { // Render once for each layer
+            const triangles = builder.build();
+
+            var i: usize = file.layers.len;
+
+            while (i > 0) {
+                i -= 1;
+                const source = file.layers.items(.source)[i];
+                dvui.renderTriangles(triangles, source.getTexture() catch null) catch {
+                    dvui.log.err("Failed to render triangles", .{});
+                    return;
+                };
+            }
+        }
+
+        for (0..file.spriteCount()) |i| {
+            const new_index = new_sprite_indices[i];
+            if (new_index == i) continue;
+            const new_rect = file.spriteRect(new_index);
+            const new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
 
             if (file.editor.selected_sprites.isSet(i)) {
                 new_rect_physical.inset(.all(dvui.currentWindow().natural_scale * 1.5)).stroke(dvui.Rect.Physical.all(@min(new_rect_physical.w, new_rect_physical.h) / 8), .{

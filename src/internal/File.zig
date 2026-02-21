@@ -757,6 +757,47 @@ pub fn getReorderedIndex(
     };
 }
 
+/// Returns a freshly allocated slice of length file.spriteCount() such that result[original_sprite_index]
+/// is the new sprite index after applying the given reorder moves. Caller owns the returned memory.
+/// Use this to preview reorder(file, removed_sprite_indices, insert_before_sprite_indices) without modifying the file.
+pub fn getReorderIndices(
+    file: *File,
+    allocator: std.mem.Allocator,
+    removed_sprite_indices: []const usize,
+    insert_before_sprite_indices: []const usize,
+) ![]usize {
+    if (removed_sprite_indices.len == 0 or insert_before_sprite_indices.len == 0) return error.InvalidReorderSlices;
+    if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
+
+    const sprite_count = file.spriteCount();
+
+    var order = try allocator.alloc(usize, sprite_count);
+    defer allocator.free(order);
+    for (0..sprite_count) |i| order[i] = i;
+
+    for (removed_sprite_indices, insert_before_sprite_indices) |removed, insert_before| {
+        if (removed == insert_before) continue;
+        var current_removed: usize = 0;
+        while (order[current_removed] != removed) : (current_removed += 1) {}
+
+        const removed_elem = order[current_removed];
+        for (current_removed + 1..sprite_count) |i| {
+            order[i - 1] = order[i];
+        }
+        var i = sprite_count - 1;
+        while (i > insert_before) : (i -= 1) {
+            order[i] = order[i - 1];
+        }
+        order[insert_before] = removed_elem;
+    }
+
+    const reorder_indices = try allocator.alloc(usize, sprite_count);
+    for (order, 0..) |order_index, i| {
+        reorder_indices[order_index] = i;
+    }
+    return reorder_indices;
+}
+
 pub fn reorderColumns(file: *File, removed_column_index: usize, insert_before_column_index: usize) !void {
     if (removed_column_index == insert_before_column_index) return;
     if (removed_column_index > file.columns or insert_before_column_index > file.columns) return error.InvalidIndex;
@@ -875,156 +916,6 @@ pub fn reorderRows(file: *File, removed_row_index: usize, insert_before_row_inde
     }
 }
 
-/// Returns a freshly allocated slice of length file.spriteCount() such that result[original_sprite_index]
-/// is the new sprite index after applying the given reorder moves. Caller owns the returned memory.
-/// Use this to preview reorder(file, removed_sprite_indices, insert_before_sprite_indices) without modifying the file.
-pub fn getReorderIndices(
-    file: *File,
-    allocator: std.mem.Allocator,
-    removed_sprite_indices: []const usize,
-    insert_before_sprite_indices: []const usize,
-) ![]usize {
-    if (removed_sprite_indices.len == 0 or insert_before_sprite_indices.len == 0) return error.InvalidReorderSlices;
-    if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
-
-    const sprite_count = file.spriteCount();
-
-    var order = try allocator.alloc(usize, sprite_count);
-    defer allocator.free(order);
-    for (0..sprite_count) |i| order[i] = i;
-
-    for (removed_sprite_indices, insert_before_sprite_indices) |removed, insert_before| {
-        if (removed == insert_before) continue;
-        var current_removed: usize = 0;
-        while (order[current_removed] != removed) : (current_removed += 1) {}
-
-        const removed_elem = order[current_removed];
-        for (current_removed + 1..sprite_count) |i| {
-            order[i - 1] = order[i];
-        }
-        var i = sprite_count - 1;
-        while (i > insert_before) : (i -= 1) {
-            order[i] = order[i - 1];
-        }
-        order[insert_before] = removed_elem;
-    }
-
-    const reorder_indices = try allocator.alloc(usize, sprite_count);
-    for (order, 0..) |order_index, i| {
-        reorder_indices[order_index] = i;
-    }
-    return reorder_indices;
-}
-
-/// Reorders sprites by applying a batch of moves. Each move is (removed_sprite_indices[i], insert_before_sprite_indices[i]):
-/// remove the sprite at that position and insert it before the other. Moves are applied sequentially in slice order.
-/// Uses cycle-following with two cell buffers per layer so no full-layer copy is needed.
-pub fn reorder(file: *File, removed_sprite_indices: []const usize, insert_before_sprite_indices: []const usize) !void {
-    if (removed_sprite_indices.len == 0) return;
-    if (insert_before_sprite_indices.len == 0) return;
-    if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
-
-    const total = file.spriteCount();
-    if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
-
-    for (removed_sprite_indices, insert_before_sprite_indices) |r, b| {
-        if (r >= total or b > total) return error.InvalidIndex;
-    }
-
-    const arena = dvui.currentWindow().arena();
-
-    // order[position] = original sprite index that ends up at that position after all moves
-    const order = try arena.alloc(usize, total);
-    for (0..total) |i| order[i] = i;
-
-    // Both removed and insert_before are in original layout; track current slot positions for insert_before.
-    var current_slot_to_orig = try arena.alloc(usize, total);
-    for (0..total) |i| current_slot_to_orig[i] = i;
-    const orig_slot_to_current = try arena.alloc(usize, total);
-
-    for (removed_sprite_indices, insert_before_sprite_indices) |r_orig, b_orig| {
-        if (r_orig == b_orig) continue;
-        var r_current: usize = 0;
-        while (order[r_current] != r_orig) : (r_current += 1) {}
-        for (current_slot_to_orig, 0..) |orig, c| orig_slot_to_current[orig] = c;
-        const b_current = orig_slot_to_current[b_orig];
-
-        const removed_elem = order[r_current];
-        for (r_current + 1..total) |i| {
-            order[i - 1] = order[i];
-        }
-        const insert_at = if (b_current > r_current) b_current - 1 else b_current;
-        var i = total - 1;
-        while (i > insert_at) : (i -= 1) {
-            order[i] = order[i - 1];
-        }
-        order[insert_at] = removed_elem;
-
-        const slot_at_r = current_slot_to_orig[r_current];
-        for (r_current + 1..total) |k| {
-            current_slot_to_orig[k - 1] = current_slot_to_orig[k];
-        }
-        var j = r_current;
-        while (j > insert_at) : (j -= 1) {
-            current_slot_to_orig[j] = current_slot_to_orig[j - 1];
-        }
-        current_slot_to_orig[insert_at] = slot_at_r;
-    }
-
-    // new_index[original] = final position of that original index
-    const new_index = try arena.alloc(usize, total);
-    for (order, 0..) |orig, pos| {
-        new_index[orig] = pos;
-    }
-
-    // Apply permutation to each layer using cycle-following (two cell buffers: carry + read-before-write)
-    for (0..file.layers.len) |layer_index| {
-        var layer = file.layers.get(layer_index);
-        var visited = try arena.alloc(bool, total);
-        @memset(visited, false);
-
-        for (0..total) |i_0| {
-            if (visited[i_0]) continue;
-            const to_fill = new_index[i_0];
-            if (to_fill == i_0) {
-                visited[i_0] = true;
-                continue;
-            }
-            // Rotate cycle: i0 -> to_fill -> ... -> i0. Buffer holds content to write at current position.
-            var buffer = layer.pixelsFromRect(arena, file.spriteRect(i_0)) orelse return error.MemoryAllocationFailed;
-            layer.blit(
-                layer.pixelsFromRect(arena, file.spriteRect(order[i_0])) orelse return error.MemoryAllocationFailed,
-                file.spriteRect(i_0),
-                .{ .transparent = false, .mask = false },
-            );
-            visited[i_0] = true;
-            var pos = to_fill;
-            while (pos != i_0) {
-                visited[pos] = true;
-                const save = layer.pixelsFromRect(arena, file.spriteRect(pos)) orelse return error.MemoryAllocationFailed;
-                layer.blit(buffer, file.spriteRect(pos), .{ .transparent = false, .mask = false });
-                buffer = save;
-                pos = new_index[order[pos]];
-            }
-            layer.blit(buffer, file.spriteRect(i_0), .{ .transparent = false, .mask = false });
-        }
-    }
-
-    for (file.animations.items(.frames)) |*frames| {
-        for (frames.*) |*frame| {
-            frame.sprite_index = new_index[frame.sprite_index];
-        }
-    }
-
-    var new_origins = try arena.dupe([2]f32, file.sprites.items(.origin));
-    for (file.sprites.items(.origin), 0..) |*origin, sprite_index| {
-        new_origins[new_index[sprite_index]] = origin.*;
-    }
-    for (new_origins, 0..) |origin, sprite_index| {
-        file.sprites.items(.origin)[sprite_index] = origin;
-    }
-}
-
 pub fn deinit(file: *File) void {
     file.history.deinit();
     file.buffers.deinit();
@@ -1118,7 +1009,7 @@ pub fn fmtSprite(file: *File, allocator: std.mem.Allocator, sprite_index: usize,
     };
 }
 
-pub fn fmtColumn(_: *File, allocator: std.mem.Allocator, column: u32) ![]const u8 {
+pub fn fmtColumn(_: *File, allocator: std.mem.Allocator, column: usize) ![]const u8 {
     // Excel-style: 0 -> A, 1 -> B, ... 25 -> Z, 26 -> AA, 27 -> AB, etc.
     var temp: [10]u8 = undefined; // Enough for absurdly large columns (> 1 billion)
     var len: usize = 0;
@@ -1138,20 +1029,20 @@ pub fn fmtColumn(_: *File, allocator: std.mem.Allocator, column: u32) ![]const u
     return fmt;
 }
 
-pub fn columnFromIndex(file: *File, index: usize) u32 {
-    return @mod(@as(u32, @intCast(index)), file.columns);
+pub fn columnFromIndex(file: *File, index: usize) usize {
+    return @mod(index, file.columns);
 }
 
-pub fn rowFromIndex(file: *File, index: usize) u32 {
-    return @divTrunc(@as(u32, @intCast(index)), file.columns);
+pub fn rowFromIndex(file: *File, index: usize) usize {
+    return @divTrunc(index, file.columns);
 }
 
-pub fn columnFromPixel(file: *File, pixel: dvui.Point) u32 {
-    return @mod(@as(u32, @intFromFloat(pixel.x)), file.column_width);
+pub fn columnFromPixel(file: *File, pixel: dvui.Point) usize {
+    return @mod(@as(usize, @intFromFloat(pixel.x)), file.column_width);
 }
 
-pub fn rowFromPixel(file: *File, pixel: dvui.Point) u32 {
-    return @divTrunc(@as(u32, @intFromFloat(pixel.y)), file.row_height);
+pub fn rowFromPixel(file: *File, pixel: dvui.Point) usize {
+    return @divTrunc(@as(usize, @intFromFloat(pixel.y)), file.row_height);
 }
 
 pub fn spriteRect(file: *File, index: usize) dvui.Rect {
