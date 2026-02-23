@@ -785,9 +785,7 @@ pub fn getReorderIndices(
         if (mode == .insert) {
             dvui.ReorderWidget.reorderSlice(usize, order, removed_index, insert_before_index);
         } else {
-            const temp = order[removed_index];
-            order[removed_index] = order[insert_before_index];
-            order[insert_before_index] = temp;
+            std.mem.swap(usize, &order[removed_index], &order[insert_before_index]);
         }
     }
 

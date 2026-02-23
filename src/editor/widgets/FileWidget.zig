@@ -267,7 +267,7 @@ pub fn processAnimationSelection(self: *FileWidget) void {
     }
 }
 
-pub fn processSpriteReorder(self: *FileWidget) void {
+pub fn processCellReorder(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
     if (self.sample_data_point != null) return;
@@ -3477,9 +3477,9 @@ fn drawReorderPreviewForAxis(
 pub fn drawCellReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
 
-    const shadow_fade = 8.0;
-    const shadow_offset: dvui.Point = .{ .x = -4, .y = 4 };
-    const shadow_color = dvui.Color.black.opacity(0.5);
+    const shadow_fade = 3.0 / file.editor.canvas.scale;
+    const shadow_offset: dvui.Point = .{ .x = -3.0 / file.editor.canvas.scale, .y = 3.0 / file.editor.canvas.scale };
+    const shadow_color = dvui.Color.black.opacity(0.35);
 
     if (self.removed_sprite_indices) |removed_sprite_indices| {
         const insert_before_sprite_indices = dvui.currentWindow().arena().alloc(usize, removed_sprite_indices.len) catch {
@@ -3527,6 +3527,8 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
                 const new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
                 const current_rect = file.spriteRect(i);
 
+                const dragging: bool = file.editor.selected_sprites.isSet(i);
+
                 // UVs: normalize sprite rect in data space to 0-1 over the layer texture (same size as file).
                 // 0: TopLeft     → uv (umin, vmin)
                 // 1: TopRight    → uv (umax, vmin)
@@ -3537,10 +3539,12 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
                 const umax = (current_rect.x + current_rect.w) / file_width;
                 const vmax = (current_rect.y + current_rect.h) / file_height;
 
-                builder.appendVertex(.{ .pos = new_rect_physical.topLeft(), .col = .white, .uv = .{ umin, vmin } });
-                builder.appendVertex(.{ .pos = new_rect_physical.topRight(), .col = .white, .uv = .{ umax, vmin } });
-                builder.appendVertex(.{ .pos = new_rect_physical.bottomRight(), .col = .white, .uv = .{ umax, vmax } });
-                builder.appendVertex(.{ .pos = new_rect_physical.bottomLeft(), .col = .white, .uv = .{ umin, vmax } });
+                const col = if (!dragging) dvui.Color.PMA.fromColor(dvui.Color.white) else dvui.Color.PMA.fromColor(dvui.Color.transparent);
+
+                builder.appendVertex(.{ .pos = new_rect_physical.topLeft(), .col = col, .uv = .{ umin, vmin } });
+                builder.appendVertex(.{ .pos = new_rect_physical.topRight(), .col = col, .uv = .{ umax, vmin } });
+                builder.appendVertex(.{ .pos = new_rect_physical.bottomRight(), .col = col, .uv = .{ umax, vmax } });
+                builder.appendVertex(.{ .pos = new_rect_physical.bottomLeft(), .col = col, .uv = .{ umin, vmax } });
 
                 const base: dvui.Vertex.Index = @intCast(i * 4);
                 builder.appendTriangles(&.{ base + 1, base + 0, base + 3, base + 1, base + 3, base + 2 });
@@ -3725,13 +3729,13 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
                 return;
             };
 
-            var colored_triangles = triangles.dupe(dvui.currentWindow().arena()) catch {
+            var background_triangles = triangles.dupe(dvui.currentWindow().arena()) catch {
                 dvui.log.err("Failed to duplicate triangles", .{});
                 return;
             };
-            colored_triangles.color(dvui.themeGet().color(.control, .fill).opacity(0.9));
+            background_triangles.color(dvui.themeGet().color(.control, .fill).opacity(0.95));
 
-            dvui.renderTriangles(colored_triangles, null) catch {
+            dvui.renderTriangles(background_triangles, null) catch {
                 dvui.log.err("Failed to render triangles", .{});
                 return;
             };
@@ -4025,7 +4029,7 @@ pub fn processEvents(self: *FileWidget) void {
     }
 
     if (self.active()) {
-        self.processSpriteReorder();
+        self.processCellReorder();
     }
 
     self.drawLayers();
