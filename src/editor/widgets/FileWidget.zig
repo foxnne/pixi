@@ -2943,7 +2943,7 @@ pub fn drawLayers(self: *FileWidget) void {
     // Render all layers and update our bounding box;
     {
         if (self.removed_sprite_indices != null) {
-            self.drawSpriteReorderPreview();
+            self.drawCellReorderPreview();
             return;
         } else if (file.editor.workspace.columns_drag_index != null or file.editor.workspace.rows_drag_index != null) {
             self.drawColumnRowReorderPreview();
@@ -3474,8 +3474,12 @@ fn drawReorderPreviewForAxis(
     }
 }
 
-pub fn drawSpriteReorderPreview(self: *FileWidget) void {
+pub fn drawCellReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
+
+    const shadow_fade = 8.0;
+    const shadow_offset: dvui.Point = .{ .x = -4, .y = 4 };
+    const shadow_color = dvui.Color.black.opacity(0.5);
 
     if (self.removed_sprite_indices) |removed_sprite_indices| {
         const insert_before_sprite_indices = dvui.currentWindow().arena().alloc(usize, removed_sprite_indices.len) catch {
@@ -3645,13 +3649,38 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
             };
             defer builder.deinit(dvui.currentWindow().arena());
 
-            for (removed_sprite_indices) |removed_sprite_index| {
+            var shadow_builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), file.spriteCount() * 4 * 20, file.spriteCount() * 6 * 20) catch {
+                dvui.log.err("Failed to duplicate triangles", .{});
+                return;
+            };
+
+            for (removed_sprite_indices, 0..) |removed_sprite_index, i| {
+                const base_quad: dvui.Vertex.Index = @intCast(i * 4);
+
+                var shadow_path = dvui.Path.Builder.init(dvui.currentWindow().lifo());
+                defer shadow_path.deinit();
+
                 const new_rect = file.spriteRect(removed_sprite_index);
                 var new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
 
                 if (self.cell_reorder_point) |cell_reorder_point| {
                     new_rect_physical = new_rect_physical.offsetPoint(dvui.currentWindow().mouse_pt.diff(file.editor.canvas.screenFromDataPoint(cell_reorder_point)));
                 }
+
+                shadow_path.addRect(new_rect_physical.offsetPoint(shadow_offset.scale(dvui.currentWindow().natural_scale, dvui.Point.Physical)), .all(8));
+
+                const shadow_tris = shadow_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = shadow_color, .fade = shadow_fade }) catch {
+                    dvui.log.err("Failed to fill convex triangles", .{});
+                    return;
+                };
+                for (shadow_tris.vertexes) |*vertex| {
+                    shadow_builder.appendVertex(vertex.*);
+                }
+
+                for (shadow_tris.indices) |*index| {
+                    index.* += @intCast(i * shadow_tris.vertexes.len);
+                }
+                shadow_builder.appendTriangles(shadow_tris.indices);
 
                 // UVs: normalize sprite rect in data space to 0-1 over the layer texture (same size as file).
                 // 0: TopLeft     → uv (umin, vmin)
@@ -3663,15 +3692,46 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
                 const umax = (new_rect.x + new_rect.w) / file_width;
                 const vmax = (new_rect.y + new_rect.h) / file_height;
 
-                builder.appendVertex(.{ .pos = new_rect_physical.topLeft(), .col = .white, .uv = .{ umin, vmin } });
-                builder.appendVertex(.{ .pos = new_rect_physical.topRight(), .col = .white, .uv = .{ umax, vmin } });
-                builder.appendVertex(.{ .pos = new_rect_physical.bottomRight(), .col = .white, .uv = .{ umax, vmax } });
-                builder.appendVertex(.{ .pos = new_rect_physical.bottomLeft(), .col = .white, .uv = .{ umin, vmax } });
+                builder.appendVertex(.{
+                    .pos = new_rect_physical.topLeft(),
+                    .col = .white,
+                    .uv = .{ umin, vmin },
+                });
+                builder.appendVertex(.{
+                    .pos = new_rect_physical.topRight(),
+                    .col = .white,
+                    .uv = .{ umax, vmin },
+                });
+                builder.appendVertex(.{
+                    .pos = new_rect_physical.bottomRight(),
+                    .col = .white,
+                    .uv = .{ umax, vmax },
+                });
+                builder.appendVertex(.{
+                    .pos = new_rect_physical.bottomLeft(),
+                    .col = .white,
+                    .uv = .{ umin, vmax },
+                });
+
+                builder.appendTriangles(&.{ base_quad + 1, base_quad + 0, base_quad + 3, base_quad + 1, base_quad + 3, base_quad + 2 });
             }
 
             const triangles = builder.build();
 
-            dvui.renderTriangles(triangles, null) catch {
+            const shadow_triangles = shadow_builder.build();
+
+            dvui.renderTriangles(shadow_triangles, null) catch {
+                dvui.log.err("Failed to render shadow triangles", .{});
+                return;
+            };
+
+            var colored_triangles = triangles.dupe(dvui.currentWindow().arena()) catch {
+                dvui.log.err("Failed to duplicate triangles", .{});
+                return;
+            };
+            colored_triangles.color(dvui.themeGet().color(.control, .fill).opacity(0.9));
+
+            dvui.renderTriangles(colored_triangles, null) catch {
                 dvui.log.err("Failed to render triangles", .{});
                 return;
             };
