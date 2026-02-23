@@ -757,14 +757,19 @@ pub fn getReorderedIndex(
     };
 }
 
+const SpriteReorderMode = enum {
+    replace,
+    insert,
+};
+
 /// Returns a freshly allocated slice of length file.spriteCount() such that result[original_sprite_index]
 /// is the new sprite index after applying the given reorder moves. Caller owns the returned memory.
-/// Use this to preview reorder(file, removed_sprite_indices, insert_before_sprite_indices) without modifying the file.
 pub fn getReorderIndices(
     file: *File,
     allocator: std.mem.Allocator,
     removed_sprite_indices: []const usize,
     insert_before_sprite_indices: []const usize,
+    mode: SpriteReorderMode,
 ) ![]usize {
     if (removed_sprite_indices.len == 0 or insert_before_sprite_indices.len == 0) return error.InvalidReorderSlices;
     if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
@@ -777,7 +782,13 @@ pub fn getReorderIndices(
     for (0..sprite_count) |i| order[i] = i;
 
     for (removed_sprite_indices, insert_before_sprite_indices) |removed_index, insert_before_index| {
-        dvui.ReorderWidget.reorderSlice(usize, order, removed_index, insert_before_index);
+        if (mode == .insert) {
+            dvui.ReorderWidget.reorderSlice(usize, order, removed_index, insert_before_index);
+        } else {
+            const temp = order[removed_index];
+            order[removed_index] = order[insert_before_index];
+            order[insert_before_index] = temp;
+        }
     }
 
     const reorder_indices = try allocator.alloc(usize, sprite_count);
@@ -786,6 +797,75 @@ pub fn getReorderIndices(
     }
 
     return reorder_indices;
+}
+
+pub fn reorderCells(file: *File, removed_sprite_indices: []const usize, insert_before_sprite_indices: []const usize, mode: SpriteReorderMode) !void {
+    const arena = dvui.currentWindow().arena();
+    const new_sprite_indices = try file.getReorderIndices(arena, removed_sprite_indices, insert_before_sprite_indices, mode);
+
+    const sprite_count = new_sprite_indices.len;
+    const layer_count = file.layers.len;
+
+    var old_pixels_per_layer = try arena.alloc([]?[][4]u8, layer_count); // [layer][sprite_index]
+    var new_pixels_per_layer = try arena.alloc([]?[][4]u8, layer_count);
+    for (old_pixels_per_layer) |*slice| slice.* = try arena.alloc(?[][4]u8, sprite_count);
+    for (new_pixels_per_layer) |*slice| slice.* = try arena.alloc(?[][4]u8, sprite_count);
+
+    for (0..layer_count) |layer_index| {
+        var layer = file.layers.get(layer_index);
+        for (0..sprite_count) |i| {
+            const old_rect = file.spriteRect(i);
+            old_pixels_per_layer[layer_index][i] = layer.pixelsFromRect(arena, old_rect);
+
+            const new_idx = new_sprite_indices[i];
+            const new_rect = file.spriteRect(new_idx);
+            new_pixels_per_layer[layer_index][i] = layer.pixelsFromRect(arena, new_rect);
+        }
+    }
+
+    for (0..layer_count) |layer_index| {
+        var layer = file.layers.get(layer_index);
+        for (0..sprite_count) |original_sprite_index| {
+            const new_sprite_index = new_sprite_indices[original_sprite_index];
+            if (new_sprite_index != original_sprite_index) {
+                const src_pixels = old_pixels_per_layer[layer_index][original_sprite_index] orelse return error.MemoryAllocationFailed;
+                const dst_rect = file.spriteRect(new_sprite_index);
+                layer.blit(src_pixels, dst_rect, .{ .transparent = false, .mask = false });
+            }
+        }
+    }
+
+    for (file.animations.items(.frames)) |*frames| {
+        for (frames.*) |*frame| {
+            frame.sprite_index = new_sprite_indices[frame.sprite_index];
+        }
+    }
+
+    var new_origins = try arena.dupe([2]f32, file.sprites.items(.origin));
+    for (file.sprites.items(.origin), 0..) |origin, sprite_index| {
+        const new_index = new_sprite_indices[sprite_index];
+        if (new_index != sprite_index) {
+            new_origins[new_index] = origin;
+        }
+    }
+    for (new_origins, 0..) |origin, sprite_index| {
+        file.sprites.items(.origin)[sprite_index] = origin;
+    }
+
+    if (file.editor.selected_sprites.count() > 0) {
+        const selected_count = file.editor.selected_sprites.count();
+        var old_indices = try arena.alloc(usize, selected_count);
+        var idx: usize = 0;
+        var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+        while (iter.next()) |old_index| {
+            old_indices[idx] = old_index;
+            idx += 1;
+        }
+        file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = sprite_count }, false);
+        for (old_indices) |old_index| {
+            file.editor.selected_sprites.set(new_sprite_indices[old_index]);
+        }
+    }
 }
 
 pub fn reorderColumns(file: *File, removed_column_index: usize, insert_before_column_index: usize) !void {

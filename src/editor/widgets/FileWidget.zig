@@ -32,9 +32,15 @@ hide_distance_bubble: bool = false,
 hovered_bubble_sprite_index: ?usize = null,
 grid_reorder_point: ?dvui.Point = null,
 cell_reorder_point: ?dvui.Point = null,
+cell_reorder_mode: SpriteReorderMode = .replace,
 
 removed_sprite_indices: ?[]usize = null,
 insert_before_sprite_indices: ?[]usize = null,
+
+const SpriteReorderMode = enum {
+    replace,
+    insert,
+};
 
 pub const InitOptions = struct {
     file: *pixi.Internal.File,
@@ -326,30 +332,52 @@ pub fn processSpriteReorder(self: *FileWidget) void {
                                     // Drag has moved to a new cell, so we have shifted some sprites around
                                     // and we have released, so we need to allocate a new array of insert_before_sprite_indices
 
-                                    if (self.insert_before_sprite_indices) |insert_before_sprite_indices| {
-                                        pixi.app.allocator.free(insert_before_sprite_indices);
-                                        self.insert_before_sprite_indices = null;
+                                    if (self.removed_sprite_indices) |removed_sprite_indices| {
+                                        if (self.insert_before_sprite_indices) |insert_before_sprite_indices| {
+                                            pixi.app.allocator.free(insert_before_sprite_indices);
+                                            self.insert_before_sprite_indices = null;
+                                        }
+
+                                        // This will actually trigger the drag/drop
+                                        var insert_before_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
+                                            dvui.log.err("Failed to allocate insert before sprite indices", .{});
+                                            return;
+                                        };
+                                        for (removed_sprite_indices, 0..) |removed_sprite_index, i| {
+                                            const removed_sprite_rect = file.spriteRect(removed_sprite_index);
+                                            const difference = current_point.diff(cell_reorder_point);
+
+                                            if (file.spriteIndex(removed_sprite_rect.center().plus(difference))) |index| {
+                                                insert_before_sprite_indices[i] = index;
+                                            } else {
+                                                insert_before_sprite_indices[i] = 0;
+                                            }
+                                        }
+
+                                        self.insert_before_sprite_indices = insert_before_sprite_indices;
+
+                                        // This is where we will call reorder
+                                        file.reorderCells(removed_sprite_indices, insert_before_sprite_indices, .replace) catch {
+                                            dvui.log.err("Failed to reorder sprites", .{});
+                                            return;
+                                        };
+
+                                        file.history.append(.{
+                                            .reorder_cell = .{
+                                                .removed_sprite_indices = pixi.app.allocator.dupe(usize, removed_sprite_indices) catch {
+                                                    dvui.log.err("Failed to duplicate removed sprite indices", .{});
+                                                    return;
+                                                },
+                                                .insert_before_sprite_indices = pixi.app.allocator.dupe(usize, insert_before_sprite_indices) catch {
+                                                    dvui.log.err("Failed to duplicate insert before sprite indices", .{});
+                                                    return;
+                                                },
+                                            },
+                                        }) catch {
+                                            dvui.log.err("Failed to append history", .{});
+                                            return;
+                                        };
                                     }
-
-                                    const delta = file.spriteRect(current_index).topLeft().diff(file.spriteRect(di).topLeft());
-
-                                    // This will actually trigger the drag/drop
-                                    var insert_before_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
-                                        dvui.log.err("Failed to allocate insert before sprite indices", .{});
-                                        return;
-                                    };
-                                    var i: usize = 0;
-                                    var sprite_iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
-                                    while (sprite_iter.next()) |sprite_index| {
-                                        var sprite_rect = file.spriteRect(sprite_index);
-                                        sprite_rect.x += delta.x;
-                                        sprite_rect.y += delta.y;
-                                        insert_before_sprite_indices[i] = if (file.spriteIndex(sprite_rect.center())) |index| index else std.math.maxInt(usize);
-                                        i += 1;
-                                    }
-                                    self.insert_before_sprite_indices = insert_before_sprite_indices;
-
-                                    // This is where we will call reorder
                                 }
                             }
                         }
@@ -3469,112 +3497,186 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
             }
         }
 
-        const new_sprite_indices = file.getReorderIndices(dvui.currentWindow().arena(), removed_sprite_indices, insert_before_sprite_indices) catch |err| {
+        const new_sprite_indices = file.getReorderIndices(
+            dvui.currentWindow().arena(),
+            removed_sprite_indices,
+            insert_before_sprite_indices,
+            .replace,
+        ) catch |err| {
             dvui.log.err("Failed to get reorder indices {any}", .{err});
             return;
         };
 
-        var builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), file.spriteCount() * 4, file.spriteCount() * 6) catch |err| {
-            dvui.log.err("Failed to initialize triangles builder: {any}", .{err});
-            return;
-        };
-        defer builder.deinit(dvui.currentWindow().arena());
-
         const file_width = @as(f32, @floatFromInt(file.width()));
         const file_height = @as(f32, @floatFromInt(file.height()));
 
-        for (0..file.spriteCount()) |i| {
-            const new_index = new_sprite_indices[i];
-            const new_rect = file.spriteRect(new_index);
-            const new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
-            const current_rect = file.spriteRect(i);
+        {
+            var builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), file.spriteCount() * 4, file.spriteCount() * 6) catch |err| {
+                dvui.log.err("Failed to initialize triangles builder: {any}", .{err});
+                return;
+            };
+            defer builder.deinit(dvui.currentWindow().arena());
 
-            // UVs: normalize sprite rect in data space to 0-1 over the layer texture (same size as file).
-            // 0: TopLeft     → uv (umin, vmin)
-            // 1: TopRight    → uv (umax, vmin)
-            // 2: BottomRight → uv (umax, vmax)
-            // 3: BottomLeft  → uv (umin, vmax)
-            const umin = current_rect.x / file_width;
-            const vmin = current_rect.y / file_height;
-            const umax = (current_rect.x + current_rect.w) / file_width;
-            const vmax = (current_rect.y + current_rect.h) / file_height;
+            for (0..file.spriteCount()) |i| {
+                const new_index = new_sprite_indices[i];
+                const new_rect = file.spriteRect(new_index);
+                const new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
+                const current_rect = file.spriteRect(i);
 
-            builder.appendVertex(.{ .pos = new_rect_physical.topLeft(), .col = .white, .uv = .{ umin, vmin } });
-            builder.appendVertex(.{ .pos = new_rect_physical.topRight(), .col = .white, .uv = .{ umax, vmin } });
-            builder.appendVertex(.{ .pos = new_rect_physical.bottomRight(), .col = .white, .uv = .{ umax, vmax } });
-            builder.appendVertex(.{ .pos = new_rect_physical.bottomLeft(), .col = .white, .uv = .{ umin, vmax } });
+                // UVs: normalize sprite rect in data space to 0-1 over the layer texture (same size as file).
+                // 0: TopLeft     → uv (umin, vmin)
+                // 1: TopRight    → uv (umax, vmin)
+                // 2: BottomRight → uv (umax, vmax)
+                // 3: BottomLeft  → uv (umin, vmax)
+                const umin = current_rect.x / file_width;
+                const vmin = current_rect.y / file_height;
+                const umax = (current_rect.x + current_rect.w) / file_width;
+                const vmax = (current_rect.y + current_rect.h) / file_height;
 
-            const base: dvui.Vertex.Index = @intCast(i * 4);
-            builder.appendTriangles(&.{ base + 1, base + 0, base + 3, base + 1, base + 3, base + 2 });
+                builder.appendVertex(.{ .pos = new_rect_physical.topLeft(), .col = .white, .uv = .{ umin, vmin } });
+                builder.appendVertex(.{ .pos = new_rect_physical.topRight(), .col = .white, .uv = .{ umax, vmin } });
+                builder.appendVertex(.{ .pos = new_rect_physical.bottomRight(), .col = .white, .uv = .{ umax, vmax } });
+                builder.appendVertex(.{ .pos = new_rect_physical.bottomLeft(), .col = .white, .uv = .{ umin, vmax } });
+
+                const base: dvui.Vertex.Index = @intCast(i * 4);
+                builder.appendTriangles(&.{ base + 1, base + 0, base + 3, base + 1, base + 3, base + 2 });
+            }
+
+            {
+                var temp_selected_sprite = file.editor.selected_sprites.clone(dvui.currentWindow().arena()) catch {
+                    dvui.log.err("Failed to clone selected sprites", .{});
+                    return;
+                };
+
+                var temp_insert_before_sprite = file.editor.selected_sprites.clone(dvui.currentWindow().arena()) catch {
+                    dvui.log.err("Failed to clone selected sprites", .{});
+                    return;
+                };
+
+                temp_insert_before_sprite.setRangeValue(.{ .start = 0, .end = file.spriteCount() }, false);
+
+                for (insert_before_sprite_indices) |insert_before_sprite_index| {
+                    temp_selected_sprite.set(insert_before_sprite_index);
+                    temp_insert_before_sprite.set(insert_before_sprite_index);
+                }
+
+                var iter = temp_selected_sprite.iterator(.{ .kind = .set, .direction = .forward });
+                while (iter.next()) |sprite_index| {
+                    const image_rect = file.spriteRect(sprite_index);
+
+                    const image_rect_scale: dvui.RectScale = .{
+                        .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
+                        .s = self.init_options.file.editor.canvas.scale,
+                    };
+
+                    const highlight = dvui.themeGet().color(.highlight, .fill).opacity(0.5);
+                    const err = dvui.themeGet().color(.err, .fill).opacity(0.5);
+
+                    const color = if (temp_insert_before_sprite.isSet(sprite_index) and file.editor.selected_sprites.isSet(sprite_index)) highlight.average(err) else if (temp_insert_before_sprite.isSet(sprite_index)) highlight else if (file.editor.selected_sprites.isSet(sprite_index)) err else highlight;
+
+                    image_rect_scale.r.fill(.all(0), .{ .color = color, .fade = 1.5 });
+
+                    const left_index = file.spriteIndex(image_rect.center().diff(.{ .x = @as(f32, @floatFromInt(file.column_width)) }));
+                    const right_index = file.spriteIndex(image_rect.center().plus(.{ .x = @as(f32, @floatFromInt(file.column_width)) }));
+                    const top_index = file.spriteIndex(image_rect.center().diff(.{ .y = @as(f32, @floatFromInt(file.row_height)) }));
+                    const bottom_index = file.spriteIndex(image_rect.center().plus(.{ .y = @as(f32, @floatFromInt(file.row_height)) }));
+
+                    if (left_index) |left_index_value| {
+                        if (!temp_selected_sprite.isSet(left_index_value)) {
+                            pixi.dvui.drawEdgeShadow(image_rect_scale, .left, .{ .opacity = 0.35 });
+                        }
+                    }
+                    if (right_index) |right_index_value| {
+                        if (!temp_selected_sprite.isSet(right_index_value)) {
+                            pixi.dvui.drawEdgeShadow(image_rect_scale, .right, .{ .opacity = 0.35 });
+                        }
+                    }
+                    if (top_index) |top_index_value| {
+                        if (!temp_selected_sprite.isSet(top_index_value)) {
+                            pixi.dvui.drawEdgeShadow(image_rect_scale, .top, .{ .opacity = 0.35 });
+                        }
+                    }
+                    if (bottom_index) |bottom_index_value| {
+                        if (!temp_selected_sprite.isSet(bottom_index_value)) {
+                            pixi.dvui.drawEdgeShadow(image_rect_scale, .bottom, .{ .opacity = 0.35 });
+                        }
+                    }
+                }
+            }
+
+            { // Render once for each layer
+                const grid_triangles = builder.build();
+
+                var i: usize = file.layers.len;
+
+                while (i > 0) {
+                    i -= 1;
+                    const source = file.layers.items(.source)[i];
+                    dvui.renderTriangles(grid_triangles, source.getTexture() catch null) catch {
+                        dvui.log.err("Failed to render triangles", .{});
+                        return;
+                    };
+                }
+            }
+
+            {
+                const grid_color = dvui.themeGet().color(.window, .fill);
+                const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
+                for (1..file.columns) |i| {
+                    dvui.Path.stroke(.{ .points = &.{
+                        self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
+                        self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = file.editor.canvas.rect.h }),
+                    } }, .{ .thickness = grid_thickness, .color = grid_color });
+                }
+
+                for (1..file.rows) |i| {
+                    dvui.Path.stroke(.{ .points = &.{
+                        self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                        self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = file.editor.canvas.rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                    } }, .{ .thickness = grid_thickness, .color = grid_color });
+                }
+            }
         }
 
         {
-            var temp_selected_sprite = file.editor.selected_sprites.clone(dvui.currentWindow().arena()) catch {
-                dvui.log.err("Failed to clone selected sprites", .{});
+            var builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), file.spriteCount() * 4, file.spriteCount() * 6) catch |err| {
+                dvui.log.err("Failed to initialize triangles builder: {any}", .{err});
                 return;
             };
+            defer builder.deinit(dvui.currentWindow().arena());
 
-            var temp_insert_before_sprite = file.editor.selected_sprites.clone(dvui.currentWindow().arena()) catch {
-                dvui.log.err("Failed to clone selected sprites", .{});
-                return;
-            };
+            for (removed_sprite_indices) |removed_sprite_index| {
+                const new_rect = file.spriteRect(removed_sprite_index);
+                var new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
 
-            temp_insert_before_sprite.setRangeValue(.{ .start = 0, .end = file.spriteCount() }, false);
+                if (self.cell_reorder_point) |cell_reorder_point| {
+                    new_rect_physical = new_rect_physical.offsetPoint(dvui.currentWindow().mouse_pt.diff(file.editor.canvas.screenFromDataPoint(cell_reorder_point)));
+                }
 
-            for (insert_before_sprite_indices) |insert_before_sprite_index| {
-                temp_selected_sprite.set(insert_before_sprite_index);
-                temp_insert_before_sprite.set(insert_before_sprite_index);
+                // UVs: normalize sprite rect in data space to 0-1 over the layer texture (same size as file).
+                // 0: TopLeft     → uv (umin, vmin)
+                // 1: TopRight    → uv (umax, vmin)
+                // 2: BottomRight → uv (umax, vmax)
+                // 3: BottomLeft  → uv (umin, vmax)
+                const umin = new_rect.x / file_width;
+                const vmin = new_rect.y / file_height;
+                const umax = (new_rect.x + new_rect.w) / file_width;
+                const vmax = (new_rect.y + new_rect.h) / file_height;
+
+                builder.appendVertex(.{ .pos = new_rect_physical.topLeft(), .col = .white, .uv = .{ umin, vmin } });
+                builder.appendVertex(.{ .pos = new_rect_physical.topRight(), .col = .white, .uv = .{ umax, vmin } });
+                builder.appendVertex(.{ .pos = new_rect_physical.bottomRight(), .col = .white, .uv = .{ umax, vmax } });
+                builder.appendVertex(.{ .pos = new_rect_physical.bottomLeft(), .col = .white, .uv = .{ umin, vmax } });
             }
 
-            var iter = temp_selected_sprite.iterator(.{ .kind = .set, .direction = .forward });
-            while (iter.next()) |sprite_index| {
-                const image_rect = file.spriteRect(sprite_index);
-
-                const image_rect_scale: dvui.RectScale = .{
-                    .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
-                    .s = self.init_options.file.editor.canvas.scale,
-                };
-
-                const highlight = dvui.themeGet().color(.highlight, .fill).opacity(0.5);
-                const err = dvui.themeGet().color(.err, .fill).opacity(0.5);
-
-                const color = if (temp_insert_before_sprite.isSet(sprite_index) and file.editor.selected_sprites.isSet(sprite_index)) highlight.average(err) else if (temp_insert_before_sprite.isSet(sprite_index)) highlight else if (file.editor.selected_sprites.isSet(sprite_index)) err else highlight;
-
-                image_rect_scale.r.fill(.all(0), .{ .color = color, .fade = 1.5 });
-
-                const left_index = file.spriteIndex(image_rect.center().diff(.{ .x = @as(f32, @floatFromInt(file.column_width)) }));
-                const right_index = file.spriteIndex(image_rect.center().plus(.{ .x = @as(f32, @floatFromInt(file.column_width)) }));
-                const top_index = file.spriteIndex(image_rect.center().diff(.{ .y = @as(f32, @floatFromInt(file.row_height)) }));
-                const bottom_index = file.spriteIndex(image_rect.center().plus(.{ .y = @as(f32, @floatFromInt(file.row_height)) }));
-
-                if (left_index) |left_index_value| {
-                    if (!temp_selected_sprite.isSet(left_index_value)) {
-                        pixi.dvui.drawEdgeShadow(image_rect_scale, .left, .{ .opacity = 0.35 });
-                    }
-                }
-                if (right_index) |right_index_value| {
-                    if (!temp_selected_sprite.isSet(right_index_value)) {
-                        pixi.dvui.drawEdgeShadow(image_rect_scale, .right, .{ .opacity = 0.35 });
-                    }
-                }
-                if (top_index) |top_index_value| {
-                    if (!temp_selected_sprite.isSet(top_index_value)) {
-                        pixi.dvui.drawEdgeShadow(image_rect_scale, .top, .{ .opacity = 0.35 });
-                    }
-                }
-                if (bottom_index) |bottom_index_value| {
-                    if (!temp_selected_sprite.isSet(bottom_index_value)) {
-                        pixi.dvui.drawEdgeShadow(image_rect_scale, .bottom, .{ .opacity = 0.35 });
-                    }
-                }
-            }
-        }
-
-        { // Render once for each layer
             const triangles = builder.build();
 
-            var i: usize = file.layers.len;
+            dvui.renderTriangles(triangles, null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+                return;
+            };
 
+            var i: usize = file.layers.len;
             while (i > 0) {
                 i -= 1;
                 const source = file.layers.items(.source)[i];
@@ -3582,24 +3684,6 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
                     dvui.log.err("Failed to render triangles", .{});
                     return;
                 };
-            }
-        }
-
-        {
-            const grid_color = dvui.themeGet().color(.window, .fill);
-            const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
-            for (1..file.columns) |i| {
-                dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = file.editor.canvas.rect.h }),
-                } }, .{ .thickness = grid_thickness, .color = grid_color });
-            }
-
-            for (1..file.rows) |i| {
-                dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = file.editor.canvas.rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                } }, .{ .thickness = grid_thickness, .color = grid_color });
             }
         }
     }

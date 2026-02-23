@@ -934,7 +934,7 @@ pub fn processColumnReorder(self: *Workspace) void {
 
             if (prev_removed_index < prev_insert_before_index) {
                 file.history.append(.{
-                    .reorder = .{
+                    .reorder_col_row = .{
                         .mode = .columns,
                         .removed_index = prev_insert_before_index - 1,
                         .insert_before_index = prev_removed_index,
@@ -944,7 +944,7 @@ pub fn processColumnReorder(self: *Workspace) void {
                 };
             } else {
                 file.history.append(.{
-                    .reorder = .{
+                    .reorder_col_row = .{
                         .mode = .columns,
                         .removed_index = prev_insert_before_index,
                         .insert_before_index = prev_removed_index + 1,
@@ -977,7 +977,7 @@ pub fn processRowReorder(self: *Workspace) void {
 
             if (prev_removed_index < prev_insert_before_index) {
                 file.history.append(.{
-                    .reorder = .{
+                    .reorder_col_row = .{
                         .mode = .rows,
                         .removed_index = prev_insert_before_index - 1,
                         .insert_before_index = prev_removed_index,
@@ -987,7 +987,7 @@ pub fn processRowReorder(self: *Workspace) void {
                 };
             } else {
                 file.history.append(.{
-                    .reorder = .{
+                    .reorder_col_row = .{
                         .mode = .rows,
                         .removed_index = prev_insert_before_index,
                         .insert_before_index = prev_removed_index + 1,

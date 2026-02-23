@@ -20,7 +20,8 @@ pub const ChangeType = enum {
     layer_name,
     layer_settings,
     resize,
-    reorder,
+    reorder_col_row,
+    reorder_cell,
 };
 
 pub const Change = union(ChangeType) {
@@ -85,7 +86,7 @@ pub const Change = union(ChangeType) {
         height: u32,
     };
 
-    pub const Reorder = struct {
+    pub const ColumnRowReorder = struct {
         pub const Mode = enum {
             columns,
             rows,
@@ -94,6 +95,11 @@ pub const Change = union(ChangeType) {
         mode: Mode,
         removed_index: usize,
         insert_before_index: usize,
+    };
+
+    pub const CellReorder = struct {
+        removed_sprite_indices: []usize,
+        insert_before_sprite_indices: []usize,
     };
 
     pixels: Pixels,
@@ -108,7 +114,8 @@ pub const Change = union(ChangeType) {
     layer_name: LayerName,
     layer_settings: LayerSettings,
     resize: Resize,
-    reorder: Reorder,
+    reorder_col_row: ColumnRowReorder,
+    reorder_cell: CellReorder,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -274,7 +281,10 @@ pub fn append(self: *History, change: Change) !void {
                 .resize => {
                     equal = false;
                 },
-                .reorder => {
+                .reorder_col_row => {
+                    equal = false;
+                },
+                .reorder_cell => {
                     equal = false;
                 },
             }
@@ -407,8 +417,22 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     file.height(),
                 }) catch "Invalid change";
             },
-            .reorder => |_| {
-                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} File columns and rows reordered", .{action_text}) catch "Invalid change";
+            .reorder_col_row => |*reorder| {
+                const removed = reorder.removed_index;
+                const insert_before = reorder.insert_before_index;
+                switch (reorder.mode) {
+                    .columns => {
+                        const removed_column_name = file.fmtColumn(dvui.currentWindow().arena(), removed) catch "Invalid change";
+                        const insert_before_column_name = file.fmtColumn(dvui.currentWindow().arena(), insert_before) catch "Invalid change";
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Columns {s} moved to {s}", .{ action_text, removed_column_name, insert_before_column_name }) catch "Invalid change";
+                    },
+                    .rows => {
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Row {d} moved to {d}", .{ action_text, removed, insert_before }) catch "Invalid change";
+                    },
+                }
+            },
+            .reorder_cell => |_| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Cells reordered", .{action_text}) catch "Invalid change";
             },
         }
 
@@ -658,7 +682,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 pixi.app.allocator.free(sd);
             }
         },
-        .reorder => |*reorder| {
+        .reorder_col_row => |*reorder| {
             switch (reorder.mode) {
                 .columns => {
                     file.reorderColumns(reorder.removed_index, reorder.insert_before_index) catch return error.ReorderError;
@@ -677,10 +701,15 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 reorder.removed_index = prev_insert_before_index - 1;
                 reorder.insert_before_index = prev_removed_index;
             } else {
-                // Column was removed after (or at) insert position.
                 reorder.removed_index = prev_insert_before_index;
                 reorder.insert_before_index = prev_removed_index + 1;
             }
+        },
+
+        .reorder_cell => |*reorder| {
+            file.reorderCells(reorder.removed_sprite_indices, reorder.insert_before_sprite_indices, .replace) catch return error.ReorderError;
+
+            std.mem.swap([]usize, &reorder.removed_sprite_indices, &reorder.insert_before_sprite_indices);
         },
     }
 
