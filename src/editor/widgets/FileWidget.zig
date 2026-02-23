@@ -358,11 +358,11 @@ pub fn processSpriteReorder(self: *FileWidget) void {
                     if (self.removed_sprite_indices) |_| {
                         self.removed_sprite_indices = null;
                         dvui.dataRemove(null, file.editor.canvas.id, "removed_sprite_indices");
-                        std.log.debug("Removed sprite indices", .{});
                     }
                 } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(file.editor.canvas.scroll_container.data().id)) {
                         if (dvui.dragging(me.p, "sprite_reorder_drag")) |_| {
+                            dvui.cursorSet(.hand);
                             defer e.handle(@src(), file.editor.canvas.scroll_container.data());
                             if (self.removed_sprite_indices == null and file.editor.selected_sprites.count() > 0) {
                                 var removed_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
@@ -2858,7 +2858,7 @@ pub fn drawLayers(self: *FileWidget) void {
 
     const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-    if (self.resize_data_point == null and file.editor.workspace.columns_drag_index == null and file.editor.workspace.rows_drag_index == null) {
+    if (self.resize_data_point == null and file.editor.workspace.columns_drag_index == null and file.editor.workspace.rows_drag_index == null and self.removed_sprite_indices == null) {
         var image_rect_scale: dvui.RectScale = .{};
         if (file.spriteIndex(mouse_data_point)) |sprite_index| {
             const image_rect = file.spriteRect(sprite_index);
@@ -3457,15 +3457,16 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
 
         for (removed_sprite_indices, 0..) |removed_sprite_index, i| {
             const removed_sprite_rect = file.spriteRect(removed_sprite_index);
-
-            const current_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-
-            var offset: dvui.Point = .{}; // How much the mouse has
             if (self.cell_reorder_point) |cell_reorder_point| {
-                offset = current_point.diff(cell_reorder_point);
-            }
+                const current_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+                const difference = current_point.diff(cell_reorder_point);
 
-            insert_before_sprite_indices[i] = if (file.spriteIndex(removed_sprite_rect.center().plus(offset))) |index| index else 0;
+                if (file.spriteIndex(removed_sprite_rect.center().plus(difference))) |index| {
+                    insert_before_sprite_indices[i] = index;
+                } else {
+                    insert_before_sprite_indices[i] = 0;
+                }
+            }
         }
 
         const new_sprite_indices = file.getReorderIndices(dvui.currentWindow().arena(), removed_sprite_indices, insert_before_sprite_indices) catch |err| {
@@ -3507,6 +3508,79 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
             builder.appendTriangles(&.{ base + 1, base + 0, base + 3, base + 1, base + 3, base + 2 });
         }
 
+        {
+            var temp_selected_sprite = file.editor.selected_sprites.clone(dvui.currentWindow().arena()) catch {
+                dvui.log.err("Failed to clone selected sprites", .{});
+                return;
+            };
+
+            var temp_insert_before_sprite = file.editor.selected_sprites.clone(dvui.currentWindow().arena()) catch {
+                dvui.log.err("Failed to clone selected sprites", .{});
+                return;
+            };
+
+            temp_insert_before_sprite.setRangeValue(.{ .start = 0, .end = file.spriteCount() }, false);
+
+            for (insert_before_sprite_indices) |insert_before_sprite_index| {
+                temp_selected_sprite.set(insert_before_sprite_index);
+                temp_insert_before_sprite.set(insert_before_sprite_index);
+            }
+
+            var iter = temp_selected_sprite.iterator(.{ .kind = .set, .direction = .forward });
+            while (iter.next()) |sprite_index| {
+                const image_rect = file.spriteRect(sprite_index);
+
+                const image_rect_scale: dvui.RectScale = .{
+                    .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
+                    .s = self.init_options.file.editor.canvas.scale,
+                };
+
+                const highlight = dvui.themeGet().color(.highlight, .fill).opacity(0.5);
+                const err = dvui.themeGet().color(.err, .fill).opacity(0.5);
+
+                const color = if (temp_insert_before_sprite.isSet(sprite_index) and file.editor.selected_sprites.isSet(sprite_index)) highlight.average(err) else if (temp_insert_before_sprite.isSet(sprite_index)) highlight else if (file.editor.selected_sprites.isSet(sprite_index)) err else highlight;
+
+                image_rect_scale.r.fill(.all(0), .{ .color = color, .fade = 1.5 });
+
+                const left_index = file.spriteIndex(image_rect.center().diff(.{ .x = @as(f32, @floatFromInt(file.column_width)) }));
+                const right_index = file.spriteIndex(image_rect.center().plus(.{ .x = @as(f32, @floatFromInt(file.column_width)) }));
+                const top_index = file.spriteIndex(image_rect.center().diff(.{ .y = @as(f32, @floatFromInt(file.row_height)) }));
+                const bottom_index = file.spriteIndex(image_rect.center().plus(.{ .y = @as(f32, @floatFromInt(file.row_height)) }));
+
+                if (left_index) |left_index_value| {
+                    if (!temp_selected_sprite.isSet(left_index_value)) {
+                        pixi.dvui.drawEdgeShadow(image_rect_scale, .left, .{ .opacity = 0.35 });
+                    }
+                }
+                if (right_index) |right_index_value| {
+                    if (!temp_selected_sprite.isSet(right_index_value)) {
+                        pixi.dvui.drawEdgeShadow(image_rect_scale, .right, .{ .opacity = 0.35 });
+                    }
+                }
+                if (top_index) |top_index_value| {
+                    if (!temp_selected_sprite.isSet(top_index_value)) {
+                        pixi.dvui.drawEdgeShadow(image_rect_scale, .top, .{ .opacity = 0.35 });
+                    }
+                }
+                if (bottom_index) |bottom_index_value| {
+                    if (!temp_selected_sprite.isSet(bottom_index_value)) {
+                        pixi.dvui.drawEdgeShadow(image_rect_scale, .bottom, .{ .opacity = 0.35 });
+                    }
+                }
+            }
+        }
+
+        {
+            // for (insert_before_sprite_indices) |insert_before_sprite_index| {
+            //     const insert_before_sprite_rect = file.spriteRect(insert_before_sprite_index);
+            //     const insert_before_sprite_rect_physical = file.editor.canvas.screenFromDataRect(insert_before_sprite_rect);
+            //     insert_before_sprite_rect_physical.fill(.all(0), .{
+            //         .fade = 1.5,
+            //         .color = dvui.themeGet().color(.highlight, .fill),
+            //     });
+            // }
+        }
+
         { // Render once for each layer
             const triangles = builder.build();
 
@@ -3522,20 +3596,36 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
             }
         }
 
-        for (0..file.spriteCount()) |i| {
-            const new_index = new_sprite_indices[i];
-            if (new_index == i) continue;
-            const new_rect = file.spriteRect(new_index);
-            const new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
+        {
+            const grid_color = dvui.themeGet().color(.window, .fill);
+            const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
+            for (1..file.columns) |i| {
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = file.editor.canvas.rect.h }),
+                } }, .{ .thickness = grid_thickness, .color = grid_color });
+            }
 
-            if (file.editor.selected_sprites.isSet(i)) {
-                new_rect_physical.inset(.all(dvui.currentWindow().natural_scale * 1.5)).stroke(dvui.Rect.Physical.all(@min(new_rect_physical.w, new_rect_physical.h) / 8), .{
-                    .thickness = 1.5 * dvui.currentWindow().natural_scale,
-                    .color = dvui.themeGet().color(.highlight, .fill),
-                    .closed = true,
-                });
+            for (1..file.rows) |i| {
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = file.editor.canvas.rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                } }, .{ .thickness = grid_thickness, .color = grid_color });
             }
         }
+
+        // for (0..file.spriteCount()) |i| {
+        //     if (file.editor.selected_sprites.isSet(i)) {
+        //         const new_index = new_sprite_indices[i];
+        //         const new_rect = file.spriteRect(new_index);
+        //         const new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
+        //         new_rect_physical.inset(.all(dvui.currentWindow().natural_scale * 1.5)).stroke(dvui.Rect.Physical.all(@min(new_rect_physical.w, new_rect_physical.h) / 8), .{
+        //             .thickness = 1.5 * dvui.currentWindow().natural_scale,
+        //             .color = dvui.themeGet().color(.highlight, .fill),
+        //             .closed = true,
+        //         });
+        //     }
+        // }
     }
 }
 
