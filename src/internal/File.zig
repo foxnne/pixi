@@ -770,31 +770,21 @@ pub fn getReorderIndices(
     if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
 
     const sprite_count = file.spriteCount();
+    if (removed_sprite_indices.len > sprite_count) return error.InvalidReorderSlices;
 
     var order = try allocator.alloc(usize, sprite_count);
     defer allocator.free(order);
     for (0..sprite_count) |i| order[i] = i;
 
-    for (removed_sprite_indices, insert_before_sprite_indices) |removed, insert_before| {
-        if (removed == insert_before) continue;
-        var current_removed: usize = 0;
-        while (order[current_removed] != removed) : (current_removed += 1) {}
-
-        const removed_elem = order[current_removed];
-        for (current_removed + 1..sprite_count) |i| {
-            order[i - 1] = order[i];
-        }
-        var i = sprite_count - 1;
-        while (i > insert_before) : (i -= 1) {
-            order[i] = order[i - 1];
-        }
-        order[insert_before] = removed_elem;
+    for (removed_sprite_indices, insert_before_sprite_indices) |removed_index, insert_before_index| {
+        dvui.ReorderWidget.reorderSlice(usize, order, removed_index, insert_before_index);
     }
 
     const reorder_indices = try allocator.alloc(usize, sprite_count);
     for (order, 0..) |order_index, i| {
         reorder_indices[order_index] = i;
     }
+
     return reorder_indices;
 }
 

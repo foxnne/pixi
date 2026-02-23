@@ -3570,17 +3570,6 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
             }
         }
 
-        {
-            // for (insert_before_sprite_indices) |insert_before_sprite_index| {
-            //     const insert_before_sprite_rect = file.spriteRect(insert_before_sprite_index);
-            //     const insert_before_sprite_rect_physical = file.editor.canvas.screenFromDataRect(insert_before_sprite_rect);
-            //     insert_before_sprite_rect_physical.fill(.all(0), .{
-            //         .fade = 1.5,
-            //         .color = dvui.themeGet().color(.highlight, .fill),
-            //     });
-            // }
-        }
-
         { // Render once for each layer
             const triangles = builder.build();
 
@@ -3613,19 +3602,6 @@ pub fn drawSpriteReorderPreview(self: *FileWidget) void {
                 } }, .{ .thickness = grid_thickness, .color = grid_color });
             }
         }
-
-        // for (0..file.spriteCount()) |i| {
-        //     if (file.editor.selected_sprites.isSet(i)) {
-        //         const new_index = new_sprite_indices[i];
-        //         const new_rect = file.spriteRect(new_index);
-        //         const new_rect_physical = file.editor.canvas.screenFromDataRect(new_rect);
-        //         new_rect_physical.inset(.all(dvui.currentWindow().natural_scale * 1.5)).stroke(dvui.Rect.Physical.all(@min(new_rect_physical.w, new_rect_physical.h) / 8), .{
-        //             .thickness = 1.5 * dvui.currentWindow().natural_scale,
-        //             .color = dvui.themeGet().color(.highlight, .fill),
-        //             .closed = true,
-        //         });
-        //     }
-        // }
     }
 }
 
