@@ -3476,11 +3476,6 @@ fn drawReorderPreviewForAxis(
 pub fn drawCellReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
 
-    const dragging_sprite_bg_color = dvui.themeGet().color(.control, .fill).opacity(0.75);
-    const shadow_fade = 6.0 * file.editor.canvas.scale;
-    const shadow_offset: dvui.Point = .{ .x = -4.0 * file.editor.canvas.scale, .y = 4.0 * file.editor.canvas.scale };
-    const shadow_color = dvui.Color.black.opacity(0.45);
-
     if (self.removed_sprite_indices) |removed_sprite_indices| {
         const insert_before_sprite_indices = dvui.currentWindow().arena().alloc(usize, removed_sprite_indices.len) catch {
             dvui.log.err("Failed to allocate insert before sprite indices", .{});
@@ -3654,11 +3649,6 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
             };
             defer builder.deinit(dvui.currentWindow().arena());
 
-            var shadow_builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), file.spriteCount() * 4 * 20, file.spriteCount() * 6 * 20) catch {
-                dvui.log.err("Failed to duplicate triangles", .{});
-                return;
-            };
-
             for (removed_sprite_indices, 0..) |removed_sprite_index, i| {
                 const base_quad: dvui.Vertex.Index = @intCast(i * 4);
 
@@ -3671,21 +3661,6 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
                 if (self.cell_reorder_point) |cell_reorder_point| {
                     new_rect_physical = new_rect_physical.offsetPoint(dvui.currentWindow().mouse_pt.diff(file.editor.canvas.screenFromDataPoint(cell_reorder_point)));
                 }
-
-                shadow_path.addRect(new_rect_physical.offsetPoint(shadow_offset.scale(dvui.currentWindow().natural_scale, dvui.Point.Physical)), .all(8 * file.editor.canvas.scale));
-
-                const shadow_tris = shadow_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = shadow_color, .fade = shadow_fade }) catch {
-                    dvui.log.err("Failed to fill convex triangles", .{});
-                    return;
-                };
-                for (shadow_tris.vertexes) |*vertex| {
-                    shadow_builder.appendVertex(vertex.*);
-                }
-
-                for (shadow_tris.indices) |*index| {
-                    index.* += @intCast(i * shadow_tris.vertexes.len);
-                }
-                shadow_builder.appendTriangles(shadow_tris.indices);
 
                 // UVs: normalize sprite rect in data space to 0-1 over the layer texture (same size as file).
                 // 0: TopLeft     → uv (umin, vmin)
@@ -3722,24 +3697,6 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
             }
 
             const triangles = builder.build();
-
-            const shadow_triangles = shadow_builder.build();
-
-            dvui.renderTriangles(shadow_triangles, null) catch {
-                dvui.log.err("Failed to render shadow triangles", .{});
-                return;
-            };
-
-            var background_triangles = triangles.dupe(dvui.currentWindow().arena()) catch {
-                dvui.log.err("Failed to duplicate triangles", .{});
-                return;
-            };
-            background_triangles.color(dragging_sprite_bg_color);
-
-            dvui.renderTriangles(background_triangles, null) catch {
-                dvui.log.err("Failed to render triangles", .{});
-                return;
-            };
 
             var i: usize = file.layers.len;
             while (i > 0) {
