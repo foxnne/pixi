@@ -804,20 +804,14 @@ pub fn reorderCells(file: *File, removed_sprite_indices: []const usize, insert_b
     const sprite_count = new_sprite_indices.len;
     const layer_count = file.layers.len;
 
-    var old_pixels_per_layer = try arena.alloc([]?[][4]u8, layer_count); // [layer][sprite_index]
-    var new_pixels_per_layer = try arena.alloc([]?[][4]u8, layer_count);
+    var old_pixels_per_layer = try arena.alloc([]?[][4]u8, layer_count);
     for (old_pixels_per_layer) |*slice| slice.* = try arena.alloc(?[][4]u8, sprite_count);
-    for (new_pixels_per_layer) |*slice| slice.* = try arena.alloc(?[][4]u8, sprite_count);
 
     for (0..layer_count) |layer_index| {
         var layer = file.layers.get(layer_index);
         for (0..sprite_count) |i| {
             const old_rect = file.spriteRect(i);
             old_pixels_per_layer[layer_index][i] = layer.pixelsFromRect(arena, old_rect);
-
-            const new_idx = new_sprite_indices[i];
-            const new_rect = file.spriteRect(new_idx);
-            new_pixels_per_layer[layer_index][i] = layer.pixelsFromRect(arena, new_rect);
         }
     }
 

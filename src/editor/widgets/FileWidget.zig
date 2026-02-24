@@ -282,7 +282,7 @@ pub fn processCellReorder(self: *FileWidget) void {
 
         switch (e.evt) {
             .mouse => |me| {
-                const current_point = file.editor.canvas.dataFromScreenPoint(me.p);
+                const current_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
                 var selected_sprite_move_hovered: bool = false;
 
@@ -3488,8 +3488,8 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
         };
 
         for (removed_sprite_indices, 0..) |removed_sprite_index, i| {
-            const removed_sprite_rect = file.spriteRect(removed_sprite_index);
             if (self.cell_reorder_point) |cell_reorder_point| {
+                const removed_sprite_rect = file.spriteRect(removed_sprite_index);
                 const current_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
                 const difference = current_point.diff(cell_reorder_point);
 

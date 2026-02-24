@@ -708,7 +708,6 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
 
         .reorder_cell => |*reorder| {
             file.reorderCells(reorder.removed_sprite_indices, reorder.insert_before_sprite_indices, .replace) catch return error.ReorderError;
-
             std.mem.swap([]usize, &reorder.removed_sprite_indices, &reorder.insert_before_sprite_indices);
         },
     }
