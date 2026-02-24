@@ -271,6 +271,7 @@ pub fn processCellReorder(self: *FileWidget) void {
     if (pixi.editor.tools.current != .pointer) return;
     if (self.init_options.file.editor.transform != null) return;
     if (self.sample_data_point != null) return;
+    if (self.drag_data_point != null) return;
     if (dvui.currentWindow().modifiers.matchBind("shift")) return;
 
     const file = self.init_options.file;
@@ -327,57 +328,55 @@ pub fn processCellReorder(self: *FileWidget) void {
                         defer self.cell_reorder_point = null;
                         const drag_index = file.spriteIndex(cell_reorder_point.plus(file.editor.canvas.dataFromScreenPoint(dvui.dragOffset())));
                         if (drag_index) |di| {
-                            if (file.spriteIndex(current_point)) |current_index| {
-                                if (di != current_index) {
-                                    // Drag has moved to a new cell, so we have shifted some sprites around
-                                    // and we have released, so we need to allocate a new array of insert_before_sprite_indices
+                            if (di != file.spriteIndex(current_point)) {
+                                // Drag has moved to a new cell, so we have shifted some sprites around
+                                // and we have released, so we need to allocate a new array of insert_before_sprite_indices
 
-                                    if (self.removed_sprite_indices) |removed_sprite_indices| {
-                                        if (self.insert_before_sprite_indices) |insert_before_sprite_indices| {
-                                            pixi.app.allocator.free(insert_before_sprite_indices);
-                                            self.insert_before_sprite_indices = null;
-                                        }
-
-                                        // This will actually trigger the drag/drop
-                                        var insert_before_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
-                                            dvui.log.err("Failed to allocate insert before sprite indices", .{});
-                                            return;
-                                        };
-                                        for (removed_sprite_indices, 0..) |removed_sprite_index, i| {
-                                            const removed_sprite_rect = file.spriteRect(removed_sprite_index);
-                                            const difference = current_point.diff(cell_reorder_point);
-
-                                            if (file.spriteIndex(removed_sprite_rect.center().plus(difference))) |index| {
-                                                insert_before_sprite_indices[i] = index;
-                                            } else {
-                                                insert_before_sprite_indices[i] = 0;
-                                            }
-                                        }
-
-                                        self.insert_before_sprite_indices = insert_before_sprite_indices;
-
-                                        // This is where we will call reorder
-                                        file.reorderCells(removed_sprite_indices, insert_before_sprite_indices, .replace, false) catch {
-                                            dvui.log.err("Failed to reorder sprites", .{});
-                                            return;
-                                        };
-
-                                        file.history.append(.{
-                                            .reorder_cell = .{
-                                                .removed_sprite_indices = pixi.app.allocator.dupe(usize, removed_sprite_indices) catch {
-                                                    dvui.log.err("Failed to duplicate removed sprite indices", .{});
-                                                    return;
-                                                },
-                                                .insert_before_sprite_indices = pixi.app.allocator.dupe(usize, insert_before_sprite_indices) catch {
-                                                    dvui.log.err("Failed to duplicate insert before sprite indices", .{});
-                                                    return;
-                                                },
-                                            },
-                                        }) catch {
-                                            dvui.log.err("Failed to append history", .{});
-                                            return;
-                                        };
+                                if (self.removed_sprite_indices) |removed_sprite_indices| {
+                                    if (self.insert_before_sprite_indices) |insert_before_sprite_indices| {
+                                        pixi.app.allocator.free(insert_before_sprite_indices);
+                                        self.insert_before_sprite_indices = null;
                                     }
+
+                                    // This will actually trigger the drag/drop
+                                    var insert_before_sprite_indices = pixi.app.allocator.alloc(usize, file.editor.selected_sprites.count()) catch {
+                                        dvui.log.err("Failed to allocate insert before sprite indices", .{});
+                                        return;
+                                    };
+                                    for (removed_sprite_indices, 0..) |removed_sprite_index, i| {
+                                        const removed_sprite_rect = file.spriteRect(removed_sprite_index);
+                                        const difference = current_point.diff(cell_reorder_point);
+
+                                        if (file.spriteIndex(removed_sprite_rect.center().plus(difference))) |index| {
+                                            insert_before_sprite_indices[i] = index;
+                                        } else {
+                                            insert_before_sprite_indices[i] = file.wrappedSpriteIndex(removed_sprite_rect.center().plus(difference));
+                                        }
+                                    }
+
+                                    self.insert_before_sprite_indices = insert_before_sprite_indices;
+
+                                    // This is where we will call reorder
+                                    file.reorderCells(removed_sprite_indices, insert_before_sprite_indices, .replace, false) catch {
+                                        dvui.log.err("Failed to reorder sprites", .{});
+                                        return;
+                                    };
+
+                                    file.history.append(.{
+                                        .reorder_cell = .{
+                                            .removed_sprite_indices = pixi.app.allocator.dupe(usize, removed_sprite_indices) catch {
+                                                dvui.log.err("Failed to duplicate removed sprite indices", .{});
+                                                return;
+                                            },
+                                            .insert_before_sprite_indices = pixi.app.allocator.dupe(usize, insert_before_sprite_indices) catch {
+                                                dvui.log.err("Failed to duplicate insert before sprite indices", .{});
+                                                return;
+                                            },
+                                        },
+                                    }) catch {
+                                        dvui.log.err("Failed to append history", .{});
+                                        return;
+                                    };
                                 }
                             }
                         }
@@ -3477,9 +3476,10 @@ fn drawReorderPreviewForAxis(
 pub fn drawCellReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
 
-    const shadow_fade = 3.0 * file.editor.canvas.scale;
-    const shadow_offset: dvui.Point = .{ .x = -3.0 * file.editor.canvas.scale, .y = 3.0 * file.editor.canvas.scale };
-    const shadow_color = dvui.Color.black.opacity(0.35);
+    const dragging_sprite_bg_color = dvui.themeGet().color(.control, .fill).opacity(0.75);
+    const shadow_fade = 6.0 * file.editor.canvas.scale;
+    const shadow_offset: dvui.Point = .{ .x = -4.0 * file.editor.canvas.scale, .y = 4.0 * file.editor.canvas.scale };
+    const shadow_color = dvui.Color.black.opacity(0.45);
 
     if (self.removed_sprite_indices) |removed_sprite_indices| {
         const insert_before_sprite_indices = dvui.currentWindow().arena().alloc(usize, removed_sprite_indices.len) catch {
@@ -3496,7 +3496,7 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
                 if (file.spriteIndex(removed_sprite_rect.center().plus(difference))) |index| {
                     insert_before_sprite_indices[i] = index;
                 } else {
-                    insert_before_sprite_indices[i] = 0;
+                    insert_before_sprite_indices[i] = file.wrappedSpriteIndex(removed_sprite_rect.center().plus(difference));
                 }
             }
         }
@@ -3515,7 +3515,7 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
         const file_width = @as(f32, @floatFromInt(file.width()));
         const file_height = @as(f32, @floatFromInt(file.height()));
 
-        {
+        { // Draw all sprites except the ones that are being dragged
             var builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), file.spriteCount() * 4, file.spriteCount() * 6) catch |err| {
                 dvui.log.err("Failed to initialize triangles builder: {any}", .{err});
                 return;
@@ -3647,7 +3647,7 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
             }
         }
 
-        {
+        { // Render the sprites that are being dragged
             var builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), file.spriteCount() * 4, file.spriteCount() * 6) catch |err| {
                 dvui.log.err("Failed to initialize triangles builder: {any}", .{err});
                 return;
@@ -3672,7 +3672,7 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
                     new_rect_physical = new_rect_physical.offsetPoint(dvui.currentWindow().mouse_pt.diff(file.editor.canvas.screenFromDataPoint(cell_reorder_point)));
                 }
 
-                shadow_path.addRect(new_rect_physical.offsetPoint(shadow_offset.scale(dvui.currentWindow().natural_scale, dvui.Point.Physical)), .all(8));
+                shadow_path.addRect(new_rect_physical.offsetPoint(shadow_offset.scale(dvui.currentWindow().natural_scale, dvui.Point.Physical)), .all(8 * file.editor.canvas.scale));
 
                 const shadow_tris = shadow_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = shadow_color, .fade = shadow_fade }) catch {
                     dvui.log.err("Failed to fill convex triangles", .{});
@@ -3734,7 +3734,7 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
                 dvui.log.err("Failed to duplicate triangles", .{});
                 return;
             };
-            background_triangles.color(dvui.themeGet().color(.control, .fill).opacity(0.95));
+            background_triangles.color(dragging_sprite_bg_color);
 
             dvui.renderTriangles(background_triangles, null) catch {
                 dvui.log.err("Failed to render triangles", .{});

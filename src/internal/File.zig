@@ -769,7 +769,15 @@ pub const CellMovePair = struct {
 
 pub const CellSorting = struct {
     pub fn asc(_: void, a: CellMovePair, b: CellMovePair) bool {
-        return if (a.remove > a.insert) a.remove < b.remove else a.remove > b.remove;
+
+        // This below line makes the sorting logic work correctly, but crashes when moving outside of the bounds sometimes.
+        if (a.remove > a.insert or b.remove > b.insert) return a.remove < b.remove else if (a.remove < a.insert or b.remove < b.insert) return a.remove > b.remove;
+
+        // This removes the crashing, and works for all cases, except for when moving a set forward (increasing index from removed to insert) and overlapping with the removed set.
+        if ((a.remove > a.insert and b.remove > b.insert) or (a.remove < a.insert and b.remove < b.insert)) {
+            return a.remove < b.remove;
+        }
+        return a.remove > a.insert;
     }
 
     pub fn desc(_: void, a: CellMovePair, b: CellMovePair) bool {
@@ -1070,6 +1078,23 @@ pub fn spriteIndex(file: *File, point: dvui.Point) ?usize {
 
     const column = @divTrunc(@as(u32, @intFromFloat(point.x)), file.column_width);
     const row = @divTrunc(@as(u32, @intFromFloat(point.y)), file.row_height);
+
+    return row * tiles_wide + column;
+}
+
+pub fn wrappedSpriteIndex(file: *File, point: dvui.Point) usize {
+    if (file.spriteIndex(point)) |index| {
+        return index;
+    }
+    // Point is outside bounds: wrap coordinates into [0, width) x [0, height)
+    const w = @as(f32, @floatFromInt(file.width()));
+    const h = @as(f32, @floatFromInt(file.height()));
+    const wrapped_x = @mod(point.x, w);
+    const wrapped_y = @mod(point.y, h);
+
+    const tiles_wide = @divExact(file.width(), file.column_width);
+    const column = @divTrunc(@as(u32, @intFromFloat(wrapped_x)), file.column_width);
+    const row = @divTrunc(@as(u32, @intFromFloat(wrapped_y)), file.row_height);
 
     return row * tiles_wide + column;
 }
