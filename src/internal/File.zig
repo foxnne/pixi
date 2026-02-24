@@ -762,6 +762,15 @@ const SpriteReorderMode = enum {
     insert,
 };
 
+const Pair = struct {
+    remove: usize,
+    insert: usize,
+};
+
+pub fn comp(_: void, a: Pair, b: Pair) bool {
+    return if (a.remove > a.insert) a.remove < b.remove else a.remove > b.remove;
+}
+
 /// Returns a freshly allocated slice of length file.spriteCount() such that result[original_sprite_index]
 /// is the new sprite index after applying the given reorder moves. Caller owns the returned memory.
 pub fn getReorderIndices(
@@ -781,11 +790,18 @@ pub fn getReorderIndices(
     defer allocator.free(order);
     for (0..sprite_count) |i| order[i] = i;
 
-    for (removed_sprite_indices, insert_before_sprite_indices) |removed_index, insert_before_index| {
+    var pairs = try dvui.currentWindow().arena().alloc(Pair, removed_sprite_indices.len);
+    for (0..removed_sprite_indices.len) |i| {
+        pairs[i] = .{ .remove = removed_sprite_indices[i], .insert = insert_before_sprite_indices[i] };
+    }
+
+    std.mem.sort(Pair, pairs, {}, comp);
+
+    for (pairs) |pair| {
         if (mode == .insert) {
-            dvui.ReorderWidget.reorderSlice(usize, order, removed_index, insert_before_index);
+            dvui.ReorderWidget.reorderSlice(usize, order, pair.remove, pair.insert);
         } else {
-            std.mem.swap(usize, &order[removed_index], &order[insert_before_index]);
+            std.mem.swap(usize, &order[pair.remove], &order[pair.insert]);
         }
     }
 
@@ -810,8 +826,11 @@ pub fn reorderCells(file: *File, removed_sprite_indices: []const usize, insert_b
     for (0..layer_count) |layer_index| {
         var layer = file.layers.get(layer_index);
         for (0..sprite_count) |i| {
-            const old_rect = file.spriteRect(i);
-            old_pixels_per_layer[layer_index][i] = layer.pixelsFromRect(arena, old_rect);
+            const new_sprite_index = new_sprite_indices[i];
+            if (new_sprite_index != i) {
+                const old_rect = file.spriteRect(i);
+                old_pixels_per_layer[layer_index][i] = layer.pixelsFromRect(arena, old_rect);
+            }
         }
     }
 
