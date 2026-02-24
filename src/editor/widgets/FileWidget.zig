@@ -357,7 +357,7 @@ pub fn processCellReorder(self: *FileWidget) void {
                                         self.insert_before_sprite_indices = insert_before_sprite_indices;
 
                                         // This is where we will call reorder
-                                        file.reorderCells(removed_sprite_indices, insert_before_sprite_indices, .replace) catch {
+                                        file.reorderCells(removed_sprite_indices, insert_before_sprite_indices, .replace, false) catch {
                                             dvui.log.err("Failed to reorder sprites", .{});
                                             return;
                                         };
@@ -3477,8 +3477,8 @@ fn drawReorderPreviewForAxis(
 pub fn drawCellReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
 
-    const shadow_fade = 3.0 / file.editor.canvas.scale;
-    const shadow_offset: dvui.Point = .{ .x = -3.0 / file.editor.canvas.scale, .y = 3.0 / file.editor.canvas.scale };
+    const shadow_fade = 3.0 * file.editor.canvas.scale;
+    const shadow_offset: dvui.Point = .{ .x = -3.0 * file.editor.canvas.scale, .y = 3.0 * file.editor.canvas.scale };
     const shadow_color = dvui.Color.black.opacity(0.35);
 
     if (self.removed_sprite_indices) |removed_sprite_indices| {
@@ -3506,6 +3506,7 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
             removed_sprite_indices,
             insert_before_sprite_indices,
             .replace,
+            false,
         ) catch |err| {
             dvui.log.err("Failed to get reorder indices {any}", .{err});
             return;

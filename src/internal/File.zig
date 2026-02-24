@@ -762,14 +762,20 @@ const SpriteReorderMode = enum {
     insert,
 };
 
-const Pair = struct {
+pub const CellMovePair = struct {
     remove: usize,
     insert: usize,
 };
 
-pub fn comp(_: void, a: Pair, b: Pair) bool {
-    return if (a.remove > a.insert) a.remove < b.remove else a.remove > b.remove;
-}
+pub const CellSorting = struct {
+    pub fn asc(_: void, a: CellMovePair, b: CellMovePair) bool {
+        return if (a.remove > a.insert) a.remove < b.remove else a.remove > b.remove;
+    }
+
+    pub fn desc(_: void, a: CellMovePair, b: CellMovePair) bool {
+        return if (a.remove < a.insert) a.remove < b.remove else a.remove > b.remove;
+    }
+};
 
 /// Returns a freshly allocated slice of length file.spriteCount() such that result[original_sprite_index]
 /// is the new sprite index after applying the given reorder moves. Caller owns the returned memory.
@@ -779,6 +785,7 @@ pub fn getReorderIndices(
     removed_sprite_indices: []const usize,
     insert_before_sprite_indices: []const usize,
     mode: SpriteReorderMode,
+    reverse: bool,
 ) ![]usize {
     if (removed_sprite_indices.len == 0 or insert_before_sprite_indices.len == 0) return error.InvalidReorderSlices;
     if (removed_sprite_indices.len != insert_before_sprite_indices.len) return error.InvalidReorderSlices;
@@ -790,12 +797,15 @@ pub fn getReorderIndices(
     defer allocator.free(order);
     for (0..sprite_count) |i| order[i] = i;
 
-    var pairs = try dvui.currentWindow().arena().alloc(Pair, removed_sprite_indices.len);
+    var pairs = try dvui.currentWindow().arena().alloc(CellMovePair, removed_sprite_indices.len);
     for (0..removed_sprite_indices.len) |i| {
         pairs[i] = .{ .remove = removed_sprite_indices[i], .insert = insert_before_sprite_indices[i] };
     }
 
-    std.mem.sort(Pair, pairs, {}, comp);
+    std.mem.sort(CellMovePair, pairs, {}, CellSorting.asc);
+    if (reverse) {
+        std.mem.reverse(CellMovePair, pairs);
+    }
 
     for (pairs) |pair| {
         if (mode == .insert) {
@@ -813,9 +823,9 @@ pub fn getReorderIndices(
     return reorder_indices;
 }
 
-pub fn reorderCells(file: *File, removed_sprite_indices: []const usize, insert_before_sprite_indices: []const usize, mode: SpriteReorderMode) !void {
+pub fn reorderCells(file: *File, removed_sprite_indices: []const usize, insert_before_sprite_indices: []const usize, mode: SpriteReorderMode, reverse: bool) !void {
     const arena = dvui.currentWindow().arena();
-    const new_sprite_indices = try file.getReorderIndices(arena, removed_sprite_indices, insert_before_sprite_indices, mode);
+    const new_sprite_indices = try file.getReorderIndices(arena, removed_sprite_indices, insert_before_sprite_indices, mode, reverse);
 
     const sprite_count = new_sprite_indices.len;
     const layer_count = file.layers.len;
