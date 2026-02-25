@@ -423,11 +423,11 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 switch (reorder.mode) {
                     .columns => {
                         const removed_column_name = file.fmtColumn(dvui.currentWindow().arena(), removed) catch "Invalid change";
-                        const insert_before_column_name = file.fmtColumn(dvui.currentWindow().arena(), insert_before) catch "Invalid change";
-                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Columns {s} moved to {s}", .{ action_text, removed_column_name, insert_before_column_name }) catch "Invalid change";
+                        const insert_before_column_name = file.fmtColumn(dvui.currentWindow().arena(), insert_before - 1) catch "Invalid change";
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Column {s} moved to {s}", .{ action_text, insert_before_column_name, removed_column_name }) catch "Invalid change";
                     },
                     .rows => {
-                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Row {d} moved to {d}", .{ action_text, removed, insert_before }) catch "Invalid change";
+                        message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Row {d} moved to {d}", .{ action_text, insert_before, removed }) catch "Invalid change";
                     },
                 }
             },
