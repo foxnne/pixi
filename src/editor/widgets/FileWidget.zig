@@ -2115,7 +2115,7 @@ pub fn processTransform(self: *FileWidget) void {
             }
 
             // Here pass in the data rect, since we will be rendering directly to the low-res texture
-            const target_texture = dvui.textureCreateTarget(@intFromFloat(image_rect.w), @intFromFloat(image_rect.h), .nearest) catch {
+            const target_texture = dvui.textureCreateTarget(@intFromFloat(image_rect.w), @intFromFloat(image_rect.h), .nearest, .rgba_8_8_8_8) catch {
                 dvui.log.err("Failed to create target texture", .{});
                 return;
             };

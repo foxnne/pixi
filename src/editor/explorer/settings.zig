@@ -14,7 +14,7 @@ pub fn draw() !void {
     defer vbox.deinit();
 
     if (dvui.Theme.picker(@src(), pixi.editor.themes.items, .{})) {}
-    if (dvui.sliderEntry(@src(), "Window Opacity: {d:0.1}", .{
+    if (dvui.sliderEntry(@src(), "Window Opacity: {d:0.01}", .{
         .value = &pixi.editor.settings.window_opacity,
         .interval = 0.01,
         .max = 1.0,
