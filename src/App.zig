@@ -69,8 +69,6 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     dvui.addFont("CozetteVector", cozette_ttf, null) catch {};
     dvui.addFont("CozetteVectorBold", cozette_bold_ttf, null) catch {};
-
-    
 }
 
 // Run as app is shutting down before dvui.Window.deinit()

@@ -21,7 +21,7 @@ pub fn draw(_: Infobar) !void {
 
     var scrollarea = dvui.scrollArea(@src(), .{}, .{
         .expand = .horizontal,
-        .background = true,
+        .background = false,
         .color_fill = dvui.themeGet().color(.control, .fill),
         .gravity_y = 1.0,
         .padding = .all(0),

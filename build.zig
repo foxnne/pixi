@@ -31,10 +31,10 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
-            .branch = "main",
+            .branch = "transparency",
         },
         GitDependency{
-            // dvui
+            // assetpack
             .url = "https://github.com/foxnne/assetpack",
             .branch = "main",
         },

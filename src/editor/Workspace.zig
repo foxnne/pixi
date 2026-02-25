@@ -139,7 +139,7 @@ fn drawTabs(self: *Workspace) void {
 
     var tabs_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
-        .color_fill = dvui.themeGet().color(.window, .fill),
+        .color_fill = dvui.themeGet().color(.window, .fill).opacity(0.5),
         .corner_radius = dvui.Rect.all(0),
         .margin = dvui.Rect.all(0),
         .padding = dvui.Rect.all(0),
@@ -480,8 +480,8 @@ pub fn drawCanvas(self: *Workspace) !void {
             .center = self.center,
         }, .{
             .expand = .both,
-            .background = true,
-            .color_fill = dvui.themeGet().color(.window, .fill),
+            .background = false,
+            .color_fill = dvui.themeGet().color(.window, .fill).opacity(0.5),
         });
 
         defer file_widget.deinit();

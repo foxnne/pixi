@@ -684,13 +684,8 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
         },
         .reorder_col_row => |*reorder| {
             switch (reorder.mode) {
-                .columns => {
-                    file.reorderColumns(reorder.removed_index, reorder.insert_before_index) catch return error.ReorderError;
-                },
-
-                .rows => {
-                    file.reorderRows(reorder.removed_index, reorder.insert_before_index) catch return error.ReorderError;
-                },
+                .columns => file.reorderColumns(reorder.removed_index, reorder.insert_before_index) catch return error.ReorderError,
+                .rows => file.reorderRows(reorder.removed_index, reorder.insert_before_index) catch return error.ReorderError,
             }
 
             const prev_removed_index = reorder.removed_index;
