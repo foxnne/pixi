@@ -771,7 +771,7 @@ pub const CellSorting = struct {
     pub fn asc(_: void, a: CellMovePair, b: CellMovePair) bool {
 
         // This below line makes the sorting logic work correctly, but crashes when moving outside of the bounds sometimes.
-        if (a.remove > a.insert or b.remove > b.insert) return a.remove < b.remove else if (a.remove < a.insert or b.remove < b.insert) return a.remove > b.remove;
+        if (a.remove > a.insert and b.remove > b.insert) return a.remove < b.remove else if (a.remove < a.insert and b.remove < b.insert) return a.remove > b.remove;
 
         // This removes the crashing, and works for all cases, except for when moving a set forward (increasing index from removed to insert) and overlapping with the removed set.
         if ((a.remove > a.insert and b.remove > b.insert) or (a.remove < a.insert and b.remove < b.insert)) {
