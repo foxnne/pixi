@@ -11,13 +11,14 @@
     .minimum_zig_version = "0.15.1",
     .dependencies = .{
         .mach_objc = .{
-            .url = "git+https://github.com/foxnne/mach-objc#10d375670486f4c2c2c47b6b8bef9bcf42b52160",
-            .hash = "mach_objc-0.0.0-hSeUK_8vDQBaxz9sPYM0OavNriFU6NE2UUITDTFod4SX",
+            //.path = "../mach-objc-dev",
+            .url = "git+https://github.com/foxnne/mach-objc#83ce1ff11fa90aa562b23372b19b6cd132af99c3",
+            .hash = "mach_objc-0.0.0-hSeUK4UwDQCTwx5GGKFDwX49mtXjcemzXUR0AzAruBnW",
             .lazy = true,
         },
         .zigwin32 = .{
-            .url = "git+https://github.com/marlersoft/zigwin32#3be22a8d33d330662b1fbb5b68c9411bf0293e27",
-            .hash = "zigwin32-25.0.28-preview-AAAAAB6N5AP3iLHsHKzg7r_aiDyYWo92qLOAG2eBLWhE",
+            .url = "git+https://github.com/marlersoft/zigwin32#26f3ccffb5630dfe23fcda1f00d75d46147b5a60",
+            .hash = "zigwin32-25.0.28-preview-AAAAAIMW5QN6mjC6PSZmBowvhalmYcMRnztDdKvJXAUz",
             .lazy = true,
         },
         .icons = .{
@@ -27,8 +28,8 @@
         },
         .dvui = .{
             //.path = "../dvui-dev",
-            .url = "git+https://github.com/foxnne/dvui-dev#f80cc768a207300c47b9e9b176501c904b8b1168",
-            .hash = "dvui-0.4.0-dev-AQFJmZMZ2wCPN9MAFME7Ortyv2stLcejQoOUluB6q6mp",
+            .url = "git+https://github.com/foxnne/dvui-dev#6efef1e91cfe7bdb72ad9ed6e76201c471552636",
+            .hash = "dvui-0.4.0-dev-AQFJmS9J2wCdF4bFs5oD_YVcvnW6QAXn2giThuhkJrJB",
         },
         .assetpack = .{
             //.path = "../assetpack",

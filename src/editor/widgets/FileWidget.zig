@@ -3,6 +3,7 @@ const math = std.math;
 const dvui = @import("dvui");
 const pixi = @import("../../pixi.zig");
 const builtin = @import("builtin");
+const sdl3 = @import("backend").c;
 
 const Options = dvui.Options;
 const Rect = dvui.Rect;
@@ -2115,20 +2116,12 @@ pub fn processTransform(self: *FileWidget) void {
             }
 
             // Here pass in the data rect, since we will be rendering directly to the low-res texture
-            const target_texture = dvui.textureCreateTarget(@intFromFloat(image_rect.w), @intFromFloat(image_rect.h), .nearest) catch {
-                dvui.log.err("Failed to create target texture", .{});
-                return;
-            };
-
-            defer {
-                const texture: ?dvui.Texture = dvui.textureFromTarget(target_texture) catch null;
-                if (texture) |t| {
-                    dvui.textureDestroyLater(t);
-                }
-            }
 
             // This is the previous target, we will be setting this back
-            const previous_target = dvui.renderTarget(.{ .texture = target_texture, .offset = image_rect_physical.topLeft() });
+            const previous_target = dvui.renderTarget(.{ .texture = transform.target_texture, .offset = image_rect_physical.topLeft() });
+
+            // Workaround to clear the target texture
+            _ = sdl3.SDL_RenderClear(dvui.currentWindow().backend.impl.renderer);
 
             // Make sure we clip to the image rect, if we don't  and the texture overlaps the canvas,
             // the rendering will be clipped incorrectly
@@ -2138,14 +2131,12 @@ pub fn processTransform(self: *FileWidget) void {
             dvui.clipSet(clip_rect);
 
             // Set UVs, there are 5 vertexes, or 1 more than the number of triangles, and is at the center
-
             triangles.vertexes[0].uv = .{ 0.0, 0.0 }; // TL
             triangles.vertexes[1].uv = .{ 1.0, 0.0 }; // TR
             triangles.vertexes[2].uv = .{ 1.0, 1.0 }; // BR
             triangles.vertexes[3].uv = .{ 0.0, 1.0 }; // BL
             triangles.vertexes[4].uv = .{ 0.5, 0.5 }; // C
 
-            // Render the triangles to the target texture
             dvui.renderTriangles(triangles.*, transform.source.getTexture() catch null) catch {
                 dvui.log.err("Failed to render triangles", .{});
             };
@@ -2156,12 +2147,14 @@ pub fn processTransform(self: *FileWidget) void {
             _ = dvui.renderTarget(previous_target);
 
             // Read the target texture and copy it to the selection layer
-            if (dvui.textureReadTarget(dvui.currentWindow().arena(), target_texture) catch null) |image_data| {
-                @memcpy(file.editor.temporary_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
-                file.editor.temporary_layer.invalidate();
-            } else {
-                dvui.log.err("Failed to read target", .{});
-            }
+            // This is currently very slow, and is a bottleneck for the editor
+            // TODO: look into how to draw the target texture without needing to read the target back
+            // if (dvui.textureReadTarget(dvui.currentWindow().arena(), transform.target_texture) catch null) |image_data| {
+            //     @memcpy(file.editor.temporary_layer.bytes(), @as([*]u8, @ptrCast(image_data.ptr)));
+            //     file.editor.temporary_layer.invalidate();
+            // } else {
+            //     dvui.log.err("Failed to read target", .{});
+            // }
         } else {
             dvui.log.err("Failed to fill triangles", .{});
         }

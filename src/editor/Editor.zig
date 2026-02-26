@@ -3,6 +3,8 @@ const builtin = @import("builtin");
 const icons = @import("icons");
 const assets = @import("assets");
 const known_folders = @import("known-folders");
+const objc = @import("objc");
+const sdl3 = @import("backend").c;
 
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
@@ -118,8 +120,6 @@ pub fn init(
         .text_press = theme.window.fill,
     };
 
-    pixi.backend.setTitlebarColor(dvui.currentWindow(), theme.control.fill.?);
-
     // theme.content
     theme.fill = theme.window.fill.?;
     theme.border = theme.window.border.?;
@@ -197,6 +197,8 @@ pub fn init(
         .folders = .init(app.allocator),
     };
 
+    pixi.backend.setTitlebarColor(dvui.currentWindow(), theme.control.fill.?.opacity(editor.settings.window_opacity));
+
     editor.explorer.* = .init();
     editor.panel.* = .init();
     editor.open_files = .init(pixi.app.allocator);
@@ -253,7 +255,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .{ .dir = .horizontal },
             .{
                 .expand = .both,
-                .background = true,
+                .background = if (builtin.os.tag == .macos) false else true,
                 .color_fill = dvui.themeGet().color(.control, .fill),
             },
         );
@@ -328,8 +330,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .uncollapse_ratio = pixi.editor.settings.explorer_ratio,
         }, .{
             .expand = .both,
-            .background = true,
-            .color_fill = dvui.themeGet().color(.control, .fill),
+            .background = false,
         });
         defer editor.explorer.paned.deinit();
 
@@ -360,7 +361,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         }
 
         if (editor.explorer.paned.showSecond()) {
-            const bg_box = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .background = true, .color_fill = dvui.themeGet().color(.window, .fill) });
+            const bg_box = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
             defer bg_box.deinit();
 
             {
@@ -381,8 +382,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 .uncollapse_ratio = 1.0,
             }, .{
                 .expand = .both,
-                .background = true,
-                .color_fill = dvui.themeGet().color(.window, .fill),
+                .background = false,
             });
             defer editor.panel.paned.deinit();
 
@@ -403,8 +403,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             if (editor.panel.paned.showSecond()) {
                 const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
                     .expand = .both,
-                    .background = true,
-                    .color_fill = dvui.themeGet().color(.window, .fill),
+                    .background = false,
                     .gravity_y = 0.0,
                 });
                 defer vbox.deinit();
@@ -459,7 +458,7 @@ pub fn setTitlebarColor(editor: *Editor) void {
 
     if (!std.mem.eql(u8, &editor.last_titlebar_color.toRGBA(), &color.toRGBA())) {
         editor.last_titlebar_color = color;
-        pixi.backend.setTitlebarColor(dvui.currentWindow(), color);
+        pixi.backend.setTitlebarColor(dvui.currentWindow(), color.opacity(editor.settings.window_opacity));
     }
 }
 
@@ -734,7 +733,7 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
         .handle_dynamic = .{ .handle_size_max = handle_size, .distance_max = handle_dist },
     }, .{
         .expand = .both,
-        .background = true,
+        .background = false,
         .color_fill = dvui.themeGet().color(.window, .fill),
     });
     defer s.deinit();
@@ -1050,6 +1049,10 @@ pub fn paste(editor: *Editor) !void {
                 dst_rect.y = sprite_rect.y + clipboard.offset.y;
 
                 file.editor.transform = .{
+                    .target_texture = dvui.textureCreateTarget(file.width(), file.height(), .nearest, .rgba_8_8_8_8) catch {
+                        dvui.log.err("Failed to create target texture", .{});
+                        return;
+                    },
                     .file_id = file.id,
                     .layer_id = active_layer.id,
                     .data_points = .{
@@ -1089,6 +1092,10 @@ pub fn paste(editor: *Editor) !void {
                     dst_rect.y = rect.y + clipboard.offset.y;
 
                     file.editor.transform = .{
+                        .target_texture = dvui.textureCreateTarget(file.width(), file.height(), .nearest, .rgba_8_8_8_8) catch {
+                            dvui.log.err("Failed to create target texture", .{});
+                            return;
+                        },
                         .file_id = file.id,
                         .layer_id = active_layer.id,
                         .data_points = .{
@@ -1114,6 +1121,10 @@ pub fn paste(editor: *Editor) !void {
             }
 
             file.editor.transform = .{
+                .target_texture = dvui.textureCreateTarget(file.width(), file.height(), .nearest, .rgba_8_8_8_8) catch {
+                    dvui.log.err("Failed to create target texture", .{});
+                    return;
+                },
                 .file_id = file.id,
                 .layer_id = active_layer.id,
                 .data_points = .{
@@ -1225,6 +1236,10 @@ pub fn transform(editor: *Editor) !void {
         if (file.editor.transform_layer.reduce(source_rect)) |reduced_data_rect| {
             defer file.editor.selection_layer.clearMask();
             file.editor.transform = .{
+                .target_texture = dvui.textureCreateTarget(file.width(), file.height(), .nearest, .rgba_8_8_8_8) catch {
+                    dvui.log.err("Failed to create target texture", .{});
+                    return;
+                },
                 .file_id = file.id,
                 .layer_id = selected_layer.id,
                 .data_points = .{

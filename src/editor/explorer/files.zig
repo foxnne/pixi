@@ -84,7 +84,7 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     }, .{
         .id_extra = 0,
         .expand = .horizontal,
-        .color_fill = dvui.themeGet().color(.control, .fill),
+        .color_fill = .transparent,
     });
     defer branch.deinit();
 
@@ -154,7 +154,7 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
         .corner_radius = .all(8),
         .expand = .both,
         .margin = .{ .x = 10, .w = 5 },
-        .background = true,
+        .background = false,
     })) {
         var box = dvui.box(@src(), .{
             .dir = .vertical,
@@ -372,7 +372,9 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
                     //.color_fill_hover = .fill,
-                    .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
+                    .color_fill_hover = dvui.themeGet().color(.control, .fill_hover),
+                    .color_fill_press = dvui.themeGet().color(.control, .fill_press),
+                    .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else .transparent,
                     .padding = dvui.Rect.all(1),
                 });
                 defer branch.deinit();
@@ -667,19 +669,16 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                         }
 
                         if (branch.expander(@src(), .{ .indent = expanded_indent }, .{
-                            .color_fill = dvui.themeGet().color(.control, .fill),
-                            .color_border = color.lerp(dvui.themeGet().color(.control, .fill), 1.0 - t),
-                            .background = true,
-                            .border = .{ .x = 1, .w = 0 },
+                            //.color_border = color.opacity(t),
                             .expand = .horizontal,
                             .corner_radius = .all(8),
-                            .box_shadow = .{
-                                .color = .black,
-                                .offset = .{ .x = -10, .y = 0 },
-                                .shrink = 10,
-                                .fade = 10,
-                                .alpha = 0.15 * t,
-                            },
+                            // .box_shadow = .{
+                            //     .color = .black,
+                            //     .offset = .{ .x = -10 * t, .y = 0 },
+                            //     .shrink = 10 * t,
+                            //     .fade = 10 * t,
+                            //     .alpha = 0.15 * t,
+                            // },
                         })) {
                             pixi.editor.explorer.open_branches.put(branch_id, {}) catch {
                                 dvui.log.debug("Failed to track branch state!", .{});

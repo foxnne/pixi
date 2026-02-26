@@ -50,9 +50,18 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
         dvui.renderTriangles(triangles, init_opts.file.editor.selection_layer.source.getTexture() catch null) catch {
             dvui.log.err("Failed to render selection layer", .{});
         };
+
         dvui.renderTriangles(triangles, init_opts.file.editor.temporary_layer.source.getTexture() catch null) catch {
             dvui.log.err("Failed to render temporary layer", .{});
         };
+
+        if (init_opts.file.editor.transform) |*transform| {
+            if (dvui.textureFromTarget(transform.target_texture) catch null) |tex| {
+                dvui.renderTriangles(triangles, tex) catch {
+                    dvui.log.err("Failed to render transform layer", .{});
+                };
+            }
+        }
     }
 
     var layer_index: usize = init_opts.file.layers.len;

@@ -16,6 +16,7 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
         ));
 
         if (native_window) |window| {
+            // This sets the titlebar to transparent.
             window.setTitlebarAppearsTransparent(true);
             const new_color = objc.app_kit.Color.colorWithRed_green_blue_alpha(
                 @as(f32, @floatFromInt(color.r)) / 255.0,
@@ -23,7 +24,11 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
                 @as(f32, @floatFromInt(color.b)) / 255.0,
                 @as(f32, @floatFromInt(color.a)) / 255.0,
             );
+            // This sets both the titlebar and the window background color.
             window.setBackgroundColor(new_color);
+
+            // SDL3 currently removes the shadow when the transparency flag for the window is set. This brings it back.
+            window.setHasShadow(true);
         }
     } else if (builtin.os.tag == .windows) {
         const colorref = @as(u32, @intCast(color.r)) |

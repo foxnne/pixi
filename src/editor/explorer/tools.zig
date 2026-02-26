@@ -800,7 +800,9 @@ pub fn drawPalettes() !void {
                     .h = pixi.editor.explorer.rect.h - 20 * dvui.currentWindow().natural_scale,
                 },
             });
-            defer flex_box.deinit();
+
+            var triangles = dvui.Triangles.Builder.init(dvui.currentWindow().lifo(), 3000, 3000 * 3) catch return;
+            defer triangles.deinit(dvui.currentWindow().lifo());
 
             for (palette.colors, 0..) |color, i| {
                 var anim = dvui.animate(
@@ -822,18 +824,21 @@ pub fn drawPalettes() !void {
                     .min_size_content = .{ .w = 24.0, .h = 24.0 },
                     .id_extra = i,
                     .background = false,
-                    .corner_radius = dvui.Rect.all(1000),
+                    .margin = dvui.Rect.all(1),
                 });
 
                 const button_center = box_widget.data().rectScale().r.center();
                 const dist = dvui.currentWindow().mouse_pt.diff(button_center).length();
 
                 // Calculate scale based on mouse distance (closer = larger)
-                const max_distance = 25.0 * dvui.currentWindow().natural_scale; // Maximum distance for scaling effect
+                const max_distance = 24.0 * dvui.currentWindow().natural_scale; // Maximum distance for scaling effect
                 const scale_factor = if (dist < max_distance)
                     1.0 + (1.0 - (dist / max_distance)) * 0.5 // Scale up to 1.5x when very close
                 else
                     1.0;
+
+                var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+                defer path.deinit();
 
                 var rect = box_widget.data().rect.scale(scale_factor, dvui.Rect);
                 rect.x = box_widget.data().rect.center().x - rect.w / 2.0;
@@ -846,33 +851,22 @@ pub fn drawPalettes() !void {
                     .expand = .none,
                     .rect = rect,
                     .id_extra = i,
-                    .background = true,
-                    .corner_radius = dvui.Rect.all(1000),
-                    .color_fill = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                    .margin = .all(1),
-                    .padding = .all(0),
-                    .box_shadow = .{
-                        .color = .black,
-                        .offset = .{ .x = -1.0 * scale_factor, .y = 1.0 * scale_factor },
-                        .fade = 3.0 * scale_factor,
-                        .alpha = 0.2 * scale_factor,
-                        .corner_radius = dvui.Rect.all(1000),
-                    },
                 });
 
-                // Events should not be consumed here
-                //button_widget.processEvents();
+                defer button_widget.deinit();
 
-                // const rect = button_widget.data().contentRectScale().r.outsetAll((scale_factor - 1) * button_widget.data().rectScale().r.w / 2);
+                path.addRect(button_widget.data().rectScale().r, .all(1000));
 
-                // button_widget.data().rect = button_widget.data().rectScale().rectFromPhysical(rect);
+                const base_index: u16 = @intCast(triangles.vertexes.items.len);
 
-                button_widget.drawBackground();
-
-                // rect.fill(.all(1000), .{
-                //     .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                //     .fade = 1.0,
-                // });
+                const b = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } }) catch return;
+                for (b.vertexes) |vertex| {
+                    triangles.appendVertex(vertex);
+                }
+                for (b.indices) |*index| {
+                    index.* += @as(u16, @intCast(base_index));
+                }
+                triangles.appendTriangles(b.indices);
 
                 if (dvui.clickedEx(button_widget.data(), .{ .buttons = .any })) |evt| {
                     switch (evt) {
@@ -892,9 +886,13 @@ pub fn drawPalettes() !void {
                         else => {},
                     }
                 }
-
-                button_widget.deinit();
             }
+
+            flex_box.deinit();
+
+            dvui.renderTriangles(triangles.build(), null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
         }
     }
 }

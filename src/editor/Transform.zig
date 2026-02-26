@@ -7,6 +7,7 @@ pub const Transform = @This();
 /// 1-4: the corner vertices of the transform
 /// 5: the pivot point, defaulted to the center of the transform
 /// 6: the rotation point
+target_texture: dvui.Texture.Target,
 data_points: [6]dvui.Point,
 track_pivot: bool = false,
 dragging: bool = false,
@@ -32,19 +33,24 @@ pub fn accept(self: *Transform) void {
     if (pixi.editor.open_files.getPtr(self.file_id)) |file| {
         var layer = file.getLayer(self.layer_id) orelse return;
 
-        for (file.editor.temporary_layer.pixels(), file.editor.transform_layer.pixels(), layer.pixels(), 0..) |temp_pixel, transform_pixel, layer_pixel, pixel_index| {
+        const pix = dvui.textureReadTarget(dvui.currentWindow().arena(), self.target_texture) catch {
+            dvui.log.err("Failed to read target texture", .{});
+            return;
+        };
+
+        for (pix, file.editor.transform_layer.pixels(), layer.pixels(), 0..) |temp_pixel, transform_pixel, layer_pixel, pixel_index| {
             if (layer_pixel[3] != 0) {
                 file.buffers.stroke.append(pixel_index, layer_pixel) catch {
                     dvui.log.err("Failed to append stroke change to history", .{});
                 };
-            } else if (transform_pixel[3] != 0 or temp_pixel[3] != 0) {
+            } else if (transform_pixel[3] != 0 or temp_pixel.a != 0) {
                 file.buffers.stroke.append(pixel_index, transform_pixel) catch {
                     dvui.log.err("Failed to append stroke change to history", .{});
                 };
             }
 
-            if (temp_pixel[3] != 0) {
-                @memcpy(&layer.pixels()[pixel_index], &temp_pixel);
+            if (temp_pixel.a != 0) {
+                @memcpy(&layer.pixels()[pixel_index], &[_]u8{ temp_pixel.r, temp_pixel.g, temp_pixel.b, temp_pixel.a });
             }
         }
 

@@ -37,6 +37,7 @@ pub const dvui_app: dvui.App = .{ .config = .{ .options = .{
     .min_size = .{ .w = 640.0, .h = 480.0 },
     .title = "Pixi",
     .icon = icon,
+    .transparent = if (builtin.os.tag == .macos) true else false,
 } }, .frameFn = AppFrame, .initFn = AppInit, .deinitFn = AppDeinit };
 
 pub const main = dvui.App.main;
@@ -69,8 +70,6 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     dvui.addFont("CozetteVector", cozette_ttf, null) catch {};
     dvui.addFont("CozetteVectorBold", cozette_bold_ttf, null) catch {};
-
-    
 }
 
 // Run as app is shutting down before dvui.Window.deinit()

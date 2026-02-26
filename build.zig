@@ -16,7 +16,7 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // mach_objc
             .url = "https://github.com/foxnne/mach-objc",
-            .branch = "dvuizig15",
+            .branch = "set_shadow",
         },
         GitDependency{
             // zigwin32
@@ -34,7 +34,7 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
             .branch = "main",
         },
         GitDependency{
-            // dvui
+            // assetpack
             .url = "https://github.com/foxnne/assetpack",
             .branch = "main",
         },
