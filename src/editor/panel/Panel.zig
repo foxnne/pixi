@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const dvui = @import("dvui");
 const pixi = @import("../../pixi.zig");
@@ -38,7 +39,7 @@ pub fn draw(panel: *Panel) !dvui.App.Result {
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = true,
-        .color_fill = dvui.themeGet().color(.window, .fill),
+        .color_fill = dvui.themeGet().color(.window, .fill).opacity(if (builtin.os.tag == .macos) 0.5 else 1.0),
     });
     defer vbox.deinit();
 

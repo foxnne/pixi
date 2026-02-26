@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const dvui = @import("dvui");
 const pixi = @import("../pixi.zig");
@@ -86,7 +87,7 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
         .background = true,
         .gravity_y = 0.0,
         .id_extra = self.grouping,
-        .color_fill = dvui.themeGet().color(.window, .fill),
+        .color_fill = dvui.themeGet().color(.window, .fill).opacity(if (builtin.os.tag == .macos) 0.5 else 1.0),
     });
     defer vbox.deinit();
 
@@ -442,7 +443,9 @@ pub fn processTabDrag(self: *Workspace, data: *dvui.WidgetData) void {
 }
 
 pub fn drawCanvas(self: *Workspace) !void {
-    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
+    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+    });
     defer {
         dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
         canvas_vbox.deinit();
@@ -487,7 +490,7 @@ pub fn drawCanvas(self: *Workspace) !void {
         defer file_widget.deinit();
         file_widget.processEvents();
     } else {
-        try self.drawLogo(canvas_vbox);
+        try self.drawHomePage(canvas_vbox);
     }
 }
 
@@ -528,7 +531,7 @@ pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
             var corner_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
                 .min_size_content = .{ .h = self.vertical_ruler_width, .w = self.vertical_ruler_width },
-                .background = false,
+                .background = true,
                 .color_fill = dvui.themeGet().color(.window, .fill),
             });
             corner_box.deinit();
@@ -1088,175 +1091,173 @@ pub fn drawTransformDialog(self: *Workspace, canvas_vbox: *dvui.BoxWidget) void 
     }
 }
 
-pub fn drawLogo(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
-    if (true) {
-        const logo_pixel_size = 32;
-        const logo_width = 3;
-        const logo_height = 5;
+pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
+    const logo_pixel_size = 32;
+    const logo_width = 3;
+    const logo_height = 5;
 
-        const logo_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+    const logo_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .none,
+        .gravity_x = 0.5,
+        .gravity_y = 0.5,
+        .padding = dvui.Rect.all(10),
+    });
+    defer logo_vbox.deinit();
+
+    { // Logo
+
+        const vbox2 = dvui.box(@src(), .{ .dir = .vertical }, .{
             .expand = .none,
             .gravity_x = 0.5,
-            .gravity_y = 0.5,
-            .padding = dvui.Rect.all(10),
+            .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size * logo_height },
+            .padding = dvui.Rect.all(20),
         });
-        defer logo_vbox.deinit();
+        defer vbox2.deinit();
 
-        { // Logo
-
-            const vbox2 = dvui.box(@src(), .{ .dir = .vertical }, .{
+        for (0..5) |i| {
+            const hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
-                .gravity_x = 0.5,
-                .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size * logo_height },
-                .padding = dvui.Rect.all(20),
+                .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size },
+                .margin = dvui.Rect.all(0),
+                .padding = dvui.Rect.all(0),
+                .id_extra = i,
             });
-            defer vbox2.deinit();
+            defer hbox.deinit();
 
-            for (0..5) |i| {
-                const hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            for (0..3) |j| {
+                const index = i * logo_width + j;
+                var pixi_color = logo_colors[index];
+
+                if (pixi_color.value[3] < 1.0 and pixi_color.value[3] > 0.0) {
+                    const theme_bg = dvui.themeGet().color(.window, .fill);
+                    pixi_color = pixi_color.lerp(pixi.math.Color.initBytes(theme_bg.r, theme_bg.g, theme_bg.b, 255), pixi_color.value[3]);
+                    pixi_color.value[3] = 1.0;
+                }
+
+                const color = pixi_color.bytes();
+
+                const pixel = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .none,
-                    .min_size_content = .{ .w = logo_pixel_size * logo_width, .h = logo_pixel_size },
+                    .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
+                    .id_extra = index,
+                    .background = false,
+                    .color_fill = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                     .margin = dvui.Rect.all(0),
                     .padding = dvui.Rect.all(0),
-                    .id_extra = i,
                 });
-                defer hbox.deinit();
 
-                for (0..3) |j| {
-                    const index = i * logo_width + j;
-                    var pixi_color = logo_colors[index];
+                const rect = pixel.data().rect.outset(.{ .x = 0, .y = 0 });
+                const rs = pixel.data().rectScale();
+                pixel.deinit();
 
-                    if (pixi_color.value[3] < 1.0 and pixi_color.value[3] > 0.0) {
-                        const theme_bg = dvui.themeGet().color(.window, .fill);
-                        pixi_color = pixi_color.lerp(pixi.math.Color.initBytes(theme_bg.r, theme_bg.g, theme_bg.b, 255), pixi_color.value[3]);
-                        pixi_color.value[3] = 1.0;
-                    }
+                if (pixi_color.value[3] <= 0.0) continue;
 
-                    const color = pixi_color.bytes();
-
-                    const pixel = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                        .expand = .none,
-                        .min_size_content = .{ .w = logo_pixel_size, .h = logo_pixel_size },
-                        .id_extra = index,
-                        .background = false,
-                        .color_fill = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                        .margin = dvui.Rect.all(0),
-                        .padding = dvui.Rect.all(0),
-                    });
-
-                    const rect = pixel.data().rect.outset(.{ .x = 0, .y = 0 });
-                    const rs = pixel.data().rectScale();
-                    pixel.deinit();
-
-                    if (pixi_color.value[3] <= 0.0) continue;
-
-                    try drawBubble(rect, rs, color, index);
-                }
+                try drawBubble(rect, rs, color, index);
             }
         }
+    }
 
-        var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .none,
+        .gravity_x = 0.5,
+    });
+    {
+        var button: dvui.ButtonWidget = undefined;
+        button.init(@src(), .{ .draw_focus = true }, .{
+            .gravity_x = 0.5,
+            .expand = .horizontal,
+            .padding = dvui.Rect.all(2),
+            .color_fill = dvui.themeGet().color(.window, .fill),
+        });
+        defer button.deinit();
+
+        button.processEvents();
+        button.drawBackground();
+
+        pixi.dvui.labelWithKeybind("Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
+
+        if (button.clicked()) {
+            pixi.backend.showOpenFolderDialog(setProjectFolderCallback, null);
+        }
+    }
+
+    {
+        var button: dvui.ButtonWidget = undefined;
+        button.init(@src(), .{ .draw_focus = true }, .{
+            .gravity_x = 0.5,
+            .expand = .horizontal,
+            .padding = dvui.Rect.all(2),
+            .color_fill = dvui.themeGet().color(.window, .fill),
+        });
+        defer button.deinit();
+
+        button.processEvents();
+        button.drawBackground();
+
+        pixi.dvui.labelWithKeybind("Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
+
+        if (button.clicked()) {
+            // if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{
+            //     .title = "Open Files...",
+            //     .filter_description = ".pixi, .png",
+            //     .filters = &.{ "*.pixi", "*.png" },
+            // })) |files| {
+            //     for (files) |file| {
+            //         _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {
+            //             std.log.err("Failed to open file: {s}", .{file});
+            //         };
+            //     }
+            // }
+
+            pixi.backend.showOpenFileDialog(openFilesCallback, &.{
+                .{ .name = "Image Files", .pattern = "pixi;png;jpg" },
+            }, "", null);
+        }
+    }
+    vbox.deinit();
+
+    const spacer = dvui.spacer(@src(), .{ .expand = .horizontal, .min_size_content = .{ .h = 30 } });
+
+    {
+        var recents_box = dvui.box(@src(), .{ .dir = .vertical }, .{
             .expand = .none,
             .gravity_x = 0.5,
+            .max_size_content = .{ .h = (canvas_vbox.data().rect.h - spacer.rect.y) / 3.0, .w = canvas_vbox.data().rect.w / 2.0 },
         });
-        {
-            var button: dvui.ButtonWidget = undefined;
-            button.init(@src(), .{ .draw_focus = true }, .{
-                .gravity_x = 0.5,
+        defer recents_box.deinit();
+
+        var scroll_area = dvui.scrollArea(@src(), .{}, .{
+            .expand = .both,
+            .color_border = dvui.themeGet().color(.control, .fill),
+            .corner_radius = dvui.Rect.all(8),
+        });
+        defer scroll_area.deinit();
+
+        var i: usize = pixi.editor.recents.folders.items.len;
+        while (i > 0) : (i -= 1) {
+            var anim = dvui.animate(@src(), .{
+                .kind = .horizontal,
+                .duration = 150_000 + 150_000 * @as(i32, @intCast(i)),
+                .easing = dvui.easing.outBack,
+            }, .{
+                .id_extra = i,
                 .expand = .horizontal,
+            });
+            defer anim.deinit();
+
+            const folder = pixi.editor.recents.folders.items[i - 1];
+            if (dvui.button(@src(), folder, .{
+                .draw_focus = false,
+            }, .{
+                .expand = .horizontal,
+                .font = dvui.Font.theme(.mono).larger(-2.0),
+                .id_extra = i,
+                .margin = dvui.Rect.all(1),
                 .padding = dvui.Rect.all(2),
                 .color_fill = dvui.themeGet().color(.window, .fill),
-            });
-            defer button.deinit();
-
-            button.processEvents();
-            button.drawBackground();
-
-            pixi.dvui.labelWithKeybind("Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
-
-            if (button.clicked()) {
-                pixi.backend.showOpenFolderDialog(setProjectFolderCallback, null);
-            }
-        }
-
-        {
-            var button: dvui.ButtonWidget = undefined;
-            button.init(@src(), .{ .draw_focus = true }, .{
-                .gravity_x = 0.5,
-                .expand = .horizontal,
-                .padding = dvui.Rect.all(2),
-                .color_fill = dvui.themeGet().color(.window, .fill),
-            });
-            defer button.deinit();
-
-            button.processEvents();
-            button.drawBackground();
-
-            pixi.dvui.labelWithKeybind("Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
-
-            if (button.clicked()) {
-                // if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{
-                //     .title = "Open Files...",
-                //     .filter_description = ".pixi, .png",
-                //     .filters = &.{ "*.pixi", "*.png" },
-                // })) |files| {
-                //     for (files) |file| {
-                //         _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {
-                //             std.log.err("Failed to open file: {s}", .{file});
-                //         };
-                //     }
-                // }
-
-                pixi.backend.showOpenFileDialog(openFilesCallback, &.{
-                    .{ .name = "Image Files", .pattern = "pixi;png;jpg" },
-                }, "", null);
-            }
-        }
-        vbox.deinit();
-
-        const spacer = dvui.spacer(@src(), .{ .expand = .horizontal, .min_size_content = .{ .h = 30 } });
-
-        {
-            var recents_box = dvui.box(@src(), .{ .dir = .vertical }, .{
-                .expand = .none,
-                .gravity_x = 0.5,
-                .max_size_content = .{ .h = (canvas_vbox.data().rect.h - spacer.rect.y) / 3.0, .w = canvas_vbox.data().rect.w / 2.0 },
-            });
-            defer recents_box.deinit();
-
-            var scroll_area = dvui.scrollArea(@src(), .{}, .{
-                .expand = .both,
-                .color_border = dvui.themeGet().color(.control, .fill),
-                .corner_radius = dvui.Rect.all(8),
-            });
-            defer scroll_area.deinit();
-
-            var i: usize = pixi.editor.recents.folders.items.len;
-            while (i > 0) : (i -= 1) {
-                var anim = dvui.animate(@src(), .{
-                    .kind = .horizontal,
-                    .duration = 150_000 + 150_000 * @as(i32, @intCast(i)),
-                    .easing = dvui.easing.outBack,
-                }, .{
-                    .id_extra = i,
-                    .expand = .horizontal,
-                });
-                defer anim.deinit();
-
-                const folder = pixi.editor.recents.folders.items[i - 1];
-                if (dvui.button(@src(), folder, .{
-                    .draw_focus = false,
-                }, .{
-                    .expand = .horizontal,
-                    .font = dvui.Font.theme(.mono).larger(-2.0),
-                    .id_extra = i,
-                    .margin = dvui.Rect.all(1),
-                    .padding = dvui.Rect.all(2),
-                    .color_fill = dvui.themeGet().color(.window, .fill),
-                    .color_text = dvui.themeGet().color(.control, .text).opacity(0.5),
-                })) {
-                    try pixi.editor.setProjectFolder(folder);
-                }
+                .color_text = dvui.themeGet().color(.control, .text).opacity(0.5),
+            })) {
+                try pixi.editor.setProjectFolder(folder);
             }
         }
     }
