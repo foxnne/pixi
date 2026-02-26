@@ -3,6 +3,8 @@ const builtin = @import("builtin");
 const icons = @import("icons");
 const assets = @import("assets");
 const known_folders = @import("known-folders");
+const objc = @import("objc");
+const sdl3 = @import("backend").c;
 
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
@@ -253,8 +255,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .{ .dir = .horizontal },
             .{
                 .expand = .both,
-                .background = true,
-                .color_fill = dvui.themeGet().color(.control, .fill).opacity(pixi.editor.settings.window_opacity),
+                .background = if (builtin.os.tag == .macos) false else true,
+                .color_fill = dvui.themeGet().color(.control, .fill),
             },
         );
         defer base_box.deinit();

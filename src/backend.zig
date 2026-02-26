@@ -24,6 +24,8 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
                 @as(f32, @floatFromInt(color.a)) / 255.0,
             );
             window.setBackgroundColor(new_color);
+
+            window.setHasShadow(true);
         }
     } else if (builtin.os.tag == .windows) {
         const colorref = @as(u32, @intCast(color.r)) |
