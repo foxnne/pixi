@@ -11,8 +11,9 @@
     .minimum_zig_version = "0.15.1",
     .dependencies = .{
         .mach_objc = .{
-            .url = "git+https://github.com/foxnne/mach-objc#10d375670486f4c2c2c47b6b8bef9bcf42b52160",
-            .hash = "mach_objc-0.0.0-hSeUK_8vDQBaxz9sPYM0OavNriFU6NE2UUITDTFod4SX",
+            //.path = "../mach-objc-dev",
+            .url = "git+https://github.com/foxnne/mach-objc#83ce1ff11fa90aa562b23372b19b6cd132af99c3",
+            .hash = "mach_objc-0.0.0-hSeUK4UwDQCTwx5GGKFDwX49mtXjcemzXUR0AzAruBnW",
             .lazy = true,
         },
         .zigwin32 = .{
