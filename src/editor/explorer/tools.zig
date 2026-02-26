@@ -800,7 +800,9 @@ pub fn drawPalettes() !void {
                     .h = pixi.editor.explorer.rect.h - 20 * dvui.currentWindow().natural_scale,
                 },
             });
-            defer flex_box.deinit();
+
+            var triangles = dvui.Triangles.Builder.init(dvui.currentWindow().lifo(), 3000, 3000 * 3) catch return;
+            defer triangles.deinit(dvui.currentWindow().lifo());
 
             for (palette.colors, 0..) |color, i| {
                 var anim = dvui.animate(
@@ -821,7 +823,7 @@ pub fn drawPalettes() !void {
                     .expand = .none,
                     .min_size_content = .{ .w = 24.0, .h = 24.0 },
                     .id_extra = i,
-                    .background = false,
+                    .background = true,
                     .corner_radius = dvui.Rect.all(1000),
                 });
 
@@ -835,46 +837,27 @@ pub fn drawPalettes() !void {
                 else
                     1.0;
 
+                var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+                defer path.deinit();
+
                 var rect = box_widget.data().rect.scale(scale_factor, dvui.Rect);
                 rect.x = box_widget.data().rect.center().x - rect.w / 2.0;
                 rect.y = box_widget.data().rect.center().y - rect.h / 2.0;
 
-                box_widget.deinit();
+                path.addRect(rect.scale(dvui.currentWindow().natural_scale, dvui.Rect.Physical), .all(1000));
 
-                var button_widget: dvui.ButtonWidget = undefined;
-                button_widget.init(@src(), .{}, .{
-                    .expand = .none,
-                    .rect = rect,
-                    .id_extra = i,
-                    .background = true,
-                    .corner_radius = dvui.Rect.all(1000),
-                    .color_fill = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                    .margin = .all(1),
-                    .padding = .all(0),
-                    .box_shadow = .{
-                        .color = .black,
-                        .offset = .{ .x = -1.0 * scale_factor, .y = 1.0 * scale_factor },
-                        .fade = 3.0 * scale_factor,
-                        .alpha = 0.2 * scale_factor,
-                        .corner_radius = dvui.Rect.all(1000),
-                    },
-                });
+                const base_index: u16 = @intCast(triangles.vertexes.items.len);
 
-                // Events should not be consumed here
-                //button_widget.processEvents();
+                const b = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } }) catch return;
+                for (b.vertexes) |vertex| {
+                    triangles.appendVertex(vertex);
+                }
+                for (b.indices) |*index| {
+                    index.* += @as(u16, @intCast(base_index));
+                }
+                triangles.appendTriangles(b.indices);
 
-                // const rect = button_widget.data().contentRectScale().r.outsetAll((scale_factor - 1) * button_widget.data().rectScale().r.w / 2);
-
-                // button_widget.data().rect = button_widget.data().rectScale().rectFromPhysical(rect);
-
-                button_widget.drawBackground();
-
-                // rect.fill(.all(1000), .{
-                //     .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                //     .fade = 1.0,
-                // });
-
-                if (dvui.clickedEx(button_widget.data(), .{ .buttons = .any })) |evt| {
+                if (dvui.clickedEx(box_widget.data(), .{ .buttons = .any })) |evt| {
                     switch (evt) {
                         .mouse => |mouse_evt| {
                             switch (mouse_evt.button) {
@@ -893,8 +876,14 @@ pub fn drawPalettes() !void {
                     }
                 }
 
-                button_widget.deinit();
+                box_widget.deinit();
             }
+
+            flex_box.deinit();
+
+            dvui.renderTriangles(triangles.build(), null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
         }
     }
 }

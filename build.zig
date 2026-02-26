@@ -31,7 +31,7 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
-            .branch = "transparent_option",
+            .branch = "main",
         },
         GitDependency{
             // assetpack
