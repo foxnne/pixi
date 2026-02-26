@@ -253,6 +253,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .{ .dir = .horizontal },
             .{
                 .expand = .both,
+                .background = true,
+                .color_fill = dvui.themeGet().color(.control, .fill).opacity(pixi.editor.settings.window_opacity),
             },
         );
         defer base_box.deinit();
