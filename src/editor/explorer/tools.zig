@@ -823,15 +823,15 @@ pub fn drawPalettes() !void {
                     .expand = .none,
                     .min_size_content = .{ .w = 24.0, .h = 24.0 },
                     .id_extra = i,
-                    .background = true,
-                    .corner_radius = dvui.Rect.all(1000),
+                    .background = false,
+                    .margin = dvui.Rect.all(1),
                 });
 
                 const button_center = box_widget.data().rectScale().r.center();
                 const dist = dvui.currentWindow().mouse_pt.diff(button_center).length();
 
                 // Calculate scale based on mouse distance (closer = larger)
-                const max_distance = 25.0 * dvui.currentWindow().natural_scale; // Maximum distance for scaling effect
+                const max_distance = 24.0 * dvui.currentWindow().natural_scale; // Maximum distance for scaling effect
                 const scale_factor = if (dist < max_distance)
                     1.0 + (1.0 - (dist / max_distance)) * 0.5 // Scale up to 1.5x when very close
                 else
@@ -844,7 +844,18 @@ pub fn drawPalettes() !void {
                 rect.x = box_widget.data().rect.center().x - rect.w / 2.0;
                 rect.y = box_widget.data().rect.center().y - rect.h / 2.0;
 
-                path.addRect(rect.scale(dvui.currentWindow().natural_scale, dvui.Rect.Physical), .all(1000));
+                box_widget.deinit();
+
+                var button_widget: dvui.ButtonWidget = undefined;
+                button_widget.init(@src(), .{}, .{
+                    .expand = .none,
+                    .rect = rect,
+                    .id_extra = i,
+                });
+
+                defer button_widget.deinit();
+
+                path.addRect(button_widget.data().rectScale().r, .all(1000));
 
                 const base_index: u16 = @intCast(triangles.vertexes.items.len);
 
@@ -857,7 +868,7 @@ pub fn drawPalettes() !void {
                 }
                 triangles.appendTriangles(b.indices);
 
-                if (dvui.clickedEx(box_widget.data(), .{ .buttons = .any })) |evt| {
+                if (dvui.clickedEx(button_widget.data(), .{ .buttons = .any })) |evt| {
                     switch (evt) {
                         .mouse => |mouse_evt| {
                             switch (mouse_evt.button) {
@@ -875,8 +886,6 @@ pub fn drawPalettes() !void {
                         else => {},
                     }
                 }
-
-                box_widget.deinit();
             }
 
             flex_box.deinit();
