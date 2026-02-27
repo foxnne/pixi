@@ -545,16 +545,17 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                             fw2.close();
                         }
 
-                        if ((dvui.menuItemLabel(@src(), "Delete", .{}, .{
-                            .expand = .horizontal,
-                            .style = .err,
-                        })) != null) {
-                            defer fw2.close();
+                        {
+                            if ((dvui.menuItemLabel(@src(), "Delete", .{}, .{
+                                .expand = .horizontal,
+                            })) != null) {
+                                defer fw2.close();
 
-                            if (entry.kind == .file) {
-                                std.fs.deleteFileAbsolute(abs_path) catch dvui.log.err("Failed to delete file: {s}", .{abs_path});
-                            } else if (entry.kind == .directory) {
-                                std.fs.deleteDirAbsolute(abs_path) catch dvui.log.err("Failed to delete folder: {s}", .{abs_path});
+                                if (entry.kind == .file) {
+                                    std.fs.deleteFileAbsolute(abs_path) catch dvui.log.err("Failed to delete file: {s}", .{abs_path});
+                                } else if (entry.kind == .directory) {
+                                    std.fs.deleteDirAbsolute(abs_path) catch dvui.log.err("Failed to delete folder: {s}", .{abs_path});
+                                }
                             }
                         }
                     }

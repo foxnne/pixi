@@ -176,3 +176,89 @@ pub fn getIndexShapeOffset(self: *Tools, origin: dvui.Point, current_index: usiz
 
     return null;
 }
+
+pub fn drawTooltip(_: Tools, tool: Tool, rect: dvui.Rect.Physical, id_extra: u64) !void {
+    const tool_name = switch (tool) {
+        .pointer => "POINTER",
+        .pencil => "PENCIL",
+        .eraser => "ERASER",
+        .bucket => "BUCKET",
+        .selection => "SELECTION",
+    };
+
+    const tool_description = switch (tool) {
+        .pointer => "Select and move cells, rows, or columns. \n" ++
+            "Hold cmd/ctrl to add to selection, and shift to subtract. \n" ++
+            "Dragging can add multiple cells at once.",
+        .pencil => "Draw on the canvas with the left mouse button.\n" ++
+            "Right click to pick up a color from the canvas. \n" ++
+            "[ & ] keys increase and decrease the stroke size.",
+        .eraser => "Erase on the canvas.\n" ++
+            "Right click an empty area to switch to the eraser tool. \n" ++
+            "[ & ] keys increase and decrease the erase size.",
+        .bucket => "Fill the canvas with a color.\n" ++ "Hold cmd/ctrl to replace all color, non-contiguously.\n",
+        .selection => "Create pixel-level selections.\n" ++ "Hold cmd/ctrl to add to selection, and shift to subtract. \n",
+    };
+
+    var tooltip: dvui.FloatingTooltipWidget = undefined;
+    tooltip.init(@src(), .{
+        .active_rect = rect,
+        .delay = 1_000_000,
+    }, .{
+        .id_extra = id_extra,
+        .color_fill = dvui.themeGet().color(.window, .fill).opacity(0.75),
+        .border = dvui.Rect.all(0),
+        .box_shadow = .{
+            .color = .black,
+            .shrink = 0,
+            .corner_radius = dvui.Rect.all(8),
+            .offset = .{ .x = 0, .y = 2 },
+            .fade = 4,
+            .alpha = 0.2,
+        },
+    });
+    defer tooltip.deinit();
+
+    if (tooltip.shown()) {
+        var animator = dvui.animate(@src(), .{
+            .kind = .alpha,
+            .duration = 500_000,
+        }, .{
+            .expand = .both,
+        });
+        defer animator.deinit();
+
+        var vbox2 = dvui.box(@src(), .{ .dir = .vertical }, dvui.FloatingTooltipWidget.defaults.override(.{
+            .background = false,
+            .expand = .both,
+            .border = dvui.Rect.all(0),
+        }));
+        defer vbox2.deinit();
+
+        pixi.dvui.labelWithKeybind(
+            tool_name,
+            switch (tool) {
+                .pointer => dvui.currentWindow().keybinds.get("pointer") orelse .{},
+                .pencil => dvui.currentWindow().keybinds.get("pencil") orelse .{},
+                .eraser => dvui.currentWindow().keybinds.get("eraser") orelse .{},
+                .bucket => dvui.currentWindow().keybinds.get("bucket") orelse .{},
+                .selection => dvui.currentWindow().keybinds.get("selection") orelse .{},
+            },
+            true,
+            .{
+                .font = dvui.Font.theme(.title).larger(-4.0),
+            },
+            .{
+                .font = dvui.Font.theme(.mono).larger(-2.0),
+                .margin = dvui.Rect.all(4),
+            },
+        );
+
+        _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
+        dvui.labelNoFmt(@src(), tool_description, .{}, .{
+            .font = dvui.Font.theme(.body).larger(-1.0),
+            .margin = dvui.Rect.all(4),
+        });
+    }
+}

@@ -611,6 +611,10 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .margin = .all(0),
         });
 
+        {
+            editor.tools.drawTooltip(tool, button.data().rectScale().r, i) catch {};
+        }
+
         const sprite = switch (@as(Editor.Tools.Tool, @enumFromInt(i))) {
             .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.cursor_default],
             .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],

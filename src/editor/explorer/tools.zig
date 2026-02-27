@@ -137,6 +137,8 @@ pub fn drawTools() !void {
         });
         defer button.deinit();
 
+        pixi.editor.tools.drawTooltip(tool, button.data().rectScale().r, id_extra) catch {};
+
         if (button.hovered()) {
             button.data().options.color_border = color;
         }

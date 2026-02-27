@@ -81,6 +81,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
         var tooltip: dvui.FloatingTooltipWidget = undefined;
         tooltip.init(@src(), .{
             .active_rect = bw.data().rectScale().r,
+            .delay = 350_000,
         }, .{
             .id_extra = @intFromEnum(option),
             .color_fill = dvui.themeGet().color(.window, .fill),
@@ -90,7 +91,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
                 .shrink = 0,
                 .corner_radius = dvui.Rect.all(8),
                 .offset = .{ .x = 0, .y = 2 },
-                .fade = 8,
+                .fade = 4,
                 .alpha = 0.2,
             },
         });
@@ -116,8 +117,8 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
                 .background = false,
                 .padding = dvui.Rect.all(4),
             });
-            tl2.format("{s}", .{pixi.Editor.Explorer.title(option, false)}, .{
-                .font = dvui.Font.theme(.body).larger(-2.0),
+            tl2.format("{s}", .{pixi.Editor.Explorer.title(option, true)}, .{
+                .font = dvui.Font.theme(.title).larger(-4.0),
             });
             tl2.deinit();
         }

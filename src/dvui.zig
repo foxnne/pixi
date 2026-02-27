@@ -810,11 +810,12 @@ pub fn renderSprite(source: dvui.ImageSource, s: pixi.Sprite, data_point: dvui.P
     try dvui.renderImage(source, rs, opt);
 }
 
-pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, enabled: bool, opts: dvui.Options) void {
+pub fn labelWithKeybind(label_str: []const u8, hotkey: dvui.enums.Keybind, enabled: bool, label_opts: dvui.Options, opts: dvui.Options) void {
     const box = dvui.box(@src(), .{ .dir = .horizontal }, opts);
     defer box.deinit();
 
-    var new_opts = opts.strip();
+    var new_opts = label_opts.strip();
+    new_opts.gravity_y = 0.5;
     if (!enabled) {
         if (new_opts.color_text) |c| {
             new_opts.color_text = c.opacity(0.5);

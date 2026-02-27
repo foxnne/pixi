@@ -284,7 +284,7 @@ pub fn menuItemWithHotkey(src: std.builtin.SourceLocation, label_str: []const u8
         ret = r;
     }
 
-    pixi.dvui.labelWithKeybind(label_str, hotkey, enabled, opts);
+    pixi.dvui.labelWithKeybind(label_str, hotkey, enabled, opts, opts);
 
     mi.deinit();
 

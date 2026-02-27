@@ -1174,7 +1174,13 @@ pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
         button.processEvents();
         button.drawBackground();
 
-        pixi.dvui.labelWithKeybind("Open Folder", dvui.currentWindow().keybinds.get("open_folder") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
+        pixi.dvui.labelWithKeybind(
+            "Open Folder",
+            dvui.currentWindow().keybinds.get("open_folder") orelse .{},
+            true,
+            .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 },
+            .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 },
+        );
 
         if (button.clicked()) {
             pixi.backend.showOpenFolderDialog(setProjectFolderCallback, null);
@@ -1194,7 +1200,13 @@ pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
         button.processEvents();
         button.drawBackground();
 
-        pixi.dvui.labelWithKeybind("Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, true, .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 });
+        pixi.dvui.labelWithKeybind(
+            "Open Files",
+            dvui.currentWindow().keybinds.get("open_files") orelse .{},
+            true,
+            .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 },
+            .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0, .font = dvui.Font.theme(.heading) },
+        );
 
         if (button.clicked()) {
             // if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{
