@@ -10,10 +10,9 @@
     .version = "0.0.3",
     .minimum_zig_version = "0.15.1",
     .dependencies = .{
-        .mach_objc = .{
-            //.path = "../mach-objc-dev",
-            .url = "git+https://github.com/foxnne/mach-objc#e5bff6819205ac523b4a07898a8046af6c2f345d",
-            .hash = "mach_objc-0.0.0-hSeUK_0xDQAUDvMlrxtixoue1J3h4N3IzzL-AKvL0S29",
+        .zig_objc = .{
+            .url = "git+https://github.com/foxnne/zig-objc#27d0e03242e7ee6842bf8a86d2e0bb1f586a9847",
+            .hash = "zig_objc-0.0.0-Ir_Sp7oUAQC3JpeR9EGUFGcHRSx_33IehitnjBCy-CwD",
             .lazy = true,
         },
         .zigwin32 = .{

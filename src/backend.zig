@@ -4,41 +4,47 @@ const std = @import("std");
 const builtin = @import("builtin");
 const dvui = @import("dvui");
 const sdl3 = @import("backend").c;
-const objc = @import("objc");
+const objc = @import("zig-objc");
 const win32 = @import("win32");
 
 pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
     if (builtin.os.tag == .macos) {
-        const native_window: ?*objc.app_kit.Window = @ptrCast(sdl3.SDL_GetPointerProperty(
+        const raw_ptr = sdl3.SDL_GetPointerProperty(
             sdl3.SDL_GetWindowProperties(win.backend.impl.window),
             sdl3.SDL_PROP_WINDOW_COCOA_WINDOW_POINTER,
             null,
-        ));
+        );
+        if (raw_ptr != null) {
+            const window = objc.Object.fromId(raw_ptr);
 
-        if (native_window) |window| {
             // This sets the titlebar to transparent.
-            window.setTitlebarAppearsTransparent(true);
-            const new_color = objc.app_kit.Color.colorWithRed_green_blue_alpha(
-                @as(f32, @floatFromInt(color.r)) / 255.0,
-                @as(f32, @floatFromInt(color.g)) / 255.0,
-                @as(f32, @floatFromInt(color.b)) / 255.0,
-                @as(f32, @floatFromInt(color.a)) / 255.0,
-            );
+            window.msgSend(void, "setTitlebarAppearsTransparent:", .{true});
+
+            const NSColor = objc.getClass("NSColor").?;
+            const new_color = NSColor.msgSend(objc.Object, "colorWithRed:green:blue:alpha:", .{
+                @as(f64, @floatFromInt(color.r)) / 255.0,
+                @as(f64, @floatFromInt(color.g)) / 255.0,
+                @as(f64, @floatFromInt(color.b)) / 255.0,
+                @as(f64, @floatFromInt(color.a)) / 255.0,
+            });
             // This sets both the titlebar and the window background color.
-            window.setBackgroundColor(new_color);
+            window.msgSend(void, "setBackgroundColor:", .{new_color.value});
 
-            if (dvui.themeGet().dark) {
-                if (objc.app_kit.Appearance.appearanceNamed(objc.app_kit.NSAppearanceNameVibrantDark)) |appearance| {
-                    window.setAppearance(appearance);
-                }
-            } else {
-                if (objc.app_kit.Appearance.appearanceNamed(objc.app_kit.NSAppearanceNameVibrantLight)) |appearance| {
-                    window.setAppearance(appearance);
-                }
-            }
+            // TODO: Figure out how to use the constants for the appearance name
+            // This currently causes a segfault and doesnt work
+            // const NSAppearance = objc.getClass("NSAppearance").?;
+            // const NSString = objc.getClass("NSString").?;
+            // const appearance_name_str = if (dvui.themeGet().dark)
+            //     NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"NSAppearanceNameVibrantDark"})
+            // else
+            //     NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"NSAppearanceNameVibrantLight"});
+            // const appearance = NSAppearance.msgSend(?objc.c.id, "appearanceNamed:", .{appearance_name_str.value});
+            // if (appearance) |app| {
+            //     window.msgSend(void, "setAppearance:", .{app});
+            // }
 
-            // SDL3 currently removes the shadow when the transparency flag for the window is set. This brings it back.
-            window.setHasShadow(true);
+            // // SDL3 currently removes the shadow when the transparency flag for the window is set. This brings it back.
+            window.msgSend(void, "setHasShadow:", .{true});
         }
     } else if (builtin.os.tag == .windows) {
         const colorref = @as(u32, @intCast(color.r)) |

@@ -139,14 +139,11 @@ pub fn build(b: *std.Build) !void {
     }
 
     if (target.result.os.tag == .macos) {
-        if (b.lazyDependency("mach_objc", .{
+        if (b.lazyDependency("zig_objc", .{
             .target = target,
             .optimize = optimize,
         })) |dep| {
-            exe.root_module.addImport("objc", dep.module("mach-objc"));
-            if (dep.builder.lazyDependency("xcode_frameworks", .{})) |d| {
-                exe.root_module.addSystemIncludePath(d.path("include"));
-            }
+            exe.root_module.addImport("objc", dep.module("objc"));
         }
     } else if (target.result.os.tag == .windows) {
         if (b.lazyDependency("zigwin32", .{})) |dep| {
