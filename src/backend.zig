@@ -4,7 +4,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const dvui = @import("dvui");
 const sdl3 = @import("backend").c;
-const objc = @import("zig-objc");
+const objc = @import("objc");
 const win32 = @import("win32");
 
 pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
